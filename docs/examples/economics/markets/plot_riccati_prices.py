@@ -8,8 +8,8 @@ the higher one, and prices above the higher one blow up in finite time.
 
 # %%
 # The demand is `D = 10 - P` and the supply `S = 1 + 2 P - 0.1 P^2`, so `dP/dt = 9 - 3 P + 0.1 P^2`, with equilibria
-# near 3.38 and 26.62. The price starts at 25, just below the unstable equilibrium, so it lingers there and then falls
-# to the stable one, which the blueprint shows.
+# near 3.38 and 26.62. The price starts at 25, slightly below the unstable equilibrium, so it lingers there and then
+# falls to the stable one, which the blueprint shows.
 
 import matplotlib.pyplot as plt
 import numpy as np

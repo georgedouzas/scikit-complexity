@@ -6,7 +6,7 @@ capacity of 1964 mm³.
 """
 
 # %%
-# The system is built from its class and run for 100 days from a volume of 10 mm³, the breast cancer fit of
+# The example builds `GompertzSystem` and runs it for 100 days from a volume of 10 mm³, the breast cancer fit of
 # Padmanabhan et al. The observer saves every frame with the default blueprint, whose primary view is the time series
 # of the volume.
 

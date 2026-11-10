@@ -7,8 +7,8 @@ and threshold settle.
 """
 
 # %%
-# The system is built from its class with the target mean rate `mu = 0.2`. The observer saves every second step with
-# the default blueprint, whose primary view is the time series of the potential, the gain, and the threshold.
+# The example builds `PolyhomeostaticNeuronSystem` with the target mean rate `mu = 0.2`. The observer saves every second
+# step with the default blueprint, whose primary view is the time series of the potential, the gain, and the threshold.
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -7,7 +7,7 @@ and the outbreak in the whole network rises, peaks, and burns out.
 """
 
 # %%
-# The system is built from its class on its default Barabási-Albert network of 20 cities with 20 travellers each. The
+# The example builds `NetworkSIRSystem` on its default Barabási-Albert network of 20 cities with 20 travellers each. The
 # recorded run stops at day 25, near the peak of the outbreak, so that the default blueprint's view of the network
 # shows the cities in the middle of the epidemic. The analysis runs the outbreak to its end.
 

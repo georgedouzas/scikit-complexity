@@ -6,7 +6,7 @@ should only help, yet it reroutes the flows so that one line overloads, and the 
 """
 
 # %%
-# The system is built from its class with eight nodes on a ring, four generators and four consumers, lines
+# The example builds `PowerGridSystem` with eight nodes on a ring, four generators and four consumers, lines
 # of capacity `K = 2.75`, and the extra line `(0, 2)`, and runs for 300 time units. The blueprint shows the frequency
 # deviations of all eight nodes, which split apart when synchrony is lost.
 

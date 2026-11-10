@@ -6,9 +6,9 @@ while bromous acid and the catalyst stay low, and spikes again once it falls bel
 """
 
 # %%
-# The system is built from its class with the standard parameters and integrated with its tuned LSODA solver, since the
-# small `epsilon` and `delta` make it stiff. The run covers five periods, and the default blueprint shows the three
-# concentrations in one time series view, where the spikes of bromide dominate.
+# The example builds `OregonatorSystem` with the standard parameters and integrates it with its tuned LSODA solver,
+# since the small `epsilon` and `delta` make it stiff. The run covers five periods, and the default blueprint shows the
+# three concentrations in one time series view, where the spikes of bromide dominate.
 
 import matplotlib.pyplot as plt
 import numpy as np

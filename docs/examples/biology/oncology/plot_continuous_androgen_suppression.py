@@ -6,9 +6,9 @@ the androgen-independent cells grow throughout and cause the relapse.
 """
 
 # %%
-# The system is built from its class: ten dependent cells and 0.14 independent cells under a suppression of efficacy
-# 0.9. The observer saves every frame with the default blueprint, whose primary view is the time series of the cells
-# and the androgen.
+# The example builds `ContinuousAndrogenSuppressionSystem`: ten dependent cells and 0.14 independent cells under a
+# suppression of efficacy 0.9. The observer saves every frame with the default blueprint, whose primary view is the time
+# series of the cells and the androgen.
 
 import matplotlib.pyplot as plt
 import numpy as np

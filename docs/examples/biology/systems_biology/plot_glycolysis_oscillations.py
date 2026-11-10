@@ -6,8 +6,8 @@ and fall with a period of minutes, driven by the feedback of ATP and AMP on phos
 """
 
 # %%
-# The system is built from its class with the parameters of Nielsen et al. (1998), and the observer saves every third
-# frame with the default blueprint, whose primary view is the time series of the metabolites.
+# The example builds `GlycolysisOscillationsSystem` with the parameters of Nielsen et al. (1998), and the observer saves
+# every third frame with the default blueprint, whose primary view is the time series of the metabolites.
 
 import matplotlib.pyplot as plt
 

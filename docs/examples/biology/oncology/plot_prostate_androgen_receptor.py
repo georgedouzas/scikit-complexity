@@ -6,9 +6,9 @@ tissue and the serum rises with them.
 """
 
 # %%
-# The system is built from its class: a 60 year old man with 1.5 billion normal epithelial cells and one billion
-# cancer cells, at receptor activations of 40 nM, simulated for three years in hours. The observer saves every frame
-# with the default blueprint, whose primary view is the time series of the cells and the PSA.
+# The example builds `ProstateAndrogenReceptorSystem`: a 60 year old man with 1.5 billion normal epithelial cells and
+# one billion cancer cells, at receptor activations of 40 nM, simulated for three years in hours. The observer saves
+# every frame with the default blueprint, whose primary view is the time series of the cells and the PSA.
 
 import matplotlib.pyplot as plt
 

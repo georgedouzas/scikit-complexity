@@ -6,9 +6,10 @@ a steady state in which the mutation of normal progenitors feeds a small maligna
 """
 
 # %%
-# The system is built from its class with the book's parameters and initial cells, a mutation rate drawn once with the
-# seed 0, and continuous therapy, and runs for 2000 time units. The observer saves every frame with the default
-# blueprint, whose primary view is the time series of the eight compartments.
+# The example builds `StemCellDifferentiationSystem` with the parameters and initial cells of the book of Padmanabhan,
+# Meskin, and Al Moustafa (2021), a mutation rate drawn once with the seed 0, and continuous therapy, and runs for 2000
+# time units. The observer saves every frame with the default blueprint, whose primary view is the time series of the
+# eight compartments.
 
 import matplotlib.pyplot as plt
 

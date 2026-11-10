@@ -7,7 +7,7 @@ rival, both settle below their capacities and coexist.
 """
 
 # %%
-# The system is built from its class with its default coefficients, which satisfy the condition of coexistence
+# The example builds `CompetitionSystem` with its default coefficients, which satisfy the condition of coexistence
 # `alpha12 alpha21 < 1`. The observer saves every second frame with the default blueprint, whose primary view is the
 # time series of both populations.
 

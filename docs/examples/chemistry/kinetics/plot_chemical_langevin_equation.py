@@ -7,9 +7,9 @@ fluctuates around one state for a while and then switches to the other, again an
 """
 
 # %%
-# The system is built from its class with its default rate constants, Gillespie's scaled to a volume five
-# times smaller, and starts at `x = 50`. It is integrated with the Euler-Maruyama scheme for 200 time units. The default
-# blueprint shows `x` in one time series view.
+# The example builds `ChemicalLangevinEquationSystem` with its default rate constants, Gillespie's scaled to a volume
+# five times smaller, and starts at `x = 50`. It is integrated with the Euler-Maruyama scheme for 200 time units. The
+# default blueprint shows `x` in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np

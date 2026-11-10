@@ -6,9 +6,9 @@ their progeny out of it.
 """
 
 # %%
-# The system is built from its class with a niche of 100 normal stem cells and one leukaemic stem cell, and runs for
-# 500 time units. The observer saves every second frame with the default blueprint, whose primary view is the time
-# series of the five populations.
+# The example builds `LeukaemiaStemCellsSystem` with a niche of 100 normal stem cells and one leukaemic stem cell, and
+# runs for 500 time units. The observer saves every second frame with the default blueprint, whose primary view is the
+# time series of the five populations.
 
 import matplotlib.pyplot as plt
 

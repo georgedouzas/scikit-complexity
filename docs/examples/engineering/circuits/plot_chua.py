@@ -6,7 +6,7 @@ other at irregular times: the double-scroll chaotic attractor.
 """
 
 # %%
-# The system is built from its class with the piecewise-linear diode and its default parameters, and runs
+# The example builds `ChuaSystem` with the piecewise-linear diode and its default parameters, and runs
 # for 100 time units. The default blueprint shows the two capacitor voltages `x` and `y` and the inductor current `z` in
 # one time series view.
 

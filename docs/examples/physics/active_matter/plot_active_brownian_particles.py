@@ -8,7 +8,7 @@ over a periodic square, each following its own persistent, wandering path.
 """
 
 # %%
-# The system is built from its class with speed `v = 3`, translational diffusion `D_t = 0.1`, and
+# The example builds `ActiveBrownianParticlesSystem` with speed `v = 3`, translational diffusion `D_t = 0.1`, and
 # rotational diffusion `D_r = 1` in a square of side 50. The Euler-Maruyama stepper takes steps of 0.01 and the
 # observer saves every frame of 0.1. The blueprint shows the square with the swimmers drawn larger than the system's
 # visual does, so they read in the gallery thumbnail.

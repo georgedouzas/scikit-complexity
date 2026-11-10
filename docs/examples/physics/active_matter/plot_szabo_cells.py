@@ -48,7 +48,7 @@ trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], rand
 # %%
 # Order against density
 # ---------------------
-# The order parameter is the mean velocity of the cells divided by `v0`, which we read from their displacements between
+# The order parameter is the mean velocity of the cells divided by `v0`, read from their displacements between
 # frames. It should grow from the disordered start and level off above 0.8 at the density 1, and it should stay lower in
 # a dilute box, where the cells meet too seldom to share a direction. The right panel runs 100 cells at three densities
 # and shows that the final order grows with the density.

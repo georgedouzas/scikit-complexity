@@ -7,7 +7,7 @@ and every node colored by its number of quanta: the root holds the most quanta, 
 """
 
 # %%
-# The system is built from its class with five levels of two branches, transfer rates `nu_j = k_j^0.5`,
+# The example builds `DissipativeZeroRangeSystem` with five levels of two branches, transfer rates `nu_j = k_j^0.5`,
 # a hot reservoir at `beta_ext = 0.2` that makes the cascade visible, and a dissipation rate 1 at the leaves. The
 # observer saves every frame with the default blueprint, whose primary view is the drawing of the tree. The Numba
 # backend runs the transfers in a compiled loop.
@@ -31,8 +31,9 @@ trajectory = simulate(system, observers=[observer], random_state=0, backend=Numb
 # %%
 # Temperature profile across scales
 # ---------------------------------
-# The stationary state is a product of geometric laws `exp(-beta_j n epsilon0)` per level, with `z_j = exp(-beta_j
-# epsilon0)` solving the balance of the currents `nu_j (z_j - z_(j + 1))` of Bertin's equations (3.56) to (3.58). The
+# The stationary state is a product of geometric laws `exp(-beta_j n epsilon0)` per level, with
+# `z_j = exp(-beta_j epsilon0)` solving the balance of the currents `nu_j (z_j - z_(j + 1))` of Bertin's equations
+# (3.56) to (3.58). The
 # probability that a node of level `j` holds a quantum is `z_j`, so `beta_j = -ln P(n > 0)`. For `alpha > -1` the
 # inverse temperature should grow across the levels, with a finite energy flux, and for `alpha < -1` it should stay
 # close to `beta_ext` down to the last levels, where the dissipation of the finite tree sets in. These runs use the

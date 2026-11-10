@@ -7,8 +7,8 @@ cycles irregular.
 """
 
 # %%
-# The system is built from its class with 300 prey and 60 predators on a 30 by 30 grid. The observer saves every step
-# with the default blueprint, whose primary view shows the animals on the grid.
+# The example builds `AgentBasedLotkaVolterraSystem` with 300 prey and 60 predators on a 30 by 30 grid. The observer
+# saves every step with the default blueprint, whose primary view shows the animals on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np

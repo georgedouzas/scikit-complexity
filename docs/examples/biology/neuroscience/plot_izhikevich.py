@@ -7,7 +7,7 @@ variable has grown enough to stop them.
 """
 
 # %%
-# The system is built from its class with the chattering parameters `c = -50` and `d = 2` and run for 100 ms. The
+# The example builds `IzhikevichSystem` with the chattering parameters `c = -50` and `d = 2` and runs it for 100 ms. The
 # observer saves every fourth frame with the default blueprint, whose primary view is the time series of the potential
 # and the recovery.
 

@@ -1,9 +1,10 @@
 """
 # Two-level birth-death process
 
-The finite process behind the two-level replicator equation: groups of twenty defectors and altruistic punishers, where
-individuals reproduce by their payoffs and replace random group members, and groups fight random other groups, the
-winner's copy replacing the loser. Conflicts between groups favour the punishers that individual selection removes.
+A finite process underlies the two-level replicator equation. It holds groups of twenty defectors and altruistic
+punishers, where individuals reproduce by their payoffs and replace random group members, and groups fight random other
+groups, the winner's copy replacing the loser. Conflicts between groups favour the punishers that individual selection
+removes.
 """
 
 # %%

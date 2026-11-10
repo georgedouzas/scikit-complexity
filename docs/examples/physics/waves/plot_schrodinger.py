@@ -6,7 +6,7 @@ velocity and spreads on a periodic lattice.
 """
 
 # %%
-# The system is built from its class and run with its default settings, the exponential integrator
+# The example builds `SchrodingerSystem` and runs it with its default settings, the exponential integrator
 # ETDRK4 for the two fields. The observer saves every frame with the default blueprint.
 
 import matplotlib.pyplot as plt

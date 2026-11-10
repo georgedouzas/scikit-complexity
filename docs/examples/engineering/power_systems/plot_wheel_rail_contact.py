@@ -6,7 +6,7 @@ its pad, and comes back to rest before the next bogie arrives, so the deflection
 """
 
 # %%
-# The system is built from its class with wheel loads of 1000 N, one bogie every 10 time units with its
+# The example builds `WheelRailContactSystem` with wheel loads of 1000 N, one bogie every 10 time units with its
 # wheels 3 apart, and a linear ballast, and runs for 60 time units. The default blueprint shows the deflections of the
 # rail and the sleeper with their rates.
 

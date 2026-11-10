@@ -6,9 +6,9 @@ lost or fixed. The share of replicates in which the allele fixes is Kimura's fix
 """
 
 # %%
-# The system is built from its class with 200 replicates starting at the frequency 0.1 with the scaled selection `N s
-# = 2`, and integrated by Euler-Maruyama steps of 0.001. The observer saves every frame with the default blueprint,
-# whose primary view is the time series of the frequencies.
+# The example builds `KimuraDiffusionSystem` with 200 replicates starting at the frequency 0.1 with the scaled selection
+# `N s = 2`, and integrates it by Euler-Maruyama steps of 0.001. The observer saves every frame with the default
+# blueprint, whose primary view is the time series of the frequencies.
 
 import matplotlib.pyplot as plt
 import numpy as np

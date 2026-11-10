@@ -9,10 +9,10 @@ coarsening.
 """
 
 # %%
-# The system is built from its class with 128 sites, the purely nonreciprocal coupling `alpha = 0.3`, and
-# the diffusivity `D = 0.1` of the second field, above the threshold `alpha > D` of Brauns and Marchetti. Both fields
-# start from noise of amplitude 0.01 around the mixed state. The observer saves every frame of 2 time units with the
-# default blueprint, whose primary view is the space-time image of `phi`.
+# The example builds `NonreciprocalCahnHilliardSystem` with 128 sites, the purely nonreciprocal coupling `alpha = 0.3`,
+# and the diffusivity `D = 0.1` of the second field, above the threshold `alpha > D` of Brauns and Marchetti. Both
+# fields start from noise of amplitude 0.01 around the mixed state. The observer saves every frame of 2 time units with
+# the default blueprint, whose primary view is the space-time image of `phi`.
 
 import matplotlib.pyplot as plt
 import numpy as np

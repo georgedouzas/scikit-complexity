@@ -6,9 +6,9 @@ it started and settles on a cycle of one season. The cycle lags behind the capac
 """
 
 # %%
-# The system is built from its class and run from two populations, one far below and one far above the mean capacity
-# of 100, for eight seasons. The observer saves every frame with the default blueprint, whose primary view is the time
-# series of the population.
+# The example builds `VaryingCapacityLogisticSystem` and runs it from two populations, one far below and one far above
+# the mean capacity of 100, for eight seasons. The observer saves every frame with the default blueprint, whose primary
+# view is the time series of the population.
 
 import matplotlib.pyplot as plt
 import numpy as np

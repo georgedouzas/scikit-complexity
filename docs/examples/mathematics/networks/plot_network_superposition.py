@@ -1,7 +1,7 @@
 """
 # Network superposition model
 
-A network made of many Erdős-Rényi subgraphs, each with its own linking probability drawn from a distribution
+The network is made of many Erdős-Rényi subgraphs, each with its own linking probability drawn from a distribution
 `Q(p)`. The degrees of every subgraph are Poisson, and the network mixes them, so a power law of the linking
 probabilities gives a power law of the degrees.
 """

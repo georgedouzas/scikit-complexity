@@ -7,8 +7,8 @@ self-sustained circadian rhythm.
 """
 
 # %%
-# The system is built from its class with Goldbeter's parameters and run for ten days. The observer saves every second
-# frame with the default blueprint, whose primary view is the time series of the mRNA and the forms of PER.
+# The example builds `CircadianClockSystem` with Goldbeter's parameters and runs it for ten days. The observer saves
+# every second frame with the default blueprint, whose primary view is the time series of the mRNA and the forms of PER.
 
 import matplotlib.pyplot as plt
 import numpy as np

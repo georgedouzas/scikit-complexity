@@ -6,8 +6,9 @@ which scales with the volume.
 """
 
 # %%
-# The system is built from its class with the exponent `p = 2/3` of a proliferating rim and run for 40 days from 1
-# mm³. The observer saves every frame with the default blueprint, whose primary view is the time series of the volume.
+# The example builds `VonBertalanffySystem` with the exponent `p = 2/3` of a proliferating rim and runs it for 40 days
+# from 1 mm³. The observer saves every frame with the default blueprint, whose primary view is the time series of the
+# volume.
 
 import matplotlib.pyplot as plt
 import numpy as np

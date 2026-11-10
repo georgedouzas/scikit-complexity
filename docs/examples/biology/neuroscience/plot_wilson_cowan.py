@@ -7,7 +7,7 @@ population activity.
 """
 
 # %%
-# The system is built from its class with Wilson and Cowan's couplings and the input `P = 1.25`. The observer saves
+# The example builds `WilsonCowanSystem` with Wilson and Cowan's couplings and the input `P = 1.25`. The observer saves
 # every second frame with the default blueprint, whose primary view is the time series of both activities.
 
 import matplotlib.pyplot as plt

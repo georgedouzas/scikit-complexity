@@ -7,8 +7,8 @@ the meadow grazes it bare and dies out within weeks, which brackets how many cow
 """
 
 # %%
-# The system is built from its class with 80 cows on a meadow of 40 by 40 patches. The observer saves every week with
-# the default blueprint, whose primary view shows the grass and the cows.
+# The example builds `MeadowCapacitySystem` with 80 cows on a meadow of 40 by 40 patches. The observer saves every week
+# with the default blueprint, whose primary view shows the grass and the cows.
 
 import matplotlib.pyplot as plt
 

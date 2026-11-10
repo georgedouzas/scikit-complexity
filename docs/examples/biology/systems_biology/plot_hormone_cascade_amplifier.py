@@ -9,9 +9,9 @@ rises after the one-second hormone pulse and decays back to zero within the run.
 """
 
 # %%
-# The system is built from its class: a hormone pulse of height 1 from `t = 1` to `t = 2`, the GTP hydrolysis rate
-# `k_gtp = 0.5`, and the gains `alpha / beta` of 10, 50, 2, 10, and 10 of the five stages. The view shows the active
-# phosphorylase over the whole run, and a second view shows the active G protein.
+# The example builds `HormoneCascadeAmplifierSystem`: a hormone pulse of height 1 from `t = 1` to `t = 2`, the GTP
+# hydrolysis rate `k_gtp = 0.5`, and the gains `alpha / beta` of 10, 50, 2, 10, and 10 of the five stages. The view
+# shows the active phosphorylase over the whole run, and a second view shows the active G protein.
 
 import matplotlib.pyplot as plt
 import numpy as np

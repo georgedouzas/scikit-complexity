@@ -8,7 +8,7 @@ ordering.
 """
 
 # %%
-# The system is built from its class with `H = 50` configurations without the characteristic, the couplings
+# The example builds `StandardizedAgentsSystem` with `H = 50` configurations without the characteristic, the couplings
 # `K = 10` and `J = 1`, and every agent standardized at the start, with a random spin. A schedule holds the
 # temperature at 0.4 for 600 units of time, raises it linearly to 2.4 over 900 units, lowers it back to 0.4 over the
 # next 900, and holds it again for 600, through the intensity of choice, its inverse. The observer saves every
@@ -41,8 +41,9 @@ trajectory = simulate(system, until=END, observers=[observer], schedule=schedule
 # Order parameters against the temperature
 # ----------------------------------------
 # The joint distribution of `q` and `m` takes the large deviation form `P ~ exp(N f(q, m))` with
-# `f = -(1 - q) ln(1 - q) - (q - m) ln(q - m) / 2 - (q + m) ln(q + m) / 2 + K q^2 / 2T + J m^2 / 2T + (1 - q) ln H
-# + q ln 2`. Its global maximum jumps from `q ~ 0` to `q ~ 1` at `T_S = K / (2 ln(H / 2))`, and `m` orders below
+# `f = g + K q^2 / 2T + J m^2 / 2T + (1 - q) ln H + q ln 2` and the mixing entropy
+# `g = -(1 - q) ln(1 - q) - (q - m) ln(q - m) / 2 - (q + m) ln(q + m) / 2`.
+# Its global maximum jumps from `q ~ 0` to `q ~ 1` at `T_S = K / (2 ln(H / 2))`, and `m` orders below
 # `T_M = J`. The run should follow the branch it is on past `T_S` on both ramps, since the jump needs a fluctuation of
 # the whole group, and should leave it at the spinodals, where the branch stops being a local maximum. On the
 # standardized branch, `|m|` should approach the maximum of `f` at the low temperature and lag behind it on both

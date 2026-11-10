@@ -6,8 +6,8 @@ its carrying capacity of 100 along an S-shaped curve.
 """
 
 # %%
-# The system is built from its class and run from a population of two until it has saturated. The observer saves every
-# frame with the default blueprint, whose primary view is the time series of the population.
+# The example builds `LogisticGrowthSystem` and runs it from a population of two until it has saturated. The observer
+# saves every frame with the default blueprint, whose primary view is the time series of the population.
 
 import matplotlib.pyplot as plt
 import numpy as np

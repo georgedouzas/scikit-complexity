@@ -6,7 +6,7 @@ that has flowed through it, and the voltage oscillates with irregular, never-rep
 """
 
 # %%
-# The system is built from its class with `C = 1`, `L = 3`, `alpha = 0.6`, and `beta = 1.5`, and runs for
+# The example builds `MemristorOscillatorSystem` with `C = 1`, `L = 3`, `alpha = 0.6`, and `beta = 1.5`, and runs for
 # 200 time units. The default blueprint shows the voltage, the current, and the memristor state in one time series
 # view.
 

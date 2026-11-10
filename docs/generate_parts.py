@@ -271,17 +271,18 @@ def _elements_page() -> str:
         whole = 'from a subclass' if not states else 'a whole structure'
         rows.append([f'`{element.__name__}`', names, _values(domains, empty=whole), _values(tags.laws, empty='none')])
     intro = """
-An element holds the states of a system, such as an amount, a position, or a cell of a lattice. The domain of each
-state is a tag, read from its `StateSpec`, and `get_tags()` of an element returns its domains. Every role of an
-interaction lists the domains it accepts, so the domains of an element decide which interactions it can be bound to.
-The table lists what each element class of the core declares. A subclass adds the states your interactions read, and
-their domains with them.
+An element holds the states of a system, the numbers that change as the system runs, such as an amount, a position, or
+a cell of a lattice. Each state has a domain, a tag read from its `StateSpec` that names the set its values lie in,
+such as `real` or `boolean`. `get_tags()` of an element returns its domains. Every role of an interaction lists the
+domains it accepts, so the domains of an element decide which interactions it can be bound to. The table lists the
+states, domains, and law kinds that each element class of the core declares. A subclass adds the states its
+interactions read, and their domains with them.
 """
     examples = """
 ## A compatible element
 
-A declared element takes its states as data. Here it holds a real amount, and the `target` of a `RateInteraction`
-accepts real states.
+A `DeclaredElement` takes its states as data. Here a tank holds a real amount, and the `target` role of a
+`RateInteraction` accepts real states.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -297,10 +298,12 @@ trajectory = simulate(CompositeSystem(elements=[tank], interactions=[decay]), un
 round(trajectory.get_values('tank.x')[-1], 2)
 ```
 
+The tank has the domain `real`, and its amount decays from 10 to 3.68 after two time units, which is `10 exp(-1)`.
+
 ## An incompatible element
 
-A switch that is on or off holds a boolean state. A rate does not change a boolean, so the system rejects the binding
-and names the domain.
+A switch that is on or off holds a state of the domain `boolean`. A rate does not change a boolean, so `simulate`
+raises a `RoleElementError` that names the domain.
 
 ```python
 from typing import Annotated
@@ -331,6 +334,10 @@ except RoleElementError as error:
 message
 assert "domain 'boolean'" in message
 ```
+
+The message says that the role `target` of `flip` accepts the domains real, integer, complex, and vector, while the
+state `on` of `switch` has the domain `boolean`. Give the state a real domain, or bind it to a role that accepts
+booleans.
 """
     facts = _facts(_family_classes(elements), 'elements')
     header = ['Element', 'States', 'Domains', 'Law kinds']
@@ -356,15 +363,17 @@ def _interactions_page() -> str:
         tags = BasePart._get_law_tags(interaction._get_declared_laws())
         rows.append([f'`{interaction.__name__}`', cells, _values(tags.laws, empty='from a subclass')])
     intro = """
-An interaction changes the states of the elements bound to its roles. Each role lists the domains of the states it
-accepts, and each interaction lists the kinds of the laws it can return, which its arguments choose among. The law
-kinds give the time the interaction runs in, so the parts of one system must agree on it. `get_tags()` of an
-interaction returns the law kinds for the arguments you passed.
+An interaction changes the states of the elements bound to its roles. A role is a named slot, such as `target`, and it
+lists the domains of the states it accepts. Each interaction also lists the kinds of the laws it can return, and its
+arguments choose among them. The law kinds fix the time the interaction runs in, so the parts of one system must agree
+on it. `get_tags()` of an interaction returns the law kinds for the arguments you passed. The table lists the roles of
+each interaction class of the core, with the domains they accept, and its law kinds.
 """
     examples = """
 ## A compatible interaction
 
-A rate returns a `rate` law of continuous time, and its `target` accepts the real amount of a declared element.
+A `RateInteraction` returns a `rate` law of continuous time, and its `target` accepts the real amount of a declared
+element.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -380,10 +389,12 @@ trajectory = simulate(CompositeSystem(elements=[tank], interactions=[decay]), un
 round(trajectory.get_values('tank.x')[-1], 2)
 ```
 
+The decay has the law kind `rate` and the time `continuous`, and the tank falls from 10 to 3.68 after two time units.
+
 ## An incompatible interaction
 
-A map returns an `update` law of discrete time. It cannot join the rate in one system without a time that joins them,
-so the system names the tag the two parts disagree on.
+A `MapInteraction` returns an `update` law of discrete time. It cannot join the rate in one system unless the system
+has a time that joins the two, so `simulate` raises a `TagError` that names the tag the parts disagree on.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -404,6 +415,9 @@ except TagError as error:
 message
 assert "tag 'time'" in message
 ```
+
+The map has the law kind `update` and the time `discrete`. The message says that `decay` and `halve` disagree on the
+tag `time`, and asks for a time that joins them or for parts of one time.
 """
     facts = _facts(_family_classes(interactions), 'interactions')
     header = ['Interaction', 'Roles and accepted domains', 'Law kinds']
@@ -423,14 +437,15 @@ def _laws_page() -> str:
         rows.append([f'`{law.__name__}`', *cells])
     intro = """
 A law is the mathematical object an interaction returns, such as a rate, a noise, a jump, or an update. Its kind is a
-tag, and so are the times and spaces it runs in and its randomness. The law kinds of a system are those of its
-interactions, and a solver or a backend runs a system only when it supports every one of them. The table lists what
-each law class declares.
+tag, and so are the times and spaces it runs in and its randomness, which says whether it draws random numbers. The
+law kinds of a system are those of its interactions, and a solver or a backend runs a system only when it supports
+every one of them. The table lists the kind, time, space, and randomness that each law class declares.
 """
     examples = """
 ## A compatible law
 
-An arrival that adds one unit at random times returns a `jump` law, which `GillespieSolver` supports.
+A `JumpInteraction` adds one unit to a queue at random times, at a rate of 2 per time unit. It returns a `jump` law,
+which `GillespieSolver` supports.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -448,9 +463,11 @@ trajectory = simulate(system, until=5, solver=GillespieSolver(), random_state=0)
 trajectory.get_values('queue.x')[-1]
 ```
 
+The law kind is `jump`, and with the seed 0 the queue holds 11 after five time units, near the mean of 10.
+
 ## An incompatible law
 
-`EulerSolver` integrates rates and does not draw jumps, so it rejects the system and names the law kind.
+`EulerSolver` integrates rates and does not draw jumps, so `simulate` raises a `TagError` that names the law kind.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -470,6 +487,9 @@ except TagError as error:
 message
 assert 'laws jump' in message
 ```
+
+The message says that `EulerSolver` does not support the law kind `jump`, and asks for a solver that supports it or
+for none, which lets the tags choose the default.
 """
     facts = _facts(_family_classes(laws), 'laws')
     return _page('Laws', intro, ['Law', 'Kind', 'Time', 'Space', 'Randomness'], rows, f'{facts}\n\n{examples.strip()}')
@@ -490,10 +510,10 @@ def _spaces_page() -> str:
             kind, tags = 'neighbourhood', 'none'
         rows.append([f'`{item.__name__}`', kind, tags])
     intro = """
-A space places the members of a group, such as the sites of a lattice or the nodes of a network, and its tag says
-which kind of structure it is. A neighbourhood says which members a law reads around one member. A time says how the
-system advances: in continuous time, in discrete steps, or not at all. A solver runs a system only when it supports
-the tags of its space and its time. The table lists what each class declares.
+A space places the members of a group, such as the sites of a lattice or the nodes of a network, and its tag names the
+kind of structure. A neighbourhood says which members a law reads around one member. A time says how the system
+advances: in continuous time, in discrete steps, or not at all. A solver runs a system only when it supports the tags
+of its space and its time. The table lists the tags that each class declares.
 """
     examples = """
 ## The tags of a space and a time
@@ -507,6 +527,8 @@ from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 grid = LatticeSpace((4, 4))
 sorted(grid.get_tags().space), sorted(ContinuousTime().get_tags().time)
 ```
+
+A lattice of 4 by 4 sites has the space tag `lattice`, and `ContinuousTime` has the time tag `continuous`.
 """
     facts = _facts(_family_classes(spaces), 'spaces')
     return _page(
@@ -530,15 +552,16 @@ def _solvers_page() -> str:
         for solver, row in zip(ordered, _supported_rows(ordered), strict=True)
     ]
     intro = """
-A solver steps a system through time, or solves it at once for a static system. `get_supported_tags()` of a solver
-class returns the times, spaces, and law kinds it supports. `simulate` compares them with the tags of the system before
-compiling, and rejects a solver that lacks one. Leave the solver out and the tags choose the default solver. The table
-lists the supported tags of every solver, grouped by the mathematical form it solves.
+A solver steps a system through time, or solves a static system at once. `get_supported_tags()` of a solver class
+returns the times, spaces, and law kinds it supports. `simulate` compares them with the tags of the system before it
+compiles the system, and raises a `TagError` when the solver lacks one. Leave the solver out and the tags choose the
+default solver. The table lists the supported tags of every solver, grouped by the mathematical form it solves.
 """
     examples = """
 ## A compatible solver
 
-A rate with a noise term returns a `rate` and a `noise` law, and `EulerMaruyamaSolver` supports both.
+A rate with a noise term returns a `rate` and a `noise` law, which together form a stochastic differential equation.
+`EulerMaruyamaSolver` supports both.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -556,9 +579,13 @@ trajectory = simulate(system, until=1, solver=EulerMaruyamaSolver(), random_stat
 round(trajectory.get_values('tank.x')[-1], 2)
 ```
 
+The system has the law kinds `noise` and `rate`, and the solver supports `equation`, `jump`, `noise`, `rate`, and
+`update`. With the seed 0 the tank holds 6.15 after one time unit, near the 6.07 of the decay without noise.
+
 ## An incompatible solver
 
-`RK4Solver` integrates deterministic equations and does not support the `noise` law kind.
+`RK4Solver` integrates deterministic equations and does not support the `noise` law kind, so `simulate` raises a
+`TagError`.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -578,6 +605,9 @@ except TagError as error:
 message
 assert 'laws noise' in message
 ```
+
+The message says that `RK4Solver` does not support the law kind `noise`, and asks for a solver that supports it or for
+none.
 """
     return _page('Solvers', intro, ['Solver', 'Form', 'Time', 'Space', 'Law kinds'], rows, examples)
 
@@ -588,8 +618,9 @@ def _backends_page() -> str:
     rows = _supported_rows(found)
     intro = """
 A backend turns the compiled laws of a system into numeric functions, with NumPy, Numba, or JAX.
-`get_supported_tags()` of a backend class returns the times, spaces, and law kinds it can write functions of.
-`simulate` rejects a backend that lacks a tag of the system, and uses the NumPy backend when you leave it out.
+`get_supported_tags()` of a backend class returns the times, spaces, and law kinds it can write functions for.
+`simulate` raises a `TagError` for a backend that lacks a tag of the system, and uses the NumPy backend when you leave
+it out. The table lists the supported tags of every backend.
 """
     examples = """
 ## A compatible backend
@@ -610,9 +641,11 @@ trajectory = simulate(CompositeSystem(elements=[tank], interactions=[decay]), un
 round(trajectory.get_values('tank.x')[-1], 2)
 ```
 
+The tank holds 6.07 after one time unit, which is `10 exp(-0.5)`.
+
 ## An incompatible backend
 
-`JaxBackend` writes deterministic functions only, so it rejects a noise term and names the law kind.
+`JaxBackend` writes deterministic functions only, so `simulate` rejects a noise term and names the law kind.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -633,6 +666,9 @@ except TagError as error:
 message
 assert 'laws noise' in message
 ```
+
+The law kinds of `JaxBackend` are `equation`, `rate`, and `update`. The message says that it does not support the law
+kind `noise` of the system.
 """
     return _page('Backends', intro, ['Backend', 'Time', 'Space', 'Law kinds'], rows, examples)
 
@@ -689,17 +725,18 @@ def _analyses_page() -> str:
         by_kind: dict[str, AnalysisTags] = getattr(module, 'KIND_TAGS', {})
         rows.append([f'`{function.__name__}`', *_needs(tags), _kind_cell(tags, by_kind)])
     intro = """
-An analysis is a function of a source: a system, a trajectory, or measured data. It returns a frozen result. Each
-analysis reads one kind of data, such as a series, a field, or a network, and may need a capability tag of the system
-behind the source, such as a deterministic randomness for Lyapunov exponents. The analysis checks the tags of the
-system, or of the system behind a trajectory, before it does any work, and raises a `TagError` that names the tag it
-lacks. Measured data carries no tags, so only its kind is checked. The table lists what every analysis needs, and the
-kinds of an analysis whose needs differ from its own.
+An analysis is a function of a source, which is a system, a trajectory, or measured data, and it returns a frozen
+result. Each analysis reads one kind of data, such as a series, a field, or a network, and may need a capability tag
+of the system behind the source. Lyapunov exponents, for instance, need the randomness `deterministic`. The analysis
+checks the tags of the system, or of the system behind a trajectory, before it does any work, and raises a `TagError`
+that names the tag it lacks. Measured data carries no tags, so only its kind is checked. The table lists what every
+analysis needs, and the kinds of an analysis whose needs differ from its own.
 """
     examples = """
 ## A compatible analysis
 
-The logistic map at `r=4` is deterministic, so `lyapunov` measures its largest exponent, close to `log 2`.
+The logistic map at `r=4` is deterministic, so `lyapunov` measures its largest exponent, the mean rate at which nearby
+runs separate. In theory it is `log 2`.
 
 ```python
 from skcomplex.core.analysis import lyapunov
@@ -710,10 +747,12 @@ system.get_tags().randomness
 round(float(lyapunov(system, until=20000).exponents[0]), 2)
 ```
 
+The randomness is `deterministic`, and the estimate rounds to 0.69, which is `log 2`.
+
 ## An incompatible analysis
 
 The stochastic SIR epidemic has random events, so nearby runs do not separate at a rate of their own. `lyapunov`
-rejects it and names the randomness it needs.
+raises a `TagError` that names the randomness it needs.
 
 ```python
 from skcomplex.core.analysis import lyapunov
@@ -729,6 +768,9 @@ except TagError as error:
 message
 assert 'randomness deterministic' in message
 ```
+
+The system has the randomness `stochastic`, and the message says that `lyapunov` of kind `spectrum` needs the
+randomness deterministic. The deterministic SIR system, built without `stochastic=True`, passes the check.
 
 A network measure needs a system on a network. A trajectory of the SIR epidemic carries the tags of its system, whose
 space is `none`.
@@ -747,6 +789,9 @@ except TagError as error:
 message
 assert 'space network' in message
 ```
+
+The message says that `network_measures` needs the space network, while the system has the space none. Simulate a
+system on a network to measure its network.
 """
     header = ['Analysis', 'Data', 'Time', 'Space', 'Randomness', 'Kinds that differ']
     return _page('Analyses', intro, header, rows, examples)
@@ -764,9 +809,9 @@ def _experiments_page() -> str:
         for item in sorted(found, key=lambda item: item.__name__.lower())
     ]
     intro = """
-An experiment runs a system many times through `simulate`: over values of its parameters, over random streams, over
-scenarios, or over initial states. Experiments are functions of a system that return frozen results, and `calibrate`
-fits the model parameters of a system to observed series and returns the fitted system in its result. An experiment that
+An experiment runs a system many times through `simulate`, over values of its parameters, over random streams, over
+scenarios, or over initial states. Experiments are functions of a system that return frozen results. `calibrate` fits
+the model parameters of a system to observed series and returns the fitted system in its result. An experiment that
 repeats a system needs randomness to repeat, and the analyses an experiment applies to its runs check their own tags,
 as the [analyses](analyses.md) page lists. The table lists what every experiment needs of a system.
 """
@@ -783,9 +828,11 @@ result = ensemble(SIRSystem(stochastic=True), replicates=3, until=10, random_sta
 result.get_column('seed').tolist()
 ```
 
+The result holds one run for each of the seeds 0, 1, and 2.
+
 ## An incompatible experiment
 
-The deterministic SIR epidemic repeats one run, so `ensemble` rejects it and names the randomness it needs.
+The deterministic SIR epidemic repeats one run, so `ensemble` raises a `TagError` that names the randomness it needs.
 
 ```python
 from skcomplex.core.errors import TagError
@@ -800,9 +847,13 @@ message
 assert 'randomness stochastic' in message
 ```
 
+The message says that `ensemble` needs the randomness stochastic, and advises one run with `simulate`, or a part or a
+solver that draws.
+
 ## A compatible calibration
 
-`calibrate` fits the model parameters of a logistic growth to a series it generates.
+`calibrate` fits the model parameters of a logistic growth to a series computed from its closed form with `r = 0.5`
+and `K = 100`.
 
 ```python
 import numpy as np
@@ -817,10 +868,12 @@ fitted = calibrate(LogisticGrowthSystem(), {'population.x': (times, values)}, bo
 round(fitted.r, 2), round(fitted.K)
 ```
 
+The fit recovers `r = 0.5` and `K = 100`.
+
 ## An incompatible calibration
 
 Calibration fits model parameters, which `set_params` takes. An initial state is a dotted path, not a model
-parameter, so `calibrate` rejects it.
+parameter, so `calibrate` raises a `ValidationError`.
 
 ```python
 import numpy as np
@@ -838,6 +891,9 @@ except ValidationError as error:
 message
 assert 'population.x' in message
 ```
+
+The message says that calibration fits model parameters, which `set_params` takes, and not the dotted path
+`population.x`.
 """
     return _page('Experiments', intro, ['Experiment', 'What it does', 'What it needs'], rows, examples)
 
@@ -889,18 +945,18 @@ def _systems_page() -> str:
     ]
     intro = """
 A system is a part that holds elements, interactions, nested systems, a space, and a time. `BaseSystem` is the base
-of every system: a subclass takes the parameters of its model in `__init__`, builds its parts from them in
-`_build_system`, and derives its capability tags from its parts, which `get_tags()` returns. `CompositeSystem` is the
-composite you build from parts. A general system that several fields share, such as `ReactionNetworkSystem` of
-`skcomplex.systems.general.reactions`, is a recipe built from core parts. The ready-made systems of
-`skcomplex.systems` are subclasses of these, one class per model. The [catalog](../systems/catalog.md) lists them by
-field and by topic, with their import paths, their model parameters, and their capability tags, and `all_systems` of
-`skcomplex.systems` lists them by field, topic, or tag. The table lists the system classes of the core.
+of every system. A subclass takes the parameters of its model in `__init__`, builds its parts from them in
+`_build_system`, and derives its capability tags from its parts, which `get_tags()` returns. `CompositeSystem` takes
+its parts as data, so it needs no subclass. A general system that several fields share, such as
+`ReactionNetworkSystem` of `skcomplex.systems.general.reactions`, is a recipe built from core parts. The ready-made
+systems of `skcomplex.systems` subclass these, one class per model. The [catalog](../systems/catalog.md) lists them by
+field and by topic, with their import paths, model parameters, and capability tags, and `all_systems` of
+`skcomplex.systems` finds them by field, topic, or tag. The table lists the system classes of the core.
 """
     examples = '\n'.join(_general_systems()) + """
 ## A compatible system
 
-A composite of random arrivals has jump laws, which `GillespieSolver` draws.
+A composite of random arrivals has jump laws, which `GillespieSolver` draws one event at a time.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -918,9 +974,13 @@ trajectory = simulate(system, until=5, solver=GillespieSolver(), random_state=0)
 trajectory.get_values('queue.x')[-1]
 ```
 
+The system has the law kind `jump` and the randomness `stochastic`, and with the seed 0 the queue holds 11 after five
+time units.
+
 ## An incompatible system
 
-A composite of a decay has rate equations, which `GillespieSolver` does not draw, so `simulate` names the law kind.
+A composite of a decay has rate equations, which `GillespieSolver` does not draw, so `simulate` raises a `TagError`
+that names the law kind.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -941,6 +1001,9 @@ message
 assert 'laws rate' in message
 ```
 
+The message says that `GillespieSolver` does not support the law kind `rate`. Leave the solver out and the tags choose
+one that integrates rates.
+
 ## Find ready-made systems by tag
 
 `all_systems` takes the values of capability tags, so it finds the ready-made systems that a solver or an analysis
@@ -952,6 +1015,8 @@ from skcomplex.systems import all_systems
 stochastic = all_systems(field='biology/epidemiology', tags={'randomness': 'stochastic'})
 [name for name, _ in stochastic][:3]
 ```
+
+The list holds the first three stochastic systems of epidemiology, in alphabetical order.
 """
     facts = _facts(_family_classes(systems), 'systems')
     return _page('Systems', intro, ['System', 'Import', 'Description'], rows, f'{facts}\n\n{examples.strip()}')

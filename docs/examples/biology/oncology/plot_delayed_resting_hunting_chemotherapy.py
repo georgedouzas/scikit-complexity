@@ -6,9 +6,9 @@ and a constant drug infusion ends the bursts by clearing the tumour in one of it
 """
 
 # %%
-# The system is built from its class with a constant infusion of 0.03, the top of the book's range, and the conversion
-# delay of 45.6. The observer saves every frame with the default blueprint, whose primary view is the time series of
-# the cells and the drug.
+# The example builds `DelayedRestingHuntingChemotherapySystem` with a constant infusion of 0.03, the top of the range of
+# the book of Padmanabhan, Meskin, and Al Moustafa (2021), and the conversion delay of 45.6. The observer saves every
+# frame with the default blueprint, whose primary view is the time series of the cells and the drug.
 
 import matplotlib.pyplot as plt
 

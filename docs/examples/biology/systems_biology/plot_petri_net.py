@@ -7,7 +7,7 @@ moment, a place invariant of the net.
 """
 
 # %%
-# The system is built from its class with the gene expression net, and the observer saves every frame with the default
+# The example builds `PetriNetSystem` with the gene expression net, and the observer saves every frame with the default
 # blueprint, whose primary view is the time series of the tokens.
 
 import matplotlib.pyplot as plt

@@ -7,7 +7,7 @@ Earth.
 """
 
 # %%
-# The system is built from its class with 30 bands in the sine of latitude, all at 15 °C, and present
+# The example builds `BudykoSellersSystem` with 30 bands in the sine of latitude, all at 15 °C, and present
 # insolation. The default blueprint puts the history of the temperature first, with the equator on the left and the pole
 # on the right, over the first 16 time units, while the pole cools from 15 °C to below -10 °C and the equator warms.
 

@@ -6,9 +6,9 @@ the start, the share of hawks settles at `V / C`, the mixed equilibrium of the g
 """
 
 # %%
-# The system is built from its class with the value `V = 2` and the cost `C = 3` of a fight, and started with 5%
-# hawks. The observer saves every second frame with the default blueprint, whose primary view is the time series of
-# the shares of hawks and doves.
+# The example builds `ReplicatorDynamicsSystem` with the value `V = 2` and the cost `C = 3` of a fight, and starts it
+# with 5% hawks. The observer saves every second frame with the default blueprint, whose primary view is the time series
+# of the shares of hawks and doves.
 
 import matplotlib.pyplot as plt
 

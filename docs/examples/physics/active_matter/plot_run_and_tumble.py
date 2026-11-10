@@ -8,7 +8,7 @@ square, each heading in its own direction.
 """
 
 # %%
-# The system is built from its class with speed `0.1` per step and tumble rate `0.1` in a square of side
+# The example builds `RunAndTumbleSystem` with speed `0.1` per step and tumble rate `0.1` in a square of side
 # 10. The observer saves every step with the default blueprint, whose primary view shows the bacteria.
 
 import matplotlib.pyplot as plt

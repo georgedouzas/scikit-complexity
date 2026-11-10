@@ -7,7 +7,7 @@ stops. The escape times draw bands that wrap ever closer around the set as the r
 """
 
 # %%
-# The system is built from its class on a lattice of 240 by 300 points that covers the set. The map runs
+# The example builds `MandelbrotSystem` on a lattice of 240 by 300 points that covers the set. The map runs
 # for 100 steps, and the observer saves every fifth frame with the default blueprint, whose primary view is the image
 # of the escape counts.
 

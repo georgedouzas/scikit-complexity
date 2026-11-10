@@ -7,8 +7,8 @@ to release the genes, the lag of a diauxic shift.
 """
 
 # %%
-# The system is built from its class, which needs the extra `metabolism`. The Boolean nodes and the program run in a
-# discrete partition beside the differential equations of the culture. The primary view is the series of the biomass,
+# The example builds `RegulatoryFBASystem`, which needs the extra `metabolism`. The Boolean nodes and the program run in
+# a discrete partition beside the differential equations of the culture. The primary view is the series of the biomass,
 # the glucose, and the acetate.
 
 import matplotlib.pyplot as plt

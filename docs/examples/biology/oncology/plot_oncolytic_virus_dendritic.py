@@ -6,10 +6,10 @@ dilute the infection, and the tumour regrows past its initial volume.
 """
 
 # %%
-# The system is built from its class with the book's rates of virus and dendritic cells and a tumour of 60 mm³, and
-# runs for 20 days with its tuned stiff solver. The virions and the T cells number in the billions and
-# millions, so the blueprint shows only the uninfected and infected tumour volumes, in one time series view over the
-# whole run.
+# The example builds `OncolyticVirusDendriticSystem` with the rates of virus and dendritic cells from the book of
+# Padmanabhan, Meskin, and Al Moustafa (2021) and a tumour of 60 mm³, and runs for 20 days with its tuned stiff solver.
+# The virions and the T cells number in the billions and millions, so the blueprint shows only the uninfected and
+# infected tumour volumes, in one time series view over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np

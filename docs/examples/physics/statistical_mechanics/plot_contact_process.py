@@ -8,7 +8,7 @@ irregular clusters that keep splitting, merging, and dying out. The view shows a
 """
 
 # %%
-# The system is built from its class with half of the sites infected at the start and a time slice
+# The example builds `ContactProcessSystem` with half of the sites infected at the start and a time slice
 # `tau = 0.1` per step. The observer saves every second step with the default blueprint, whose primary view is the
 # image of the infections.
 

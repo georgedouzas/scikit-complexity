@@ -9,7 +9,7 @@ shows the density of a 64 x 64 periodic lattice.
 """
 
 # %%
-# The system is built from its class with mean density `rho0 = 1` above the critical density
+# The example builds `TonerTuSystem` with mean density `rho0 = 1` above the critical density
 # `rho_c = 0.5`. The Euler-Maruyama stepper takes steps of 0.02 and the observer saves every frame of 0.25 with the
 # default blueprint, whose primary view is the image of the density.
 

@@ -55,9 +55,9 @@ observer.recording_.flush()
 # %%
 # Forecast against the true flow
 # ------------------------------
-# We train on a window of a long run of the flow and compare the forecast with the rest of the run. The two should agree
-# within 10% of the attractor size for at least one Lyapunov time, then part as chaos amplifies the small error. After
-# that the forecast should stay on the attractor, which the right panel compares with the true flow.
+# The readout trains on a window of a long run of the flow and compare the forecast with the rest of the run. The two
+# should agree within 10% of the attractor size for at least one Lyapunov time, then part as chaos amplifies the small
+# error. After that the forecast should stay on the attractor, which the right panel compares with the true flow.
 
 
 def lorenz_samples(samples):

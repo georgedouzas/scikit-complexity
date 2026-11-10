@@ -7,8 +7,8 @@ backward over the far one, so their positions climb from well to well.
 """
 
 # %%
-# The system is built from its class with 20 particles in a sawtooth of unit period and height that rises
-# over a tenth of its period, at `kT = 0.05`, switched on and off at the rate 1, and simulated for 60 time units. The
+# The example builds `FlashingRatchetSystem` with 20 particles in a sawtooth of unit period and height that rises
+# over a tenth of its period, at `kT = 0.05`, switched on and off at the rate 1, and simulates it for 60 time units. The
 # observer saves every frame with the default blueprint, whose primary view holds the positions of the particles.
 
 import matplotlib.pyplot as plt

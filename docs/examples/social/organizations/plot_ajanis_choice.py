@@ -1,7 +1,7 @@
 """
 # Ajani's Choice
 
-Chesney's model of labour exploitation in the greenhouses of Almería. Employers offer a daily wage, lower it when they
+Chesney models labour exploitation in the greenhouses of Almería. Employers offer a daily wage, lower it when they
 fill their workforce and raise it otherwise, and keep it in line with the wages of their neighbours. Migrant workers
 refuse offers below the minimum wage unless they are desperate. When workers outnumber the jobs, underpayment emerges
 without any employer planning it.

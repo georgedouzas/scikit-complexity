@@ -9,8 +9,8 @@ and dark where it has faded.
 """
 
 # %%
-# The system is built from its class on a modular Erdős-Rényi network of 100 cells like the default, with the
-# metabolism `alpha = 1`, `beta = 10`, and the gap junctions `g = 0.1`. The critical strength `xi_crit` of the
+# The example builds `NanotubeGapJunctionExchangeSystem` on a modular Erdős-Rényi network of 100 cells like the default,
+# with the metabolism `alpha = 1`, `beta = 10`, and the gap junctions `g = 0.1`. The critical strength `xi_crit` of the
 # nanotubes is where the largest eigenvalue of `xi A - g L` reaches `alpha / beta`, found by root finding, and the run
 # sets `xi = 1.2 xi_crit`. The observer saves every second frame with the default blueprint, whose primary view is the
 # network colored by the concentrations.

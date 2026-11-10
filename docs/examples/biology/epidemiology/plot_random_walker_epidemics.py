@@ -6,8 +6,8 @@ die some steps later, so the disease spreads outwards as a front, like a forest 
 """
 
 # %%
-# The system is built from its class with a thousand walkers on a 64 by 64 grid. The observer saves every step with
-# the default blueprint, whose primary view shows the walkers on the grid.
+# The example builds `RandomWalkerEpidemicsSystem` with a thousand walkers on a 64 by 64 grid. The observer saves every
+# step with the default blueprint, whose primary view shows the walkers on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -6,8 +6,8 @@ sprouts out of the vessel towards the tumour, and once the new vessels arrive an
 """
 
 # %%
-# The system is built from its class with five sprouts on a 40 by 25 grid, the parent vessel along the left edge. The
-# observer saves every step with the default blueprint, whose primary view shows the cells and the fields.
+# The example builds `TumourAngiogenesisSystem` with five sprouts on a 40 by 25 grid, the parent vessel along the left
+# edge. The observer saves every step with the default blueprint, whose primary view shows the cells and the fields.
 
 import matplotlib.pyplot as plt
 import numpy as np

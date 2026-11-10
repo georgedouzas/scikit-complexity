@@ -8,7 +8,7 @@ sites over the last frames, one row per step with the earliest at the top.
 """
 
 # %%
-# The system is built from its class on a ring at density `0.5` with hop probability `p = 0.5`. The
+# The example builds `TASEPSystem` on a ring at density `0.5` with hop probability `p = 0.5`. The
 # observer saves every frame with the default blueprint, whose primary view is the space-time image of the
 # occupations.
 

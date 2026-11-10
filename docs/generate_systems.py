@@ -224,6 +224,8 @@ def _selection_lines(system: type[BaseSystem]) -> list[str]:
     return [
         '## Use this system',
         '',
+        'The block imports the class and simulates the system with its default parameters and its tuned run settings.',
+        '',
         '```python',
         'from skcomplex.core.engine.runtime import simulate',
         _import_line(system),
@@ -277,7 +279,8 @@ def _parameter_lines(system: type[BaseSystem]) -> list[str]:
     if not parameters:
         return [*lines, 'The system has no model parameter.', '']
     rows = ([f'`{name}`', default] for name, default in parameters)
-    return [*lines, *_table(['Parameter', 'Default'], rows), '']
+    intro = 'The model parameters take these defaults, and `set_params` changes them.'
+    return [*lines, intro, '', *_table(['Parameter', 'Default'], rows), '']
 
 
 def _tag_lines(system: type[BaseSystem]) -> list[str]:
@@ -287,7 +290,8 @@ def _tag_lines(system: type[BaseSystem]) -> list[str]:
     """
     tags = _tags(system)
     rows = ([name.capitalize(), _tag_cell(tags, name)] for name in TAG_FIELDS)
-    return ['## Tags', '', *_table(['Tag', 'Values'], rows), '']
+    intro = 'The system with its default parameters has these capability tags, which solvers and analyses check.'
+    return ['## Tags', '', intro, '', *_table(['Tag', 'Values'], rows), '']
 
 
 def system_page(name: str, title: str, examples: dict[str, Example]) -> str:
@@ -306,7 +310,8 @@ def system_page(name: str, title: str, examples: dict[str, Example]) -> str:
         f'- Import: `{_import_line(system_class)}`',
         f'- Field: `{system_class.field}`',
         f'- Topics: {", ".join(f"`{topic}`" for topic in system_class.topics)}',
-        f'- References: {"; ".join(system_class.references)}',
+        '- References:',
+        *(f'    - {reference}' for reference in system_class.references),
         '',
         *_gallery_lines(name, examples),
         *_selection_lines(system_class),
@@ -314,18 +319,22 @@ def system_page(name: str, title: str, examples: dict[str, Example]) -> str:
         *_tag_lines(system_class),
         '## Class',
         '',
+        'The source of the class shows how it builds its parts from its model parameters.',
+        '',
         '```python',
         inspect.getsource(system_class).rstrip(),
         '```',
     ]
     kinds = _component_types(built.prepare().system_)
     sources = [source for source in (_class_source(kind) for kind in kinds) if source]
-    lines += ['', '## Components', *_component_lines(kinds, system_class.field.count('/') + 2)]
+    components = 'The system uses these element and interaction classes, each with its nearest class of the core.'
+    lines += ['', '## Components', '', components, *_component_lines(kinds, system_class.field.count('/') + 2)]
     if sources:
         lines += ['', '```python', '\n\n'.join(source.rstrip() for source in sources), '```']
     equations = _equations(built)
     if equations is not None:
-        lines += ['', '## Equations', '', '```text', equations, '```']
+        intro = 'The equations are those that `symbolic` returns for the system with its default parameters.'
+        lines += ['', '## Equations', '', intro, '', '```text', equations, '```']
     return '\n'.join(lines) + '\n'
 
 
@@ -338,9 +347,10 @@ def field_page(field: str, titles: dict[str, str]) -> str:
     lines = [
         f'# {_title(field)}',
         '',
-        f'The ready-made systems of `skcomplex.systems.{field}`. The page of each shows its class, its component',
-        'types with their states, parameters, and laws as written, and, for the forms that have them, its equations as',
-        '`symbolic` returns them, so it serves as the pattern for a system of your own.',
+        f'This page lists the ready-made systems of `skcomplex.systems.{field}` by subfield. The page of each system',
+        'shows its class and the classes of its elements and interactions, with their states, parameters, and laws as',
+        'the source writes them. For the forms that have equations, it also shows them as `symbolic` returns them.',
+        'Copy a page as the pattern for a system of your own.',
     ]
     for subfield in sorted({system.field for _, system in entries}):
         lines += ['', f'## {_title(subfield.partition("/")[2])}', '']
@@ -360,8 +370,8 @@ def index_page(inventory: dict[str, Any]) -> str:
     lines = [
         '# Systems',
         '',
-        'The ready-made systems of `skcomplex.systems`, by field and subfield. The [catalog](catalog.md) lists every',
-        'system by field and by topic.',
+        'Each field below links to its ready-made systems in `skcomplex.systems`, grouped by subfield. The',
+        '[catalog](catalog.md) lists every system by field and by topic.',
         '',
     ]
     lines += [
@@ -411,11 +421,11 @@ def catalog_page(inventory: dict[str, Any], titles: dict[str, str]) -> str:
     lines = [
         '# Catalog',
         '',
-        'Every ready-made system, by field and by topic. Each subfield shows the statement that imports its',
-        'classes, and each system its class, its model parameters, and its capability tags. The page of a system',
-        'gives the defaults of its parameters and all its tags. List the classes of a field, a topic, or a tag with',
-        '`all_systems` of `skcomplex.systems`, and find a system by its name, description, or topic with the search',
-        'box of the site.',
+        'The catalog lists every ready-made system by field and again by topic. Each subfield gives the statement',
+        'that imports its classes, and each system its class, its model parameters, and its capability tags. The page',
+        'of a system gives the defaults of its parameters and all its tags. `all_systems` of `skcomplex.systems` lists',
+        'the classes of a field, a topic, or a tag, as in the block below, which names the stochastic systems of',
+        'ecology. The search box of the site finds a system by its name, description, or topic.',
         '',
         '```python',
         'from skcomplex.systems import all_systems',

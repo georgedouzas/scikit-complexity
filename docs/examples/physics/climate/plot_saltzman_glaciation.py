@@ -6,7 +6,7 @@ Ice volume, carbon dioxide, and the deep ocean temperature drive each other arou
 """
 
 # %%
-# The system is built from its class with the default parameters and no forcing, and runs for 50 time units
+# The example builds `SaltzmanGlaciationSystem` with the default parameters and no forcing, and runs for 50 time units
 # of 10 kyr, half a million years. The default blueprint shows the three anomalies in one time series view.
 
 import matplotlib.pyplot as plt

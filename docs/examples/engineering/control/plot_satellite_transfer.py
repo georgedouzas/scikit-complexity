@@ -7,7 +7,7 @@ once the target energy is reached.
 """
 
 # %%
-# The system is built from its class at the periapsis of the orbit with energy -0.7 and angular momentum
+# The example builds `SatelliteTransferSystem` at the periapsis of the orbit with energy -0.7 and angular momentum
 # 0.7, with the thrust 0.1 and the target energy -0.2, and is integrated with RK4 for 20 time units. The blueprint shows
 # the distance from the planet and the effective energy in one time series view.
 

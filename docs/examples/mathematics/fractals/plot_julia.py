@@ -7,7 +7,7 @@ scale, because `c` lies inside the Mandelbrot set.
 """
 
 # %%
-# The system is built from its class on a lattice of 240 by 320 starting points. The map runs for 100
+# The example builds `JuliaSystem` on a lattice of 240 by 320 starting points. The map runs for 100
 # steps, and the observer saves every fifth frame with the default blueprint, whose primary view is the image of the
 # escape counts.
 

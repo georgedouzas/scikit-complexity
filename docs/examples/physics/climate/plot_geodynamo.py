@@ -6,7 +6,7 @@ an irregular time, as the magnetic field of the Earth has reversed throughout it
 """
 
 # %%
-# The system is built from its class with Gissinger's parameters `mu = 0.119`, `nu = 0.1`, and
+# The example builds `GeodynamoSystem` with Gissinger's parameters `mu = 0.119`, `nu = 0.1`, and
 # `Gamma = 0.9`. The run covers 600 time units, and the default blueprint shows the quadrupolar field `Q`, the dipolar
 # field `D`, and the velocity `V` in one time series view.
 

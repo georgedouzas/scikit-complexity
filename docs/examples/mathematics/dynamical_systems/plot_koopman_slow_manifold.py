@@ -7,7 +7,7 @@ parabola that bend sharply onto it and run together toward the origin.
 """
 
 # %%
-# The system is built from its class with `mu = -0.05` and `lam = -1`, starting from `(1, -1)`. Six more
+# The example builds `KoopmanSlowManifoldSystem` with `mu = -0.05` and `lam = -1`, starting from `(1, -1)`. Six more
 # runs from other starting points share the phase plane. After the runs, every orbit is logged once as a line in the
 # phase plane together with the parabola `x2 = b x1^2`, `b = lam / (lam - 2 mu)`, in dark blue, and the blueprint puts
 # this view first, as the primary view. The vertical axis of the plane points up.

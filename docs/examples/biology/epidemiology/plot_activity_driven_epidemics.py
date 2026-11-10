@@ -7,9 +7,9 @@ of infection and recovery exceeds a threshold set by the activities, not by the 
 """
 
 # %%
-# The system is built from its class with 500 nodes whose activities follow a power law. The observer saves every
-# second step with the default blueprint, whose primary view is the network of the current step, with the infected
-# nodes bright.
+# The example builds `ActivityDrivenEpidemicsSystem` with 500 nodes whose activities follow a power law. The observer
+# saves every second step with the default blueprint, whose primary view is the network of the current step, with the
+# infected nodes bright.
 
 import matplotlib.pyplot as plt
 import numpy as np

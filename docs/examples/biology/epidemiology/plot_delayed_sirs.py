@@ -7,7 +7,7 @@ comes. A few visitors between two cities lock their outbreaks, here out of phase
 """
 
 # %%
-# The system is built from its class with the infection starting in the first city and six steps of immunity. The
+# The example builds `DelayedSIRSSystem` with the infection starting in the first city and six steps of immunity. The
 # blueprint shows the infected fraction of each city in one time series view over the last 60 steps.
 
 import matplotlib.pyplot as plt

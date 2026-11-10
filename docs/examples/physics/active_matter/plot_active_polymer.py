@@ -1,7 +1,7 @@
 """
 # Active polymers
 
-A chain of beads bonded by springs, where every bead swims along its own orientation. The chain wriggles, swells
+A chain of beads is bonded by springs, and every bead swims along its own orientation. The chain wriggles, swells
 beyond the size of a passive chain, and its centre of mass wanders like a slow active particle.
 """
 

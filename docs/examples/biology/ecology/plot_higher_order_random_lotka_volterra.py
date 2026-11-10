@@ -8,10 +8,10 @@ theory of the paper predicts.
 """
 
 # %%
-# The system is built from its class, with the parameters of the paper for third-order interactions, `mu = -4`, `sigma
-# = 1`, and uncorrelated coefficients. It has 100 species here to keep the page quick, half the 200 of the paper, so
-# its tensor holds a million entries, and an adaptive solver takes the long steps the slow approach allows. The
-# primary view shows the abundances.
+# The example builds `HigherOrderRandomLotkaVolterraSystem`, with the parameters of the paper for third-order
+# interactions, `mu = -4`, `sigma = 1`, and uncorrelated coefficients. It has 100 species here to keep the page quick,
+# half the 200 of the paper, so its tensor holds a million entries, and an adaptive solver takes the long steps the slow
+# approach allows. The primary view shows the abundances.
 
 import matplotlib.pyplot as plt
 import numpy as np

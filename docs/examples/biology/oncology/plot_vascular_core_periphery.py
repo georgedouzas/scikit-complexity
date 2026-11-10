@@ -6,10 +6,10 @@ live cells grow only to about `3 10^4` in two months, against about `10^11` with
 """
 
 # %%
-# The system is built from its class with its default schedule, a one-day infusion of 5 mg/kg/day every week, from the
-# book's initial state of a sparse tumour of radius 13 mm without vessels. The system is stiff, so it runs with LSODA.
-# The observer saves every frame with the default blueprint, whose primary view is the time series of the radius, the
-# cells, the vascular volumes, and the inhibitor.
+# The example builds `VascularCorePeripherySystem` with its default schedule, a one-day infusion of 5 mg/kg/day every
+# week, from the initial state of the book of Padmanabhan, Meskin, and Al Moustafa (2021), a sparse tumour of radius 13
+# mm without vessels. The system is stiff, so it runs with LSODA. The observer saves every frame with the default
+# blueprint, whose primary view is the time series of the radius, the cells, the vascular volumes, and the inhibitor.
 
 import matplotlib.pyplot as plt
 

@@ -7,9 +7,9 @@ stick one after the other, until the whole chain is frozen in a blocked configur
 """
 
 # %%
-# The system is built from its class with 60 blocks of unit weight joined by unit springs, with static and
+# The example builds `ShakenSpringBlockSystem` with 60 blocks of unit weight joined by unit springs, with static and
 # dynamic friction coefficients 1 and 0.8, shaken for 2 time units with a random force of amplitude 2 and relaxed for
-# 20 time units in every cycle, and simulated for 13 cycles. The observer saves every frame with the default
+# 20 time units in every cycle, and simulates it for 13 cycles. The observer saves every frame with the default
 # blueprint, whose primary view is the space-time image of the positions.
 
 import matplotlib.pyplot as plt

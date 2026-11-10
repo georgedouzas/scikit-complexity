@@ -6,7 +6,7 @@ with the handling time of the partner's resource, so the populations settle inst
 """
 
 # %%
-# The system is built from its class with its default saturating mutualism and run from small populations. The
+# The example builds `MutualismSystem` with its default saturating mutualism and runs it from small populations. The
 # observer saves every second frame with the default blueprint, whose primary view is the time series of both
 # populations.
 

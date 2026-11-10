@@ -35,7 +35,7 @@ trajectory = simulate(CropLivestockHouseholdSystem(), observers=[observer])
 # %%
 # Incomes and the maturation delay
 # --------------------------------
-# The crop income stays at 80000 a year, just above the consumption of 75000. Animals bought in a year join the herd
+# The crop income stays at 80000 a year, slightly above the consumption of 75000. Animals bought in a year join the herd
 # three years later, so the income from livestock should stay at zero for the first five years and then come in most
 # years, lifting the wealth well above its start, as in Fig. 4.27 of Bala et al.
 

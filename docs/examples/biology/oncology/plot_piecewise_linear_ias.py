@@ -6,8 +6,8 @@ without relapse.
 """
 
 # %%
-# The system is built from its class for patient type 1, whose PSA of 19 ng/mL starts the therapy at once. The
-# observer saves every second frame with the default blueprint, whose primary view is the time series of the three
+# The example builds `PiecewiseLinearIASSystem` for patient type 1, whose PSA of 19 ng/mL starts the therapy at once.
+# The observer saves every second frame with the default blueprint, whose primary view is the time series of the three
 # cell populations and the therapy.
 
 import matplotlib.pyplot as plt

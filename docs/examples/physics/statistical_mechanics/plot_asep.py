@@ -8,7 +8,7 @@ clusters stream to the right along diagonal tracks, at low density.
 """
 
 # %%
-# The system is built from its class with forward hops at rate 1 and no backward hops. The observer saves
+# The example builds `ASEPSystem` with forward hops at rate 1 and no backward hops. The observer saves
 # every frame with the default blueprint, whose primary view is the space-time image of the occupations. The Numba
 # backend runs the hops in a compiled loop.
 

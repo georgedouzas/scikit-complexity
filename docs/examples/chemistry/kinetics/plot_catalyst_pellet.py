@@ -7,7 +7,7 @@ concentration, the surface settles in the inhibited state.
 """
 
 # %%
-# The system is built from its class with the mass transfer `h = 0.1`, the rate `k = 10`, and the adsorption
+# The example builds `CatalystPelletSystem` with the mass transfer `h = 0.1`, the rate `k = 10`, and the adsorption
 # constant `K = 20`, starting at the bulk concentration `c = 1`. The default blueprint shows the surface concentration
 # in one time series view.
 

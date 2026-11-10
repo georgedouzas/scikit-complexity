@@ -1,9 +1,9 @@
 """
 # Exploration and preferential return
 
-The model of human mobility of Song and coauthors, the baseline of the container model. At every displacement an
-individual explores a new place with a probability that decays with the number of places it knows, at a distance from a
-power law, and otherwise returns to a known place in proportion to its past visits.
+Song and coauthors model human mobility by exploration and preferential return, the baseline of the container model. At
+every displacement an individual explores a new place with a probability that decays with the number of places it knows,
+at a distance from a power law, and otherwise returns to a known place in proportion to its past visits.
 """
 
 # %%

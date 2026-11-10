@@ -6,9 +6,9 @@ between the two thresholds.
 """
 
 # %%
-# The system is built from its class: five androgen-dependent cells at the normal androgen of 30 nmol/L. The observer
-# saves every third frame with the default blueprint, whose primary view is the time series of the cells, the
-# androgen, and the therapy.
+# The example builds `IdetaIntermittentAndrogenSystem`: five androgen-dependent cells at the normal androgen of 30
+# nmol/L. The observer saves every third frame with the default blueprint, whose primary view is the time series of the
+# cells, the androgen, and the therapy.
 
 import matplotlib.pyplot as plt
 

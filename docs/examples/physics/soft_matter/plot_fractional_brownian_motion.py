@@ -6,8 +6,8 @@ more likely, so the cloud spreads slower than Brownian motion and every path loo
 """
 
 # %%
-# The system is built from its class with 500 walkers in the plane and the Hurst index `H = 0.3`, and
-# simulated to time 10. The fractional Euler-Maruyama stepper draws the correlated increments of the whole run on its
+# The example builds `FractionalBrownianMotionSystem` with 500 walkers in the plane and the Hurst index `H = 0.3`, and
+# simulates it to time 10. The fractional Euler-Maruyama stepper draws the correlated increments of the whole run on its
 # grid before the first step. The observer saves every frame with the default blueprint, whose primary view shows the
 # walkers.
 

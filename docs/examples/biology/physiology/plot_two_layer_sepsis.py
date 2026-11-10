@@ -7,8 +7,8 @@ one leaves them in a desynchronized, pathological state.
 """
 
 # %%
-# The system is built from its class with 20 cells per layer at the age parameter `beta = pi / 2`. The observer saves
-# every frame with the default blueprint, whose primary view is the network of cells with their phases.
+# The example builds `TwoLayerSepsisSystem` with 20 cells per layer at the age parameter `beta = pi / 2`. The observer
+# saves every frame with the default blueprint, whose primary view is the network of cells with their phases.
 
 import math
 

@@ -1,9 +1,9 @@
 """
 # Node-merging network
 
-A network of fixed size where a random node merges with one of its neighbours into one node that keeps the links of
-both, and a newcomer joins a random node. A node that absorbs a neighbour gains its links, so well-linked nodes grow
-faster, and hubs appear without any growth of the network.
+In a network of fixed size, a random node merges with one of its neighbours into one node that keeps the links of both,
+and a newcomer joins a random node. A node that absorbs a neighbour gains its links, so well-linked nodes grow faster,
+and hubs appear without any growth of the network.
 """
 
 # %%

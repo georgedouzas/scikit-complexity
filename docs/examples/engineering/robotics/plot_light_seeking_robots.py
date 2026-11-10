@@ -8,7 +8,7 @@ drives them out of the light.
 """
 
 # %%
-# The system is built from its class with 20 robots that start at the centre of a well of radius 2, the
+# The example builds `LightSeekingRobotsSystem` with 20 robots that start at the centre of a well of radius 2, the
 # light of width 1, and the sensory delay 5, and runs for 100 time units. The robots' positions are vector states, so
 # the blueprint shows their distances along `x` on the range of the well, without a legend.
 

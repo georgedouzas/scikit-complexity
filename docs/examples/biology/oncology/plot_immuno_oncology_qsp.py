@@ -1,9 +1,10 @@
 """
 # Immuno-oncology QSP with virtual patients
 
-A reduced quantitative systems pharmacology model of a tumour, effector and regulatory T cells, and an anti-PD-1
-antibody. Virtual patients are sampled and kept when their tumours are plausible, matched to observed ratios of T
-cells, and one patient is checked for identifiability and calibrated as a digital twin.
+A reduced model of quantitative systems pharmacology, which follows a drug through the body to its effect, couples a
+tumour, effector and regulatory T cells, and an anti-PD-1 antibody. Virtual patients are sampled and kept when their
+tumours are plausible, matched to observed ratios of T cells, and one patient is checked for identifiability and
+calibrated as a digital twin.
 """
 
 # %%

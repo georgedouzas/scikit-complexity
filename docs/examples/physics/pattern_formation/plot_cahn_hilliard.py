@@ -8,7 +8,7 @@ run: an interpenetrating labyrinth of yellow and purple domains of equal area.
 """
 
 # %%
-# The system is built from its class on a periodic square of 64 sites with unit spacing, from noise of
+# The example builds `CahnHilliardSystem` on a periodic square of 64 sites with unit spacing, from noise of
 # amplitude 0.05 around the critical composition 0. The catalog defaults integrate it with exponential time
 # differencing, and the default blueprint shows the order parameter as an image, one frame every 10 time units.
 

@@ -6,8 +6,8 @@ by short bursts in which it rises to values of order one and falls back.
 """
 
 # %%
-# The system is built from its class with two independent realizations at the bifurcation point
-# `epsilon = 0`, with noise intensity `D = 1/2`, and simulated for 600 time units in the Stratonovich convention. The
+# The example builds `OnOffIntermittencySystem` with two independent realizations at the bifurcation point
+# `epsilon = 0`, with noise intensity `D = 1/2`, and simulates it for 600 time units in the Stratonovich convention. The
 # observer saves every frame with the default blueprint, whose primary view holds the two variables.
 
 import matplotlib.pyplot as plt

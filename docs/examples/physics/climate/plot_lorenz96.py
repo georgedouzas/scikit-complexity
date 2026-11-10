@@ -6,7 +6,7 @@ travel around the latitude circle, from site to site.
 """
 
 # %%
-# The system is built from its class with 20 sites and the forcing `F = 8`, with the first site displaced by
+# The example builds `Lorenz96System` with 20 sites and the forcing `F = 8`, with the first site displaced by
 # 0.01 from the steady state, and runs for 30 time units. The blueprint shows three sites of the ring in one time series
 # view, hiding the other seventeen.
 

@@ -1,7 +1,7 @@
 """
 # Exchange rates
 
-Hamill and Gilbert's staged adjustment of a trading economy to a rise in its home prices. Prices move first and
+Hamill and Gilbert let a trading economy adjust in stages to a rise in its home prices. Prices move first and
 trade volumes follow a stage later, so under a fixed exchange rate the balance of trade first swings into surplus,
 the dearer exports still selling as before, and then into deficit once buyers turn away, the J-curve. A floating
 rate depreciates at once instead, and the delayed fall of imports then carries the balance into surplus.

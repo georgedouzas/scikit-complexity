@@ -6,8 +6,8 @@ acting on the temperature receptors in fever, shifts the set point while it acts
 """
 
 # %%
-# The system is built from its class with a steering signal from time 20 to 40, and the observer saves every third
-# frame with the default blueprint, whose primary view is the time series of the product and the effector.
+# The example builds `SteerableFeedbackLoopSystem` with a steering signal from time 20 to 40, and the observer saves
+# every third frame with the default blueprint, whose primary view is the time series of the product and the effector.
 
 import matplotlib.pyplot as plt
 from scipy.optimize import brentq

@@ -1,14 +1,14 @@
 """
 # Ornstein-Uhlenbeck driven Rössler
 
-A Rössler flow whose control parameter `eta` wanders slowly as an Ornstein-Uhlenbeck process. As the control drifts,
-the flow passes through different regimes of its bifurcation diagram, so the trajectory does not settle on one
-attractor but smears a band of loops of varying size. The view shows this smeared band in three dimensions, with the
-spikes of `z` that lift the trajectory out of the plane.
+The control parameter `eta` of a Rössler flow wanders slowly as an Ornstein-Uhlenbeck process, a random walk pulled back
+to its mean. As the control drifts, the flow passes through different regimes of its bifurcation diagram, so the
+trajectory does not settle on one attractor but smears a band of loops of varying size. The view shows this smeared band
+in three dimensions, with the spikes of `z` that lift the trajectory out of the plane.
 """
 
 # %%
-# The system is built from its class with the parameters `a = 0.2`, `b = 0.4`, and `c = 5.743` of Cestnik
+# The example builds `OUDrivenRosslerSystem` with the parameters `a = 0.2`, `b = 0.4`, and `c = 5.743` of Cestnik
 # and Martens, the correlation time `tau = 50`, and the noise amplitude `rho = 1.5`, so the control has the standard
 # deviation `rho / sqrt(2 tau) = 0.15`. The run of 600 time units uses the Numba backend. After the run, the trajectory
 # is logged once as a line in three dimensions, and the blueprint puts that view first, as the primary view.

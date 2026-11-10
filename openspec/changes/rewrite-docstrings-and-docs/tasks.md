@@ -86,8 +86,8 @@
 
 - [x] 11.1 Rewrite the README, and verify its blocks run in the test session and `test_readme_custom_system_runs_from_the_core_alone` passes
 - [x] 11.2 Rewrite the other pages of `docs/overview/user_guide` and the recipes of `build_a_custom_system`, linking each core class to its reference section and each term to the glossary, and verify with `pytest-markdown-docs` that every block runs
-- [ ] 11.3 Rewrite the other prose that `docs/generate_parts.py` and `docs/generate_systems.py` write, and verify the strict build passes
-- [ ] 11.4 Rewrite the docstrings and text cells of the gallery examples under `docs/examples`, keeping each caption of what the screenshot shows, and verify the gallery coverage check passes
+- [x] 11.3 Rewrite the other prose that `docs/generate_parts.py` and `docs/generate_systems.py` write, and verify the strict build passes
+- [x] 11.4 Rewrite the docstrings and text cells of the gallery examples under `docs/examples`, keeping each caption of what the screenshot shows, and verify the gallery coverage check passes
 - [x] 11.5 Rewrite `CONTRIBUTING.md`, add the documents of this group to `REWRITTEN_DOCUMENTS`, read each through for flow, and verify `test_documents_read_naturally` passes
 
 ## 12. Dead code

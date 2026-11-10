@@ -6,9 +6,9 @@ slowly as the body eliminates it, while the tissue concentration rises and follo
 """
 
 # %%
-# The system is built from its class with the rates of doxorubicin and a unit bolus, and runs for 3000 minutes. The
-# observer saves every second frame with the default blueprint, whose primary view is the time series of the central
-# and peripheral concentrations.
+# The example builds `TwoCompartmentPharmacokineticsSystem` with the rates of doxorubicin and a unit bolus, and runs for
+# 3000 minutes. The observer saves every second frame with the default blueprint, whose primary view is the time series
+# of the central and peripheral concentrations.
 
 import matplotlib.pyplot as plt
 import numpy as np

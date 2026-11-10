@@ -6,7 +6,7 @@ the albedo and keeps a cold planet cold. Started at 290 K, the temperature settl
 """
 
 # %%
-# The system is built from its class with the default parameters and the initial temperature of 290 K. The
+# The example builds `EnergyBalanceSystem` with the default parameters and the initial temperature of 290 K. The
 # default blueprint shows the temperature in one time series view.
 
 import matplotlib.pyplot as plt

@@ -7,8 +7,8 @@ the discovery of new objects.
 """
 
 # %%
-# The system is built from its class with ten assembly levels and no selection, and the observer saves every frame
-# with the default blueprint, whose primary view is the time series of the levels.
+# The example builds `AssemblyGrowthSystem` with ten assembly levels and no selection, and the observer saves every
+# frame with the default blueprint, whose primary view is the time series of the levels.
 
 import math
 

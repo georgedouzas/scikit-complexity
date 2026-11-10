@@ -7,9 +7,9 @@ drift.
 """
 
 # %%
-# The system is built from its class with the speciation probability `nu = 0.01` per birth. One unit of time holds 200
-# deaths, each replaced by the offspring of another individual. The observer saves every fourth frame with the default
-# blueprint, whose primary view is the time series of the number of species.
+# The example builds `NeutralBiodiversitySystem` with the speciation probability `nu = 0.01` per birth. One unit of time
+# holds 200 deaths, each replaced by the offspring of another individual. The observer saves every fourth frame with the
+# default blueprint, whose primary view is the time series of the number of species.
 
 import itertools
 

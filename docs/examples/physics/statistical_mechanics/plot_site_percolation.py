@@ -3,12 +3,12 @@
 
 Each site of a square lattice is occupied with probability `p`, and a fire lit along the top row burns, one layer per
 step, every cluster of occupied sites connected to it. Above the threshold `p_c = 0.5927` a cluster spans the lattice
-and the fire reaches the bottom row. Just above it, as here, the burnt cluster is a sparse fractal full of holes and
+and the fire reaches the bottom row. Slightly above it, as here, the burnt cluster is a sparse fractal full of holes and
 dead ends. The view shows a 128 x 128 lattice at `p = 0.6` once the fire has gone out, with burnt sites the brightest.
 """
 
 # %%
-# The system is built from its class. One step moves the fire front by one site. The observer saves every
+# The example builds `SitePercolationSystem`. One step moves the fire front by one site. The observer saves every
 # step with the default blueprint, whose primary view is the image of the covers: empty, occupied, burning, and burnt.
 
 import matplotlib.pyplot as plt

@@ -7,8 +7,8 @@ which changes the network and starts a new linear stretch. Bursts of extinctions
 """
 
 # %%
-# The system is built from its class with 60 species that read 4 species each. The observer saves every step with the
-# default blueprint, whose primary view is the network of influences colored by the abundances.
+# The example builds `SequentiallyLinearEcosystemSystem` with 60 species that read 4 species each. The observer saves
+# every step with the default blueprint, whose primary view is the network of influences colored by the abundances.
 
 import matplotlib.pyplot as plt
 import numpy as np

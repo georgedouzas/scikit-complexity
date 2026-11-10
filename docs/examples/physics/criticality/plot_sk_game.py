@@ -8,7 +8,7 @@ actions to a plateau once the agents freeze.
 """
 
 # %%
-# The system is built from its class with 256 agents, the memory `alpha = 0.5`, and the temperature
+# The example builds `SKGameSystem` with 256 agents, the memory `alpha = 0.5`, and the temperature
 # `T = 0.2`. Every agent starts with a zero incentive and a random action. The blueprint shows the standard observable
 # `reward` over the whole run of 200 steps.
 

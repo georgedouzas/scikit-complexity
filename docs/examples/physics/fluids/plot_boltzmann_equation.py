@@ -9,7 +9,7 @@ vanishes, and returns as a sound wave.
 """
 
 # %%
-# The system is built from its class with 16 positions, 16 points on each of the two velocity axes, and the
+# The example builds `BoltzmannEquationSystem` with 16 positions, 16 points on each of the two velocity axes, and the
 # Knudsen number 0.02. The catalog registers a Strang splitting of semi-Lagrangian streaming and of collisions by the
 # fast spectral method, advanced by RK4. The observable `density_wave` is the component of wave number 1 of the density
 # over position, computed at every frame of 0.1 up to `t = 5.5`, and the default blueprint shows the observables first.

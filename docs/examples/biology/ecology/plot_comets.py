@@ -8,7 +8,7 @@ diffusion coefficients, inoculum, and step of 0.1 h, for the first 14 h.
 """
 
 # %%
-# The system is built from its class, which needs the extra `metabolism`. The primary view is the image of the growth
+# The example builds `CometsSystem`, which needs the extra `metabolism`. The primary view is the image of the growth
 # flux of every box, beside the images of the fields.
 
 import matplotlib.pyplot as plt

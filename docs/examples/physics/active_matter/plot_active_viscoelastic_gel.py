@@ -7,7 +7,7 @@ peaks. The gel has no inertia, so its velocity solves a force balance at every s
 """
 
 # %%
-# The system is built from its class on a periodic line of length 10 in 128 sites, around the density 1,
+# The example builds `ActiveViscoelasticGelSystem` on a periodic line of length 10 in 128 sites, around the density 1,
 # with `c Ta'(c) = 1` above `gamma D = 0.1`. The catalog entry solves the force balance with `inverse_helmholtz` and
 # streams the velocity as an observable, and the default blueprint shows the history of the density.
 

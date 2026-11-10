@@ -9,7 +9,7 @@ top.
 """
 
 # %%
-# The system is built from its class at `beta = 1` with attempt probability `w = 0.5`. The observer saves
+# The example builds `DiscreteMasterEquationSystem` at `beta = 1` with attempt probability `w = 0.5`. The observer saves
 # every step with the default blueprint, whose primary view is the space-time image of the probabilities.
 
 import matplotlib.pyplot as plt

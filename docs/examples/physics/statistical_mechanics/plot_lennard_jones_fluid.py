@@ -8,7 +8,7 @@ potential minimum. The view shows 400 particles in a periodic box at density 0.5
 """
 
 # %%
-# The system is built from its class at constant energy. The velocity Verlet stepper takes steps of 0.005
+# The example builds `LennardJonesFluidSystem` at constant energy. The velocity Verlet stepper takes steps of 0.005
 # and the observer saves every second step with the default blueprint, whose primary view shows the particles.
 
 import matplotlib.pyplot as plt

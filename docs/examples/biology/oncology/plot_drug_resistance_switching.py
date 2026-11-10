@@ -6,10 +6,10 @@ to fill the tumour's capacity.
 """
 
 # %%
-# The system is built from its class with the book's parameters: a spontaneous resistance rate of 10^-6, a resistance
-# induced at the rate 0.01 per unit of dose, and a resistant population that grows at a fifth of the rate of the
-# sensitive one. The observer saves every frame with the default blueprint, whose primary view is the time series of
-# the three populations.
+# The example builds `DrugResistanceSwitchingSystem` with the parameters of the book of Padmanabhan, Meskin, and Al
+# Moustafa (2021): a spontaneous resistance rate of 10^-6, a resistance induced at the rate 0.01 per unit of dose, and a
+# resistant population that grows at a fifth of the rate of the sensitive one. The observer saves every frame with the
+# default blueprint, whose primary view is the time series of the three populations.
 
 import matplotlib.pyplot as plt
 

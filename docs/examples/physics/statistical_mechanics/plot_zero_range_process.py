@@ -8,7 +8,7 @@ one bright column, the condensate, holds about 125 particles while the other sit
 """
 
 # %%
-# The system is built from its class on 50 sites at density 3 with `u(n) = 1 + 4 / n`, so the critical
+# The example builds `ZeroRangeProcessSystem` on 50 sites at density 3 with `u(n) = 1 + 4 / n`, so the critical
 # density is 0.5 and the condensate should hold about `50 (3 - 0.5) = 125` particles. The observer saves every frame
 # with the default blueprint, whose primary view is the space-time image of the occupations. The Numba backend runs
 # the hops in a compiled loop.

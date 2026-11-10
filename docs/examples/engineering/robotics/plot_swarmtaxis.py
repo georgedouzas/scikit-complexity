@@ -6,7 +6,7 @@ robots on its side can see: the illuminated robots keep a wider berth, which pus
 """
 
 # %%
-# The system is built from its class with 20 robots starting in a cluster near the left edge of an arena of
+# The example builds `SwarmtaxisSystem` with 20 robots starting in a cluster near the left edge of an arena of
 # size 100, with the beacon at the middle of the right edge, and runs for 3000 steps. The blueprint shows the robots in
 # the left half of the arena, drawn larger than the system's visual so they read in the thumbnail.
 

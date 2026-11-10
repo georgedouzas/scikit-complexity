@@ -6,9 +6,9 @@ its surface keep raising.
 """
 
 # %%
-# The system is built from its class with the breast cancer fit of Padmanabhan et al., an initial volume of 1 mm³ and
-# an initial capacity of 12.7 mm³, and run for 20 days. The observer saves every frame with the default blueprint,
-# whose primary view is the time series of the volume and the capacity.
+# The example builds `DynamicCarryingCapacitySystem` with the breast cancer fit of Padmanabhan et al., an initial volume
+# of 1 mm³ and an initial capacity of 12.7 mm³, and runs it for 20 days. The observer saves every frame with the default
+# blueprint, whose primary view is the time series of the volume and the capacity.
 
 import matplotlib.pyplot as plt
 import numpy as np

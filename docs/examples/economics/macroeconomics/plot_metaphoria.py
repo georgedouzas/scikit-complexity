@@ -9,7 +9,7 @@ between about 80 and 150, above the births and the starvations of every step.
 """
 
 # %%
-# The system is built from its class with 100 adults on a periodic 20 x 20 lattice of patches whose food capacity is
+# The example builds `MetaphoriaSystem` with 100 adults on a periodic 20 x 20 lattice of patches whose food capacity is
 # drawn up to 15 and whose resistance up to 5. Every adult brings 5 units of labour and eats 2 units of food per step.
 # The blueprint shows the observable `population` above the reporters `census.births` and `census.starvations`.
 

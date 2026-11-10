@@ -7,7 +7,7 @@ and back to the stationary G1 state.
 """
 
 # %%
-# The system is built from its class in the G1 state with Cln3 on. The observer saves every step with the default
+# The example builds `YeastCellCycleSystem` in the G1 state with Cln3 on. The observer saves every step with the default
 # blueprint, whose primary view is the time series of the protein values.
 
 import matplotlib.pyplot as plt

@@ -7,9 +7,9 @@ hippocampus under optogenetic theta stimulation.
 """
 
 # %%
-# The system is built from its class with the PING settings of Segneri et al. (2020) and run for 600 ms at a theta
-# frequency of 5 Hz. The observer saves every other millisecond with the default blueprint, whose primary view is the
-# time series of the rates and potentials.
+# The example builds `NextGenerationNeuralMassSystem` with the PING settings of Segneri et al. (2020) and run for 600 ms
+# at a theta frequency of 5 Hz. The observer saves every other millisecond with the default blueprint, whose primary
+# view is the time series of the rates and potentials.
 
 import matplotlib.pyplot as plt
 import numpy as np

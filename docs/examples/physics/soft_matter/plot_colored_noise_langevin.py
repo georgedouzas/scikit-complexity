@@ -6,8 +6,8 @@ time, and it follows the noise smoothly with a smaller amplitude.
 """
 
 # %%
-# The system is built from its class with one particle, unit friction and noise intensity, and a noise
-# correlation time `tau = 1`, and simulated for 60 relaxation times. The observer saves every frame with the default
+# The example builds `ColoredNoiseLangevinSystem` with one particle, unit friction and noise intensity, and a noise
+# correlation time `tau = 1`, and simulates it for 60 relaxation times. The observer saves every frame with the default
 # blueprint, whose primary view holds the velocity `v` and the noise `xi` of the particle.
 
 import matplotlib.pyplot as plt

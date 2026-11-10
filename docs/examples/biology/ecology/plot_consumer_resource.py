@@ -7,8 +7,8 @@ the resource that limits it most.
 """
 
 # %%
-# The system is built from its class with the settings of Mehta and Blumenthal (2024, figure 4), and the observer
-# saves every frame with the default blueprint, whose primary view is the time series of the consumers.
+# The example builds `ConsumerResourceSystem` with the settings of Mehta and Blumenthal (2024, figure 4), and the
+# observer saves every frame with the default blueprint, whose primary view is the time series of the consumers.
 
 import matplotlib.pyplot as plt
 import numpy as np

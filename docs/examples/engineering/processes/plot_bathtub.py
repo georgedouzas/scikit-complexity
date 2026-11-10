@@ -1,9 +1,9 @@
 """
 # Bathtub
 
-A bathtub, one stock of water with an inflow from the faucet and an outflow through the drain. The drain empties the
-tub at five gallons per minute, and after five minutes the faucet opens at the same rate, so the level falls and then
-holds.
+A bathtub holds one stock of water, with an inflow from the faucet and an outflow through the drain. The drain empties
+the tub at five gallons per minute, and after five minutes the faucet opens at the same rate, so the level falls and
+then holds.
 """
 
 # %%

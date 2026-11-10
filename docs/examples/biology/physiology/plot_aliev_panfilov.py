@@ -2,13 +2,13 @@
 # Aliev-Panfilov
 
 A broken wave of excitation in cardiac tissue curls around its free end into a rotating spiral. The spiral keeps
-re-exciting the tissue it has just left once it has recovered, a re-entrant arrhythmia that drives the heart far
+re-exciting the tissue it has left once it has recovered, a re-entrant arrhythmia that drives the heart far
 faster than its pacemaker, a tachycardia.
 """
 
 # %%
-# The system is built from its class on a lattice of 100 by 100 sites, with the upper half excited and its left half
-# refractory, and integrated with Runge-Kutta steps of 0.05. The observer saves every frame with the default
+# The example builds `AlievPanfilovSystem` on a lattice of 100 by 100 sites, with the upper half excited and its left
+# half refractory, and integrates it with Runge-Kutta steps of 0.05. The observer saves every frame with the default
 # blueprint, whose primary view is the image of the potential.
 
 import matplotlib.pyplot as plt

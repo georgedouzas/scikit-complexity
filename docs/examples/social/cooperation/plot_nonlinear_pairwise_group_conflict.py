@@ -10,9 +10,9 @@ of punishers on the right.
 """
 
 # %%
-# The system is built from its class with the group Fermi rule of sensitivity 2, a punishment of 0.5, and
-# a per-interaction cost of 0.1, on 100 cells of the fraction of punishers. Between-group conflict is strong, with
-# `lambda = 2`. The observer saves every frame of 0.5 up to `t = 15`.
+# The example builds `NonlinearPairwiseGroupConflictSystem` with the group Fermi rule of sensitivity 2, a punishment of
+# 0.5, and a per-interaction cost of 0.1, on 100 cells of the fraction of punishers. Between-group conflict is strong,
+# with `lambda = 2`. The observer saves every frame of 0.5 up to `t = 15`.
 
 import matplotlib.pyplot as plt
 import numpy as np

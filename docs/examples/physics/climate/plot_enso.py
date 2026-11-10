@@ -6,7 +6,7 @@ waves turns it around, so it swings regularly between El Niño, a warm anomaly, 
 """
 
 # %%
-# The system is built from its class with the delayed feedback `alpha = 0.75` and the delay of six time
+# The example builds `ENSOSystem` with the delayed feedback `alpha = 0.75` and the delay of six time
 # units, starting from a small warm anomaly. The default blueprint shows the anomaly in one time series view.
 
 import matplotlib.pyplot as plt

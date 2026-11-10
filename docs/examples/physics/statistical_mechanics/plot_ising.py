@@ -7,7 +7,7 @@ orientation wins. The view shows the spins of a 256 x 256 torus 100 sweeps after
 """
 
 # %%
-# The system is built from its class at `T = 2.0 J`, below `T_c`. One unit of time is one sweep of
+# The example builds `IsingSystem` at `T = 2.0 J`, below `T_c`. One unit of time is one sweep of
 # checkerboard Metropolis updates. The observer saves every frame with the default blueprint, whose primary view is
 # the image of the spins.
 

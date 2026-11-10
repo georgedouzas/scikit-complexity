@@ -6,9 +6,9 @@ two thirds of the carrying capacity: the virus reduces the tumour but does not e
 """
 
 # %%
-# The system is built from its class, from a tenth of the capacity of uninfected cells and a trace of infected cells,
-# and runs for 60 growth times. The observer saves every second frame with the default blueprint, whose primary view
-# is the time series of the two populations.
+# The example builds `OncolyticVirusSystem`, from a tenth of the capacity of uninfected cells and a trace of infected
+# cells, and runs for 60 growth times. The observer saves every second frame with the default blueprint, whose primary
+# view is the time series of the two populations.
 
 import matplotlib.pyplot as plt
 import numpy as np

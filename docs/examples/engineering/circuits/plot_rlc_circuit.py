@@ -6,7 +6,7 @@ damps the ringing so the oscillation decays exponentially.
 """
 
 # %%
-# The system is built from its class with `L = 1`, `R = 0.1`, `C = 1`, no source, and the capacitor charged
+# The example builds `RlcCircuitSystem` with `L = 1`, `R = 0.1`, `C = 1`, no source, and the capacitor charged
 # to `q = 1`, and runs for 50 time units. The default blueprint shows the charge and its rate, the current, in one time
 # series view.
 

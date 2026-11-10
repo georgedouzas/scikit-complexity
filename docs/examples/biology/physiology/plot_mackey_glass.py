@@ -6,8 +6,8 @@ feedback makes the concentration oscillate irregularly, a chaotic signal that ne
 """
 
 # %%
-# The system is built from its class with the delay `tau = 17` and run for 500 days. The observer saves every fourth
-# frame with the default blueprint, whose primary view is the time series of the concentration.
+# The example builds `MackeyGlassSystem` with the delay `tau = 17` and runs it for 500 days. The observer saves every
+# fourth frame with the default blueprint, whose primary view is the time series of the concentration.
 
 import matplotlib.pyplot as plt
 

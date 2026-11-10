@@ -8,7 +8,7 @@ of position and velocity. The image shows the density in that plane, with positi
 """
 
 # %%
-# The system is built from its class in its two-stream set-up, with beams of temperature 0.25 at the
+# The example builds `VlasovEquationSystem` in its two-stream set-up, with beams of temperature 0.25 at the
 # velocities -1.5 and 1.5, a density wave of relative amplitude 1e-4, a periodic position axis of 64 cells, and a
 # velocity axis of 128. The catalog registers the semi-Lagrangian stepper for this system, which shifts the density
 # along its characteristics. The observer saves every frame of 0.25 up to `t = 50`, with the default blueprint and the

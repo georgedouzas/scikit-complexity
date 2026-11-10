@@ -8,9 +8,9 @@ shows the eight concentrations converging onto one line.
 """
 
 # %%
-# The system is built from its class with 8 cells, the logistic parameter `r = 2.5`, the coupling `c = 0.1`, and the
-# affinity `p = 0.5`, with concentrations drawn between 0.2 and 0.8. The run lasts 40 steps, and the blueprint shows
-# the concentrations of all cells over the whole run.
+# The example builds `ClosedContourCellExchangeSystem` with 8 cells, the logistic parameter `r = 2.5`, the coupling
+# `c = 0.1`, and the affinity `p = 0.5`, with concentrations drawn between 0.2 and 0.8. The run lasts 40 steps, and the
+# blueprint shows the concentrations of all cells over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np

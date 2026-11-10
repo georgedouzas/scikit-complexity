@@ -7,7 +7,7 @@ the number of distinct words grows in proportion to the length of the text.
 """
 
 # %%
-# The system is built from its class with the innovation probability 0.1 and 100 words written per step, and
+# The example builds `SimonYuleSystem` with the innovation probability 0.1 and 100 words written per step, and
 # runs for 100 steps, a text of 10,000 words. The default blueprint shows the number of distinct words, which grows
 # linearly.
 

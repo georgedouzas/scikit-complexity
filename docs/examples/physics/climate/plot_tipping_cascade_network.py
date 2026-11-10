@@ -9,7 +9,7 @@ their lower states dark at the far end.
 """
 
 # %%
-# The system is built from its class on a Watts-Strogatz ring of 40 elements, each linked to its four
+# The example builds `TippingCascadeNetworkSystem` on a Watts-Strogatz ring of 40 elements, each linked to its four
 # nearest neighbours, with a few shortcuts. Every control is 0 except the first, at 1.2, past the critical value 1. The
 # coupling `d = 0.2` raises the effective control of an element by `2 d / sqrt(4/27) = 1.04` for each tipped neighbour.
 # The run stops at time 18, midway through the cascade, and the observer saves every step with the default blueprint,

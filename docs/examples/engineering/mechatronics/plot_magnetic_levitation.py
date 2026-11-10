@@ -8,7 +8,7 @@ triangular and a rectangular wave.
 """
 
 # %%
-# The system is built from its class with `b = 1` and `m = 0.2`, and starts on its periodic solution. The
+# The example builds `MagneticLevitationSystem` with `b = 1` and `m = 0.2`, and starts on its periodic solution. The
 # default blueprint shows the velocity.
 
 import matplotlib.pyplot as plt

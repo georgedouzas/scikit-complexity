@@ -6,9 +6,9 @@ point of their interaction matrix.
 """
 
 # %%
-# The system is built from its class, three species of the group `species` that start at 0.1. The interaction matrix
-# is read through a total over the group weighted by its rows. The observer saves every second frame of the 30 time
-# units with the default blueprint, whose primary view is the time series of the abundances.
+# The example builds `GeneralizedLotkaVolterraSystem`, three species of the group `species` that start at 0.1. The
+# interaction matrix is read through a total over the group weighted by its rows. The observer saves every second frame
+# of the 30 time units with the default blueprint, whose primary view is the time series of the abundances.
 
 import matplotlib.pyplot as plt
 import numpy as np

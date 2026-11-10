@@ -8,8 +8,8 @@ near half of the population without vaccination.
 """
 
 # %%
-# The system is built from its class with the transmission rate 0.5, the recovery rate 0.1, and 1% of the population
-# infected at the start, so the basic reproduction number is 5. Its tuned Pontryagin solver derives the
+# The example builds `SIRVaccinationSystem` with the transmission rate 0.5, the recovery rate 0.1, and 1% of the
+# population infected at the start, so the basic reproduction number is 5. Its tuned Pontryagin solver derives the
 # costates and the vaccination rate `u = (lambda_S - lambda_R) S / b` symbolically. The default blueprint shows the
 # three fractions and the vaccination rate in one time series view.
 

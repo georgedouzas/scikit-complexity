@@ -8,7 +8,7 @@ zero. The view shows the order parameter at `T = 0.5 Tc` growing from 0.1 along 
 """
 
 # %%
-# The system is built from its class with `a = b = Gamma = 1` and `Tc = 1`. The observer saves every frame
+# The example builds `LandauRelaxationSystem` with `a = b = Gamma = 1` and `Tc = 1`. The observer saves every frame
 # of 0.1 with the default blueprint, whose primary view is the time series of the order parameter.
 
 import matplotlib.pyplot as plt

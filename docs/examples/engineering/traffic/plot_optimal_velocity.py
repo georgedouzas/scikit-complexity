@@ -6,7 +6,7 @@ small disturbance grows into a stop-and-go wave, where cars alternately crawl th
 """
 
 # %%
-# The system is built from its class with 20 cars on a ring of length 40, the sensitivity `a = 1`, and the
+# The example builds `OptimalVelocitySystem` with 20 cars on a ring of length 40, the sensitivity `a = 1`, and the
 # safety distance `hc = 2`, so that the uniform headway 2 is unstable, and runs for 200 time units. The blueprint shows
 # the speeds of all cars in one time series view, without a legend.
 

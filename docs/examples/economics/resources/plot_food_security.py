@@ -1,10 +1,10 @@
 """
 # Food security
 
-Rice self-sufficiency of a country whose population grows by two percent a year while its rice land is developed and
-then lost to housing and industry. Input subsidies alone cannot hold self-sufficiency, which falls to about a fifth in
-fifty years. Research, extension, bio-fertiliser, and a second crop each year raise the productivity enough to keep
-the country near self-sufficiency for decades.
+A country aims to grow all the rice it eats, self-sufficiency, while its population grows by two percent a year and its
+rice land is developed and then lost to housing and industry. Input subsidies alone cannot hold self-sufficiency, which
+falls to about a fifth in fifty years. Research, extension, bio-fertiliser, and a second crop each year raise the
+productivity enough to keep the country near self-sufficiency for decades.
 """
 
 # %%

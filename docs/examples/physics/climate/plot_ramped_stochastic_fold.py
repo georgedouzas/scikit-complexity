@@ -8,7 +8,7 @@ jumping up near the middle of the run.
 """
 
 # %%
-# The system is built from its class with `a = -1`, `b = 1`, the control `phi = -1 + 0.004 t` of Fang et
+# The example builds `RampedStochasticFoldSystem` with `a = -1`, `b = 1`, the control `phi = -1 + 0.004 t` of Fang et
 # al., and noise of amplitude 0.02. The run lasts 500 time units with steps of 0.01, and the observer saves every
 # second time unit. The blueprint shows the state over the whole run.
 

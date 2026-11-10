@@ -6,8 +6,8 @@ that rotates steadily, sending out wave after wave, the pattern of re-entrant wa
 """
 
 # %%
-# The system is built from its class on a lattice of 100 by 100 sites, with the upper half excited and its left half
-# refractory, and integrated with Runge-Kutta steps of 0.05. The observer saves every frame with the default
+# The example builds `FitzhughNagumoSystem` on a lattice of 100 by 100 sites, with the upper half excited and its left
+# half refractory, and integrates it with Runge-Kutta steps of 0.05. The observer saves every frame with the default
 # blueprint, whose primary view is the image of the potential.
 
 import matplotlib.pyplot as plt

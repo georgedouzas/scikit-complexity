@@ -6,8 +6,8 @@ Small noise around the uniform steady state grows into a pattern of spots of the
 """
 
 # %%
-# The system is built from its class on a 64 by 64 grid with `a = 1`, `b = 3`, `Du = 1`, and `Dv = 8`, and
-# integrated with RK4. Naming the `u` field as primary puts its view first, so it becomes the thumbnail.
+# The example builds `BrusselatorSystem` on a 64 by 64 grid with `a = 1`, `b = 3`, `Du = 1`, and `Dv = 8`, and
+# integrates it with RK4. Naming the `u` field as primary puts its view first, so it becomes the thumbnail.
 
 import matplotlib.pyplot as plt
 import numpy as np

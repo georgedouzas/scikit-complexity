@@ -6,8 +6,8 @@ waits and stay put, so the cloud spreads slower and slower and keeps a sharp pea
 """
 
 # %%
-# The system is built from its class with 500 walkers in the plane, whose waiting times have the tail
-# `tau^(-3/2)`, and simulated to time 1000. Every walker renews on its own clock and jumps at its renewals, with no
+# The example builds `ContinuousTimeRandomWalkSystem` with 500 walkers in the plane, whose waiting times have the tail
+# `tau^(-3/2)`, and simulates it to time 1000. Every walker renews on its own clock and jumps at its renewals, with no
 # time grid. The observer saves every frame with the default blueprint, whose primary view shows the walkers.
 
 import matplotlib.pyplot as plt

@@ -8,7 +8,7 @@ fluctuating at its warm level and then falling abruptly to the cold state.
 """
 
 # %%
-# The system is built from its class for noise-induced tipping: the controls of Table 1 of Fang et al.
+# The example builds `SuteraFraedrichTippingSystem` for noise-induced tipping: the controls of Table 1 of Fang et al.
 # held fixed and noise of variance 1 K^2 per year. The run lasts 300 years with steps of 0.05 years, and the observer
 # saves every second year. The blueprint shows the temperature over the whole run.
 

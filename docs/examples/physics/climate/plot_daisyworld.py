@@ -1,13 +1,13 @@
 """
 # Daisyworld
 
-White daisies cool their planet and black daisies warm it. The two populations settle at areas that hold the planet
-near the temperature where daisies grow best, and they keep holding it there over a wide range of luminosities of the
+White daisies cool their planet and black daisies warm it. The two populations settle at areas that hold the planet near
+the temperature where daisies grow best, and they keep holding it there over a broad interval of luminosities of the
 star.
 """
 
 # %%
-# The system is built from its class with a fifth of the planet covered by each kind of daisy, at the
+# The example builds `DaisyworldSystem` with a fifth of the planet covered by each kind of daisy, at the
 # luminosity `L = 1`. The default blueprint shows the areas of white and black daisies in one time series view.
 
 import matplotlib.pyplot as plt

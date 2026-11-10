@@ -8,10 +8,10 @@ peak, and the glucagon that answers the dip.
 """
 
 # %%
-# The system is built from its class with both hormone loops, a meal of two hours from hour 2 and an exercise of two
-# hours from hour 12. The glucose is relative to its norm, and the time unit is about an hour. The observer saves
-# every second frame with the default blueprint, whose primary view is the time series of the glucose `G`, the insulin
-# `I`, and the glucagon `N`.
+# The example builds `GlucoseDualHormoneControlSystem` with both hormone loops, a meal of two hours from hour 2 and an
+# exercise of two hours from hour 12. The glucose is relative to its norm, and the time unit is about an hour. The
+# observer saves every second frame with the default blueprint, whose primary view is the time series of the glucose
+# `G`, the insulin `I`, and the glucagon `N`.
 
 import matplotlib.pyplot as plt
 

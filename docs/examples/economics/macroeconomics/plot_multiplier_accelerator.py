@@ -9,7 +9,7 @@ or explode.
 
 # %%
 # With the propensity to consume `c = 0.8`, the accelerator `v = 0.9`, and government spending `G = 20`, income starts
-# just above its equilibrium of 100 and swings around it in damped cycles, which the blueprint shows.
+# slightly above its equilibrium of 100 and swings around it in damped cycles, which the blueprint shows.
 
 import matplotlib.pyplot as plt
 import numpy as np

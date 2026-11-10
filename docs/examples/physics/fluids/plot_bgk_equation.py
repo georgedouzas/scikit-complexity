@@ -8,7 +8,7 @@ position and velocity, and the chart shows the density over position.
 """
 
 # %%
-# The system is built from its class with its default Knudsen number of 0.01, 100 positions, and 32
+# The example builds `BGKEquationSystem` with its default Knudsen number of 0.01, 100 positions, and 32
 # velocities. The registered stepper splits the streaming, advanced by a strong-stability-preserving Runge-Kutta method,
 # from the relaxation, and the observer saves every frame of 0.005 up to `t = 0.2`, with the default blueprint.
 

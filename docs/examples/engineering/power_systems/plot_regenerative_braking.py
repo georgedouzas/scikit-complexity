@@ -7,7 +7,7 @@ starts to push current back.
 """
 
 # %%
-# The system is built from its class for a car of 1000 kg at 20 m/s and a supercapacitor of 680 F, and runs
+# The example builds `RegenerativeBrakingSystem` for a car of 1000 kg at 20 m/s and a supercapacitor of 680 F, and runs
 # for one minute. The blueprint shows the speed and the capacitor voltage in one time series view, leaving out the
 # current, which is a hundred times larger.
 

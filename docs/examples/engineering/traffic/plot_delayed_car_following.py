@@ -6,7 +6,7 @@ amplifies the oscillation from car to car, so the last cars of the chain swing t
 """
 
 # %%
-# The system is built from its class with eight cars, a lead car oscillating by 10% around speed 1 at
+# The example builds `DelayedCarFollowingSystem` with eight cars, a lead car oscillating by 10% around speed 1 at
 # `omega = 0.5`, and the reaction time `T = 1`, and runs for 60 time units. The blueprint shows the speeds of all cars
 # in one time series view.
 

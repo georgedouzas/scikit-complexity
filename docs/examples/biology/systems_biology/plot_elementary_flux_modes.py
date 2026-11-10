@@ -7,8 +7,8 @@ have one yield, and the same bound limits the growth whichever of them carries t
 """
 
 # %%
-# The system is built from its class, and its modes come exactly from the steady-state cone of its program. The
-# primary view is the bar chart of the optimum.
+# The example builds `ElementaryFluxModesSystem`, and its modes come exactly from the steady-state cone of its program.
+# The primary view is the bar chart of the optimum.
 
 import matplotlib.pyplot as plt
 import numpy as np

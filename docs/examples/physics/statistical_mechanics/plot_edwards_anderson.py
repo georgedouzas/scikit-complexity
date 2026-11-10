@@ -7,7 +7,7 @@ of the 48 x 48 lattice at the end of the run.
 """
 
 # %%
-# The system is built from its class on a 48 x 48 lattice at `T = 0.5 J`, starting from random spins. One
+# The example builds `EdwardsAndersonSystem` on a 48 x 48 lattice at `T = 0.5 J`, starting from random spins. One
 # unit of time is one sweep of Metropolis updates. The observer saves every second frame with the default blueprint,
 # whose primary view is the image of the spins.
 

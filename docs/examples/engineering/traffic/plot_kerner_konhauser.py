@@ -6,7 +6,7 @@ that keeps its shape and moves around the ring road while the traffic outside it
 """
 
 # %%
-# The system is built from its class on a ring of length 10 in 40 cells at density 0.25 with a bump of 0.1,
+# The example builds `KernerKonhauserSystem` on a ring of length 10 in 40 cells at density 0.25 with a bump of 0.1,
 # and is integrated with SSPRK for 100 time units. The default blueprint puts the history of the density first, where
 # the cluster is the bright band.
 

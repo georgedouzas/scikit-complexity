@@ -6,8 +6,9 @@ size, so its curve bends ever more steeply upwards.
 """
 
 # %%
-# The system is built from its class with a growth rate of 0.2 and run for 20 time units, about six doubling times.
-# The observer saves every frame with the default blueprint, whose primary view is the time series of the population.
+# The example builds `ExponentialGrowthSystem` with a growth rate of 0.2 and runs it for 20 time units, about six
+# doubling times. The observer saves every frame with the default blueprint, whose primary view is the time series of
+# the population.
 
 import matplotlib.pyplot as plt
 import numpy as np

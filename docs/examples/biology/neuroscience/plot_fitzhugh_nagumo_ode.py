@@ -6,9 +6,9 @@ catches up and pulls it down, and the cycle repeats as relaxation oscillations.
 """
 
 # %%
-# The system is built from its class with the current `I = 0.5`, inside the range of periodic firing. The observer
-# saves every second frame with the default blueprint, whose primary view is the time series of the potential and the
-# recovery.
+# The example builds `FitzhughNagumoODESystem` with the current `I = 0.5`, inside the range of periodic firing. The
+# observer saves every second frame with the default blueprint, whose primary view is the time series of the potential
+# and the recovery.
 
 import matplotlib.pyplot as plt
 import numpy as np

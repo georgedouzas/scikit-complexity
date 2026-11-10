@@ -8,7 +8,7 @@ equilibrium, they spread evenly. The view shows eight particles in the Itô sens
 """
 
 # %%
-# The system is built from its class in a box of length 10 whose noise amplitude grows from 0.1 to 1.9,
+# The example builds `MultiplicativeNoiseSystem` in a box of length 10 whose noise amplitude grows from 0.1 to 1.9,
 # read in the Itô sense. The Euler-Maruyama stepper takes steps of 0.01, the walls reflect the particles at every
 # frame of 0.1, and the observer saves every tenth frame with the default blueprint, whose primary view is the time
 # series of the positions.

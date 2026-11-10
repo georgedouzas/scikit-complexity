@@ -9,7 +9,7 @@ smooth sine turning into a sharp moving jump.
 """
 
 # %%
-# The system is built from its class with 200 finite-volume cells, mean `1.5`, and amplitude `1`. The
+# The example builds `BurgersSystem` with 200 finite-volume cells, mean `1.5`, and amplitude `1`. The
 # catalog registers the strong-stability-preserving Runge-Kutta stepper for this system, which keeps the shock free of
 # new extrema, so it is passed explicitly. The observer saves every frame of 0.01 with the default blueprint, whose
 # primary view is the space-time image of the field.

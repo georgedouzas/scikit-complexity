@@ -1,14 +1,14 @@
 """
 # Anti-PD-1 checkpoint inhibition
 
-At the book's low anti-PD-1 infusion, PD-1-PD-L1 binding keeps the T cells low, and the tumour falls at first and then
-grows back toward its capacity.
+At the low anti-PD-1 infusion of the book of Padmanabhan, Meskin, and Al Moustafa (2021), PD-1-PD-L1 binding keeps the T
+cells low, and the tumour falls at first and then grows back toward its capacity.
 """
 
 # %%
-# The system is built from its class with the book's continuous infusion of `10^-10` g/cm³ per day and runs for 150
-# days. The observer saves every frame with the default blueprint, whose primary view is the time series of the T
-# cells, the tumour, and the drug.
+# The example builds `AntiPD1CheckpointSystem` with the book's continuous infusion of `10^-10` g/cm³ per day and runs
+# for 150 days. The observer saves every frame with the default blueprint, whose primary view is the time series of the
+# T cells, the tumour, and the drug.
 
 import matplotlib.pyplot as plt
 

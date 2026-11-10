@@ -7,8 +7,8 @@ exponent near 1, as Barabási found for the timing of e-mails and letters.
 """
 
 # %%
-# The system is built from its class with two tasks, and the highest priority task is executed with
-# probability 0.999 and a random task otherwise, so that waits are cut off near 1 / (1 - 0.999) = 1000 steps. It runs
+# The example builds `PriorityQueuesSystem` with two tasks, and the highest priority task is executed with
+# probability 0.999 and a random task otherwise, so that waits are cut off near `1 / (1 - 0.999) = 1000` steps. It runs
 # for 100000 steps, one task executed per step. The default blueprint shows the age of both tasks, sampled every 400
 # steps: one task is executed at every step while the other ages along long ramps until a new task of even lower
 # priority frees it.

@@ -7,8 +7,8 @@ apart.
 """
 
 # %%
-# The system is built from its class with Elowitz and Leibler's rates and started with only the first protein. The
-# observer saves every third frame with the default blueprint, whose primary view is the time series of the mRNA and
+# The example builds `RepressilatorSystem` with Elowitz and Leibler's rates and starts it with only the first protein.
+# The observer saves every third frame with the default blueprint, whose primary view is the time series of the mRNA and
 # protein counts.
 
 import matplotlib.pyplot as plt

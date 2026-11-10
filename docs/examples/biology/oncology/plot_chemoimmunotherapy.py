@@ -6,9 +6,9 @@ gone after the third, while the NK cells expand and the circulating lymphocytes 
 """
 
 # %%
-# The system is built from its class with the mouse of de Pillis et al.: a million tumour cells, few NK and CD8 T
-# cells, and circulating lymphocytes at their balance. All three drugs are given for one day every week from day 7.
-# The observer saves every frame with the default blueprint, whose primary view is the time series of the cells and
+# The example builds `ChemoimmunotherapySystem` with the mouse of de Pillis et al.: a million tumour cells, few NK and
+# CD8 T cells, and circulating lymphocytes at their balance. All three drugs are given for one day every week from day
+# 7. The observer saves every frame with the default blueprint, whose primary view is the time series of the cells and
 # the drugs.
 
 import matplotlib.pyplot as plt

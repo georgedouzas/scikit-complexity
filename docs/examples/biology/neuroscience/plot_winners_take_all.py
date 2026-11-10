@@ -6,8 +6,9 @@ unit with the largest input wins and settles at an activity equal to its input, 
 """
 
 # %%
-# The system is built from its class with five units whose inputs differ by at most 20% and the inhibition `beta = 2`.
-# The observer saves every frame with the default blueprint, whose primary view is the time series of the activities.
+# The example builds `WinnersTakeAllSystem` with five units whose inputs differ by at most 20% and the inhibition
+# `beta = 2`. The observer saves every frame with the default blueprint, whose primary view is the time series of the
+# activities.
 
 import matplotlib.pyplot as plt
 

@@ -6,10 +6,10 @@ recover close to their carrying capacity.
 """
 
 # %%
-# The system is built from its class with a constant infusion of one dose unit a day, from the initial conditions of
-# de Pillis and Radunskaya: a tumour at a quarter of the capacity, few immune cells, and healthy normal cells. The
-# observer saves every second frame with the default blueprint, whose primary view is the time series of the cells and
-# the drug.
+# The example builds `DePillisRadunskayaSystem` with a constant infusion of one dose unit a day, from the initial
+# conditions of de Pillis and Radunskaya: a tumour at a quarter of the capacity, few immune cells, and healthy normal
+# cells. The observer saves every second frame with the default blueprint, whose primary view is the time series of the
+# cells and the drug.
 
 import matplotlib.pyplot as plt
 

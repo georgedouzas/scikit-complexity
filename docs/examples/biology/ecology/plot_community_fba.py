@@ -7,7 +7,7 @@ other secretes, 2-oxoglutarate one way and glutamate the other, and both grow.
 """
 
 # %%
-# The system is built from its class, which needs the extra `metabolism`. The programs of the members merge through
+# The example builds `CommunityFBASystem`, which needs the extra `metabolism`. The programs of the members merge through
 # the medium, whose law holds the growth weighted by the abundances. The primary view is the bar chart of the fluxes
 # of the first member.
 

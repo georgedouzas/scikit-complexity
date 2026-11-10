@@ -7,10 +7,10 @@ ages.
 """
 
 # %%
-# The system is built from its class with 500 walkers at the temperature `T = 0.5`, with trap depths of
-# density `exp(-E)` and escape times of mean `exp(E / T)`, and simulated to time 10000. Every walker renews on its own
-# clock, with no time grid. The observer saves every frame with the default blueprint, whose primary view shows the
-# walkers in their traps.
+# The example builds `TrapSystem` with 500 walkers at the temperature `T = 0.5`, with trap depths of density `exp(-E)`
+# and escape times of mean `exp(E / T)`, and simulates it to time 10000. Every walker renews on its own clock, with no
+# time grid. The observer saves every frame with the default blueprint, whose primary view shows the walkers in their
+# traps.
 
 import matplotlib.pyplot as plt
 import numpy as np

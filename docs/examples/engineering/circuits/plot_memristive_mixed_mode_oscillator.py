@@ -7,7 +7,7 @@ next pair of spikes, the pattern `2^11` that Trzaska reports.
 """
 
 # %%
-# The system is built from its class with Trzaska's parameters, `epsilon = 0.01`, `R = 2`,
+# The example builds `MemristiveMixedModeOscillatorSystem` with Trzaska's parameters, `epsilon = 0.01`, `R = 2`,
 # `alpha = 1.55`, `beta = 0.15`, `e = -0.04`, `a = -0.34`, and `b = 0.05`, and starts at rest. The default blueprint
 # shows the four states in one time series view.
 

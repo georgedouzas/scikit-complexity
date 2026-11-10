@@ -6,7 +6,7 @@ noise, with long excursions above and below zero instead of the rapid flicker of
 """
 
 # %%
-# The system is built from its class with the damping `lam = 0.5` and the noise amplitude `sigma = 0.3`, and
+# The example builds `HasselmannSystem` with the damping `lam = 0.5` and the noise amplitude `sigma = 0.3`, and
 # is integrated with the Euler-Maruyama scheme. The default blueprint shows the anomaly in one time series view.
 
 import matplotlib.pyplot as plt

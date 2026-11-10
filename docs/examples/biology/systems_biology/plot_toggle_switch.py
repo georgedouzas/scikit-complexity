@@ -6,8 +6,8 @@ stays on, and the cell remembers that choice.
 """
 
 # %%
-# The system is built from its class and started with the first protein ahead. The observer saves every frame with the
-# default blueprint, whose primary view is the time series of the mRNA and protein counts.
+# The example builds `ToggleSwitchSystem` and starts it with the first protein ahead. The observer saves every frame
+# with the default blueprint, whose primary view is the time series of the mRNA and protein counts.
 
 import matplotlib.pyplot as plt
 import numpy as np

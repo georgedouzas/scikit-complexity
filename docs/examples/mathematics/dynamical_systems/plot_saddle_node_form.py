@@ -1,7 +1,7 @@
 """
 # Saddle-node normal form
 
-Just past the saddle-node bifurcation, `mu` slightly below 0, the two equilibria have vanished, yet the state still
+Shortly past the saddle-node bifurcation, `mu` slightly below 0, the two equilibria have vanished, yet the state still
 lingers for a long time near `x = 0`, where they collided: the ghost of the saddle-node, a bottleneck whose passage
 time diverges as `π / √|mu|`.
 """

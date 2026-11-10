@@ -7,10 +7,10 @@ tumour is cleared, after which the treatments stop.
 """
 
 # %%
-# The system is built from its class, the Kirschner-Panetta system in units of `10^5` cells, with a tumour of low
-# antigenicity that escapes the immune response when untreated. Its tuned Pontryagin solver solves the
-# problem on 1001 nodes over 50 days, fine enough for the fast decay of IL-2. The default blueprint shows the cells,
-# IL-2, and both treatments in one time series view.
+# The example builds `OptimalImmunotherapySystem`, the Kirschner-Panetta system in units of `10^5` cells, with a tumour
+# of low antigenicity that escapes the immune response when untreated. Its tuned Pontryagin solver solves the problem on
+# 1001 nodes over 50 days, fine enough for the fast decay of IL-2. The default blueprint shows the cells, IL-2, and both
+# treatments in one time series view.
 
 import matplotlib.pyplot as plt
 

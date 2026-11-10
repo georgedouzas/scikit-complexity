@@ -8,7 +8,7 @@ into domains of the `q` colors that meet at junctions of three. The view shows t
 """
 
 # %%
-# The system is built from its class with `q = 5` at `T = 0.6 J`, below `T_c = 0.85 J`. One unit of time is
+# The example builds `PottsSystem` with `q = 5` at `T = 0.6 J`, below `T_c = 0.85 J`. One unit of time is
 # one sweep of heat-bath updates. The observer saves every frame with the default blueprint, whose primary view is the
 # image of the colors.
 

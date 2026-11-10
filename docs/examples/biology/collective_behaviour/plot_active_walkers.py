@@ -6,8 +6,8 @@ are used, so instead of a lawn worn evenly a few shared trails emerge that bundl
 """
 
 # %%
-# The system is built from its class with twenty walkers on a green of 30 by 30 cells. The observer saves every second
-# step with the default blueprint, whose primary view is the image of the trails.
+# The example builds `ActiveWalkersSystem` with twenty walkers on a green of 30 by 30 cells. The observer saves every
+# second step with the default blueprint, whose primary view is the image of the trails.
 
 import matplotlib.pyplot as plt
 

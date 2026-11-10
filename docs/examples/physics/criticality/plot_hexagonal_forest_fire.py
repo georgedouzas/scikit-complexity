@@ -7,7 +7,7 @@ every size. The view shows the cells colored by cover, empty, tree, or burning, 
 """
 
 # %%
-# The system is built from its class on a periodic 80 x 80 triangular lattice with half of the cells
+# The example builds `HexagonalForestFireSystem` on a periodic 80 x 80 triangular lattice with half of the cells
 # forested. The observer saves every second step with the default blueprint, whose primary view shows the cells.
 
 import matplotlib.pyplot as plt

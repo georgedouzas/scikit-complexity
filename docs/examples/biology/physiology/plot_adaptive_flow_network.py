@@ -7,8 +7,8 @@ source and the distal vessels stay thin.
 """
 
 # %%
-# The system is built from its class on a grid of 6 by 6 nodes, and the observer saves every frame with the default
-# blueprint, whose primary view is the network with the conductances on its edges.
+# The example builds `AdaptiveFlowNetworkSystem` on a grid of 6 by 6 nodes, and the observer saves every frame with the
+# default blueprint, whose primary view is the network with the conductances on its edges.
 
 import matplotlib.pyplot as plt
 import networkx as nx

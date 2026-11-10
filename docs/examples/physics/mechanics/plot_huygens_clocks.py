@@ -7,7 +7,7 @@ the sympathy of clocks that Huygens observed in 1665.
 """
 
 # %%
-# The system is built from its class with two identical clocks, the first released from 0.2, and runs for
+# The example builds `HuygensClocksSystem` with two identical clocks, the first released from 0.2, and runs for
 # 100 time units. The blueprint shows the angles of both pendulums over the whole run.
 
 import matplotlib.pyplot as plt

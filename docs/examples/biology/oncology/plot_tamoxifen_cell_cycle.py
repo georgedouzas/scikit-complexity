@@ -6,9 +6,9 @@ A continuous infusion of tamoxifen and its metabolite kills cells in the growth 
 """
 
 # %%
-# The system is built from its class: a breast tumour of 900 mm³ in the growth phase and 50 mm³ each in synthesis and
-# mitosis receives 300 μg of tamoxifen a day. The run spans 100 days in hours. The observer saves every second frame
-# with the default blueprint, whose primary view is the time series of the phases and the drug masses.
+# The example builds `TamoxifenCellCycleSystem`: a breast tumour of 900 mm³ in the growth phase and 50 mm³ each in
+# synthesis and mitosis receives 300 μg of tamoxifen a day. The run spans 100 days in hours. The observer saves every
+# second frame with the default blueprint, whose primary view is the time series of the phases and the drug masses.
 
 import matplotlib.pyplot as plt
 

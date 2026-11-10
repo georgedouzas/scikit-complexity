@@ -7,7 +7,7 @@ employees drift into a high-risk tail.
 """
 
 # %%
-# The system is built from its class with 130 employees and 3 supervisors on a 20 by 20 office and a yearly
+# The example builds `InsiderSabotageSystem` with 130 employees and 3 supervisors on a 20 by 20 office and a yearly
 # turnover of 15%, and runs for one year, one step per day. The default blueprint shows the employees colored by risk,
 # from 0 (dark) to 5 (bright), with the supervisors.
 

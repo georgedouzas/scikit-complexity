@@ -8,7 +8,7 @@ before it arrives and speeds up before it leaves, so the robots avoid each other
 """
 
 # %%
-# The system is built from its class with the values of Argun et al.: 50 robots in a periodic square of
+# The example builds `LightEmittingRobotsSystem` with the values of Argun et al.: 50 robots in a periodic square of
 # side 10, the intensity `I0 = 5`, the width `r0 = 1`, the speeds 1 in the dark and 0.1 in strong light, the time scale
 # `tau = 2` of rotational diffusion, and a delay of 10 s. Every step lasts 0.5 s. The default blueprint shows the
 # robots in the arena, colored by the light they measure.

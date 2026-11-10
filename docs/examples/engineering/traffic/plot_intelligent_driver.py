@@ -7,7 +7,7 @@ speed.
 """
 
 # %%
-# The system is built from its class with 20 cars of length 5 on a ring of 500 m, the desired speed 30 m/s,
+# The example builds `IntelligentDriverSystem` with 20 cars of length 5 on a ring of 500 m, the desired speed 30 m/s,
 # and the time gap 1.5 s, and runs for 100 s. The blueprint shows the speeds of all cars in one time series view,
 # without a legend.
 

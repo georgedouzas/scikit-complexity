@@ -6,7 +6,7 @@ doses stop the metabolism lowers it.
 """
 
 # %%
-# The system is built from its class: a one-day infusion every week, a drug eliminated at the rate 0.5 a day, and a
+# The example builds `DrugToxicitySystem`: a one-day infusion every week, a drug eliminated at the rate 0.5 a day, and a
 # toxicity cleared at the rate 0.05 a day. The observer saves every second frame with the default blueprint, whose
 # primary view is the time series of the concentration and the toxicity.
 

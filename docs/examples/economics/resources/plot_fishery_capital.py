@@ -29,7 +29,7 @@ trajectory = simulate(FisheryCapitalSystem(), until=UNTIL, observers=[observer])
 # Equilibrium or overshoot
 # ------------------------
 # In the stock-fleet plane, the default yield should spiral into a fixed point where regeneration equals the catch and
-# the profit just replaces depreciation. With the yield table of better technology, which halves the catch only when
+# the profit only replaces depreciation. With the yield table of better technology, which halves the catch only when
 # almost no fish are left, the fleet should keep investing as the stock falls and drive both towards zero.
 
 improved = simulate(FisheryCapitalSystem(yield_table=TECHNOLOGY), until=UNTIL)

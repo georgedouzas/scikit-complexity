@@ -7,7 +7,7 @@ light cone whose edges move at the largest group velocity of the chain.
 """
 
 # %%
-# The system is built from its class with the isotropic exchange `J = Δ = 1`, from one flipped spin at
+# The example builds `QuantumHeisenbergSystem` with the isotropic exchange `J = Δ = 1`, from one flipped spin at
 # site 6. The state is a vector of `2^12 = 4096` complex amplitudes that QuTiP evolves by the Schrödinger equation.
 # The observer saves every frame with the default blueprint, whose primary view is the space-time image of `S^z`.
 

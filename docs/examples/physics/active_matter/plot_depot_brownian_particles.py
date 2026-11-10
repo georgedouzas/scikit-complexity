@@ -8,7 +8,7 @@ direction. The view shows 50 particles started at the origin, flying apart along
 """
 
 # %%
-# The system is built from its class with friction `gamma = 20`, intake `q = 10`, internal loss `c = 1`,
+# The example builds `DepotBrownianParticlesSystem` with friction `gamma = 20`, intake `q = 10`, internal loss `c = 1`,
 # conversion `d = 10`, and velocity noise `D = 0.01`. The Euler-Maruyama stepper takes steps of 0.01 and the observer
 # saves every frame of 0.1 with the default blueprint, whose primary view shows the particles.
 

@@ -8,7 +8,7 @@ ten zones rising from zero and then jumping up and down around the mean.
 """
 
 # %%
-# The system is built from its class with ten zones, `Na = 100` particles, volume fraction `p = 0.1`, and
+# The example builds `TwoPhaseZoneExchangeSystem` with ten zones, `Na = 100` particles, volume fraction `p = 0.1`, and
 # exchange rate `k = 1`. The observer saves every frame of 0.1 with the default blueprint, whose primary view is the
 # time series of the numbers in the zones.
 

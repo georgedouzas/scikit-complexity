@@ -3,7 +3,7 @@
 
 Schwichtenberg's gauge theory of arbitrage: traders carry a good on random walks along a line of markets, and the
 exchange rates between neighbouring markets act as a connection that the density of the good couples to. Without an
-arbitrage opportunity the good just diffuses, but a growing exchange-rate gradient, the field strength `E`, makes the
+arbitrage opportunity the good only diffuses, but a growing exchange-rate gradient, the field strength `E`, makes the
 traders drift towards the profitable direction faster and faster.
 """
 

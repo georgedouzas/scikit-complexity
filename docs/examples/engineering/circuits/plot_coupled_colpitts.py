@@ -7,7 +7,7 @@ amplitudes stay irregular.
 """
 
 # %%
-# The system is built from its class with the coupling `k = 0.4`. The default blueprint shows the three
+# The example builds `CoupledColpittsSystem` with the coupling `k = 0.4`. The default blueprint shows the three
 # variables of both oscillators.
 
 import matplotlib.pyplot as plt

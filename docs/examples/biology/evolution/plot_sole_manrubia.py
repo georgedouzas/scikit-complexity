@@ -7,8 +7,8 @@ avalanches. New species fill the empty niches, so the number of species stays co
 """
 
 # %%
-# The system is built from its class with 100 species of 5 dependencies each. The observer saves every step with the
-# default blueprint, whose primary view is the network of the species, colored by their age, so recent replacements
+# The example builds `SoleManrubiaSystem` with 100 species of 5 dependencies each. The observer saves every step with
+# the default blueprint, whose primary view is the network of the species, colored by their age, so recent replacements
 # are dark.
 
 import matplotlib.pyplot as plt

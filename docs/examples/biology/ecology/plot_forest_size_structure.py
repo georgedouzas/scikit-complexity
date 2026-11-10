@@ -9,9 +9,9 @@ position across the strip, down, and height, across.
 """
 
 # %%
-# The system is built from its class on a strip of width 10 cut into 40 positions, with heights from the sapling
-# height 0.1 to the asymptotic height 50 in 100 cells, a Hurst exponent of 1, and the dispersal length 1. The observer
-# saves every frame of 5 up to `t = 200`.
+# The example builds `ForestSizeStructureSystem` on a strip of width 10 cut into 40 positions, with heights from the
+# sapling height 0.1 to the asymptotic height 50 in 100 cells, a Hurst exponent of 1, and the dispersal length 1. The
+# observer saves every frame of 5 up to `t = 200`.
 
 import matplotlib.pyplot as plt
 import numpy as np

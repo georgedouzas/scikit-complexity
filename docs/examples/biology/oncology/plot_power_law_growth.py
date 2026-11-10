@@ -6,9 +6,9 @@ volume proliferates.
 """
 
 # %%
-# The system is built from its class and run for 40 days from 10 mm³ with the breast cancer fit of Padmanabhan et al.,
-# `r = 1.32` and `p = 0.58`. The observer saves every frame with the default blueprint, whose primary view is the time
-# series of the volume.
+# The example builds `PowerLawGrowthSystem` and runs it for 40 days from 10 mm³ with the breast cancer fit of
+# Padmanabhan et al., `r = 1.32` and `p = 0.58`. The observer saves every frame with the default blueprint, whose
+# primary view is the time series of the volume.
 
 import matplotlib.pyplot as plt
 import numpy as np

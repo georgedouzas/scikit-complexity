@@ -9,7 +9,7 @@ empty (dark) or holding one grain (bright), between avalanches.
 """
 
 # %%
-# The system is built from its class from random stable heights. One unit of time is one dropped grain
+# The example builds `MannaSandpileSystem` from random stable heights. One unit of time is one dropped grain
 # followed by the full avalanche it triggers. The observer saves every 30th grain with the default blueprint, whose
 # primary view is the image of the heights.
 

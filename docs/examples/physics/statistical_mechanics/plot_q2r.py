@@ -9,7 +9,7 @@ majority as ragged clusters. The view shows the spins of a 128 x 128 torus.
 """
 
 # %%
-# The system is built from its class with an initial fraction `up = 0.1` of spins up. One step updates one
+# The example builds `Q2rSystem` with an initial fraction `up = 0.1` of spins up. One step updates one
 # sublattice. The observer saves every step with the default blueprint, whose primary view is the image of the spins.
 
 import matplotlib.pyplot as plt

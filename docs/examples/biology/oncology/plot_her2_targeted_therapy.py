@@ -6,9 +6,9 @@ their rate, while the paclitaxel accumulates in the cells.
 """
 
 # %%
-# The system is built from its class with the culture of Jarrett et al.: 35,000 cells, counted in millions, under a
-# free antibody and a free paclitaxel from day 1. The observer saves every frame with the default blueprint, whose
-# primary view is the time series of the cells, the bound antibody, and the internalized paclitaxel.
+# The example builds `HER2TargetedTherapySystem` with the culture of Jarrett et al.: 35,000 cells, counted in millions,
+# under a free antibody and a free paclitaxel from day 1. The observer saves every frame with the default blueprint,
+# whose primary view is the time series of the cells, the bound antibody, and the internalized paclitaxel.
 
 import matplotlib.pyplot as plt
 import numpy as np

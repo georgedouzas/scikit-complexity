@@ -7,9 +7,9 @@ Above it the master sequence is lost, the error catastrophe.
 """
 
 # %%
-# The system is built from its class with the mutation rate `u = 0.3` below the selective disadvantage `sigma = 0.5`,
-# starting from the master sequence alone. The blueprint shows the shares of the master sequence and of the first five
-# classes of mutants in one time series view.
+# The example builds `EigenQuasispeciesSystem` with the mutation rate `u = 0.3` below the selective disadvantage
+# `sigma = 0.5`, starting from the master sequence alone. The blueprint shows the shares of the master sequence and of
+# the first five classes of mutants in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -7,7 +7,7 @@ to one color with a few short-lived flips of single spins.
 """
 
 # %%
-# The system is built from its class with 200 spins at `T = 0.5 J`, starting from random spins. One unit
+# The example builds `CurieWeissSystem` with 200 spins at `T = 0.5 J`, starting from random spins. One unit
 # of time is one attempted flip per spin. The observer saves every frame with the default blueprint, whose primary
 # view is the space-time image of the spins.
 

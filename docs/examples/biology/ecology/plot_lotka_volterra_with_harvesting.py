@@ -7,8 +7,9 @@ principle.
 """
 
 # %%
-# The system is built from its class with an effort of 0.4 on both species and run for about five cycles. The observer
-# saves every second frame with the default blueprint, whose primary view is the time series of both populations.
+# The example builds `LotkaVolterraWithHarvestingSystem` with an effort of 0.4 on both species and runs it for about
+# five cycles. The observer saves every second frame with the default blueprint, whose primary view is the time series
+# of both populations.
 
 import matplotlib.pyplot as plt
 

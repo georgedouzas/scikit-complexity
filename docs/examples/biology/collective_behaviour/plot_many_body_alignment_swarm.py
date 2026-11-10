@@ -7,10 +7,10 @@ velocity, and an agent surrounded by three neighbours aligns with all three, eac
 """
 
 # %%
-# The system is built from its class with forty agents near a lattice in a periodic box, at the preferred speed with
-# random headings. Its defaults switch on the 3-body flanking term, `kappa_v = 2`, and the 4-body encirclement term,
-# `kappa_4 = 4`.
-# The observer saves every frame with the default blueprint, whose primary view shows the agents in the plane.
+# The example builds `ManyBodyAlignmentSwarmSystem` with forty agents near a lattice in a periodic box, at the preferred
+# speed with random headings. Its defaults switch on the 3-body flanking term, `kappa_v = 2`, and the 4-body
+# encirclement term, `kappa_4 = 4`. The observer saves every frame with the default blueprint, whose primary view shows
+# the agents in the plane.
 
 import matplotlib.pyplot as plt
 import numpy as np

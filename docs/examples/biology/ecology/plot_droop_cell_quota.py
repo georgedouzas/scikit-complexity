@@ -6,9 +6,9 @@ growth rate to exceed the death rate.
 """
 
 # %%
-# The system is built from its class: algae start at their minimum quota, where they cannot grow, in a medium whose
-# uptake fills the quota to twice the minimum, with a death rate of 0.45 a day. The observer saves every frame with
-# the default blueprint, whose primary view is the time series of the quota and the biomass.
+# The example builds `DroopCellQuotaSystem`: algae start at their minimum quota, where they cannot grow, in a medium
+# whose uptake fills the quota to twice the minimum, with a death rate of 0.45 a day. The observer saves every frame
+# with the default blueprint, whose primary view is the time series of the quota and the biomass.
 
 import matplotlib.pyplot as plt
 import numpy as np

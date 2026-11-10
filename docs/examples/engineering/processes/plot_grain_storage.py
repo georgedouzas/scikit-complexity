@@ -8,7 +8,7 @@ they settle.
 """
 
 # %%
-# The system is built from its class with the values of Bala, Arshad and Noh: an initial stock of 1000
+# The example builds `GrainStorageSystem` with the values of Bala, Arshad and Noh: an initial stock of 1000
 # tonnes and 10000 tonnes on order, a desired stock of 6000 tonnes, a release fraction of 0.025 per week, a receiving
 # delay of 10 weeks, and an adjustment delay of 5 weeks. The run lasts 100 weeks, and the default blueprint shows the
 # two stocks and the three flows.

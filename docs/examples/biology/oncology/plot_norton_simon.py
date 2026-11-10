@@ -6,8 +6,8 @@ regrows quickly, since a smaller Gompertzian tumour grows faster.
 """
 
 # %%
-# The system is built from its class: a tumour of 100 mm³ grows towards 1964 mm³, and from day 42 a one-day dose every
-# three weeks kills at the rate 1. The observer saves every second frame with the default blueprint, whose primary
+# The example builds `NortonSimonSystem`: a tumour of 100 mm³ grows towards 1964 mm³, and from day 42 a one-day dose
+# every three weeks kills at the rate 1. The observer saves every second frame with the default blueprint, whose primary
 # view is the time series of the volume.
 
 import matplotlib.pyplot as plt

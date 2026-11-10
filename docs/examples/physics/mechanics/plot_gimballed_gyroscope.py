@@ -6,7 +6,7 @@ steady slow rate, the precession, while the inner ring nods rapidly by a tiny an
 """
 
 # %%
-# The system is built from its class with the rotor spinning at 50 in an inner ring tilted by 0.3 and a
+# The example builds `GimballedGyroscopeSystem` with the rotor spinning at 50 in an inner ring tilted by 0.3 and a
 # unit torque on the axis of the inner ring, and runs for 10 time units. The blueprint shows the angle of the outer
 # ring, which falls at the steady precession rate, over the whole run.
 

@@ -7,8 +7,8 @@ succession.
 """
 
 # %%
-# The system is built from its class from a bare clear cut and run for 300 years. The observer saves every year with
-# the default blueprint, whose primary view is the time series of the three volumes.
+# The example builds `MangroveSuccessionSystem` from a bare clear cut and runs it for 300 years. The observer saves
+# every year with the default blueprint, whose primary view is the time series of the three volumes.
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -6,10 +6,10 @@ would push out, decline towards a level at which the two coexist.
 """
 
 # %%
-# The system is built from its class: normal cells at 0.5 and tumour cells at 0.8 of their capacities compete, and the
-# tumour is irradiated five days a week at the per capita kill rate 0.2. Frames are a week apart, at the same phase of
-# the schedule, and the observer saves every frame with the default blueprint, whose primary view is the time series
-# of the two concentrations.
+# The example builds `RadiotherapyCompetitionSystem`: normal cells at 0.5 and tumour cells at 0.8 of their capacities
+# compete, and the tumour is irradiated five days a week at the per capita kill rate 0.2. Frames are a week apart, at
+# the same phase of the schedule, and the observer saves every frame with the default blueprint, whose primary view is
+# the time series of the two concentrations.
 
 import matplotlib.pyplot as plt
 

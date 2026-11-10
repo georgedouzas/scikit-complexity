@@ -7,7 +7,7 @@ rule, and the economy saves a falling share of its output as it grows richer.
 """
 
 # %%
-# The system is built from its class with the Cobb-Douglas output `k^0.3`, depreciation 0.05, the discount
+# The example builds `OptimalConsumptionSystem` with the Cobb-Douglas output `k^0.3`, depreciation 0.05, the discount
 # rate 0.03, and the initial capital 1. Its tuned collocation solver solves the problem over 40 years.
 # The default blueprint shows capital and consumption in one time series view.
 

@@ -6,8 +6,8 @@ which then collapse until the prey recover, and the cycle repeats with the same 
 """
 
 # %%
-# The system is built from its class, with initial populations away from the equilibrium of four prey and 2.75
-# predators, and simulated for five cycles. The observer saves every second frame of the run with the default
+# The example builds `LotkaVolterraSystem`, with initial populations away from the equilibrium of four prey and 2.75
+# predators, and simulates it for five cycles. The observer saves every second frame of the run with the default
 # blueprint, whose primary view is one time series view of both populations.
 
 import matplotlib.pyplot as plt

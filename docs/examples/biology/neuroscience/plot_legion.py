@@ -7,7 +7,7 @@ the stimulus take turns, each one a synchronized block.
 """
 
 # %%
-# The system is built from its class with its default stimulus of two objects on a 4 by 4 lattice, an L-shape at the
+# The example builds `LegionSystem` with its default stimulus of two objects on a 4 by 4 lattice, an L-shape at the
 # top left and a bar at the right, and the faster slow time scale `epsilon = 0.1`, so that several turns fit in the
 # run. The observer saves every step with the default blueprint, whose primary view shows the oscillators.
 

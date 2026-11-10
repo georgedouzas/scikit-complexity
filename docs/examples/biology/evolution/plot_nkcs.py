@@ -7,7 +7,7 @@ forever, rugged ones freeze it once every species sits on a peak at the same tim
 """
 
 # %%
-# The system is built from its class with ten species coupled to two partners each. The observer saves every frame
+# The example builds `NKCSSystem` with ten species coupled to two partners each. The observer saves every frame
 # with the default blueprint, whose primary view is the count of species.
 
 import matplotlib.pyplot as plt

@@ -7,7 +7,7 @@ whose border creeps for a while, then freezes after about forty steps.
 """
 
 # %%
-# The system is built from its class on a periodic 32 by 32 checkerboard, with half of the employers and
+# The example builds `EmploymentTakeoverSystem` on a periodic 32 by 32 checkerboard, with half of the employers and
 # half of the workers coloured at random, and runs for 50 steps. Naming the colour field as primary puts its view first.
 
 import matplotlib.pyplot as plt

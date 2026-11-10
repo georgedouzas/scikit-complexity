@@ -7,7 +7,7 @@ value: the battery discharges slowly through the disk.
 """
 
 # %%
-# The system is built from its class with the field `B = 1.5` and the motor torque `M = 4.8`, starting at
+# The example builds `FaradayDiskSystem` with the field `B = 1.5` and the motor torque `M = 4.8`, starting at
 # rest, and runs for 50 time units. The default blueprint shows the current, the polarization voltage of the battery,
 # and the angular speed in one time series view.
 

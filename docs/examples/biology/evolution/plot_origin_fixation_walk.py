@@ -7,9 +7,9 @@ switch to their fitter allele, while loci with weak fields keep flipping between
 """
 
 # %%
-# The system is built from its class with 96 loci, random fields of standard deviation 0.01, no couplings, and the
-# per-locus mutation rate 0.01, so mutants of a locus arise at the rate 1. The observer saves every frame with the
-# default blueprint, whose primary view is the space-time image of the alleles.
+# The example builds `OriginFixationWalkSystem` with 96 loci, random fields of standard deviation 0.01, no couplings,
+# and the per-locus mutation rate 0.01, so mutants of a locus arise at the rate 1. The observer saves every frame with
+# the default blueprint, whose primary view is the space-time image of the alleles.
 
 import itertools
 

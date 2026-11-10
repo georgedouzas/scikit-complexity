@@ -3,12 +3,12 @@
 
 A line of neurons excites its near neighbours and inhibits those further away, through a convolution of the firing rate
 against a lateral-inhibition kernel. Below the firing threshold the field rests, but a local excitation settles into a
-stationary bump of activity that outlasts its cause, a system of working memory. Amari's condition gives its width.
+stationary bump of activity that outlasts its cause, a model of working memory. Amari's condition gives its width.
 """
 
 # %%
-# The system is built from its class on a line of length 20 in 800 sites, with the kernel of a Mexican hat, from a
-# localized excitation. The default blueprint shows the history of the potential.
+# The example builds `AmariNeuralFieldSystem` on a line of length 20 in 800 sites, with the kernel of a Mexican hat,
+# from a localized excitation. The default blueprint shows the history of the potential.
 
 import matplotlib.pyplot as plt
 import numpy as np

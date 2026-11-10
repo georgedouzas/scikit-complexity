@@ -7,7 +7,7 @@ two parallel routes, so the optimum fixes the growth and leaves the split betwee
 """
 
 # %%
-# The system is built from its class. The system holds one program under static time, so the run has one frame, and
+# The example builds `FluxBalanceSystem`. The system holds one program under static time, so the run has one frame, and
 # the primary view is the bar chart of the fluxes.
 
 import matplotlib.pyplot as plt

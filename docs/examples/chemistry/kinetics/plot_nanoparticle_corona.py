@@ -6,10 +6,10 @@ tightly, displaces it over the next hours: the Vroman effect.
 """
 
 # %%
-# The system is built from its class with the book's concentrations of nanoparticles and of albumin,
-# high-density lipoprotein, and fibrinogen, and runs for three hours. Free albumin is a hundred thousand times more
-# concentrated than the corona, so the blueprint shows only the nanoparticles bound to each protein, in one time series
-# view over the whole run.
+# The example builds `NanoparticleCoronaSystem` with the concentrations that the book of Padmanabhan, Meskin, and Al
+# Moustafa (2021) gives for nanoparticles and for albumin, high-density lipoprotein, and fibrinogen, and runs for three
+# hours. Free albumin is a hundred thousand times more concentrated than the corona, so the blueprint shows only the
+# nanoparticles bound to each protein, in one time series view over the whole run.
 
 import matplotlib.pyplot as plt
 import rerun as rr

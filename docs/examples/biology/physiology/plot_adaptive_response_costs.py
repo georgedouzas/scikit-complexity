@@ -8,9 +8,9 @@ shrink, and the capacity that climbs with every episode and decays a little betw
 """
 
 # %%
-# The system is built from its class with the adaptive strategy and episodes of height 1 and width 2 every 10 time
-# units. The run lasts 200 time units and the observer saves every tenth step. The blueprint shows the excursion `e`
-# and the capacity `c` over the whole run.
+# The example builds `AdaptiveResponseCostsSystem` with the adaptive strategy and episodes of height 1 and width 2 every
+# 10 time units. The run lasts 200 time units and the observer saves every tenth step. The blueprint shows the excursion
+# `e` and the capacity `c` over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np

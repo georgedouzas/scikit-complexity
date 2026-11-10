@@ -6,8 +6,8 @@ falls. Off therapy the quotas refill and the tumour and the PSA regrow.
 """
 
 # %%
-# The system is built from its class: 15 billion androgen-dependent cells under therapy for 250 days every 500 days.
-# The observer saves every second frame with the default blueprint, whose primary view is the time series of the
+# The example builds `ProstateCellQuotaSystem`: 15 billion androgen-dependent cells under therapy for 250 days every 500
+# days. The observer saves every second frame with the default blueprint, whose primary view is the time series of the
 # cells, the quotas, the PSA, and the androgen.
 
 import matplotlib.pyplot as plt

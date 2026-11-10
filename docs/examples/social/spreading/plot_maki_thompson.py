@@ -6,7 +6,7 @@ and become stiflers, so the rumour dies out before it reaches everyone: about a 
 """
 
 # %%
-# The system is built from its class with 1000 people, one of them a spreader, and equal rates of spreading
+# The example builds `MakiThompsonSystem` with 1000 people, one of them a spreader, and equal rates of spreading
 # and stifling, and runs for 20 time units. The default blueprint shows the ignorants, spreaders, and stiflers in one
 # time series view.
 

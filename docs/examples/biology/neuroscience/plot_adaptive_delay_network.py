@@ -1,14 +1,14 @@
 """
 # Adaptive delay network
 
-Phase units coupled through axons whose conduction delays adapt to the activity they carry, as myelination does. Fixed
-delays leave the units incoherent, while delays that follow the phase differences of their units bring partial
+Phase units are coupled through axons whose conduction delays adapt to the activity they carry, as myelination does.
+Fixed delays leave the units incoherent, while delays that follow the phase differences of their units bring partial
 synchrony back.
 """
 
 # %%
-# The system is built from its class with five units, and the observer saves every other frame with the default
-# blueprint, whose primary view is the time series of the phases and delays.
+# The example builds `AdaptiveDelayNetworkSystem` with five units, and the observer saves every other frame with the
+# default blueprint, whose primary view is the time series of the phases and delays.
 
 import matplotlib.pyplot as plt
 import numpy as np

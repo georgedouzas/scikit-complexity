@@ -8,8 +8,8 @@ stuck ones bright, with the aggregate branching out from the centre.
 """
 
 # %%
-# The system is built from its class with 800 walkers, the seed included, scattered over a periodic grid
-# of side 101. The observer saves every tenth step with the default blueprint, whose primary view shows the walkers
+# The example builds `DiffusionLimitedAggregationSystem` with 800 walkers, the seed included, scattered over a periodic
+# grid of side 101. The observer saves every tenth step with the default blueprint, whose primary view shows the walkers
 # colored by whether they are stuck.
 
 import matplotlib.pyplot as plt

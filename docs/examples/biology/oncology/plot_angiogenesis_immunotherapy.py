@@ -6,10 +6,10 @@ tumour shrinks to about a third of its initial volume.
 """
 
 # %%
-# The system is built from its class with the renal cell carcinoma of Teles and Lemos: a tumour of 5000 mm³ on a
-# vasculature of 625 mm³, under 15 mg per kg of bevacizumab and 20 mg per kg of atezolizumab every 21 days. The
-# observer saves every second frame with the default blueprint, whose primary view is the time series of the tumour,
-# the vasculature, the effector cells, and the drugs.
+# The example builds `AngiogenesisImmunotherapySystem` with the renal cell carcinoma of Teles and Lemos: a tumour of
+# 5000 mm³ on a vasculature of 625 mm³, under 15 mg per kg of bevacizumab and 20 mg per kg of atezolizumab every 21
+# days. The observer saves every second frame with the default blueprint, whose primary view is the time series of the
+# tumour, the vasculature, the effector cells, and the drugs.
 
 import matplotlib.pyplot as plt
 

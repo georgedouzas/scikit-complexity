@@ -6,9 +6,9 @@ density of every degree class settles at an endemic level that rises with the de
 """
 
 # %%
-# The system is built from its class with degrees from 3 to 30 distributed as `k^-2.5` and a spreading rate above the
-# threshold. The observer saves every frame with the default blueprint, whose primary view is the time series of the
-# densities of the degree classes.
+# The example builds `HeterogeneousMeanFieldSISSystem` with degrees from 3 to 30 distributed as `k^-2.5` and a spreading
+# rate above the threshold. The observer saves every frame with the default blueprint, whose primary view is the time
+# series of the densities of the degree classes.
 
 import matplotlib.pyplot as plt
 import numpy as np

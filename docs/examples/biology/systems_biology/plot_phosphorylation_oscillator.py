@@ -6,10 +6,10 @@ loop keeps oscillating with a period of about 4.2.
 """
 
 # %%
-# The system is built from its class and run for 40 time units from A unphosphorylated and B and C phosphorylated. The
-# Michaelis constants are a hundredth of the totals, so every phosphorylation cycle acts as a sharp switch. The
-# observer saves every fourth frame with the default blueprint, whose primary view is the time series of the three
-# amounts.
+# The example builds `PhosphorylationOscillatorSystem` and runs it for 40 time units from A unphosphorylated and B and C
+# phosphorylated. The Michaelis constants are a hundredth of the totals, so every phosphorylation cycle acts as a sharp
+# switch. The observer saves every fourth frame with the default blueprint, whose primary view is the time series of the
+# three amounts.
 
 import matplotlib.pyplot as plt
 import numpy as np

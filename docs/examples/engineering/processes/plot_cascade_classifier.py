@@ -7,7 +7,7 @@ at the top as the fine product.
 """
 
 # %%
-# The system is built from its class with ten stages, the upward fraction `k = 0.6`, and a unit feed into
+# The example builds `CascadeClassifierSystem` with ten stages, the upward fraction `k = 0.6`, and a unit feed into
 # the middle stage, and runs for 50 time units. The blueprint shows the accumulated fine and coarse products in one time
 # series view, where the fine product grows faster.
 

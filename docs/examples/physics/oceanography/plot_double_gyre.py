@@ -7,8 +7,8 @@ of currents such as the Gulf Stream. The state is the potential vorticity, inver
 """
 
 # %%
-# The system is built from its class on a square basin of 64 by 64 sites with walls, in its viscous steady
-# regime, and integrated with RK4 for 400 time units. The catalog entry streams the streamfunction as the observable
+# The example builds `DoubleGyreSystem` on a square basin of 64 by 64 sites with walls, in its viscous steady
+# regime, and integrates it with RK4 for 400 time units. The catalog entry streams the streamfunction as the observable
 # `psi`, and the default blueprint shows it as an image.
 
 import matplotlib.pyplot as plt

@@ -7,7 +7,7 @@ Belousov-Zhabotinsky reaction.
 """
 
 # %%
-# The system is built from its class on a 100 by 100 grid with 100 levels of illness, `k1 = 2`, `k2 = 3`,
+# The example builds `HodgepodgeSystem` on a 100 by 100 grid with 100 levels of illness, `k1 = 2`, `k2 = 3`,
 # and the default infection rate `g = 34`, from random levels, and runs for 600 steps. The default blueprint shows the
 # levels on the grid.
 

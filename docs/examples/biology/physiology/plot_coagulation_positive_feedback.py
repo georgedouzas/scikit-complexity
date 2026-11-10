@@ -8,9 +8,10 @@ thrombin, the larger clot of fibrin that follows it and dissolves, and the slow 
 """
 
 # %%
-# The system is built from its class with an injury of rate 1 from time 1 to time 2 and the feedback `ka = 3`, above
-# the bistability threshold 2. The observer saves every second frame of the run of 40 time units with the default
-# blueprint, whose primary view is the time series of thrombin `T`, protein C `C`, fibrin `F`, and plasmin `P`.
+# The example builds `CoagulationPositiveFeedbackSystem` with an injury of rate 1 from time 1 to time 2 and the feedback
+# `ka = 3`, above the bistability threshold 2. The observer saves every second frame of the run of 40 time units with
+# the default blueprint, whose primary view is the time series of thrombin `T`, protein C `C`, fibrin `F`, and plasmin
+# `P`.
 
 import matplotlib.pyplot as plt
 import numpy as np

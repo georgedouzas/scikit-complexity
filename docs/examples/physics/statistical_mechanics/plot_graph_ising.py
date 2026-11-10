@@ -7,7 +7,7 @@ node, after domains have formed from random spins.
 """
 
 # %%
-# The system is built from its class on the honeycomb graph that NetworkX generates, whose nodes carry
+# The example builds `GraphIsingSystem` on the honeycomb graph that NetworkX generates, whose nodes carry
 # their positions in the plane, at `T = 1.2 J`, below the critical temperature `2 / ln(2 + sqrt 3) = 1.52 J` of the
 # honeycomb lattice. One unit of time is one sweep of Metropolis updates over the classes of a proper coloring of the
 # graph. The observer saves every frame with the default blueprint, whose primary view is the graph of the spins.

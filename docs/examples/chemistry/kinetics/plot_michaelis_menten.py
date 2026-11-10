@@ -6,7 +6,7 @@ product at a nearly steady rate until the substrate runs out and the enzyme is r
 """
 
 # %%
-# The system is built from its class with 100 enzymes and 300 substrate molecules as rate equations. The
+# The example builds `MichaelisMentenSystem` with 100 enzymes and 300 substrate molecules as rate equations. The
 # default blueprint shows the free enzyme `E`, the substrate `S`, the complex `C`, and the product `P` in one time
 # series view.
 

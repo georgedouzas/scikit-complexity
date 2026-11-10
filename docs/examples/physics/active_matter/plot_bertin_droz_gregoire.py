@@ -9,7 +9,7 @@ density, which grows exponentially and saturates.
 """
 
 # %%
-# The system is built from its class on a single position with 32 orientations, since the initial state of
+# The example builds `BertinDrozGregoireSystem` on a single position with 32 orientations, since the initial state of
 # the system is homogeneous and streaming therefore leaves it so. With the noise 0.5, the interaction range 0.5, and the
 # unit speed and tumbling rate of the defaults, the transition density is close to 0.43. The observable `polar_order` is
 # computed from the density at every frame of 1 up to `t = 60`, and the default blueprint shows the observables first.

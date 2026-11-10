@@ -6,7 +6,7 @@ deeper soil `y` averages it into small, damped fluctuations.
 """
 
 # %%
-# The system is built from its class with `r = 3.8` and the coupling `epsilon = 0.1`, and iterated for 200
+# The example builds `SoilTemperatureSystem` with `r = 3.8` and the coupling `epsilon = 0.1`, and iterates it for 200
 # steps. The default blueprint shows both temperatures in one time series view.
 
 import matplotlib.pyplot as plt

@@ -1,7 +1,7 @@
 """
 # Phone adoption
 
-Hamill and Gilbert's system of how British households took up fixed-line phones from 1951. A household buys a phone
+Hamill and Gilbert model how British households took up fixed-line phones from 1951. A household buys a phone
 once its income passes a threshold, but only if a neighbour already has one to call. Incomes grow every year, so the
 phones spread outwards from the rich upper-class quarter in an S-shaped adoption curve, lagging behind the households
 that could already afford one.

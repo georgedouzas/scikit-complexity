@@ -1,9 +1,9 @@
 """
 # Mean-field flows of the undecided
 
-The numbers of agents against, undecided, and for, with undecided agents joining either side and decided agents
-becoming undecided at rates that grow with the number of undecided. Below a critical population every agent ends on
-one side, and above it the surplus never makes up its mind.
+The system counts the agents against, undecided, and for. Undecided agents join either side, and decided agents become
+undecided, at rates that grow with the number of undecided. Below a critical population every agent ends on one side,
+and above it the surplus never makes up its mind.
 """
 
 # %%

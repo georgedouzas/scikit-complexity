@@ -7,7 +7,7 @@ settle in the thermal mode.
 """
 
 # %%
-# The system is built from its class with the forcings `eta1 = 3`, `eta2 = 1.2`, and `eta3 = 0.3`, starting
+# The example builds `StommelSystem` with the forcings `eta1 = 3`, `eta2 = 1.2`, and `eta3 = 0.3`, starting
 # at `T = 3` and `S = 0`. The default blueprint shows the temperature and salinity differences in one time series view.
 
 import matplotlib.pyplot as plt

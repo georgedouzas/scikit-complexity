@@ -8,7 +8,7 @@ holds the longest memory.
 """
 
 # %%
-# The system is built from its class with a pulse every ten steps until step 150. The observer saves every second step
+# The example builds `AdaptrodeSystem` with a pulse every ten steps until step 150. The observer saves every second step
 # with the default blueprint, whose primary view is the time series of the three weights.
 
 import matplotlib.pyplot as plt

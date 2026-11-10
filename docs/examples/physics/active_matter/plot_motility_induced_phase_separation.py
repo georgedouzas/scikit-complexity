@@ -8,10 +8,10 @@ a dilute gas. The view shows 600 disks at packing fraction 0.5 that have gathere
 """
 
 # %%
-# The system is built from its class with 600 disks of unit diameter, packing fraction 0.5, speed `v = 1`,
-# and rotational diffusion `D_r = 0.01`, a Péclet number `v / (D_r sigma) = 100`. The Euler-Maruyama stepper takes
-# steps of 0.005 and the observer saves every frame of 0.5 with the default blueprint, whose primary view shows the
-# disks.
+# The example builds `MotilityInducedPhaseSeparationSystem` with 600 disks of unit diameter, packing fraction 0.5, speed
+# `v = 1`, and rotational diffusion `D_r = 0.01`, a Péclet number `v / (D_r sigma) = 100`. The Euler-Maruyama stepper
+# takes steps of 0.005 and the observer saves every frame of 0.5 with the default blueprint, whose primary view shows
+# the disks.
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -9,7 +9,7 @@ times.
 """
 
 # %%
-# The system is built from its class with six particles and noise intensity `D = 0.07`. The Euler-Maruyama
+# The example builds `KramersEscapeSystem` with six particles and noise intensity `D = 0.07`. The Euler-Maruyama
 # stepper takes steps of 0.01 and the observer saves every frame of 1.5 with the default blueprint, whose primary view
 # is the time series of the positions.
 

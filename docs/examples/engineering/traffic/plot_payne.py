@@ -6,7 +6,7 @@ Greenshields law and the anticipation of drivers smooth it out, so the road retu
 """
 
 # %%
-# The system is built from its class on a ring of 200 cells at density 0.3 with a bump of 0.2, the
+# The example builds `PayneSystem` on a ring of 200 cells at density 0.3 with a bump of 0.2, the
 # relaxation time `tau = 0.5`, and is integrated with SSPRK for one time unit. The default blueprint puts the history of
 # the density first.
 

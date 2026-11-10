@@ -6,7 +6,7 @@ first lock into local cycles, then spiral waves form around their defects and gr
 """
 
 # %%
-# The system is built from its class on a 128 by 128 grid with 14 levels and threshold 1, from random
+# The example builds `CyclicCellularAutomatonSystem` on a 128 by 128 grid with 14 levels and threshold 1, from random
 # levels, and runs for 300 steps. The default blueprint shows the levels on the grid.
 
 import matplotlib.pyplot as plt

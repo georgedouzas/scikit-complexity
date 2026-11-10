@@ -7,8 +7,8 @@ continuous phase transition that mean-field theory places at 1/6.
 """
 
 # %%
-# The system is built from its class with two hundred nodes at the noise 0.1, and the observer saves every step with
-# the default blueprint, whose primary view is the time series of the states.
+# The example builds `NoisyBooleanNetworkSystem` with two hundred nodes at the noise 0.1, and the observer saves every
+# step with the default blueprint, whose primary view is the time series of the states.
 
 import matplotlib.pyplot as plt
 import numpy as np

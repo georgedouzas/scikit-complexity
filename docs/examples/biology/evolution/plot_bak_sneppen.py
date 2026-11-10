@@ -7,7 +7,7 @@ every size. The view shows the space-time history of the fitnesses of the ring, 
 """
 
 # %%
-# The system is built from its class on a ring of 200 species with 200 updates per step. The observer saves every
+# The example builds `BakSneppenSystem` on a ring of 200 species with 200 updates per step. The observer saves every
 # tenth step with the default blueprint, whose primary view is the space-time image of the fitnesses.
 
 import matplotlib.pyplot as plt

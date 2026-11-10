@@ -6,9 +6,9 @@ while thermal noise spreads them out, so the cloud moves at a steady mean veloci
 """
 
 # %%
-# The system is built from its class with 20 particles in the potential `0.5 cos(2 pi x) - f x` at
-# `kT = 0.5`, with the force `f = 1`, and simulated for 50 time units. The observer saves every frame with the default
-# blueprint, whose primary view holds the positions of the particles.
+# The example builds `TiltedPeriodicPotentialSystem` with 20 particles in the potential `0.5 cos(2 pi x) - f x` at
+# `kT = 0.5`, with the force `f = 1`, and simulates it for 50 time units. The observer saves every frame with the
+# default blueprint, whose primary view holds the positions of the particles.
 
 import matplotlib.pyplot as plt
 import numpy as np

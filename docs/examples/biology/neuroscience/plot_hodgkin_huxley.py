@@ -6,9 +6,9 @@ open and the potential shoots up to about +40 mV, then the potassium channels op
 """
 
 # %%
-# The system is built from its class with a current of 10 µA/cm², above the threshold of periodic firing, and run for
-# 50 ms. The observer saves every second frame with the default blueprint, whose primary view is the time series of
-# the potential and the gates.
+# The example builds `HodgkinHuxleySystem` with a current of 10 µA/cm², above the threshold of periodic firing, and runs
+# it for 50 ms. The observer saves every second frame with the default blueprint, whose primary view is the time series
+# of the potential and the gates.
 
 import matplotlib.pyplot as plt
 import numpy as np

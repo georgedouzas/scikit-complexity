@@ -6,7 +6,7 @@ settles a little below the setting, at the temperature where the furnace makes u
 """
 
 # %%
-# The system is built from its class with the room and the outside at 10 °C, the setting 18 °C, the leak
+# The example builds `ThermostatSystem` with the room and the outside at 10 °C, the setting 18 °C, the leak
 # 0.1 per hour, and a daily swing of 5 °C outside, and runs for two days. The default blueprint shows the room
 # temperature in one time series view.
 

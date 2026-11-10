@@ -7,8 +7,8 @@ partners, so the same partner and infection rates spread the epidemic faster.
 """
 
 # %%
-# The system is built from its class with partnerships of mean duration 3, and the observer saves every other frame
-# with the default blueprint, whose primary view is the time series of the compartments.
+# The example builds `WattsMayConcurrencySystem` with partnerships of mean duration 3, and the observer saves every
+# other frame with the default blueprint, whose primary view is the time series of the compartments.
 
 import matplotlib.pyplot as plt
 

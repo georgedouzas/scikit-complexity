@@ -7,7 +7,7 @@ reaches the speed limit.
 """
 
 # %%
-# The system is built from its class with 30 cars on a ring of 1000, the speed limit 40, and speed errors up
+# The example builds `RingRoadDriversSystem` with 30 cars on a ring of 1000, the speed limit 40, and speed errors up
 # to 2%, and runs for 300 steps. The road is 1000 long and 1 wide, so the blueprint frames the whole road with a
 # margin above and below it and draws the cars as large dots, which bunch together where a jam holds them.
 

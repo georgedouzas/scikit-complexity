@@ -6,8 +6,8 @@ reusing the newest polymer, a simple model of selection, builds ever longer chai
 """
 
 # %%
-# The system is built from its class with undirected joining, and the observer saves every step with the default
-# blueprint, whose primary view is the count of polymers.
+# The example builds `PolymerAssemblyPoolSystem` with undirected joining, and the observer saves every step with the
+# default blueprint, whose primary view is the count of polymers.
 
 import matplotlib.pyplot as plt
 import numpy as np

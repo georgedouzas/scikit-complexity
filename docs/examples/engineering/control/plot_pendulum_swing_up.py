@@ -7,7 +7,7 @@ pendulum.
 """
 
 # %%
-# The system is built from its class with the pendulum hanging at rest, the natural frequency
+# The example builds `PendulumSwingUpSystem` with the pendulum hanging at rest, the natural frequency
 # `omega = 1.565`, and the largest pivot acceleration `mu = 0.1`, and is integrated with RK4 for 100 time units. The
 # default blueprint shows the angle and the pivot position with their rates in one time series view.
 

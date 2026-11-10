@@ -9,7 +9,7 @@ the field and then runs along a straight line, while its real part alternates in
 """
 
 # %%
-# The system is built from its class: a Gaussian packet of width 2 at rest at the centre of a periodic line
+# The example builds `ChargedSchrodingerSystem`: a Gaussian packet of width 2 at rest at the centre of a periodic line
 # of length 80, with `D = 1/2` and charge `q = 1`, in the electric field `E = 1` switched on from `t = 0` to `t = 2`.
 # The observer saves every frame of 0.1 time units with the default blueprint.
 

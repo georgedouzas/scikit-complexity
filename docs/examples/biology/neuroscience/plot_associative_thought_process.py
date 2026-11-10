@@ -7,9 +7,9 @@ sites with it, and the network runs through its memories one after the other.
 """
 
 # %%
-# The system is built from its class with the seven sites and six cliques of Gros (2015, figure 10.12), started in the
-# clique (0, 1). The observer saves every frame with the default blueprint, whose primary view is the time series of
-# the activities.
+# The example builds `AssociativeThoughtProcessSystem` with the seven sites and six cliques of Gros (2015, figure
+# 10.12), started in the clique (0, 1). The observer saves every frame with the default blueprint, whose primary view is
+# the time series of the activities.
 
 import matplotlib.pyplot as plt
 import numpy as np

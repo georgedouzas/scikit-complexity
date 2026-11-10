@@ -6,10 +6,10 @@ coefficients for long, so the dark slow walkers stay near the origin while the b
 """
 
 # %%
-# The system is built from its class with 500 walkers in the plane, whose diffusion coefficients `D` have
-# the density `D^(-1/2) / 2` on `(0, 1)` and last for exponential times of mean `1 / D`, and simulated to time 500.
-# Noise laws move the walkers, and the solver stops every walker at its own changes of coefficient. The observer saves
-# every frame with the default blueprint, whose primary view shows the walkers colored by their coefficients.
+# The example builds `AnnealedTransientTimeMotionSystem` with 500 walkers in the plane, whose diffusion coefficients `D`
+# have the density `D^(-1/2) / 2` on `(0, 1)` and last for exponential times of mean `1 / D`, and simulates it to time
+# 500. Noise laws move the walkers, and the solver stops every walker at its own changes of coefficient. The observer
+# saves every frame with the default blueprint, whose primary view shows the walkers colored by their coefficients.
 
 import matplotlib.pyplot as plt
 import numpy as np

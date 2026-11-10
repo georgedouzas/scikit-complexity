@@ -6,9 +6,9 @@ connections, are reached first, and the less connected cities peak later, one wa
 """
 
 # %%
-# The system is built from its class on its default Barabási-Albert network of 30 cities, with the infection starting
-# in the first. The observer saves every day with the default blueprint, whose primary view is the time series of the
-# subpopulations.
+# The example builds `MetapopulationSystem` on its default Barabási-Albert network of 30 cities, with the infection
+# starting in the first. The observer saves every day with the default blueprint, whose primary view is the time series
+# of the subpopulations.
 
 import matplotlib.pyplot as plt
 import networkx as nx

@@ -6,7 +6,7 @@ at once or sets off a global cascade that sweeps almost the whole network, and w
 """
 
 # %%
-# The system is built from its class with the default random network, the threshold 0.18 for every node,
+# The example builds `WattsCascadesSystem` with the default random network, the threshold 0.18 for every node,
 # and one random seed, and runs for 30 steps. The default blueprint draws the network, where the adopters are yellow.
 
 import matplotlib.pyplot as plt

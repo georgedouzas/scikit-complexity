@@ -7,8 +7,9 @@ into a periodic response locked to the pulse train.
 """
 
 # %%
-# The system is built from its class with pulses of current 5 lasting 2 time units every 10 time units, and
-# runs for twelve pulses. The default blueprint shows the overpotential and the reactant in one time series view.
+# The example builds `PulsedElectrochemicalReactorSystem` with pulses of current 5 lasting 2 time units every 10 time
+# units, and runs for twelve pulses. The default blueprint shows the overpotential and the reactant in one time series
+# view.
 
 import matplotlib.pyplot as plt
 import numpy as np

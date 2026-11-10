@@ -7,10 +7,10 @@ they rise and fall together, and their log returns are correlated with `rho`.
 """
 
 # %%
-# The system is built from its class with prices of 100, drifts of 5 and 8 percent, and volatilities of 20
-# and 30 percent a year. It is simulated for three years in frames of 0.02 with the Euler-Maruyama scheme. The default
-# blueprint shows both prices in one time series view. The `WienerProcess` that both motions bind is no component and
-# draws no view.
+# The example builds `CorrelatedGeometricBrownianMotionSystem` with prices of 100, drifts of 5 and 8 percent, and
+# volatilities of 20 and 30 percent a year. It is simulated for three years in frames of 0.02 with the Euler-Maruyama
+# scheme. The default blueprint shows both prices in one time series view. The `WienerProcess` that both motions bind is
+# no component and draws no view.
 
 import matplotlib.pyplot as plt
 import numpy as np

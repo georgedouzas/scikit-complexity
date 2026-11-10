@@ -9,7 +9,7 @@ as a sound wave.
 """
 
 # %%
-# The system is built from its class with disks of diameter 0.8 at the Knudsen number 0.2 of the dilute gas,
+# The example builds `EnskogSystem` with disks of diameter 0.8 at the Knudsen number 0.2 of the dilute gas,
 # 16 positions, and 16 points on each velocity axis. The stepper is the registered Strang splitting of semi-Lagrangian
 # streaming and of collisions advanced by RK4. The observable `density_wave` is the component of wave number 1 of the
 # density over position, computed at every frame of 0.1 up to `t = 5.5`, and the default blueprint shows the observables

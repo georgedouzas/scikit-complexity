@@ -6,9 +6,9 @@ compartment of the cell cycle decay after an initial redistribution of the cells
 """
 
 # %%
-# The system is built from its class with the three compartments of Table 3.8, a killing agent `u1 = 0.6`, and a
-# blocking agent `u2 = 0.3`. The observer saves every frame with the default blueprint, whose primary view is the time
-# series of the three compartments.
+# The example builds `CellCycleChemotherapySystem` with the three compartments of Table 3.8, a killing agent `u1 = 0.6`,
+# and a blocking agent `u2 = 0.3`. The observer saves every frame with the default blueprint, whose primary view is the
+# time series of the three compartments.
 
 import matplotlib.pyplot as plt
 import numpy as np

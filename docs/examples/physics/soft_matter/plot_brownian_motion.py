@@ -8,7 +8,7 @@ the plane, spreading into a round Gaussian cloud.
 """
 
 # %%
-# The system is built from its class with inertia, mass `m = 1`, friction `gamma = 1`, and thermal energy
+# The example builds `BrownianMotionSystem` with inertia, mass `m = 1`, friction `gamma = 1`, and thermal energy
 # `kT = 1`, so the momentum relaxation time is 1. The Euler-Maruyama stepper takes steps of 0.005 and the observer
 # saves every frame of 0.05 with the default blueprint, whose primary view shows the particles.
 

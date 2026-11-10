@@ -6,8 +6,8 @@ state 011 is a point attractor.
 """
 
 # %%
-# The system is built from its class and started from the state `100`, `g1` on. The observer saves every step with the
-# default blueprint, whose primary view is the time series of the three genes.
+# The example builds `ThreeGeneBooleanNetworkSystem` and starts it from the state `100`, `g1` on. The observer saves
+# every step with the default blueprint, whose primary view is the time series of the three genes.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,7 +24,7 @@ trajectory = simulate(ThreeGeneBooleanNetworkSystem(x=(1, 0, 0)), observers=[obs
 # %%
 # Attractors from every state
 # ---------------------------
-# Running the network from each of its eight states should reproduce the state transition map of the book: the
+# Running the network from each of its eight states should reproduce the state transition map of Raman (2021): the
 # states `000`, `011`, `101` reach the point attractor `011`, and all the others fall on the cycle `001 -> 010 -> 111`.
 
 fig, ax = plt.subplots(figsize=(7, 4))

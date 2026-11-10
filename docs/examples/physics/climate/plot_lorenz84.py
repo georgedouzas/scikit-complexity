@@ -6,7 +6,7 @@ while the eddies are weak, the eddies then grow on it and weaken it, and the cyc
 """
 
 # %%
-# The system is built from its class with Lorenz's parameters `a = 0.25`, `b = 4`, `F = 8`, and `G = 1`, and
+# The example builds `Lorenz84System` with Lorenz's parameters `a = 0.25`, `b = 4`, `F = 8`, and `G = 1`, and
 # runs for 100 time units. The default blueprint shows the jet and the two eddy phases in one time series view.
 
 import matplotlib.pyplot as plt

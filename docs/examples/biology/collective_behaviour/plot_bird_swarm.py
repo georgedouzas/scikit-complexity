@@ -6,7 +6,7 @@ repels near, form a cohesive swarm that organizes itself into a rotating mill or
 """
 
 # %%
-# The system is built from its class with thirty birds started at random. The observer saves every frame with the
+# The example builds `BirdSwarmSystem` with thirty birds started at random. The observer saves every frame with the
 # default blueprint, whose primary view shows the birds in the plane.
 
 import matplotlib.pyplot as plt

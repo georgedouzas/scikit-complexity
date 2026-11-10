@@ -7,8 +7,8 @@ monogamy, because the infection passes on before the partnership that brought it
 """
 
 # %%
-# The system is built from its class with three concurrent partners per person, run by the Gillespie solver. The
-# observer saves every frame with the default blueprint, whose primary view is the network of current partnerships,
+# The example builds `PairFormationSISSystem` with three concurrent partners per person, run by the Gillespie solver.
+# The observer saves every frame with the default blueprint, whose primary view is the network of current partnerships,
 # with the infected people bright, as partnerships dissolve and form.
 
 import matplotlib.pyplot as plt

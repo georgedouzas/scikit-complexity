@@ -6,8 +6,8 @@ falls in a sawtooth.
 """
 
 # %%
-# The system is built from its class: a tumour of a million cells grows at the breast cancer rate of 0.223 a day, and
-# a one-day dose every week kills at the rate 2. The observer saves every second frame with the default blueprint,
+# The example builds `SkipperLogKillSystem`: a tumour of a million cells grows at the breast cancer rate of 0.223 a day,
+# and a one-day dose every week kills at the rate 2. The observer saves every second frame with the default blueprint,
 # whose primary view is the time series of the number of cells.
 
 import matplotlib.pyplot as plt

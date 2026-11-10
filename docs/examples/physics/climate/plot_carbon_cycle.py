@@ -1,13 +1,13 @@
 """
 # Excitable carbon cycle
 
-Pushed far enough below its steady state, the dissolved carbon of the ocean does not simply recover: the carbonate ion
+Pushed far enough below its steady state, the dissolved carbon of the ocean does not recover at once: the carbonate ion
 concentration first collapses, then overshoots to more than twice its steady value in a large excursion before the
 ocean returns to rest, like the carbon cycle disruptions recorded in the geological past.
 """
 
 # %%
-# The system is built from its class starting at the steady carbonate ion concentration `c = 83.58` with the
+# The example builds `CarbonCycleSystem` starting at the steady carbonate ion concentration `c = 83.58` with the
 # dissolved inorganic carbon lowered to `w = 2050`, and runs for 20 time units. The blueprint shows only `c`, since `w`
 # is about 25 times larger and would flatten the excursion.
 

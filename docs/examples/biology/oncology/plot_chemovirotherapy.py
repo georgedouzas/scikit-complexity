@@ -6,9 +6,10 @@ infected cells rise behind it.
 """
 
 # %%
-# The system is built from its class with the initial conditions of Malinzi: one unit of uninfected cells, a million
-# cells, a tenth of a unit of virus, and a constant drug infusion. One unit of time is two days. The observer saves
-# every frame with the default blueprint, whose primary view is the time series of the cells, the virus, and the drug.
+# The example builds `ChemovirotherapySystem` with the initial conditions of Malinzi: one unit of uninfected cells, a
+# million cells, a tenth of a unit of virus, and a constant drug infusion. One unit of time is two days. The observer
+# saves every frame with the default blueprint, whose primary view is the time series of the cells, the virus, and the
+# drug.
 
 import matplotlib.pyplot as plt
 

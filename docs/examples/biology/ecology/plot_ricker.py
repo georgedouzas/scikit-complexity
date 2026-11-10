@@ -6,7 +6,7 @@ growth, and at high growth overshoots and crashes in cycles that double their pe
 """
 
 # %%
-# The system is built from its class with the growth factor `r = 14`, in the chaotic range, and the observer saves
+# The example builds `RickerSystem` with the growth factor `r = 14`, in the chaotic range, and the observer saves
 # every generation with the default blueprint, whose primary view is the time series of the population.
 
 import matplotlib.pyplot as plt

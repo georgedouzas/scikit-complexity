@@ -6,9 +6,9 @@ the potential reaches the threshold the neuron spikes and resets, which gives a 
 """
 
 # %%
-# The system is built from its class with an input that drives `R I = 20 mV`, above the 15 mV between rest and
-# threshold, and run for 100 ms. The observer saves every fourth frame with the default blueprint, whose primary view
-# is the time series of the potential.
+# The example builds `IntegrateAndFireSystem` with an input that drives `R I = 20 mV`, above the 15 mV between rest and
+# threshold, and runs it for 100 ms. The observer saves every fourth frame with the default blueprint, whose primary
+# view is the time series of the potential.
 
 import matplotlib.pyplot as plt
 import numpy as np

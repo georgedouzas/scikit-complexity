@@ -3,7 +3,7 @@
 
 A ball on a staircase of states jumps down to a random lower state and, wherever it lands, multiplies into `mu` balls,
 each of which keeps falling. The cascade ends when every ball reaches the bottom, and the visits of the states follow
-the power law `i^(-mu)`, whatever the multiplication factor, not just the Zipf exponent 1.
+the power law `i^(-mu)`, whatever the multiplication factor, not only the Zipf exponent 1.
 """
 
 # %%

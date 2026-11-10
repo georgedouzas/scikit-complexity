@@ -8,7 +8,7 @@ it comes close to the wall. The view shows the height of the particle above the 
 """
 
 # %%
-# The system is built from its class with the diffusion coefficient `D0 = 1` far from the wall, the
+# The example builds `BrownianNearWallSystem` with the diffusion coefficient `D0 = 1` far from the wall, the
 # hindrance length `a = 1`, the settling velocity `0.2`, and the anti-Itô convention, released at height 20. The
 # Euler-Maruyama stepper takes steps of 0.01 and the observer saves every frame of 1 with the default blueprint,
 # whose primary view is the time series of the height.

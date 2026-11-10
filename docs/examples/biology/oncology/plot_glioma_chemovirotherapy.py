@@ -5,9 +5,9 @@ Untreated, the glioma grows by more than an order of magnitude, crowds out the g
 """
 
 # %%
-# The system is built from its class with the brain of Urenda-Cázares et al.: 5.94e12 glial cells and neurons and a
-# glioma of 6e10 cells. This run gives neither drug nor virus. The observer saves every second frame with the default
-# blueprint, whose primary view is the time series of the cells.
+# The example builds `GliomaChemovirotherapySystem` with the brain of Urenda-Cázares et al.: 5.94e12 glial cells and
+# neurons and a glioma of 6e10 cells. This run gives neither drug nor virus. The observer saves every second frame with
+# the default blueprint, whose primary view is the time series of the cells.
 
 import matplotlib.pyplot as plt
 

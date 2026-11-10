@@ -7,7 +7,7 @@ biomass and the glucose, until the glucose runs out and growth stops.
 """
 
 # %%
-# The system is built from its class, which needs the extra `metabolism`, with a program in a discrete partition that
+# The example builds `DynamicFBASystem`, which needs the extra `metabolism`, with a program in a discrete partition that
 # solves at every synchronisation point. The primary view is the series of the biomass and the glucose.
 
 import matplotlib.pyplot as plt

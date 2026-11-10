@@ -6,9 +6,9 @@ it recruits cut it back, and it regrows once regulatory T cells, IL-10, and TGF-
 """
 
 # %%
-# The system is built from its class with an antigenicity of `10^-3` and runs for 200 days from a single tumour cell.
-# The observer saves every frame with the default blueprint, whose primary view is the time series of the tumour, the
-# immune cells, and the cytokines.
+# The example builds `TumourImmuneSuppressionSystem` with an antigenicity of `10^-3` and runs for 200 days from a single
+# tumour cell. The observer saves every frame with the default blueprint, whose primary view is the time series of the
+# tumour, the immune cells, and the cytokines.
 
 import matplotlib.pyplot as plt
 

@@ -1,7 +1,7 @@
 """
 # Swift-Hohenberg
 
-Just above the onset of convection, small random noise organizes itself into parallel rolls of one preferred width,
+Slightly above the onset of convection, small random noise organizes itself into parallel rolls of one preferred width,
 the wavelength `2π`. Patches of rolls with different orientations meet at defects and slowly straighten out.
 """
 

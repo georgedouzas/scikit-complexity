@@ -6,9 +6,9 @@ few walkers make very long flights and the cloud spreads faster than diffusion, 
 """
 
 # %%
-# The system is built from its class with 500 walkers in the plane, whose flight times have the tail
-# `tau^(-5/2)`, and simulated to time 500. Rate laws move the walkers between turns, and the solver stops every walker
-# at its own turns. The observer saves every frame with the default blueprint, whose primary view shows the walkers.
+# The example builds `LevyWalkSystem` with 500 walkers in the plane, whose flight times have the tail `tau^(-5/2)`, and
+# simulates it to time 500. Rate laws move the walkers between turns, and the solver stops every walker at its own
+# turns. The observer saves every frame with the default blueprint, whose primary view shows the walkers.
 
 import itertools
 

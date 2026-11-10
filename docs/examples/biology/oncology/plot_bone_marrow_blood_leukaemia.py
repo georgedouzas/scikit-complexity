@@ -6,9 +6,10 @@ overtake them in the bone marrow, spill into the blood, and end up outnumbering 
 """
 
 # %%
-# The system is built from its class with the initial cells of the book and rates within its ranges, and runs for 3000
-# hours with the maturation delay of 96 hours and the conversion delay of 576 hours. The observer saves every second
-# frame with the default blueprint, whose primary view is the time series of the five populations.
+# The example builds `BoneMarrowBloodLeukaemiaSystem` with the initial cells of the book of Padmanabhan, Meskin, and Al
+# Moustafa (2021) and rates within its ranges, and runs for 3000 hours with the maturation delay of 96 hours and the
+# conversion delay of 576 hours. The observer saves every second frame with the default blueprint, whose primary view is
+# the time series of the five populations.
 
 import matplotlib.pyplot as plt
 

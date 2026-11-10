@@ -7,8 +7,8 @@ while the predators grow on the prey and decline after them.
 """
 
 # %%
-# The system is built from its class with 300 plants, 120 prey, and 20 predators on a 30 by 30 grid. The observer
-# saves every step with the default blueprint, whose primary view is the image of the marks.
+# The example builds `StigmergicPredatorPreySystem` with 300 plants, 120 prey, and 20 predators on a 30 by 30 grid. The
+# observer saves every step with the default blueprint, whose primary view is the image of the marks.
 
 import matplotlib.pyplot as plt
 

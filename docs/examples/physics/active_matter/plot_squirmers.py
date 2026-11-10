@@ -9,7 +9,7 @@ turned by the flows of all the others.
 """
 
 # %%
-# The system is built from its class: 27 squirmers with `B1 = 1.5` and `beta = -3` on a jittered cubic
+# The example builds `SquirmersSystem`: 27 squirmers with `B1 = 1.5` and `beta = -3` on a jittered cubic
 # lattice of spacing 5 radii, with random orientations. The flows of the other squirmers enter through the physics
 # `StokesianMobilityInteraction`, so the run is a set of ordinary differential equations for the positions and
 # orientations, which the default solver integrates. The observer saves every frame of 0.5 with the default blueprint.

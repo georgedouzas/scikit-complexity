@@ -6,7 +6,7 @@ cycle: the concentrations `u` and `v` oscillate out of phase with a fixed amplit
 """
 
 # %%
-# The system is built from its class with `a = 1` and `b = 3`, starting at `u = v = 1`, and runs for about
+# The example builds `BrusselatorODESystem` with `a = 1` and `b = 3`, starting at `u = v = 1`, and runs for about
 # seven periods. The default blueprint shows both concentrations in one time series view.
 
 import matplotlib.pyplot as plt

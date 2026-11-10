@@ -7,7 +7,7 @@ fluid at large scales. The view shows the number of particles of every hexagonal
 """
 
 # %%
-# The system is built from its class on a periodic 64 x 64 triangular lattice, where every channel is
+# The example builds `FHPLatticeGasSystem` on a periodic 64 x 64 triangular lattice, where every channel is
 # occupied with probability 0.2, or 0.6 inside a disc at the centre. The observer saves every step with the default
 # blueprint, whose primary view shows the particle number of every cell.
 

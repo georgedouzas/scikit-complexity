@@ -7,7 +7,7 @@ vibrates steadily at the frequency of the supply. The linearized model of Trzask
 """
 
 # %%
-# The system is built from its class with Trzaska's parameters, `u = 0.141 sin(1.5915 t)`, `R = 1.5`,
+# The example builds `VibratingTableSystem` with Trzaska's parameters, `u = 0.141 sin(1.5915 t)`, `R = 1.5`,
 # `L = 0.25`, `C = 0.1`, `K = 500`, `m = 10`, `B = 2`, `k1 = 0.5`, `k2 = 17`, and `alpha = 2.5`, and starts at rest.
 # The default blueprint shows the current, the capacitor voltage, and the motion of the table.
 

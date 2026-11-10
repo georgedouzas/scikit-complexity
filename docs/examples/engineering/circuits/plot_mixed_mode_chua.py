@@ -6,7 +6,7 @@ spike, over and over: a mixed-mode oscillation.
 """
 
 # %%
-# The system is built from its class with `epsilon = 0.01` and `c = 0.00053`, integrated with the Radau
+# The example builds `MixedModeChuaSystem` with `epsilon = 0.01` and `c = 0.00053`, integrated with the Radau
 # method for the stiff fast variable, and runs for 200 time units. The default blueprint shows `x`, `y`, and `z` in one
 # time series view.
 

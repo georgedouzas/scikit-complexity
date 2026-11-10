@@ -7,8 +7,8 @@ the split of 2-oxoglutarate in the TCA example of Antoniewicz et al. (2007).
 """
 
 # %%
-# The system is built from its class, and the data come from its known fluxes under two parallel tracers with noise of
-# standard deviation 0.002 at seed 0. The network with the estimated fluxes runs once, and the primary view is its
+# The example builds `Carbon13MFASystem`, and the data come from its known fluxes under two parallel tracers with noise
+# of standard deviation 0.002 at seed 0. The network with the estimated fluxes runs once, and the primary view is its
 # graph.
 
 import matplotlib.pyplot as plt

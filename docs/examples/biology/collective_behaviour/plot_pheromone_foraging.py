@@ -7,8 +7,8 @@ coordination through marks left in the environment.
 """
 
 # %%
-# The system is built from its class with forty ants on a grid of 40 by 20 cells. The observer saves every third step
-# with the default blueprint, whose primary view is the image of the pheromone.
+# The example builds `PheromoneForagingSystem` with forty ants on a grid of 40 by 20 cells. The observer saves every
+# third step with the default blueprint, whose primary view is the image of the pheromone.
 
 import matplotlib.pyplot as plt
 import numpy as np

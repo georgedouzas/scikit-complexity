@@ -7,7 +7,7 @@ comes to rest in a few seconds.
 """
 
 # %%
-# The system is built from its class with the natural frequency 1, the weight 1 of the displacement and the
+# The example builds `LqrOscillatorSystem` with the natural frequency 1, the weight 1 of the displacement and the
 # velocity, and the weight 0.1 of the force, so the gain is `K = (2.32, 3.82)`. RK4 integrates it with steps of 1 ms,
 # and the regulator sets the force after every step. The default blueprint shows the displacement and the force in one
 # time series view.

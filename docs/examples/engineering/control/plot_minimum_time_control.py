@@ -8,7 +8,7 @@ small neighbourhood of the origin, whose size shrinks with the interval.
 """
 
 # %%
-# The system is built from its class: a free particle `x'' = u` from `x = 3` with velocity 2, sampled
+# The example builds `MinimumTimeControlSystem`: a free particle `x'' = u` from `x = 3` with velocity 2, sampled
 # every 0.1. The default blueprint shows the position, the velocity, and the control.
 
 import matplotlib.pyplot as plt

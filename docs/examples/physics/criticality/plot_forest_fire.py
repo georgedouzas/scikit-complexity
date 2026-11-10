@@ -8,7 +8,7 @@ tree, or burning, with fire fronts sweeping through the older, denser stands.
 """
 
 # %%
-# The system is built from its class with growth probability `0.02` and lightning probability `1e-5`
+# The example builds `ForestFireSystem` with growth probability `0.02` and lightning probability `1e-5`
 # per step. The observer saves every second step with the default blueprint, whose primary view shows the cells.
 
 import matplotlib.pyplot as plt

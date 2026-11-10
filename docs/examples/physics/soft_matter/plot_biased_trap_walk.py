@@ -7,8 +7,8 @@ grow in bursts and end at very different lengths.
 """
 
 # %%
-# The system is built from its class with 56 walkers, each in its own line of 80 traps whose trapping times
-# are distributed as `tau^(-3/2)`, and simulated for 1495 steps. The observer saves every frame with the default
+# The example builds `BiasedTrapWalkSystem` with 56 walkers, each in its own line of 80 traps whose trapping times
+# are distributed as `tau^(-3/2)`, and simulates it for 1495 steps. The observer saves every frame with the default
 # blueprint, whose primary view is the lattice of the sites the walkers have visited.
 
 import matplotlib.pyplot as plt

@@ -8,7 +8,7 @@ colloids of radius 1 in a periodic square of side 50, gathered into a few hexago
 """
 
 # %%
-# The system is built from its class with swimming speed 3, rotational diffusion 1, and phoretic attraction
+# The example builds `LivingCrystalsSystem` with swimming speed 3, rotational diffusion 1, and phoretic attraction
 # of strength 20 within a range of 10. The catalog registers the Euler-Maruyama stepper with steps of 0.002 for the
 # stiff repulsion between colloids, so it is passed explicitly. The observer saves every frame of 0.2 with the default
 # blueprint, whose primary view shows the colloids.

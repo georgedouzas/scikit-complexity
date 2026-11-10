@@ -8,7 +8,7 @@ learning. The view shows the histogram of the temperatures of the agents, which 
 """
 
 # %%
-# The system is built from its class with memory 0.75, the value of Lesmana et al. Every third step
+# The example builds `EvolutionarySKGameSystem` with memory 0.75, the value of Lesmana et al. Every third step
 # replaces the least fit agent, and two steps of learning alone follow. The observer saves every 50th step with the
 # default blueprint, whose primary view is the histogram of the temperatures. Every third frame of the
 # trajectory holds the fitnesses that decide a replacement.

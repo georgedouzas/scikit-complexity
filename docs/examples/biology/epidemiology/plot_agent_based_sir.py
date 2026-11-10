@@ -7,8 +7,8 @@ well-mixed population.
 """
 
 # %%
-# The system is built from its class with five infected among 500 people on a 50 by 50 grid. The observer saves every
-# step with the default blueprint, whose primary view shows the people on the grid.
+# The example builds `AgentBasedSIRSystem` with five infected among 500 people on a 50 by 50 grid. The observer saves
+# every step with the default blueprint, whose primary view shows the people on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np

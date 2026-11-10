@@ -6,9 +6,9 @@ that moves upstream, against the traffic, at a constant speed, as arriving cars 
 """
 
 # %%
-# The system is built from its class on a road of 200 cells with free traffic at density 0.3 running into a
-# queue at density 0.8, with the Greenshields speed law, and is integrated with SSPRK for one time unit. The default
-# blueprint puts the history of the density first, where the shock is the edge that moves left.
+# The example builds `LighthillWhithamRichardsSystem` on a road of 200 cells with free traffic at density 0.3 running
+# into a queue at density 0.8, with the Greenshields speed law, and is integrated with SSPRK for one time unit. The
+# default blueprint puts the history of the density first, where the shock is the edge that moves left.
 
 import matplotlib.pyplot as plt
 import numpy as np

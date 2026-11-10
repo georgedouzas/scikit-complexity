@@ -7,9 +7,9 @@ are and draws them together.
 """
 
 # %%
-# The system is built from its class with the test of Bellomo et al. (2017, section 6.6.2), and integrated with the
-# implicit BDF method, since the turning rates are large. The observer saves every frame with the default blueprint,
-# whose primary view is the image of the cell density.
+# The example builds `HyperbolicChemotaxisSystem` with the test of Bellomo et al. (2017, section 6.6.2), and integrated
+# with the implicit BDF method, since the turning rates are large. The observer saves every frame with the default
+# blueprint, whose primary view is the image of the cell density.
 
 import matplotlib.pyplot as plt
 

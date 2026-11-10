@@ -1,10 +1,10 @@
 """
 # Namrata's Family
 
-Chesney's model of the diffusion of good working conditions through a garment supply network. A buyer can force a
+Chesney models the diffusion of good working conditions through a garment supply network. A buyer can force a
 supplier to adopt them when the supplier needs the buyer more than the buyer needs the supplier, measured by the share
 of each one's business that flows between them. Starting from a seed group of buyers, adoption spreads down the
-network until it meets suppliers powerful enough to resist.
+network until it meets suppliers strong enough to resist.
 """
 
 # %%

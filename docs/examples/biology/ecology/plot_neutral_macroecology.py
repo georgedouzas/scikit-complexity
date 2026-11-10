@@ -7,8 +7,8 @@ as in the abundances of tropical trees.
 """
 
 # %%
-# The system is built from its class with a hundred species of ten individuals each. The observer saves every frame
-# with the default blueprint, whose primary view is the time series of the abundances.
+# The example builds `NeutralMacroecologySystem` with a hundred species of ten individuals each. The observer saves
+# every frame with the default blueprint, whose primary view is the time series of the abundances.
 
 import matplotlib.pyplot as plt
 import numpy as np

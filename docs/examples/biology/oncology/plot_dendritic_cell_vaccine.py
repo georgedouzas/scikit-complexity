@@ -6,9 +6,9 @@ without vaccine, and the tumour regrows once the injections stop.
 """
 
 # %%
-# The system is built from its class with its default schedule, a one-hour injection of 0.5 dendritic cells per hour
-# every week, 8 times, and runs for 120 days in hours. The observer saves every frame with the default blueprint,
-# whose primary view is the time series of the T cells, the tumour, the dendritic cells, and IL-2.
+# The example builds `DendriticCellVaccineSystem` with its default schedule, a one-hour injection of 0.5 dendritic cells
+# per hour every week, 8 times, and runs for 120 days in hours. The observer saves every frame with the default
+# blueprint, whose primary view is the time series of the T cells, the tumour, the dendritic cells, and IL-2.
 
 import matplotlib.pyplot as plt
 

@@ -7,9 +7,9 @@ dominates the soup, boosts the next one, and gives way to it.
 """
 
 # %%
-# The system is built from its class as a ring of six molecules whose own growth rates differ only slightly, `alpha =
-# 0.01`, so that catalysis dominates. The observer saves every frame with the default blueprint, whose primary view is
-# the time series of the concentrations.
+# The example builds `HypercyclesSystem` as a ring of six molecules whose own growth rates differ only slightly,
+# `alpha = 0.01`, so that catalysis dominates. The observer saves every frame with the default blueprint, whose primary
+# view is the time series of the concentrations.
 
 import matplotlib.pyplot as plt
 import numpy as np

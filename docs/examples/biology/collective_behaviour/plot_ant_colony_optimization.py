@@ -7,9 +7,9 @@ route, and after two roads of it are cut, explores again and finds a new one.
 """
 
 # %%
-# The system is built from its class on a Delaunay network of 40 points, with the best path cut at round 50. The
-# observer saves every round with the default blueprint, whose primary view is the time series of the shortest path of
-# every round.
+# The example builds `AntColonyOptimizationSystem` on a Delaunay network of 40 points, with the best path cut at round
+# 50. The observer saves every round with the default blueprint, whose primary view is the time series of the shortest
+# path of every round.
 
 import matplotlib.pyplot as plt
 import networkx as nx

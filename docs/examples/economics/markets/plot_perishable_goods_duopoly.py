@@ -7,7 +7,7 @@ more customers.
 """
 
 # %%
-# The system is built from its class with half a product per customer in each shop and products that age
+# The example builds `PerishableGoodsDuopolySystem` with half a product per customer in each shop and products that age
 # over one unit of time, so the control parameter is `R = 1` and the critical temperature `T_c = R / (1 + R)^2 = 0.25`.
 # The customers choose at the temperature 0.1. The two shops are the isolated nodes of a network, so the customers are
 # not drawn in space: the blueprint shows the time series of `m` and, below it, the shares of customers at each shop,
@@ -64,7 +64,7 @@ observer.recording_.flush()
 # freshness `h_j = 1 / (1 + R / (1 +- m))`, has the stable root `m = 0` above `T_c` and a pair of roots `+-m*` below
 # it, which grow continuously from zero since `R > sqrt(3) - 1`. The stationary asymmetry of runs of 100 customers at a
 # range of temperatures should follow `m*`, slightly below it from the noise of the finite number of customers, and
-# further below it just under `T_c`, where the slow growth of `m` has not ended within a run.
+# further below it slightly under `T_c`, where the slow growth of `m` has not ended within a run.
 
 
 def mean_field_asymmetry(temperature):

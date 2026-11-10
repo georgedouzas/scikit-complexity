@@ -7,10 +7,10 @@ collapse by thirty orders of magnitude before they return, a rate-induced tippin
 """
 
 # %%
-# The system is built from its class with the crowding rising at the rate 0.002, above the critical rate of about
-# 0.0004, and integrated with its registered solver, which controls only the relative error so that the collapsed prey
-# keep their sign. The observer saves every frame with the default blueprint, whose primary view is the time series of
-# both populations.
+# The example builds `RosenzweigMacarthurSystem` with the crowding rising at the rate 0.002, above the critical rate of
+# about 0.0004, and integrates it with its registered solver, which controls only the relative error so that the
+# collapsed prey keep their sign. The observer saves every frame with the default blueprint, whose primary view is the
+# time series of both populations.
 
 import matplotlib.pyplot as plt
 

@@ -6,7 +6,7 @@ and the integral action pulls it back to the set point instead of leaving a last
 """
 
 # %%
-# The system is built from its class with `Kp = 2`, `Ki = 1`, `Kd = 0.1`, and the set point 1. The
+# The example builds `PidLoopSystem` with `Kp = 2`, `Ki = 1`, `Kd = 0.1`, and the set point 1. The
 # disturbance -0.5 steps in at time 10. The default blueprint shows the output and the integral of the error in one time
 # series view.
 

@@ -6,10 +6,10 @@ cells hold down the adaptive response, which the vaccine starts only after the d
 """
 
 # %%
-# The system is built from its class with four weekly one-day doses of `10^6` dendritic cells per day and runs for 30
-# days, from the book's initial state. The delays read the history of the run, which before the start is the initial
-# state. The observer saves every second frame with the default blueprint, whose primary view is the time series of
-# the nine populations.
+# The example builds `DelayedDCVaccineSystem` with four weekly one-day doses of `10^6` dendritic cells per day and runs
+# for 30 days, from the initial state of the book of Padmanabhan, Meskin, and Al Moustafa (2021). The delays read the
+# history of the run, which before the start is the initial state. The observer saves every second frame with the
+# default blueprint, whose primary view is the time series of the nine populations.
 
 import matplotlib.pyplot as plt
 

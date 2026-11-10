@@ -1,14 +1,14 @@
 """
 # STDP network
 
-Theta neurons on a random directed network change their synapses by the timing of their spikes: a synapse grows when
-its presynaptic neuron fires just before its postsynaptic neuron and shrinks when it fires just after. Neurons that fire
-at different rates meet at all delays, so the window's balance of potentiation and depression decides the drift.
+Theta neurons on a random directed network change their synapses by the timing of their spikes: a synapse grows when its
+presynaptic neuron fires shortly before its postsynaptic neuron and shrinks when it fires shortly after. Neurons that
+fire at different rates meet at all delays, so the window's balance of potentiation and depression decides the drift.
 """
 
 # %%
-# The system is built from its class with a window dominated by depression. The observer saves every other frame with
-# the default blueprint, whose primary view is the network with its synapses.
+# The example builds `STDPNetworkSystem` with a window dominated by depression. The observer saves every other frame
+# with the default blueprint, whose primary view is the network with its synapses.
 
 import matplotlib.pyplot as plt
 

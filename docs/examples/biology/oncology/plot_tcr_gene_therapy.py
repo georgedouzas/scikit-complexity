@@ -6,9 +6,9 @@ twelve thousand cells, far below the carrying capacity of a billion.
 """
 
 # %%
-# The system is built from its class with the book's parameters and a thousand effector and tumour cells, and runs for
-# 1500 days. The observer saves every second frame with the default blueprint, whose primary view is the time series
-# of the two populations.
+# The example builds `TCRGeneTherapySystem` with the parameters of the book of Padmanabhan, Meskin, and Al Moustafa
+# (2021) and a thousand effector and tumour cells, and runs for 1500 days. The observer saves every second frame with
+# the default blueprint, whose primary view is the time series of the two populations.
 
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve

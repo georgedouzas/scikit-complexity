@@ -6,8 +6,9 @@ the output, then return to the output they had before, perfect adaptation as in 
 """
 
 # %%
-# The system is built from its class with the adapting loop and a step of the input from 0.5 to 0.6 at time 300. The
-# observer saves every frame with the default blueprint, whose primary view is the time series of the three enzymes.
+# The example builds `EnzymeAdaptationCircuitSystem` with the adapting loop and a step of the input from 0.5 to 0.6 at
+# time 300. The observer saves every frame with the default blueprint, whose primary view is the time series of the
+# three enzymes.
 
 import matplotlib.pyplot as plt
 import numpy as np

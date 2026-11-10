@@ -7,9 +7,9 @@ almost surely infected and the poorly connected nodes rarely are.
 """
 
 # %%
-# The system is built from its class on its default Barabási-Albert network of 300 nodes, with a spreading rate twice
-# the threshold. The observer saves every frame with the default blueprint, whose primary view is the network colored
-# by the infection probability of every node.
+# The example builds `QuenchedMeanFieldSISSystem` on its default Barabási-Albert network of 300 nodes, with a spreading
+# rate twice the threshold. The observer saves every frame with the default blueprint, whose primary view is the network
+# colored by the infection probability of every node.
 
 import matplotlib.pyplot as plt
 import networkx as nx

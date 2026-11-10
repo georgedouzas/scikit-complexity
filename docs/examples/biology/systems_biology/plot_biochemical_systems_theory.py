@@ -6,9 +6,9 @@ the linear equations in the logarithms of the concentrations predict.
 """
 
 # %%
-# The system is built from its class. The pathway `X1 -> X2 -> X3` has power-law fluxes, and `X3` inhibits the supply
-# of `X1` with a kinetic order of -0.5. The observer saves every frame of the 20 time units with the default
-# blueprint, whose primary view is the time series of the three concentrations.
+# The example builds `BiochemicalSystemsTheorySystem`. The pathway `X1 -> X2 -> X3` has power-law fluxes, and `X3`
+# inhibits the supply of `X1` with a kinetic order of -0.5. The observer saves every frame of the 20 time units with the
+# default blueprint, whose primary view is the time series of the three concentrations.
 
 import matplotlib.pyplot as plt
 import numpy as np

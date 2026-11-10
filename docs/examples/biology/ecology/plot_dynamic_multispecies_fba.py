@@ -6,8 +6,8 @@ strain that takes up glucose faster grows faster, so its share rises for as long
 """
 
 # %%
-# The system is built from its class, which needs the extra `metabolism`. The primary view is the series of the
-# biomass of the strains and the glucose.
+# The example builds `DynamicMultispeciesFBASystem`, which needs the extra `metabolism`. The primary view is the series
+# of the biomass of the strains and the glucose.
 
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb

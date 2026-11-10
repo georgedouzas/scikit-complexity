@@ -7,7 +7,7 @@ and join their back.
 """
 
 # %%
-# The system is built from its class on a ring of 1000 cells at the density 0.2, with the speed limit 5 and
+# The example builds `NagelSchreckenbergSystem` on a ring of 1000 cells at the density 0.2, with the speed limit 5 and
 # the braking probability 0.3, and runs for 200 steps. The default blueprint shows the road over time, where the jams
 # appear as dense stripes that lean backwards.
 

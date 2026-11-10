@@ -6,8 +6,8 @@ Fibonacci numbers 1, 1, 2, 3, 5, 8, ... and grows by the golden ratio every mont
 """
 
 # %%
-# The system is built from its class from one newborn pair and run for 20 months. The observer saves every month with
-# the default blueprint, whose primary view is the time series of the pairs.
+# The example builds `FibonacciRabbitsSystem` from one newborn pair and runs it for 20 months. The observer saves every
+# month with the default blueprint, whose primary view is the time series of the pairs.
 
 import matplotlib.pyplot as plt
 import numpy as np

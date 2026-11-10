@@ -8,7 +8,7 @@ of the particle jumping between `-1` and `1` in step with the slow forcing of pe
 """
 
 # %%
-# The system is built from its class with forcing amplitude `A = 0.1`, frequency `f = 0.01`, and noise
+# The example builds `StochasticResonanceSystem` with forcing amplitude `A = 0.1`, frequency `f = 0.01`, and noise
 # intensity `D = 0.1`. The Euler-Maruyama stepper takes steps of 0.05 and the observer saves every frame of 4 with the
 # default blueprint, whose primary view is the time series of the position.
 

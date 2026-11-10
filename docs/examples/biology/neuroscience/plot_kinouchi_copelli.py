@@ -8,10 +8,10 @@ shows the fraction of excited elements over time, rising in irregular bursts of 
 """
 
 # %%
-# The system is built from its class on an Erdős-Rényi graph of 1000 nodes with mean degree 10, at the branching ratio
-# `sigma = 1`, with 5 states per cycle, every element quiescent at the start, and a weak stimulus of rate `r = 0.002`
-# per step, so about two elements per step are excited from outside. The blueprint shows the standard observable
-# `activity`, the fraction of excited elements, over the whole run of 280 steps.
+# The example builds `KinouchiCopelliSystem` on an Erdős-Rényi graph of 1000 nodes with mean degree 10, at the branching
+# ratio `sigma = 1`, with 5 states per cycle, every element quiescent at the start, and a weak stimulus of rate
+# `r = 0.002` per step, so about two elements per step are excited from outside. The blueprint shows the standard
+# observable `activity`, the fraction of excited elements, over the whole run of 280 steps.
 
 import matplotlib.pyplot as plt
 import networkx as nx

@@ -6,9 +6,9 @@ mutation, grow back into a tumour of 10^11 cells.
 """
 
 # %%
-# The system is built from its class with drug 1 infused at a constant rate of 10 dosage units a day and the two other
-# drugs withheld, from a tumour of 4.6 x 10^11 sensitive cells. The observer saves every second frame with the default
-# blueprint, whose primary view is the time series of the populations, the drugs, and their toxicities.
+# The example builds `MultidrugResistanceSystem` with drug 1 infused at a constant rate of 10 dosage units a day and the
+# two other drugs withheld, from a tumour of 4.6 x 10^11 sensitive cells. The observer saves every second frame with the
+# default blueprint, whose primary view is the time series of the populations, the drugs, and their toxicities.
 
 import matplotlib.pyplot as plt
 import numpy as np

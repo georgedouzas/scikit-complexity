@@ -7,8 +7,8 @@ stops in one of two stable states.
 """
 
 # %%
-# The system is built from its class with the negative circuit, and the observer saves every frame with the default
-# blueprint, whose primary view is the time series of the levels.
+# The example builds `GeneralizedLogicalNetworkSystem` with the negative circuit, and the observer saves every frame
+# with the default blueprint, whose primary view is the time series of the levels.
 
 import collections
 import itertools

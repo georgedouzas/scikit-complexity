@@ -6,8 +6,8 @@ are huge, so the cloud has a dense core and walkers scattered far away by single
 """
 
 # %%
-# The system is built from its class with 500 walkers in the plane, whose jump lengths have the tail
-# `l^(-2.2)`, and iterated for 200 steps. Every step draws the jump lengths from SciPy's Pareto distribution and the
+# The example builds `LevyFlightSystem` with 500 walkers in the plane, whose jump lengths have the tail
+# `l^(-2.2)`, and iterates it for 200 steps. Every step draws the jump lengths from SciPy's Pareto distribution and the
 # directions from normal draws. The observer saves every frame with the default blueprint, whose primary view shows
 # the walkers.
 

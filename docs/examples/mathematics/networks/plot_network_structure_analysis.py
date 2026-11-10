@@ -6,8 +6,8 @@ planted blocks, and the edges packed inside the blocks close far more triangles 
 """
 
 # %%
-# The system is built from its class with its default network, a stochastic block system of four blocks of
-# 100 nodes with mean in-block degree 16 and out-block degree 2. Every node is an agent that carries its degree,
+# The example builds `NetworkStructureAnalysisSystem` with its default network, a stochastic block system of four blocks
+# of 100 nodes with mean in-block degree 16 and out-block degree 2. Every node is an agent that carries its degree,
 # clustering, betweenness, and detected community, and the default blueprint draws the graph with the nodes colored by
 # community.
 

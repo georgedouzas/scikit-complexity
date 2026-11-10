@@ -9,7 +9,7 @@ warm and cold plumes side by side.
 """
 
 # %%
-# The system is built from its class at `Ra = 2000` and `Pr = 1` on a 32 x 32 lattice, which holds the
+# The example builds `RayleighBenardSystem` at `Ra = 2000` and `Pr = 1` on a 32 x 32 lattice, which holds the
 # layer and its mirror image for the free-slip walls. The catalog registers the fourth-order exponential time
 # differencing stepper for this spectral system, so it is passed explicitly with steps of 0.005. The observer saves
 # every frame of 0.05 with the default blueprint, here with the temperature as the primary view.

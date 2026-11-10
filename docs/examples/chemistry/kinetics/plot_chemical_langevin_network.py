@@ -1,14 +1,14 @@
 """
 # Chemical Langevin network
 
-The enzyme reaction `E + S <-> C -> E + P` written as a chemical Langevin equation. Every reaction drives all the
-species it changes with one Wiener process, so the amounts fluctuate around the rate equations while the total enzyme
-`E + C` and the total substrate `S + C + P` stay exactly constant.
+The enzyme reaction `E + S <-> C -> E + P` runs here as a chemical Langevin equation, a rate equation with noise. Every
+reaction drives all the species it changes with one Wiener process, so the amounts fluctuate around the rate equations
+while the total enzyme `E + C` and the total substrate `S + C + P` stay exactly constant.
 """
 
 # %%
-# The system is built from its class with the rate constants of the Michaelis-Menten system, and starts with
-# 100 enzymes and 300 substrates. It is integrated with the Euler-Maruyama scheme for 50 time units. The default
+# The example builds `ChemicalLangevinNetworkSystem` with the rate constants of the Michaelis-Menten system, and starts
+# with 100 enzymes and 300 substrates. It is integrated with the Euler-Maruyama scheme for 50 time units. The default
 # blueprint shows the four amounts in one time series view.
 
 import matplotlib.pyplot as plt

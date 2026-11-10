@@ -8,7 +8,7 @@ thermal cloud of the trap.
 """
 
 # %%
-# The system is built from its class with stiffnesses `k = (1, 0.25)`, friction `gamma = 1`, and thermal
+# The example builds `OpticalTrapSystem` with stiffnesses `k = (1, 0.25)`, friction `gamma = 1`, and thermal
 # energy `kT = 1`. The Euler-Maruyama stepper takes steps of 0.01 and the observer saves every frame of 0.1 with the
 # default blueprint, whose primary view shows the beads.
 

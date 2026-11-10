@@ -7,9 +7,9 @@ the tumour shrinks to well below its untreated size.
 """
 
 # %%
-# The system is built from its class with the de Pillis-Radunskaya cells of the book and the weight 0.1 of the squared
-# infusion. Its tuned Pontryagin solver solves the problem over 30 days. The default blueprint shows
-# the cells, the drug, and the infusion rate in one time series view.
+# The example builds `OptimalChemotherapySystem` with the de Pillis-Radunskaya cells of the book of Padmanabhan, Meskin,
+# and Al Moustafa (2021) and the weight 0.1 of the squared infusion. Its tuned Pontryagin solver solves the problem over
+# 30 days. The default blueprint shows the cells, the drug, and the infusion rate in one time series view.
 
 import matplotlib.pyplot as plt
 

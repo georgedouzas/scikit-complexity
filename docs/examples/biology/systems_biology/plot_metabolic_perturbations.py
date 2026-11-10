@@ -7,8 +7,8 @@ and MoMA and ROOM predict the adjusted fluxes from the wild-type solution.
 """
 
 # %%
-# The system is built from its class with the `pgi` gene knocked out, which needs the extra `metabolism`. The primary
-# view is the bar chart of the fluxes of the one frame.
+# The example builds `MetabolicPerturbationsSystem` with the `pgi` gene knocked out, which needs the extra `metabolism`.
+# The primary view is the bar chart of the fluxes of the one frame.
 
 import matplotlib.pyplot as plt
 import numpy as np

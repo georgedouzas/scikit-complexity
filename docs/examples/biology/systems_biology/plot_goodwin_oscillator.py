@@ -6,7 +6,7 @@ a Hill coefficient of 12.
 """
 
 # %%
-# The system is built from its class with three stages, mRNA `x1`, enzyme `x2`, and product `x3`, and a Hill
+# The example builds `GoodwinOscillatorSystem` with three stages, mRNA `x1`, enzyme `x2`, and product `x3`, and a Hill
 # coefficient of 12. The observer saves every third frame of the 60 time units with the default blueprint, whose
 # primary view is the time series of the three concentrations.
 

@@ -6,7 +6,7 @@ Started with enough `B`, the reactor settles in the reacting state, where the re
 """
 
 # %%
-# The system is built from its class with the feed rate `F = 0.04` and the decay rate `k = 0.05`, for which
+# The example builds `CubicAutocatalysisSystem` with the feed rate `F = 0.04` and the decay rate `k = 0.05`, for which
 # the washout state and a reacting state are both stable, and starts at `a = b = 0.5`. The default blueprint shows both
 # concentrations in one time series view.
 

@@ -9,7 +9,7 @@ of about the same size, roughened by the conserved noise.
 """
 
 # %%
-# The system is built from its class on a periodic square of 64 sites with unit spacing, at the mean
+# The example builds `ActiveSystemBSystem` on a periodic square of 64 sites with unit spacing, at the mean
 # density 0.4, with the active terms `lam = 1` and `zeta = 4` and the noise temperature `D = 0.05`. The catalog
 # defaults integrate it with Euler-Maruyama on the Numba backend, and the default blueprint shows the density as an
 # image, one frame every 30 time units.

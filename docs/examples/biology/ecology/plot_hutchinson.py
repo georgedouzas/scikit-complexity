@@ -6,7 +6,7 @@ settles on sustained oscillations around it, because the delay `tau` times the g
 """
 
 # %%
-# The system is built from its class with `r tau = 2`, above the threshold of π/2. The observer saves every fourth
+# The example builds `HutchinsonSystem` with `r tau = 2`, above the threshold of π/2. The observer saves every fourth
 # frame with the default blueprint, whose primary view is the time series of the population.
 
 import matplotlib.pyplot as plt

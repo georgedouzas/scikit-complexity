@@ -7,7 +7,7 @@ its predators.
 """
 
 # %%
-# The system is built from its class with its default web. The observer saves every frame with the default blueprint,
+# The example builds `FoodWebsSystem` with its default web. The observer saves every frame with the default blueprint,
 # whose primary view is the time series of the four populations.
 
 import matplotlib.pyplot as plt

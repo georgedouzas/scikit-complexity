@@ -7,8 +7,8 @@ ecosystem turn from half positive to mostly positive, the emergence of cooperati
 """
 
 # %%
-# The system is built from its class with fifty species, and the observer saves every other step with the default
-# blueprint, whose primary view is the count of species.
+# The example builds `CompetitiveJainKrishnaSystem` with fifty species, and the observer saves every other step with the
+# default blueprint, whose primary view is the count of species.
 
 import matplotlib.pyplot as plt
 import numpy as np

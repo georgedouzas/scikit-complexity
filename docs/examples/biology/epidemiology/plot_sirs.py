@@ -6,7 +6,7 @@ outbreak, ever smaller waves follow until the infection settles at an endemic le
 """
 
 # %%
-# The system is built from its class with its default rates, an immunity that lasts 50 days on average, and run for
+# The example builds `SIRSSystem` with its default rates, an immunity that lasts 50 days on average, and runs it for
 # 300 days. The observer saves every second day with the default blueprint, whose primary view is the time series of
 # the three compartments.
 

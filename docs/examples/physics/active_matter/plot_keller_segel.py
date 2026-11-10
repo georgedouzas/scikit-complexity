@@ -8,7 +8,7 @@ dark uniform background with a few bright, compact aggregates.
 """
 
 # %%
-# The system is built from its class on a periodic square of side 32 with 32 sites per side, with the
+# The example builds `KellerSegelSystem` on a periodic square of side 32 with 32 sites per side, with the
 # chemotactic sensitivity `chi = 5`, five times the threshold, and the cells at density 1 with 1% noise. In two
 # dimensions the aggregates collapse in finite time, so the run stops at `t = 10.5`, shortly before the density blows
 # up. The default blueprint shows the cell density as an image.

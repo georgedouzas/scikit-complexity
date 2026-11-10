@@ -8,9 +8,9 @@ logarithms of the traders' rates falling towards zero.
 """
 
 # %%
-# The system is built from its class with 200 traders in ten groups of 20 on a small world with five long links, and
-# bundles of up to 100 units of each good. The blueprint shows the observable `dispersion`, the standard deviation of
-# the logarithms of the rates, above the units traded in each step, over the whole run of 60 steps.
+# The example builds `WilhiteTradeNetworksSystem` with 200 traders in ten groups of 20 on a small world with five long
+# links, and bundles of up to 100 units of each good. The blueprint shows the observable `dispersion`, the standard
+# deviation of the logarithms of the rates, above the units traded in each step, over the whole run of 60 steps.
 
 import matplotlib.pyplot as plt
 import numpy as np

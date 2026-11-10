@@ -6,9 +6,9 @@ red cells and the quiescent cells fall, all settling over a few years at new ste
 """
 
 # %%
-# The system is built from its class with a drug level of 500 pMol per 8 x 10^8 red cells, within the range of the
-# book. The observer saves every second frame with the default blueprint, whose primary view is the time series of the
-# cells and the mean volume.
+# The example builds `ErythropoiesisMercaptopurineSystem` with a drug level of 500 pMol per 8 x 10^8 red cells, within
+# the range of the book of Padmanabhan, Meskin, and Al Moustafa (2021). The observer saves every second frame with the
+# default blueprint, whose primary view is the time series of the cells and the mean volume.
 
 import matplotlib.pyplot as plt
 import numpy as np

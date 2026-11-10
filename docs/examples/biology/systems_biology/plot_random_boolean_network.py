@@ -7,8 +7,8 @@ type.
 """
 
 # %%
-# The system is built from its class with twenty nodes of two inputs each, the critical wiring. The observer saves
-# every step with the default blueprint, whose primary view is the time series of the node values.
+# The example builds `RandomBooleanNetworkSystem` with twenty nodes of two inputs each, the critical wiring. The
+# observer saves every step with the default blueprint, whose primary view is the time series of the node values.
 
 import matplotlib.pyplot as plt
 import numpy as np

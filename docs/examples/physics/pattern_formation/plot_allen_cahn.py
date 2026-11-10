@@ -8,7 +8,7 @@ run: large yellow and purple domains with smooth, gently curved walls.
 """
 
 # %%
-# The system is built from its class on a periodic square of 128 sites with unit spacing, from noise of
+# The example builds `AllenCahnSystem` on a periodic square of 128 sites with unit spacing, from noise of
 # amplitude 0.05 around 0. The catalog defaults integrate it with exponential time differencing, and the default
 # blueprint shows the order parameter as an image, one frame per time unit.
 

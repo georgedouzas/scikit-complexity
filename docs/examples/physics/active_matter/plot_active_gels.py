@@ -6,7 +6,7 @@ aligned state is unstable. Pairs of `+1/2` and `-1/2` defects appear and move in
 """
 
 # %%
-# The system is built from its class on a periodic square of 128 sites and side 10, at the parameters of the
+# The example builds `ActiveGelsSystem` on a periodic square of 128 sites and side 10, at the parameters of the
 # chaotic state of Giomi et al. 2012. The catalog defaults integrate it with RK4 and stream the velocity as the
 # observables `u_x` and `u_y`.
 

@@ -8,7 +8,7 @@ the whole lattice. The view shows the heights of a 48 x 48 pile, from zero (dark
 """
 
 # %%
-# The system is built from its class from random stable heights. One unit of time is one dropped grain
+# The example builds `SandpileSystem` from random stable heights. One unit of time is one dropped grain
 # followed by the full avalanche it triggers. The observer saves every 50th grain with the default blueprint, whose
 # primary view is the image of the heights.
 

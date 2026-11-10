@@ -9,7 +9,7 @@ step with the earliest at the top, a chaotic pattern of ridges that split, merge
 """
 
 # %%
-# The system is built from its class with 128 Fourier modes, started from Kassam and Trefethen's
+# The example builds `KuramotoSivashinskySystem` with 128 Fourier modes, started from Kassam and Trefethen's
 # `cos(x / 16) (1 + sin(x / 16))`. The catalog registers the fourth-order exponential time differencing stepper for
 # this stiff equation, so it is passed explicitly with steps of 0.25. The observer saves every frame of 0.5 with the
 # default blueprint, whose primary view is the space-time image of the field.

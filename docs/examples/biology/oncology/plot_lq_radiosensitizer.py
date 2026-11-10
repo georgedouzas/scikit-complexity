@@ -6,9 +6,9 @@ they divide once more and die over the following weeks, while the survivors regr
 """
 
 # %%
-# The system is built from its class: a xenograft of 27 mm³ receives ten fractions of 2 Gy, the first three hours
-# after a radiosensitizer at 2 μg/mL. The observer saves every frame with the default blueprint, whose primary view is
-# the time series of the six compartments over the 40 days of the response.
+# The example builds `LQRadiosensitizerSystem`: a xenograft of 27 mm³ receives ten fractions of 2 Gy, the first three
+# hours after a radiosensitizer at 2 μg/mL. The observer saves every frame with the default blueprint, whose primary
+# view is the time series of the six compartments over the 40 days of the response.
 
 import matplotlib.pyplot as plt
 import numpy as np

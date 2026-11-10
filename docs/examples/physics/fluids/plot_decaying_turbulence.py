@@ -9,7 +9,7 @@ thin spiral filaments.
 """
 
 # %%
-# The system is built from its class with viscosity `nu = 0.001` and a random start built from the Fourier
+# The example builds `DecayingTurbulenceSystem` with viscosity `nu = 0.001` and a random start built from the Fourier
 # modes below 6. The catalog registers the fourth-order exponential time differencing stepper for this spectral system,
 # so it is passed explicitly with steps of 0.05. The observer saves every frame of 0.2 with the default blueprint,
 # whose primary view is the image of the vorticity.

@@ -9,9 +9,9 @@ down and the fraction of defectors across, empty beyond the slanted face.
 """
 
 # %%
-# The system is built from its class on a simplex of 30 cells per axis, with a benefit of 3, a punishment
-# of 0.5, a per-interaction cost of 0.1, and between-group conflict of strength `lambda = 4`. The density starts
-# uniform. The observer saves every frame of 1 up to `t = 30`.
+# The example builds `TrimorphicMultilevelSelectionSystem` on a simplex of 30 cells per axis, with a benefit of 3, a
+# punishment of 0.5, a per-interaction cost of 0.1, and between-group conflict of strength `lambda = 4`. The density
+# starts uniform. The observer saves every frame of 1 up to `t = 30`.
 
 import matplotlib.pyplot as plt
 import numpy as np

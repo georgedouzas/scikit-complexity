@@ -7,8 +7,8 @@ volume pulses with the heartbeat and the total volume of blood stays constant.
 """
 
 # %%
-# The system is built from its class at 75 beats per minute and run for about six beats. The observer saves every
-# frame with the default blueprint, whose primary view is the time series of the three volumes.
+# The example builds `CardiovascularSystem` at 75 beats per minute and runs it for about six beats. The observer saves
+# every frame with the default blueprint, whose primary view is the time series of the three volumes.
 
 import matplotlib.pyplot as plt
 import numpy as np

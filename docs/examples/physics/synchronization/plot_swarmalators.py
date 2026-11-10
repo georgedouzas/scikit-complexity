@@ -8,7 +8,7 @@ with one jump where the phase wraps from pi to -pi.
 """
 
 # %%
-# The system is built from its class with 100 units, the attraction of like phases `J = 1`, and no phase
+# The example builds `SwarmalatorsSystem` with 100 units, the attraction of like phases `J = 1`, and no phase
 # coupling, `K = 0`. The units start at random in a square with random phases. The RK4 solver of the catalog
 # integrates the run, and the default blueprint shows the positions coloured by phase.
 

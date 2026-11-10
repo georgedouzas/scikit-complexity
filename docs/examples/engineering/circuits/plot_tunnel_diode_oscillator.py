@@ -6,8 +6,8 @@ grows into a self-sustained oscillation of fixed amplitude, the limit cycle of t
 """
 
 # %%
-# The system is built from its class with `L = C = 1`, `alpha = gamma = 1`, and the initial voltage 0.1, and
-# runs for 50 time units. The default blueprint shows the voltage and the current in one time series view.
+# The example builds `TunnelDiodeOscillatorSystem` with `L = C = 1`, `alpha = gamma = 1`, and the initial voltage 0.1,
+# and runs for 50 time units. The default blueprint shows the voltage and the current in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np

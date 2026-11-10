@@ -7,8 +7,8 @@ Schwarzschild radius, and the ball becomes a black hole.
 
 # %%
 # The ball is a field of comoving shells on a radial lattice, whose areal radius obeys the radial Einstein equation of
-# the Lemaître-Tolman-Bondi metric. The ball of mass `M = 1` and radius 10 starts at rest with uniform density, in
-# units with `G = c = 1`, and the run stops just before it reaches zero size. The default blueprint shows the radius of
+# the Lemaître-Tolman-Bondi metric. The ball of mass `M = 1` and radius 10 starts at rest with uniform density, in units
+# with `G = c = 1`, and the run stops shortly before it reaches zero size. The default blueprint shows the radius of
 # every shell.
 
 import matplotlib.pyplot as plt

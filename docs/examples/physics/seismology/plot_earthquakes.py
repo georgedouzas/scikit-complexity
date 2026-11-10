@@ -7,7 +7,7 @@ a power law, like the Gutenberg-Richter law of real faults.
 """
 
 # %%
-# The system is built from its class on a 50 by 50 grid with open edges and `alpha = 0.2`, so that every
+# The example builds `EarthquakesSystem` on a 50 by 50 grid with open edges and `alpha = 0.2`, so that every
 # slip loses a fifth of its force, and runs for 50,000 earthquakes. The default blueprint shows the forces on the grid.
 
 import matplotlib.pyplot as plt

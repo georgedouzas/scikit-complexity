@@ -6,8 +6,8 @@ steeper recovery the spiral is unstable and breaks into many short waves, the sp
 """
 
 # %%
-# The system is built from its class on a lattice of 64 by 64 sites spaced by 3, in the regime of a stable spiral, and
-# integrated with Runge-Kutta steps of 0.2. The observer saves every frame with the default blueprint, whose primary
+# The example builds `BarkleySystem` on a lattice of 64 by 64 sites spaced by 3, in the regime of a stable spiral, and
+# integrates it with Runge-Kutta steps of 0.2. The observer saves every frame with the default blueprint, whose primary
 # view is the image of the excitation.
 
 import matplotlib.pyplot as plt

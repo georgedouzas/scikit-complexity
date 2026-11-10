@@ -7,8 +7,8 @@ a constant rate in the logarithm of time.
 """
 
 # %%
-# The system is built from its class with 2000 residents and run for 300 years. The observer saves every other year
-# with the default blueprint, whose primary view is the time series of the strength of the strain.
+# The example builds `RecordDynamicsEpidemicSystem` with 2000 residents and runs it for 300 years. The observer saves
+# every other year with the default blueprint, whose primary view is the time series of the strength of the strain.
 
 import matplotlib.pyplot as plt
 import numpy as np

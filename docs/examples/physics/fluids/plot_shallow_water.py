@@ -9,7 +9,7 @@ to the left and the bore moving to the right.
 """
 
 # %%
-# The system is built from its class with 400 finite-volume cells in a channel of length 10, depths 2 and 1,
+# The example builds `ShallowWaterSystem` with 400 finite-volume cells in a channel of length 10, depths 2 and 1,
 # and `g = 9.81`. The catalog registers the strong-stability-preserving Runge-Kutta stepper for this system, which keeps
 # the bore free of oscillations, so it is passed explicitly. The observer saves every frame of 0.005 with the default
 # blueprint, whose primary view is the space-time image of the depth.

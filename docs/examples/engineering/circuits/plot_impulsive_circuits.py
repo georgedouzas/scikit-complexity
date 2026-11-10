@@ -6,7 +6,7 @@ kicks the response repeats exactly from one impulse to the next: a periodic, non
 """
 
 # %%
-# The system is built from its class with `L = C = 1`, `R = 0.1`, and impulses of strength 1 every
+# The example builds `ImpulsiveCircuitsSystem` with `L = C = 1`, `R = 0.1`, and impulses of strength 1 every
 # `T = 2`, and runs for 150 time units, long enough for the weak damping to remove the transient. The blueprint
 # shows only the response `x`, leaving out its rate and the clock of the impulses.
 
@@ -41,7 +41,7 @@ trajectory = simulate(system, until=150, dt=0.1, observers=[observer])
 # %%
 # The periodic response
 # ---------------------
-# Just before every impulse the state should converge to the fixed point of the map over one period, so the values of
+# Right before every impulse the state should converge to the fixed point of the map over one period, so the values of
 # `x` and `x'` sampled once per period should settle, and the last periods of the response should lie on each other.
 
 x, rate = trajectory.get_values('circuit.x'), trajectory.get_values('circuit.x_d1')

@@ -8,7 +8,7 @@ the layer at the end of the run: bright cells of rising fluid packed in a hexago
 """
 
 # %%
-# The system is built from its class on a periodic square of side `16π`, eight cell wavelengths, at the
+# The example builds `BenardMarangoniSystem` on a periodic square of side `16π`, eight cell wavelengths, at the
 # distance `r = 0.1` above onset and with the quadratic term `g = 1` of the thermocapillary surface. The field starts
 # from noise of amplitude 0.01. The catalog defaults integrate it with exponential time differencing, and the default
 # blueprint shows the field as an image.

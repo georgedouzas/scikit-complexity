@@ -7,7 +7,7 @@ returning near forty, although every step can be undone. The view shows the coun
 """
 
 # %%
-# The system is built from its class with 40 balls, all in the first box. One step moves one ball, and the
+# The example builds `EhrenfestUrnSystem` with 40 balls, all in the first box. One step moves one ball, and the
 # blueprint shows the count over the whole run.
 
 import math

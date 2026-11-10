@@ -7,7 +7,7 @@ stays far below its value on the same network without rewiring.
 """
 
 # %%
-# The system is built from its class on an Erdős-Rényi network of 200 nodes with mean degree 6, run by the Gillespie
+# The example builds `AdaptiveSISSystem` on an Erdős-Rényi network of 200 nodes with mean degree 6, run by the Gillespie
 # solver. The observer saves every frame with the default blueprint, whose primary view is the network drawn by its
 # force layout, with the infected nodes bright, and its edges as they are rewired.
 

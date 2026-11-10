@@ -6,9 +6,9 @@ day seed a secondary tumour that does the same at the second site.
 """
 
 # %%
-# The system is built from its class, untreated, from 165 tumour cells at the primary site and none at the secondary
-# site. The observer saves every frame with the default blueprint, whose primary view is the time series of the cells
-# at both sites.
+# The example builds `DelayedMetastasisSystem`, untreated, from 165 tumour cells at the primary site and none at the
+# secondary site. The observer saves every frame with the default blueprint, whose primary view is the time series of
+# the cells at both sites.
 
 import matplotlib.pyplot as plt
 

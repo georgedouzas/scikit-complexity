@@ -7,7 +7,7 @@ image shows the density at the end of the run.
 """
 
 # %%
-# The system is built from its class on a periodic square of 64 sites, above the critical density, where the
+# The example builds `DryActiveNematicsSystem` on a periodic square of 64 sites, above the critical density, where the
 # isotropic state loses stability. The catalog defaults integrate it with RK4 on the Numba backend.
 
 import matplotlib.pyplot as plt

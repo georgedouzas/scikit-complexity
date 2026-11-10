@@ -2,7 +2,7 @@
 # Involutive automaton
 
 The cells sit on a ring of 80 cells and hold 0 or 1, and every cell reads the window from its left neighbour to the
-`n`-th cell on its right. A cell at the left end of a run of exactly `n` ones becomes 0, a cell just before a run of
+`n`-th cell on its right. A cell at the left end of a run of exactly `n` ones becomes 0, a cell right before a run of
 exactly `n - 1` ones becomes 1, and every other cell keeps its value. The two moves undo each other, so the automaton
 is its own inverse.
 """

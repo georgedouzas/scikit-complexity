@@ -7,7 +7,7 @@ is at capacity, ahead of it the line is empty, and the front keeps its shape whi
 """
 
 # %%
-# The system is built from its class with the left 5% of a line of 200 units occupied. The blueprint shows the
+# The example builds `FisherKPPSystem` with the left 5% of a line of 200 units occupied. The blueprint shows the
 # space-time history of the density, where the front is a straight diagonal edge.
 
 import matplotlib.pyplot as plt

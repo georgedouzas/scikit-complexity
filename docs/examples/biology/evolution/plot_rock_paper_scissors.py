@@ -7,8 +7,8 @@ that chase each other, and each keeps about a third of the lattice.
 """
 
 # %%
-# The system is built from its class on a periodic lattice of 60 by 60 sites with random strategies. The observer
-# saves every step with the default blueprint, whose primary view is the image of the strategies.
+# The example builds `RockPaperScissorsSystem` on a periodic lattice of 60 by 60 sites with random strategies. The
+# observer saves every step with the default blueprint, whose primary view is the image of the strategies.
 
 import matplotlib.pyplot as plt
 import numpy as np

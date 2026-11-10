@@ -22,10 +22,10 @@ observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default',
 trajectory = simulate(PopulationPollutionSystem(), until=50, observers=[observer], random_state=0)
 
 # %%
-# The four curves of the book
-# ---------------------------
-# As in Fig. 4.33 of the book, the pollution should climb towards 90 million, the population double, the food per
-# capita fall towards the subsistence level of 180, and the quality of life fall below 1.
+# The four curves of Bala et al.
+# ------------------------------
+# As in Fig. 4.33 of Bala et al. (2017), the pollution should climb towards 90 million, the population double, the food
+# per capita fall towards the subsistence level of 180, and the quality of life fall below 1.
 
 times = np.asarray(trajectory.times)
 fig, axes = plt.subplots(2, 2, figsize=(9, 6), sharex=True)

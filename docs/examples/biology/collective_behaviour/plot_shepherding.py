@@ -7,8 +7,8 @@ and apart, so the flock moves as one.
 """
 
 # %%
-# The system is built from its class with thirty sheep, and the observer saves every step with the default blueprint,
-# whose primary view is the field with the sheep and the shepherd.
+# The example builds `ShepherdingSystem` with thirty sheep, and the observer saves every step with the default
+# blueprint, whose primary view is the field with the sheep and the shepherd.
 
 import matplotlib.pyplot as plt
 import numpy as np

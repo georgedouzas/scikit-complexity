@@ -6,8 +6,8 @@ steps.
 """
 
 # %%
-# The system is built from its class and started with LacI on. The observer saves every step with the default
-# blueprint, whose primary view is the time series of LacI, TetR, and cI.
+# The example builds `BooleanRepressilatorSystem` and starts it with LacI on. The observer saves every step with the
+# default blueprint, whose primary view is the time series of LacI, TetR, and cI.
 
 import matplotlib.pyplot as plt
 

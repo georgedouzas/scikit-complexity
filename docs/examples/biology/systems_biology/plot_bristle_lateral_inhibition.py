@@ -7,8 +7,8 @@ neighbours, leaving sparse sensory bristles several cell diameters apart.
 """
 
 # %%
-# The system is built from its class with forty cells, and the observer saves every frame with the default blueprint,
-# whose primary view is the time series of the neural states.
+# The example builds `BristleLateralInhibitionSystem` with forty cells, and the observer saves every frame with the
+# default blueprint, whose primary view is the time series of the neural states.
 
 import matplotlib.pyplot as plt
 import numpy as np

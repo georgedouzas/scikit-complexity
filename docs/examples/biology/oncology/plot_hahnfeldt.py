@@ -6,7 +6,7 @@ vasculature that sets its carrying capacity.
 """
 
 # %%
-# The system is built from its class with its defaults: tumour and vascular volumes at the equilibrium of 17347 mm³
+# The example builds `HahnfeldtSystem` with its defaults: tumour and vascular volumes at the equilibrium of 17347 mm³
 # and a continuous infusion of 20 mg/kg/day of endostatin from day 0. The observer saves every frame with the default
 # blueprint, whose primary view is the time series of the volumes and the inhibitor.
 

@@ -7,8 +7,8 @@ disappear and their cells switch to the one that remains.
 """
 
 # %%
-# The system is built from its class with thirty cells near the centre and no signal, and the observer saves every
-# frame with the default blueprint, whose primary view is the time series of the cell states.
+# The example builds `ThreeWayFateDecisionSystem` with thirty cells near the centre and no signal, and the observer
+# saves every frame with the default blueprint, whose primary view is the time series of the cell states.
 
 import matplotlib.pyplot as plt
 import numpy as np
