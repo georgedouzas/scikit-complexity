@@ -23,7 +23,6 @@ from ..common.pharmacokinetics import DosingInteraction
 from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
-
 MAX_DOSE = 1.0
 
 
@@ -298,24 +297,7 @@ class OptimalImmunotherapyElement(Element):
         self.w2 = w2
 
 
-def _tumour_share(s: SimpleNamespace) -> Expression:
-    """Return the tumour cells as a share of the tumour and normal cells.
-
-    The share is `A / (A + N)`.
-    """
-    patient = s.patient
-    share: Expression = patient.A / (patient.A + patient.N)
-    return share
-
-
-def _immune_ratio(s: SimpleNamespace) -> Expression:
-    """Return the effector cells per tumour cell, `x / (y + 1)` in the scaled units."""
-    site = s.site
-    ratio: Expression = site.x / (site.y + 1)
-    return ratio
-
-
-def _chemotherapy_cost(s: SimpleNamespace) -> Expression:
+def _get_chemotherapy_cost(s: SimpleNamespace) -> Expression:
     """Return the running cost of the chemotherapy, `A + w u^2 / 2`.
 
     It sums the tumour and the squared dose.
@@ -325,26 +307,20 @@ def _chemotherapy_cost(s: SimpleNamespace) -> Expression:
     return cost
 
 
-def _tumour(s: SimpleNamespace) -> Expression:
+def _get_tumour(s: SimpleNamespace) -> Expression:
     """Return the tumour cells left at the end of the chemotherapy, `A(T)`."""
     tumour: Expression = s.patient.A
     return tumour
 
 
-def _immunotherapy_cost(s: SimpleNamespace) -> Expression:
-    """Return the running cost of the immunotherapy.
+def _get_tumour_share(s: SimpleNamespace) -> Expression:
+    """Return the tumour cells as a share of the tumour and normal cells.
 
-    It sums the tumour and the squared doses of both therapies.
+    The share is `A / (A + N)`.
     """
-    site = s.site
-    cost: Expression = site.y + site.w1 * site.u1**2 / 2 + site.w2 * site.u2**2 / 2
-    return cost
-
-
-def _tumour_site(s: SimpleNamespace) -> Expression:
-    """Return the tumour cells left at the end of the immunotherapy, `y(T)`."""
-    tumour: Expression = s.site.y
-    return tumour
+    patient = s.patient
+    share: Expression = patient.A / (patient.A + patient.N)
+    return share
 
 
 class OptimalChemotherapySystem(BaseSystem):
@@ -384,8 +360,8 @@ class OptimalChemotherapySystem(BaseSystem):
     references = (BOOK, 'de Pillis and Radunskaya 2001')
     until = 30.0
     dt = 0.25
-    solver = PontryaginSolver(objective=_chemotherapy_cost, terminal=_tumour)
-    observables = (ObservableSpec('tumour_share', _tumour_share),)
+    solver = PontryaginSolver(objective=_get_chemotherapy_cost, terminal=_get_tumour)
+    observables = (ObservableSpec('tumour_share', _get_tumour_share),)
 
     def __init__(
         self,
@@ -408,6 +384,29 @@ class OptimalChemotherapySystem(BaseSystem):
             self.label,
             elements=[OptimalChemotherapyElement('patient', E=self.E, A=self.A, N=self.N, w=self.w)],
         )
+
+
+def _get_immunotherapy_cost(s: SimpleNamespace) -> Expression:
+    """Return the running cost of the immunotherapy.
+
+    It sums the tumour and the squared doses of both therapies.
+    """
+    site = s.site
+    cost: Expression = site.y + site.w1 * site.u1**2 / 2 + site.w2 * site.u2**2 / 2
+    return cost
+
+
+def _get_tumour_site(s: SimpleNamespace) -> Expression:
+    """Return the tumour cells left at the end of the immunotherapy, `y(T)`."""
+    tumour: Expression = s.site.y
+    return tumour
+
+
+def _get_immune_ratio(s: SimpleNamespace) -> Expression:
+    """Return the effector cells per tumour cell, `x / (y + 1)` in the scaled units."""
+    site = s.site
+    ratio: Expression = site.x / (site.y + 1)
+    return ratio
 
 
 class OptimalImmunotherapySystem(BaseSystem):
@@ -449,8 +448,12 @@ class OptimalImmunotherapySystem(BaseSystem):
     references = (BOOK, 'Kirschner and Panetta 1998')
     until = 50.0
     dt = 0.5
-    solver = PontryaginSolver(objective=_immunotherapy_cost, terminal=_tumour_site, nodes=1001)
-    observables = (ObservableSpec('immune_ratio', _immune_ratio),)
+    solver = PontryaginSolver(
+        objective=_get_immunotherapy_cost,
+        terminal=_get_tumour_site,
+        nodes=1001,
+    )
+    observables = (ObservableSpec('immune_ratio', _get_immune_ratio),)
 
     def __init__(
         self,

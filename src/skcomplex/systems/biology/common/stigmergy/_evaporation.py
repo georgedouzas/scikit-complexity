@@ -59,7 +59,7 @@ class EvaporationInteraction(RateInteraction):
         >>> evaporation = EvaporationInteraction('evaporation', target='scent', state='level', evaporation='e')
         >>> system = CompositeSystem(elements=[ScentElement('scent')], interactions=[evaporation])
         >>> trajectory = simulate(system, until=2.0, dt=0.01)
-        >>> round(float(trajectory.values('scent.level')[-1]), 3)
+        >>> round(float(trajectory.get_values('scent.level')[-1]), 3)
         2.943
     """
 

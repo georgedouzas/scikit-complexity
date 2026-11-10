@@ -58,7 +58,7 @@ class ReplicatorInteraction(RateInteraction):
         ... )
         >>> system = CompositeSystem(elements=[population], interactions=[replication])
         >>> trajectory = simulate(system, until=20.0, dt=0.1)
-        >>> [round(float(share), 3) for share in trajectory.values('population.x')[-1]]
+        >>> [round(float(share), 3) for share in trajectory.get_values('population.x')[-1]]
         [1.0, 0.0]
     """
 

@@ -25,11 +25,6 @@ from ....core.types import AnyArray
 EXCITED = 1
 
 
-def _excited_fraction(phases: AnyArray) -> float:
-    """Return the fraction of elements that are excited."""
-    return float(np.mean(np.asarray(phases) == EXCITED))
-
-
 class ExcitableElement(Element):
     """Cyclic excitable element of the Kinouchi-Copelli network.
 
@@ -75,6 +70,11 @@ class ExcitableElement(Element):
         self.phase = phase
         self.p = p
         self.stimulus = stimulus
+
+
+def _get_excited_fraction(phases: AnyArray) -> float:
+    """Return the fraction of elements that are excited."""
+    return float(np.mean(np.asarray(phases) == EXCITED))
 
 
 class KinouchiCopelliSystem(BaseSystem):
@@ -126,7 +126,7 @@ class KinouchiCopelliSystem(BaseSystem):
     references = ('Kinouchi and Copelli 2006', 'Larremore et al. 2011')
     until = 1000
     dt = 1
-    observables = (ObservableSpec('activity', group='neurons', variable='phase', reduce=_excited_fraction),)
+    observables = (ObservableSpec('activity', group='neurons', variable='phase', reduce=_get_excited_fraction),)
 
     def __init__(
         self,

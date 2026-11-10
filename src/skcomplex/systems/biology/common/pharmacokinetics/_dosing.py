@@ -65,7 +65,7 @@ class DosingInteraction(RateInteraction):
         >>> dosing = DosingInteraction('dosing', target='patient', state='x', dose=2.0, period=10.0, count=3)
         >>> system = CompositeSystem(elements=[CompartmentElement('patient', x=0.0)], interactions=[dosing])
         >>> trajectory = simulate(system, until=40.0, dt=0.5)
-        >>> round(float(trajectory.values('patient.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('patient.x')[-1]), 3)
         6.0
     """
 

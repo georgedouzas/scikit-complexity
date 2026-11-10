@@ -23,7 +23,6 @@ from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
 BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
-
 STIFF_SOLVER = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
 

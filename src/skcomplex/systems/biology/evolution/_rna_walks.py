@@ -22,19 +22,12 @@ from ..._extras import import_extra
 from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
 
 SYSTEM = 'rna_neutral_networks'
-
 EXTRA = 'rna'
-
 FOLD_CACHE = 2**18
-
 BASES = 'ACGU'
-
 LAST_BASE = len(BASES) - 1
-
 START = 'GGGGAAACCCCAUCGAUAGCGGGAAACCGC'
-
 TARGET = '((((...)))).......((((....))))'
-
 REGIMES = ('neutral', 'adaptive')
 
 

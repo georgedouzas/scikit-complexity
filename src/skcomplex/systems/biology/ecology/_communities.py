@@ -22,11 +22,8 @@ from ..common.populations import (
 )
 
 WEB_POPULATIONS = {'frogs': 50.0, 'mice': 50.0, 'snakes': 10.0, 'hawks': 5.0}
-
 WEB_GROWTH = {'frogs': (1.0, 100.0), 'mice': (1.2, 100.0)}
-
 WEB_MORTALITY = {'snakes': 0.3, 'hawks': 0.2}
-
 WEB_LINKS = (
     ('snakes', 'frogs', 0.02, 0.01),
     ('snakes', 'mice', 0.01, 0.005),

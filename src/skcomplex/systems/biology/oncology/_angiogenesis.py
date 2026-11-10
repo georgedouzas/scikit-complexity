@@ -26,15 +26,10 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 OXYGEN = 'tissue/tissue.oxygen'
-
 VEGF = 'tissue/tissue.vegf'
-
 VESSELS = 'cells/vessels'
-
 TUMOUR = 'cells/tumour'
-
 SPROUTS = 'cells/sprouts'
-
 TISSUE = 'tissue/tissue'
 
 

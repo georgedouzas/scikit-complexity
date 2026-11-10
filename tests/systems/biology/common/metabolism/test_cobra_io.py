@@ -93,7 +93,7 @@ def test_default_install_stays_importable():
         "names = {name for field in ('biology/systems_biology', 'biology/ecology') for name, _ in all_systems(field)}\n"
         "assert {'DynamicFBASystem', 'CometsSystem', 'CommunityFBASystem'} <= names\n"
         "trajectory = simulate(FluxBalanceSystem(), until=0.0)\n"
-        "assert abs(float(trajectory.values('cell.v_vbio')[0]) - 50) < 1e-9\n"
+        "assert abs(float(trajectory.get_values('cell.v_vbio')[0]) - 50) < 1e-9\n"
         "assert not {'cobra', 'straindesign', 'micom'} & set(sys.modules)\n"
         'from skcomplex.core.errors import MissingExtraError\n'
         'try:\n'

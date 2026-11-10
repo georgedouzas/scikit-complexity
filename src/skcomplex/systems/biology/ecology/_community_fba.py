@@ -55,7 +55,7 @@ class CommunityFBASystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.ecology import CommunityFBASystem
         >>> trajectory = simulate(CommunityFBASystem(), until=0.0)
-        >>> round(float(trajectory.values('medium.objective_0')[0]), 3)
+        >>> round(float(trajectory.get_values('medium.objective_0')[0]), 3)
         0.862
     """
 

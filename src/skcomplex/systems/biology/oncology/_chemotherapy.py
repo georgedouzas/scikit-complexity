@@ -25,9 +25,7 @@ from ..common.pharmacokinetics import DosingInteraction
 from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
-
 DRUGS = (1, 2, 3)
-
 RESISTANCE_CLASSES = {
     (): 'S',
     (1,): 'R1',

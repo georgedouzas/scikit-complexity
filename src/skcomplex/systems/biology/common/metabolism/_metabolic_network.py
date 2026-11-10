@@ -28,17 +28,6 @@ NO_REACTIONS: Mapping[str, ReactionSpec] = {}
 NO_OBJECTIVE: Mapping[str, float] = {}
 
 
-@functools.cache
-def _rule_genes(rule: str) -> tuple[str, ...]:
-    """Return the gene names in a rule, read once per rule.
-
-    Compiling reads the variables of a network often.
-    """
-    if not rule.strip():
-        return ()
-    return tuple(node.id for node in ast.walk(ast.parse(rule, mode='eval')) if isinstance(node, ast.Name))
-
-
 class MetabolicNetworkElement(DeclaredElement):
     """Metabolic network whose fluxes one linear program sets.
 
@@ -86,6 +75,17 @@ class MetabolicNetworkElement(DeclaredElement):
     """
 
     law_classes = (LinearProgramLaw,)
+
+    @staticmethod
+    @functools.cache
+    def _get_rule_genes(rule: str) -> tuple[str, ...]:
+        """Return the gene names in a rule, read once per rule.
+
+        Compiling reads the variables of a network often.
+        """
+        if not rule.strip():
+            return ()
+        return tuple(node.id for node in ast.walk(ast.parse(rule, mode='eval')) if isinstance(node, ast.Name))
 
     def __init__(
         self,
@@ -175,7 +175,11 @@ class MetabolicNetworkElement(DeclaredElement):
             genes:
                 The names, in the order the rules name them.
         """
-        names = [name for reaction in self.reactions.values() for name in _rule_genes(reaction.rule)]
+        names = [
+            name
+            for reaction in self.reactions.values()
+            for name in MetabolicNetworkElement._get_rule_genes(reaction.rule)
+        ]
         return tuple(dict.fromkeys(names))
 
     def get_number(self, name: str) -> float:

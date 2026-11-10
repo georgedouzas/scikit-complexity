@@ -276,7 +276,7 @@ class GompertzGrowthInteraction(GrowthInteraction):
         ...     interactions=[GompertzGrowthInteraction('growth', target='tumour', r=1.0, K=20.0)],
         ... )
         >>> trajectory = simulate(system, until=30.0, dt=0.1)
-        >>> round(float(trajectory.values('tumour.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('tumour.x')[-1]), 3)
         20.0
     """
 
@@ -335,7 +335,7 @@ class PowerLawGrowthInteraction(GrowthInteraction):
         ...     interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=1.0, p=0.5)],
         ... )
         >>> trajectory = simulate(system, until=2.0, dt=0.01)
-        >>> round(float(trajectory.values('tumour.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('tumour.x')[-1]), 3)
         4.0
     """
 

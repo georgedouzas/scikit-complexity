@@ -41,7 +41,6 @@ CONCENTRATIONS = MappingProxyType(
         'P': 0.0,
     },
 )
-
 CONSTANTS = MappingProxyType(
     {
         'V1': 0.5,
@@ -71,25 +70,15 @@ CONSTANTS = MappingProxyType(
         'flow': 0.011,
     },
 )
-
 FEEDS = MappingProxyType({'ATP': 3.5, 'ADP': 1.1, 'NADH': 0.24, 'NAD': 4.0, 'GLC': 50.0})
-
 RAMAN = 'Raman 2021'
-
 PATHWAY_ALPHA = (2.0, 1.0, 1.0)
-
 PATHWAY_BETA = (1.0, 1.0, 1.0)
-
 PATHWAY_G = ((0.0, 0.0, -0.5), (0.5, 0.0, 0.0), (0.0, 0.5, 0.0))
-
 PATHWAY_H = ((0.5, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0, 0.5))
-
 PATHWAY_STOICHIOMETRY = ((1.0, -1.0, 0.0, 0.0), (0.0, 1.0, -1.0, 0.0), (0.0, 0.0, 1.0, -1.0))
-
 PATHWAY_GAMMA = (2.0, 1.0, 1.0, 1.0)
-
 PATHWAY_ORDERS = ((0.0, 0.0, -0.5), (0.5, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0, 0.5))
-
 MIN_GOODWIN_STAGES = 2
 
 

@@ -23,6 +23,7 @@ from ....core.types import Array, ElementKind
 
 REDUCTIONS = ('sum', 'mean')
 
+
 type AgentCombination = Callable[[AgentViewProtocol, SystemViewProtocol, Array | None, int | None], npt.ArrayLike]
 
 

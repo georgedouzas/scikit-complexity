@@ -23,7 +23,6 @@ from ....core.types import Array
 from ..common.populations import ReplicatorInteraction
 
 NEAREST = BallNeighborhood(metric='manhattan')
-
 STRATEGIES = 3
 
 

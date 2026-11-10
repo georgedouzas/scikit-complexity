@@ -22,7 +22,6 @@ from ...general.reactions import ReactionInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
-
 PATIENT_FACTORS = {
     1: {
         'on': (0.956156, 0.00130716, 0.995718, 0.0, 0.0, 1.00181),
@@ -1063,17 +1062,6 @@ class TherapySwitchInteraction(CrossingInteraction):
         return self.value
 
 
-def _get_switches(signal: Callable[[SimpleNamespace], object], h0: float, h1: float) -> list[BaseInteraction]:
-    """Return the relay with hysteresis of a signal that starts and stops the therapy.
-
-    The relay starts the therapy above `h1` and stops it below `h0`.
-    """
-    return [
-        TherapySwitchInteraction('on', target='tumour', signal=signal, threshold=h1, value=1.0, direction=1),
-        TherapySwitchInteraction('off', target='tumour', signal=signal, threshold=h0, value=0.0, direction=-1),
-    ]
-
-
 class ContinuousAndrogenSuppressionSystem(BaseSystem):
     """Prostate cancer under continuous androgen suppression.
 
@@ -1310,6 +1298,17 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
     until = 600.0
     dt = 2.0
 
+    @staticmethod
+    def _get_switches(signal: Callable[[SimpleNamespace], object], h0: float, h1: float) -> list[BaseInteraction]:
+        """Return the relay with hysteresis of a signal that starts and stops the therapy.
+
+        The relay starts the therapy above `h1` and stops it below `h0`.
+        """
+        return [
+            TherapySwitchInteraction('on', target='tumour', signal=signal, threshold=h1, value=1.0, direction=1),
+            TherapySwitchInteraction('off', target='tumour', signal=signal, threshold=h0, value=0.0, direction=-1),
+        ]
+
     def __init__(
         self,
         AD: float = 5.0,
@@ -1366,7 +1365,11 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
             U0=self.U0,
             du=self.du,
         )
-        switches = _get_switches(lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AI, self.h0, self.h1)
+        switches = IdetaIntermittentAndrogenSystem._get_switches(
+            lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AI,
+            self.h0,
+            self.h1,
+        )
         interactions = [
             RateInteraction(
                 'dependent_growth',
@@ -1984,7 +1987,7 @@ class PiecewiseLinearIASSystem(BaseSystem):
             w22_off=off22 - 1,
             w33_off=off33 - 1,
         )
-        switches = _get_switches(
+        switches = IdetaIntermittentAndrogenSystem._get_switches(
             lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AIR + s.target.x3 * s.target.AII,
             self.h0,
             self.h1,

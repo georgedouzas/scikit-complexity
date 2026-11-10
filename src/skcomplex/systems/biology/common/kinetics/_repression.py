@@ -70,7 +70,7 @@ class RepressionInteraction(ReactionInteraction):
         ... )
         >>> species = [SpeciesElement('mRNA'), SpeciesElement('repressor', x=1.0)]
         >>> trajectory = simulate(CompositeSystem(elements=species, interactions=[repression]), until=1.0, dt=0.1)
-        >>> round(float(trajectory.values('mRNA.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('mRNA.x')[-1]), 3)
         1.0
     """
 

@@ -54,63 +54,6 @@ class GeneElement(Element):
         self.p = p
 
 
-def _express(gene: str, b: float, beta: float, delta: float, mode: str) -> list[BaseInteraction]:
-    """Return the decay of the mRNA, the translation, and the decay of the protein.
-
-    They are those of a gene.
-    """
-    return [
-        ReactionInteraction(f'mrna_decay_{gene}', reactants={(gene, 'm'): 1}, k=delta, mode=mode),
-        ReactionInteraction(
-            f'translation_{gene}',
-            products={(gene, 'p'): 1},
-            modifiers={(gene, 'm'): 1},
-            k=b,
-            mode=mode,
-        ),
-        ReactionInteraction(f'protein_decay_{gene}', reactants={(gene, 'p'): 1}, k=beta, mode=mode),
-    ]
-
-
-def _repress(label: str, repressor: str, target: str, parameters: dict[str, float], mode: str) -> RepressionInteraction:
-    """Return the transcription of the mRNA of a target gene.
-
-    The protein of a repressor gene represses it.
-    """
-    return RepressionInteraction(
-        label,
-        products={(target, 'm'): 1},
-        modifiers={(repressor, 'p'): 1},
-        alpha=parameters['alpha'],
-        alpha0=parameters['alpha0'],
-        K=parameters['K'],
-        n=parameters['n'],
-        mode=mode,
-    )
-
-
-def _circuit(
-    proteins: Sequence[float],
-    edges: Sequence[tuple[int, int]],
-    expression: dict[str, float],
-    repression: dict[str, float],
-    mode: str,
-    *,
-    label: str,
-) -> CompositeSystem:
-    """Return labelled genes with initial protein counts.
-
-    The first gene of each edge represses the second.
-    """
-    genes = [GeneElement(f'gene_{index}', p=float(p)) for index, p in enumerate(proteins)]
-    repressions: list[BaseInteraction] = [
-        _repress(f'repression_{source}_{target}', f'gene_{source}', f'gene_{target}', repression, mode)
-        for source, target in edges
-    ]
-    expressions = [interaction for gene in genes for interaction in _express(gene.label, mode=mode, **expression)]
-    return CompositeSystem(label, elements=genes, interactions=[*repressions, *expressions])
-
-
 class RepressilatorSystem(BaseSystem):
     """The repressilator of Elowitz and Leibler.
 
@@ -164,6 +107,79 @@ class RepressilatorSystem(BaseSystem):
     until = 200.0
     dt = 0.5
 
+    @staticmethod
+    def _get_express(gene: str, b: float, beta: float, delta: float, mode: str) -> list[BaseInteraction]:
+        """Return the decay of the mRNA, the translation, and the decay of the protein.
+
+        They are those of a gene.
+        """
+        return [
+            ReactionInteraction(f'mrna_decay_{gene}', reactants={(gene, 'm'): 1}, k=delta, mode=mode),
+            ReactionInteraction(
+                f'translation_{gene}',
+                products={(gene, 'p'): 1},
+                modifiers={(gene, 'm'): 1},
+                k=b,
+                mode=mode,
+            ),
+            ReactionInteraction(f'protein_decay_{gene}', reactants={(gene, 'p'): 1}, k=beta, mode=mode),
+        ]
+
+    @staticmethod
+    def _get_repress(
+        label: str,
+        repressor: str,
+        target: str,
+        parameters: dict[str, float],
+        mode: str,
+    ) -> RepressionInteraction:
+        """Return the transcription of the mRNA of a target gene.
+
+        The protein of a repressor gene represses it.
+        """
+        return RepressionInteraction(
+            label,
+            products={(target, 'm'): 1},
+            modifiers={(repressor, 'p'): 1},
+            alpha=parameters['alpha'],
+            alpha0=parameters['alpha0'],
+            K=parameters['K'],
+            n=parameters['n'],
+            mode=mode,
+        )
+
+    @staticmethod
+    def _get_circuit(
+        proteins: Sequence[float],
+        edges: Sequence[tuple[int, int]],
+        expression: dict[str, float],
+        repression: dict[str, float],
+        mode: str,
+        *,
+        label: str,
+    ) -> CompositeSystem:
+        """Return labelled genes with initial protein counts.
+
+        The first gene of each edge represses the second.
+        """
+        genes = [GeneElement(f'gene_{index}', p=float(p)) for index, p in enumerate(proteins)]
+        repressions: list[BaseInteraction] = [
+            RepressilatorSystem._get_repress(
+                f'repression_{source}_{target}',
+                f'gene_{source}',
+                f'gene_{target}',
+                repression,
+                mode,
+            )
+            for source, target in edges
+        ]
+        expressions = [
+            interaction
+            for gene in genes
+            for interaction in RepressilatorSystem._get_express(gene.label, mode=mode, **expression)
+        ]
+        return CompositeSystem(label, elements=genes, interactions=[*repressions, *expressions])
+
     def __init__(
         self,
         proteins: Sequence[float] = (20.0, 0.0, 0.0),
@@ -194,7 +210,14 @@ class RepressilatorSystem(BaseSystem):
         mode = 'jump' if self.stochastic else 'rate'
         expression = {'b': self.b, 'beta': self.beta, 'delta': self.delta}
         repression = {'alpha': self.alpha, 'alpha0': self.alpha0, 'K': self.K, 'n': self.n}
-        return _circuit(self.proteins, [(2, 0), (0, 1), (1, 2)], expression, repression, mode, label=self.label)
+        return RepressilatorSystem._get_circuit(
+            self.proteins,
+            [(2, 0), (0, 1), (1, 2)],
+            expression,
+            repression,
+            mode,
+            label=self.label,
+        )
 
 
 class ToggleSwitchSystem(BaseSystem):
@@ -279,7 +302,14 @@ class ToggleSwitchSystem(BaseSystem):
         mode = 'jump' if self.stochastic else 'rate'
         expression = {'b': self.b, 'beta': self.beta, 'delta': self.delta}
         repression = {'alpha': self.alpha, 'alpha0': self.alpha0, 'K': self.K, 'n': self.n}
-        return _circuit(self.proteins, [(1, 0), (0, 1)], expression, repression, mode, label=self.label)
+        return RepressilatorSystem._get_circuit(
+            self.proteins,
+            [(1, 0), (0, 1)],
+            expression,
+            repression,
+            mode,
+            label=self.label,
+        )
 
 
 class NegativeAutoregulationSystem(BaseSystem):
@@ -358,14 +388,14 @@ class NegativeAutoregulationSystem(BaseSystem):
         The gene makes its protein in bursts.
         """
         mode = 'jump' if self.stochastic else 'rate'
-        feedback = _repress(
+        feedback = RepressilatorSystem._get_repress(
             'autoregulation',
             'gene',
             'gene',
             {'alpha': self.alpha, 'alpha0': 0.0, 'K': self.K, 'n': self.n},
             mode,
         )
-        expression = _express('gene', self.b, self.beta, self.delta, mode)
+        expression = RepressilatorSystem._get_express('gene', self.b, self.beta, self.delta, mode)
         return CompositeSystem(
             self.label,
             elements=[GeneElement('gene', p=self.p)],

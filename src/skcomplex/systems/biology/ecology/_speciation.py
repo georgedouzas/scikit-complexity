@@ -128,7 +128,7 @@ class NeutralReplacementInteraction(EvolutionInteraction):
         )
 
 
-def _richness(species: AnyArray) -> float:
+def _get_richness(species: AnyArray) -> float:
     """Return the number of distinct species among the individuals."""
     return float(len(np.unique(species)))
 
@@ -169,7 +169,7 @@ class NeutralBiodiversitySystem(BaseSystem):
     topics = ('neutral theory', 'biodiversity', 'speciation', 'agents', 'species abundance')
     references = ('Bertin 2021', 'Hubbell 2001', 'Vallade and Houchmandzadeh 2003')
     until = 500
-    observables = (ObservableSpec('richness', group='community', variable='species', reduce=_richness),)
+    observables = (ObservableSpec('richness', group='community', variable='species', reduce=_get_richness),)
 
     def __init__(
         self,

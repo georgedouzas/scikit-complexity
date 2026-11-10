@@ -40,11 +40,8 @@ from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, RoleSpec, St
 from ....core.types import Array, Indices
 
 MATRIX_AXES = 2
-
 LATTICES = ('square', 'triangular', 'disordered')
-
 DEFAULT_ADHESION = ((1.0, 2.0), (2.0, 1.5))
-
 TILES = 3
 
 
@@ -596,74 +593,6 @@ class CellAdhesionInteraction(RegionSamplingInteraction):
             raise ValidationError(error_msg)
 
 
-def _contact_pairs(space: LatticeSpace | NetworkSpace) -> tuple[Indices, Indices, Array]:
-    """Return the two sites and the weight of every contact of the tissue.
-
-    Each contact appears in both directions.
-    """
-    space.prepare()
-    if isinstance(space, NetworkSpace):
-        first, second = space.edges_[None]
-        weights = np.asarray([weight for *_, weight in space.graph.edges(data='weight', default=1.0)], dtype=float)
-        return np.concatenate([first, second]), np.concatenate([second, first]), np.concatenate([weights, weights])
-    neighborhood = BallNeighborhood(metric='hexagonal') if space.geometry == 'triangular' else BallNeighborhood()
-    coordinates = np.indices(space.shape_).reshape(2, -1)
-    sites = np.arange(space.size_)
-    pairs = [
-        (sites, np.ravel_multi_index(tuple(coordinates + np.asarray(offset)[:, None]), space.shape_, mode='wrap'))
-        for offset in neighborhood.prepare().offsets_
-    ]
-    first, second = (np.concatenate(items) for items in zip(*pairs, strict=True))
-    return first, second, np.ones(first.size)
-
-
-def _homotypic_contacts(
-    pairs: tuple[Indices, Indices, Array],
-    kinds: Indices,
-    t: float,
-    values: Mapping[str, object],
-) -> float:
-    """Return the share of the contact between different cells of the same kind.
-
-    It is the share of the contact between different cells that joins cells of the same kind.
-    """
-    del t
-    first, second, weights = pairs
-    cells = np.rint(np.ravel(np.asarray(values['tissue.cell'], dtype=float))).astype(np.intp)
-    boundary = cells[first] != cells[second]
-    same = kinds[cells[first]] == kinds[cells[second]]
-    return float((weights * boundary * same).sum() / max((weights * boundary).sum(), np.finfo(float).tiny))
-
-
-def _area_deviation(sizes: Array, target_area: float, t: float, values: Mapping[str, object]) -> float:
-    """Return the mean absolute deviation of the cell areas from the target area.
-
-    It is relative to the target area.
-    """
-    del t
-    cells = np.rint(np.ravel(np.asarray(values['tissue.cell'], dtype=float))).astype(np.intp)
-    areas = np.bincount(cells, weights=sizes)
-    return float(np.abs(areas - target_area).mean() / target_area)
-
-
-def _cellular_potts_observables(system: CompositeSystem) -> list[ObservableSpec]:
-    """Return the share of homotypic contacts and the deviation of the areas.
-
-    The deviation is that of the areas from their target.
-    """
-    tissue = next(element for element in system.elements if element.label == 'tissue')
-    adhesion = next(part for part in system.interactions if isinstance(part, CellAdhesionInteraction))
-    space = tissue.space.prepare()
-    sizes = np.ones(space.size_)
-    if isinstance(space, NetworkSpace):
-        sizes = np.asarray([volume for _, volume in space.graph.nodes(data='volume', default=1.0)], dtype=float)
-    kinds = np.asarray(adhesion.kinds, dtype=np.intp)
-    return [
-        ObservableSpec('homotypic_contacts', function=partial(_homotypic_contacts, _contact_pairs(space), kinds)),
-        ObservableSpec('area_deviation', function=partial(_area_deviation, sizes, float(adhesion.target_area))),
-    ]
-
-
 class CellularPottsSystem(BaseSystem):
     """The cellular Potts model of a confluent tissue sorting by differential adhesion.
 
@@ -734,6 +663,84 @@ class CellularPottsSystem(BaseSystem):
     until = 2000
     dt = 1
 
+    @staticmethod
+    def _get_contact_pairs(space: LatticeSpace | NetworkSpace) -> tuple[Indices, Indices, Array]:
+        """Return the two sites and the weight of every contact of the tissue.
+
+        Each contact appears in both directions.
+        """
+        space.prepare()
+        if isinstance(space, NetworkSpace):
+            first, second = space.edges_[None]
+            weights = np.asarray([weight for *_, weight in space.graph.edges(data='weight', default=1.0)], dtype=float)
+            return np.concatenate([first, second]), np.concatenate([second, first]), np.concatenate([weights, weights])
+        neighborhood = BallNeighborhood(metric='hexagonal') if space.geometry == 'triangular' else BallNeighborhood()
+        coordinates = np.indices(space.shape_).reshape(2, -1)
+        sites = np.arange(space.size_)
+        pairs = [
+            (sites, np.ravel_multi_index(tuple(coordinates + np.asarray(offset)[:, None]), space.shape_, mode='wrap'))
+            for offset in neighborhood.prepare().offsets_
+        ]
+        first, second = (np.concatenate(items) for items in zip(*pairs, strict=True))
+        return first, second, np.ones(first.size)
+
+    @staticmethod
+    def _get_homotypic_contacts(
+        pairs: tuple[Indices, Indices, Array],
+        kinds: Indices,
+        t: float,
+        values: Mapping[str, object],
+    ) -> float:
+        """Return the share of the contact between different cells of the same kind.
+
+        It is the share of the contact between different cells that joins cells of the same kind.
+        """
+        del t
+        first, second, weights = pairs
+        cells = np.rint(np.ravel(np.asarray(values['tissue.cell'], dtype=float))).astype(np.intp)
+        boundary = cells[first] != cells[second]
+        same = kinds[cells[first]] == kinds[cells[second]]
+        return float((weights * boundary * same).sum() / max((weights * boundary).sum(), np.finfo(float).tiny))
+
+    @staticmethod
+    def _get_area_deviation(sizes: Array, target_area: float, t: float, values: Mapping[str, object]) -> float:
+        """Return the mean absolute deviation of the cell areas from the target area.
+
+        It is relative to the target area.
+        """
+        del t
+        cells = np.rint(np.ravel(np.asarray(values['tissue.cell'], dtype=float))).astype(np.intp)
+        areas = np.bincount(cells, weights=sizes)
+        return float(np.abs(areas - target_area).mean() / target_area)
+
+    @staticmethod
+    def _get_cellular_potts_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the share of homotypic contacts and the deviation of the areas.
+
+        The deviation is that of the areas from their target.
+        """
+        tissue = next(element for element in system.elements if element.label == 'tissue')
+        adhesion = next(part for part in system.interactions if isinstance(part, CellAdhesionInteraction))
+        space = tissue.space.prepare()
+        sizes = np.ones(space.size_)
+        if isinstance(space, NetworkSpace):
+            sizes = np.asarray([volume for _, volume in space.graph.nodes(data='volume', default=1.0)], dtype=float)
+        kinds = np.asarray(adhesion.kinds, dtype=np.intp)
+        return [
+            ObservableSpec(
+                'homotypic_contacts',
+                function=partial(
+                    CellularPottsSystem._get_homotypic_contacts,
+                    CellularPottsSystem._get_contact_pairs(space),
+                    kinds,
+                ),
+            ),
+            ObservableSpec(
+                'area_deviation',
+                function=partial(CellularPottsSystem._get_area_deviation, sizes, float(adhesion.target_area)),
+            ),
+        ]
+
     def __init__(
         self,
         shape: Sequence[int] = (40, 40),
@@ -771,7 +778,7 @@ class CellularPottsSystem(BaseSystem):
                 The tuned run settings by name.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _cellular_potts_observables(self._build_system())
+        settings['observables'] = CellularPottsSystem._get_cellular_potts_observables(self._build_system())
         return settings
 
     @staticmethod

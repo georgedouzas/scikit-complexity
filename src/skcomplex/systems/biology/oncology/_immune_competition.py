@@ -109,14 +109,6 @@ def mean_activity(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Ex
     return moment(s.x, 1, activities, normalized=True)
 
 
-def _classes_of(system: CompositeSystem) -> int:
-    """Return the number of activity classes of a system.
-
-    It is the size of its tumour distribution.
-    """
-    return int(next(item.size or 0 for item in system.elements if item.label == 'tumour'))
-
-
 def immune_observables(classes: int) -> list[ObservableSpec]:
     """Return the tumour density, mean progression, and mean immune activation.
 
@@ -195,6 +187,14 @@ class ImmuneCompetitionSystem(BaseSystem):
     until = 40
     dt = 0.5
 
+    @staticmethod
+    def _get_classes_of(system: CompositeSystem) -> int:
+        """Return the number of activity classes of a system.
+
+        It is the size of its tumour distribution.
+        """
+        return int(next(item.size or 0 for item in system.elements if item.label == 'tumour'))
+
     def __init__(
         self,
         classes: int = 5,
@@ -228,7 +228,7 @@ class ImmuneCompetitionSystem(BaseSystem):
                 The tuned run settings by name.
         """
         settings = super().get_run_settings()
-        settings['observables'] = immune_observables(_classes_of(self._build_system()))
+        settings['observables'] = immune_observables(ImmuneCompetitionSystem._get_classes_of(self._build_system()))
         return settings
 
     def _build_system(self) -> CompositeSystem:

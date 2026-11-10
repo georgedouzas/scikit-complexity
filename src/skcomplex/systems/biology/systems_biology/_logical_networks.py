@@ -22,6 +22,9 @@ from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ...general.elements import NonnegativeElement
 from ...general.reactions import ReactionInteraction
 
+GENE_EXPRESSION_PLACES = {'gene_off': 1, 'gene_on': 0, 'mRNA': 0, 'protein': 0}
+
+
 type Regulations = Mapping[str, tuple[Sequence[str], Sequence[int], Mapping[tuple[bool, ...], int]]]
 
 type Transitions = Sequence[tuple[str, Mapping[str, int], Mapping[str, int], float]]
@@ -30,14 +33,10 @@ NEGATIVE_CIRCUIT: Regulations = {
     'x': (('y',), (1,), {(False,): 2, (True,): 0}),
     'y': (('x',), (2,), {(False,): 0, (True,): 1}),
 }
-
 POSITIVE_CIRCUIT: Regulations = {
     'x': (('y',), (1,), {(False,): 2, (True,): 0}),
     'y': (('x',), (1,), {(False,): 1, (True,): 0}),
 }
-
-GENE_EXPRESSION_PLACES = {'gene_off': 1, 'gene_on': 0, 'mRNA': 0, 'protein': 0}
-
 GENE_EXPRESSION_TRANSITIONS: Transitions = (
     ('activation', {'gene_off': 1}, {'gene_on': 1}, 0.5),
     ('repression', {'gene_on': 1, 'protein': 1}, {'gene_off': 1, 'protein': 1}, 0.05),

@@ -22,7 +22,6 @@ from ...general.reactions import ReactionInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
 INHIBITOR_CLEARANCE = math.log(2) / 3.9
-
 BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 

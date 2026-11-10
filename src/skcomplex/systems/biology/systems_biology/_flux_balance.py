@@ -49,7 +49,7 @@ class FluxBalanceSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
         >>> trajectory = simulate(FluxBalanceSystem(), until=0.0)
-        >>> round(float(trajectory.values('cell.v_vbio')[0]), 6)
+        >>> round(float(trajectory.get_values('cell.v_vbio')[0]), 6)
         50.0
     """
 

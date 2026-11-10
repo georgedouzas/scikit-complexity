@@ -43,7 +43,7 @@ class ExponentialGrowthInteraction(GrowthInteraction):
         ...     interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ... )
         >>> trajectory = simulate(system, until=2.0, dt=0.01)
-        >>> round(float(trajectory.values('rabbits.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('rabbits.x')[-1]), 3)
         2.718
     """
 

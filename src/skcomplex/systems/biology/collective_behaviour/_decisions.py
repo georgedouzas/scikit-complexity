@@ -118,7 +118,7 @@ class TrailChoiceInteraction(ReactionInteraction):
         >>> choice = TrailChoiceInteraction('choice', chosen='left', other='right', stochastic=False)
         >>> system = CompositeSystem(elements=[BranchElement('left'), BranchElement('right')], interactions=[choice])
         >>> trajectory = simulate(system, until=2.0, dt=0.1)
-        >>> round(float(trajectory.values('left.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('left.x')[-1]), 3)
         1.025
     """
 
@@ -217,7 +217,7 @@ class AlarmInteraction(ReactionInteraction):
         >>> rats = [RatsElement('calm', x=90.0), RatsElement('nervous', x=10.0)]
         >>> system = CompositeSystem(elements=rats, interactions=[alarm])
         >>> trajectory = simulate(system, until=5.0, dt=0.1)
-        >>> round(float(trajectory.values('calm.x')[-1] + trajectory.values('nervous.x')[-1]), 6)
+        >>> round(float(trajectory.get_values('calm.x')[-1] + trajectory.get_values('nervous.x')[-1]), 6)
         100.0
     """
 

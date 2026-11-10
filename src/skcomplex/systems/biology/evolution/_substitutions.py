@@ -172,47 +172,6 @@ class SubstitutionInteraction(TransitionInteraction):
         return F0 + total(genome.h * genome.s) + total(genome.s * total(genome.s, weights=couplings)) / 2
 
 
-def _field_share(member: SimpleNamespace) -> Expression:
-    """Return the share `h_i s_i` of one locus in the fitness of the genome."""
-    return member.h * member.s
-
-
-def _coupling_share(alleles: Array, couplings: Array) -> float:
-    """Return the share `sum_ij J_ij s_i s_j / 2` of the couplings in the fitness.
-
-    The couplings are between loci, in the fitness of the genome.
-    """
-    return float(alleles @ couplings @ alleles / 2)
-
-
-def _genome_fitness(s: SimpleNamespace) -> Expression:
-    """Return the fitness of the genome.
-
-    It is the base fitness of the interaction `substitution` and the shares of loci.
-    """
-    return s.substitution.F0 + s.field_share + s.coupling_share
-
-
-def _walk_observables(system: CompositeSystem) -> list[ObservableSpec]:
-    """Return the shares of the fields and the couplings, and the genome fitness.
-
-    The shares are those in the fitness of the genome.
-    """
-    couplings = system.interactions[0].couplings
-    loci = system.elements[0].prepare().size_
-    matrix = np.zeros((loci, loci)) if couplings is None else np.asarray(couplings)
-    return [
-        ObservableSpec('field_share', _field_share, group='genome', reduce='sum'),
-        ObservableSpec(
-            'coupling_share',
-            group='genome',
-            variable='s',
-            reduce=partial(_coupling_share, couplings=matrix),
-        ),
-        ObservableSpec('fitness', _genome_fitness),
-    ]
-
-
 class OriginFixationWalkSystem(BaseSystem):
     """A monomorphic population that climbs a fitness landscape.
 
@@ -264,6 +223,47 @@ class OriginFixationWalkSystem(BaseSystem):
     until = 640.0
     dt = 10.0
 
+    @staticmethod
+    def _get_field_share(member: SimpleNamespace) -> Expression:
+        """Return the share `h_i s_i` of one locus in the fitness of the genome."""
+        return member.h * member.s
+
+    @staticmethod
+    def _get_coupling_share(alleles: Array, couplings: Array) -> float:
+        """Return the share `sum_ij J_ij s_i s_j / 2` of the couplings in the fitness.
+
+        The couplings are between loci, in the fitness of the genome.
+        """
+        return float(alleles @ couplings @ alleles / 2)
+
+    @staticmethod
+    def _get_genome_fitness(s: SimpleNamespace) -> Expression:
+        """Return the fitness of the genome.
+
+        It is the base fitness of the interaction `substitution` and the shares of loci.
+        """
+        return s.substitution.F0 + s.field_share + s.coupling_share
+
+    @staticmethod
+    def _walk_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the shares of the fields and the couplings, and the genome fitness.
+
+        The shares are those in the fitness of the genome.
+        """
+        couplings = system.interactions[0].couplings
+        loci = system.elements[0].prepare().size_
+        matrix = np.zeros((loci, loci)) if couplings is None else np.asarray(couplings)
+        return [
+            ObservableSpec('field_share', OriginFixationWalkSystem._get_field_share, group='genome', reduce='sum'),
+            ObservableSpec(
+                'coupling_share',
+                group='genome',
+                variable='s',
+                reduce=partial(OriginFixationWalkSystem._get_coupling_share, couplings=matrix),
+            ),
+            ObservableSpec('fitness', OriginFixationWalkSystem._get_genome_fitness),
+        ]
+
     def __init__(
         self,
         loci: int = 96,
@@ -295,7 +295,7 @@ class OriginFixationWalkSystem(BaseSystem):
                 The tuned run settings by name.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _walk_observables(self._build_system())
+        settings['observables'] = OriginFixationWalkSystem._walk_observables(self._build_system())
         return settings
 
     def _build_system(self) -> CompositeSystem:

@@ -26,15 +26,10 @@ from ._structure_spec import StructureSpec
 from ._structures import BUNDLED, read_structure
 
 LONG_DIAGONAL = np.radians(83.0)
-
 SHORT_DIAGONAL = np.radians(58.0)
-
 GRID_POINTS = 3600
-
 TURN = 2 * np.pi
-
 PAIR_DIMENSIONS = 2
-
 AMINO_ACIDS = (
     'ALA',
     'ARG',
@@ -57,9 +52,7 @@ AMINO_ACIDS = (
     'TYR',
     'VAL',
 )
-
 ENTRY = '5PTI'
-
 CELLS = 72
 
 

@@ -74,7 +74,7 @@ class FitzHughNagumoInteraction(Interaction):
         >>> kinetics = FitzHughNagumoInteraction('kinetics', target='cell', I=0.5)
         >>> system = CompositeSystem(elements=[CellElement('cell')], interactions=[kinetics])
         >>> trajectory = simulate(system, until=100.0, dt=0.1)
-        >>> bool(trajectory.values('cell.v').max() > 1.5)
+        >>> bool(trajectory.get_values('cell.v').max() > 1.5)
         True
     """
 

@@ -39,7 +39,7 @@ class MortalityInteraction(RateInteraction):
         ...     interactions=[MortalityInteraction('death', target='foxes', d=0.5)],
         ... )
         >>> trajectory = simulate(system, until=2.0, dt=0.01)
-        >>> round(float(trajectory.values('foxes.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('foxes.x')[-1]), 3)
         2.943
     """
 

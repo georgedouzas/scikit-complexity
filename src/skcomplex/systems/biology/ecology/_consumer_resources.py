@@ -21,11 +21,8 @@ from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 KINDS = ('substitutable', 'essential')
-
 SUPPLIES = ('logistic', 'chemostat')
-
 UPTAKE = ((0.5, 0.3), (0.4, 0.6))
-
 CAPACITIES = (4.8, 2.85)
 
 

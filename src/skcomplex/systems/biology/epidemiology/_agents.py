@@ -24,7 +24,6 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.agents import MovementInteraction
 
 SUSCEPTIBLE, EXPOSED, INFECTED, RECOVERED, DEAD = 0.0, 1.0, 2.0, 3.0, 4.0
-
 HEALTHY, SICK, DECEASED = 0.0, 1.0, 2.0
 
 
@@ -261,21 +260,6 @@ class WalkerElement(Element):
         return WalkerView
 
 
-def _is_due(agent: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-    """Return true.
-
-    A member moves as soon as it has held its value for the residence time.
-    """
-    return True
-
-
-def _initial_health(size: int, sick: int, rng: np.random.Generator, value: float) -> np.ndarray:
-    """Return the health of a group with a number of randomly chosen sick members."""
-    health = np.zeros(size)
-    health[rng.choice(size, size=sick, replace=False)] = value
-    return health
-
-
 class AgentBasedSIRSystem(BaseSystem):
     """People who walk on a grid and infect those in their cell.
 
@@ -342,6 +326,13 @@ class AgentBasedSIRSystem(BaseSystem):
     topics = ('compartments', 'agents', 'grid', 'lockdown', 'mortality')
     references = ('Argun et al. 2021', 'Kermack and McKendrick 1927')
     until = 300
+
+    @staticmethod
+    def _get_initial_health(size: int, sick: int, rng: np.random.Generator, value: float) -> np.ndarray:
+        """Return the health of a group with a number of randomly chosen sick members."""
+        health = np.zeros(size)
+        health[rng.choice(size, size=sick, replace=False)] = value
+        return health
 
     def __init__(
         self,
@@ -528,7 +519,7 @@ class AgentBasedSIRSystem(BaseSystem):
             element=PersonElement,
             size=self.people,
             values={
-                'health': _initial_health(self.people, self.infected, rng, INFECTED),
+                'health': AgentBasedSIRSystem._get_initial_health(self.people, self.infected, rng, INFECTED),
                 'd': self.d,
                 'beta': self.beta,
                 'gamma': self.gamma,
@@ -604,6 +595,14 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
     references = ('Charbonneau 2017',)
     until = 300
 
+    @staticmethod
+    def _is_due(agent: AgentViewProtocol, system: SystemViewProtocol) -> bool:
+        """Return true.
+
+        A member moves as soon as it has held its value for the residence time.
+        """
+        return True
+
     def __init__(
         self,
         width: int = 64,
@@ -666,7 +665,7 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
             nodes = list(nx.nodes(self.graph))
             locations = [nodes[int(pick)] for pick in rng.integers(0, len(nodes), size=self.walkers)]
             space = NetworkSpace(self.graph)
-        health = _initial_health(self.walkers, 1, rng, SICK)
+        health = AgentBasedSIRSystem._get_initial_health(self.walkers, 1, rng, SICK)
         group = GroupElement(
             'walkers',
             element=WalkerElement,
@@ -699,7 +698,7 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
                 state='health',
                 source=SICK,
                 destination=DECEASED,
-                condition=_is_due,
+                condition=RandomWalkerEpidemicsSystem._is_due,
                 after=math.ceil(self.lifetime),
                 schedule='member',
                 form='agent',
@@ -797,7 +796,11 @@ class NetworkSIRSystem(BaseSystem):
             'travellers',
             element=TravellerElement,
             size=size,
-            values={'health': _initial_health(size, 1, rng, INFECTED), 'tau': self.tau, 'm': self.m},
+            values={
+                'health': AgentBasedSIRSystem._get_initial_health(size, 1, rng, INFECTED),
+                'tau': self.tau,
+                'm': self.m,
+            },
             location=[node for node in nodes for _ in range(self.residents)],
         )
         infection = TransitionInteraction(
@@ -817,7 +820,7 @@ class NetworkSIRSystem(BaseSystem):
             state='health',
             source=INFECTED,
             destination=RECOVERED,
-            condition=_is_due,
+            condition=RandomWalkerEpidemicsSystem._is_due,
             after=math.floor(self.days) + 1,
             schedule='member',
             form='agent',

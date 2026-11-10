@@ -26,7 +26,6 @@ from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from .types import Candidates
 
 SHMULEVICH_INPUTS = ('x1', 'x2', 'x3')
-
 SHMULEVICH_NETWORK: dict[str, tuple[tuple[tuple[int, ...], float], ...]] = {
     'x1': (((0, 1, 1, 1, 0, 1, 1, 1), 0.6), ((0, 0, 0, 1, 0, 1, 1, 1), 0.4)),
     'x2': (((0, 1, 1, 0, 0, 1, 0, 1), 1.0),),

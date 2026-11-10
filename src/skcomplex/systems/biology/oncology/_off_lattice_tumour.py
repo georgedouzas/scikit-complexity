@@ -232,7 +232,7 @@ class TumourGrowthInteraction(Interaction):
         return tuple(float(item) for item in np.clip(position, 1e-6, sides - 1e-6))
 
 
-def _tumour_area(cancer: np.ndarray) -> float:
+def _get_tumour_area(cancer: np.ndarray) -> float:
     """Return the tumour area, the number of cancer cells times the area of a hexagonal cell."""
     return float(np.sum(cancer)) * HEXAGON_AREA
 
@@ -289,7 +289,7 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
     topics = ('tumour growth', 'agents', 'off-lattice', 'springs', 'delaunay', 'stochastic')
     references = ('Wang et al. 2024', 'Jenner et al. 2020', 'Meineke et al. 2001')
     until = 240.0
-    observables = (ObservableSpec('tumour_area', group='cells', variable='cancer', reduce=_tumour_area),)
+    observables = (ObservableSpec('tumour_area', group='cells', variable='cancer', reduce=_get_tumour_area),)
 
     def __init__(
         self,

@@ -157,7 +157,7 @@ class LQCellSurvivalSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = LQCellSurvivalSystem(60.0, fractions=30.0).prepare().system_
         >>> trajectory = simulate(system, until=1.0)
-        >>> round(float(trajectory.values('cells.effective_dose')[0]), 1)
+        >>> round(float(trajectory.get_values('cells.effective_dose')[0]), 1)
         72.0
     """
 

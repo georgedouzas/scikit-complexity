@@ -19,14 +19,7 @@ from ...general.dynamics.types import Equations
 MAX_RATE = 0.9
 
 
-def _vaccinated(s: SimpleNamespace) -> Expression:
-    """Return the susceptible people vaccinated per unit time, `u S`."""
-    population = s.population
-    vaccinated: Expression = population.u * population.S
-    return vaccinated
-
-
-def _cost(s: SimpleNamespace) -> Expression:
+def _get_cost(s: SimpleNamespace) -> Expression:
     """Return the running cost of the epidemic.
 
     The cost is the infected fraction and the effort of vaccination.
@@ -34,6 +27,13 @@ def _cost(s: SimpleNamespace) -> Expression:
     population = s.population
     cost: Expression = population.a * population.I + population.b * population.u**2 / 2
     return cost
+
+
+def _get_vaccinated(s: SimpleNamespace) -> Expression:
+    """Return the susceptible people vaccinated per unit time, `u S`."""
+    population = s.population
+    vaccinated: Expression = population.u * population.S
+    return vaccinated
 
 
 class SIRVaccinationSystem(DynamicalSystem):
@@ -79,10 +79,10 @@ class SIRVaccinationSystem(DynamicalSystem):
     references = ('Lenhart and Workman 2007',)
     until = 30.0
     dt = 0.2
-    solver = PontryaginSolver(objective=_cost)
+    solver = PontryaginSolver(objective=_get_cost)
     observables = (
-        ObservableSpec('vaccinated', _vaccinated),
-        ObservableSpec('cost', _cost),
+        ObservableSpec('vaccinated', _get_vaccinated),
+        ObservableSpec('cost', _get_cost),
     )
 
     def __init__(

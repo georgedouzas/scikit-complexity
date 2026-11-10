@@ -18,7 +18,6 @@ from ....core.specs import ParameterSpec, RoleSpec
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 
 YEAST_NODES = ('Cln3', 'MBF', 'SBF', 'Cln1_2', 'Cdh1', 'Swi5', 'Cdc20', 'Clb5_6', 'Sic1', 'Clb1_2', 'Mcm1')
-
 YEAST_INPUTS = {
     'Cln3': (),
     'MBF': (('Cln3', 1), ('Clb1_2', -1)),
@@ -32,9 +31,7 @@ YEAST_INPUTS = {
     'Clb1_2': (('Clb5_6', 1), ('Mcm1', 1), ('Cdc20', -1), ('Cdh1', -1), ('Sic1', -1)),
     'Mcm1': (('Clb5_6', 1), ('Clb1_2', 1)),
 }
-
 YEAST_DECAYING = ('Cln3', 'Cln1_2', 'Swi5', 'Cdc20', 'Mcm1')
-
 YEAST_START = ('Cln3', 'Cdh1', 'Sic1')
 
 

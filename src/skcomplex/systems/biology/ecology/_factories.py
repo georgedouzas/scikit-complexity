@@ -25,16 +25,12 @@ from ..common.populations import (
 )
 
 DAYS = (0.0, 29.2, 58.3, 87.5, 117.0, 146.0, 175.0, 204.0, 233.0, 263.0, 292.0, 321.0, 350.0)
-
 FOOD = (695.0, 750.0, 750.0, 730.0, 720.0, 710.0, 710.0, 735.0, 685.0, 630.0, 665.0, 720.0, 710.0)
-
 TEMPERATURE = (27.3, 29.5, 30.5, 26.5, 27.3, 28.8, 31.5, 29.5, 25.8, 27.5, 27.8, 29.5, 29.8)
-
 ALLOMETRY = (
     (1.0, 1.9, 2.8, 3.7, 4.6, 5.5, 6.4, 7.3, 8.2, 9.1, 10.0),
     (0.15, 0.243, 0.327, 0.393, 0.474, 0.543, 0.615, 0.663, 0.708, 0.735, 0.75),
 )
-
 THERMAL = (
     (25.0, 25.7, 26.4, 27.1, 27.8, 28.5, 29.2, 29.9, 30.6, 31.3, 32.0),
     (0.902, 0.92, 0.951, 0.99, 1.02, 1.06, 1.08, 1.08, 1.09, 1.1, 1.1),
@@ -530,7 +526,8 @@ class FibonacciRabbitsSystem(DynamicalSystem):
         """Return the states and the parameters with their specs."""
         return {
             'pairs': DeclaredVariableSpec(
-                self.pairs, StateSpec(domain=RealSet.closed_open(0, oo), lags=1, initial=(0.0,)),
+                self.pairs,
+                StateSpec(domain=RealSet.closed_open(0, oo), lags=1, initial=(0.0,)),
             ),
         }
 

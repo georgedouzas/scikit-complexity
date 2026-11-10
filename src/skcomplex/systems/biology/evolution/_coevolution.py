@@ -30,14 +30,6 @@ FITNESS_VISUAL = VisualSpec('image', {'states': ('fitness',), 'low': 0.0, 'high'
 FITNESS_SITES = VisualSpec('sites', {'states': ('fitness',), 'low': 0.0, 'high': 1.0})
 
 
-def _renew(fitness: Array, random: Array) -> Array:
-    """Return new fitnesses for the least fit species and its neighbours.
-
-    The fitnesses are drawn uniformly from the unit interval.
-    """
-    return random
-
-
 class SpeciesElement(Element):
     """Species of the Bak-Sneppen system, with a fitness in the unit interval.
 
@@ -70,6 +62,14 @@ class SpeciesElement(Element):
 
     law_classes = (ExtremalLaw,)
 
+    @staticmethod
+    def _renew(fitness: Array, random: Array) -> Array:
+        """Return new fitnesses for the least fit species and its neighbours.
+
+        The fitnesses are drawn uniformly from the unit interval.
+        """
+        return random
+
     def __init__(
         self,
         label: str,
@@ -96,7 +96,7 @@ class SpeciesElement(Element):
                 The laws of the component.
         """
         neighborhood = SPECIES_NEIGHBORHOODS[self.neighbors]
-        return [ExtremalLaw(s.fitness, neighborhood, _renew, repeat=self.updates, label='extinction')]
+        return [ExtremalLaw(s.fitness, neighborhood, SpeciesElement._renew, repeat=self.updates, label='extinction')]
 
 
 class BakSneppenSystem(BaseSystem):

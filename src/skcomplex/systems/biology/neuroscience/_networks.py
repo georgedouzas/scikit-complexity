@@ -26,15 +26,10 @@ from ..common.excitable import SpikeResetInteraction
 from ._leaky_integration import LeakyIntegrationInteraction
 
 SILENT = -2.0
-
 NEAREST = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
-
 LEGION_OBJECTS = ((1, 1, 0, 0), (1, 0, 0, 0), (0, 0, 0, 1), (0, 0, 0, 1))
-
 THRESHOLD = 20.0
-
 RESET = 10.0
-
 TRACE_TIME = 2.0
 
 

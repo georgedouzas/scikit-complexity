@@ -21,7 +21,6 @@ from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 FIELDS = ('r', 's')
-
 SETUPS = ('ping', 'ing')
 
 

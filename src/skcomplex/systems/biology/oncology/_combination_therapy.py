@@ -27,7 +27,6 @@ from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
 INFUSIONS = ('constant', 'exponential', 'periodic')
-
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
@@ -916,20 +915,6 @@ class GliomaBrainElement(Element):
         self.u1 = u1
 
 
-def _toxicity(concentration: Expression, scale: Expression) -> Expression:
-    """Return a toxicity linear in a low concentration and exponential in a high one.
-
-    The toxicity is `exp(c / scale) - 1`.
-    """
-    return exp(concentration / scale) - 1
-
-
-def _total_toxicity(s: SimpleNamespace) -> Expression:
-    """Return the mean toxicity of the antiangiogenic and the immunotherapeutic drug."""
-    tumour = s.tumour
-    return (_toxicity(tumour.c_an, tumour.tox_an) + _toxicity(tumour.c_im, tumour.tox_im)) / 2
-
-
 class ChemoimmunotherapySystem(BaseSystem):
     """A tumour with NK cells, CD8 T cells, and lymphocytes under therapy.
 
@@ -1788,7 +1773,9 @@ class HER2TargetedTherapySystem(DynamicalSystem):
         tumour = s.target
         inhibition = where(s.t > self.t_a, tumour.a1 * tumour.Ab, 0)
         cytotoxicity = where(
-            s.t >= self.t_p, tumour.sigma * tumour.a2 * exp(-tumour.gamma_p * (s.t - self.t_p)) * tumour.Pin, 0,
+            s.t >= self.t_p,
+            tumour.sigma * tumour.a2 * exp(-tumour.gamma_p * (s.t - self.t_p)) * tumour.Pin,
+            0,
         )
         return tumour.r * (1 - inhibition) * (1 - tumour.A / (tumour.kc - cytotoxicity)) * tumour.A
 
@@ -1804,6 +1791,20 @@ class HER2TargetedTherapySystem(DynamicalSystem):
         tumour = s.target
         free_paclitaxel = where(s.t >= self.t_p, tumour.paclitaxel, 0)
         return where(free_paclitaxel > 0, tumour.alpha_p * (free_paclitaxel - tumour.Pin) * tumour.A, 0)
+
+
+def _get_total_toxicity(s: SimpleNamespace) -> Expression:
+    """Return the mean toxicity of the antiangiogenic and the immunotherapeutic drug."""
+    tumour = s.tumour
+    return (_get_toxicity(tumour.c_an, tumour.tox_an) + _get_toxicity(tumour.c_im, tumour.tox_im)) / 2
+
+
+def _get_toxicity(concentration: Expression, scale: Expression) -> Expression:
+    """Return a toxicity linear in a low concentration and exponential in a high one.
+
+    The toxicity is `exp(c / scale) - 1`.
+    """
+    return exp(concentration / scale) - 1
 
 
 class AngiogenesisImmunotherapySystem(BaseSystem):
@@ -1863,7 +1864,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
     references = (BOOK, 'Teles and Lemos 2019', 'Hahnfeldt et al. 1999')
     until = 150.0
     dt = 0.25
-    observables = (ObservableSpec('toxicity', _total_toxicity),)
+    observables = (ObservableSpec('toxicity', _get_total_toxicity),)
 
     def __init__(
         self,

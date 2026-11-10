@@ -200,15 +200,6 @@ class ContourUptakeInteraction(CouplingInteraction):
         return (1 - member.c) * member.r * member.x * (1 - member.x) + member.c * reduction
 
 
-def _exchange(s: SimpleNamespace) -> Expression:
-    """Return the exchange of a cell with a neighbour.
-
-    It runs through their gap junction and the nanotube between them.
-    """
-    exchange: Expression = s.member.g * (s.other.x - s.member.x) + s.member.xi * s.other.x
-    return exchange
-
-
 class ClosedContourCellExchangeSystem(BaseSystem):
     """The exchange of signalling molecules between logistic cells.
 
@@ -339,6 +330,15 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
     until = 100.0
     dt = 0.5
 
+    @staticmethod
+    def _exchange(s: SimpleNamespace) -> Expression:
+        """Return the exchange of a cell with a neighbour.
+
+        It runs through their gap junction and the nanotube between them.
+        """
+        exchange: Expression = s.member.g * (s.other.x - s.member.x) + s.member.xi * s.other.x
+        return exchange
+
     def __init__(
         self,
         graph: nx.Graph | None = None,
@@ -380,5 +380,11 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
             'xi': self.xi,
         }
         cells = FieldElement('cells', element=ExchangingCellElement, space=NetworkSpace(graph), values=values)
-        exchange = CouplingInteraction('exchange', target='cells', read='x', write='x', function=_exchange)
+        exchange = CouplingInteraction(
+            'exchange',
+            target='cells',
+            read='x',
+            write='x',
+            function=NanotubeGapJunctionExchangeSystem._exchange,
+        )
         return CompositeSystem(self.label, elements=[cells], interactions=[exchange], time=ContinuousTime())

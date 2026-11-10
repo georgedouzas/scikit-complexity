@@ -50,7 +50,7 @@ class InfectionInteraction(ReactionInteraction):
         ...     interactions=[InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01)],
         ... )
         >>> trajectory = simulate(system, until=5.0, dt=0.1)
-        >>> round(float(trajectory.values('S.x')[-1] + trajectory.values('I.x')[-1]), 6)
+        >>> round(float(trajectory.get_values('S.x')[-1] + trajectory.get_values('I.x')[-1]), 6)
         100.0
     """
 
@@ -206,7 +206,7 @@ class RecoveryInteraction(ReactionInteraction):
         ...     interactions=[RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.5)],
         ... )
         >>> trajectory = simulate(system, until=2.0, dt=0.01)
-        >>> round(float(trajectory.values('I.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('I.x')[-1]), 3)
         3.679
     """
 

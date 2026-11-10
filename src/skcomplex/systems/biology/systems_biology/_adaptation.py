@@ -21,15 +21,10 @@ from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 NODES = ('A', 'B', 'C')
-
 NEGATIVE_FEEDBACK_BUFFER = ((0, -1, 0), (0, 0, 1), (1, 0, 0))
-
 RATES = ((0.419, 0.3, 5.061), (7.809, 9.355, 4.852), (0.735, 1.176, 1.928), (7.282, 0.182, 7.914))
-
 CONSTANTS = ((0.1633, 2.5556, 0.0323), (0.0154, 0.3059, 0.0641), (4.3698, 0.0021, 0.3178), (0.0379, 0.0202, 1.802))
-
 BASAL_RATES = (3.092, 0.712, 0.337)
-
 BASAL_CONSTANTS = (0.143, 0.0031, 0.1074)
 
 

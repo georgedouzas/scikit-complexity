@@ -50,7 +50,7 @@ class LogisticGrowthInteraction(GrowthInteraction):
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=50.0)],
         ... )
         >>> trajectory = simulate(system, until=30.0, dt=0.1)
-        >>> round(float(trajectory.values('rabbits.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('rabbits.x')[-1]), 3)
         50.0
     """
 

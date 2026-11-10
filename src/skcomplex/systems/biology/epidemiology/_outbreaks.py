@@ -19,16 +19,6 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
-def _recovered_share(member: SimpleNamespace) -> Expression:
-    """Return the share of the population a degree class holds as recovered."""
-    return member.P * member.r
-
-
-def _infected_share(member: SimpleNamespace) -> Expression:
-    """Return the share of the population a degree class holds as infected."""
-    return member.P * member.i
-
-
 class ImmunizingDegreeClassElement(Element):
     """Susceptible, infected, and recovered densities of the nodes of one degree.
 
@@ -103,6 +93,16 @@ class ImmunizingDegreeClassElement(Element):
         self.P = P
 
 
+def _get_infected_share(member: SimpleNamespace) -> Expression:
+    """Return the share of the population a degree class holds as infected."""
+    return member.P * member.i
+
+
+def _get_recovered_share(member: SimpleNamespace) -> Expression:
+    """Return the share of the population a degree class holds as recovered."""
+    return member.P * member.r
+
+
 class HeterogeneousMeanFieldSIRSystem(BaseSystem):
     """The SIR epidemic on an uncorrelated network of power-law degrees.
 
@@ -154,8 +154,8 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
     until = 100.0
     dt = 0.5
     observables = (
-        ObservableSpec('infected', _infected_share, group='network', reduce='sum'),
-        ObservableSpec('recovered', _recovered_share, group='network', reduce='sum'),
+        ObservableSpec('infected', _get_infected_share, group='network', reduce='sum'),
+        ObservableSpec('recovered', _get_recovered_share, group='network', reduce='sum'),
     )
 
     def __init__(

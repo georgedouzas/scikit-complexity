@@ -37,7 +37,7 @@ class MetabolicPerturbationsSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.systems_biology import MetabolicPerturbationsSystem
         >>> trajectory = simulate(MetabolicPerturbationsSystem(genes=('b4025',)), until=0.0)
-        >>> round(float(trajectory.values('cell.objective_0')[0]), 3)
+        >>> round(float(trajectory.get_values('cell.objective_0')[0]), 3)
         0.863
     """
 

@@ -25,17 +25,11 @@ from ...general.agents import BirthDeathInteraction, MovementInteraction
 from ..common.stigmergy import EvaporationInteraction
 
 PLANTS = 'plants'
-
 PREY = 'prey'
-
 MARKS = 'ground/marks'
-
 PREDATORS = 'predators'
-
 EMOTIONS = ('prey_happiness', 'prey_fear', 'predator_happiness', 'predator_anger')
-
 PREY_TRAITS: dict[str, float] = {'maturity': 3.0, 'reproduction': 0.5, 'starvation': 10.0}
-
 PREDATOR_TRAITS: dict[str, float] = {'maturity': 20.0, 'reproduction': 0.1, 'starvation': 8.0}
 
 

@@ -74,7 +74,7 @@ class MichaelisMentenInteraction(ReactionInteraction):
         ... )
         >>> system = CompositeSystem(elements=[CompartmentElement('cell', x=500.0)], interactions=[uptake])
         >>> trajectory = simulate(system, until=10.0, dt=1.0)
-        >>> round(float(trajectory.values('cell.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('cell.x')[-1]), 3)
         491.679
     """
 
