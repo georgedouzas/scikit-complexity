@@ -28,8 +28,8 @@ validation and early stopping.
 **Non-Goals:**
 
 - The trained ewstools models, which need TensorFlow.
-- Estimator classes with `fit` and `predict`. Reuse goes through the `classifier` setting. The scikit-learn adapters
-  of `add-learning-bridges` are for systems, not for these analyses.
+- Estimator classes with `fit` and `predict`. Reuse goes through the `classifier` setting. The library adds no
+  scikit-learn adapter classes, as `add-learning-foundation` records.
 - The quantum Fisher information and transitions in more than one parameter.
 - Moving `early_warning` into the core.
 
