@@ -91,7 +91,7 @@ jobs:
         cache-dependency-path: pyproject.toml
 
     - name: Install dependencies
-      run: pdm install -dG maintenance -dG tests -G structures -G rna -G metabolism
+      run: pdm install -dG maintenance -dG tests -G structures -G rna -G metabolism -G relativity
 
     - name: Run the fast tests
       run: pdm run nox --default-venv-backend uv --error-on-external-run -R -s quick_tests-${{ matrix.python-version }}
@@ -166,7 +166,7 @@ jobs:
       run: sudo apt-get update && sudo apt-get install -y mesa-vulkan-drivers libvulkan1 xvfb
 
     - name: Install dependencies
-      run: pdm install -dG maintenance -dG docs -dG gallery -G structures -G rna -G metabolism
+      run: pdm install -dG maintenance -dG docs -dG gallery -G structures -G rna -G metabolism -G relativity
 
     - name: Install Chromium
       if: ${{ matrix.backend == 'web' }}
