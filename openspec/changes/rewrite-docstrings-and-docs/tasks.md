@@ -100,4 +100,4 @@
 ## 13. Integration
 
 - [x] 13.1 Remove `REWRITTEN` and `REWRITTEN_DOCUMENTS` so the guards check the whole core and every document, and verify they pass
-- [ ] 13.2 Run `pdm checks`, the full test session with doctests, and the documentation build, and verify all pass with no suppression added
+- [x] 13.2 Run `pdm checks`, the full test session with doctests, and the documentation build, and verify all pass with no suppression added
