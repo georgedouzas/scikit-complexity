@@ -33,7 +33,6 @@ from ..common.metabolism import MetabolicNetworkElement, ReactionSpec
 SUM_TOLERANCE = 1e-9
 KINDS = ('simulation', 'estimation')
 INTERVALS = ('linear', 'profile')
-CONFIDENCE = 0.95
 INTERVAL_THRESHOLD = 3.841458820694124
 NORMAL_QUANTILE = 1.959963984540054
 PENALTY = 1e3
@@ -68,7 +67,6 @@ TCA_TRUE_FLUXES: dict[str, float | tuple[float, float]] = {
     'v8': 50.0,
     'v9': 50.0,
 }
-TCA_NET_FLUXES = {'v1': 100.0, 'v2': 100.0, 'v3': 50.0, 'v4': 50.0, 'v5': 50.0, 'v6': 50.0, 'v8': 50.0, 'v9': 50.0}
 TCA_SYMMETRIC = ('Suc', 'Fum')
 TCA_OBJECTIVE: Mapping[str, float] = {}
 

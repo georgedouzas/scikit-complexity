@@ -42,7 +42,6 @@ from ....core.types import Array, Indices
 MATRIX_AXES = 2
 LATTICES = ('square', 'triangular', 'disordered')
 DEFAULT_ADHESION = ((1.0, 2.0), (2.0, 1.5))
-TILES = 3
 
 
 @numba.njit(cache=True)
