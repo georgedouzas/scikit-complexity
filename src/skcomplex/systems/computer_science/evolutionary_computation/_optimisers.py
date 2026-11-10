@@ -31,6 +31,11 @@ from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, ObservableSpec, RoleSpec, StateSpec
 from ....core.types import Array, ElementKind
 
+SEEDS = 2**31
+ANNEALING = 'annealing'
+COOLED = 1e-3
+N_DIM = 2
+
 
 @dataclass(frozen=True)
 class DifferentialEvolutionSpec(BaseSpec):
@@ -116,10 +121,19 @@ class CovarianceAdaptationSpec(BaseSpec):
     sigma: float = 0.1
 
 
-type AlgorithmSpec = DifferentialEvolutionSpec | ParticleSwarmSpec | EvolutionStrategySpec | CovarianceAdaptationSpec
-
 ALGORITHM_SPECS = (DifferentialEvolutionSpec, ParticleSwarmSpec, EvolutionStrategySpec, CovarianceAdaptationSpec)
-SEEDS = 2**31
+ALGORITHMS: dict[
+    str,
+    DifferentialEvolutionSpec | ParticleSwarmSpec | EvolutionStrategySpec | CovarianceAdaptationSpec,
+] = {
+    'differential-evolution': DifferentialEvolutionSpec(),
+    'particle-swarm': ParticleSwarmSpec(),
+    'evolution-strategy': EvolutionStrategySpec(),
+    'covariance-adaptation': CovarianceAdaptationSpec(),
+}
+
+
+type AlgorithmSpec = DifferentialEvolutionSpec | ParticleSwarmSpec | EvolutionStrategySpec | CovarianceAdaptationSpec
 
 
 class OptimizationInteraction(Interaction):
@@ -431,20 +445,6 @@ class RunningBestInteraction(Interaction):
         return [UpdateLaw(s.target.best, where(s.source.value < s.target.best, s.source.value, s.target.best))]
 
 
-ALGORITHMS: dict[
-    str,
-    DifferentialEvolutionSpec | ParticleSwarmSpec | EvolutionStrategySpec | CovarianceAdaptationSpec,
-] = {
-    'differential-evolution': DifferentialEvolutionSpec(),
-    'particle-swarm': ParticleSwarmSpec(),
-    'evolution-strategy': EvolutionStrategySpec(),
-    'covariance-adaptation': CovarianceAdaptationSpec(),
-}
-ANNEALING = 'annealing'
-COOLED = 1e-3
-N_DIM = 2
-
-
 def _rastrigin(x: Expression, y: Expression) -> Expression:
     """Return the two-dimensional Rastrigin function at symbols."""
     return 20 + x**2 - 10 * cos(2 * pi * x) + y**2 - 10 * cos(2 * pi * y)
@@ -475,6 +475,12 @@ def _rosenbrock_energy(s: SimpleNamespace) -> Expression:
     return _rosenbrock(s.target.x, s.target.y)
 
 
+LANDSCAPES: dict[str, tuple[Callable[[SimpleNamespace], Expression], Callable[[Array], Array], float]] = {
+    'rastrigin': (_rastrigin_energy, _rastrigin_values, 5.12),
+    'rosenbrock': (_rosenbrock_energy, _rosenbrock_values, 2.048),
+}
+
+
 def _rastrigin_member(member: SimpleNamespace) -> Expression:
     """Return the Rastrigin function of a member, for an observable."""
     return _rastrigin(member.x, member.y)
@@ -485,10 +491,6 @@ def _rosenbrock_member(member: SimpleNamespace) -> Expression:
     return _rosenbrock(member.x, member.y)
 
 
-LANDSCAPES: dict[str, tuple[Callable[[SimpleNamespace], Expression], Callable[[Array], Array], float]] = {
-    'rastrigin': (_rastrigin_energy, _rastrigin_values, 5.12),
-    'rosenbrock': (_rosenbrock_energy, _rosenbrock_values, 2.048),
-}
 MEMBER_ENERGIES = {'rastrigin': _rastrigin_member, 'rosenbrock': _rosenbrock_member}
 
 

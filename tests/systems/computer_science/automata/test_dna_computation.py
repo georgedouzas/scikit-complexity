@@ -9,7 +9,7 @@ from skcomplex.systems.computer_science.automata import DNAComputationSystem
 from skcomplex.systems.computer_science.automata._dna_computation import (
     ADLEMAN_EDGES,
     _filtered_counts,
-    _solutions,
+    _get_solutions,
 )
 
 
@@ -17,7 +17,7 @@ def test_dna_computation_finds_the_only_hamiltonian_path_of_adlemans_graph():
     """Test that the strands left by Adleman's filters are all the path 0 to 6 in order, and that some are left."""
     trajectory = simulate(DNAComputationSystem(), random_state=0)
     paths = trajectory.get_agents('strands', 60).values['path']
-    solved = paths[_solutions(paths, 0, 6, 7)]
+    solved = paths[_get_solutions(paths, 0, 6, 7)]
     assert len(solved) >= 1
     assert np.all(solved == np.arange(7))
     counts = _filtered_counts(paths, 0, 6, 7)
@@ -29,7 +29,7 @@ def test_dna_computation_leaves_no_strand_without_a_hamiltonian_path():
     """Test that removing the link from 3 to 4 leaves no strand after the filters."""
     edges = [edge for edge in ADLEMAN_EDGES if edge != (3, 4)]
     trajectory = simulate(DNAComputationSystem(edges=edges), random_state=0)
-    assert not _solutions(trajectory.get_agents('strands', 60).values['path'], 0, 6, 7).any()
+    assert not _get_solutions(trajectory.get_agents('strands', 60).values['path'], 0, 6, 7).any()
 
 
 def test_dna_computation_rejects_a_start_outside_the_graph():

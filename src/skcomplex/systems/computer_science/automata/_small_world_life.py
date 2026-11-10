@@ -24,12 +24,10 @@ from ....core.types import AnyArray
 from ._binary_cell import BinaryCellElement
 
 MOORE_OFFSETS = ((0, 1), (1, -1), (1, 0), (1, 1))
-
-
 BIRTH, SURVIVAL = 3, 2
 
 
-def _alive_fraction(alive: AnyArray) -> float:
+def _get_alive_fraction(alive: AnyArray) -> float:
     """Return the fraction of live cells."""
     return float(np.mean(np.asarray(alive, dtype=float)))
 
@@ -80,7 +78,7 @@ class SmallWorldLifeSystem(BaseSystem):
     references = ('Watts and Strogatz 1998', 'Gros 2015')
     until = 100
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive', reduce=_alive_fraction),)
+    observables = (ObservableSpec('density', group='cells', variable='alive', reduce=_get_alive_fraction),)
 
     def __init__(
         self,

@@ -25,6 +25,10 @@ from ._codes import life
 from ._generator_neighborhood import GeneratorNeighborhood
 from ._groups import free_group
 
+FREE_GENERATORS = GeneratorNeighborhood(('a', 'b'), center=False)
+TREE_RANK = 4
+MIN_MODULUS = 2
+
 
 class PairCellElement(Element):
     """Cell of an automaton over the product `H x H` of the integers modulo `n`.
@@ -66,61 +70,6 @@ class PairCellElement(Element):
         self.first = first
         self.second = second
         self.modulus = modulus
-
-
-FREE_GENERATORS = GeneratorNeighborhood(('a', 'b'), center=False)
-TREE_RANK = 4
-MIN_MODULUS = 2
-
-
-def _pair_cells(
-    space: CayleySpace,
-    modulus: int,
-    initial: npt.ArrayLike | None,
-    random_state: int | np.random.Generator | None,
-) -> Array:
-    """Return the initial pairs, one row of two coordinates per site.
-
-    By default they are random modulo the modulus.
-    """
-    if modulus < MIN_MODULUS:
-        error_msg = f'The order of the cyclic group H is at least 2, but it is {modulus}.'
-        raise ParameterError(error_msg)
-    size = space.prepare().size_
-    if initial is not None:
-        return np.asarray(initial, dtype=float).reshape(size, 2)
-    return np.random.default_rng(random_state).integers(0, modulus, (size, 2)).astype(float)
-
-
-def _pair_system(
-    label: str,
-    rule: object,
-    *,
-    radius: int,
-    modulus: int,
-    initial: npt.ArrayLike | None,
-    random_state: int | np.random.Generator | None,
-) -> CompositeSystem:
-    """Return an automaton of pairs on a ball of the free group of rank 2.
-
-    It reads `a`, `a^-1`, `b`, and `b^-1`.
-    """
-    space = CayleySpace(free_group(2), ball=radius)
-    pairs = _pair_cells(space, modulus, initial, random_state)
-    values = {'first': pairs[:, 0], 'second': pairs[:, 1], 'modulus': modulus}
-    return CompositeSystem(
-        label,
-        elements=[GroupElement('cells', element=PairCellElement, space=space, values=values, on='sites')],
-        interactions=[
-            LocalRuleInteraction(
-                'rule',
-                target='cells',
-                state=('first', 'second'),
-                rule=rule,
-                neighborhood=FREE_GENERATORS,
-            ),
-        ],
-    )
 
 
 class MullerAutomatonSystem(BaseSystem):
@@ -169,6 +118,56 @@ class MullerAutomatonSystem(BaseSystem):
         ObservableSpec('second_mean', group='cells', variable='second'),
     )
 
+    @staticmethod
+    def _get_pair_cells(
+        space: CayleySpace,
+        modulus: int,
+        initial: npt.ArrayLike | None,
+        random_state: int | np.random.Generator | None,
+    ) -> Array:
+        """Return the initial pairs, one row of two coordinates per site.
+
+        By default they are random modulo the modulus.
+        """
+        if modulus < MIN_MODULUS:
+            error_msg = f'The order of the cyclic group H is at least 2, but it is {modulus}.'
+            raise ParameterError(error_msg)
+        size = space.prepare().size_
+        if initial is not None:
+            return np.asarray(initial, dtype=float).reshape(size, 2)
+        return np.random.default_rng(random_state).integers(0, modulus, (size, 2)).astype(float)
+
+    @staticmethod
+    def _get_pair_system(
+        label: str,
+        rule: object,
+        *,
+        radius: int,
+        modulus: int,
+        initial: npt.ArrayLike | None,
+        random_state: int | np.random.Generator | None,
+    ) -> CompositeSystem:
+        """Return an automaton of pairs on a ball of the free group of rank 2.
+
+        It reads `a`, `a^-1`, `b`, and `b^-1`.
+        """
+        space = CayleySpace(free_group(2), ball=radius)
+        pairs = MullerAutomatonSystem._get_pair_cells(space, modulus, initial, random_state)
+        values = {'first': pairs[:, 0], 'second': pairs[:, 1], 'modulus': modulus}
+        return CompositeSystem(
+            label,
+            elements=[GroupElement('cells', element=PairCellElement, space=space, values=values, on='sites')],
+            interactions=[
+                LocalRuleInteraction(
+                    'rule',
+                    target='cells',
+                    state=('first', 'second'),
+                    rule=rule,
+                    neighborhood=FREE_GENERATORS,
+                ),
+            ],
+        )
+
     def __init__(
         self,
         *,
@@ -199,7 +198,7 @@ class MullerAutomatonSystem(BaseSystem):
 
         It is pre-injective but not surjective.
         """
-        return _pair_system(
+        return MullerAutomatonSystem._get_pair_system(
             self.label,
             self._muller,
             radius=self.radius,
@@ -285,7 +284,7 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
 
         It is surjective but not pre-injective.
         """
-        return _pair_system(
+        return MullerAutomatonSystem._get_pair_system(
             self.label,
             self._surjective_linear,
             radius=self.radius,

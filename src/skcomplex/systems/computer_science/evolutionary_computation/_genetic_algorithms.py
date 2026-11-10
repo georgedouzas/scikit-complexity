@@ -23,12 +23,12 @@ from ....core.types import Array, IntArray
 from ...general.agents import EvolutionInteraction
 
 N_SITUATIONS = 243
-
-
 N_ACTIONS = 7
-
-
 REGIMES = ('generational', 'circumstance')
+EMPTY, CAN, WALL = 0, 1, 2
+STAY, PICK_UP, RANDOM_MOVE = 4, 5, 6
+MOVES = np.array([[-1, 0], [1, 0], [0, 1], [0, -1]])
+CAN_REWARD, EMPTY_PICK_UP_PENALTY, WALL_PENALTY = 10.0, -1.0, -5.0
 
 
 class StrategyView(AgentView):
@@ -83,18 +83,6 @@ class StrategyElement(Element):
         It types their states.
         """
         return StrategyView
-
-
-EMPTY, CAN, WALL = 0, 1, 2
-
-
-STAY, PICK_UP, RANDOM_MOVE = 4, 5, 6
-
-
-MOVES = np.array([[-1, 0], [1, 0], [0, 1], [0, -1]])
-
-
-CAN_REWARD, EMPTY_PICK_UP_PENALTY, WALL_PENALTY = 10.0, -1.0, -5.0
 
 
 class RoomCleaningInteraction(Interaction):

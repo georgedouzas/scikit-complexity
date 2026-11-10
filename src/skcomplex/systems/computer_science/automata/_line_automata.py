@@ -22,36 +22,6 @@ MIN_NILPOTENT_CLASS = 2
 MIN_INVOLUTION_RUN = 3
 
 
-def _random_cells(size: int, density: float, random_state: int | np.random.Generator | None) -> Array:
-    """Return cells that are 1 with a probability and 0 otherwise."""
-    return (np.random.default_rng(random_state).random(size) < density).astype(float)
-
-
-def _line_system(label: str, rule: object, offsets: range, values: Array) -> CompositeSystem:
-    """Return a binary automaton on a ring that reads a window of offsets."""
-    return CompositeSystem(
-        label,
-        elements=[
-            GroupElement(
-                'cells',
-                element=BinaryCellElement,
-                space=LatticeSpace(values.size),
-                values={'alive': values},
-                on='sites',
-            ),
-        ],
-        interactions=[
-            LocalRuleInteraction(
-                'rule',
-                target='cells',
-                state='alive',
-                rule=rule,
-                neighborhood=LatticeNeighborhood(tuple((offset,) for offset in offsets)),
-            ),
-        ],
-    )
-
-
 class NilpotentAutomatonSystem(BaseSystem):
     """A binary automaton on a ring that is nilpotent of class `n`.
 
@@ -98,6 +68,36 @@ class NilpotentAutomatonSystem(BaseSystem):
     dt = 1
     observables = (ObservableSpec('density', group='cells', variable='alive'),)
 
+    @staticmethod
+    def _get_random_cells(size: int, density: float, random_state: int | np.random.Generator | None) -> Array:
+        """Return cells that are 1 with a probability and 0 otherwise."""
+        return (np.random.default_rng(random_state).random(size) < density).astype(float)
+
+    @staticmethod
+    def _get_line_system(label: str, rule: object, offsets: range, values: Array) -> CompositeSystem:
+        """Return a binary automaton on a ring that reads a window of offsets."""
+        return CompositeSystem(
+            label,
+            elements=[
+                GroupElement(
+                    'cells',
+                    element=BinaryCellElement,
+                    space=LatticeSpace(values.size),
+                    values={'alive': values},
+                    on='sites',
+                ),
+            ],
+            interactions=[
+                LocalRuleInteraction(
+                    'rule',
+                    target='cells',
+                    state='alive',
+                    rule=rule,
+                    neighborhood=LatticeNeighborhood(tuple((offset,) for offset in offsets)),
+                ),
+            ],
+        )
+
     def __init__(
         self,
         n: int = 4,
@@ -133,11 +133,11 @@ class NilpotentAutomatonSystem(BaseSystem):
             error_msg = f'The nilpotency class of the automaton is at least 2, but it is {self.n}.'
             raise ParameterError(error_msg)
         values = (
-            _random_cells(self.size, self.density, self.random_state)
+            NilpotentAutomatonSystem._get_random_cells(self.size, self.density, self.random_state)
             if self.initial is None
             else np.asarray(self.initial, dtype=float)
         )
-        return _line_system(self.label, self._nilpotent, range(-1, self.n), values)
+        return NilpotentAutomatonSystem._get_line_system(self.label, self._nilpotent, range(-1, self.n), values)
 
 
 class InvolutiveAutomatonSystem(BaseSystem):
@@ -222,8 +222,8 @@ class InvolutiveAutomatonSystem(BaseSystem):
             error_msg = f'The run length of the involutive automaton is at least 3, but it is {self.n}.'
             raise ParameterError(error_msg)
         values = (
-            _random_cells(self.size, self.density, self.random_state)
+            NilpotentAutomatonSystem._get_random_cells(self.size, self.density, self.random_state)
             if self.initial is None
             else np.asarray(self.initial, dtype=float)
         )
-        return _line_system(self.label, self._involution, range(-1, self.n + 1), values)
+        return NilpotentAutomatonSystem._get_line_system(self.label, self._involution, range(-1, self.n + 1), values)

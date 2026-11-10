@@ -22,11 +22,6 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.agents import ChoiceInteraction
 
 
-def _overlap(member: SimpleNamespace) -> Expression:
-    """Return the agreement of a neuron with the first stored pattern."""
-    return member.pattern * member.spin
-
-
 class DilutedNeuronElement(Element):
     """Binary neuron of an asymmetric diluted Hopfield network.
 
@@ -72,6 +67,11 @@ class DilutedNeuronElement(Element):
         self.beta = beta
 
 
+def _get_overlap(member: SimpleNamespace) -> Expression:
+    """Return the agreement of a neuron with the first stored pattern."""
+    return member.pattern * member.spin
+
+
 class DilutedHopfieldSystem(BaseSystem):
     """The asymmetric diluted Hopfield network.
 
@@ -115,7 +115,7 @@ class DilutedHopfieldSystem(BaseSystem):
     references = ('Derrida, Gardner, and Zippelius 1987', 'Bertin 2021')
     until = 20
     dt = 1
-    observables = (ObservableSpec('overlap', _overlap, group='neurons'),)
+    observables = (ObservableSpec('overlap', _get_overlap, group='neurons'),)
 
     def __init__(
         self,

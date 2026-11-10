@@ -20,6 +20,17 @@ from ....core.errors import ParameterError
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 
+BUSY_BEAVER = {
+    ('A', 0): (1, 'R', 'B'),
+    ('A', 1): (1, 'L', 'C'),
+    ('B', 0): (1, 'L', 'A'),
+    ('B', 1): (1, 'R', 'B'),
+    ('C', 0): (1, 'L', 'B'),
+    ('C', 1): (1, 'N', 'H'),
+}
+HALT = 'H'
+MOVES = {'L': -1, 'N': 0, 'R': 1}
+
 
 class TapeCellElement(Element):
     """Cell of the tape of a Turing machine.
@@ -58,22 +69,6 @@ class TapeCellElement(Element):
         super().__init__(label, visual=visual)
         self.symbol = symbol
         self.head = head
-
-
-BUSY_BEAVER = {
-    ('A', 0): (1, 'R', 'B'),
-    ('A', 1): (1, 'L', 'C'),
-    ('B', 0): (1, 'L', 'A'),
-    ('B', 1): (1, 'R', 'B'),
-    ('C', 0): (1, 'L', 'B'),
-    ('C', 1): (1, 'N', 'H'),
-}
-
-
-HALT = 'H'
-
-
-MOVES = {'L': -1, 'N': 0, 'R': 1}
 
 
 class TuringMachineSystem(BaseSystem):

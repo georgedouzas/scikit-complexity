@@ -31,6 +31,9 @@ from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
 from ._pascal_cell import PascalCellElement
 
+LIFE_RULE = re.compile(r'^B(?P<born>[0-8]*)/S(?P<survive>[0-8]*)$')
+PREDECESSORS = LatticeNeighborhood(((-1,), (0,)))
+
 
 class DiffusionCellElement(Element):
     """Cell of a lattice with a content and the share of the difference it exchanges.
@@ -103,17 +106,6 @@ class NoisyElementaryCellElement(BinaryCellElement):
         self.noise = noise
 
 
-LIFE_RULE = re.compile(r'^B(?P<born>[0-8]*)/S(?P<survive>[0-8]*)$')
-
-
-PREDECESSORS = LatticeNeighborhood(((-1,), (0,)))
-
-
-def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:
-    """Return cells that are 1 with a probability and 0 otherwise."""
-    return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
-
-
 class HighlifeSystem(BaseSystem):
     """HighLife, `B36/S23`, or any other life-like automaton of the planar zoo.
 
@@ -156,6 +148,15 @@ class HighlifeSystem(BaseSystem):
     until = 100
     dt = 1
 
+    @staticmethod
+    def _get_random_cells(
+        shape: Sequence[int],
+        density: float,
+        random_state: int | np.random.Generator | None,
+    ) -> Array:
+        """Return cells that are 1 with a probability and 0 otherwise."""
+        return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
+
     def __init__(
         self,
         shape: Sequence[int] = (100, 100),
@@ -192,7 +193,7 @@ class HighlifeSystem(BaseSystem):
         """
         born, survive = self._parse_life_rule(self.rule)
         values = (
-            _random_cells(self.shape, self.density, self.random_state)
+            HighlifeSystem._get_random_cells(self.shape, self.density, self.random_state)
             if self.initial is None
             else np.asarray(self.initial, dtype=float)
         )
@@ -289,7 +290,7 @@ class NoisyAutomataSystem(BaseSystem):
 
         The outputs are flipped with a small probability.
         """
-        values = _random_cells((self.size,), self.density, self.random_state)
+        values = HighlifeSystem._get_random_cells((self.size,), self.density, self.random_state)
         space = LatticeSpace(self.size)
         return CompositeSystem(
             self.label,

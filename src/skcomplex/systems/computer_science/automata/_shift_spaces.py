@@ -29,6 +29,13 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 
+OUTSIDE = -1.0
+GAP_CAP = 10
+BURN_IN = 3
+MIN_BASE = 2
+SYMBOLS = 3
+BALANCED_BLOCK = 0.5
+
 
 class DigitCellElement(Element):
     """Cell holding a digit of a q-adic integer, from 0 to `base - 1`.
@@ -133,14 +140,6 @@ class TernaryCellElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.symbol = symbol
-
-
-OUTSIDE = -1.0
-GAP_CAP = 10
-BURN_IN = 3
-MIN_BASE = 2
-SYMBOLS = 3
-BALANCED_BLOCK = 0.5
 
 
 class GapSubshiftSystem(BaseSystem):

@@ -28,6 +28,10 @@ from ....core.specs import (
 )
 from ....core.types import Array
 
+TRAINED = ('input.D', 'recurrence.A', 'readout.W', 'hidden.b', 'outputs.c')
+WEIGHT_SCALE = 0.5
+PHASES = (PhaseSpec('drive'), PhaseSpec('hidden'), PhaseSpec('readout'))
+
 
 class HiddenUnitElement(Element):
     """Hidden unit of a simple recurrent network.
@@ -311,11 +315,6 @@ class RecurrenceCouplingInteraction(CouplingInteraction):
     def _activate(self, namespace: SimpleNamespace, reduction: object) -> object:
         """Return the sigmoid of the recurrent input, the drive, and the bias of the unit."""
         return 1 / (1 + exp(-(reduction + namespace.member.u + namespace.member.b)))
-
-
-TRAINED = ('input.D', 'recurrence.A', 'readout.W', 'hidden.b', 'outputs.c')
-WEIGHT_SCALE = 0.5
-PHASES = (PhaseSpec('drive'), PhaseSpec('hidden'), PhaseSpec('readout'))
 
 
 class ElmanNetworkSystem(BaseSystem):

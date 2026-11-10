@@ -29,6 +29,10 @@ from ._generator_neighborhood import GeneratorNeighborhood
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 
 GOLDEN_MEAN = SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))
+GENERATOR_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1'))
+GRIGORCHUK_MEMORY = MemoryNeighborhood(('1', 'a', 'b', 'c', 'd'))
+LAMPLIGHTER_MEMORY = MemoryNeighborhood(('1', 'a', 'b'))
+FLIP_PROBABILITY = 0.5
 
 
 class GoldenCellElement(Element):
@@ -100,45 +104,6 @@ class LaplacianCellElement(Element):
         self.modulus = modulus
 
 
-GENERATOR_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1'))
-GRIGORCHUK_MEMORY = MemoryNeighborhood(('1', 'a', 'b', 'c', 'd'))
-LAMPLIGHTER_MEMORY = MemoryNeighborhood(('1', 'a', 'b'))
-FLIP_PROBABILITY = 0.5
-
-
-def _majority(center: Array, *values: Array, degree: Array) -> Array:
-    """Return the value held by more than half of a cell and its neighbours.
-
-    Only the neighbours inside the space count, and a tie keeps the value.
-    """
-    total = center + np.sum(values, axis=0)
-    count = degree + 1
-    return np.where(2 * total > count, 1.0, np.where(2 * total < count, 0.0, center))
-
-
-def _random_cells(size: int, density: float, random_state: int | np.random.Generator | None) -> Array:
-    """Return cells that are 1 with a probability and 0 otherwise."""
-    return (np.random.default_rng(random_state).random(size) < density).astype(float)
-
-
-def _majority_system(
-    label: str,
-    space: CayleySpace,
-    memory: MemoryNeighborhood,
-    density: float,
-    random_state: int | np.random.Generator | None,
-) -> CompositeSystem:
-    """Return the majority automaton on a group space from random cells."""
-    cells = _random_cells(space.prepare().size_, density, random_state)
-    return CompositeSystem(
-        label,
-        elements=[GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': cells}, on='sites')],
-        interactions=[
-            LocalRuleInteraction('majority', target='cells', state='alive', rule=_majority, neighborhood=memory),
-        ],
-    )
-
-
 class FreeGroupAutomatonSystem(BaseSystem):
     """The majority automaton on a ball of the free group.
 
@@ -175,6 +140,47 @@ class FreeGroupAutomatonSystem(BaseSystem):
     dt = 1
     observables = (ObservableSpec('density', group='cells', variable='alive'),)
 
+    @staticmethod
+    def _get_majority(center: Array, *values: Array, degree: Array) -> Array:
+        """Return the value held by more than half of a cell and its neighbours.
+
+        Only the neighbours inside the space count, and a tie keeps the value.
+        """
+        total = center + np.sum(values, axis=0)
+        count = degree + 1
+        return np.where(2 * total > count, 1.0, np.where(2 * total < count, 0.0, center))
+
+    @staticmethod
+    def _get_random_cells(size: int, density: float, random_state: int | np.random.Generator | None) -> Array:
+        """Return cells that are 1 with a probability and 0 otherwise."""
+        return (np.random.default_rng(random_state).random(size) < density).astype(float)
+
+    @staticmethod
+    def _get_majority_system(
+        label: str,
+        space: CayleySpace,
+        memory: MemoryNeighborhood,
+        density: float,
+        random_state: int | np.random.Generator | None,
+    ) -> CompositeSystem:
+        """Return the majority automaton on a group space from random cells."""
+        cells = FreeGroupAutomatonSystem._get_random_cells(space.prepare().size_, density, random_state)
+        return CompositeSystem(
+            label,
+            elements=[
+                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': cells}, on='sites'),
+            ],
+            interactions=[
+                LocalRuleInteraction(
+                    'majority',
+                    target='cells',
+                    state='alive',
+                    rule=FreeGroupAutomatonSystem._get_majority,
+                    neighborhood=memory,
+                ),
+            ],
+        )
+
     def __init__(
         self,
         rank: int = 2,
@@ -193,7 +199,7 @@ class FreeGroupAutomatonSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = CayleySpace(free_group(self.rank), ball=self.radius)
-        return _majority_system(
+        return FreeGroupAutomatonSystem._get_majority_system(
             self.label,
             space,
             GeneratorNeighborhood(space.prepare().generators_),
@@ -251,7 +257,7 @@ class LamplighterAutomatonSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = CayleySpace(lamplighter(), ball=self.radius)
-        cells = _random_cells(space.prepare().size_, self.density, self.random_state)
+        cells = FreeGroupAutomatonSystem._get_random_cells(space.prepare().size_, self.density, self.random_state)
         parity = TotalisticSpec({total: total % 2 for total in range(len(LAMPLIGHTER_MEMORY.elements) + 1)})
         return CompositeSystem(
             self.label,
@@ -318,7 +324,7 @@ class HeisenbergAutomatonSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = CayleySpace(heisenberg(), ball=self.radius)
-        return _majority_system(
+        return FreeGroupAutomatonSystem._get_majority_system(
             self.label,
             space,
             GeneratorNeighborhood(space.prepare().generators_),
@@ -389,7 +395,7 @@ class BaumslagSolitarAutomatonSystem(BaseSystem):
         The group is `BS(m, n)`, of exponential growth.
         """
         space = CayleySpace(baumslag_solitar(self.m, self.n), ball=self.radius)
-        return _majority_system(
+        return FreeGroupAutomatonSystem._get_majority_system(
             self.label,
             space,
             GeneratorNeighborhood(space.prepare().generators_),
@@ -598,7 +604,7 @@ class GrigorchukAutomatonSystem(BaseSystem):
 
         The group has intermediate growth.
         """
-        return _majority_system(
+        return FreeGroupAutomatonSystem._get_majority_system(
             self.label,
             CayleySpace(grigorchuk_group(), ball=self.radius),
             GRIGORCHUK_MEMORY,

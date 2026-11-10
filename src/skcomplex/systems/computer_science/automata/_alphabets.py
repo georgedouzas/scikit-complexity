@@ -26,6 +26,10 @@ from ....core.types import Array, Indices
 from ._groups import free_group
 from ._pascal_cell import PascalCellElement
 
+RATIONAL_SERIES = PowerSeriesSpec()
+FORWARD = LatticeNeighborhood(((0,), (1,)))
+NO_ELEMENT = -1
+
 
 class GroupCellElement(Element):
     """Cell of an automaton whose alphabet is a group.
@@ -58,9 +62,6 @@ class GroupCellElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.value = value
-
-
-RATIONAL_SERIES = PowerSeriesSpec()
 
 
 class PowerSeriesCellElement(DeclaredElement):
@@ -137,10 +138,6 @@ class RealCellElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.value = value
-
-
-FORWARD = LatticeNeighborhood(((0,), (1,)))
-NO_ELEMENT = -1
 
 
 class SelfIndexedShiftSystem(BaseSystem):
