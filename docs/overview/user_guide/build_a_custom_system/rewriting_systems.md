@@ -100,7 +100,7 @@ class KochElement(WordElement):
 
 koch = CompositeSystem(elements=[KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))])
 curve = simulate(koch, until=4).get_structure('koch', 4)
-len(curve.segments()), round(curve.get_length(), 6)
+len(curve.get_segments()), round(curve.get_length(), 6)
 ```
 
 A `GeometrySpec`, from `skcomplex.core.specs`, draws a word as line segments in two or three dimensions, as the turtle

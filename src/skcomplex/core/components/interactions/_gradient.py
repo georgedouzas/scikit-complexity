@@ -95,7 +95,7 @@ class GradientInteraction(Interaction):
         >>> well = GradientInteraction('well', target='walker', states='x', potential=lambda s: s.target.x**2 / 2)
         >>> system = CompositeSystem(elements=[AmountElement('walker', x=1.0)], interactions=[well])
         >>> trajectory = simulate(system, until=1.0, dt=0.01)
-        >>> round(float(trajectory.values('walker.x')[-1]), 4)
+        >>> round(float(trajectory.get_values('walker.x')[-1]), 4)
         0.3679
     """
 

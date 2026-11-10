@@ -139,7 +139,7 @@ tank = DeclaredElement('tank', variables={'x': DeclaredVariableSpec(10.0, StateS
 decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
 sorted(tank.get_tags().domains)
 trajectory = simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=2)
-round(trajectory.values('tank.x')[-1], 2)
+round(trajectory.get_values('tank.x')[-1], 2)
 ```
 
 ## An incompatible element
@@ -220,7 +220,7 @@ tank = DeclaredElement('tank', variables={'x': DeclaredVariableSpec(10.0, StateS
 decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
 sorted(decay.get_tags().laws), sorted(decay.get_tags().time)
 trajectory = simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=2)
-round(trajectory.values('tank.x')[-1], 2)
+round(trajectory.get_values('tank.x')[-1], 2)
 ```
 
 ## An incompatible interaction
@@ -286,7 +286,7 @@ arrive = JumpInteraction('arrive', target='queue', changes={'x': 1}, rate=lambda
 sorted(arrive.get_tags().laws)
 system = CompositeSystem(elements=[queue], interactions=[arrive])
 trajectory = simulate(system, until=5, solver=GillespieSolver(), random_state=0)
-trajectory.values('queue.x')[-1]
+trajectory.get_values('queue.x')[-1]
 ```
 
 ## An incompatible law
@@ -350,7 +350,7 @@ decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 *
 system = CompositeSystem(elements=[tank], interactions=[decay])
 sorted(system.get_tags().laws), sorted(EulerMaruyamaSolver.get_supported_tags().laws)
 trajectory = simulate(system, until=1, solver=EulerMaruyamaSolver(), random_state=0)
-round(trajectory.values('tank.x')[-1], 2)
+round(trajectory.get_values('tank.x')[-1], 2)
 ```
 
 ## An incompatible solver
@@ -404,7 +404,7 @@ from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
 tank = DeclaredElement('tank', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
 decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
 trajectory = simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=1, backend=NumbaBackend())
-round(trajectory.values('tank.x')[-1], 2)
+round(trajectory.get_values('tank.x')[-1], 2)
 ```
 
 ## An incompatible backend
@@ -712,7 +712,7 @@ arrive = JumpInteraction('arrive', target='queue', changes={'x': 1}, rate=lambda
 system = CompositeSystem(elements=[queue], interactions=[arrive])
 sorted(system.get_tags().laws), system.get_tags().randomness
 trajectory = simulate(system, until=5, solver=GillespieSolver(), random_state=0)
-trajectory.values('queue.x')[-1]
+trajectory.get_values('queue.x')[-1]
 ```
 
 ## An incompatible system

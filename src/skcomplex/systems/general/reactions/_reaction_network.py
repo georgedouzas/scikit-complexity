@@ -58,7 +58,7 @@ class ReactionNetworkSystem(BaseSystem[CompositeSystem]):
         >>> [element.label for element in isomerization.prepare().system_.elements]
         ['A', 'B']
         >>> trajectory = simulate(isomerization, until=50.0, dt=1.0)
-        >>> round(float(trajectory.values('A.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('A.x')[-1]), 3)
         2.5
 
         The same reactions as jumps, whose tags are those of a stochastic system:

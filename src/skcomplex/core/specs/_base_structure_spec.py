@@ -72,7 +72,7 @@ class BaseStructureSpec(BaseSpec):
         """Line strings of the segments followed by the polygons, built once."""
         segments = self.get_segments()
         lines = shapely.linestrings(segments[..., :2]) if len(segments) else np.zeros(0, dtype=object)
-        shapes = [shapely.get_polygons(coordinates) for coordinates in self.get_polygons()]
+        shapes = [shapely.polygons(coordinates) for coordinates in self.get_polygons()]
         return np.concatenate([lines, *shapes]) if shapes else lines
 
     def get_length(self) -> float:

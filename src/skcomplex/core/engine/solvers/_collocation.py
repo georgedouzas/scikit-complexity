@@ -105,7 +105,7 @@ class CollocationSolver(OptimalControlSolver):
         >>> cost = lambda s: (s.plant.x**2 + s.plant.u**2) / 2
         >>> solver = CollocationSolver(objective=cost, nodes=51, scheme='hermite-simpson')
         >>> trajectory = simulate(CompositeSystem(elements=[PlantElement('plant')]), until=1.0, solver=solver)
-        >>> float(round(trajectory.values('plant.u')[0], 3))
+        >>> float(round(trajectory.get_values('plant.u')[0], 3))
         -0.762
     """
 

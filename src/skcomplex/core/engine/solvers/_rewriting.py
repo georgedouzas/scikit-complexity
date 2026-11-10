@@ -35,7 +35,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
         >>> system = CompositeSystem(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
         >>> trajectory = simulate(system, until=5, solver=RewritingSolver())
-        >>> trajectory.values('algae.size').tolist()
+        >>> trajectory.get_values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """
 
@@ -124,7 +124,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         reporters: dict[str, float] = {}
         for path, structure in self.structures_.items():
             if structure.has_geometry:
-                reporters[f'{path}.get_length'] = structure.get_length()
-                reporters[f'{path}.get_area'] = structure.get_area()
+                reporters[f'{path}.length'] = structure.get_length()
+                reporters[f'{path}.area'] = structure.get_area()
         self.events_ = []
         self.snapshot_ = StructureStateSpec(dict(self.structures_), reporters)

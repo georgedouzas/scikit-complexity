@@ -203,7 +203,7 @@ class TransferInteraction(Interaction):
         >>> tanks = [TankElement('upper', level=4.0), TankElement('lower')]
         >>> system = CompositeSystem(elements=tanks, interactions=[flow])
         >>> trajectory = simulate(system, until=1.0)
-        >>> round(float(trajectory.values('upper.level')[-1] + trajectory.values('lower.level')[-1]), 6)
+        >>> round(float(trajectory.get_values('upper.level')[-1] + trajectory.get_values('lower.level')[-1]), 6)
         4.0
     """
 

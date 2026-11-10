@@ -14,7 +14,7 @@ from ..core.components.systems import BaseSystem
 from ..core.errors import RegistryError, ValidationError
 from ..core.specs import Tags
 
-_LISTED = ('field', 'topics', 'references')
+LISTED = ('field', 'topics', 'references')
 
 
 class _SystemClasses:
@@ -37,7 +37,7 @@ class _SystemClasses:
         self.package = package
         self._found: dict[str, tuple[str, str, tuple[str, ...]]] | None = None
 
-    def classes(
+    def get_classes(
         self,
         field: str | None = None,
         topics: str | Sequence[str] = (),
@@ -127,15 +127,15 @@ class _SystemClasses:
                 definitions = [
                     node
                     for node in ast.parse(path.read_text()).body
-                    if isinstance(node, ast.ClassDef) and self._class_value(node, 'field') is not None
+                    if isinstance(node, ast.ClassDef) and self._get_class_value(node, 'field') is not None
                 ]
-                constants = self._constants(path) if definitions else {}
+                constants = self._get_constants(path) if definitions else {}
                 for node in definitions:
-                    found[node.name] = self._class_listing(node, module, constants)
+                    found[node.name] = self._get_class_listing(node, module, constants)
             self._found = found
         return self._found
 
-    def _class_listing(
+    def _get_class_listing(
         self,
         node: ast.ClassDef,
         module: str,
@@ -164,7 +164,9 @@ class _SystemClasses:
                 The class is not named with the suffix `System`, gives its field path as no string, or gives a listed
                 class variable with a value computed at run time.
         """
-        values = {name: self._literal(self._class_value(node, name), name, module, constants) for name in _LISTED}
+        values = {
+            name: self._get_literal(self._get_class_value(node, name), name, module, constants) for name in LISTED
+        }
         field = values['field']
         if not node.name.endswith('System') or not isinstance(field, str):
             error_msg = (
@@ -180,7 +182,7 @@ class _SystemClasses:
         return module, field, tuple(str(topic) for topic in topics) if isinstance(topics, tuple | list) else ()
 
     @staticmethod
-    def _class_value(node: ast.ClassDef, name: str) -> ast.expr | None:
+    def _get_class_value(node: ast.ClassDef, name: str) -> ast.expr | None:
         """Return the value a class body assigns to a class variable.
 
         It is `None` when the body assigns none.
@@ -194,7 +196,7 @@ class _SystemClasses:
                 return item.value
         return None
 
-    def _literal(self, node: ast.expr | None, name: str, module: str, constants: dict[str, object]) -> object:
+    def _get_literal(self, node: ast.expr | None, name: str, module: str, constants: dict[str, object]) -> object:
         """Return the static value of a class variable.
 
         It is `None` when the class does not give it.
@@ -232,7 +234,7 @@ class _SystemClasses:
             )
             raise RegistryError(error_msg) from error
 
-    def _constants(self, path: Path, seen: frozenset[Path] = frozenset()) -> dict[str, object]:
+    def _get_constants(self, path: Path, seen: frozenset[Path] = frozenset()) -> dict[str, object]:
         """Return the module-level literal constants of a system module.
 
         They include those it imports from its own package.
@@ -242,7 +244,7 @@ class _SystemClasses:
         constants: dict[str, object] = {}
         for node in ast.parse(path.read_text()).body:
             if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module:
-                source = self._constants(path.with_name(f'{node.module}.py'), seen | {path})
+                source = self._get_constants(path.with_name(f'{node.module}.py'), seen | {path})
                 constants.update(
                     {alias.asname or alias.name: source[alias.name] for alias in node.names if alias.name in source},
                 )
@@ -278,7 +280,7 @@ class _SystemClasses:
         return ast.literal_eval(node)
 
 
-_SYSTEM_CLASSES = _SystemClasses(Path(str(files('skcomplex.systems'))))
+SYSTEM_CLASSES = _SystemClasses(Path(str(files('skcomplex.systems'))))
 
 
 def all_systems(
@@ -324,4 +326,4 @@ def all_systems(
         >>> [name for name, _ in all_systems(field='chemistry', tags={'randomness': 'stochastic'})]
         ['ChemicalLangevinEquationSystem', 'ChemicalLangevinNetworkSystem']
     """
-    return _SYSTEM_CLASSES.classes(field, topics, tags)
+    return SYSTEM_CLASSES.get_classes(field, topics, tags)

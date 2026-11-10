@@ -74,7 +74,7 @@ class HamiltonianInteraction(Interaction):
         >>> spring = HamiltonianInteraction('spring', target='mass', hamiltonian=energy)
         >>> system = CompositeSystem(elements=[OscillatorElement('mass')], interactions=[spring])
         >>> trajectory = simulate(system, until=3.14159, dt=0.01)
-        >>> round(float(trajectory.values('mass.q')[-1]), 3)
+        >>> round(float(trajectory.get_values('mass.q')[-1]), 3)
         -1.0
     """
 

@@ -52,7 +52,7 @@ class NetworkDynamicalSystem(DynamicalSystem):
         ...     parameters={'D': 1.0},
         ... )
         >>> trajectory = simulate(diffusion, until=20.0, dt=1.0)
-        >>> [round(float(value), 3) for value in trajectory.values('nodes.u')[-1]]
+        >>> [round(float(value), 3) for value in trajectory.get_values('nodes.u')[-1]]
         [0.333, 0.333, 0.333]
 
         Cells coupled by gap junctions, each relaxing to its own rest value while it exchanges with its neighbours:
@@ -66,7 +66,7 @@ class NetworkDynamicalSystem(DynamicalSystem):
         ...     element='cells',
         ... )
         >>> trajectory = simulate(cells, until=5.0, dt=1.0)
-        >>> bool(trajectory.values('cells.v')[-1][1] > 0)
+        >>> bool(trajectory.get_values('cells.v')[-1][1] > 0)
         True
     """
 

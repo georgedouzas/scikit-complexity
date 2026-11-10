@@ -84,7 +84,7 @@ class EulerLagrangeInteraction(Interaction):
         ... )
         >>> system = CompositeSystem(elements=[AngleElement('bob')], interactions=[swing])
         >>> trajectory = simulate(system, until=3.2, dt=0.01)
-        >>> round(float(trajectory.values('bob.q')[-1]), 2)
+        >>> round(float(trajectory.get_values('bob.q')[-1]), 2)
         -0.1
     """
 

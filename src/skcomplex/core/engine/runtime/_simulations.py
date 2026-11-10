@@ -634,7 +634,7 @@ class Simulation(BaseConfig[None, float]):
             >>> trajectory = simulation.extend(until=10).trajectory_
             >>> trajectory.times.tolist()
             [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
-            >>> bool(trajectory.values('rabbits.x')[5] == trajectory.values('rabbits.x')[10])
+            >>> bool(trajectory.get_values('rabbits.x')[5] == trajectory.get_values('rabbits.x')[10])
             True
         """
         self._check_prepared()

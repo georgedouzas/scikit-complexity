@@ -313,7 +313,7 @@ def test_koch_curve_length():
     )
     trajectory = simulate(system, until=4)
     curve = trajectory.get_structure('koch', 4)
-    segments = curve.segments()
+    segments = curve.get_segments()
     assert segments.shape == (256, 2, 2)
     assert curve.get_length() == pytest.approx((4 / 3) ** 4, abs=1e-12)
     assert np.allclose(segments[0, 0], [0, 0], atol=1e-12)
@@ -324,7 +324,7 @@ def test_koch_curve_length():
 def test_branches_return():
     """Test that a popped branch returns the cursor to where the branch began."""
     curve = simulate(CompositeSystem(elements=[WordElement('plant', axiom='F[+F]F', geometry=GeometrySpec())]), until=0)
-    segments = curve.get_structure('plant', 0).segments()
+    segments = curve.get_structure('plant', 0).get_segments()
     assert len(segments) == 3
     assert np.allclose(segments[2, 0], segments[1, 0])
     assert np.allclose(segments[1, 1], [1, 1])
@@ -335,7 +335,7 @@ def test_three_dimensional_word_geometry():
     """Test that pitching up and rolling move the cursor out of the plane."""
     geometry = GeometrySpec(angle=90.0, dimension=3)
     curve = simulate(CompositeSystem(elements=[WordElement('plant', axiom='F&F/+F', geometry=geometry)]), until=0)
-    segments = curve.get_structure('plant', 0).segments()
+    segments = curve.get_structure('plant', 0).get_segments()
     assert segments.shape == (3, 2, 3)
     assert np.allclose(segments[1, 1], [1, 0, -1])
     assert curve.get_structure('plant', 0).get_length() == pytest.approx(3.0)
@@ -348,7 +348,7 @@ def test_module_parameters_override_the_word_geometry():
         axiom=[ModuleSpec('F', (2.0,)), ModuleSpec('+', (90.0,)), ModuleSpec('F', (1.0,))],
         geometry=GeometrySpec(angle=10.0),
     )
-    segments = simulate(CompositeSystem(elements=[word]), until=0).get_structure('plant', 0).segments()
+    segments = simulate(CompositeSystem(elements=[word]), until=0).get_structure('plant', 0).get_segments()
     assert np.allclose(segments[1], [[2, 0], [2, 1]])
 
 
@@ -378,7 +378,7 @@ def test_cantor_intervals():
     patch = _cantor(5).get_structure('cantor', 5)
     assert patch.parts == 32
     assert patch.get_length() == pytest.approx((2 / 3) ** 5, abs=1e-12)
-    lefts = np.sort(patch.segments()[:, 0, 0])
+    lefts = np.sort(patch.get_segments()[:, 0, 0])
     expected = sorted(
         sum(digit * 3.0 ** -(place + 1) for place, digit in enumerate(digits)) for digits in np.ndindex(*(2,) * 5)
     )
@@ -418,7 +418,7 @@ def test_sierpinski_triangle_area():
     trajectory = _sierpinski(6)
     patch = trajectory.get_structure('gasket', 6)
     assert patch.parts == 729
-    assert patch.area() == pytest.approx(0.75**6 * np.sqrt(3) / 4, abs=1e-12)
+    assert patch.get_area() == pytest.approx(0.75**6 * np.sqrt(3) / 4, abs=1e-12)
     assert trajectory.get_values('gasket.triangle')[-1] == 729
 
 
@@ -433,7 +433,7 @@ def test_measures_and_raster_errors():
     """Test the bounds, the number of parts, and the refused resolutions."""
     patch = _sierpinski(1).get_structure('gasket', 1)
     assert patch.parts == 3
-    assert patch.bounds() == pytest.approx((0, 0, 1, np.sqrt(3) / 2))
+    assert patch.get_bounds() == pytest.approx((0, 0, 1, np.sqrt(3) / 2))
     with pytest.raises(ValidationError, match='positive integer'):
         patch.get_raster(0)
 
@@ -455,9 +455,9 @@ def test_chair_tiling_covers_its_chair():
     )
     patch = trajectory.get_structure('chairs', 3)
     assert patch.parts == 64
-    union = shapely.union_all(patch.geometry())
+    union = shapely.union_all(patch.get_geometry())
     assert shapely.symmetric_difference(union, shapely.Polygon(chair.vertices)).area == pytest.approx(0.0, abs=1e-9)
-    assert patch.area() == pytest.approx(3.0, abs=1e-9)
+    assert patch.get_area() == pytest.approx(3.0, abs=1e-9)
 
 
 def test_unsubstituted_tiles_are_kept_and_named_errors():
@@ -532,5 +532,5 @@ def test_three_dimensional_geometry_reference_values():
         [[0.5, 0.0, 0.0], [0.933012702, 0.125, 0.216506351]],
     ]
     assert trajectory.get_values('tree.size').tolist() == [1.0, 10.0]
-    assert np.allclose(structure.segments(), points, rtol=0, atol=1e-9)
+    assert np.allclose(structure.get_segments(), points, rtol=0, atol=1e-9)
     assert structure.depths.tolist() == [0, 1, 1]

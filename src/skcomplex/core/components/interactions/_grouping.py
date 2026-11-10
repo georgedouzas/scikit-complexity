@@ -131,7 +131,7 @@ class GroupingInteraction(Interaction):
         >>> voters = GroupElement('voters', element=VoterElement, size=3, values={'s': [1.0, 1.0, 0.0]})
         >>> galam = GroupingInteraction('galam', target='voters', groups='partition', size=3, act=adopt_majority)
         >>> trajectory = simulate(CompositeSystem(elements=[voters], interactions=[galam]), until=1)
-        >>> trajectory.agents('voters', 1).values['s'].tolist()
+        >>> trajectory.get_agents('voters', 1).values['s'].tolist()
         [1.0, 1.0, 1.0]
 
         In the symbolic form every group of the partition takes the opinion of its majority:
@@ -147,7 +147,7 @@ class GroupingInteraction(Interaction):
         ...     function=lambda g: where(mean(g.members.s, over=g.members) > 1 / 2, 1, 0),
         ... )
         >>> trajectory = simulate(CompositeSystem(elements=[voters], interactions=[galam]), until=1, random_state=0)
-        >>> trajectory.values('voters.s')[-1].tolist()
+        >>> trajectory.get_values('voters.s')[-1].tolist()
         [1.0, 1.0, 1.0]
     """
 

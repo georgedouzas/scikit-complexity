@@ -109,7 +109,7 @@ class PontryaginSolver(OptimalControlSolver):
         ...         return [RateLaw(s.x, s.u)]
         >>> solver = PontryaginSolver(objective=lambda s: (s.plant.x**2 + s.plant.u**2) / 2)
         >>> trajectory = simulate(CompositeSystem(elements=[PlantElement('plant')]), until=1.0, solver=solver)
-        >>> float(round(trajectory.values('plant.u')[0], 3))
+        >>> float(round(trajectory.get_values('plant.u')[0], 3))
         -0.762
     """
 

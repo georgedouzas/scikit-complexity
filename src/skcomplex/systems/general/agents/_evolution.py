@@ -314,7 +314,7 @@ class EvolutionInteraction(Interaction):
         weights = weights if weights.sum() > 0 else np.ones_like(weights)
         return rng.choice(size, size=count, p=weights / weights.sum())
 
-    def _cross(self, parents: Array, probability: float, rng: np.random.Generator) -> Array:
+    def _get_cross(self, parents: Array, probability: float, rng: np.random.Generator) -> Array:
         """Return the parents after one-point crossover of every consecutive pair."""
         children = parents.copy()
         length = children.shape[1]
@@ -396,7 +396,7 @@ class EvolutionInteraction(Interaction):
         """Return the strategies of the next generation, one row per member."""
         rng = system.rng
         parents = flat[self._select(fitness, len(flat), rng)]
-        children = self._cross(parents, self._get_value('crossover', system), rng)
+        children = self._get_cross(parents, self._get_value('crossover', system), rng)
         children = self._mutate(children, self._get_value('mutation', system), rng, flat)
         if self.elite:
             best = np.argsort(-fitness, kind='stable')[: self.elite]

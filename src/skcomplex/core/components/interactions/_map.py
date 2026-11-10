@@ -116,7 +116,7 @@ class MapInteraction(Interaction):
         ...     'double', target='weights', state='w', function=lambda a, m: [2 * x for x in a.w], form='agent'
         ... )
         >>> trajectory = simulate(CompositeSystem(elements=[group], interactions=[doubling]), until=2)
-        >>> trajectory.agents('weights', 2).values['w'].tolist()
+        >>> trajectory.get_agents('weights', 2).values['w'].tolist()
         [[4.0, 8.0]]
     """
 

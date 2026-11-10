@@ -55,7 +55,7 @@ class UnitarySolver(OperatorSolver):
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = CompositeSystem(elements=[TwoLevelElement('q')])
         >>> trajectory = simulate(system, until=np.pi, solver=UnitarySolver(), dt=np.pi, observables=z)
-        >>> float(round(trajectory.values('q.z')[-1], 6))
+        >>> float(round(trajectory.get_values('q.z')[-1], 6))
         -1.0
     """
 

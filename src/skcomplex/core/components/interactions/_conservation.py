@@ -89,7 +89,7 @@ class ConservationInteraction(Interaction):
         >>> burgers = ConservationInteraction('burgers', target='wave', state='u', flux=lambda s: s.target.u**2 / 2)
         >>> system = CompositeSystem(elements=[field], interactions=[burgers])
         >>> trajectory = simulate(system, until=0.5, dt=0.01)
-        >>> round(float(trajectory.values('wave.u')[-1].sum()), 6)
+        >>> round(float(trajectory.get_values('wave.u')[-1].sum()), 6)
         50.0
     """
 

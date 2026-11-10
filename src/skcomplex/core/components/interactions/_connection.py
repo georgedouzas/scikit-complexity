@@ -75,7 +75,7 @@ class ConnectionInteraction(Interaction):
         ...     interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
         ... )
         >>> trajectory = simulate(system, until=1.0, dt=1.0)
-        >>> float(trajectory.values('first.a_v')[-1])
+        >>> float(trajectory.get_values('first.a_v')[-1])
         2.0
     """
 

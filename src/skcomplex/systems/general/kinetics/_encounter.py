@@ -188,7 +188,7 @@ class EncounterInteraction(Interaction):
             error_msg = f'The {self.outcome} encounter {self.label!r} reads a density of others. Give `field`.'
             raise ValidationError(error_msg)
 
-    def _linear_laws(self, candidate: Expression, namespace: SimpleNamespace) -> list[BaseLaw]:
+    def _get_linear_laws(self, candidate: Expression, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the conserved bilinear law of a redistribution without a field.
 
         It uses one field class of value one.
@@ -216,7 +216,7 @@ class EncounterInteraction(Interaction):
             factor = SR(1 if self.factor is None else self.factor(namespace))
             return [RateLaw(candidate, factor * collision_integral(candidate, self.cross_section), label=self.label)]
         if self.field is None:
-            return self._linear_laws(candidate, namespace)
+            return self._get_linear_laws(candidate, namespace)
         field = getattr(self._get_member(namespace, 'field'), self.state)
         assert self.rate is not None
         rate = self.rate(namespace)

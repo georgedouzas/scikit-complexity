@@ -1064,7 +1064,7 @@ class MesaSolver(ExternalSolver):
         ...         agent.count += 1
         >>> system = CompositeSystem(elements=[GroupElement('counters', element=CounterElement, size=3)])
         >>> trajectory = simulate(system, until=4, solver=MesaSolver())
-        >>> trajectory.agents('counters', 4).values['count'].tolist()
+        >>> trajectory.get_agents('counters', 4).values['count'].tolist()
         [4.0, 4.0, 4.0]
     """
 

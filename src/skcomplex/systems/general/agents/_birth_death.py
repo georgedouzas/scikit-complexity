@@ -22,6 +22,7 @@ PLACEMENTS = ('here', 'neighbor')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
 PICKS = ('first', 'random')
 
+
 type Chance = float | Callable[..., float]
 type Count = int | Callable[..., int]
 type Mutation = Callable[[dict[str, object], SystemViewProtocol], dict[str, object]]
@@ -154,7 +155,7 @@ class BirthDeathInteraction(Interaction):
         >>> division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('size',))
         >>> system = CompositeSystem(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
         >>> trajectory = simulate(system, until=2, random_state=0)
-        >>> trajectory.agents('cells', 2).values['size'].tolist()
+        >>> trajectory.get_agents('cells', 2).values['size'].tolist()
         [2.0, 2.0, 2.0, 2.0]
     """
 

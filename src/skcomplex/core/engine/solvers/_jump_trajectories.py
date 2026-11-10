@@ -66,7 +66,7 @@ class JumpTrajectoriesSolver(OperatorSolver):
         >>> system = CompositeSystem(elements=[TwoLevelElement('q')])
         >>> solver = JumpTrajectoriesSolver()
         >>> trajectory = simulate(system, until=20.0, solver=solver, dt=1.0, random_state=0, observables=z)
-        >>> float(trajectory.values('q.z')[-1])
+        >>> float(trajectory.get_values('q.z')[-1])
         -1.0
     """
 

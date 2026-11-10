@@ -61,7 +61,7 @@ class RootSolver(Solver):
         ...         return [EquationLaw(s.x == cos(s.x), target=s.x)]
         >>> system = CompositeSystem(elements=[FixedPointElement('a')], time=StaticTime())
         >>> trajectory = simulate(system, until=1.0)
-        >>> round(float(trajectory.values('a.x')[0]), 7)
+        >>> round(float(trajectory.get_values('a.x')[0]), 7)
         0.7390851
     """
 

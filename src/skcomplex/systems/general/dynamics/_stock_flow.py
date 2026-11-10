@@ -55,7 +55,7 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
         ...     element='tub',
         ... )
         >>> trajectory = simulate(tub, until=10.0, dt=5.0)
-        >>> trajectory.values('tub.water').tolist(), trajectory.values('tub.faucet').tolist()
+        >>> trajectory.get_values('tub.water').tolist(), trajectory.get_values('tub.faucet').tolist()
         ([50.0, 50.0, 50.0], [5.0, 5.0, 5.0])
 
         The arms race of two nations, each arming faster the more the other holds:
@@ -70,7 +70,7 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
         ...     element='nations',
         ... )
         >>> trajectory = simulate(race, until=10.0, dt=10.0)
-        >>> round(float(trajectory.values('nations.a')[-1]), 3)
+        >>> round(float(trajectory.get_values('nations.a')[-1]), 3)
         2.718
     """
 

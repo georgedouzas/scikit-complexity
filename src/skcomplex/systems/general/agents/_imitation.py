@@ -251,7 +251,7 @@ class ImitationInteraction(NeighborInteraction):
             for first, second in itertools.permutations(self.options, 2)
         ]
 
-    def _copies(self, member: SimpleNamespace, other: SimpleNamespace, namespace: SimpleNamespace) -> list[BaseLaw]:
+    def _get_copies(self, member: SimpleNamespace, other: SimpleNamespace, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the copies by a member of the state of the other end of an edge.
 
         The other end is chosen among its neighbours.
@@ -279,7 +279,7 @@ class ImitationInteraction(NeighborInteraction):
         if self.rule not in ('random', 'fermi'):
             raise self._get_variant_error(self.rule, 'rule', '_get_jumps')
         source, target = self._get_member(namespace, 'source'), self._get_member(namespace, 'target')
-        return [*self._copies(target, source, namespace), *self._copies(source, target, namespace)]
+        return [*self._get_copies(target, source, namespace), *self._get_copies(source, target, namespace)]
 
     def _draw_copy(self, namespace: SimpleNamespace) -> Expression:
         """Return the next state of the target by the random or the Fermi rule.

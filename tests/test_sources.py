@@ -784,15 +784,30 @@ def _function_readers(source: Path) -> tuple[dict[str, set[str]], dict[str, ast.
                 }
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 continue
-            reader = (
-                f'{module}.{node.name}'
-                if isinstance(node, (ast.FunctionDef, ast.ClassDef))
-                else f'{module}:{node.lineno}'
-            )
-            for target in _read_targets(node, bindings, module, local):
-                if target != reader:
-                    readers.setdefault(target, set()).add(reader)
+            for part, reader in _reading_parts(node, module):
+                for target in _read_targets(part, bindings, module, local):
+                    if target != reader:
+                        readers.setdefault(target, set()).add(reader)
     return readers, functions, compiled, exported
+
+
+def _reading_parts(node: ast.stmt, module: str) -> list[tuple[ast.AST, str]]:
+    """Return the parts of a module statement that read names, each with the reader it stands for.
+
+    The methods of a class read as the class. Its other statements run when the class is built, so they read as a value,
+    `module:line`, as a module statement does.
+    """
+    if isinstance(node, ast.FunctionDef):
+        return [(node, f'{module}.{node.name}')]
+    if not isinstance(node, ast.ClassDef):
+        return [(node, f'{module}:{node.lineno}')]
+    parts: list[tuple[ast.AST, str]] = []
+    for child in node.body:
+        if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
+            parts.append((child, f'{module}.{node.name}'))
+        else:
+            parts.append((child, f'{module}:{child.lineno}'))
+    return parts
 
 
 def _class_readers(name: str, readers: dict[str, set[str]], functions: dict[str, ast.FunctionDef]) -> set[str]:
@@ -812,6 +827,20 @@ def _class_readers(name: str, readers: dict[str, set[str]], functions: dict[str,
     return found
 
 
+def _is_value_read(name: str, readers: dict[str, set[str]], functions: dict[str, ast.FunctionDef]) -> bool:
+    """Return whether a module value reads a module function, directly or through other private module functions."""
+    seen = {name}
+    pending = [name]
+    while pending:
+        for reader in readers.get(pending.pop(), set()):
+            if ':' in reader:
+                return True
+            if reader in functions and reader not in seen and reader.rpartition('.')[2].startswith('_'):
+                seen.add(reader)
+                pending.append(reader)
+    return False
+
+
 def _unowned_functions(source: Path, packages: tuple[str, ...]) -> list[str]:
     """Return every module function of the packages that a class should own, or that no package re-exports."""
     readers, functions, compiled, exported = _function_readers(source)
@@ -822,7 +851,7 @@ def _unowned_functions(source: Path, packages: tuple[str, ...]) -> list[str]:
             continue
         if function.startswith('_'):
             classes = _class_readers(name, readers, functions)
-            derived = any(':' in reader for reader in readers.get(name, set()))
+            derived = _is_value_read(name, readers, functions)
             if classes and not derived:
                 found.append(f'{module}:{node.lineno}: {function} is read by {", ".join(sorted(classes))}')
         elif '._' in f'.{module}' and function not in exported and not UTILS_MODULE.search(module):

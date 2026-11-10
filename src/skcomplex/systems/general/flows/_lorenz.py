@@ -48,7 +48,7 @@ class LorenzElement(Element):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = CompositeSystem(elements=[LorenzElement('lorenz', x=0.0, y=0.0, z=2.0, beta=0.5)])
         >>> trajectory = simulate(system, until=1.0, dt=0.5)
-        >>> [round(float(value), 4) for value in trajectory.values('lorenz.z')]
+        >>> [round(float(value), 4) for value in trajectory.get_values('lorenz.z')]
         [2.0, 1.5576, 1.2131]
     """
 

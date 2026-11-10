@@ -108,10 +108,10 @@ def test_listing_rejects_a_system_class_without_suffix_or_with_computed_field(tm
     module.parent.mkdir(parents=True)
     module.write_text("class Pendulum:\n    field = 'physics/mechanics'\n")
     with pytest.raises(RegistryError, match='Name it with the suffix `System`'):
-        _SystemClasses(tmp_path).classes()
+        _SystemClasses(tmp_path).get_classes()
     module.write_text("class PendulumSystem:\n    field = 'physics/' + 'mechanics'\n")
     with pytest.raises(RegistryError, match="defines the class variable 'field' with a value computed at run time"):
-        _SystemClasses(tmp_path).classes()
+        _SystemClasses(tmp_path).get_classes()
 
 
 CONFORMANCE_FRAMES = 10

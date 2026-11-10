@@ -59,7 +59,7 @@ class ReactionDiffusionSystem(DynamicalSystem):
         ...     parameters={'r': 1.0},
         ... )
         >>> trajectory = simulate(front, until=10.0, dt=1.0)
-        >>> bool(trajectory.values('medium.u')[-1][20] > trajectory.values('medium.u')[0][20])
+        >>> bool(trajectory.get_values('medium.u')[-1][20] > trajectory.get_values('medium.u')[0][20])
         True
 
         The Gray-Scott model, whose substrate `u` feeds the autocatalysis of the activator `v`:
@@ -77,7 +77,7 @@ class ReactionDiffusionSystem(DynamicalSystem):
         ...     parameters={'F': 0.04, 'k': 0.06},
         ... )
         >>> trajectory = simulate(gray_scott, until=20.0, dt=5.0)
-        >>> bool(trajectory.values('medium.v')[-1].max() > 0)
+        >>> bool(trajectory.get_values('medium.v')[-1].max() > 0)
         True
     """
 

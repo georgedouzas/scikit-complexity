@@ -27,6 +27,7 @@ SCHEDULES = ('sequential', 'random-sequential', 'member')
 TIES = ('random', 'first', 'nearest')
 GRID_STEPS = ('neighbor', 'best')
 
+
 type Step = str | Callable[..., object]
 type Cost = TransferInteraction | Callable[[AgentViewProtocol, SystemViewProtocol], None]
 type Vision = float | Callable[[AgentViewProtocol, SystemViewProtocol], float]
@@ -129,7 +130,7 @@ class MovementInteraction(Interaction):
         >>> space = LatticeSpace((5, 5), metric='manhattan')
         >>> system = CompositeSystem(elements=[walkers], interactions=[walk], space=space)
         >>> trajectory = simulate(system, until=1, random_state=0)
-        >>> [bool(abs(cell - 2).sum() == 1) for cell in trajectory.agents('walkers', 1).locations]
+        >>> [bool(abs(cell - 2).sum() == 1) for cell in trajectory.get_agents('walkers', 1).locations]
         [True, True]
     """
 

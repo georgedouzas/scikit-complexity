@@ -64,7 +64,7 @@ class Trajectory:
         >>> trajectory = simulate(system, until=1, dt=0.5)
         >>> trajectory.times.tolist()
         [0.0, 0.5, 1.0]
-        >>> trajectory.values('a.x').round(3).tolist()
+        >>> trajectory.get_values('a.x').round(3).tolist()
         [1.0, 1.649, 2.718]
     """
 

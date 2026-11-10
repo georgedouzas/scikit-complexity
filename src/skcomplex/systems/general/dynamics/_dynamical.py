@@ -60,7 +60,7 @@ class DynamicalSystem(BaseSystem[CompositeSystem]):
         ...     element='populations',
         ... )
         >>> trajectory = simulate(populations, until=50.0, dt=1.0)
-        >>> e, i = (float(trajectory.values(f'populations.{name}')[-1]) for name in 'ei')
+        >>> e, i = (float(trajectory.get_values(f'populations.{name}')[-1]) for name in 'ei')
         >>> abs(e - float(response(2.0 * e - 3.0 * i))) < 1e-6
         True
 
@@ -78,7 +78,7 @@ class DynamicalSystem(BaseSystem[CompositeSystem]):
         ...     element='economy',
         ... )
         >>> trajectory = simulate(economy, until=3)
-        >>> trajectory.values('economy.y').tolist()
+        >>> trajectory.get_values('economy.y').tolist()
         [1.0, 1.5, 1.875, 2.03125]
         >>> sorted(economy.get_tags().laws)
         ['update']

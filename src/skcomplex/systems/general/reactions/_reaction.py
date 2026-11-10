@@ -165,7 +165,7 @@ class ReactionInteraction(JumpInteraction):
         ... )
         >>> system = CompositeSystem(elements=[ScaledElement('box')], interactions=[scaled])
         >>> trajectory = simulate(system, until=0.5, dt=0.01)
-        >>> round(float(trajectory.values('box.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('box.x')[-1]), 3)
         0.368
 
         Every agent of a group decays on its own states, by `k n` in a step of the rate equation:
@@ -181,7 +181,7 @@ class ReactionInteraction(JumpInteraction):
         >>> decay = ReactionInteraction('decay', target='cells', reactants={'n': 1}, k=0.1, form='agent')
         >>> system = CompositeSystem(elements=[cells], interactions=[decay], time=DiscreteTime())
         >>> trajectory = simulate(system, until=2)
-        >>> np.round(trajectory.agents('cells', 2).values['n'], 6).tolist()
+        >>> np.round(trajectory.get_agents('cells', 2).values['n'], 6).tolist()
         [2.43, 2.43]
     """
 

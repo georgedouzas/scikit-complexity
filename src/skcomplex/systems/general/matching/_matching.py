@@ -194,7 +194,12 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         return max(0.0, min(offer.quantity, offer.cap / value))
 
     @staticmethod
-    def _book(trades: list[MatchSpec], requester: SimpleNamespace, provider: SimpleNamespace, value: float) -> None:
+    def _record_match(
+        trades: list[MatchSpec],
+        requester: SimpleNamespace,
+        provider: SimpleNamespace,
+        value: float,
+    ) -> None:
         """Record a match of the largest quantity both sides can match at a value.
 
         It also lowers both offers.
@@ -217,7 +222,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         return (requester.reserve + provider.reserve) / 2
 
     @staticmethod
-    def _order(offers: list[SimpleNamespace], order: str, rng: np.random.Generator) -> list[SimpleNamespace]:
+    def _get_order(offers: list[SimpleNamespace], order: str, rng: np.random.Generator) -> list[SimpleNamespace]:
         """Return offers in random order, by decreasing reserve, or in order of creation."""
         if order == 'reserve':
             return sorted(offers, key=lambda item: (-item.reserve, item.agent.id))
@@ -273,7 +278,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
                     break
                 provider = available[int(rng.integers(len(available)))]
                 if provider.reserve <= requester.reserve:
-                    self._book(trades, requester, provider, self._get_value(requester, provider, rule.value))
+                    self._record_match(trades, requester, provider, self._get_value(requester, provider, rule.value))
         return trades
 
     @staticmethod
@@ -321,7 +326,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             if hasattr(requester.agent, rule.partner):
                 setattr(requester.agent, rule.partner, chosen.agent.id)
             if chosen.reserve <= requester.reserve:
-                self._book(trades, requester, chosen, chosen.reserve)
+                self._record_match(trades, requester, chosen, chosen.reserve)
         return trades
 
     def _match_queue(
@@ -335,7 +340,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
 
         The providers serve at their reserves.
         """
-        queue = self._order(requesters, rule.order, rng)
+        queue = self._get_order(requesters, rule.order, rng)
         stock = sorted(providers, key=lambda provider: provider.reserve)
         trades: list[MatchSpec] = []
         for requester in queue:
@@ -343,7 +348,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
                 if requester.quantity <= 0 or provider.reserve > requester.reserve:
                     break
                 if provider.quantity > 0:
-                    self._book(trades, requester, provider, provider.reserve)
+                    self._record_match(trades, requester, provider, provider.reserve)
         return trades
 
     @staticmethod
@@ -380,13 +385,13 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         They match in random order.
         """
         trades: list[MatchSpec] = []
-        willing_requesters = self._order([item for item in requesters if item.reserve >= value], 'random', rng)
-        willing_providers = self._order([item for item in providers if item.reserve <= value], 'random', rng)
+        willing_requesters = self._get_order([item for item in requesters if item.reserve >= value], 'random', rng)
+        willing_providers = self._get_order([item for item in providers if item.reserve <= value], 'random', rng)
         pairs = iter(willing_providers)
         provider = next(pairs, None)
         for requester in willing_requesters:
             while provider is not None and MatchingInteraction._get_affordable(requester, value) > 0:
-                self._book(trades, requester, provider, value)
+                self._record_match(trades, requester, provider, value)
                 if provider.quantity <= 0:
                     provider = next(pairs, None)
         return trades
@@ -447,7 +452,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
                     and MatchingInteraction._get_affordable(offer, provisions[0][0]) > 0
                 ):
                     resting = provisions[0][2]
-                    self._book(trades, offer, resting, resting.reserve)
+                    self._record_match(trades, offer, resting, resting.reserve)
                     if resting.quantity <= 0:
                         heapq.heappop(provisions)
                 if MatchingInteraction._get_affordable(offer, offer.reserve) > 0:
@@ -455,7 +460,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
                 continue
             while requests and -requests[0][0] >= offer.reserve and offer.quantity > 0:
                 resting = requests[0][2]
-                self._book(trades, resting, offer, resting.reserve)
+                self._record_match(trades, resting, offer, resting.reserve)
                 if MatchingInteraction._get_affordable(resting, resting.reserve) <= 0:
                     heapq.heappop(requests)
             if offer.quantity > 0:
@@ -508,7 +513,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         pairs, marginal = self._get_pair(requesters, providers)
         trades: list[MatchSpec] = []
         for requester, provider in pairs:
-            self._book(trades, requester, provider, marginal)
+            self._record_match(trades, requester, provider, marginal)
         return trades
 
     @staticmethod
@@ -659,7 +664,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         ):
             first, second = wanting[id(requester)], offering[id(provider)]
             value = rule.value if isinstance(rule, PartnerMatchingSpec) else 'midpoint'
-            self._book(trades, first, second, self._get_value(first, second, value))
+            self._record_match(trades, first, second, self._get_value(first, second, value))
         return trades
 
     def _match_function(
@@ -680,7 +685,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         right = left if self.requesters == self.providers else [offer.agent for offer in providers]
         for requester, provider in MatchLaw(self.requesters, self.providers, rule).get_pairs(left, right, rng):
             first, second = wanting[id(requester)], offering[id(provider)]
-            self._book(trades, first, second, self._get_value(first, second, 'midpoint'))
+            self._record_match(trades, first, second, self._get_value(first, second, 'midpoint'))
         return trades
 
     def _get_matches(
