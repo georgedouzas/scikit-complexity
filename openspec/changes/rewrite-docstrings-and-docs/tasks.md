@@ -40,7 +40,7 @@
 
 ## 7. Documents pilot: how the parts fit, the elements reference, and the build tutorial
 
-- [ ] 7.1 Check that `add-identifiability-analysis` is archived before the documents start, and verify with `openspec list`
+- [x] 7.1 Check that `add-identifiability-analysis` is archived before the documents start, and verify with `openspec list`
 - [x] 7.2 Add the Mermaid fence to `properdocs.yml`, name `griffelib` in the docs group of `pyproject.toml`, and verify `pdm lock --check` and a strict documentation build pass
 - [x] 7.3 Add the comparison table and the fact sheets of elements to `docs/generate_parts.py`, reading the docstrings with griffe and the tags from the code, with links to the reference, the API, and the catalog systems that use each class, and verify the strict build shows a fact sheet for every element class
 - [x] 7.4 Add the links from catalog system pages to the core classes they build from in `docs/generate_systems.py`, and verify the page of `SIRSystem` links its element classes in a strict build
@@ -49,7 +49,7 @@
 - [x] 7.7 Add `test_core_components_pages_cover_every_class` to `tests/test_sources.py`, checking the elements page only at first and rejecting an import of `skcomplex.systems` on a family page, and verify it passes, fails when a section is removed, and fails on a planted import of `NonnegativeElement`
 - [x] 7.8 Rewrite `build_a_custom_system/index.md` as the build tutorial with the hare and lynx running example and its cited data, and verify every block runs with `pytest-markdown-docs` in under a minute
 - [x] 7.9 Update the navigation in `properdocs.yml` for the pages of this group, add them to `REWRITTEN_DOCUMENTS`, read each page through for flow and rewrite the sentences that sound generated, and verify `test_documents_read_naturally` and the strict build pass
-- [ ] 7.10 Show the user the elements reference, its fact sheets, the page on how the parts fit, and the build tutorial, and record the approved style, or the corrections, in design.md before group 8 starts
+- [x] 7.10 Show the user the elements reference, its fact sheets, the page on how the parts fit, and the build tutorial, and record the approved style, or the corrections, in design.md before group 8 starts
 
 ## 8. The rest of the reference
 

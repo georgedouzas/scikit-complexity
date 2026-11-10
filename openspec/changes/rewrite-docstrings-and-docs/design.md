@@ -145,6 +145,16 @@ A method keeps an imperative summary, `Args`, `Returns`, and a short example. A 
 that names its concept, such as "Define the interaction that couples each member to its neighbours.", and a package
 `__init__` adds one short paragraph that names what it holds.
 
+The user approved the documents pilot on 2026-11-10: `core_components/index.md`, `core_components/elements.md`, and
+the build tutorial. They are the reference for every later page. A family page opens with what the family is for and
+links the page on how the parts fit and the parts page. Each class has a `## ClassName` section in this order: a
+paragraph on what it models with the first runnable example, the same class in another field with a second example,
+then the paragraphs **How the engine runs it.**, **How it combines.**, **Limits and errors.** with one example that
+catches the error into `message`, and **A field realization.** with a short subclass, then one line that links its fact
+sheet and its API entry. Code blocks end on an expression and print nothing by hand. The prose after a block states
+the values the block returns, taken from a real run. The pelt records of the build tutorial are those distributed
+with Carpenter (2018) in the Stan example models, and the runs start from the records of 1900.
+
 ### The guard
 
 Four tests are added to `tests/core/components/test_base.py`, which already walks the core and holds `FIELD_TERMS`.
