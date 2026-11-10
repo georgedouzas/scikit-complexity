@@ -21,6 +21,8 @@ from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import BarterSystem, contract_curve
 
 SYSTEM = 'barter'
+A, B = 0.6, 0.3
+
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -45,7 +47,6 @@ trajectory = simulate(system, until=30, observers=[observer], random_state=0)
 # `y = b (1 - a) x Y / (a (1 - b) (X - x) + b (1 - a) x)`, within the quantity of one trade, whatever the endowment.
 # Among the prisoners the spread of the logarithm of the price should fall toward zero.
 
-A, B = 0.6, 0.3
 fig, (box, spread) = plt.subplots(1, 2, figsize=(11, 4.5))
 chocolate = np.linspace(0.05, 9.95, 200)
 box.plot(chocolate, contract_curve(chocolate, A, B, 10.0, 10.0), color='black', label='contract curve')

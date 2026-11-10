@@ -21,6 +21,8 @@ from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.macroeconomics import ExchangeRatesSystem
 
 SYSTEM = 'exchange_rates'
+EXPORTS, PRICE, RISE = 32.0, 1.2, 0.1
+
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -41,8 +43,6 @@ trajectory = simulate(system, until=4, observers=[observer])
 # negative once `|e_x| > 1 / (1 + pi)`, about 0.91. Under a floating rate the currency depreciates by the price rise at
 # the first stage, export prices abroad stay put, and imports fall with `e_m`, so the balance becomes the surplus
 # `-pi e_m X0 PH0 (1 + pi)`. The simulated balances should lie on both lines for every elasticity.
-
-EXPORTS, PRICE, RISE = 32.0, 1.2, 0.1
 
 
 def run(elasticity, floating):

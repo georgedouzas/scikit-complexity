@@ -13,6 +13,9 @@ from typing import Any
 import matplotlib.pyplot as plt
 from gallery_tools import RerunScraper, build_from_environment
 
+BUILD = build_from_environment(Path(str(files('gallery_tools'))).parent)
+SCRAPER = RerunScraper(BUILD.backend, BUILD.gallery / '_cache', BUILD.settings)
+
 
 def quiet_show(gallery_conf: dict[str, Any], file: Path) -> None:
     """Make `plt.show` do nothing while an example runs.
@@ -30,9 +33,7 @@ def quiet_show(gallery_conf: dict[str, Any], file: Path) -> None:
     plt.show = lambda *_, **__: None
 
 
-BUILD = build_from_environment(Path(str(files('gallery_tools'))).parent)
 BUILD.mark_stale()
-SCRAPER = RerunScraper(BUILD.backend, BUILD.gallery / '_cache', BUILD.settings)
 
 conf = {
     'image_scrapers': (SCRAPER, 'matplotlib'),

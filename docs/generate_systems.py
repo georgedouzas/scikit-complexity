@@ -29,6 +29,7 @@ GALLERY = build_from_environment(DOCS)
 EQUATION_LAWS = {'rate', 'noise', 'update'}
 DEFAULT_WIDTH = 60
 TAG_FIELDS = ('time', 'space', 'laws', 'randomness', 'domains', 'structure')
+BUILT: dict[str, BaseSystem] = {}
 
 
 def _listing(field: str | None = None) -> list[tuple[str, type[BaseSystem]]]:
@@ -43,18 +44,15 @@ def _listing(field: str | None = None) -> list[tuple[str, type[BaseSystem]]]:
     ]
 
 
-_BUILT: dict[str, BaseSystem] = {}
-
-
 def _built(system: type[BaseSystem]) -> BaseSystem:
     """Return the system a class builds with its default parameters.
 
     It is built once for its tags and its page.
     """
     key = f'{system.__module__}.{system.__qualname__}'
-    if key not in _BUILT:
-        _BUILT[key] = system()
-    return _BUILT[key]
+    if key not in BUILT:
+        BUILT[key] = system()
+    return BUILT[key]
 
 
 def _tags(system: type[BaseSystem]) -> Tags:

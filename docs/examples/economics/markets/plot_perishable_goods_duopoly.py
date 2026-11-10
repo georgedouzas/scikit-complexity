@@ -26,9 +26,9 @@ from skcomplex.systems.economics.markets import PerishableGoodsDuopolySystem
 SYSTEM = 'perishable_goods_duopoly'
 CONTROL = 1.0
 CRITICAL = CONTROL / (1 + CONTROL) ** 2
-
 SHOPS = (0, 1)
 COLORS = ((31, 119, 180), (255, 127, 14))
+
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(

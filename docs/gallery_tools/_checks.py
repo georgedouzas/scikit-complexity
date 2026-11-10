@@ -15,8 +15,6 @@ from PIL import Image
 
 from ._errors import GalleryError
 
-type Box = tuple[int, int, int, int]
-
 MIN_DEVIATION = 2.0
 MIN_COLORFUL_SHARE = 0.0005
 MIN_SATURATION = 0.25
@@ -39,6 +37,9 @@ MIN_SOLID_SHARE = 0.5
 PALETTE_SIZES = (256, 128, 64, 32, 16)
 QUOTED = re.compile(r'`([A-Za-z_][\w./]*)`')
 SENTENCE_END = re.compile(r'(?<=\.)\s+')
+
+
+type Box = tuple[int, int, int, int]
 
 
 def _split(box: Box, shares: Sequence[float], *, horizontal: bool) -> list[Box]:

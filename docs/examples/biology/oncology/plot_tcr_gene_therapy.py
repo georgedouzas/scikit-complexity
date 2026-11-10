@@ -19,6 +19,7 @@ from skcomplex.systems.biology.oncology import TCRGeneTherapySystem
 
 SYSTEM = 'tcr_gene_therapy'
 
+
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 trajectory = simulate(TCRGeneTherapySystem(), observers=[observer])
 
@@ -34,17 +35,17 @@ def rates(y):
     return [1 + 0.05 * A - 0.03 * E + 0.1245 * E / (E + 1e-3), 0.18 * A * (1 - 1e-9 * A) - E * A / (A + 1e5)]
 
 
-E, A = trajectory.get_values('site.E'), trajectory.get_values('site.A')
-E_star, A_star = fsolve(rates, [E[-1], A[-1]])
+effectors, tumour = trajectory.get_values('site.E'), trajectory.get_values('site.A')
+E_star, A_star = fsolve(rates, [effectors[-1], tumour[-1]])
 fig, (series, plane) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, A, label='tumour cells')
-series.plot(trajectory.times, E, label='effector cells')
+series.plot(trajectory.times, tumour, label='tumour cells')
+series.plot(trajectory.times, effectors, label='effector cells')
 series.axhline(A_star, color='grey', linestyle=':', label='dormant tumour')
 series.set_xlabel('time (days)')
 series.set_ylabel('cells')
 series.set_title('Damped tumour-immune cycles')
 series.legend()
-plane.plot(A, E, label='simulated')
+plane.plot(tumour, effectors, label='simulated')
 plane.plot(A_star, E_star, 'o', color='black', label='equilibrium')
 plane.set_xlabel('tumour cells')
 plane.set_ylabel('effector cells')

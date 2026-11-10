@@ -18,6 +18,8 @@ from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.circuits import RlcCircuitSystem
 
 SYSTEM = 'rlc_circuit'
+L, R, C = 1.0, 0.1, 1.0
+
 
 system = RlcCircuitSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
@@ -30,7 +32,6 @@ trajectory = simulate(system, observers=[observer])
 # Driven by `V cos(omega t)`, the steady amplitude should follow the resonance curve
 # `V / sqrt((1 / C - L omega^2)^2 + (R omega)^2)`, peaked at the natural frequency.
 
-L, R, C = 1.0, 0.1, 1.0
 times = trajectory.times
 omega_d = np.sqrt(1 / (L * C) - R**2 / (4 * L**2))
 exact = np.exp(-R * times / (2 * L)) * (np.cos(omega_d * times) + R / (2 * L * omega_d) * np.sin(omega_d * times))

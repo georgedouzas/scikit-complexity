@@ -28,6 +28,9 @@ SYSTEM = 'next_generation_reservoir'
 STEP = 0.025
 LYAPUNOV_TIME = 1 / 0.9056
 VARIABLES = ['x', 'y', 'z']
+TRAINED = 402
+HORIZON = 800
+
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -73,8 +76,6 @@ def lorenz_samples(samples):
     return np.column_stack([run.get_values(f'flow.{name}') for name in VARIABLES])[-samples:]
 
 
-TRAINED = 402
-HORIZON = 800
 values = lorenz_samples(TRAINED + HORIZON + 1)
 trained = NextGenerationReservoirSystem(series=values[: TRAINED + 1])
 run = simulate(trained, until=HORIZON, dt=1)
