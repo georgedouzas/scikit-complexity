@@ -223,6 +223,15 @@ def test_flow_between_quantities_is_rejected():
         PassCompiler().prepare(CompositeSystem(elements=[mixed('m')])).run()
 
 
+def test_ends_of_a_transfer_print_and_compare_by_their_fields():
+    """Test that a source and a sink print as their fields, compare by them, and appear so in an error."""
+    assert (repr(Source()), repr(Sink('drain'))) == ("Source(label='environment')", "Sink(label='drain')")
+    assert Source() == Source('environment')
+    assert Sink('drain') != Sink()
+    with pytest.raises(ValidationError, match=r"or `Source\(\)`, but got Sink\(label='environment'\)\."):
+        TransferLaw(Sink(), Source(), 1.0).prepare()
+
+
 def test_flow_holders_and_labels_are_checked():
     """Test that flows reject parameters as holders, environment to environment, and duplicate labels."""
     with pytest.raises(ValidationError, match='both of its holders'):

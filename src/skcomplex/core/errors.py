@@ -143,10 +143,10 @@ class PhaseSpaceTooLargeError(SpaceTooLargeError):
 
 
 class UnregisteredLawError(ValidationError):
-    """An error for a law of a class that no compiler registered.
+    """An error for a law of a class that the engine has no form for.
 
-    Neither the shared core nor a formalism registered its class, so no compiler can lower it. Register the class, or
-    write the law with a registered class.
+    No form of the engine takes its class, even when it subclasses a core law, so no compiler can lower it. Write the
+    law with a class the core provides, such as `RateLaw` or `UpdateLaw`.
     """
 
 

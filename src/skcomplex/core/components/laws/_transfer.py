@@ -3,18 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec
+from ...specs import BaseSpec, RequirementSpec
 from ._base import BaseLaw
 
 SHIFT = 'shift_member'
 
 
-class Source:
+@dataclass(frozen=True)
+class Source(BaseSpec):
     """A holder outside the system that a transfer takes an amount from.
 
     Unlike a state, it has no value and never runs out. Choose it when an amount enters the system from outside, as the
@@ -33,11 +35,11 @@ class Source:
         'environment'
     """
 
-    def __init__(self, label: str = 'environment') -> None:
-        self.label = label
+    label: str = 'environment'
 
 
-class Sink:
+@dataclass(frozen=True)
+class Sink(BaseSpec):
     """A holder outside the system that a transfer releases an amount to.
 
     Unlike a state, it has no value and never fills. Choose it when an amount leaves the system, as the sink of a
@@ -56,8 +58,7 @@ class Sink:
         'drain'
     """
 
-    def __init__(self, label: str = 'environment') -> None:
-        self.label = label
+    label: str = 'environment'
 
 
 class TransferLaw(BaseLaw):

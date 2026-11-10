@@ -513,10 +513,43 @@ here a lattice of ten by ten with 6400 sites, or a higher `limit` when the memor
 
 ## UnregisteredLawError
 
-The current code does not raise this error. It is reserved for a law of a class that neither the core nor a formalism
-registered with a compiler. A subclass of a core law that a system returns from `_get_laws` is reported today as an
-[IncompatibleLawsError](#incompatiblelawserror) with the code `laws-mixed`, which names the class. The fix is the
-same for both: write the law with a class the core provides, such as `RateLaw` or `UpdateLaw`.
+Each law class compiles to a mathematical form, such as an ordinary differential equation for `RateLaw`. A law of a
+class the engine has no form for raises this error, even a subclass of a core law. Here a growth law subclasses
+`RateLaw`.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.errors import UnregisteredLawError
+from skcomplex.core.specs import StateSpec
+
+
+class GrowthLaw(RateLaw):
+    pass
+
+
+class HaresElement(Element):
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 30.0):
+        super().__init__(label)
+        self.x = x
+
+    def _get_laws(self, namespace):
+        return [GrowthLaw(namespace.x, 0.55 * namespace.x)]
+
+
+try:
+    simulate(CompositeSystem(elements=[HaresElement('hares')]), until=1)
+except UnregisteredLawError as error:
+    message = str(error)
+message.splitlines()[-1]
+```
+
+The code is `law-unregistered`. The message says that the law class `GrowthLaw` of `hares` has no form the engine
+knows. The fix writes the law with a class the core provides, here `RateLaw(namespace.x, 0.55 * namespace.x)`.
 
 ## IncompatibleLawsError
 

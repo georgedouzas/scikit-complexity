@@ -24,7 +24,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import LammpsSolver, MilsteinSolver, PontryaginSolver, RK4Solver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
-from skcomplex.core.errors import RoleElementError, ValidationError, ValidationWarning
+from skcomplex.core.errors import RoleElementError, UnregisteredLawError, ValidationError, ValidationWarning
 from skcomplex.core.specs import (
     IssueSpec,
     MoveSpec,
@@ -180,6 +180,27 @@ def test_mixed_laws_suggest_partitions():
     assert 'RateLaw: rabbits' in issue.message
     assert 'UpdateLaw: clock' in issue.message
     assert 'nested system' in issue.fix
+
+
+class ScaledRateLaw(RateLaw):
+    """A rate law of a class the engine has no form for."""
+
+
+class ScaledStockElement(StockElement):
+    """Stock whose decay is a law of a class with no form."""
+
+    def _get_laws(self, s):
+        """Return the decay."""
+        return [ScaledRateLaw(s.n, -s.n)]
+
+
+def test_law_of_a_class_with_no_form_names_its_class():
+    """Test that a law of a class with no form raises the unregistered law error, not a mix of laws."""
+    system = CompositeSystem(elements=[ScaledStockElement('rabbits'), CounterElement('clock')])
+    (issue,) = PassCompiler().prepare(system).report_.errors
+    assert (issue.code, issue.error) == ('law-unregistered', UnregisteredLawError)
+    with pytest.raises(UnregisteredLawError, match=r'rabbits: The law class ScaledRateLaw has no form'):
+        PassCompiler().prepare(system).run()
 
 
 def test_mixed_laws_in_nested_systems_are_valid():

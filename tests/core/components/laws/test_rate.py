@@ -183,6 +183,21 @@ def test_order_mismatch_is_rejected():
         simulate(system, until=1)
 
 
+class SecondOrderStockElement(StockElement):
+    """Stock whose decay asserts the second derivative on its state of order 1."""
+
+    def _get_laws(self, s):
+        """Return the mismatched decay."""
+        return [RateLaw(s.n, -s.n, order=2)]
+
+
+def test_order_mismatch_of_a_lone_state_is_rejected():
+    """Test that a law of order 2 on the only state, of order 1, is rejected when no other state has a higher order."""
+    system = CompositeSystem(elements=[SecondOrderStockElement('a')])
+    with pytest.raises(ValidationError, match=r'a\.n gives the derivative of order 2, but the state has order 1'):
+        simulate(system, until=1, dt=0.5)
+
+
 def test_velocity_verlet_runs_order_two_position():
     """Test that velocity Verlet recognises a position of order 2 and conserves the oscillator's energy."""
     system = CompositeSystem(elements=[MassElement('mass')], interactions=[SpringInteraction('spring', target='mass')])

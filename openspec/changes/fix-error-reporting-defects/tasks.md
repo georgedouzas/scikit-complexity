@@ -7,9 +7,9 @@
 
 ## 2. Laws
 
-- [ ] 2.1 Run the order check of rate and noise laws before the early return of the orders pass, verified by a test in `tests/core/components/laws/test_rate.py` that a lone first-order state with `RateLaw(order=2)` raises `ValidationError`
-- [ ] 2.2 Make `Source` and `Sink` frozen dataclasses with the field `label`, verified by tests in `tests/core/components/laws/test_transfer.py` of their repr, their equality, and an error message that shows `Sink(label='environment')`
-- [ ] 2.3 Raise `UnregisteredLawError` in the plan pass for a law class with no form, before the mixed laws issue, verified by a test with a law class the engine has no form for, and update its troubleshooting section to say it is raised
+- [x] 2.1 Run the order check of rate and noise laws before the early return of the orders pass, verified by a test in `tests/core/components/laws/test_rate.py` that a lone first-order state with `RateLaw(order=2)` raises `ValidationError`
+- [x] 2.2 Make `Source` and `Sink` frozen dataclasses with the field `label`, verified by tests in `tests/core/components/laws/test_transfer.py` of their repr, their equality, and an error message that shows `Sink(label='environment')`
+- [x] 2.3 Raise `UnregisteredLawError` in the plan pass for a law class with no form, before the mixed laws issue, verified by a test with a law class the engine has no form for, and update its troubleshooting section to say it is raised
 
 ## 3. Spaces
 

@@ -276,22 +276,45 @@ class OrdersPass(BasePass):
         return value.subs(replacements) if replacements else value
 
     @staticmethod
-    def _retarget(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _OrdersSpec) -> RateLaw | NoiseLaw:
-        """Return a rate or noise law that targets the highest derivative of its state.
-
-        It first checks its order.
-        """
-        items = components_of(law._get_targets()[0])
-        references = [spec.references.get(item) for item in items]
+    def _get_state_order(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _OrdersSpec) -> int:
+        """Return the declared order of the state of a rate or noise law."""
+        references = [spec.references.get(item) for item in components_of(law._get_targets()[0])]
         declared = {orders.orders.get(reference.entry.name, 1) for reference in references if reference is not None}
-        order = max(declared, default=1)
+        return max(declared, default=1)
+
+    @staticmethod
+    def _check_order(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _OrdersSpec) -> None:
+        """Raise an error for a rate or noise law of another order than its state.
+
+        Args:
+            law:
+                The rate or noise law.
+
+            spec:
+                The kernel spec of the owner of the law.
+
+            orders:
+                The declared orders and lags of the states.
+
+        Raises:
+            ValidationError:
+                The law gives a derivative of another order than the order of its state.
+        """
+        order = OrdersPass._get_state_order(law, spec, orders)
         if law.order is not None and law.order != order:
+            references = [spec.references.get(item) for item in components_of(law._get_targets()[0])]
             names = ', '.join(sorted({reference.entry.name for reference in references if reference is not None}))
             error_msg = (
                 f'A {type(law).__name__} of {spec.owner} on {names} gives the derivative of order {law.order}, but the '
                 f'state has order {order}. Match the law to the order declared with `state(order=...)`.'
             )
             raise ValidationError(error_msg)
+
+    @staticmethod
+    def _retarget(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _OrdersSpec) -> RateLaw | NoiseLaw:
+        """Return a rate or noise law that targets the highest derivative of its state."""
+        items = components_of(law._get_targets()[0])
+        order = OrdersPass._get_state_order(law, spec, orders)
         if order == 1:
             return law
         tops = [OrdersPass._get_companion_symbol(spec, item, f'_d{order - 1}') for item in items]
@@ -432,6 +455,9 @@ class OrdersPass(BasePass):
 
         Equations become relations, and chains are added.
         """
+        for law in laws:
+            if isinstance(law, RateLaw | NoiseLaw):
+                OrdersPass._check_order(law, spec, orders)
         if not orders.orders and not orders.lags and not any(isinstance(law, EquationLaw) for law in laws):
             return list(laws)
         result: list[BaseLaw | _RelationSpec] = []

@@ -7,7 +7,7 @@ from collections.abc import Iterable, Mapping
 
 from ....components.specs import CensusSpec
 from ....components.systems import CompositeSystem
-from ....errors import IncompatibleLawsError
+from ....errors import IncompatibleLawsError, UnregisteredLawError
 from ....specs import IssueSpec
 from ....specs._owners_spec import _OwnersSpec
 from ....specs._plan_spec import _PlanSpec
@@ -16,6 +16,7 @@ from ....types import FormKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._forms import FORMS
+from .._laws import FORMLESS_LAWS
 from ._form import FormPass
 
 
@@ -68,6 +69,33 @@ class PlanPass(BasePass):
         else:
             message = f'No form takes the laws of this system together ({PlanPass._get_listed(lowered)}).'
         return IssueSpec('laws-mixed', path, message, fix, error=IncompatibleLawsError)
+
+    @staticmethod
+    def _get_unregistered_issues(kinds: Mapping[str, set[type]]) -> list[IssueSpec]:
+        """Return the issues of the law classes that no form takes and that need one.
+
+        Args:
+            kinds:
+                The law classes of every component, by path.
+
+        Returns:
+            issues:
+                One issue for every component and law class that has no form.
+        """
+        registered = set().union(*FORMS)
+        fix = 'Write the law with a class the core provides, such as `RateLaw` or `UpdateLaw`.'
+        return [
+            IssueSpec(
+                'law-unregistered',
+                owner,
+                f'The law class {kind.__name__} has no form the engine knows.',
+                fix,
+                error=UnregisteredLawError,
+            )
+            for owner, classes in sorted(kinds.items())
+            for kind in sorted(classes, key=lambda kind: kind.__name__)
+            if kind not in registered and not issubclass(kind, FORMLESS_LAWS)
+        ]
 
     @staticmethod
     def _fits(owners: _OwnersSpec, declared: dict[str, set[type]], lowered: dict[str, set[type]]) -> bool:
@@ -138,6 +166,9 @@ class PlanPass(BasePass):
         declared: dict[str, set[type]] = {}
         for record in census.records:
             declared.setdefault(record.owner, set()).add(type(record.law))
+        unregistered = PlanPass._get_unregistered_issues(kinds)
+        if unregistered:
+            return _PlanSpec((), tuple(unregistered))
         found = list(solvers or ())
         partitions, issues = PlanPass._get_planned(census.system, _OwnersSpec(declared, dict(kinds), found))
         return _PlanSpec(tuple(partitions), tuple(issues))
