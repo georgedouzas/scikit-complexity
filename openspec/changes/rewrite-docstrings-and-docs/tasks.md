@@ -92,9 +92,9 @@
 
 ## 12. Dead code
 
-- [ ] 12.1 Scan `src/skcomplex` for dead code with vulture at high confidence, run from a throwaway environment such as `uvx vulture`, never as a project dependency, plus an AST check for private module functions, private methods, private constants, and private classes that nothing references in `src`, `tests`, or `docs`, and find modules nothing imports, unreachable branches, parameters never read, and compatibility leftovers
-- [ ] 12.2 Review every hit by hand: a public name in `__all__` is API and stays, and a name used dynamically stays, such as one read by `getattr`, a Sage hook, a scikit-learn or Mesa protocol, pickling, an entry point, a registry, a name built from a string, or a Numba kernel found as a global
-- [ ] 12.3 Remove the dead code with the tests that only exercise it, one commit per package, keeping behaviour identical, and list what was removed in each commit body
+- [x] 12.1 Scan `src/skcomplex` for dead code with vulture at high confidence, run from a throwaway environment such as `uvx vulture`, never as a project dependency, plus an AST check for private module functions, private methods, private constants, and private classes that nothing references in `src`, `tests`, or `docs`, and find modules nothing imports, unreachable branches, parameters never read, and compatibility leftovers
+- [x] 12.2 Review every hit by hand: a public name in `__all__` is API and stays, and a name used dynamically stays, such as one read by `getattr`, a Sage hook, a scikit-learn or Mesa protocol, pickling, an entry point, a registry, a name built from a string, or a Numba kernel found as a global
+- [x] 12.3 Remove the dead code with the tests that only exercise it, one commit per package, keeping behaviour identical, and list what was removed in each commit body
 - [ ] 12.4 Verify with the full checks before integration
 
 ## 13. Integration
