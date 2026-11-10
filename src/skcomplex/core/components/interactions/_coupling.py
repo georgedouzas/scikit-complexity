@@ -1,7 +1,4 @@
-"""Define coupling.
-
-Coupling gives every member a reduction over other members of a function of both of them.
-"""
+"""Define the interaction that couples each member to its neighbours."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -40,123 +37,162 @@ type Part = Callable[[Target, Target], Target]
 
 
 class CouplingInteraction(NeighborInteraction):
-    """Coupling of every member to other members.
+    """An interaction that combines a function of each member and its neighbours.
 
-    The coupling is a reduction over the other members of a function of both members. Every member `i` gets the
-    reduction over other members `j` of `function(namespace)`, where `namespace.member` reads the states of `i`,
-    `namespace.other` those of `j`, `namespace.edge` the member of the edge group that joins them, or `None`, and the
-    namespace also holds the parameters and the time `t`. The function is the difference `x_j - x_i` of the state `read`
-    by default. The members `j` are, by `mode`:
+    Every member `i` of a group receives a sum, a mean, a maximum, or another reduction of `function` over the members
+    `j` it is coupled to. By default the function is the difference `x_j - x_i` of the state `read`. The result adds to
+    the rate of the state `write`, or sets its next value at every step, as `form` says.
 
-    - `'edges'`: the neighbours of `i` along the edges of its lattice or network, or within the `neighborhood`.
-    - `'group'`: every other member of the group, or every member of the group `source` when it is given.
+    The argument `mode` chooses the members `j`:
 
-    In the mode `'group'` the roles may also bind separate elements. A target that lists elements couples every element
-    to the other elements of the list, a single target element is a hub that reduces over every member of the group
-    `source`, and a source that is one element or a list of elements couples every member of the target to them. The
-    reduction over separate elements is written out term by term.
-    - `'next'`: the next member of the group in member order, the first after the last.
-    - `'hyperedges'`: the other members of every hyperedge around `i` of `size` members, or of every size, on a network
-      with hyperedges, or with a `neighborhood` in a continuous space, every set of `size - 1` current neighbours of
-      `i`. The function then reads `namespace.member`, `namespace.others`, the other members of one hyperedge in its
-      order, and `namespace.members`, all its members, which reductions over them read, and the reduction runs over the
-      hyperedges around `i`. The default function is the sum over the other members of the difference of `read`.
+    - `'edges'`: the neighbours of `i` along the edges of its lattice or network, or within `neighborhood`.
+    - `'group'`: every other member of the group, or the members of the group `source`.
+    - `'next'`: the next member in order, and the first after the last, as in a ring.
+    - `'hyperedges'`: the other members of each hyperedge around `i`, a link that joins more than two members of a
+      network.
 
-    With `include_self`, the reduction also runs over `j = i`. Every term `f_ij` has a weight `w_ij`: on edges, the
-    state `weights` of the edge group, which a subclass binds with a second role, over the group, the entry `W_ij` of
-    the matrix `weights` or of the shaped parameter of the interaction that `weights` names, which a subclass declares,
-    and in every mode a callable `weights(namespace)` of the namespace of the term, such as an
-    indicator of the states of both members. The reductions are `'sum'`, `sum_j w_ij f_ij`, `'mean'`, the sum divided
-    by the number of members `j`, `'max'` and `'min'`, the largest and smallest `w_ij f_ij`, `'normalized-mean'`,
-    `sum_j w_ij f_ij / sum_j w_ij`, and `'circular-mean'`, the angle `arctan2(sum_j w_ij sin f_ij, sum_j w_ij cos
-    f_ij)`. The state `read` of `j` is read `delay` earlier, and the one of `i` shifted by the phase lag `lag`, when
-    they are not 0.
+    Unlike `PairInteraction`, which runs its laws for every pair within a cutoff, it reduces over the members each
+    member is coupled to, by edges, a group, or hyperedges, and it can either add to a rate or set the next value of a
+    state. Choose it when every member responds to an aggregate of its neighbours.
 
-    In the form `'rate'` the reduction adds to the rate of the state `write`, and in the form `'map'` it sets the next
-    value of `write` every step of discrete time to `combine(namespace, reduction)`, where `namespace.member` reads the
-    states of `i` and the namespace holds the parameters and the time, or to the reduction itself by default. The sum
-    and the mean of the rate on the edges of a lattice or network run once per edge along both directions, and every
-    other coupling runs once per member. On a `FieldElement`, a rate that is a constant times the difference of the
-    ends becomes that constant times the field's Laplacian times its squared spacing, and on a lattice the other end is
-    read across the field's boundary conditions, so beyond fixed edges it reads the fixed value.
+    It appears in many fields. Phase oscillators, such as fireflies that flash in step or the generators of a power
+    grid, sum the sine of their phase differences. Heat flow between the cells of a lattice and consensus in a social
+    network sum differences of a state. Flocks of birds and schools of fish average the headings of their neighbours
+    within a radius.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'consensus'`.
 
         target:
-            The path of the group of the members, or in the mode `'group'` the path of one element or the paths of
-            separate elements.
+            The path of the group of the members, such as `'people'`. In the mode `'group'` it may also be the path of
+            one element, a hub that reduces over every member of `source`, or the paths of separate elements, each
+            coupled to the others in the list.
 
         source:
-            The path of the group, the element, or the paths of the separate elements of the other members in the mode
-            `'group'`, or `None` for the members of the target.
+            The path of the group whose members are the `j` of the mode `'group'`, or `None` for the members of the
+            target. It may also be the path of one element or the paths of separate elements, to which every member of
+            the target is coupled term by term.
 
         read:
-            The name of the state that the default function, the delay, and the lag read.
+            The name of the state that the default function, the delay, and the lag read, such as `'theta'` for a phase.
 
         write:
-            The name of the state that the coupling changes.
+            The name of the state that the coupling changes, such as `'theta'`.
 
         function:
-            The term of one other member, a callable of the namespace, or `None` for the difference of `read`.
+            The term `f_ij` of one other member, a function of a namespace, or `None` for the difference `x_j - x_i` of
+            `read`. The namespace reads the states of `i` from `member`, those of `j` from `other`, and the member of
+            the edge group that joins them from `edge`, or `None`. It also holds the parameters and the time `t`. In the
+            mode `'hyperedges'` it reads `others`, the other members of one hyperedge in order, and `members`, all its
+            members, in place of `other`, and the default sums the differences of `read` over the other members.
 
         reduce:
-            `'sum'`, `'mean'`, `'max'`, `'min'`, `'normalized-mean'`, or `'circular-mean'`.
+            How the weighted terms `w_ij f_ij` combine over the members `j`.
+
+            - `'sum'`: their sum, `sum_j w_ij f_ij`.
+            - `'mean'`: the sum divided by the number of members `j`.
+            - `'max'` and `'min'`: the largest and the smallest term.
+            - `'normalized-mean'`: the sum divided by the sum of the weights, `sum_j w_ij f_ij / sum_j w_ij`.
+            - `'circular-mean'`: the mean angle, `arctan2(sum_j w_ij sin f_ij, sum_j w_ij cos f_ij)`, as for headings.
 
         mode:
-            `'edges'`, `'group'`, `'next'`, or `'hyperedges'`.
+            How the members `j` of each member `i` are chosen, one of the modes above.
 
         size:
-            The number of members of the hyperedges of the mode `'hyperedges'`, or `None` for every size.
+            The number of members of each hyperedge in the mode `'hyperedges'`, such as `3` for triangles, or `None` for
+            every size.
 
         weights:
-            The name of the state of the edge group in the mode `'edges'`, a matrix with one row per member and one
-            column per other member or the name of a parameter of the interaction declared
-            `ParameterSpec(shape=('target', 'source'))` in the mode `'group'`, a callable of the namespace of a term in
-            any mode, or `None` for no weights.
+            The weight `w_ij` of each term, or `None` for a weight of 1.
+
+            - In the mode `'edges'`, the name of a state of the edge group, which a subclass binds with a second role.
+            - In the mode `'group'`, a matrix with one row per member and one column per other member, or the name of a
+              parameter that a subclass declares with `ParameterSpec(shape=('target', 'source'))`.
+            - In any mode, a function of the namespace of the term, such as an indicator that both members agree.
 
         include_self:
-            Whether the reduction also runs over the member itself.
+            Whether the reduction also runs over `j = i`.
 
         lag:
-            The phase lag added to the state `read` of the member.
+            The phase lag added to the state `read` of the member, in the units of that state, such as `0.5` radians.
 
         delay:
-            The delay of the state `read` of the other member, 0 for none.
+            How long ago the state `read` of the other member is read, in units of time, or 0 for the present value.
 
         form:
-            `'rate'` or `'map'`.
+            What the reduction changes.
+
+            - `'rate'`: it adds to the rate of `write`. The sum and the mean on the edges of a lattice or network run
+              once per edge in both directions, and every other coupling runs once per member. On a `FieldElement`, a
+              rate that is a constant times the difference of the two ends becomes that constant times the Laplacian of
+              the field times its squared spacing, and the other end is read across the boundary conditions of the
+              field.
+            - `'map'`: it sets the next value of `write` at every step of discrete time.
 
         combine:
-            The next value in the form `'map'`, a callable of the namespace of the member and the reduction, or `None`
-            for the default.
+            The next value in the form `'map'`, a function of the namespace of the member and the reduction, or `None`
+            for the reduction itself. The namespace reads the states of `i` from `member` and holds the parameters and
+            the time.
 
         neighborhood:
-            The neighbourhood of the mode `'edges'`, such as `RadiusNeighborhood(1.0)` in a continuous space, or `None`
-            for the edges of the lattice or network. In the mode `'hyperedges'`, the neighbourhood of a continuous
-            space whose current neighbours form the hyperedges, or `None` for the hyperedges of the network.
+            In the mode `'edges'`, the neighbourhood that gives the members `j`, such as `RadiusNeighborhood(1.0)` in a
+            continuous space, or `None` for the edges of the lattice or network. In the mode `'hyperedges'`, the
+            neighbourhood of a continuous space whose sets of `size - 1` current neighbours form the hyperedges, or
+            `None` for the hyperedges of the network.
 
         layer:
-            The layer of the network whose edges the interaction runs on, or `None` for the graph of the network.
+            The layer of the network whose edges the interaction runs on, such as `'work'`, or `None` for the main
+            graph.
 
         phase:
-            The phase of the step the map form runs in, or `None` for the default phase.
+            The phase of the step in which the map form runs, or `None` for the default phase.
 
     Raises:
         ValidationError:
             A variant is unknown, the function or the combination is not callable, the weights, the source, the
-            reduction, or the neighbourhood do not suit the mode and the form, or the phase or the written states do
-            not suit the form, raised by `prepare`.
+            reduction, or the neighbourhood do not suit the mode and the form, or the phase or the written states do not
+            suit the form, raised by `prepare`.
 
     Examples:
-        >>> from types import SimpleNamespace
-        >>> from sage.all__sagemath_symbolics import sin, var
+        Two fireflies, as in the Kuramoto model of synchrony, pull each other by the sine of their phase difference
+        until they flash in step.
+
+        >>> from sage.all__sagemath_symbolics import sin
+        >>> from skcomplex.core.components.elements import DeclaredElement, GroupElement
         >>> from skcomplex.core.components.interactions import CouplingInteraction
-        >>> source, target = SimpleNamespace(theta=var('a')), SimpleNamespace(theta=var('b'))
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+        >>> phases = {'variables': {'theta': DeclaredVariableSpec(0.0, StateSpec())}, 'theta': [0.0, 1.0]}
+        >>> fireflies = GroupElement('fireflies', element=DeclaredElement, size=2, values=phases)
         >>> sine = lambda s: sin(s.other.theta - s.member.theta)
-        >>> coupling = CouplingInteraction('coupling', target='oscillators', read='theta', write='theta', function=sine)
-        >>> [law.value for law in coupling.prepare().run(SimpleNamespace(source=source, target=target)).laws_]
+        >>> pull = CouplingInteraction(
+        ...     'pull', target='fireflies', read='theta', write='theta', function=sine, mode='group'
+        ... )
+        >>> system = CompositeSystem(elements=[fireflies], interactions=[pull])
+        >>> simulate(system, until=4, dt=2.0).get_values('fireflies.theta').round(3).tolist()
+        [[0.0, 1.0], [0.49, 0.51], [0.5, 0.5]]
+
+        Three people on a line move their opinions toward those of their neighbours until they agree on the mean.
+
+        >>> import networkx as nx
+        >>> from skcomplex.core.components.spaces import NetworkSpace
+        >>> opinions = {'variables': {'x': DeclaredVariableSpec(0.0, StateSpec())}, 'x': [0.0, 3.0, 9.0]}
+        >>> line = NetworkSpace(nx.path_graph(3))
+        >>> people = GroupElement('people', element=DeclaredElement, space=line, on='sites', values=opinions)
+        >>> consensus = CouplingInteraction('consensus', target='people')
+        >>> system = CompositeSystem(elements=[people], interactions=[consensus])
+        >>> simulate(system, until=10, dt=10.0).get_values('people.x').round(2).tolist()
+        [[0.0, 3.0, 9.0], [4.0, 4.0, 4.0]]
+
+        On edges the coupling writes its laws once per edge, and each law reads the states of both ends.
+
+        >>> from types import SimpleNamespace
+        >>> from sage.all__sagemath_symbolics import var
+        >>> source, target = SimpleNamespace(theta=var('a')), SimpleNamespace(theta=var('b'))
+        >>> edges = CouplingInteraction('coupling', target='oscillators', read='theta', write='theta', function=sine)
+        >>> [law.value for law in edges.prepare().run(SimpleNamespace(source=source, target=target)).laws_]
         [sin(a - b), sin(-a + b)]
     """
 
