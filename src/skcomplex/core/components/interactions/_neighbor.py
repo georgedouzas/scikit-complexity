@@ -1,4 +1,4 @@
-"""Define neighbour interactions, whose laws run for every edge of a network."""
+"""Define the interaction whose laws run once for every edge of a network."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,39 +13,30 @@ from ._base import BaseInteraction
 
 
 class NeighborInteraction(BaseInteraction):
-    """Base class of interactions whose laws run once for every edge.
+    """An interaction whose laws run once for every edge of a network or lattice.
 
-    The edges are those of the network of the nodes a role binds. A role binds a group with one member per node or site,
-    and a second role may bind a group on the edges of the same network and layer. The laws are written for one edge and
-    read `namespace.source` and `namespace.target`, the members at both ends, `namespace.edge`, the member of the edge
+    A role binds a group with one member per node or site, and a second role may bind a group on the edges of the same
+    network, such as the conductance of each line of a power grid. The laws are written for one edge. They read
+    `namespace.source` and `namespace.target`, the members at its two ends, `namespace.edge`, the member of the edge
     group, and the parameters. On a directed graph the ends follow the direction of the edge, and on an undirected graph
-    the source comes first in node order. Rate, noise, and jump laws may target any of them, and update laws the edge
-    member. `delayed` reads the past state of either end.
+    the source comes first in node order. On fixed edges `namespace.source.degree` and `namespace.target.degree` are the
+    numbers of edges at each end.
 
-    On fixed edges, `namespace.source.degree` and `namespace.target.degree` are the degrees of the ends, the number of
-    edges of the layer at every node, both ways on a directed graph. A law that reads no edge member and, outside its
-    reductions, only one end is a law of that end's member, and runs once per member rather than once per edge. Inside
-    its reductions the other end stands for the other members of the group, so
-    `mean(f(namespace.source.x, namespace.target.x), over=namespace.source)` is the mean of `f` over every member for
-    the target. Cascade, drive, and local rule laws are laws of the members, and a cascade records its cascades
-    as events.
+    A law that reads no edge member and only one end outside its reductions runs once per member, not once per edge.
+    Inside a reduction the other end stands for the other members, so `mean(f(s.source.x, s.target.x), over=s.source)`
+    is the mean of `f` over the neighbours of each target. A second role may also bind a second group of nodes, with no
+    edges, and the reductions then run over its members. Roles may bind separate elements too, and `namespace.source` is
+    then the tuple of their namespaces. A subclass that names its ends otherwise returns their names from `_get_role`.
 
-    Instead of a group on the edges, a second role may bind a second group of nodes. The laws then run once per member
-    of the group of the first role, which `namespace.target` reads, and their reductions run over the members of the
-    second group, which `namespace.source` reads, without edges. A role declared `RoleSpec(optional=True)` and bound to
-    `None` binds nothing.
+    Unlike `Interaction`, which runs once per bound member, it runs once per edge, so each law sees both ends of a link.
+    Choose it when a change flows along the links of a lattice or network, such as diffusion or a flow on a line.
 
-    The roles may also bind separate elements. When the first role binds one element or a list of elements, the laws
-    run once per element, which `namespace.target` reads. When the second role binds a group, `namespace.source` reads
-    its members inside reductions, and otherwise `namespace.source` is the tuple of the namespaces of the elements the
-    second role binds, or of the other elements of the list the first role binds.
-
-    The laws read every end under the name `_get_role` returns for `'source'`, `'target'`, and `'edge'`, the end
-    itself by default, so a subclass that names its roles otherwise reads the ends under its own names.
+    It appears in many fields. Heat flows between neighbouring cells of a lattice, a disease spreads along the contacts
+    of a network, and power flows along the lines of a grid.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'diffusion'`.
 
         layer:
             The layer of the network whose edges the interaction runs on, or `None` for the layer of the edge group it

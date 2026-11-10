@@ -1,7 +1,4 @@
-"""Define transfers.
-
-Transfers move amounts of states between members, the cells agents stand on, sources, and sinks.
-"""
+"""Define the interaction that moves amounts of states between members."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -46,61 +43,39 @@ type Settlement = Callable[..., None]
 
 
 class TransferInteraction(Interaction):
-    """Transfer of amounts of states from source-role members to target-role members.
+    """An interaction that moves amounts of states from one member to another.
 
-    A leg moves an amount out of a state of the source member, or out of `Source()`, into a state of the target member,
-    or into `Sink()`. The transfer has a first leg, `state` into `into` by `amount`, and any further `legs`, each
-    `(state, into, amount)` or `(state, into, amount, flow)`. The amounts of all legs are read before any of them
-    moves, so a leg sees the states as they were before the transfer. A guard skips the transfer where it does not
-    hold.
+    A leg moves an amount out of a state of the source member, or out of `Source()`, the environment, into a state of
+    the target member, or into `Sink()`. The first leg moves `amount` from `state` into `into`, and `legs` add more. All
+    amounts are read before any moves, so each leg sees the states as they were before the transfer. What a source state
+    loses, the target state gains, unless a leg starts at `Source()` or ends at `Sink()`. A guard skips the transfer
+    where it does not hold.
 
-    The symbolic form reports the amount of every leg as a flow. A leg named by its `flow` is reported under that
-    name: under the element or group, as `<path>.<flow>`, when the source and the target are one element or group,
-    since the flow then moves a quantity within it like a flow of its own, and under the interaction, as
-    `<label>.<flow>`, otherwise, as it is for a subclass that names its roles otherwise. A leg without a name is
-    reported under the interaction as `<label>.flow_<index>`.
+    The argument `form` chooses how the transfer runs:
 
-    The form chooses how the transfer lowers:
+    - `'symbolic'`: transfer laws between the source and the target of one element, or between member `i` of both
+      groups. The amounts, the guard, and the rates are numbers or functions of the namespace, which reads the roles as
+      `namespace.source` and `namespace.target`. With a `rate` the amount moves in jumps, and with `offset` each member
+      transfers to the member `offset` places along the group. Every leg is reported as a flow.
+    - `'agent'`: an agent rule, whose amounts and guard are functions of the source agent, the target agent, and the
+      system view. The members are paired by `pairing`, and the pairs act in random order, or each member of `actor`
+      acts in its own activation under the schedule `'member'`.
 
-    - `'symbolic'` lowers to `TransferLaw`s between the source and the target of one element, or member `i` of both
-      groups. The amounts, the guard, and the rates are numbers or functions of the namespace, and the roles are read
-      as `namespace.source` and `namespace.target`. With a `rate`, the amount is the size of a jump at the rate, and
-      with a `reverse_rate` jumps also move the amounts back from the target to the source at that rate, so a leg from
-      `Source()` returns its amount to the environment. With an `offset`, the source is a group and every member
-      transfers along an edge of the group order, to the member `offset` places along it, which `namespace.target`
-      reads. Past the ends of a `'fixed'` boundary no member is there, and the edge moves nothing. A draw in an amount
-      is one draw per edge, which both of its ends read, so the amounts of a step move in parallel. A leg end
-      `'<role>.<state>'` names the state of the element or group another role binds, so one transfer moves amounts
-      between several holders, such as the payments of a circuit of sectors, and a subclass that declares parameters
-      reads them in its amounts. A subclass that names its roles otherwise returns their names from `_get_role`, or
-      the namespaces of the source and the target of every pair from `_get_holders`.
-    - `'agent'` lowers to an agent rule, whose amounts and guard are numbers or functions of the source agent, the
-      target agent, and the system view. The pairing `'members'` pairs member `i` of both groups, `'random'` pairs every
-      source member with a random target member, `'pairs'` draws disjoint random pairs, `'neighbors'` pairs every
-      source member with the target members in the cells or nodes around it, `'neighbor-pairs'` draws disjoint random
-      pairs of neighbours, every source member in random order taking a random unpaired target member around it, and
-      `'cell'` pairs the source and target members that stand in one cell or node. With a `fallback` group, the members
-      of that group are the targets of a step in which no target member lives. With the pairing `'site'` the target
-      role binds a field, and every source member moves its amounts into the site of the field at its cell or node, so
-      a negative amount takes from the site. The functions of this pairing take the cell of the source agent in place
-      of a target agent. With `remove`, the source or the target member of every pair that transfers is removed, as an
-      agent eaten whole. The named pairings other than `'members'` and `'site'` are shorthands of a `PartnerSpec`, which
-      pairs every source member with partners within a radius, by score, or with a fallback. A `settlement` receives
-      both partners and the amounts of the legs, read once, and changes the states in place of the legs, so one draw
-      credits both ends. A subclass that names its roles otherwise returns their names from `_get_role`.
+    A leg end `'<role>.<state>'` names a state of the element another role binds, so one transfer moves amounts between
+    several holders, such as the payments of a circuit of sectors. A leg end of the agent form may also name
+    `'<reference>.<state>'`, the state of the member that a reference state of the agent names, such as
+    `'bank.deposits'` for the deposits of a customer's bank. A subclass that names its roles otherwise returns their
+    names from `_get_role`.
 
-    Under the schedule `'random-sequential'` the pairs act in random order. Under `'member'` every member of the
-    `actor` role acts in its own activation, together with the rules of its element and the other member
-    interactions, in the order the system lists them: it transfers with its partners, the members of the other role
-    that the pairing `'random'`, `'neighbors'`, or `'cell'` gives it, or with `partners` of them drawn at random, and
-    with itself under the pairing `'members'` within one group.
-    A leg end of the agent form may name `'<reference>.<state>'`, the state of the member that a reference state of
-    the agent names, such as `'bank.deposits'` for the deposits of a customer's bank, declared
-    `StateSpec(reference='banks')`.
+    Unlike `RateInteraction`, which changes one state, it takes from one state what it adds to another, so the amount is
+    conserved. Choose it when a quantity moves between holders, such as money, people, or mass.
+
+    It appears in many fields. People move from susceptible to infected in an epidemic, money flows between accounts in
+    an economy, water flows between reservoirs, and predators gain the biomass of the prey they eat.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'infection'`.
 
         source:
             The path of the element or group the amounts leave.
@@ -119,15 +94,26 @@ class TransferInteraction(Interaction):
             The amount of the first leg, a number or a function.
 
         flow:
-            The name the symbolic form reports the first leg under, or the empty string for `flow_0`.
+            The name the symbolic form reports the first leg under, such as `'payment'`, or the empty string for
+            `flow_0`. A named flow is reported as `<path>.<flow>` when the source and the target are one element or
+            group, and as `<label>.<flow>` otherwise. A leg without a name is reported as `<label>.flow_<index>`.
 
         pairing:
-            How members are paired, one of `'members'`, `'random'`, `'pairs'`, `'neighbors'`, `'neighbor-pairs'`,
-            `'cell'`, or `'site'`, the agent form alone taking the others than `'members'`, or, in the agent form, a
-            `PartnerSpec`, or a function `pairing(sources, targets, rng, capacity)` of the source and target agents
-            that returns their pairs, whose capacity is `partners`, or 1 without it. Under the schedule `'member'` the
-            spec or the function receives the actor alone as its first sequence and the actor's partners are the second
-            items of its pairs.
+            How members are paired. The symbolic form takes `'members'` alone.
+
+            - `'members'`: member `i` of the source with member `i` of the target.
+            - `'random'`: every source member with a random target member.
+            - `'pairs'`: disjoint random pairs.
+            - `'neighbors'`: every source member with the target members in the cells or nodes around it.
+            - `'neighbor-pairs'`: disjoint random pairs of neighbours.
+            - `'cell'`: the source and target members that stand in one cell or node.
+            - `'site'`: every source member with the site of a target field at its cell, where a negative amount
+              takes from the site and the functions take the cell in place of a target agent.
+
+            The agent form also takes a `PartnerSpec`, which pairs members within a radius, by score, or with a
+            fallback, or a function `pairing(sources, targets, rng, capacity)` that returns pairs, whose capacity is
+            `partners`, or 1 without it. Under the schedule `'member'` it receives the actor alone as its first
+            sequence, and the partners of the actor are the second items of its pairs.
 
         legs:
             Further legs, each a tuple of a state or `Source()`, a state, `Sink()`, or `None`, an amount, and
@@ -150,8 +136,9 @@ class TransferInteraction(Interaction):
             number or a function of the namespace, or `None` for no reverse jumps.
 
         offset:
-            The number of places along the group order from every source member to its target member, or 0 to pair
-            the members of the roles.
+            The number of places along the group order from every source member to its target member, such as `1`
+            for the next member, or 0 to pair the members of the roles. A draw in an amount is then one draw per edge,
+            which both ends read.
 
         boundary:
             Past the ends of the group order, `'periodic'` closes a ring and `'fixed'` holds no member.

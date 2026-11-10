@@ -1,4 +1,4 @@
-"""Define interactions whose laws run for the elements or members their roles bind."""
+"""Define the interaction whose laws run once for the elements its roles bind."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,15 +13,22 @@ from ._base import BaseInteraction
 
 
 class Interaction(BaseInteraction):
-    """Base class of interactions whose laws run once for the elements they bind.
+    """An interaction whose laws run once for the elements its roles bind.
 
-    For groups, the laws run once for every member of the groups. A subclass takes its roles and parameters as arguments
-    of its own `__init__`, annotating each with a `RoleSpec` or a `ParameterSpec` inside `Annotated`, and returns its
-    laws from `_get_laws`, which returns no laws by default.
+    When a role binds a group, the laws run once for every member of the group, as arrays. A subclass takes its roles
+    and parameters as arguments of its `__init__`, annotated with `RoleSpec` or `ParameterSpec` inside `Annotated`, and
+    returns its laws from `_get_laws`, which returns no laws by default.
+
+    Unlike `BaseInteraction`, it fixes how the laws run: once per bound element or member, with no edges or pairs.
+    Choose it when a law reads the elements it binds directly, such as predation between two populations, and choose
+    `NeighborInteraction` or `PairInteraction` when it runs along edges or between close members.
+
+    It appears in many fields. Predation between two populations, a reaction between two chemical species, and a payment
+    from a firm to its workers are each a subclass of it.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'predation'`.
 
     Examples:
         >>> from typing import Annotated

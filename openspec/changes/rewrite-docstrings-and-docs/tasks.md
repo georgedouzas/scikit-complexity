@@ -15,7 +15,7 @@
 
 ## 3. Components
 
-- [ ] 3.1 Rewrite the other modules of `components/interactions`, add the package to `REWRITTEN`, and verify the guard and its doctests pass
+- [x] 3.1 Rewrite the other modules of `components/interactions`, add the package to `REWRITTEN`, and verify the guard and its doctests pass
 - [ ] 3.2 Rewrite `components/laws` and `laws/utils`, add them to `REWRITTEN`, and verify the guard and their doctests pass
 - [ ] 3.3 Rewrite `components/spaces`, with the neighbourhoods, add it to `REWRITTEN`, and verify the guard and its doctests pass
 - [ ] 3.4 Rewrite `components/systems`, `components/specs`, `components/base.py`, and `components/types.py`, add them to `REWRITTEN`, and verify the guard and their doctests pass

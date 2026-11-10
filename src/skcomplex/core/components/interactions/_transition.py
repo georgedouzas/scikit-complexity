@@ -1,4 +1,4 @@
-"""Define transitions, moves of a discrete state between its values."""
+"""Define the interaction that moves a discrete state from one value to another."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,36 +32,32 @@ type SourceValues = float | Collection[float] | Callable[..., object]
 
 
 class TransitionInteraction(Interaction):
-    """Move of a discrete state of the target from one value to another.
+    """An interaction that moves a discrete state from one value to another.
 
-    The move may also be between all its values by a matrix. A member whose state holds `source` moves to `destination`
-    at a `rate`, as a jump in continuous time, with a `probability` in every step of discrete time, or in the step in
-    which a `condition` holds. With `over='neighbors'` the rate and the probability are those of one neighbour, written
-    with `namespace.target.other` for the neighbour: the rates of the neighbours add up, and their probabilities combine
-    as `1 - prod(1 - p)`, the probability that at least one of them moves the member. With a matrix instead, the state
-    takes the values `0` to `n - 1` and steps by the rows of a transition matrix in discrete time, the row of its
-    current value. An `emission` matrix then draws the `observed` state of the target from the row that the next value
-    of the state selects, as a hidden Markov source. With a residence time `after`, a member moves by a probability or a
-    condition only once it has held the source value for `after` steps, at the earliest at the end of the step that
-    completes them.
+    A member whose state holds `source` moves to `destination`, by exactly one of these kinds:
 
-    In the `'symbolic'` form, every function reads `namespace.target`, the states and parameters of the target, and the
-    time `namespace.t`. In the `'agent'` form, the target is an agent group and every function takes the agent and
-    the system view, `f(agent, system)`, and returns a number, a truth value, or the rows of a matrix, and a rate `r`
-    moves an agent with probability `1 - exp(-r)` in a step. With `over='cell'`, every member acts on the other members
-    of its cell: it moves each one that holds the source value with the probability, the rate, or the condition
-    `f(agent, other, system)` of that member `agent` and the acting member `other`, each by its own draw.
+    - `rate`: as a jump in continuous time.
+    - `probability`: with that probability in each step of discrete time.
+    - `condition`: in the step in which the condition holds.
+    - `matrix`: by the row of a transition matrix for the current value, in discrete time, as a Markov chain. An
+      `emission` matrix then draws the `observed` state from the row of the next value, as a hidden Markov model.
 
-    The `schedule` of the agent form orders the members. Under `'synchronous'` every member decides from the states at
-    the start of the step, under `'sequential'` the members act one after the other in their order, and under
-    `'random-sequential'` in a new random order every step, each reading the values the members before it set. Under
-    `'member'` every member acts in its own activation, together with the rules of its element and the other member
-    interactions, in the order the system lists them, so one rule of a member runs its movement, transfers,
-    transitions, and life cycle.
+    With `over='neighbors'` the rate and the probability are those of one neighbour, read as `namespace.target.other`.
+    The rates of the neighbours add up, and their probabilities combine as `1 - prod(1 - p)`. With `after`, a member
+    moves only once it has held the source value for that many steps. In the symbolic form every function reads
+    `namespace.target` and the time `namespace.t`. In the agent form every function takes the agent and the system view,
+    `f(agent, system)`, and a rate `r` moves an agent with probability `1 - exp(-r)` in a step. With `over='cell'` each
+    member acts on the other members of its cell, by `f(agent, other, system)`.
+
+    Unlike `JumpInteraction`, which adds amounts to numeric states, it moves a categorical state between named values.
+    Choose it when each member is in one of a few states, such as healthy, sick, and immune.
+
+    It appears in many fields. A person moves from susceptible to infected in an epidemic on a network, a voter switches
+    opinion, a cell of a forest catches fire, and a customer switches between brands.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'infection'`.
 
         target:
             The path of the element or group whose state moves.

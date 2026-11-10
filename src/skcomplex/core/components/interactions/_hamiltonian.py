@@ -1,7 +1,4 @@
-"""Define Hamiltonian interactions.
-
-They are Hamilton's equations of canonical coordinates and momenta.
-"""
+"""Define the interaction that gives Hamilton's equations of a Hamiltonian."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,21 +21,24 @@ from ._interaction import Interaction
 
 
 class HamiltonianInteraction(Interaction):
-    """Hamilton's equations `q' = dH/dp` and `p' = -dH/dq` of a Hamiltonian `H(ns)`.
+    """An interaction that moves canonical pairs by Hamilton's equations.
 
-    They hold for the canonical pairs `(q, p)`. The coordinates and the momenta are states of order 1, which may be
-    angles, of every role that binds one element or group, `target` by default, and the coordinates pair with the
-    momenta in order. Every component of a vector state is a coordinate or a momentum. The interaction returns one rate
-    law per coordinate and per momentum, and the rates of one state add, so the Hamiltonians of separate interactions
-    sum: a coupling between two oscillators is an interaction of its own whose Hamiltonian holds only the coupling
-    energy. Dissipation or forcing is a rate interaction on the momenta.
+    A Hamiltonian `H` is the total energy of a system as a function of its coordinates `q` and momenta `p`. The
+    interaction gives Hamilton's equations `q' = dH/dp` and `p' = -dH/dq`, one rate per coordinate and per momentum. The
+    coordinates and momenta are states of order 1 of every role that binds one element or group, `target` by default,
+    and they pair in order. The rates of one state add, so a coupling between two oscillators is an interaction of its
+    own whose Hamiltonian holds only the coupling energy. Dissipation or forcing is a `RateInteraction` on the momenta.
 
-    A Hamiltonian function takes the namespace of the interaction, with the namespaces of the roles, the time `t`, and
-    the symbols of the parameters a subclass declares.
+    Unlike `EulerLagrangeInteraction`, which takes coordinates and velocities, it takes coordinates and momenta and
+    gives first order rates, which symplectic solvers keep on the surface of constant energy. Choose it when the energy
+    is known in canonical form and long runs must conserve it.
+
+    It appears in many fields. Planets orbit a star, atoms vibrate in a molecule, and charged particles move in a
+    magnetic trap by Hamilton's equations.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'orbit'`.
 
         target:
             The path of the element or group whose states are the canonical pairs.

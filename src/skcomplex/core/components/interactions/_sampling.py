@@ -1,7 +1,4 @@
-"""Define Monte Carlo sampling of a state.
-
-The sampling makes moves accepted from the change of a local objective.
-"""
+"""Define the interaction that samples a state by Monte Carlo moves."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -44,27 +41,34 @@ POSITIVE_VALUES = ConditionSet(RR, _is_positive)
 
 
 class SamplingInteraction(Interaction):
-    """Monte Carlo sweeps of a state of the members of a lattice or network group.
+    """An interaction that samples a state of the members by Monte Carlo moves.
 
-    There is one sweep per unit of time. Every sweep proposes a move of the state of every member and accepts it from
-    the change of the local objective of the member, the terms of the objective that involve its value, at the
-    intensity. The local objective is a function of the namespace, which holds `namespace.target`, the states and
-    parameters of the member, and `namespace.target.other`, a neighbour, whose values `neighbors(...)` sums over
-    `neighborhood`. A move is `'flip'`, the negative value, `'random-value'`, a value drawn from `values`, `'rotate'`,
-    the value plus a uniform number in `[-width, width]`, `'gaussian'`, the value plus a normal number of standard
-    deviation `width`, or a function `move(values, random)` of the array of the current values of some members and the
-    random generator that returns their proposed values. The move `'cluster'` is the Wolff algorithm instead: a sweep
-    flips clusters until the flipped members number as many as the members, each cluster grown from a random member
-    through the bonds to neighbours with probability `1 - exp(min(0, -intensity * (f(-s, n) - f(s, n))))`, where `f(s,
-    n)` is the term of the local objective of a member of value `s` with a neighbour of value `n`. It takes an objective
-    of such pair terms that the flip of both values keeps, and ignores the rule and the schedule. A group on the edges
-    of a cell complex takes a local objective that sums over `CofaceNeighborhood`, inside which `exterior_derivative` of
-    the state is the oriented sum around the one face, and its `'colored'` schedule updates together only links that
-    share no face.
+    In each unit of time the interaction makes one sweep. A sweep proposes a new value of the state of every member and
+    accepts it by the change of the local objective of the member, the terms of the objective that involve its value,
+    scaled by `intensity`. The objective is a function of the namespace, which holds `namespace.target`, the member, and
+    `namespace.target.other`, a neighbour, whose values `neighbors(...)` sums over `neighborhood`. The argument `move`
+    proposes the new values:
+
+    - `'flip'`: the negative of the value, as for a spin of plus or minus one.
+    - `'random-value'`: a value drawn from `values`.
+    - `'rotate'`: the value plus a uniform number in `[-width, width]`.
+    - `'gaussian'`: the value plus a normal number of standard deviation `width`.
+    - `'cluster'`: the Wolff algorithm, which flips whole clusters of aligned neighbours at once.
+    - A function `move(values, random)` that returns the proposed values.
+
+    A group on the edges of a cell complex takes an objective that sums over `CofaceNeighborhood`, and its `'colored'`
+    schedule updates together only links that share no face.
+
+    Unlike `MapInteraction`, which sets the next value by a rule, it proposes values and accepts them by a probability,
+    so the states follow a stationary distribution. Choose it when the model is a Boltzmann distribution of an energy,
+    as in a Markov chain Monte Carlo method.
+
+    It appears in many fields. Spins of a magnet in the Ising model, cells of a tissue in the cellular Potts model, and
+    residents who move in a model of segregation are sampled this way.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'spins'`.
 
         target:
             The path of the group on the sites of a lattice, the nodes of a network, or the edges of a cell complex.
@@ -77,7 +81,12 @@ class SamplingInteraction(Interaction):
             that samples by its own law.
 
         move:
-            `'flip'`, `'random-value'`, `'rotate'`, `'gaussian'`, `'cluster'`, or a function that proposes values.
+            How a new value is proposed, one of the moves above. The move `'cluster'` grows each cluster from a
+            random member through the bonds to its neighbours with the probability
+            `1 - exp(min(0, -intensity * (f(-s, n) - f(s, n))))`, where `f(s, n)` is the term of the objective for a
+            member of value `s` and a neighbour of value `n`. A sweep flips clusters until as many members have
+            flipped as there are members. It needs an objective of such pair terms that flipping both values keeps,
+            and it ignores `rule` and `schedule`.
 
         intensity:
             The factor of the change of the objective in the acceptance `exp(-intensity * change)`, positive and

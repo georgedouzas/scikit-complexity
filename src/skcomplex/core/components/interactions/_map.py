@@ -1,7 +1,4 @@
-"""Define maps.
-
-A map sets the next value of a state after one discrete time step.
-"""
+"""Define the interaction that sets the next value of a state at every step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,25 +31,31 @@ type Value = float | npt.NDArray[np.float64]
 
 
 class MapInteraction(Interaction):
-    """Map of a state of discrete time.
+    """An interaction that sets the next value of a state at every discrete step.
 
-    Its next value is a function, or the state plus it. In the mode `'replace'` the next value of the state is `f`, and
-    in the mode `'increment'` it is the state plus `f`. Under the `'synchronous'` schedule every member of a bound group
-    updates at once, from the states at the start of the step. Under the `'sequential'` schedule the members update one
-    after the other, in their order, and under the `'random-sequential'` schedule in a new random order every step, each
-    member reading the values the members before it set. Under the `'member'` schedule of the agent form, every member
-    updates in its own activation, together with the rules of its element and the other member interactions, in the
-    order the system lists them.
+    With `mode='replace'` the next value of the state is `f`, and with `mode='increment'` it is the state plus `f`. The
+    `schedule` says in what order the members of a group update:
 
-    In the `'symbolic'` form, `function(namespace)` returns a symbolic expression, or a vector of them for a vector
-    state, where `namespace.target` holds the states and parameters of the target, `namespace.sources` the namespaces
-    of the sources, and `namespace.t` the time, and may hold draws such as `normal('noise')`. In the `'agent'` form,
-    the target is an agent group and `function(agent, system)` returns the value as a number, or as an array of the
-    shape of a vector state, so it can read the agent, its neighbours, and the history and storage of the system view.
+    - `'synchronous'`: all at once, from the states at the start of the step.
+    - `'sequential'`: one after another in their order, each reading the values set before it.
+    - `'random-sequential'`: one after another in a new random order every step.
+    - `'member'`: in the agent form, each member in its own activation, with the rules of its element.
+
+    In the symbolic form `function(namespace)` returns an expression, or a vector of them for a vector state.
+    `namespace.target` holds the states and parameters of the target, `namespace.sources` the namespaces of the sources,
+    and `namespace.t` the time, and the expression may hold draws such as `normal('noise')`. In the agent form the
+    target is an agent group and `function(agent, system)` returns a number or an array, so it can read the agent, its
+    neighbours, and the history and storage of the system.
+
+    Unlike `RateInteraction`, which gives a derivative in continuous time, it gives the next value in discrete time.
+    Choose it when the model steps, such as a yearly census or a round of a game.
+
+    It appears in many fields. The logistic map follows a population from year to year, an account compounds interest
+    once a month, and agents update their wealth after each round of an exchange.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'growth'`.
 
         target:
             The path of the element or group whose state the map sets.

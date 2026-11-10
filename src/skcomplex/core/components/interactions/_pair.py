@@ -1,7 +1,4 @@
-"""Define pair interactions.
-
-Their laws run for every pair of members closer than a cutoff, and couple the pair through a function or a potential.
-"""
+"""Define the interaction whose laws run for every pair of members within a cutoff."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,24 +20,29 @@ from ._base import BaseInteraction
 
 
 class PairInteraction(BaseInteraction):
-    """Interaction whose laws run for every pair of members closer than a cutoff.
+    """An interaction whose laws run for every pair of members within a cutoff.
 
-    The laws are written for one pair and read `namespace.first` and `namespace.second`, the members of the pair, and
-    the parameters. The pair couples through a function of the pair or a pair potential. Every member of a pair adds a
-    value to the rate of its state `write`, which gives the highest derivative of a state of any order. With
-    `function`, the value is `function(namespace)`, where `namespace.first` is the member that adds it and
-    `namespace.second` the other member. With `potential`, a function `potential(namespace, r)` of the distance `r`
-    between the values of the vector state `position` of the pair, the value is minus the gradient of the potential
-    with respect to the member's own `position`. A `divisor` names a state or parameter of the members that divides
-    the value. With several states `write`, the function returns one value per state, in their order, so one pair
-    couples several states jointly. With neither a function nor a potential, the interaction has no laws, and a
-    subclass writes its own in `_get_laws`. A subclass adds its own roles and parameters to the ones of every pair
-    interaction, and a subclass that names the members otherwise returns their names from `_get_role`, which the laws
-    read them under.
+    The pairs are those whose vector states `position` lie closer than `cutoff`. The laws are written for one pair and
+    read `namespace.first`, the member that receives the value, `namespace.second`, the other member, and the
+    parameters. Each member adds a value to the rate of its state `write`, which is the highest derivative of a state of
+    any order:
+
+    - With `function`, the value is `function(namespace)`, or one value per state when `write` names several.
+    - With `potential`, a function `potential(namespace, r)` of the distance `r`, the value is minus the gradient of the
+      potential with respect to the member's own position.
+
+    A `divisor` divides the value, such as a mass. With neither a function nor a potential, a subclass writes its own
+    laws in `_get_laws`, and a subclass that names the members otherwise returns their names from `_get_role`.
+
+    Unlike `NeighborInteraction`, whose links are fixed edges, it finds its pairs by distance at every evaluation.
+    Choose it when members move in continuous space and act on those close by.
+
+    It appears in many fields. Atoms of a gas repel under the Lennard-Jones potential, stars attract by gravity within a
+    cutoff, and pedestrians keep their distance in a crowd.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'repulsion'`.
 
         first:
             The path of the group whose members are the first of every pair.

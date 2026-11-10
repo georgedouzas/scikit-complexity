@@ -1,7 +1,4 @@
-"""Define rates.
-
-Rates are interactions that add a rate and a noise to the highest time derivative of a state.
-"""
+"""Define the interaction that adds a rate and a noise to a state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,22 +24,26 @@ CONVENTIONS = ('ito', 'stratonovich', 'anti-ito')
 
 
 class RateInteraction(Interaction):
-    """Rate `rate(ns)` and noise `noise(ns) dW` of a state of a target.
+    """An interaction that adds a rate and a noise to the derivative of a state.
 
-    They add to the highest time derivative of the state. On a state of order 1 the rate is its first derivative, and on
-    a state of order `k` it adds to the `k`-th derivative, so rates on one state superpose. With a divisor `d` the rate
-    and the noise are divided by `d`, the name of a state or parameter of the target, such as an inertia, a friction, or
-    a capacitance, which backends can read.
+    The rate `rate(namespace)` and the noise `noise(namespace) dW` add to the highest time derivative of the state. On a
+    state of order 1 the rate is its first derivative, and on a state of order `k` it adds to the `k`th derivative, so
+    rates on one state add up. A divisor `d`, such as an inertia or a capacitance, divides the rate and the noise.
 
-    A rate, a noise, or a divisor function takes the namespace of the interaction, with the namespaces `target` and
-    `sources` of the bound elements, the time `t`, and the symbols of the parameters a subclass declares. A number
-    stands for a constant, and a number on a vector state applies to every component. The noise is a Wiener process per
-    component and member by default, a process of a `WienerProcessSpec` to share or correlate it across states and
-    members, or a fractional Brownian motion of a Hurst index.
+    A rate, noise, or divisor function takes a namespace with the target as `target`, the elements it reads as
+    `sources`, the time `t`, and the parameters a subclass declares. A number stands for a constant, and a number on a
+    vector state applies to every component. The noise is an independent Wiener process per component and member by
+    default, the random walk of continuous time.
+
+    Unlike `MapInteraction`, which steps a state in discrete time, it gives the derivative of a state in continuous
+    time, with an optional noise. Choose it when a state flows, as in an ordinary or a stochastic differential equation.
+
+    It appears in many fields. Infected people recover at a rate, a balance grows by interest, a capacitor charges
+    through a resistor, and a stock price follows a geometric Brownian motion.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'recovery'`.
 
         target:
             The path of the element or group whose state the rate changes.

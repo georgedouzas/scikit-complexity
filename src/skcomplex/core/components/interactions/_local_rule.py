@@ -1,7 +1,4 @@
-"""Define local rules.
-
-A local rule sets the next values of cells from the ordered values of their neighbourhoods.
-"""
+"""Define the interaction that sets each cell from its ordered neighbourhood."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,21 +16,32 @@ from ._interaction import Interaction
 
 
 class LocalRuleInteraction(Interaction):
-    """Local rule of a cellular automaton.
+    """An interaction that sets the next value of each cell from its neighbourhood.
 
-    The rule sets the next value of every cell from its ordered neighbourhood. The rule is a table of the next value of
-    every configuration of the neighbourhood, `TableSpec`, a rule of the sum of the neighbourhood, `TotalisticSpec`, a
-    rule of the cell and the sum of its neighbours, `OuterTotalisticSpec`, an object whose `get_table()` returns a
-    `TableSpec`, or a function. A function receives one array per neighbour of every read state, in neighbourhood order,
-    with one value per cell, the uniform array `random` when the rule is stochastic, and the parameters of the bound
-    group it names, and returns the next values of the states, one array per state. A state of several components per
-    cell, such as a truncated power series of `PowerSeriesSpec`, reaches a function as one row of components per cell. A
-    `StateTranslationNeighborhood` reads a group space at the product of every site and the group element that the first
+    A cellular automaton is a lattice or network of cells whose values change by one local rule at every step. The rule
+    maps the ordered values of the neighbourhood of a cell to its next value. It takes one of these forms:
+
+    - `TableSpec`: a table of the next value for every configuration of the neighbourhood.
+    - `TotalisticSpec`: a rule of the sum of the neighbourhood.
+    - `OuterTotalisticSpec`: a rule of the cell and the sum of its neighbours, as in the Game of Life.
+    - An object whose `get_table()` returns a `TableSpec`.
+    - A function that receives one array per neighbour of every read state, in neighbourhood order, and returns the next
+      values, one array per state. With `stochastic` it also receives a uniform random array `random`, and it receives
+      the parameters of the group by name.
+
+    A state of several components per cell reaches a function as one row of components per cell. A
+    `StateTranslationNeighborhood` reads a group space at the product of each site and the group element that the first
     read state holds there.
+
+    Unlike `MapInteraction`, which writes the next value as an expression of one member, it reads an ordered
+    neighbourhood and may take a table. Choose it when the next value of a cell depends on the exact pattern around it.
+
+    It appears in many fields. Conway's Game of Life, the sandpile of Bak, Tang, and Wiesenfeld, forest fire models, and
+    models of traffic on a ring road are cellular automata.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'life'`.
 
         target:
             The path of the group on the cells of a lattice, the nodes of a network, or a Cayley graph.

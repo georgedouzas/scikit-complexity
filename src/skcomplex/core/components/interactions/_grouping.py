@@ -1,7 +1,4 @@
-"""Define groupings.
-
-A grouping draws groups of the members of a group every step and acts on each group.
-"""
+"""Define the interaction that draws groups of members every step and acts on each."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -40,35 +37,32 @@ type GroupFunction = Callable[[SimpleNamespace], object]
 
 
 class GroupingInteraction(Interaction):
-    """Grouping of the members of a group into groups drawn every step.
+    """An interaction that draws groups of members every step and acts on each group.
 
-    An action applies to every group.
+    At every step of discrete time the interaction splits the members of a group into smaller groups and acts on each of
+    them. The argument `groups` chooses how they form:
 
-    The groups are one of four kinds:
+    - `'pairs'`: disjoint random pairs, and an odd member out forms no group.
+    - `'partition'`: a random partition into groups of `size` members, the last group holding the rest.
+    - `'neighborhood'`: one group per member, the member first and then the members in the cells or nodes around it.
+    - `'state'`: one group per value of the state `by`, of at most `capacity` agents.
 
-    - `'pairs'` draws disjoint random pairs, and an odd member out forms no group.
-    - `'partition'` draws a random partition into groups of `size` members, the last group holding the remainder.
-    - `'neighborhood'` forms one group per member, the member first and then the members in the cells or nodes
-      around it.
-    - `'state'` forms one group per value of the state `by`, of at most `capacity` agents drawn at random among those
-      that hold the value in the agent form.
+    In the agent form the groups act in random order, each through `act(members, system)` or the method `act_on` that a
+    subclass overrides. In the symbolic form every member of a group takes the value `function(namespace)` for the state
+    `write` at the next step, combined by `reduce` over the groups that hold it, and a member in no group keeps its
+    value. The namespace of a group holds `member`, `others`, the other members in order, `members`, which the
+    reductions `total`, `mean`, `count`, `maximum`, and `minimum` read with `over=namespace.members`, the time `t`, and
+    the parameters. The grouping runs in its `phase` and reads the states that earlier phases of the step set.
 
-    In the agent form the groups act in random order, each through `act(members, system)`, a function of the list of
-    agent views and the system view, or the method `act_on` a subclass overrides. The grouping is an agent rule, so the
-    system runs in discrete time.
+    Unlike `NeighborInteraction`, whose edges are fixed by the space, it draws new groups at every step. Choose it when
+    members meet in random pairs or small groups, such as trades or games, rather than along fixed links.
 
-    In the symbolic form every member of a group takes the value of `function(namespace)` for the state `write` in the
-    next step, reduced by `reduce` over the groups that hold it, and a member in no group keeps its value. The
-    namespace of a group holds `member`, the member the value is for, `others`, the other members in the order of the
-    group, `members`, which `total`, `mean`, `count`, `maximum`, and `minimum` reduce with `over=namespace.members`,
-    the time `t`, and the parameters of the interaction. Pairs and partitions are drawn again at every step from the
-    random stream of the simulation, and neighbourhoods are those of the space. The groups by state hold no `others`,
-    and their reductions over the members are keyed by the state. Within a step, the grouping runs in its `phase` and
-    reads the states the phases before it set.
+    It appears in many fields. Agents trade in random pairs, players of a public goods game form groups each round, and
+    animals meet in random encounters that spread information.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'trades'`.
 
         target:
             The path of the group whose members are grouped.

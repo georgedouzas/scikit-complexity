@@ -1,7 +1,4 @@
-"""Define Euler-Lagrange interactions.
-
-They are the equations of motion of a Lagrangian with dissipation and forcing.
-"""
+"""Define the interaction that gives the equations of motion of a Lagrangian."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,24 +21,28 @@ from ._interaction import Interaction
 
 
 class EulerLagrangeInteraction(Interaction):
-    """Equations of motion `d/dt dL/dq' - dL/dq = Q - dR/dq'` of a Lagrangian `L(ns)`.
+    """An interaction that moves coordinates by the equations of a Lagrangian.
 
-    The coordinates are `q`. The coordinates are states of order 2, and the Lagrangian, the Rayleigh dissipation
-    function `R`, and the generalized forcing `Q` read them and their first derivatives `derivative(q, 1)`. The
-    interaction returns one equation law per coordinate, which the compiler solves jointly for the second derivatives,
-    so a Lagrangian with a mass matrix, such as a double pendulum's, needs no inversion by hand. The equations of one
-    coordinate from several interactions add, so their Lagrangians, dissipations, and forcings sum: a coupling, such as
-    a spring between two pendulums, is an interaction of its own whose Lagrangian holds only the coupling energy. The
-    coordinates are the states of every role that binds one element or group, `target` by default, and every component
-    of a vector state is a coordinate.
+    A Lagrangian `L` is the kinetic minus the potential energy of a mechanical system. The interaction gives the
+    equations of motion `d/dt dL/dq' - dL/dq = Q - dR/dq'` for the coordinates `q`, states of order 2, with the
+    dissipation function `R` and the generalized forces `Q`. It returns one equation per coordinate, and the compiler
+    solves them together for the accelerations, so a Lagrangian with a mass matrix, such as that of a double pendulum,
+    needs no inversion by hand. Equations of one coordinate from several interactions add, so a spring between two
+    pendulums is an interaction of its own whose Lagrangian holds only the coupling energy.
 
-    A Lagrangian, dissipation, or forcing function takes the namespace of the interaction, with the namespaces of the
-    roles, the time `t`, and the symbols of the parameters a subclass declares. The forcing returns one generalized
-    force per coordinate, in the order of the roles and of the states, or one expression for a single coordinate.
+    A Lagrangian, dissipation, or forcing function takes a namespace with the roles, the time `t`, and the parameters a
+    subclass declares. The coordinates are the states of every role that binds one element or group, `target` by
+    default, and every component of a vector state is a coordinate.
+
+    Unlike `HamiltonianInteraction`, which needs canonical momenta, it takes the energy in coordinates and velocities.
+    Choose it when the energy is easier to write than the forces, as for linked bodies.
+
+    It appears in many fields. Pendulums and linkages in mechanics, electric circuits written by their energy, and the
+    joints of a robot arm follow the equations of a Lagrangian.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'pendulum'`.
 
         target:
             The path of the element or group whose states are the coordinates.

@@ -1,4 +1,4 @@
-"""Define hyperedge interactions, whose laws run for every hyperedge of a network."""
+"""Define the interaction whose laws run once for every hyperedge of a network."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,27 +17,32 @@ MIN_SIZE = 2
 
 
 class HyperedgeInteraction(BaseInteraction):
-    """Base class of interactions whose laws run once for every hyperedge.
+    """An interaction whose laws run once for every hyperedge of a network.
 
-    The hyperedges are those of the network of the nodes a role binds. The first role binds a group with one member per
-    node of a network space with hyperedges. A second role may bind a group on the hyperedges of the same network, or a
-    group on the edges of one of its layers. The laws are written for one hyperedge of `size` members and read:
+    A hyperedge is a link that joins more than two nodes, such as a group of three friends. The first role binds a group
+    with one member per node of a network with hyperedges. A second role may bind a group on the hyperedges, or on the
+    edges of one layer. The laws are written for one hyperedge of `size` members and read:
 
     - `namespace.member`, the focal member, whose states rate, noise, and jump laws change,
     - `namespace.others`, the other members in the order of the hyperedge, a tuple of namespaces,
-    - `namespace.members`, the members of the hyperedge, which `total`, `mean`, `count`, `maximum`, and `minimum`
-      reduce with `over=namespace.members`,
+    - `namespace.members`, all the members, which `total`, `mean`, `count`, `maximum`, and `minimum` reduce with
+      `over=namespace.members`,
     - `namespace.hyperedge`, the member of the group on hyperedges,
-    - `namespace.edge`, the member of the group on edges that joins the first two members of the hyperedge,
+    - `namespace.edge`, the member of the group on edges that joins the first two members,
     - the parameters of the interaction.
 
-    A law of the focal member runs once per member of every hyperedge and adds into that member. A law that targets the
-    member of the group on hyperedges or on edges runs once per hyperedge, with the first member of the hyperedge as the
-    focal member. Without a size, the laws run on the hyperedges of every size, one size at a time.
+    A law of the focal member runs once per member of every hyperedge. A law that targets the member on a hyperedge or
+    an edge runs once per hyperedge, with the first member as the focal member.
+
+    Unlike `NeighborInteraction`, which sees the two ends of an edge, it sees every member of a group link at once.
+    Choose it when a change depends on a whole group, such as a majority of three, and not on pairs alone.
+
+    It appears in many fields. Group conversations shift opinions, a disease spreads within households and classrooms,
+    and three species compete at once in higher-order ecological models.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'consensus'`.
 
         size:
             The number of members of the hyperedges the laws run on, or `None` for every size.
