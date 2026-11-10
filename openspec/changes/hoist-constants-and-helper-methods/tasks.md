@@ -95,7 +95,7 @@ tests and the catalog tests pass with the field added to the checked packages.
   same list as before.
 - [ ] 7.2 Biology, including `_carbon_13_mfa.py` and `_logical_networks.py`, whose three constants drop the
   annotation that names a local alias.
-- [ ] 7.3 Chemistry, including the shared diffusion helpers and `_noise` of `_reaction_diffusion.py`, which becomes
+- [x] 7.3 Chemistry, including the shared diffusion helpers and `_noise` of `_reaction_diffusion.py`, which becomes
   `_get_noise`.
 - [ ] 7.4 Computer science, including the landscapes of `_optimisers.py`.
 - [ ] 7.5 Economics, including the predictors of `_el_farol.py`, the heuristics namespace, and `landscape` of

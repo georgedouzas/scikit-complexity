@@ -22,18 +22,6 @@ from ...general.reactions.types import ReactionTable
 X = ('reactor', 'x')
 
 
-def _get_enzyme_reactions(k_binding: float, k_unbinding: float, k_catalysis: float) -> ReactionTable:
-    """Return the binding, unbinding, and catalysis of the enzyme reaction.
-
-    The reaction is `E + S <-> C -> E + P`.
-    """
-    return {
-        'binding': ({'E': 1, 'S': 1}, {'C': 1}, k_binding),
-        'unbinding': ({'C': 1}, {'E': 1, 'S': 1}, k_unbinding),
-        'catalysis': ({'C': 1}, {'E': 1, 'P': 1}, k_catalysis),
-    }
-
-
 class SchloglElement(Element):
     """Reactor of Schlögl's reaction, the number of molecules of `X`.
 
@@ -144,6 +132,18 @@ class MichaelisMentenSystem(ReactionNetworkSystem):
     until = 50.0
     dt = 0.5
 
+    @staticmethod
+    def _get_enzyme_reactions(k_binding: float, k_unbinding: float, k_catalysis: float) -> ReactionTable:
+        """Return the binding, unbinding, and catalysis of the enzyme reaction.
+
+        The reaction is `E + S <-> C -> E + P`.
+        """
+        return {
+            'binding': ({'E': 1, 'S': 1}, {'C': 1}, k_binding),
+            'unbinding': ({'C': 1}, {'E': 1, 'S': 1}, k_unbinding),
+            'catalysis': ({'C': 1}, {'E': 1, 'P': 1}, k_catalysis),
+        }
+
     def __init__(
         self,
         enzyme: float = 100.0,
@@ -169,7 +169,7 @@ class MichaelisMentenSystem(ReactionNetworkSystem):
 
     def _get_reactions(self) -> ReactionTable:
         """Return the binding, unbinding, and catalysis of the enzyme reaction."""
-        return _get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
+        return MichaelisMentenSystem._get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
 
     def _get_mode(self) -> str:
         """Return the mode of the reactions.
@@ -375,7 +375,7 @@ class ChemicalLangevinNetworkSystem(ReactionNetworkSystem):
 
     def _get_reactions(self) -> ReactionTable:
         """Return the binding, unbinding, and catalysis of the enzyme reaction."""
-        return _get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
+        return MichaelisMentenSystem._get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
 
     def _get_mode(self) -> str:
         """Return the mode of the reactions, the chemical Langevin equation."""

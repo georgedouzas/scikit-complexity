@@ -78,42 +78,6 @@ class BrusselatorElement(BrusselatorReactionElement):
         self.Dv = Dv
 
 
-def _get_u_diffusion(s: SimpleNamespace) -> Expression:
-    """Return the diffusion coefficient `Du` of the sites."""
-    return s.target.Du
-
-
-def _get_v_diffusion(s: SimpleNamespace) -> Expression:
-    """Return the diffusion coefficient `Dv` of the sites."""
-    return s.target.Dv
-
-
-def _get_diffusions() -> list[RateInteraction]:
-    """Return the diffusions of `u` and `v` on the field `cells`.
-
-    They run at the coefficients `Du` and `Dv` of its sites.
-    """
-    return [
-        RateInteraction(
-            'u_diffusion',
-            target='cells',
-            state='u',
-            rate=lambda s: _get_u_diffusion(s) * laplacian(s.target.u),
-        ),
-        RateInteraction(
-            'v_diffusion',
-            target='cells',
-            state='v',
-            rate=lambda s: _get_v_diffusion(s) * laplacian(s.target.v),
-        ),
-    ]
-
-
-def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.Generator | None) -> Array:
-    """Return small uniform noise of a shape."""
-    return scale * np.random.default_rng(random_state).uniform(-1.0, 1.0, size=shape)
-
-
 class GrayScottSystem(ReactionDiffusionSystem):
     """The Gray-Scott reaction-diffusion system, seeded in its middle.
 
@@ -157,6 +121,21 @@ class GrayScottSystem(ReactionDiffusionSystem):
     until = 2000.0
     dt = 20.0
     solver = RK4Solver(dt=1.0)
+
+    @staticmethod
+    def _get_u_diffusion(s: SimpleNamespace) -> Expression:
+        """Return the diffusion coefficient `Du` of the sites."""
+        return s.target.Du
+
+    @staticmethod
+    def _get_v_diffusion(s: SimpleNamespace) -> Expression:
+        """Return the diffusion coefficient `Dv` of the sites."""
+        return s.target.Dv
+
+    @staticmethod
+    def _get_noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.Generator | None) -> Array:
+        """Return small uniform noise of a shape."""
+        return scale * np.random.default_rng(random_state).uniform(-1.0, 1.0, size=shape)
 
     def __init__(
         self,
@@ -202,7 +181,7 @@ class GrayScottSystem(ReactionDiffusionSystem):
         u, v = np.ones(shape), np.zeros(shape)
         middle = tuple(slice(size // 2 - size // 10, size // 2 + size // 10) for size in shape)
         u[middle], v[middle] = 0.5, 0.25
-        noise = _noise(shape, 0.01, self.random_state)
+        noise = GrayScottSystem._get_noise(shape, 0.01, self.random_state)
         return {
             'u': DeclaredVariableSpec(u + noise, StateSpec()),
             'v': DeclaredVariableSpec(v + np.abs(noise), StateSpec()),
@@ -214,7 +193,7 @@ class GrayScottSystem(ReactionDiffusionSystem):
 
     def _get_diffusivities(self) -> dict[str, Callable[[SimpleNamespace], object]]:
         """Return the diffusivities `Du` and `Dv` of the sites."""
-        return {'u': _get_u_diffusion, 'v': _get_v_diffusion}
+        return {'u': GrayScottSystem._get_u_diffusion, 'v': GrayScottSystem._get_v_diffusion}
 
     def _get_equation_interactions(self) -> list[ReactionInteraction]:
         """Return the reactions at every site."""
@@ -264,6 +243,27 @@ class BrusselatorSystem(BaseSystem):
     dt = 1.0
     solver = RK4Solver(dt=0.01)
 
+    @staticmethod
+    def _get_diffusions() -> list[RateInteraction]:
+        """Return the diffusions of `u` and `v` on the field `cells`.
+
+        They run at the coefficients `Du` and `Dv` of its sites.
+        """
+        return [
+            RateInteraction(
+                'u_diffusion',
+                target='cells',
+                state='u',
+                rate=lambda s: GrayScottSystem._get_u_diffusion(s) * laplacian(s.target.u),
+            ),
+            RateInteraction(
+                'v_diffusion',
+                target='cells',
+                state='v',
+                rate=lambda s: GrayScottSystem._get_v_diffusion(s) * laplacian(s.target.v),
+            ),
+        ]
+
     def __init__(
         self,
         shape: Sequence[int] = (64, 64),
@@ -303,7 +303,7 @@ class BrusselatorSystem(BaseSystem):
         """Return the field near its steady state, its reactions, and its diffusions."""
         shape = tuple(self.shape)
         values = {
-            'u': self.a + _noise(shape, 0.01, self.random_state),
+            'u': self.a + GrayScottSystem._get_noise(shape, 0.01, self.random_state),
             'v': np.full(shape, self.b / self.a),
             'a': self.a,
             'b': self.b,
@@ -313,7 +313,7 @@ class BrusselatorSystem(BaseSystem):
         return CompositeSystem(
             self.label,
             elements=[FieldElement('cells', element=BrusselatorElement, space=LatticeSpace(shape), values=values)],
-            interactions=[*self._get_reactions(), *_get_diffusions()],
+            interactions=[*self._get_reactions(), *BrusselatorSystem._get_diffusions()],
         )
 
 
@@ -407,7 +407,10 @@ class SchnakenbergSystem(ReactionDiffusionSystem):
         shape = tuple(self.shape)
         steady_u, steady_v = self.a + self.b, self.b / (self.a + self.b) ** 2
         return {
-            'u': DeclaredVariableSpec(steady_u * (1 + _noise(shape, 0.01, self.random_state)), StateSpec()),
+            'u': DeclaredVariableSpec(
+                steady_u * (1 + GrayScottSystem._get_noise(shape, 0.01, self.random_state)),
+                StateSpec(),
+            ),
             'v': DeclaredVariableSpec(np.full(shape, steady_v), StateSpec()),
             'a': DeclaredVariableSpec(self.a, ParameterSpec()),
             'b': DeclaredVariableSpec(self.b, ParameterSpec()),
@@ -417,7 +420,7 @@ class SchnakenbergSystem(ReactionDiffusionSystem):
 
     def _get_diffusivities(self) -> dict[str, Callable[[SimpleNamespace], object]]:
         """Return the diffusivities `Du` and `Dv` of the sites."""
-        return {'u': _get_u_diffusion, 'v': _get_v_diffusion}
+        return {'u': GrayScottSystem._get_u_diffusion, 'v': GrayScottSystem._get_v_diffusion}
 
     def _get_equation_interactions(self) -> list[ReactionInteraction]:
         """Return the reactions at every site."""
