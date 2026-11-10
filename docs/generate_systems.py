@@ -28,6 +28,7 @@ INVENTORY = DOCS / 'overview' / 'inventory.toml'
 GALLERY = build_from_environment(DOCS)
 EQUATION_LAWS = {'rate', 'noise', 'update'}
 DEFAULT_WIDTH = 60
+GENERAL = 'overview/user_guide/core_components/general.md'
 TAG_FIELDS = ('time', 'space', 'laws', 'randomness', 'domains', 'structure')
 BUILT: dict[str, BaseSystem] = {}
 
@@ -188,10 +189,10 @@ def _component_types(system: CompositeSystem) -> list[type]:
     return types
 
 
-def _component_lines(kinds: list[type]) -> list[str]:
+def _component_lines(kinds: list[type], depth: int) -> list[str]:
     """Return the element and interaction classes of a system.
 
-    Each comes with its nearest class of the core.
+    Each comes with its nearest class of the core, linked from a page `depth` folders below the documentation root.
     """
     lines = []
     for title, base in (('Elements', BaseElement), ('Interactions', BaseInteraction)):
@@ -201,8 +202,18 @@ def _component_lines(kinds: list[type]) -> list[str]:
         lines += ['', f'{title}:', '']
         for kind in found:
             core = next(item for item in kind.__mro__ if item.__module__.startswith('skcomplex.core.components.'))
-            lines.append(f'- `{kind.__name__}`' + ('' if core is kind else f', from `{core.__name__}`'))
+            link = _core_link(core, depth)
+            shared = [item for item in kind.__mro__ if item.__module__.startswith('skcomplex.systems.general')]
+            recipe = f', through the shared recipe [`{shared[0].__name__}`]({"../" * depth}{GENERAL})' if shared else ''
+            lines.append(f'- {link}' if core is kind else f'- `{kind.__name__}`, from {link}{recipe}')
     return lines
+
+
+def _core_link(core: type, depth: int) -> str:
+    """Return the name of a class of the core, linked to its fact sheet where its family has fact sheets."""
+    if issubclass(core, BaseElement):
+        return f'[`{core.__name__}`]({"../" * depth}parts/elements.md#{core.__name__.lower()})'
+    return f'`{core.__name__}`'
 
 
 def _selection_lines(system: type[BaseSystem]) -> list[str]:
@@ -309,7 +320,7 @@ def system_page(name: str, title: str, examples: dict[str, Example]) -> str:
     ]
     kinds = _component_types(built.prepare().system_)
     sources = [source for source in (_class_source(kind) for kind in kinds) if source]
-    lines += ['', '## Components', *_component_lines(kinds)]
+    lines += ['', '## Components', *_component_lines(kinds, system_class.field.count('/') + 2)]
     if sources:
         lines += ['', '```python', '\n\n'.join(source.rstrip() for source in sources), '```']
     equations = _equations(built)

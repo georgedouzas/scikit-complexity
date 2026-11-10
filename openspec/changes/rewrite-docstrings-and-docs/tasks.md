@@ -43,7 +43,7 @@
 - [ ] 7.1 Check that `add-identifiability-analysis` is archived before the documents start, and verify with `openspec list`
 - [x] 7.2 Add the Mermaid fence to `properdocs.yml`, name `griffelib` in the docs group of `pyproject.toml`, and verify `pdm lock --check` and a strict documentation build pass
 - [x] 7.3 Add the comparison table and the fact sheets of elements to `docs/generate_parts.py`, reading the docstrings with griffe and the tags from the code, with links to the reference, the API, and the catalog systems that use each class, and verify the strict build shows a fact sheet for every element class
-- [ ] 7.4 Add the links from catalog system pages to the core classes they build from in `docs/generate_systems.py`, and verify the page of `SIRSystem` links its element classes in a strict build
+- [x] 7.4 Add the links from catalog system pages to the core classes they build from in `docs/generate_systems.py`, and verify the page of `SIRSystem` links its element classes in a strict build
 - [ ] 7.5 Write `core_components/index.md` with the two Mermaid diagrams, the worked example built step by step, and the import table, merging `concepts.md` and updating every link to it, and verify the diagrams render in a strict build and every block runs with `pytest-markdown-docs`
 - [ ] 7.6 Write `core_components/elements.md` by the section template of design.md for every public element class, and verify every block runs with `pytest-markdown-docs`
 - [ ] 7.7 Add `test_core_components_pages_cover_every_class` to `tests/test_sources.py`, checking the elements page only at first and rejecting an import of `skcomplex.systems` on a family page, and verify it passes, fails when a section is removed, and fails on a planted import of `NonnegativeElement`
