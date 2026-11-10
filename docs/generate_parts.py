@@ -8,7 +8,9 @@ import sys
 from collections.abc import Callable, Iterable
 from types import ModuleType
 
+import griffe
 import mkdocs_gen_files
+from gallery_tools import library_systems
 
 from skcomplex.core import analysis, experiments
 from skcomplex.core.components import elements, interactions, laws, systems
@@ -20,12 +22,14 @@ from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine import backends, solvers
 from skcomplex.core.engine.backends import BaseBackend
 from skcomplex.core.engine.solvers import BaseSolver
-from skcomplex.core.specs import LAWS, SPACES, TIMES, AnalysisTags, RoleSpec, StateSpec
+from skcomplex.core.specs import LAWS, SPACES, TIMES, AnalysisTags, ParameterSpec, RoleSpec, StateSpec, Tags
 from skcomplex.systems import all_systems
 from skcomplex.systems.general import dynamics
 from skcomplex.systems.general.reactions import ReactionNetworkSystem
 
 PARTS = 'parts'
+REFERENCE = '../overview/user_guide/core_components'
+SHOWN = 10
 EXPERIMENT_NEEDS = {
     'ensemble': 'the randomness `stochastic`, or a solver that draws',
 }
@@ -100,6 +104,128 @@ def _declares_support(runner: type[BaseSolver] | type[BaseBackend]) -> bool:
     except NotImplementedError:
         return False
     return True
+
+
+def _paragraphs(item: type) -> list[str]:
+    """Return the paragraphs of the docstring of a class before its sections, each on one line."""
+    text = inspect.getdoc(item) or ''
+    paragraphs = [' '.join(paragraph.split()) for paragraph in text.split('\n\n')]
+    return [paragraph for paragraph in paragraphs if paragraph and not paragraph.endswith(':')]
+
+
+def _comparison(item: type) -> list[str]:
+    """Return what a class adds, when to choose it, and its uses, read from its docstring."""
+    paragraphs = _paragraphs(item)
+    compare = next((paragraph for paragraph in paragraphs if paragraph.startswith('Unlike')), '')
+    adds, _, choose = compare.partition(' Choose it when ')
+    uses = next((paragraph for paragraph in paragraphs if paragraph.startswith('It appears in')), '')
+    uses = uses.removeprefix('It appears in many fields. ')
+    return [adds, choose[:1].upper() + choose[1:], uses]
+
+
+def _sections(item: type) -> dict[str, list[tuple[str, str]]]:
+    """Return the arguments and the errors of the docstring of a class, parsed with griffe."""
+    docstring = griffe.Docstring(inspect.getdoc(item) or '', parser='google', parser_options={'warnings': False})
+    found: dict[str, list[tuple[str, str]]] = {'parameters': [], 'raises': []}
+    for section in docstring.parse():
+        if section.kind.value in found:
+            for entry in section.value:
+                name = getattr(entry, 'name', '') or str(getattr(entry, 'annotation', ''))
+                sentence = ' '.join(entry.description.split()).split('. ')[0].rstrip('.')
+                found[section.kind.value].append((name, f'{sentence}.'))
+    return found
+
+
+def _catalog_classes() -> list[tuple[str, type[BaseSystem], set[type]]]:
+    """Return the gallery name, the class, and the classes every catalog system names or subclasses.
+
+    A system names the classes in the globals of its module and of the field `common` modules it imports.
+    """
+    found = []
+    for name, system in sorted(library_systems().items()):
+        module = sys.modules[system.__module__]
+        modules = [module]
+        for value in vars(module).values():
+            origin = getattr(value, '__module__', '') or ''
+            if isinstance(value, type) and '.common' in origin and origin in sys.modules:
+                modules.append(sys.modules[origin])
+        classes = {value for item in modules for value in vars(item).values() if isinstance(value, type)}
+        found.append((name, system, classes))
+    return found
+
+
+def _links(items: list[str], more: str) -> str:
+    """Return the first links of a list, and a link to the rest when there are more."""
+    if not items:
+        return 'none yet'
+    shown = ', '.join(items[:SHOWN])
+    return shown if len(items) <= SHOWN else f'{shown}, and more in {more}'
+
+
+def _fact_sheet(item: type, catalog: list[tuple[str, type[BaseSystem], set[type]]], family: str) -> list[str]:
+    """Return the fact sheet of a class of the core: its variables, tags, solvers, errors, links, and uses."""
+    specs = item._get_specs()
+    states = {name: spec for name, spec in specs.items() if isinstance(spec, StateSpec)}
+    parameters = [name for name, spec in specs.items() if isinstance(spec, ParameterSpec)]
+    domains = frozenset(spec._get_domain_tag() for spec in states.values()) - {None}
+    laws = BasePart._get_law_tags(item._get_declared_laws()).laws
+    tags = Tags(domains=domains, laws=laws)
+    runners = [runner for runner in _public_classes(solvers, BaseSolver) if _declares_support(runner)]
+    accepted = [runner for runner in runners if not runner.get_supported_tags().get_missing(tags)]
+    times = {time for runner in accepted for time in runner.get_supported_tags().time}
+    engines = [runner for runner in _public_classes(backends, BaseBackend) if _declares_support(runner)]
+    compiled = [runner for runner in engines if not runner.get_supported_tags().get_missing(tags)]
+    sections = _sections(item)
+    users = [f'[{name}](../systems/{system.field}/{name}.md)' for name, system, classes in catalog if item in classes]
+    realizations = sorted(
+        {
+            kind.__name__
+            for _, _, classes in catalog
+            for kind in classes
+            if kind is not item and issubclass(kind, item) and kind.__module__.startswith('skcomplex.systems.')
+        },
+    )
+    domain_cells = {
+        name: _values({spec._get_domain_tag()} - {None}, empty='a whole structure') for name, spec in states.items()
+    }
+    state_cell = ', '.join(f'`{name}` ({cell})' for name, cell in domain_cells.items())
+    arguments = inspect.signature(item).parameters
+    origin = 'given as data' if 'variables' in arguments else 'declared by a subclass'
+    origin = 'those of the element class of its members' if 'element' in arguments else origin
+    api = f'{item.__module__.rsplit(".", 1)[0]}.{item.__name__}'
+    reference = f'{REFERENCE}/{family}.md#{item.__name__.lower()}'
+    lines = [
+        f'### {item.__name__}',
+        '',
+        (inspect.getdoc(item) or '').splitlines()[0],
+        '',
+        f'- States: {state_cell or origin}',
+        f'- Parameters: {", ".join(f"`{name}`" for name in parameters) or "none declared"}',
+        f'- Law kinds: {_values(laws, empty="none of its own")}',
+        f'- Times: {_values(times, TIMES)}',
+        f'- Solvers: {_values([runner.__name__ for runner in accepted], [runner.__name__ for runner in runners])}',
+        f'- Backends: {_values([runner.__name__ for runner in compiled], [runner.__name__ for runner in engines])}',
+        '- Arguments:',
+        *(f'    - `{name}`: {text}' for name, text in sections['parameters']),
+        '- Errors:' + ('' if sections['raises'] else ' none of its own'),
+        *(f'    - `{name}`: {text}' for name, text in sections['raises']),
+        f'- Catalog systems: {_links(users, "the [catalog](../systems/catalog.md)")}',
+        f'- Field realizations: {_links([f"`{name}`" for name in realizations], "the catalog")}',
+        f'- See also: [reference]({reference}), [API][{api}]',
+        '',
+    ]
+    return lines
+
+
+def _facts(items: list[type], family: str) -> str:
+    """Return the comparison table and the fact sheets of the classes of a family."""
+    catalog = _catalog_classes()
+    rows = [[f'[`{item.__name__}`](#{item.__name__.lower()})', *_comparison(item)] for item in items]
+    lines = ['## Comparison', '', *_table(['Class', 'What it adds', 'Choose it when', 'Uses'], rows), '']
+    lines += ['## Fact sheets', '']
+    for item in items:
+        lines += _fact_sheet(item, catalog, family)
+    return '\n'.join(lines)
 
 
 def _elements_page() -> str:
@@ -177,7 +303,10 @@ message
 assert "domain 'boolean'" in message
 ```
 """
-    return _page('Elements', intro, ['Element', 'States', 'Domains', 'Law kinds'], rows, examples)
+    every = sorted((getattr(elements, name) for name in elements.__all__), key=lambda item: item.__name__)
+    facts = _facts([item for item in every if isinstance(item, type) and issubclass(item, BaseElement)], 'elements')
+    header = ['Element', 'States', 'Domains', 'Law kinds']
+    return _page('Elements', intro, header, rows, f'{facts}\n\n{examples.strip()}')
 
 
 def _role_cell(name: str, role: RoleSpec) -> str:
