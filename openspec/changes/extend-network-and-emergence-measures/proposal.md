@@ -14,6 +14,12 @@ agents hold about their joint future, the gain of triplets over pairs in predict
 break the identities or the alignment of the agents. `partial_information` and the practical criterion exist, but these
 group-level measures and their nulls do not.
 
+The causal network of a set of time series, which variable drives which and at what lag, is the first question of
+climate teleconnections, ecological interactions, effective connectivity in neuroscience, and lead and lag in
+economics (Runge et al. 1702.07007, Datseris and Parlitz 7.2 and 7.3, Jensen 9.2). The library has transfer entropy
+but no Granger test, no PCMCI, no convergent cross mapping, and no result that holds a causal graph for
+`network_measures`.
+
 ## What Changes
 
 - `network_measures` gains the kind `'core-periphery'`: the core of every frame by the discrete model of Borgatti and
@@ -38,6 +44,11 @@ group-level measures and their nulls do not.
 - `surrogate_test` gains `method`: `'shuffle'`, the present independent shuffles and the default, `'shift'`, circular
   shifts of every variable by its own random lag, `'swap'`, a permutation of the variables at every time, and
   `'block'`, shuffles of blocks of a given length.
+- New analysis `causal_network(source, *, method='pcmci', ...)` in `skcomplex.core.analysis`, which returns the lagged
+  causal graph of the series of a source with the strength and p-value of every link, by `'pcmci'` (tigramite),
+  `'ccm'`, convergent cross mapping (pyEDM), `'granger'`, tests of a vector autoregression (statsmodels), or
+  `'transfer'`, the transfer entropy estimators of `information`. Its graph is a NetworkX directed graph that
+  `network_measures` reads.
 - New system `SurvivingByServingSystem` in `biology/evolution`: agents that transform pairs of feature vectors from a
   shared, aging pool, gain credit when their outputs are used by agents or evaluators, and mutate after long
   uncredited spells by a Hill-type probability. It records the transfers between agents, the network whose core and
@@ -51,7 +62,7 @@ None.
 
 ### Modified Capabilities
 
-- `network-analysis`: core-periphery structure is detected.
+- `network-analysis`: core-periphery structure is detected, and causal networks are inferred from time series.
 - `complexity-measures`: the gain of causal emergence has a bootstrap interval and p-value, causal emergence is
   apportioned over a hierarchy of scales, group synergy and coalition gains are measured, and surrogate tests keep
   chosen structure.
@@ -59,12 +70,15 @@ None.
 
 ## Impact
 
-- Code: `src/skcomplex/core/analysis/_networks.py` (new kind, `NetworkMeasuresResult` fields, `method` default),
+- Code: a new module `src/skcomplex/core/analysis/_causal_network.py`, `src/skcomplex/core/analysis/_networks.py` (new kind, `NetworkMeasuresResult` fields, `method` default),
   `src/skcomplex/core/analysis/_emergence.py` (bootstrap of `'causal'`, the kinds `'scales'`, `'synergy-capacity'`,
   and `'coalition'`, `EmergenceResult` fields), and `src/skcomplex/core/analysis/_surrogates.py` (`method`). A new
   module in `src/skcomplex/systems/biology/evolution/`.
-- No new dependencies. NetworkX gives `core_number`, SciPy gives `stats.bootstrap`, and dit, already a runtime
-  dependency, gives the decomposition of the synergy. `cpnet`, the core-periphery package, is not used because its
+- New runtime dependencies for `causal_network`: `tigramite>=5.2.10.1` (5.2.10.1, released 2026-01-14, GPL-3.0,
+  accepted by the user on 2026-11-10), `pyEDM>=2.5.7` (2.5.7, released 2026-08-29, UCSD licence for educational,
+  research, and non-profit use, an open question below), and `statsmodels>=0.15.0` (0.15.0, released 2026-08-27,
+  BSD-3-Clause, added here or by `add-learning-bridges`, whichever lands first). NetworkX gives `core_number`, SciPy
+  gives `stats.bootstrap`, and dit, already a runtime dependency, gives the decomposition of the synergy. `cpnet`, the core-periphery package, is not used because its
   last release is 0.0.21 of 2022-07-11.
 - Docs: the network and emergence sections of the analysis guide, a gallery example, and an inventory entry.
 - `add-language-model-agents` adds the group guessing game of 2510.05174, whose gallery example reads the new synergy

@@ -16,9 +16,14 @@ a variable group with an interaction that draws from it every step.
 dit, with the minimum and the minimum mutual information redundancies. `surrogate_test` in `_surrogates.py` shuffles
 every variable independently and compares a scalar field of an analysis on the data and on the surrogates.
 
+`information` in `_information.py` estimates transfer entropy with plugin and nearest neighbour estimators, and
+`embedding` gives delay embeddings. `network_measures` reads NetworkX graphs and adjacency arrays.
+
 ## Goals / Non-Goals
 
 **Goals:**
+- A causal network of time series by the standard methods, PCMCI, convergent cross mapping, Granger tests, and transfer
+  entropy, as one analysis whose graph the network measures read.
 - Core-periphery detection with the same frame handling as the other kinds of `network_measures`.
 - A bootstrap of the gain that reuses SciPy and the settings names `scaling` already uses.
 - Causal Emergence 2.0 over a path of scales, with the emergent complexity of 2503.13395.
@@ -35,6 +40,8 @@ every variable independently and compares a scalar field of an analysis on the d
   partitions.
 - Synergy of orders above two in `'synergy-capacity'`. The paper computes order two, and the coalition gain covers
   order three.
+- PCMCI+ with contemporaneous links, latent confounders (LPCMCI), and causal effect estimation. They are methods of
+  tigramite that can join `causal_network` later.
 
 ## Decisions
 
@@ -67,6 +74,37 @@ every variable independently and compares a scalar field of an analysis on the d
   but no Borgatti and Everett model. `graph-tool` is not on PyPI. So the discrete model is a short private function
   over NumPy, and the k-core comes from NetworkX. SciPy 1.18.1 (2026-08-21) gives the bootstrap.
 
+- **Causal network.** `causal_network(source, *, method='pcmci', variables=None, max_lag=5, level=0.05, test='parcorr',
+  embedding=None, libraries=None, random_state=None)` in `core/analysis/_causal_network.py` reads trajectories, arrays,
+  or the observed runs of `add-learning-foundation`. It returns a frozen `CausalNetworkResult` with `labels`,
+  `strengths` and `p_values` of shape `(variables, variables, max_lag + 1)`, `links`, the significant links as
+  `(source, target, lag)` tuples, and `graph`, a NetworkX `DiGraph` with the strongest significant lag and its strength
+  on every edge, which `network_measures` reads. It declares `AnalysisTags(DataKind.SERIES)`.
+  - `'pcmci'` runs `tigramite.pcmci.PCMCI.run_pcmci` with the conditional independence test `test`, `'parcorr'` for
+    linear links (`ParCorr`) or `'cmi'` for nonlinear ones (`CMIknn`), at `max_lag` and `pc_alpha=None`, and keeps the
+    links whose p-value is below `level`, the method of Runge et al. (1702.07007).
+  - `'ccm'` runs `pyEDM.CCM` for every ordered pair with the embedding dimension `embedding` (chosen by `embedding` of
+    the core with false nearest neighbours when `None`) and the library sizes `libraries`, and reports as strength the
+    cross-map skill at the largest library and as p-value the share of seeded surrogates of `surrogate_test`
+    (method `'shift'`) whose skill reaches it, after Sugihara et al. (2012) and Datseris and Parlitz (7.3.1). The skill
+    at every library size is kept in `skills`, so convergence is visible. CCM gives no lag, so `lag` is 0.
+  - `'granger'` fits a vector autoregression of order `max_lag` with `statsmodels.tsa.api.VAR` and tests every pair by
+    `test_causality` with the other variables conditioned on, reporting the F statistic as strength.
+  - `'transfer'` estimates the transfer entropy of every ordered pair with the estimators of `information` at every lag
+    up to `max_lag` and tests it against `'shift'` surrogates.
+  - Runs of observed data are pooled without joining two runs, as the group measures pool them.
+- **Libraries and licences.** Checked on PyPI on 2026-11-10. tigramite 5.2.10.1 (2026-01-14) needs numpy, scipy, and
+  six, ships a pure Python wheel, and is the reference implementation of PCMCI by its authors. Its licence is
+  GPL-3.0, while this library is MIT. Decided on 2026-11-10: the user accepted the GPL-3.0 licence and tigramite is a
+  runtime dependency, since the core imports it and licence does not decide placement. Users who redistribute the
+  library with tigramite installed take on the terms of the GPL for the combined work, which the installation page
+  states. pyEDM 2.5.7 (2026-08-29) needs numpy, scipy, scikit-learn, pandas, and matplotlib, ships a pure Python
+  wheel, and is the implementation of empirical dynamic modelling by Sugihara's group. Its licence permits copying,
+  modification, and distribution for educational, research, and non-profit purposes only, and asks commercial users to
+  contact the University of California, San Diego. statsmodels 0.15.0 (2026-08-27) is BSD-3-Clause.
+- **Placement of the causal network.** Step 2: an analysis of the core that reads series by their tags. Its users are
+  climate (teleconnections, the application of 1702.07007), ecology (sardine and anchovy, the case of CCM), neuroscience
+  (effective connectivity), economics (lead and lag), and epidemiology (drivers of incidence).
 - **Placement of the new kinds.** `'scales'`, `'synergy-capacity'`, `'coalition'`, and the surrogate methods are kinds
   and settings of analyses of the core that read trajectories and matrices by their tags, step 2 of the placement
   rule. They are cross-domain: Markov models of neural, genetic, and ecological dynamics and cellular automata for
@@ -106,6 +144,11 @@ every variable independently and compares a scalar field of an analysis on the d
 
 ## Risks / Trade-offs
 
+- [PCMCI with `CMIknn` is slow for many variables and long series] → `'parcorr'` is the default, the docstring gives
+  the cost, and the nonlinear test is a slow test.
+- [CCM reports spurious links between strongly synchronised series, Datseris and Parlitz 9.3.2] → The docstring says
+  so, and the surrogate p-value guards against links of autocorrelation alone.
+
 - [The swap search finds a local optimum] → It starts from the strength ranking, which is optimal for many graphs,
   and the planted-core test checks it. The docstring states that the search is local.
 - [Memory of expanded transitions] → One pair per transition. Counts in the millions use a few tens of megabytes. The
@@ -121,3 +164,10 @@ every variable independently and compares a scalar field of an analysis on the d
 ## Migration Plan
 
 None beyond the changelog line for the `method` default.
+
+## Open Questions
+
+- pyEDM is licensed for educational, research, and non-profit use only. The user accepted the GPL-3.0 of tigramite but
+  has not ruled on this licence. If it is not accepted, `'ccm'` uses the short estimator of Datseris and Parlitz (Code
+  7.2), nearest neighbours of the delay embedding on `scipy.spatial.cKDTree` with exponential weights, and pyEDM is
+  dropped. The scenarios are the same either way.

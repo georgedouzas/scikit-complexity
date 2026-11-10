@@ -38,6 +38,24 @@
 - [ ] 5.3 Add a paragraph and a runnable example of a synergy test against swap surrogates in the emergence section of
   `docs/overview/user_guide/analyse.md`, and verify it runs
 
-## 6. Verification
+## 6. Causal networks
 
-- [ ] 6.1 Run `nox -s checks`, the tests of the touched modules, and the strict docs build, and fix every finding
+- [ ] 6.1 Add `tigramite>=5.2.10.1`, `pyEDM>=2.5.7`, and `statsmodels>=0.15.0` (unless `add-learning-bridges` added it
+  first) to the runtime dependencies in `pyproject.toml` and the Project Profile with their release dates and licences,
+  record the GPL-3.0 decision of 2026-11-10 on the installation page, and verify `pdm install` resolves and all import
+- [ ] 6.2 Add `causal_network` and `CausalNetworkResult` in `src/skcomplex/core/analysis/_causal_network.py` with
+  `'pcmci'` on tigramite, the graph, and the pooling of runs, export them with their analysis tags, and verify the
+  known-linear-links scenario (marked slow) and the graph-for-network-measures scenario in
+  `tests/core/analysis/test_causal_network.py`
+- [ ] 6.3 Add `'granger'` on statsmodels and `'transfer'` on the estimators of `information` with shift surrogates, and
+  verify the Granger-on-the-same-model scenario and a transfer entropy result on the same model
+- [ ] 6.4 Add `'ccm'` on pyEDM with the embedding chosen by false nearest neighbours, the skills by library size, and
+  the surrogate p-value, and verify the cross-mapping-of-Lorenz-63 and independent-systems scenarios
+- [ ] 6.5 Add a paragraph and a runnable example of `causal_network` in the network section of
+  `docs/overview/user_guide/analyse.md`, and a gallery example
+  `docs/examples/physics/climate/plot_causal_network.py` that finds the links of a coupled low-order climate model, and
+  verify both run
+
+## 7. Verification
+
+- [ ] 7.1 Run `nox -s checks`, the tests of the touched modules, and the strict docs build, and fix every finding
