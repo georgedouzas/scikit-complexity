@@ -2,11 +2,11 @@
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import SR, identity_matrix, matrix, var, vector
+from sage.all__sagemath_symbolics import SR, matrix, var, vector
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.analysis import alignment, defects
-from skcomplex.core.components.laws.utils import laplacian, partial, symmetric_part, upwind, vector_gradient
+from skcomplex.core.components.laws.utils import laplacian, partial, upwind
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
@@ -16,19 +16,6 @@ from skcomplex.systems.physics.active_matter import (
     LandauDeGennesEnergyInteraction,
     PolarGelSiteElement,
 )
-
-
-def test_upper_convected_of_the_identity_is_minus_twice_the_strain_rate():
-    """The upper-convected derivative of the constant identity is minus twice the symmetric velocity gradient."""
-    velocity = [var('u'), var('v')]
-    transport = PolarGelSiteElement._get_upper_convected_transport(identity_matrix(SR, 2), velocity)
-    assert (transport + 2 * symmetric_part(vector_gradient(velocity))).simplify_full().is_zero()
-
-
-def test_upper_convected_transport_of_the_identity_has_minus_twice_the_strain_rate():
-    """Test that the upper-convected transport of the identity has the diagonal `-2 partial(u, 0)`."""
-    transport = PolarGelSiteElement._get_upper_convected_transport(identity_matrix(SR, 2), [var('u'), var('v')])
-    assert bool(transport[0, 0] == -2 * partial(var('u'), 0))
 
 
 def test_corotational_transport_of_a_tensor_is_a_square_matrix():

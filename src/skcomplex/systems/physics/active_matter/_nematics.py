@@ -264,20 +264,6 @@ class PolarGelSiteElement(Element):
         stretching = 2 * SR(xi) * (tensor * gradients).trace() * shifted_tensor
         return advected_tensor - aligned + stretching
 
-    @staticmethod
-    def _get_upper_convected_transport(tensor: Matrix, velocity: Sequence[object] | FreeModuleElement) -> Matrix:
-        """Return the upper-convected transport of a rank-2 tensor.
-
-        The transport is `u.grad(T) - grad(u)^T T - T grad(u)`. The tensor is a square matrix of expressions and the
-        velocity holds one component per dimension. The result is the matrix to subtract from the rate of the tensor.
-        Another shape raises a `TensorShapeError`.
-        """
-        checked = PolarGelSiteElement._check_matrix('the upper-convected transport', tensor)
-        flow = PolarGelSiteElement._check_vector('the upper-convected transport', velocity)
-        gradients = vector_gradient(flow)
-        advected = checked.apply_map(lambda item: PolarGelSiteElement._get_advection(item, flow))
-        return advected - gradients.transpose() * checked - checked * gradients
-
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate of the polarisation.
 

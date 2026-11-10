@@ -27,7 +27,6 @@ from ..common.fields import AdvectionInteraction, PhaseSpaceDensityElement
 from ..common.particles import RelaxationTimeInteraction
 
 SETUPS = ('landau', 'two-stream')
-SHOCK_TUBE = 'sod'
 VELOCITY_AXES = ('vx', 'vy')
 VLASOV_VISUAL = VisualSpec('image', {'moments': (0,)})
 
