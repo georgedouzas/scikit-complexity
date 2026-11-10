@@ -1,13 +1,13 @@
 # How the parts fit
 
-This page explains the parts that every system is made of and how a run turns them into numbers. It ends with a
+This page explains the parts that every [system](../glossary.md#system) is made of and how a run turns them into numbers. It ends with a
 predator and its prey on a lattice, built one part at a time.
 
 ## The parts
 
-An element holds states, the numbers that change as the system runs, such as the size of a population. An interaction
-reads states through its roles and returns laws that change them. A law is one equation or rule for one state, such as
-a rate or the next value at a step. A space places the members of a group and says who neighbours whom. A time says
+An [element](../glossary.md#element) holds [states](../glossary.md#state), the numbers that change as the system runs, such as the size of a population. An [interaction](../glossary.md#interaction)
+reads states through its [roles](../glossary.md#role) and returns [laws](../glossary.md#law) that change them. A law is one equation or rule for one state, such as
+a rate or the next value at a step. A [space](../glossary.md#space) places the [members](../glossary.md#member) of a [group](../glossary.md#group) and says who neighbours whom. A time says
 whether the system flows, steps, or is solved once. A system composes all of them.
 
 ```mermaid
@@ -53,7 +53,7 @@ all elements, and an epidemic, a reaction, and a payment are all interactions.
 
 ## A run
 
-`simulate` takes a system to a trajectory in four stages.
+`simulate` takes a system to a [trajectory](../glossary.md#trajectory) in four stages.
 
 ```mermaid
 flowchart LR
@@ -63,9 +63,9 @@ flowchart LR
     D -->|observers record them| E[Trajectory]
 ```
 
-`prepare` checks every part and binds every role to an element. The compiler reads the laws of the parts and builds a
-problem of one mathematical form, such as a system of ordinary differential equations. A solver advances the problem
-from frame to frame, and a backend, NumPy by default, evaluates its functions. Observers receive the frames, and the
+`prepare` checks every part and binds every role to an element. The [compiler](../glossary.md#compiler) reads the laws of the parts and builds a
+problem of one mathematical form, such as a system of [ordinary differential equations](../glossary.md#ordinary-differential-equation). A [solver](../glossary.md#solver) advances the problem
+from [frame](../glossary.md#frame) to frame, and a [backend](../glossary.md#backend), NumPy by default, evaluates its functions. [Observers](../glossary.md#observer) receive the frames, and the
 recorder keeps them as the trajectory that `simulate` returns.
 
 ## A system step by step
@@ -160,7 +160,7 @@ time = ContinuousTime()
 
 ### The system
 
-A `CompositeSystem` holds the parts. Its tags come from them: rate laws in continuous time.
+A `CompositeSystem` holds the parts. Its [tags](../glossary.md#tag) come from them: rate laws in continuous time.
 
 ```python continuation
 from skcomplex.core.components.systems import CompositeSystem
@@ -185,7 +185,7 @@ trajectory.get_values('habitats.prey').mean(axis=1).round(2).tolist()
 
 ## The main public methods
 
-Every part has two main public methods, and both return the part itself. `prepare` checks the part against what it
+Every part has two [main public methods](../glossary.md#main-public-methods), and both return the part itself. `prepare` checks the part against what it
 works on, such as the space of its system. `run` sets what the part contributes: the laws of an element, an
 interaction, or a system in `laws_`, and the value of a law in `value_`. A part runs only after it is prepared. Every
 part also has `get_params`, `set_params`, and `get_tags`, as scikit-learn estimators do. `simulate` is a function,
@@ -213,7 +213,7 @@ The laws of a system give its tags, and the tags decide the default solver.
 | `JumpLaw` | jump process | `GillespieSolver` |
 | `UpdateLaw` | discrete map | `IterationSolver` |
 
-A run also records observables, named values computed from the states at every frame, and checks the invariants it is
+A run also records [observables](../glossary.md#observable), named values computed from the states at every frame, and checks the [invariants](../glossary.md#invariant) it is
 given.
 
 ## Where the parts live

@@ -75,12 +75,12 @@
 
 ## 10. Case studies and extras
 
-- [ ] 10.1 Write `case_studies/epidemic_calibration.md` on the 1978 boarding school influenza outbreak, citing the report and holding the counts inline, and verify every block runs in under a minute
-- [ ] 10.2 Write `case_studies/opinion_sweep.md` on a bounded confidence model swept over its bound, and verify every block runs in under a minute
-- [ ] 10.3 Write `case_studies/ising_transition.md`, locating the susceptibility peak near the exact critical temperature and estimating exponents, and verify every block runs in under a minute and the printed temperature agrees with Onsager's value within the stated tolerance
-- [ ] 10.4 Write `glossary.md` with one entry per mathematical and library term the guide uses, linked from the pages that use it, and verify the strict build passes
-- [ ] 10.5 Write `troubleshooting.md` with one section per public error class of `skcomplex.core.errors`, each raising the error and showing the fix, add `test_troubleshooting_covers_every_error`, and verify both pass
-- [ ] 10.6 Add the pages of this group to `REWRITTEN_DOCUMENTS`, read each page through for flow and rewrite what sounds generated, and verify `test_documents_read_naturally` passes
+- [x] 10.1 Write `case_studies/epidemic_calibration.md` on the 1978 boarding school influenza outbreak, citing the report and holding the counts inline, and verify every block runs in under a minute
+- [x] 10.2 Write `case_studies/opinion_sweep.md` on a bounded confidence model swept over its bound, and verify every block runs in under a minute
+- [x] 10.3 Write `case_studies/ising_transition.md`, locating the susceptibility peak near the exact critical temperature and estimating exponents, and verify every block runs in under a minute and the printed temperature agrees with Onsager's value within the stated tolerance
+- [x] 10.4 Write `glossary.md` with one entry per mathematical and library term the guide uses, linked from the pages that use it, and verify the strict build passes
+- [x] 10.5 Write `troubleshooting.md` with one section per public error class of `skcomplex.core.errors`, each raising the error and showing the fix, add `test_troubleshooting_covers_every_error`, and verify both pass
+- [x] 10.6 Add the pages of this group to `REWRITTEN_DOCUMENTS`, read each page through for flow and rewrite what sounds generated, and verify `test_documents_read_naturally` passes
 
 ## 11. Other documents
 
