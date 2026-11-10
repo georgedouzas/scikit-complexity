@@ -63,15 +63,15 @@
 
 ## 9. Workflow tutorials
 
-- [ ] 9.1 Write `check.md`, merging `choosing_compatible_components.md` and updating every link to it, with the common validation errors triggered, printed, and fixed, and verify every block runs
-- [ ] 9.2 Rewrite `simulate.md` as a tutorial on the running example covering run settings, solvers, backends, and `random_state`, and verify every block runs
-- [ ] 9.3 Rewrite `analyse.md` as a tutorial on the running example, starting from `applicable_analyses`, and verify every block runs
-- [ ] 9.4 Write `evaluate.md` with the comparison to the pelt records, goodness of fit, posterior predictive checks, `posterior_coverage`, and `identifiability`, and verify every block runs in under a minute
-- [ ] 9.5 Write `calibrate.md` with every method of `calibrate`, its losses, diagnostics, and when to choose it, using small budgets and fixed seeds, and verify every block runs in under a minute and prints rounded or compared values only
-- [ ] 9.6 Rewrite `run_experiments.md` as a tutorial covering `sweep`, `ensemble`, `sensitivity`, `compare_scenarios`, `basin_stability`, and `orbit_diagram`, and verify every block runs in under a minute
-- [ ] 9.7 Rewrite `observe.md` as the visualise tutorial with the `RerunObserver`, the visuals, and matplotlib plots, and verify every block runs
-- [ ] 9.8 Write `share.md` on turning the example into a registered system with its inventory entry and gallery example, linking `CONTRIBUTING.md`, and verify every block runs and the strict build passes
-- [ ] 9.9 Update the navigation to the order of the modified requirement, add the pages to `REWRITTEN_DOCUMENTS`, read each page through for flow and rewrite what sounds generated, and verify `test_documents_read_naturally` and the strict build pass
+- [x] 9.1 Write `check.md`, merging `choosing_compatible_components.md` and updating every link to it, with the common validation errors triggered, printed, and fixed, and verify every block runs
+- [x] 9.2 Rewrite `simulate.md` as a tutorial on the running example covering run settings, solvers, backends, and `random_state`, and verify every block runs
+- [x] 9.3 Rewrite `analyse.md` as a tutorial on the running example, starting from `applicable_analyses`, and verify every block runs
+- [x] 9.4 Write `evaluate.md` with the comparison to the pelt records, goodness of fit, posterior predictive checks, `posterior_coverage`, and `identifiability`, and verify every block runs in under a minute
+- [x] 9.5 Write `calibrate.md` with every method of `calibrate`, its losses, diagnostics, and when to choose it, using small budgets and fixed seeds, and verify every block runs in under a minute and prints rounded or compared values only
+- [x] 9.6 Rewrite `run_experiments.md` as a tutorial covering `sweep`, `ensemble`, `sensitivity`, `compare_scenarios`, `basin_stability`, and `orbit_diagram`, and verify every block runs in under a minute
+- [x] 9.7 Rewrite `observe.md` as the visualise tutorial with the `RerunObserver`, the visuals, and matplotlib plots, and verify every block runs
+- [x] 9.8 Write `share.md` on turning the example into a registered system with its inventory entry and gallery example, linking `CONTRIBUTING.md`, and verify every block runs and the strict build passes
+- [x] 9.9 Update the navigation to the order of the modified requirement, add the pages to `REWRITTEN_DOCUMENTS`, read each page through for flow and rewrite what sounds generated, and verify `test_documents_read_naturally` and the strict build pass
 
 ## 10. Case studies and extras
 
