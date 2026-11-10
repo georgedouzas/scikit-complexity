@@ -272,7 +272,8 @@ def release(session: nox.Session) -> None:
 
     # Create and merge PR from release branch to main
     session.run('gh', 'pr', 'create', '--base', 'main', '--fill', external=True)
-    session.run('gh', 'pr', 'merge', '--rebase', '--delete-branch', external=True)
+    session.run('gh', 'pr', 'checks', '--watch', '--fail-fast', external=True)
+    session.run('gh', 'pr', 'merge', '--merge', '--delete-branch', external=True)
 
     # Create and push the release tag, which is what the pipeline reacts to
     session.run('git', 'checkout', 'main', external=True)
