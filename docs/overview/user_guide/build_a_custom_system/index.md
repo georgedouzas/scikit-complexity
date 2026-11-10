@@ -7,9 +7,12 @@ and every later tutorial of the guide starts from it.
 ## The data
 
 The Hudson's Bay Company bought the pelts of hares and lynx from trappers for two centuries, and the counts rise and
-fall in cycles of about ten years. These are the pelts of 1900 to 1920, in thousands, as tabulated by Odum (1953,
-*Fundamentals of Ecology*) and used in the Stan case study of Carpenter (2018, *Predator-Prey Population Dynamics: the
-Lotka-Volterra model in Stan*).
+fall in cycles of about ten years. Hewitt (1921, *The Conservation of the Wild Life of Canada*) analysed these records.
+The counts below are the pelts of 1900 to 1920, in thousands, as distributed with the case study of Carpenter (2018,
+*Predator-Prey Population Dynamics: the Lotka-Volterra model in Stan*) in the file
+`knitr/lotka-volterra/hudson-bay-lynx-hare.csv` of the Stan example models. That file cites the lecture notes of
+Howard (2009) at Texas A&M University, which trace the numbers through the notes of Mahaffy (Math 636,
+San Diego State University) to Purves, Sadava, Orians, and Heller, *Life: The Science of Biology*.
 
 ```python
 import numpy as np
@@ -38,8 +41,9 @@ dH/dt = alpha H - beta H L
 dL/dt = delta H L - gamma L
 ```
 
-Carpenter estimated `alpha = 0.55`, `beta = 0.028`, `gamma = 0.80`, and `delta = 0.024` per year, with 33.9 thousand
-hares and 5.9 thousand lynx in 1900. The sections below use these values.
+Carpenter estimated `alpha = 0.55`, `beta = 0.028`, `gamma = 0.80`, and `delta = 0.024` per year, the means of the
+posterior of a Bayesian fit. The sections below use these rates and start from the records of 1900, 30.0 thousand
+hares and 4.0 thousand lynx.
 
 ## From the parts of the core
 
@@ -54,8 +58,8 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
 
-hare_population = DeclaredElement('hares', variables={'x': DeclaredVariableSpec(33.9, StateSpec())})
-lynx_population = DeclaredElement('lynx', variables={'x': DeclaredVariableSpec(5.9, StateSpec())})
+hare_population = DeclaredElement('hares', variables={'x': DeclaredVariableSpec(30.0, StateSpec())})
+lynx_population = DeclaredElement('lynx', variables={'x': DeclaredVariableSpec(4.0, StateSpec())})
 births = RateInteraction('births', target='hares', state='x', rate=lambda s: 0.55 * s.target.x)
 hunting = RateInteraction(
     'hunting', target='hares', state='x', sources=['lynx'], rate=lambda s: -0.028 * s.target.x * s.sources[0].x
@@ -71,8 +75,8 @@ trajectory = simulate(pelts, until=20, dt=1.0)
 trajectory.get_values('hares.x').round(1)[:6].tolist()
 ```
 
-The simulated hares rise from 33.9 to 65.6 thousand in 1902 and fall to 18.8 thousand in 1905, close to the pelts.
-The root mean square difference to the records, 5.9 thousand pelts, measures the fit.
+The simulated hares rise from 30.0 to 81.2 thousand in 1903, the year of the highest count of pelts, and fall to 18.6
+thousand in 1905. The root mean square difference to the records, 7.8 thousand pelts, measures the fit.
 
 ```python continuation
 fit = np.sqrt(np.mean((trajectory.get_values('hares.x') - hares) ** 2))
@@ -95,7 +99,7 @@ class HareLynxSystem(ReactionNetworkSystem):
     dt = 1.0
 
     def __init__(
-        self, hares=33.9, lynx=5.9, *, alpha=0.55, beta=0.028, gamma=0.80, delta=0.024, mode='rate', label='system'
+        self, hares=30.0, lynx=4.0, *, alpha=0.55, beta=0.028, gamma=0.80, delta=0.024, mode='rate', label='system'
     ):
         super().__init__(mode=mode, label=label)
         self.hares = hares
@@ -125,7 +129,7 @@ The values match the composite system above. The class variables `until` and `dt
 small population.
 
 ```python continuation
-jumps = HareLynxSystem(hares=34, lynx=6, mode='jump')
+jumps = HareLynxSystem(hares=30, lynx=4, mode='jump')
 sorted(jumps.get_tags().laws), jumps.get_tags().randomness
 ```
 
@@ -142,7 +146,7 @@ class PeltSystem(BaseSystem):
     until = 20.0
     dt = 1.0
 
-    def __init__(self, hares=33.9, lynx=5.9, *, alpha=0.55, beta=0.028, gamma=0.80, delta=0.024, label='system'):
+    def __init__(self, hares=30.0, lynx=4.0, *, alpha=0.55, beta=0.028, gamma=0.80, delta=0.024, label='system'):
         super().__init__(label)
         self.hares = hares
         self.lynx = lynx
@@ -180,7 +184,7 @@ system = PeltSystem()
 simulate(system).get_values('lynx.x').round(1)[:6].tolist()
 ```
 
-A faster birth rate of the hares raises their highest count over the twenty years from 67.3 to 78.5 thousand.
+A faster birth rate of the hares raises their highest count over the twenty years from 81.2 to 85.8 thousand.
 
 ```python continuation
 faster = simulate(system.set_params(alpha=0.65)).get_values('hares.x')
@@ -195,7 +199,7 @@ round(float(faster.max()), 1)
 ```python continuation
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-catalog = LotkaVolterraSystem(prey=33.9, predators=5.9, r=0.55, a=0.028, b=0.024, d=0.80)
+catalog = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
 simulate(catalog, until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
 ```
 
