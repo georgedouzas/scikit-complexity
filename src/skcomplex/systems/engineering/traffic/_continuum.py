@@ -464,7 +464,7 @@ class KernerKonhauserSystem(BaseSystem):
         return road.V0 * (1 / (1 + exp((road.rho / road.rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET)
 
     @staticmethod
-    def _kerner_konhauser_speed(rho: np.ndarray, V0: float, rho_max: float) -> np.ndarray:
+    def _compute_kerner_konhauser_speed(rho: np.ndarray, V0: float, rho_max: float) -> np.ndarray:
         """Return the equilibrium speed of the Kerner-Konhäuser system."""
         return V0 * (1 / (1 + np.exp((rho / rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET)
 
@@ -474,7 +474,7 @@ class KernerKonhauserSystem(BaseSystem):
         rho = PayneSystem._get_density_bump(self.n, density, self.bump)
         values = {
             'rho': rho,
-            'q': rho * self._kerner_konhauser_speed(rho, self.V0, self.rho_max),
+            'q': rho * self._compute_kerner_konhauser_speed(rho, self.V0, self.rho_max),
             'V0': self.V0,
             'rho_max': self.rho_max,
             'tau': self.tau,
@@ -648,7 +648,7 @@ class GktTrafficSystem(BaseSystem):
         return relaxation
 
     @staticmethod
-    def _gkt_equilibrium_speed(rho: np.ndarray, road: GasKineticTrafficElement) -> np.ndarray:
+    def _get_gkt_equilibrium_speed(rho: np.ndarray, road: GasKineticTrafficElement) -> np.ndarray:
         """Return the equilibrium speed of homogeneous GKT traffic.
 
         It is `Vt**2 / (2 V0) (sqrt(1 + 4 V0**2 / Vt**2) - 1)`.
@@ -679,7 +679,7 @@ class GktTrafficSystem(BaseSystem):
             'road',
             element=GasKineticTrafficElement,
             space=LatticeSpace(self.n, spacing=self.length / self.n),
-            values={'rho': rho, 'Q': rho * self._gkt_equilibrium_speed(rho, cell), **values},
+            values={'rho': rho, 'Q': rho * self._get_gkt_equilibrium_speed(rho, cell), **values},
             discretization='finite-volume',
         )
         vehicles = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.Q)

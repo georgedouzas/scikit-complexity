@@ -59,11 +59,11 @@ class TrafficMomentsElement(Element):
                 s.w,
                 -divergence(
                     [
-                        2 * LangevinDrivingInteraction._target_speed(s.rho, s) * s.w
-                        - s.rho * LangevinDrivingInteraction._target_speed(s.rho, s) ** 2,
+                        2 * LangevinDrivingInteraction._get_target_speed(s.rho, s) * s.w
+                        - s.rho * LangevinDrivingInteraction._get_target_speed(s.rho, s) ** 2,
                     ],
                 )
-                - s.gamma * (s.w - s.rho * LangevinDrivingInteraction._target_speed(s.rho, s))
+                - s.gamma * (s.w - s.rho * LangevinDrivingInteraction._get_target_speed(s.rho, s))
                 + s.D1 * (laplacian(s.rho * s.w) + s.rho * laplacian(s.w) - s.w * laplacian(s.rho)) / 2,
             ),
         ]
@@ -125,8 +125,8 @@ class LangevinDrivingInteraction(SpeedAdaptationInteraction):
 
     def _get_goal(self, namespace: SimpleNamespace) -> object:
         """Return the desired speed of the local density of every car."""
-        return LangevinDrivingInteraction._target_speed(
-            LangevinDrivingInteraction._local_density(namespace.target.x, namespace.road_length),
+        return LangevinDrivingInteraction._get_target_speed(
+            LangevinDrivingInteraction._get_local_density(namespace.target.x, namespace.road_length),
             namespace,
         )
 
@@ -137,18 +137,18 @@ class LangevinDrivingInteraction(SpeedAdaptationInteraction):
     def _get_noise(self, namespace: SimpleNamespace) -> object:
         """Return the amplitude `sqrt(2 D1 rho)` of the noise of the local density."""
         return sqrt(
-            2 * namespace.D1 * LangevinDrivingInteraction._local_density(namespace.target.x, namespace.road_length),
+            2 * namespace.D1 * LangevinDrivingInteraction._get_local_density(namespace.target.x, namespace.road_length),
         )
 
     @staticmethod
-    def _target_speed(density: Expression, s: SimpleNamespace) -> Expression:
+    def _get_target_speed(density: Expression, s: SimpleNamespace) -> Expression:
         """Return the desired speed `u(rho) = u0 (1 - rho / rho_max)` at a density."""
         return s.u0 * (1 - density / s.rho_max)
 
     @staticmethod
-    def _local_density(x: Expression, road_length: Expression) -> Expression:
+    def _get_local_density(x: Expression, road_length: Expression) -> Expression:
         """Return the density seen by every car of a ring road, the inverse of its headway."""
-        return 1 / OptimalVelocityInteraction._headway(x, road_length)
+        return 1 / OptimalVelocityInteraction._get_headway(x, road_length)
 
 
 class LangevinTrafficSystem(BaseSystem):

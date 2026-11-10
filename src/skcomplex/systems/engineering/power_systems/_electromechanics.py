@@ -80,7 +80,7 @@ class RailSegmentElement(Element):
         The wheels accelerate the rail and the ballast the sleeper. They leave the pad apart.
         """
         return [
-            RateLaw(s.z, RailSegmentElement._wheel_load(s) / s.Mr),
+            RateLaw(s.z, RailSegmentElement._get_wheel_load(s) / s.Mr),
             RateLaw(
                 s.zs,
                 (-s.bs * derivative(s.zs, 1) - s.ks * s.zs - s.k2 * (s.alpha * s.zs**2 + s.beta * s.zs**3)) / s.Ms,
@@ -88,7 +88,7 @@ class RailSegmentElement(Element):
         ]
 
     @staticmethod
-    def _wheel_load(s: SimpleNamespace) -> Expression:
+    def _get_wheel_load(s: SimpleNamespace) -> Expression:
         """Return the force of the two wheels of a bogie.
 
         It is two pulses per period, `spacing` apart.

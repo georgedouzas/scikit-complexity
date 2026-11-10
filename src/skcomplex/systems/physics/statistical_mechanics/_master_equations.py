@@ -418,9 +418,9 @@ class LandauRelaxationSystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the relaxation down the gradient of the free energy."""
         return {
-            'phi': lambda s: -s.target.Gamma * self._force(s),
+            'phi': lambda s: -s.target.Gamma * self._get_force(s),
         }
 
-    def _force(self, s: SimpleNamespace) -> Expression:
+    def _get_force(self, s: SimpleNamespace) -> Expression:
         """Return `force` from the namespace of an equation."""
         return s.target.a * (s.target.T - s.target.Tc) * s.target.phi + s.target.b * s.target.phi**3 - s.target.h

@@ -172,7 +172,7 @@ class IntelligentDriverInteraction(RateInteraction):
         return s.a * (
             1
             - (cars.v / s.v0) ** s.delta
-            - (gap / (OptimalVelocityInteraction._headway(cars.x, s.road_length) - s.length)) ** 2
+            - (gap / (OptimalVelocityInteraction._get_headway(cars.x, s.road_length) - s.length)) ** 2
         )
 
 

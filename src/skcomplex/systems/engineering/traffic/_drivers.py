@@ -266,9 +266,9 @@ class DriverElement(Element):
             error_msg = 'Drivers move along a ring road, a continuous space with an extent.'
             raise SimulationError(error_msg)
         length = system.dimensions[0]
-        ahead = DriverElement._car_ahead(agent, system, len(cars))
-        x, y = DriverElement._position(agent)
-        distance = (DriverElement._position(ahead)[0] - x) % length if ahead is not None else length
+        ahead = DriverElement._get_car_ahead(agent, system, len(cars))
+        x, y = DriverElement._get_position(agent)
+        distance = (DriverElement._get_position(ahead)[0] - x) % length if ahead is not None else length
         acceleration = min(max(agent.acceleration, agent.min_acc), agent.max_acc)
         speed = (agent.speed + acceleration) * system.rng.uniform(1 - agent.eps, 1 + agent.eps)
         speed = min(max(speed, 0.0), agent.speed_limit)
@@ -276,13 +276,13 @@ class DriverElement(Element):
         agent.move_to(((x + agent.speed) % length, y))
 
     @staticmethod
-    def _position(agent: AgentView) -> tuple[float, float]:
+    def _get_position(agent: AgentView) -> tuple[float, float]:
         """Return the position of an agent in a continuous space."""
         x, y = np.asarray(agent.location, dtype=float)
         return float(x), float(y)
 
     @staticmethod
-    def _car_ahead(agent: DriverView, system: SystemView, n_cars: int) -> DriverView | None:
+    def _get_car_ahead(agent: DriverView, system: SystemView, n_cars: int) -> DriverView | None:
         """Return the car whose rank follows the agent's rank on a road of `n_cars` cars.
 
         It is `None` for the last car.

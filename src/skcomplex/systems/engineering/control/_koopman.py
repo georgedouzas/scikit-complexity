@@ -246,7 +246,7 @@ class _PredictiveProblem:
         self.forced_ = forced
         return self
 
-    def control(self, t: float, *states: float) -> float:
+    def get_control(self, t: float, *states: float) -> float:
         """Return the first input of the solution of the tracking problem.
 
         The problem is read from states at a time in samples.
@@ -426,7 +426,7 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
         if problem is None:
             return 0.0
         plant = s.sources[0]
-        return CallSpec(problem.control, (plant.x, plant.y))
+        return CallSpec(problem.get_control, (plant.x, plant.y))
 
     @staticmethod
     def _fit_problem(

@@ -66,7 +66,7 @@ class ReliefPipelineElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the flows of food through the supply line."""
-        return ReliefPipelineElement._relief_laws(s)
+        return ReliefPipelineElement._get_relief_laws(s)
 
     @staticmethod
     def _need(s: SimpleNamespace) -> Expression:
@@ -77,7 +77,7 @@ class ReliefPipelineElement(Element):
         return s.ration * s.affected * step(s.t, s.onset)
 
     @staticmethod
-    def _shipments(s: SimpleNamespace) -> Expression:
+    def _get_shipments(s: SimpleNamespace) -> Expression:
         """Return the shipments that meet the need and close the gaps.
 
         The gaps are those of the stock and of the pipeline.
@@ -88,12 +88,12 @@ class ReliefPipelineElement(Element):
         return clip(need + stock_gap + pipeline_gap, 0)
 
     @staticmethod
-    def _relief_laws(s: SimpleNamespace) -> list[BaseLaw]:
+    def _get_relief_laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the shipments, arrivals, and distribution of relief food.
 
         They follow a disaster.
         """
-        shipments = ReliefPipelineElement._shipments(s)
+        shipments = ReliefPipelineElement._get_shipments(s)
         return [
             TransferLaw(Source('donors'), s.in_transit, shipments, label='shipping'),
             TransferLaw(s.in_transit, s.warehouse, distributed_delay(shipments, s.shipping_delay, 3), label='arrivals'),
@@ -156,10 +156,10 @@ class RiceMillElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the flows of grain through the mill and the adjustment of its capacity."""
-        return RiceMillElement._rice_mill_laws(s)
+        return RiceMillElement._get_rice_mill_laws(s)
 
     @staticmethod
-    def _season(mean: Expression, amplitude: Expression, t: Expression, period: float) -> Expression:
+    def _get_season(mean: Expression, amplitude: Expression, t: Expression, period: float) -> Expression:
         """Return a seasonal value that oscillates about its mean.
 
         It has a relative amplitude and a period.
@@ -167,35 +167,35 @@ class RiceMillElement(Element):
         return mean * (1 + amplitude * sin(2 * math.pi * t / period))
 
     @staticmethod
-    def _procurement(s: SimpleNamespace) -> Expression:
+    def _get_procurement(s: SimpleNamespace) -> Expression:
         """Return the procurement of paddy.
 
         It is the seasonal harvest after the procurement delay.
         """
-        season = RiceMillElement._season(s.harvest, s.seasonality, s.t, MONTHS_PER_YEAR)
+        season = RiceMillElement._get_season(s.harvest, s.seasonality, s.t, MONTHS_PER_YEAR)
         return distributed_delay(season, s.procurement_delay, 3)
 
     @staticmethod
-    def _indicated_milling(s: SimpleNamespace) -> Expression:
+    def _get_indicated_milling(s: SimpleNamespace) -> Expression:
         """Return the indicated milling, the paddy milled over the milling time."""
         return s.paddy / s.milling_time
 
     @staticmethod
-    def _milling(s: SimpleNamespace) -> Expression:
+    def _get_milling(s: SimpleNamespace) -> Expression:
         """Return the milling, the indicated milling limited by the capacity."""
-        return minimum(RiceMillElement._indicated_milling(s), s.capacity)
+        return minimum(RiceMillElement._get_indicated_milling(s), s.capacity)
 
     @staticmethod
-    def _rice_mill_laws(s: SimpleNamespace) -> list[BaseLaw]:
+    def _get_rice_mill_laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the procurement, milling, and sales of a rice mill.
 
         It also returns the adjustment of its milling capacity.
         """
-        milling = RiceMillElement._milling(s)
+        milling = RiceMillElement._get_milling(s)
         losses = 1 - s.outturn - s.husk_share - s.bran_share
-        perceived = distributed_delay(RiceMillElement._indicated_milling(s), s.perception_time, conserved=False)
+        perceived = distributed_delay(RiceMillElement._get_indicated_milling(s), s.perception_time, conserved=False)
         return [
-            TransferLaw(Source('farms'), s.paddy, RiceMillElement._procurement(s), label='paddy_purchases'),
+            TransferLaw(Source('farms'), s.paddy, RiceMillElement._get_procurement(s), label='paddy_purchases'),
             TransferLaw(s.paddy, s.rice, s.outturn * milling, label='milled_rice'),
             TransferLaw(s.paddy, s.husk, s.husk_share * milling, label='husk_output'),
             TransferLaw(s.paddy, s.bran, s.bran_share * milling, label='bran_output'),
@@ -264,10 +264,10 @@ class IrrigationSchemeElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the flows of water through the scheme."""
-        return IrrigationSchemeElement._irrigation_laws(s)
+        return IrrigationSchemeElement._get_irrigation_laws(s)
 
     @staticmethod
-    def _demand(s: SimpleNamespace) -> Expression:
+    def _get_demand(s: SimpleNamespace) -> Expression:
         """Return the water demand of the crops.
 
         It is their evapotranspiration and the refill of the root zone.
@@ -275,43 +275,45 @@ class IrrigationSchemeElement(Element):
         return clip(s.potential_et + (s.target * s.field_capacity - s.soil) / s.refill_time, 0)
 
     @staticmethod
-    def _reservoir_release(s: SimpleNamespace) -> Expression:
+    def _get_reservoir_release(s: SimpleNamespace) -> Expression:
         """Return the release of the reservoir.
 
         It is the demand before the canal losses, limited by the reservoir.
         """
-        return minimum(IrrigationSchemeElement._demand(s) / (1 - s.canal_loss), s.reservoir / s.release_time)
+        return minimum(IrrigationSchemeElement._get_demand(s) / (1 - s.canal_loss), s.reservoir / s.release_time)
 
     @staticmethod
-    def _pumping(s: SimpleNamespace) -> Expression:
+    def _get_pumping(s: SimpleNamespace) -> Expression:
         """Return the pumping of groundwater.
 
         It is the demand the release leaves, limited by the pumps and the aquifer.
         """
-        unmet = IrrigationSchemeElement._demand(s) - (1 - s.canal_loss) * IrrigationSchemeElement._reservoir_release(s)
+        unmet = IrrigationSchemeElement._get_demand(s) - (
+            1 - s.canal_loss
+        ) * IrrigationSchemeElement._get_reservoir_release(s)
         return minimum(clip(unmet, 0), minimum(s.pump_capacity, s.groundwater / s.pump_time))
 
     @staticmethod
-    def _irrigation_laws(s: SimpleNamespace) -> list[BaseLaw]:
+    def _get_irrigation_laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the water balance of a reservoir, the root zone, and the aquifer.
 
         The root zone is that of the irrigated crops, and the aquifer is below them.
         """
-        release = IrrigationSchemeElement._reservoir_release(s)
+        release = IrrigationSchemeElement._get_reservoir_release(s)
         crop_water = s.potential_et * series(s.soil / s.field_capacity, *WATER_STRESS)
         spill = clip(s.reservoir - s.reservoir_capacity, 0) / s.spill_time
         return [
             TransferLaw(
                 Source('river'),
                 s.reservoir,
-                RiceMillElement._season(s.river_inflow, s.seasonality, s.t, DAYS_PER_YEAR),
+                RiceMillElement._get_season(s.river_inflow, s.seasonality, s.t, DAYS_PER_YEAR),
                 label='inflow',
             ),
             TransferLaw(s.reservoir, Sink('atmosphere'), s.evaporation * s.reservoir, label='evaporation'),
             TransferLaw(s.reservoir, Sink('downstream'), spill, label='spill'),
             TransferLaw(s.reservoir, s.soil, (1 - s.canal_loss) * release, label='irrigation'),
             TransferLaw(s.reservoir, s.groundwater, s.canal_loss * release, label='seepage'),
-            TransferLaw(s.groundwater, s.soil, IrrigationSchemeElement._pumping(s), label='groundwater_pumping'),
+            TransferLaw(s.groundwater, s.soil, IrrigationSchemeElement._get_pumping(s), label='groundwater_pumping'),
             TransferLaw(s.soil, Sink('atmosphere'), crop_water, label='crop_water'),
             TransferLaw(s.soil, s.groundwater, s.percolation * s.soil, label='percolation'),
             TransferLaw(s.groundwater, Sink('downstream'), s.groundwater / s.baseflow_time, label='baseflow'),
@@ -371,33 +373,33 @@ class WasteSystemElement(Element):
 
         It also returns the adjustment of its collection capacity.
         """
-        return WasteSystemElement._waste_laws(s)
+        return WasteSystemElement._get_waste_laws(s)
 
     @staticmethod
-    def _generation(s: SimpleNamespace) -> Expression:
+    def _get_generation(s: SimpleNamespace) -> Expression:
         """Return the generation of waste by the population."""
         return s.per_capita * s.population
 
     @staticmethod
-    def _collection(s: SimpleNamespace) -> Expression:
+    def _get_collection(s: SimpleNamespace) -> Expression:
         """Return the collection of waste, limited by the collection capacity."""
         return minimum(s.uncollected / s.collection_time, s.collection_capacity)
 
     @staticmethod
-    def _acceptance(s: SimpleNamespace) -> Expression:
+    def _get_acceptance(s: SimpleNamespace) -> Expression:
         """Return the share of the residual waste that the landfill accepts as it fills."""
         return series(s.landfill / s.landfill_capacity, *LANDFILL_ACCEPTANCE)
 
     @staticmethod
-    def _waste_laws(s: SimpleNamespace) -> list[BaseLaw]:
+    def _get_waste_laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the generation, collection, treatment, and disposal of solid waste.
 
         The waste is that of a growing city.
         """
         generation, collection, acceptance = (
-            WasteSystemElement._generation(s),
-            WasteSystemElement._collection(s),
-            WasteSystemElement._acceptance(s),
+            WasteSystemElement._get_generation(s),
+            WasteSystemElement._get_collection(s),
+            WasteSystemElement._get_acceptance(s),
         )
         residual = (1 - s.recycling_share - s.composting_share) * collection
         return [
@@ -465,9 +467,9 @@ class RiceMillingSystem(BaseSystem):
     until = 120.0
     dt = 0.25
     observables = (
-        ObservableSpec('procurement', RiceMillElement._procurement, element='mill'),
-        ObservableSpec('indicated_milling', RiceMillElement._indicated_milling, element='mill'),
-        ObservableSpec('milling', RiceMillElement._milling, element='mill'),
+        ObservableSpec('procurement', RiceMillElement._get_procurement, element='mill'),
+        ObservableSpec('indicated_milling', RiceMillElement._get_indicated_milling, element='mill'),
+        ObservableSpec('milling', RiceMillElement._get_milling, element='mill'),
     )
 
     def __init__(
@@ -559,9 +561,9 @@ class SolidWasteSystem(BaseSystem):
     until = 40.0
     dt = 0.1
     observables = (
-        ObservableSpec('generation', WasteSystemElement._generation, element='city'),
-        ObservableSpec('collection', WasteSystemElement._collection, element='city'),
-        ObservableSpec('acceptance', WasteSystemElement._acceptance, element='city'),
+        ObservableSpec('generation', WasteSystemElement._get_generation, element='city'),
+        ObservableSpec('collection', WasteSystemElement._get_collection, element='city'),
+        ObservableSpec('acceptance', WasteSystemElement._get_acceptance, element='city'),
     )
 
     def __init__(
@@ -648,7 +650,7 @@ class FoodReliefSystem(BaseSystem):
     dt = 0.5
     observables = (
         ObservableSpec('need', ReliefPipelineElement._need, element='relief'),
-        ObservableSpec('shipments', ReliefPipelineElement._shipments, element='relief'),
+        ObservableSpec('shipments', ReliefPipelineElement._get_shipments, element='relief'),
     )
 
     def __init__(
@@ -736,9 +738,9 @@ class IrrigationSystem(BaseSystem):
     until = 730.0
     dt = 1.0
     observables = (
-        ObservableSpec('demand', IrrigationSchemeElement._demand, element='scheme'),
-        ObservableSpec('release', IrrigationSchemeElement._reservoir_release, element='scheme'),
-        ObservableSpec('pumping', IrrigationSchemeElement._pumping, element='scheme'),
+        ObservableSpec('demand', IrrigationSchemeElement._get_demand, element='scheme'),
+        ObservableSpec('release', IrrigationSchemeElement._get_reservoir_release, element='scheme'),
+        ObservableSpec('pumping', IrrigationSchemeElement._get_pumping, element='scheme'),
     )
 
     def __init__(

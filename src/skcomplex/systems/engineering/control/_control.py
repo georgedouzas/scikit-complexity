@@ -471,16 +471,16 @@ class PidLoopSystem(DynamicalSystem):
             'y': lambda s: (
                 (
                     -s.target.y
-                    + s.target.gain * (s.target.Kp * PidLoopSystem._error(s) + s.target.Ki * s.target.integral)
+                    + s.target.gain * (s.target.Kp * PidLoopSystem._get_error(s) + s.target.Ki * s.target.integral)
                     + s.target.disturbance * step(s.t, DISTURBANCE_TIME)
                 )
                 / (s.target.tau + s.target.gain * s.target.Kd)
             ),
-            'integral': PidLoopSystem._error,
+            'integral': PidLoopSystem._get_error,
         }
 
     @staticmethod
-    def _error(s: SimpleNamespace) -> Expression:
+    def _get_error(s: SimpleNamespace) -> Expression:
         """Return the error of the controlled process.
 
         It is the set point after its change less the output.
@@ -565,7 +565,7 @@ class PendulumSwingUpSystem(DynamicalSystem):
         }
 
     @staticmethod
-    def _pendulum_energy(s: SimpleNamespace) -> Expression:
+    def _get_pendulum_energy(s: SimpleNamespace) -> Expression:
         """Return the energy per unit inertia of the pendulum, `θ'^2 / 2 - ω^2 cos θ`."""
         return derivative(s.target.theta, 1) ** 2 / 2 - s.target.omega**2 * cos(s.target.theta)
 
@@ -575,7 +575,7 @@ class PendulumSwingUpSystem(DynamicalSystem):
 
         It is `u = -μ sign(θ' cos θ) sign(E_s - E)`.
         """
-        gap = s.target.omega**2 - PendulumSwingUpSystem._pendulum_energy(s)
+        gap = s.target.omega**2 - PendulumSwingUpSystem._get_pendulum_energy(s)
         return -s.target.mu * sign(derivative(s.target.theta, 1) * cos(s.target.theta)) * sign(gap)
 
 
@@ -672,13 +672,13 @@ class SatelliteTransferSystem(DynamicalSystem):
             's': lambda s: (
                 s.target.Lz**2 / s.target.s**3
                 - 1 / s.target.s**2
-                - s.target.epsilon * SatelliteTransferSystem._thrust_direction(s)
+                - s.target.epsilon * SatelliteTransferSystem._get_thrust_direction(s)
             ),
             'theta': lambda s: s.target.Lz / s.target.s**2,
         }
 
     @staticmethod
-    def _satellite_energy(s: SimpleNamespace) -> Expression:
+    def _get_satellite_energy(s: SimpleNamespace) -> Expression:
         """Return the total effective energy of the satellite.
 
         It is `s'^2 / 2 + L_z^2 / (2 s^2) - 1 / s`.
@@ -686,13 +686,13 @@ class SatelliteTransferSystem(DynamicalSystem):
         return derivative(s.target.s, 1) ** 2 / 2 + s.target.Lz**2 / (2 * s.target.s**2) - 1 / s.target.s
 
     @staticmethod
-    def _thrust_direction(s: SimpleNamespace) -> Expression:
+    def _get_thrust_direction(s: SimpleNamespace) -> Expression:
         """Return the thrust `sigma`.
 
         It points inwards while the satellite falls, outwards while it rises, to the end energy.
         """
         return where(
-            SatelliteTransferSystem._satellite_energy(s) < s.target.H_final,
+            SatelliteTransferSystem._get_satellite_energy(s) < s.target.H_final,
             where(derivative(s.target.s, 1) < 0, 1, -1),
             0,
         )

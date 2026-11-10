@@ -337,13 +337,13 @@ class DcMotorSystem(BaseSystem):
         self.b = b
 
     @staticmethod
-    def _rotor_lagrangian(s: SimpleNamespace) -> Expression:
+    def _get_rotor_lagrangian(s: SimpleNamespace) -> Expression:
         """Return the kinetic energy of the rotor."""
         energy: Expression = s.target.J * derivative(s.target.phi, 1) ** 2 / 2
         return energy
 
     @staticmethod
-    def _rotor_dissipation(s: SimpleNamespace) -> Expression:
+    def _get_rotor_dissipation(s: SimpleNamespace) -> Expression:
         """Return the Rayleigh dissipation of the viscous friction of the rotor."""
         dissipation: Expression = s.target.b * derivative(s.target.phi, 1) ** 2 / 2
         return dissipation
@@ -369,8 +369,8 @@ class DcMotorSystem(BaseSystem):
                     'rotation',
                     target='rotor',
                     states='phi',
-                    lagrangian=self._rotor_lagrangian,
-                    dissipation=self._rotor_dissipation,
+                    lagrangian=self._get_rotor_lagrangian,
+                    dissipation=self._get_rotor_dissipation,
                 ),
                 MotorCouplingInteraction('motor', armature='winding', inertia='rotor', k=self.k),
             ],

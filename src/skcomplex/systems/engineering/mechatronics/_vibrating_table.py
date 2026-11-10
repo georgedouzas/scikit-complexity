@@ -142,14 +142,14 @@ class VibratingTableSystem(DynamicalSystem):
             'i2': lambda s: (s.target.uC - s.target.k1 * s.target.v) / s.target.L,
             'uC': lambda s: (self._supply(s) - s.target.uC) / (s.target.R * s.target.C) - s.target.i2 / s.target.C,
             'x': lambda s: s.target.v,
-            'v': lambda s: (self._force(s) - s.target.K * s.target.x - s.target.B * s.target.v) / s.target.m,
+            'v': lambda s: (self._get_force(s) - s.target.K * s.target.x - s.target.B * s.target.v) / s.target.m,
         }
 
     def _supply(self, s: SimpleNamespace) -> Expression:
         """Return `supply` from the namespace of an equation."""
         return s.target.U * sin(s.target.omega * s.t)
 
-    def _force(self, s: SimpleNamespace) -> Expression:
+    def _get_force(self, s: SimpleNamespace) -> Expression:
         """Return the force of the electromagnet.
 
         It is `k2 tan(alpha i2) / alpha`, or its linearization `k2 i2`.

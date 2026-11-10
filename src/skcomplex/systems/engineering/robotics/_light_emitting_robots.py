@@ -178,10 +178,10 @@ class SensoryDelayInteraction(Interaction):
         """
         robots = system.get_agents('target', LightEmittingRobotView)
         positions = np.array([np.asarray(robot.location, dtype=float) for robot in robots])
-        light = self._light(positions)
+        light = self._get_light(positions)
         history = cast('list[Array]', system.storage.setdefault('light', []))
         history.append(light)
-        sensed = self._sensed(history)
+        sensed = self._get_sensed(history)
         speeds = self.V_inf + (self.V0 - self.V_inf) * np.exp(-sensed)
         spread = math.sqrt(2 * self.step / self.tau)
         for robot, position, measured, speed in zip(robots, positions, light, speeds, strict=True):
@@ -191,7 +191,7 @@ class SensoryDelayInteraction(Interaction):
             robot.light = float(measured)
             robot.speed = float(speed)
 
-    def _light(self, positions: Array) -> Array:
+    def _get_light(self, positions: Array) -> Array:
         """Return the total light every robot measures from the others.
 
         The light is taken at the shortest distances on the torus.
@@ -203,7 +203,7 @@ class SensoryDelayInteraction(Interaction):
         light: Array = glow.sum(axis=1)
         return light
 
-    def _sensed(self, history: list[Array]) -> Array:
+    def _get_sensed(self, history: list[Array]) -> Array:
         """Return the light the robots react to.
 
         It is measured a delay ago, or predicted ahead for a negative delay.

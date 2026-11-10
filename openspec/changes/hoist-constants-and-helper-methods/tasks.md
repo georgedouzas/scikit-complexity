@@ -100,7 +100,7 @@ tests and the catalog tests pass with the field added to the checked packages.
 - [x] 7.4 Computer science, including the landscapes of `_optimisers.py`.
 - [x] 7.5 Economics, including the predictors of `_el_farol.py`, the heuristics namespace, and `landscape` of
   `_sugarscape.py`, whose example moves into its mirrored test.
-- [ ] 7.6 Engineering, including the plants of `_koopman.py`.
+- [x] 7.6 Engineering, including the plants of `_koopman.py`.
 - [ ] 7.7 Mathematics.
 - [ ] 7.8 Physics, including the LAMMPS tables, `_lattice_gases.py`, `_yang_mills.py`, and the unexported
   `corotational`, `upper_convected`, `spin_space`, `site_space`, and `velocity_of`, whose examples move into their

@@ -452,7 +452,7 @@ class RidesharingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _nearness(rider: object, cab: object) -> float:
+    def _get_nearness(rider: object, cab: object) -> float:
         """Return the preference of a rider for a cab, higher for a cab fewer blocks away."""
         if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
             error_msg = f'A rider ranks cabs, but got {rider!r} and {cab!r}.'
@@ -460,7 +460,7 @@ class RidesharingSystem(BaseSystem):
         return -float(CabElement._get_blocks(CabElement._get_cell(rider.location), CabElement._get_cell(cab.location)))
 
     @staticmethod
-    def _patience(cab: object, rider: object) -> float:
+    def _get_patience(cab: object, rider: object) -> float:
         """Return the preference of a cab for a rider.
 
         It is higher for a rider who waited longer.
@@ -533,7 +533,10 @@ class RidesharingSystem(BaseSystem):
                     'dispatch',
                     requesters='riders',
                     providers='cabs',
-                    rule=StableMatchingSpec(requester_preference=self._nearness, provider_preference=self._patience),
+                    rule=StableMatchingSpec(
+                        requester_preference=self._get_nearness,
+                        provider_preference=self._get_patience,
+                    ),
                     quantity='seats',
                     phase='dispatch',
                     on_match=self._dispatch,

@@ -62,7 +62,7 @@ class OptimalVelocityInteraction(SpeedAdaptationInteraction):
 
     def _get_goal(self, namespace: SimpleNamespace) -> object:
         """Return the optimal velocity of the headway of every car."""
-        headway = OptimalVelocityInteraction._headway(namespace.target.x, namespace.road_length)
+        headway = OptimalVelocityInteraction._get_headway(namespace.target.x, namespace.road_length)
         return namespace.V0 * (tanh(headway - namespace.hc) + tanh(namespace.hc))
 
     def _get_time(self, namespace: SimpleNamespace) -> object:
@@ -70,7 +70,7 @@ class OptimalVelocityInteraction(SpeedAdaptationInteraction):
         return 1 / namespace.a
 
     @staticmethod
-    def _headway(x: Expression, road_length: Expression) -> Expression:
+    def _get_headway(x: Expression, road_length: Expression) -> Expression:
         """Return the distance from every car of a ring road to the car ahead.
 
         The car ahead is the next member of the group.
