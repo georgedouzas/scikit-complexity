@@ -361,10 +361,6 @@ VERBS = frozenset(
         'write',
     ],
 )
-SYMBOLIC_CHECKED = ('skcomplex',)
-CONSTANTS_CHECKED = ('src/skcomplex/core',)
-HELPERS_CHECKED = ('skcomplex.core',)
-VERBS_CHECKED = ('skcomplex.core',)
 
 
 def _sources(root: Path) -> list[Path]:
@@ -973,39 +969,34 @@ def _checked_modules(packages: tuple[str, ...], root: Path) -> list[tuple[Path, 
     return [(path, _module_name(path, source)) for path in _python_files(folders, root)]
 
 
-@pytest.mark.parametrize('folder', CONSTANTS_CHECKED)
-def test_module_constants_lead_their_module(request, folder):
+def test_module_constants_lead_their_module(request):
     """Test that every module constant is public and sits in the block after the imports, or after what it reads."""
-    found = [line for path in _python_files((folder,), request.config.rootpath) for line in _misplaced_constants(path)]
+    found = [line for path in _python_files(FOLDERS, request.config.rootpath) for line in _misplaced_constants(path)]
     assert not found, 'misplaced constants:\n' + '\n'.join(found)
 
 
-@pytest.mark.parametrize('folder', CONSTANTS_CHECKED)
-def test_constant_blocks_hold_no_gap(request, folder):
+def test_constant_blocks_hold_no_gap(request):
     """Test that no blank line, comment, or attribute docstring sits in or right above a block of constants."""
-    found = [line for path in _python_files((folder,), request.config.rootpath) for line in _constant_gaps(path)]
+    found = [line for path in _python_files(FOLDERS, request.config.rootpath) for line in _constant_gaps(path)]
     assert not found, 'gaps in the constant blocks:\n' + '\n'.join(found)
 
 
-@pytest.mark.parametrize('package', HELPERS_CHECKED)
-def test_classes_own_the_functions_they_read(request, package):
+def test_classes_own_the_functions_they_read(request):
     """Test that every module function a class reads is a method, apart from kernels and helpers of public functions."""
-    found = _unowned_functions(request.config.rootpath / 'src', (package,))
+    found = _unowned_functions(request.config.rootpath / 'src', (PACKAGE,))
     assert not found, 'module functions that a class should own:\n' + '\n'.join(found)
 
 
-@pytest.mark.parametrize('package', VERBS_CHECKED)
-def test_methods_begin_with_a_verb(request, package):
+def test_methods_begin_with_a_verb(request):
     """Test that every method begins with a verb, apart from magic methods, library hooks, and properties."""
-    modules = _checked_modules((package,), request.config.rootpath)
+    modules = _checked_modules((PACKAGE,), request.config.rootpath)
     found = [line for path, module in modules for line in _nonverb_methods(path, module)]
     assert not found, 'methods that do not begin with a verb:\n' + '\n'.join(found)
 
 
-@pytest.mark.parametrize('package', SYMBOLIC_CHECKED)
-def test_symbolic_functions_are_builtin_subclasses(request, package):
+def test_symbolic_functions_are_builtin_subclasses(request):
     """Test that Sage's function factory only declares unknown functions inside a function."""
-    modules = _checked_modules((package,), request.config.rootpath)
+    modules = _checked_modules((PACKAGE,), request.config.rootpath)
     found = [line for path, _ in modules for line in _factory_calls(path)]
     assert not found, 'symbolic functions built by the factory:\n' + '\n'.join(found)
 

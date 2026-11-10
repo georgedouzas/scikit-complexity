@@ -85,6 +85,14 @@ checks it mechanically.
    Engine support never lives inside a recipe.
 5. The core never imports `skcomplex.systems`.
 
+### Module layout
+
+Every Python file reads the docstring, the licence header, the imports, the constants block, the type aliases, the
+other module statements, and then the definitions. The constitution in `openspec/constitution.md` states the rules,
+and `tests/test_sources.py` checks them: the constants block and the derived values, the symbolic functions as
+`BuiltinFunction` subclasses, the class that owns each helper, the verbs that begin every method, and the three kinds
+of module functions that stay functions.
+
 ### Adding a system to the catalog
 
 A system of the library is a function that returns a system, registered with `register_system`. Declare the element and

@@ -119,13 +119,13 @@ tests and the catalog tests pass with the field added to the checked packages.
 
 ## 9. Rules and integration
 
-- [ ] 9.1 Replace the tuple of checked packages and folders in `tests/test_sources.py` with every folder each test
+- [x] 9.1 Replace the tuple of checked packages and folders in `tests/test_sources.py` with every folder each test
   covers. Verify the five source tests pass.
-- [ ] 9.2 State in `openspec/constitution.md` the block layout for every Python file, derived values, symbolic
+- [x] 9.2 State in `openspec/constitution.md` the block layout for every Python file, derived values, symbolic
   functions as `BuiltinFunction` subclasses, the owner rule, the verb vocabulary, and the three kinds of module
   functions that stay, and point to them from the module layout section of `CONTRIBUTING.md`. Verify the wording has
   no semicolon and no hard-coded count.
-- [ ] 9.3 Compare the union of every `__all__` with the one recorded in task 1.2. Verify they are equal.
+- [x] 9.3 Compare the union of every `__all__` with the one recorded in task 1.2. Verify they are equal.
 - [ ] 9.4 Run the full gate: `nox -s checks`, `nox -s tests`, and `nox -s docs`. Verify all pass and the test count is
   unchanged apart from the moved examples and the new source tests.
 

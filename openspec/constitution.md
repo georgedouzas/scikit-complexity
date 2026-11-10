@@ -85,6 +85,29 @@ conventions are the taste it cannot check.
   Where that order and dependency order disagree, dependency order MUST win.
 - A module constant MUST be `UPPER_CASE`, MUST live in the constants block near the top of the module, and MUST NOT
   carry a leading underscore, whatever its reach.
+- Every Python file of the sources, the tests, and the documentation MUST read in one order: the docstring, the
+  licence header, the imports, the constants block, the type aliases, the other module statements, and then the
+  definitions. A statement that must run before an import belongs to the imports. The constants block MUST hold one
+  constant per statement with no blank line, comment, or string between two constants or inside a value, and no
+  comment right above it. What an attribute docstring of a constant would say MUST go into the docstring of the
+  module or of the definition that reads the constant. A constant annotation MUST NOT name a type alias of its own
+  module.
+- A module value built by calling a class or a function of its own module is a derived value. It MUST keep an
+  `UPPER_CASE` name and MUST sit in one block, with no gap, right after the last definition it reads. A plain
+  function that only a derived value reads MAY stay a private module function beside it.
+- A symbolic function the library defines MUST be a private `BuiltinFunction` subclass named `_<Name>Function`, whose
+  hooks are the methods Sage reads, such as `_eval_`, `_evalf_`, `_print_`, and `_derivative_`. Functions that share
+  their hooks MUST share one subclass that takes the name, built once per name. Sage's `function` factory MUST only
+  declare an unknown function by its name inside a function.
+- A function that a class reads MUST be a method of that class. When several classes of a module read it, their
+  closest common base in the module MUST own it, or else the first reading class, which the others call by its name.
+  When classes of other modules read it, the class its module exists for MUST own it, or the package `_utils` module
+  when no class serves its concept or an owner would close an import cycle. A method MUST be an instance method when
+  it reads the instance, a static method when it reads no state, and a class method only when it needs the class.
+- Three kinds of module functions MUST stay functions: the kernels that Numba compiles, which sit after the type
+  aliases and before the classes, the helpers that only public functions or derived values read, and the small
+  general helpers of a `_utils` module. A public function of a private module MUST be re-exported by its package,
+  live in a `_utils` module, or be compiled.
 - A base class MUST NOT carry a leading underscore, and MUST be kept out of the surface by not being re-exported,
   never by its name. A base a client is expected to subclass MUST be re-exported.
 - Inheritance MUST mean *is* and membership *has*: a class MUST derive only from a class it is, and MUST hold what it
@@ -143,7 +166,11 @@ Every part MUST be placed by one ordered test, the placement rule, which `tests/
   such as `process`, `handle`, or `manage` with no object MUST NOT be used.
 - A name an outside contract fixes MUST keep the spelling that contract fixes, and the verb-first rule MUST NOT
   reach it.
-- A method MUST be an action and begin with a verb, and a property MUST name a value as a noun phrase.
+- A method MUST be an action and begin with a verb, and a property MUST name a value as a noun phrase. A method that
+  returns a value it names MUST begin with `get_`, and one that acts in another word MUST take that verb, such as
+  `build_`, `count_`, or `draw_`. The verbs MUST come from the vocabulary of the source tests, and a new verb MUST
+  join it with the code that first uses it. Magic methods, the hooks a library calls by a fixed name such as
+  `_eval_`, properties, and the names a base class of another library defines are exempt.
 - State an instance derives at runtime MUST carry the framework's derived-state marker, in this ecosystem a trailing
   underscore. A public instance name MUST be a constructor parameter stored unmodified under its own name, or a
   derivation carrying the marker, and anything else an instance exposes MUST be private. A class-level constant that
