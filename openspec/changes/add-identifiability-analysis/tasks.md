@@ -18,13 +18,13 @@
 
 ## 4. Virtual populations
 
-- [ ] 4.1 Add `virtual_population` and `VirtualPopulationResult` in `src/skcomplex/core/experiments/_virtual_population.py` on `sweep`, export them, and test the plausible patients and the error when none is plausible
-- [ ] 4.2 Add selection by the probability of inclusion with `target`, and test the Kolmogorov-Smirnov match on the QSP system
+- [x] 4.1 Add `virtual_population` and `VirtualPopulationResult` in `src/skcomplex/core/experiments/_virtual_population.py` on `sweep`, export them, and test the plausible patients and the error when none is plausible
+- [x] 4.2 Add selection by the probability of inclusion with `target`, and test the Kolmogorov-Smirnov match on the QSP system
 - [ ] 4.3 Write the docstring with a runnable example and a user guide paragraph, and verify both run
 
 ## 5. Per-individual calibration
 
-- [ ] 5.1 Add `calibrate_individuals` and `IndividualCalibrationResult` in `src/skcomplex/core/experiments/_individuals.py`, export them, and test the digital twins of five virtual patients and the error for a known parameter that is also fitted
+- [x] 5.1 Add `calibrate_individuals` and `IndividualCalibrationResult` in `src/skcomplex/core/experiments/_individuals.py`, export them, and test the digital twins of five virtual patients and the error for a known parameter that is also fitted
 - [ ] 5.2 Write the docstring with a runnable example and a user guide paragraph, and verify both run
 - [ ] 5.3 Add the gallery example `docs/examples/biology/oncology/plot_immuno_oncology_qsp.py` of `ImmunoOncologyQspSystem` with a virtual population, a profile of one patient, and the patient's calibration, and verify strict gallery coverage passes
 
