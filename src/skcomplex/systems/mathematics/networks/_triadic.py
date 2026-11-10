@@ -209,7 +209,7 @@ class TriadicPercolationSystem(BaseSystem):
         >>> from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
         >>> system = TriadicPercolationSystem(200, p=0.8).prepare().system_
         >>> trajectory = simulate(system, until=3, random_state=0)
-        >>> giant = trajectory.values('nodes.active').mean(axis=1)
+        >>> giant = trajectory.get_values('nodes.active').mean(axis=1)
         >>> bool(giant[1] < 0.5 < giant[2])
         True
     """

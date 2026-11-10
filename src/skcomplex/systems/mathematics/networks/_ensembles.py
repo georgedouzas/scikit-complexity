@@ -28,6 +28,9 @@ from ..common.networks import NetworkNodeElement
 from ..common.networks._regulated_node import ACTIVITY_VISUAL
 from ..common.networks._vertex import DEGREE_VISUAL
 
+ENSEMBLES = ('erdos_renyi', 'watts_strogatz')
+STRATEGIES = ('random', 'targeted')
+
 
 class DependentNodeElement(Element):
     """Node of two interdependent networks.
@@ -147,59 +150,6 @@ class FailingElement(Element):
         self.targeted = targeted
 
 
-ENSEMBLES = ('erdos_renyi', 'watts_strogatz')
-
-
-STRATEGIES = ('random', 'targeted')
-
-
-def _get_degree() -> MapInteraction:
-    """Return the map that sets the degree of every node from its edges.
-
-    The map runs at the start of a step.
-    """
-    return MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
-
-
-def _variable_network(
-    element: type[Element],
-    space: NetworkSpace,
-    capacity: int,
-    **values: object,
-) -> list[GroupElement]:
-    """Return the variable groups on the nodes and the edges of a network."""
-    nodes = GroupElement(
-        'nodes',
-        element=element,
-        on='sites',
-        variable=True,
-        capacity=space.prepare().size_,
-        values=values,
-        visual=DEGREE_VISUAL,
-    )
-    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
-    return [nodes, links]
-
-
-def _node_group(graph: nx.Graph) -> GroupElement:
-    """Return the group on the nodes of a static network.
-
-    The group has the degree and the clustering of every node.
-    """
-    clustering = nx.clustering(graph)
-    nodes = list(graph.nodes())
-    return GroupElement(
-        'nodes',
-        element=NetworkNodeElement,
-        size=len(nodes),
-        values={
-            'degree': np.asarray([graph.degree(node) for node in nodes], dtype=float),
-            'clustering': np.asarray([clustering[node] for node in nodes], dtype=float),
-        },
-        location=nodes,
-    )
-
-
 class NetworkAttackSystem(BaseSystem):
     """Failures or attacks on a scale-free network.
 
@@ -246,6 +196,34 @@ class NetworkAttackSystem(BaseSystem):
     references = ('Albert, Jeong, and Barabási 2000', 'Cohen et al. 2000', 'Ramasco 2020')
     until = 100
 
+    @staticmethod
+    def _get_degree() -> MapInteraction:
+        """Return the map that sets the degree of every node from its edges.
+
+        The map runs at the start of a step.
+        """
+        return MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
+
+    @staticmethod
+    def _get_variable_network(
+        element: type[Element],
+        space: NetworkSpace,
+        capacity: int,
+        **values: object,
+    ) -> list[GroupElement]:
+        """Return the variable groups on the nodes and the edges of a network."""
+        nodes = GroupElement(
+            'nodes',
+            element=element,
+            on='sites',
+            variable=True,
+            capacity=space.prepare().size_,
+            values=values,
+            visual=DEGREE_VISUAL,
+        )
+        links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
+        return [nodes, links]
+
     def __init__(
         self,
         n_nodes: int = 300,
@@ -280,7 +258,7 @@ class NetworkAttackSystem(BaseSystem):
             raise ValidationError(error_msg)
         space = NetworkSpace(nx.barabasi_albert_graph(self.n_nodes, self.edges, seed=self.random_state))
         targeted = float(self.strategy == 'targeted')
-        groups = _variable_network(
+        groups = NetworkAttackSystem._get_variable_network(
             FailingElement,
             space,
             space.graph.number_of_edges(),
@@ -291,7 +269,7 @@ class NetworkAttackSystem(BaseSystem):
         return CompositeSystem(
             self.label,
             elements=groups,
-            interactions=[_get_degree(), removal],
+            interactions=[NetworkAttackSystem._get_degree(), removal],
             space=space,
             time=DiscreteTime(),
         )
@@ -371,7 +349,7 @@ class RandomGraphEnsemblesSystem(BaseSystem):
         if self.ensemble == 'erdos_renyi':
             space = NetworkSpace(nx.empty_graph(self.n_nodes))
             rate = self.mean_degree / 2 / self.steps
-            groups = _variable_network(
+            groups = NetworkAttackSystem._get_variable_network(
                 EnsembleNodeElement,
                 space,
                 int(np.ceil(1.5 * self.mean_degree * self.n_nodes / 2)) + 10,
@@ -386,18 +364,18 @@ class RandomGraphEnsemblesSystem(BaseSystem):
             return CompositeSystem(
                 self.label,
                 elements=groups,
-                interactions=[_get_degree(), linking],
+                interactions=[NetworkAttackSystem._get_degree(), linking],
                 space=space,
                 time=DiscreteTime(),
             )
         space = NetworkSpace(nx.watts_strogatz_graph(self.n_nodes, int(self.mean_degree), 0.0))
         rate = 1 - (1 - self.rewiring) ** (1 / self.steps)
-        groups = _variable_network(EnsembleNodeElement, space, space.graph.number_of_edges())
+        groups = NetworkAttackSystem._get_variable_network(EnsembleNodeElement, space, space.graph.number_of_edges())
         rewiring = TopologyInteraction('rewiring', target='nodes', action='rewire', probability=rate)
         return CompositeSystem(
             self.label,
             elements=groups,
-            interactions=[_get_degree(), rewiring],
+            interactions=[NetworkAttackSystem._get_degree(), rewiring],
             space=space,
             time=DiscreteTime(),
         )
@@ -439,6 +417,25 @@ class KroneckerGraphSystem(BaseSystem):
     until = 1
     dt = 1
 
+    @staticmethod
+    def _get_node_group(graph: nx.Graph) -> GroupElement:
+        """Return the group on the nodes of a static network.
+
+        The group has the degree and the clustering of every node.
+        """
+        clustering = nx.clustering(graph)
+        nodes = list(graph.nodes())
+        return GroupElement(
+            'nodes',
+            element=NetworkNodeElement,
+            size=len(nodes),
+            values={
+                'degree': np.asarray([graph.degree(node) for node in nodes], dtype=float),
+                'clustering': np.asarray([clustering[node] for node in nodes], dtype=float),
+            },
+            location=nodes,
+        )
+
     def __init__(
         self,
         first: nx.Graph | None = None,
@@ -461,7 +458,11 @@ class KroneckerGraphSystem(BaseSystem):
         first = nx.barabasi_albert_graph(30, 2, seed=int(rng.integers(2**31))) if self.first is None else self.first
         second = nx.barabasi_albert_graph(20, 1, seed=int(rng.integers(2**31))) if self.second is None else self.second
         graph = nx.convert_node_labels_to_integers(nx.tensor_product(first, second), label_attribute='pair')
-        return CompositeSystem(self.label, elements=[_node_group(graph)], space=NetworkSpace(graph))
+        return CompositeSystem(
+            self.label,
+            elements=[KroneckerGraphSystem._get_node_group(graph)],
+            space=NetworkSpace(graph),
+        )
 
 
 class ConfigurationModelSystem(BaseSystem):
@@ -592,7 +593,11 @@ class ConfigurationModelSystem(BaseSystem):
         graph = nx.Graph()
         graph.add_nodes_from(range(drawn.size))
         graph.add_edges_from(links)
-        return CompositeSystem(self.label, elements=[_node_group(graph)], space=NetworkSpace(graph))
+        return CompositeSystem(
+            self.label,
+            elements=[KroneckerGraphSystem._get_node_group(graph)],
+            space=NetworkSpace(graph),
+        )
 
 
 class InterdependentNetworkCascadeSystem(BaseSystem):

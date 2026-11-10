@@ -26,6 +26,21 @@ SIERPINSKI_MAPS: tuple[AffineMap, ...] = (
     (0.5, 0.0, 0.0, 0.5, 0.5, 0.0),
     (0.5, 0.0, 0.0, 0.5, 0.25, 0.5),
 )
+PRESETS: dict[str, tuple[tuple[AffineMap, ...], tuple[float, ...]]] = {
+    'sierpinski': (
+        SIERPINSKI_MAPS,
+        (1.0, 1.0, 1.0),
+    ),
+    'barnsley': (
+        (
+            (0.0, 0.0, 0.0, 0.16, 0.0, 0.0),
+            (0.85, 0.04, -0.04, 0.85, 0.0, 1.6),
+            (0.2, -0.26, 0.23, 0.22, 0.0, 1.6),
+            (-0.15, 0.28, 0.26, 0.24, 0.0, 0.44),
+        ),
+        (0.01, 0.85, 0.07, 0.07),
+    ),
+}
 
 
 class ChaosPointElement(Element):
@@ -142,23 +157,6 @@ class RandomAffineMapInteraction(MapInteraction):
             new_x = where(chosen == index, images[index][0], new_x)
             new_y = where(chosen == index, images[index][1], new_y)
         return vector(SR, [new_x, new_y])
-
-
-PRESETS: dict[str, tuple[tuple[AffineMap, ...], tuple[float, ...]]] = {
-    'sierpinski': (
-        SIERPINSKI_MAPS,
-        (1.0, 1.0, 1.0),
-    ),
-    'barnsley': (
-        (
-            (0.0, 0.0, 0.0, 0.16, 0.0, 0.0),
-            (0.85, 0.04, -0.04, 0.85, 0.0, 1.6),
-            (0.2, -0.26, 0.23, 0.22, 0.0, 1.6),
-            (-0.15, 0.28, 0.26, 0.24, 0.0, 0.44),
-        ),
-        (0.01, 0.85, 0.07, 0.07),
-    ),
-}
 
 
 class ChaosGameSystem(BaseSystem):

@@ -21,6 +21,9 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
 
+SHAPES = ('triangle', 'carpet')
+LARGEST_RATIO = 0.5
+
 
 class CantorElement(PatchElement):
     """Patch of intervals.
@@ -137,9 +140,6 @@ class KochElement(WordElement):
         return [ProductionLaw('F', 'F+F--F+F')]
 
 
-SHAPES = ('triangle', 'carpet')
-
-
 class SierpinskiElement(PatchElement):
     """Patch of triangles or squares.
 
@@ -234,9 +234,6 @@ class SierpinskiElement(PatchElement):
             return PrototileSpec('square', [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]), pieces
         error_msg = f'Unknown shape {shape!r}. Use one of {", ".join(SHAPES)}.'
         raise ValidationError(error_msg)
-
-
-LARGEST_RATIO = 0.5
 
 
 class KochCurveSystem(BaseSystem):

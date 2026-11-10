@@ -13,6 +13,9 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from .types import Matrix
 
+CHAIN = ((0.9, 0.1), (0.4, 0.6))
+EMISSION = ((0.7, 0.3), (0.2, 0.8))
+
 
 class HiddenMarkovSourceElement(Element):
     """Source of symbols emitted from the states of a hidden Markov chain.
@@ -81,12 +84,6 @@ class MarkovSourceElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.symbol = symbol
-
-
-CHAIN = ((0.9, 0.1), (0.4, 0.6))
-
-
-EMISSION = ((0.7, 0.3), (0.2, 0.8))
 
 
 class MarkovSourceSystem(BaseSystem):

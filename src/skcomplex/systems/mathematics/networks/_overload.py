@@ -22,6 +22,8 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import StateSpec, VisualSpec
 
+ATTACKS = ('load', 'degree', 'random')
+
 
 class LoadedNodeElement(Element):
     """Node of a network that carries a load and fails above its capacity.
@@ -63,9 +65,6 @@ class LoadedNodeElement(Element):
         self.load = load
         self.capacity = capacity
         self.giant = giant
-
-
-ATTACKS = ('load', 'degree', 'random')
 
 
 class MotterLaiOverloadSystem(BaseSystem):

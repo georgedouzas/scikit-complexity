@@ -16,6 +16,8 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
+GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
+
 
 class LogisticMapElement(Element):
     """Value and growth rate of the logistic map `x -> r x (1 - x)`.
@@ -52,9 +54,6 @@ class LogisticMapElement(Element):
         super().__init__(label, visual=visual)
         self.x = x
         self.r = r
-
-
-GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
 
 
 class LogisticMapSystem(BaseSystem):
@@ -338,7 +337,8 @@ class CircleMapSystem(DynamicalSystem):
         """Return the sine circle map `θ' = θ + Ω - K / (2π) sin 2πθ (mod 1)`."""
         return {
             'theta': lambda s: mod(
-                s.target.theta + s.target.Omega - s.target.K / (2 * pi) * sin(2 * pi * s.target.theta), 1,
+                s.target.theta + s.target.Omega - s.target.K / (2 * pi) * sin(2 * pi * s.target.theta),
+                1,
             ),
         }
 
@@ -1032,7 +1032,8 @@ class FermiUlamMapSystem(DynamicalSystem):
         return {
             'u': lambda s: abs_symbolic(s.target.u + s.target.epsilon * sin(s.target.theta)),
             'theta': lambda s: mod(
-                s.target.theta + 2 * pi / abs_symbolic(s.target.u + s.target.epsilon * sin(s.target.theta)), 2 * pi,
+                s.target.theta + 2 * pi / abs_symbolic(s.target.u + s.target.epsilon * sin(s.target.theta)),
+                2 * pi,
             ),
         }
 

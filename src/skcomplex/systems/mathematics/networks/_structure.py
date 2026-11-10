@@ -20,6 +20,11 @@ from ....core.errors import AnalysisError
 from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
 from ..common.networks import NetworkNodeElement
 
+BLOCKS = 4
+BLOCK_SIZE = 100
+IN_DEGREE = 16
+OUT_DEGREE = 2
+
 
 class NetworkMeasuresElement(Element):
     """Measures of a whole network.
@@ -73,39 +78,27 @@ class NetworkMeasuresElement(Element):
         self.triangle_zscore = triangle_zscore
 
 
-BLOCKS = 4
-
-
-BLOCK_SIZE = 100
-
-
-IN_DEGREE = 16
-
-
-OUT_DEGREE = 2
-
-
-def _path_length(s: SimpleNamespace) -> object:
+def _get_path_length(s: SimpleNamespace) -> object:
     """Return the mean shortest path length of the largest component."""
     return s.measures.path_length
 
 
-def _assortativity(s: SimpleNamespace) -> object:
+def _get_assortativity(s: SimpleNamespace) -> object:
     """Return the degree assortativity."""
     return s.measures.assortativity
 
 
-def _modularity(s: SimpleNamespace) -> object:
+def _get_modularity(s: SimpleNamespace) -> object:
     """Return the modularity of the detected communities."""
     return s.measures.modularity
 
 
-def _agreement(s: SimpleNamespace) -> object:
+def _get_agreement(s: SimpleNamespace) -> object:
     """Return the agreement of the detected communities with the reference partition."""
     return s.measures.agreement
 
 
-def _triangle_zscore(s: SimpleNamespace) -> object:
+def _get_triangle_zscore(s: SimpleNamespace) -> object:
     """Return the z-score of triangles against degree-preserving edge switches."""
     return s.measures.triangle_zscore
 
@@ -155,11 +148,11 @@ class NetworkStructureAnalysisSystem(BaseSystem):
     dt = 1
     observables = (
         ObservableSpec('clustering', group='nodes', variable='clustering', reduce='mean'),
-        ObservableSpec('path_length', _path_length),
-        ObservableSpec('assortativity', _assortativity),
-        ObservableSpec('modularity', _modularity),
-        ObservableSpec('agreement', _agreement),
-        ObservableSpec('triangle_zscore', _triangle_zscore),
+        ObservableSpec('path_length', _get_path_length),
+        ObservableSpec('assortativity', _get_assortativity),
+        ObservableSpec('modularity', _get_modularity),
+        ObservableSpec('agreement', _get_agreement),
+        ObservableSpec('triangle_zscore', _get_triangle_zscore),
     )
 
     def __init__(

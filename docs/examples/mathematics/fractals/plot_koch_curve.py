@@ -32,7 +32,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 trajectory = simulate(KochCurveSystem(), until=5, observers=[observer])
-segments = trajectory.get_structure('koch', 5).segments()
+segments = trajectory.get_structure('koch', 5).get_segments()
 observer.recording_.log(
     'curve',
     rr.LineStrips2D(segments * [1, -1], radii=0.004, colors=[120, 200, 255]),

@@ -39,7 +39,7 @@ def test_sierpinski_carpet():
     trajectory = simulate(SierpinskiSubstitutionSystem(shape='carpet'), until=4)
     carpet = trajectory.get_structure('sierpinski', 4)
     assert carpet.parts == 4096
-    assert carpet.area() == pytest.approx((8 / 9) ** 4, abs=1e-12)
+    assert carpet.get_area() == pytest.approx((8 / 9) ** 4, abs=1e-12)
     with pytest.raises(ValidationError, match='Unknown shape'):
         SierpinskiSubstitutionSystem(shape='hexagon').prepare()
 
@@ -48,7 +48,7 @@ def test_filled_gasket():
     """Test that the raster of the filled gasket covers (3/4)^6 of the pixels of the triangle."""
     trajectory = simulate(SierpinskiSubstitutionSystem(), until=6)
     first, last = trajectory.get_structure('sierpinski', 0), trajectory.get_structure('sierpinski', 6)
-    bounds = first.bounds()
+    bounds = first.get_bounds()
     share = last.get_raster(512, bounds).sum() / first.get_raster(512, bounds).sum()
     assert share == pytest.approx(0.75**6, rel=0.02)
 
@@ -61,8 +61,8 @@ def test_koch_curve_reference_values():
     assert trajectory.get_values('koch.F').tolist() == [1.0, 4.0, 16.0]
     assert trajectory.get_values('koch.size').tolist() == [1.0, 8.0, 36.0]
     assert curve.get_length() == pytest.approx(1.777777777777778, abs=1e-12)
-    assert curve.bounds() == pytest.approx((0.0, 0.0, 1.0, 0.28867513459481287), abs=1e-12)
-    segments = curve.segments()
+    assert curve.get_bounds() == pytest.approx((0.0, 0.0, 1.0, 0.28867513459481287), abs=1e-12)
+    segments = curve.get_segments()
     assert len(segments) == 16
     points = [
         [[0.111111111111, 0.0], [0.166666666667, 0.096225044865]],
@@ -79,7 +79,7 @@ def test_cantor_set_reference_values():
     assert trajectory.get_values('cantor.length').tolist() == pytest.approx(
         [1.0, 0.6666666666666665, 0.4444444444444444],
     )
-    intervals = trajectory.get_structure('cantor', 2).segments()[:, :, 0].tolist()
+    intervals = trajectory.get_structure('cantor', 2).get_segments()[:, :, 0].tolist()
     expected = [
         [0.0, 0.111111111111],
         [0.222222222222, 0.333333333333],
@@ -94,15 +94,15 @@ def test_sierpinski_substitution_reference_values():
     trajectory = simulate(SierpinskiSubstitutionSystem(), until=2)
     gasket = trajectory.get_structure('sierpinski', 2)
     assert trajectory.get_values('sierpinski.size').tolist() == [1.0, 3.0, 9.0]
-    assert gasket.area() == pytest.approx(0.24356964481437335, abs=1e-12)
-    assert gasket.bounds() == pytest.approx((0.0, 0.0, 1.0, 0.8660254037844386), abs=1e-12)
+    assert gasket.get_area() == pytest.approx(0.24356964481437335, abs=1e-12)
+    assert gasket.get_bounds() == pytest.approx((0.0, 0.0, 1.0, 0.8660254037844386), abs=1e-12)
     assert gasket.get_raster(32).sum() == 264
     corners = [[[0.0, 0.0], [0.25, 0.0], [0.125, 0.216506350946]], [[0.25, 0.0], [0.5, 0.0], [0.375, 0.216506350946]]]
     assert np.allclose(gasket.get_polygons()[0][:2], corners, rtol=0, atol=1e-11)
     trajectory = simulate(SierpinskiSubstitutionSystem(shape='carpet'), until=2)
     carpet = trajectory.get_structure('sierpinski', 2)
     assert trajectory.get_values('sierpinski.size').tolist() == [1.0, 8.0, 64.0]
-    assert carpet.area() == pytest.approx(0.7901234567901236, abs=1e-12)
+    assert carpet.get_area() == pytest.approx(0.7901234567901236, abs=1e-12)
     assert carpet.get_raster(27).sum() == 576
 
 

@@ -122,11 +122,6 @@ class NetworkWalkerElement(Element):
         return NetworkWalkerView
 
 
-def _graph_or_default(graph: nx.Graph | None) -> nx.Graph:
-    """Return the graph, or Zachary's karate club when none is given."""
-    return nx.karate_club_graph() if graph is None else graph
-
-
 class NetworkRandomWalkSystem(BaseSystem):
     """Random walkers on a network.
 
@@ -156,6 +151,11 @@ class NetworkRandomWalkSystem(BaseSystem):
     references = ('Thurner et al. 2018', 'Jensen 2023')
     until = 100
 
+    @staticmethod
+    def _get_graph_or_default(graph: nx.Graph | None) -> nx.Graph:
+        """Return the graph, or Zachary's karate club when none is given."""
+        return nx.karate_club_graph() if graph is None else graph
+
     def __init__(
         self,
         graph: nx.Graph | None = None,
@@ -175,7 +175,7 @@ class NetworkRandomWalkSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        graph = _graph_or_default(self.graph)
+        graph = NetworkRandomWalkSystem._get_graph_or_default(self.graph)
         walk = MovementInteraction('walk', target='walkers', step='neighbor', cost=self._count_step)
         return CompositeSystem(
             self.label,
@@ -234,7 +234,7 @@ class NetworkDiffusionSystem(NetworkDynamicalSystem):
 
     def _get_graph(self) -> nx.Graph:
         """Return the graph, Zachary's karate club by default."""
-        return _graph_or_default(self.graph)
+        return NetworkRandomWalkSystem._get_graph_or_default(self.graph)
 
     def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
         """Return the content, one at the source and zero elsewhere, and the diffusion constant."""
@@ -306,7 +306,7 @@ class PagerankSystem(BaseSystem):
 
         The network is undirected.
         """
-        graph = _graph_or_default(self.graph)
+        graph = NetworkRandomWalkSystem._get_graph_or_default(self.graph)
         size = graph.number_of_nodes()
         degrees = np.array([degree for _, degree in graph.degree()], dtype=float)
         values = {'rank': np.full(size, 1 / size), 'degree': degrees, 'n_nodes': float(size), 'damping': self.damping}

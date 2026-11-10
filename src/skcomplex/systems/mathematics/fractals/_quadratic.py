@@ -23,6 +23,10 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from .types import Window
 
+ESCAPE_IMAGE = VisualSpec('image', {'states': ('n',), 'low': 0.0})
+MANDELBROT_WINDOW: Window = (-2.2, 0.8, -1.2, 1.2)
+JULIA_WINDOW: Window = (-1.6, 1.6, -1.2, 1.2)
+
 
 class InverseJuliaPointElement(Element):
     """Point of the inverse iteration of `z -> z² + omega`.
@@ -84,11 +88,6 @@ class InverseJuliaPointElement(Element):
                 The laws of the element.
         """
         return [UpdateLaw(s.z, (2 * bernoulli('branch', s.p) - 1) * sqrt(s.z - s.omega))]
-
-
-ESCAPE_IMAGE = VisualSpec('image', {'states': ('n',), 'low': 0.0})
-MANDELBROT_WINDOW: Window = (-2.2, 0.8, -1.2, 1.2)
-JULIA_WINDOW: Window = (-1.6, 1.6, -1.2, 1.2)
 
 
 class QuadraticMapElement(Element):
@@ -158,31 +157,6 @@ class QuadraticMapElement(Element):
         ]
 
 
-def _plane(shape: Sequence[int], window: Window) -> npt.NDArray[np.complex128]:
-    """Return the complex points of a lattice over a window.
-
-    The real part runs along columns and the imaginary part up.
-    """
-    rows, columns = (int(item) for item in shape)
-    left, right, bottom, top = window
-    real = np.linspace(left, right, columns)
-    imaginary = np.linspace(top, bottom, rows)
-    return real[np.newaxis, :] + 1j * imaginary[:, np.newaxis]
-
-
-def _escape_field(label: str, shape: Sequence[int], z: object, c: object, radius: float) -> CompositeSystem:
-    """Return the field of the quadratic map over a lattice.
-
-    The field comes from the initial points and the constants.
-    """
-    space = LatticeSpace(tuple(int(item) for item in shape))
-    values = {'z': z, 'c': c, 'radius': radius}
-    return CompositeSystem(
-        label,
-        elements=[FieldElement('plane', element=QuadraticMapElement, space=space, values=values, visual=ESCAPE_IMAGE)],
-    )
-
-
 class MandelbrotSystem(BaseSystem):
     """The Mandelbrot set (Dilão 2023 §5.5).
 
@@ -218,6 +192,33 @@ class MandelbrotSystem(BaseSystem):
     until = 100
     dt = 1
 
+    @staticmethod
+    def _get_plane(shape: Sequence[int], window: Window) -> npt.NDArray[np.complex128]:
+        """Return the complex points of a lattice over a window.
+
+        The real part runs along columns and the imaginary part up.
+        """
+        rows, columns = (int(item) for item in shape)
+        left, right, bottom, top = window
+        real = np.linspace(left, right, columns)
+        imaginary = np.linspace(top, bottom, rows)
+        return real[np.newaxis, :] + 1j * imaginary[:, np.newaxis]
+
+    @staticmethod
+    def _get_escape_field(label: str, shape: Sequence[int], z: object, c: object, radius: float) -> CompositeSystem:
+        """Return the field of the quadratic map over a lattice.
+
+        The field comes from the initial points and the constants.
+        """
+        space = LatticeSpace(tuple(int(item) for item in shape))
+        values = {'z': z, 'c': c, 'radius': radius}
+        return CompositeSystem(
+            label,
+            elements=[
+                FieldElement('plane', element=QuadraticMapElement, space=space, values=values, visual=ESCAPE_IMAGE),
+            ],
+        )
+
     def __init__(
         self,
         shape: Sequence[int] = (240, 300),
@@ -233,8 +234,8 @@ class MandelbrotSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        points = _plane(self.shape, self.window)
-        return _escape_field(self.label, self.shape, np.zeros_like(points), points, self.radius)
+        points = MandelbrotSystem._get_plane(self.shape, self.window)
+        return MandelbrotSystem._get_escape_field(self.label, self.shape, np.zeros_like(points), points, self.radius)
 
 
 class JuliaSystem(BaseSystem):
@@ -292,8 +293,8 @@ class JuliaSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        points = _plane(self.shape, self.window)
-        return _escape_field(self.label, self.shape, points, complex(self.c), self.radius)
+        points = MandelbrotSystem._get_plane(self.shape, self.window)
+        return MandelbrotSystem._get_escape_field(self.label, self.shape, points, complex(self.c), self.radius)
 
 
 class InverseJuliaSystem(BaseSystem):

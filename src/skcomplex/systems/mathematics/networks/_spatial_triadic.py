@@ -273,7 +273,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         >>> from skcomplex.systems.mathematics.networks import SpatialTriadicPercolationSystem
         >>> system = SpatialTriadicPercolationSystem(1.0).prepare().system_
         >>> trajectory = simulate(system, until=2, random_state=0)
-        >>> giant = trajectory.values('nodes.active').mean(axis=1)
+        >>> giant = trajectory.get_values('nodes.active').mean(axis=1)
         >>> bool(giant[0] == 1.0 and giant[1] < 0.1)
         True
     """
