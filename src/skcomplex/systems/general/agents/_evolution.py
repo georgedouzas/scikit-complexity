@@ -1,7 +1,4 @@
-"""Define evolution interactions.
-
-They breed the strategies of a group by selection, crossover, and mutation.
-"""
+"""Define the interaction that breeds strategies by selection and mutation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,33 +28,28 @@ HALF = 0.5
 
 
 class EvolutionInteraction(Interaction):
-    """Replacement of the strategies of an agent group by offspring.
+    """An interaction that breeds the strategies of a group by selection and mutation.
 
-    The offspring are selected on a fitness, with crossover and mutation. Every `period` steps, or rounds of its phase,
-    the interaction selects parents by tournaments of `tournament` entrants, by roulette with weights of the fitness
-    minus its minimum, in proportion to the fitness itself (`'proportional'`), or by rank with weights `1` for the least
-    fit to `n` for the fittest of `n` members. The `'generational'` replacement selects as many parents as there are
-    members, each pair of which exchanges the tails after a random cut with probability `crossover`, and passes the
-    `elite` fittest strategies unchanged. The `'moran'` replacement runs as many birth-death events as there are
-    members, one after the other, each copying a selected parent onto a member drawn uniformly, and the copy takes the
-    fitness of its parent for the later events of the step. The `'death-birth'` replacement removes every member with
-    probability `death` and fills its place with the offspring of a parent selected among the survivors, or among all
-    members when none survives or `parents` is `'all'`. The `'truncation'` replacement fills the places of the
-    `fraction` least fit members with the offspring of parents selected among the others. The `'best-mutant'`
-    replacement lets every member draw a mutant of its strategy, and every member takes the fittest mutant when it is
-    fitter than the fittest strategy, or when every member mutated, so a population of one strategy climbs a landscape
-    as a whole.
+    Every `period` steps the interaction selects parents by their fitness and replaces strategies by offspring. The
+    `selection` picks parents by tournaments, by roulette, in proportion to fitness, or by rank. The `replacement` says
+    how offspring take their places:
 
-    Offspring mutate: each gene with probability `mutation` changes by the rule `change`, to another symbol of an
-    alphabet of `alphabet` symbols (`'other'`), to a symbol drawn anew from the alphabet (`'any'`), one step up or down
-    (`'step'`), or to a label one above the largest the members hold (`'new'`), or with probability `mutation` one
-    gene drawn at random of every offspring changes to another symbol (`'one'`). When `alphabet` is `None`, the
-    `'other'` and `'any'` rules add Gaussian noise of deviation `scale`. A function `mutation(strategy, rng)` returns
-    the mutated copy of a strategy instead. The fitness is a state of the members, or the function
-    `evaluate(strategies, system)` of the strategies, one row per member, which the replacement then writes into the
-    fitness state. The probabilities are parameters of the system when a subclass declares them with a
-    `ParameterSpec`, as the base does for `crossover`, `death`, and `fraction`. The draws come from the random stream
-    of the system.
+    - `'generational'`: every member is replaced by an offspring of a pair of parents, which exchange the tails of their
+      strategies with probability `crossover`, and the `elite` fittest pass unchanged.
+    - `'moran'`: one birth and death at a time, a selected parent copying onto a random member.
+    - `'death-birth'`: members die with probability `death` and the offspring of survivors fill their places.
+    - `'truncation'`: the `fraction` least fit are replaced by the offspring of the others.
+    - `'best-mutant'`: every member draws a mutant, and the fittest mutant spreads when it beats the fittest strategy.
+
+    Each gene of an offspring mutates with probability `mutation` by the rule `change`, or a function
+    `mutation(strategy, rng)` returns the mutated copy. The fitness is a state of the members, or the function
+    `evaluate(strategies, system)`, which the replacement writes into the fitness state.
+
+    Unlike `ImitationInteraction`, by which members copy neighbours, it replaces strategies by the offspring of the
+    fittest across the group. Choose it when strategies evolve by selection, crossover, and mutation.
+
+    It appears in many fields. Genetic algorithms search for designs, strategies of the iterated prisoner's dilemma
+    evolve in tournaments, and genotypes evolve on a fitness landscape in population genetics.
 
     Args:
         label:

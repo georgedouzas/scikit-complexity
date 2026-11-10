@@ -1,8 +1,4 @@
-"""Define encounters.
-
-Encounters are the binary kinetic collision operator over class axes, bilinear moves of a density by meetings with
-another density.
-"""
+"""Define the interaction where members of two distributions meet and change class."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,26 +22,27 @@ OUTCOMES = ('conservative', 'destructive', 'proliferative')
 
 
 class EncounterInteraction(Interaction):
-    """Binary kinetic collision operator of a candidate density with a field density over class axes.
+    """An interaction where members of two distributions meet and change class.
 
-    It is bilinear in the two densities, as the collision integral of kinetic theory. The encounters move, remove, or
-    create. The candidate and the field are groups of `NonnegativeElement` on the
-    sites of lattices of activity classes, one member per class. A candidate at class `h` meets a field at class `k` at
-    the rate `eta[h, k]`. In the outcome `'conservative'` the candidate moves to class `i` with the probability
-    `kernel[h, k, i]`, in the outcome `'destructive'` it is removed, and in the outcome `'proliferative'` it creates a
-    new candidate at class `i` with the probability `kernel[h, k, i]`, or at its own class without a kernel. The rate
-    and the kernel are functions of the namespace, which holds `namespace.candidate`, `namespace.field`, and the
-    parameters of the interaction.
+    A distribution is a group of `NonnegativeElement` with one member per class of a trait. A candidate at class `h`
+    meets the field at class `k` at the rate `rate[h, k]`, and the `outcome` says what follows:
 
-    On a `PhaseSpace` the classes are the points of the class axes, and encounters pair classes at the same position. A
-    rate that is one expression may read the `coordinate` of the class of the candidate. Without a field the encounter
-    is a linear redistribution: a conservative candidate at class `h` moves to class `i` at the rate `eta[h]` with the
-    probability `kernel[h, i]`.
+    - `'conservative'`: the candidate moves to class `i` with the probability `kernel[h, k, i]`.
+    - `'destructive'`: the candidate is removed.
+    - `'proliferative'`: the candidate creates a new candidate at class `i` with the probability `kernel[h, k, i]`, or
+      at its own class without a kernel.
 
-    With a `cross_section` the candidate is a field on a `PhaseSpace` with two interval class axes, and its rate at
-    every position is the binary collision integral over those axes, evaluated by the fast spectral method on a padded
-    grid.
-    The density is conserved exactly, and the momentum and the energy within the spectral accuracy of the method.
+    The rate and the kernel are functions of the namespace, which holds `namespace.candidate`, `namespace.field`, and
+    the parameters. On a `PhaseSpace` encounters pair classes at the same position. Without a field the encounter is a
+    linear redistribution between classes. With a `cross_section` the rate is the binary collision integral of kinetic
+    theory, evaluated by a fast spectral method, which keeps the density exactly and the momentum and energy to spectral
+    accuracy.
+
+    Unlike `BilinearLaw`, the law it lowers to, it names the outcomes of an encounter and builds the rates and kernels
+    from them. Choose it when the change of a population comes from binary meetings of its members.
+
+    It appears in many fields. Traders exchange wealth when they meet, people shift their opinion after a conversation,
+    immune cells destroy tumour cells they meet, and gas molecules change velocity when they collide.
 
     Args:
         label:

@@ -1,8 +1,4 @@
-"""Define dynamical systems.
-
-A dynamical system is a set of states and the equations that evolve them, rates in continuous time or maps in discrete
-time.
-"""
+"""Define the system of states and the equations that evolve them."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,20 +16,24 @@ TIMES = ('continuous', 'discrete')
 
 
 class DynamicalSystem(BaseSystem[CompositeSystem]):
-    """States and the equations that evolve them, in continuous or discrete time.
+    """A system of states and the equations that evolve them, as rates or as maps.
 
-    The states and the parameters are the variables of one `DeclaredElement`. In continuous time the equation of a
-    state is its rate, a `RateInteraction` that may carry a noise amplitude, read in the Itô or Stratonovich
-    convention. In discrete time it is the next value of the state, a `MapInteraction` that replaces it, and every map
-    reads the states at the start of the step. An equation is a function of a namespace whose `target` holds the
-    states and the parameters and whose `t` holds the time. The tags follow from these parts.
+    The states and parameters are the variables of one `DeclaredElement`. In continuous time the equation of a state is
+    its rate, a `RateInteraction` that may carry a noise amplitude in the Itô or Stratonovich convention. In discrete
+    time it is the next value of the state, a `MapInteraction`, and every map reads the states at the start of the step.
+    An equation is a function of a namespace whose `target` holds the states and parameters and whose `t` holds the
+    time.
 
-    Flows of every field are dynamical systems, such as the Lorenz flow of mathematics and the populations of
-    Wilson and Cowan in neuroscience, and so are maps, such as the Hénon map and the multiplier-accelerator of
-    economics. A subclass takes the parameters of its model under its own names and returns the states, the
-    equations, the parameters, and the noises from the hooks `_get_states`, `_get_equations`, `_get_parameters`, and
-    `_get_noises`, the time from `_get_time`, the label of the element from `_get_element_label`, and the specs of the
-    variables, with their domains or orders, from `_get_variables`.
+    A subclass takes the parameters of its model under its own names and returns the states, equations, parameters, and
+    noises from the hooks `_get_states`, `_get_equations`, `_get_parameters`, and `_get_noises`, the time from
+    `_get_time`, the label of the element from `_get_element_label`, and the specs of the variables from
+    `_get_variables`.
+
+    Unlike `CompositeSystem`, which takes any parts, it is written with one `DeclaredElement` and one `RateInteraction`
+    or `MapInteraction` per state. Choose it when a model is a set of equations, one per state.
+
+    It appears in many fields. The Lorenz flow of mathematics, the populations of Wilson and Cowan in neuroscience, the
+    Hénon map, and the multiplier and accelerator model of economics are dynamical systems.
 
     Attributes:
         system_:
@@ -96,7 +96,7 @@ class DynamicalSystem(BaseSystem[CompositeSystem]):
         element: str = 'state',
         label: str = 'system',
     ) -> None:
-        """Store the states, the equations, the parameters, the noises, the time, and the labels.
+        """Store the states, equations, parameters, noises, time, and labels.
 
         Args:
             states:

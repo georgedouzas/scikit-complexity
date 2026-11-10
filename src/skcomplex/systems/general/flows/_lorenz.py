@@ -12,10 +12,18 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class LorenzElement(Element):
-    """Lorenz flow `x' = sigma (y - x)`, `y' = x (rho - z) - y`, `z' = x y - beta z`.
+    """An element that follows the Lorenz flow of three states.
 
-    A subclass that declares the states with a fractional `StateSpec(order=q)` gives the fractional Lorenz flow with
-    Caputo derivatives of order `q`.
+    The flow is `x' = sigma (y - x)`, `y' = x (rho - z) - y`, `z' = x y - beta z`. For `sigma = 10`, `rho = 28`, and
+    `beta = 8/3` its runs never settle and never repeat, the strange attractor of Lorenz. A subclass that declares the
+    states with a fractional `StateSpec(order=q)` gives the fractional Lorenz flow, with Caputo derivatives of order
+    `q`.
+
+    Unlike `Element`, which leaves its laws to a subclass, it returns the three rates of the Lorenz flow. Choose it when
+    a system needs a chaotic flow in three states, as a model or as a drive.
+
+    It appears in many fields. Lorenz derived it from convection in the atmosphere, it models a laser and a water wheel,
+    and it drives a response system in studies of chaotic synchronization.
 
     Args:
         label:

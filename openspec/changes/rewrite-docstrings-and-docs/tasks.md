@@ -19,7 +19,7 @@
 - [x] 3.2 Rewrite `components/laws` and `laws/utils`, add them to `REWRITTEN`, and verify the guard and their doctests pass
 - [x] 3.3 Rewrite `components/spaces`, with the neighbourhoods, add it to `REWRITTEN`, and verify the guard and its doctests pass
 - [x] 3.4 Rewrite `components/systems`, `components/specs`, `components/base.py`, and `components/types.py`, add them to `REWRITTEN`, and verify the guard and their doctests pass
-- [ ] 3.5 Rewrite the docstrings of `skcomplex.systems.general` by the same rules, with the comparison paragraph naming the core parts each recipe is written with, such as "Unlike `JumpInteraction`" for `ReactionInteraction`, including the drafts of `NonnegativeElement` and `EncounterInteraction` from the first version of design.md, add the package to the walk of the guard and to `REWRITTEN`, and verify the guard and `pytest --doctest-modules src/skcomplex/systems/general` pass
+- [x] 3.5 Rewrite the docstrings of `skcomplex.systems.general` by the same rules, with the comparison paragraph naming the core parts each recipe is written with, such as "Unlike `JumpInteraction`" for `ReactionInteraction`, including the drafts of `NonnegativeElement` and `EncounterInteraction` from the first version of design.md, add the package to the walk of the guard and to `REWRITTEN`, and verify the guard and `pytest --doctest-modules src/skcomplex/systems/general` pass
 
 ## 4. Specs and root modules
 

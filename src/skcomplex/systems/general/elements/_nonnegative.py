@@ -1,4 +1,4 @@
-"""Define nonnegative elements, elements that hold one nonnegative scalar."""
+"""Define the element that holds one nonnegative number."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,11 +13,17 @@ from ....core.specs import StateSpec, VisualSpec
 
 
 class NonnegativeElement(Element):
-    """Element that holds one nonnegative scalar `x`.
+    """An element that holds one nonnegative number `x`.
 
-    The scalar is an amount, a fraction, a density at one class, or a concentration. The element has no laws of its
-    own, and the reactions, flows, and encounters of its system change it. A group of these elements on the sites of a
-    lattice of classes is a distribution over the classes.
+    The number is an amount, a share, a concentration, or the density at one class of a distribution. The element has no
+    laws of its own, and the reactions, flows, and encounters of its system change it. A group of these elements on the
+    sites of a lattice of classes is a distribution over the classes.
+
+    Unlike `DeclaredElement`, which takes its states as data, it fixes one state `x` at zero or above. Choose it when a
+    system tracks an amount that cannot be negative, such as a count, a mass, or a sum of money.
+
+    It appears in many fields. The number of people infected in an epidemic, the moles of a chemical species in a
+    reactor, the money in a bank account, and the tokens in a place of a Petri net are each one nonnegative number.
 
     Args:
         label:

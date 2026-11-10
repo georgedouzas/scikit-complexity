@@ -114,10 +114,11 @@ KINDS = {
     'Pass': 'pass',
     'Error': 'error',
 }
-FAMILIES = tuple(
-    f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces', 'systems')
+FAMILIES = (
+    *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces', 'systems')),
+    'skcomplex.systems.general',
 )
-REWRITTEN: tuple[str, ...] = ('skcomplex.core.components',)
+REWRITTEN: tuple[str, ...] = ('skcomplex.core.components', 'skcomplex.systems.general')
 
 
 class DoublingPart(BasePart):
@@ -215,8 +216,8 @@ def _hand_written(cls):
 
 
 def _core_modules():
-    """Return the dotted name and the syntax tree of every module of `skcomplex.core`, read from its source."""
-    for path in sorted((Path(SOURCE) / 'core').rglob('*.py')):
+    """Return the dotted name and the syntax tree of every module of the core and the shared recipes, from source."""
+    for path in sorted([*(Path(SOURCE) / 'core').rglob('*.py'), *(Path(SOURCE) / 'systems' / 'general').rglob('*.py')]):
         parts = path.relative_to(Path(SOURCE).parent).with_suffix('').parts
         module = '.'.join(parts[:-1] if parts[-1] == '__init__' else parts)
         yield module, ast.parse(path.read_text(encoding='utf-8'))

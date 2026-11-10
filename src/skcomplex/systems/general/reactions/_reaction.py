@@ -1,7 +1,4 @@
-"""Define reactions.
-
-Reactions are jumps that move units between states by a product propensity or a given propensity.
-"""
+"""Define the interaction that moves units from reactants to products."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,42 +28,34 @@ ENTRY_SIZE = 2
 
 
 class ReactionInteraction(JumpInteraction):
-    """Reaction that moves units from its reactants to its products.
+    """An interaction that moves units from its reactants to its products.
 
-    It moves them at a product propensity or a given propensity. A reactant, a product, or a modifier is a pair of the
-    path of an element, or of a member of a group such as `cells[0]`, and the name of its state that holds the units,
-    mapped to its stoichiometric coefficient. A coefficient is a positive number, or a function of the namespace of the
-    reaction that returns an expression of its parameters, such as `lambda s: 1 / s.target.epsilon`. So `S + I -> 2 I`
-    has the reactants `{('S', 'n'): 1, ('I', 'n'): 1}` and the products `{('I', 'n'): 2}`, and two states of one element
-    are `('cell', 'u')` and `('cell', 'v')`. A species may also be the name of a state of the `target` alone, such as
-    `{'u': 1, 'v': 2}`. A target that is a group or a field reacts in every member, with the species of every member its
-    own states, as the reactions at every site of a reaction-diffusion field.
+    A reactant, a product, or a modifier is a pair of the path of an element and the name of its state, mapped to its
+    stoichiometric coefficient, the number of units the reaction takes or gives. So `S + I -> 2 I` has the reactants
+    `{('S', 'n'): 1, ('I', 'n'): 1}` and the products `{('I', 'n'): 2}`. A coefficient is a positive number or a
+    function of the namespace. A species may also be the name of a state of `target` alone, such as `{'u': 1, 'v': 2}`,
+    and a target that is a group or a field reacts in every member. A subclass may bind its species under roles of its
+    own, such as `susceptible` and `infected`, and return its entries from `_get_reactants`, `_get_products`, and
+    `_get_modifiers`.
 
-    A subclass may bind its species under roles of its own names, such as `susceptible` and `infected`: it returns its
-    entries from `_get_reactants`, `_get_products`, and `_get_modifiers`, pairs of the path a role binds and a state
-    name, and the reaction reads every pair from the namespace of the role that binds its path.
+    The propensity is the rate constant `k` times the product of the reactant and modifier amounts, each raised to its
+    coefficient, or the expression that `propensity` returns. Fields name this product their own way: mass action in
+    chemistry, homogeneous mixing in epidemiology, the encounter term of Lotka and Volterra in ecology. The `mode` says
+    how the reaction runs:
 
-    The default propensity is the rate constant `k` times the product of the reactant and modifier amounts, each raised
-    to its coefficient, or else the expression the `propensity` function returns. Fields name this product propensity in
-    their own words, such as the law of mass action in chemistry, homogeneous mixing in epidemiology, and the encounter
-    term of Lotka-Volterra in ecology. The reaction changes every state by its coefficient among the products minus its
-    coefficient among the reactants, so it conserves the total of the states whose changes sum to zero, and modifiers
-    enter the propensity but do not change.
+    - `'rate'`: a rate equation.
+    - `'jump'`: a random event at the propensity that moves the units of the coefficients.
+    - `'langevin'`: the chemical Langevin equation, the rate equation with a noise of amplitude the square root of the
+      propensity.
 
-    In the mode `'rate'` the reaction is a rate equation. In the mode `'jump'` it is the random event of a
-    `JumpInteraction` at the propensity that moves the units of the coefficients. In the mode `'langevin'` it is the
-    chemical Langevin equation, the rate equation with one Wiener process of amplitude the square root of the propensity
-    driving every state the reaction changes.
+    In the agent form every member of an agent group reacts on its own states at every step, by `schedule`.
 
-    In the `'agent'` form the target is an agent group and every member reacts on its own states, the species named by
-    state names alone, in every step from the states at its start. The propensity of a member is `k` times the product
-    of its reactant and modifier states to the power of their coefficients, or the number `propensity(agent, system)`
-    returns, and a coefficient that is a function is the number `coefficient(agent, system)` returns. In the mode
-    `'rate'` the member adds the changes times its propensity, one unit step of the rate equation, and in the mode
-    `'jump'` it adds the changes with the probability `1 - exp(-propensity)` that an event fires in the step. The
-    members react at once from the states at the start of the rule under the schedule `'synchronous'`, one after the
-    other in their order or in a new random order every step under `'sequential'` or `'random-sequential'`, or each in
-    its own activation under `'member'`.
+    Unlike `JumpInteraction`, which it extends, it builds the changes from a stoichiometric vector and the propensity
+    from mass action, and it can also run as a rate or a Langevin equation. Choose it when a model is written as
+    reactions between species.
+
+    It appears in many fields. Molecules react in a cell, people pass from susceptible to infected in an epidemic,
+    predators eat prey, and enzymes bind their substrates.
 
     Args:
         label:

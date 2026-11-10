@@ -1,4 +1,4 @@
-"""Define the queue spec."""
+"""Define the spec of a queue of requesters served by the cheapest providers."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,10 +13,15 @@ ORDERS = ('random', 'reserve', 'sequential')
 
 @dataclass(frozen=True)
 class QueueSpec(BaseSpec):
-    """Queue of requesters served by the lowest providers until the quantities run out.
+    """A spec of a queue of requesters served by the cheapest providers.
 
-    The last requesters are therefore rationed. Requesters queue in random order, by decreasing reserve, or in order of
-    creation, and each matches at the reserve of the lowest providers whose reserve it accepts.
+    Requesters queue in random order, by decreasing reserve, or in order of creation, and each matches at the reserve of
+    the cheapest providers whose reserve it accepts. The last requesters may get nothing.
+
+    Unlike `IterativeMatchingSpec`, which finds one value for all, it serves requesters one by one at the prices of the
+    providers. Choose it when members are served in order, first come first served.
+
+    It appears in many fields. Customers queue at a shop, patients wait for organs, and households queue for housing.
 
     Args:
         order:

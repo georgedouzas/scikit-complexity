@@ -1,6 +1,6 @@
-"""Agent rules that systems of several fields share.
+"""Define the agent rules that the systems of several fields share.
 
-Agents move, give birth and die, choose, imitate, and evolve their strategies.
+Agents move, give birth and die, choose among options, imitate their neighbours, and evolve their strategies.
 """
 
 from ._birth_death import BirthDeathInteraction

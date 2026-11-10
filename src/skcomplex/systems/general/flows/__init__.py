@@ -1,6 +1,6 @@
-"""Flows that systems of several fields share.
+"""Define the flows that the systems of several fields share.
 
-The Lorenz flow is the convection model of mathematics and the response of chaotic synchronization in physics.
+The Lorenz flow is a model of convection in mathematics and the response system of chaotic synchronization in physics.
 """
 
 from ._lorenz import LorenzElement

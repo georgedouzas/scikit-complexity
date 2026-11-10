@@ -1,7 +1,4 @@
-"""Define the types of the dynamical systems.
-
-The types are the equations of the states, their noise amplitudes, and the table of the flows of a stock-flow system.
-"""
+"""Define the types of dynamical systems, their equations, noises, and flow tables."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

@@ -1,4 +1,4 @@
-"""Define the partner matching spec."""
+"""Define the spec of a choice of partners that a matching settles at a value."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,9 +12,15 @@ from ._random_search_spec import CLEARINGS
 
 @dataclass(frozen=True)
 class PartnerMatchingSpec(PartnerSpec):
-    """Selection of partners that a matching settles at a value.
+    """A spec of a choice of partners that a matching settles at a value.
 
     It is a `PartnerSpec` with the value of a pair, which only a matching reads.
+
+    Unlike `PartnerSpec`, which only pairs members, it also says the value at which each pair settles. Choose it when
+    members pick partners by distance or score and then trade.
+
+    It appears in many fields. Buyers visit the nearest shops, workers apply to the best paying firms within reach, and
+    traders deal with partners they trust.
 
     Args:
         candidates:

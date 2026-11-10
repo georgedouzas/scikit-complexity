@@ -1,7 +1,4 @@
-"""Define stock-flow systems.
-
-A stock-flow system is a set of stocks that change only through named flows between them or with the environment.
-"""
+"""Define the system of stocks that change only through named flows."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,20 +15,24 @@ from .types import FlowTable
 
 
 class StockFlowSystem(BaseSystem[CompositeSystem]):
-    """Stocks that change only through named flows.
+    """A system of stocks that change only through named flows between them.
 
-    The stocks and the parameters are the variables of one `DeclaredElement`. Every flow leaves a stock, or a source
-    outside the system, and enters a stock, or a sink outside the system, at a rate that is a function of a namespace
-    whose `source` holds the stocks and the parameters and whose `t` holds the time. A labelled `Source` or `Sink` in
-    place of `None` names the environment a flow draws from or releases to. A flow is a `TransferInteraction`
-    from the element to itself, so the trajectory reports it as `<element>.<flow>`, and a flow between two stocks keeps
-    their total.
+    The stocks and parameters are the variables of one `DeclaredElement`. Every flow leaves a stock or a source outside
+    the system and enters a stock or a sink outside the system, at a rate that is a function of a namespace whose
+    `source` holds the stocks and parameters and whose `t` holds the time. A labelled `Source` or `Sink` in place of
+    `None` names the environment. A flow is a `TransferInteraction` from the element to itself, so the trajectory
+    reports it as `<element>.<flow>`, and a flow between two stocks keeps their total.
 
-    The bathtub of engineering and the arms race of social organizations are stock-flow systems, as are the models of
-    system dynamics. A subclass takes the parameters of its model under its own names and returns the stocks, the
-    flows, and the parameters from the hooks `_get_stocks`, `_get_flows`, and `_get_parameters`, the label of the
-    element from `_get_element_label`, and the specs of the variables, such as stocks that cannot fall below zero, from
+    A subclass returns the stocks, flows, and parameters from the hooks `_get_stocks`, `_get_flows`, and
+    `_get_parameters`, the label of the element from `_get_element_label`, and the specs of the variables from
     `_get_variables`.
+
+    Unlike `DynamicalSystem`, which writes a rate per state, it writes flows between stocks with a
+    `TransferInteraction`, so what leaves one stock enters another. Choose it when a model is drawn as stocks and flows,
+    as in system dynamics.
+
+    It appears in many fields. A bathtub fills and drains in engineering, nations build arms in the arms race of
+    Richardson, and the models of system dynamics of Forrester follow stocks of people, capital, and goods.
 
     Attributes:
         system_:
@@ -170,7 +171,9 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
                 raise ValidationError(error_msg)
 
     def _get_flow_interactions(self) -> list[TransferInteraction]:
-        """Return a transfer from the element to itself for every flow, labelled and named after the flow.
+        """Return a transfer from the element to itself for every flow.
+
+        Each transfer is labelled and named after its flow.
 
         Returns:
             interactions:

@@ -1,6 +1,6 @@
-"""Elements that systems of several fields share.
+"""Define the elements that the systems of several fields share.
 
-They hold nonnegative amounts and points of a continuous space.
+They hold one nonnegative amount, or the position of a point in a continuous space.
 """
 
 from ._nonnegative import NonnegativeElement

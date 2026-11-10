@@ -1,7 +1,4 @@
-"""Define matching interactions.
-
-A matching matches requesters with providers by a rule and settles every match.
-"""
+"""Define the interaction that matches requesters with providers."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -50,20 +47,26 @@ RULES = (
 
 
 class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
-    """Matching of the members of a group of requesters with those of providers.
+    """An interaction that matches requesters with providers and settles every match.
 
-    The providers form a group, and a rule matches the members. Requesters state the highest clearing value they accept
-    in their `reserve` state, the quantity they want in their `quantity` state, and the most value they can give in
-    their `cap` state, and providers the lowest clearing value they accept and the quantity they offer. A name given as
-    a pair names the state of the requesters first and of the providers second, and a missing state counts as no
-    reserve, one unit, and no cap. The rule is a spec that names the algorithm that pairs the offers and holds its
-    settings: random search, partners, partner switching, a queue, iterative, continuous, batch, or stable matching. The
-    `value` of a match is its clearing value per unit. Every match lowers the quantities of both sides and moves every
-    state of `transfers`: a negative sign moves `value * quantity` from the requester to the provider, and a positive
-    sign moves `quantity` from the provider to the requester, so the totals stay the same. `on_match(match, system)`
-    adds any other effect. The matching runs once per round of its phase and reports the quantity-weighted clearing
-    value `value`, the matched `volume`, and the `unmatched` quantity left, as the reporters `<label>.value`,
-    `<label>.volume`, and `<label>.unmatched`.
+    Requesters state in their states the highest value they accept, `reserve`, the quantity they want, `quantity`, and
+    the most value they can give, `cap`. Providers state the lowest value they accept and the quantity they offer. A
+    name given as a pair names the state of the requesters first and of the providers second. The `rule` is a spec of
+    the algorithm that pairs the offers, such as `RandomSearchSpec`, `QueueSpec`, `BatchMatchingSpec`, or
+    `StableMatchingSpec`.
+
+    Every match lowers the quantities of both sides and moves every state of `transfers`: a negative sign moves `value *
+    quantity` from the requester to the provider, and a positive sign moves `quantity` from the provider to the
+    requester, so the totals stay the same. `on_match(match, system)` adds any other effect. The matching runs once per
+    round of its phase and reports `<label>.value`, the clearing value weighted by quantity, `<label>.volume`, and
+    `<label>.unmatched`.
+
+    Unlike `TransferInteraction`, which moves amounts between given pairs, it first forms the pairs by a rule, through
+    the `MatchLaw` of the core, and then transfers. Choose it when who trades with whom and at what value are part of
+    the model.
+
+    It appears in many fields. Buyers and sellers trade goods, workers and firms agree on wages, borrowers and banks
+    agree on loans, and patients and hospitals are matched.
 
     Args:
         label:

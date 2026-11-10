@@ -1,7 +1,4 @@
-"""Define the types of the reactions.
-
-The types are the stoichiometry of a reaction and the table of the reactions of a network.
-"""
+"""Define the types of reactions, their stoichiometry and the table of a network."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

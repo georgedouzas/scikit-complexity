@@ -1,7 +1,4 @@
-"""Define birth-death processes.
-
-A birth-death process creates offspring of the agents of a group and removes agents.
-"""
+"""Define the interaction by which agents give birth to offspring and die."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,35 +30,26 @@ type Kinship = Callable[..., object]
 
 
 class BirthDeathInteraction(Interaction):
-    """Birth-death process of the agents of a group, which give birth to offspring and die.
+    """An interaction by which the agents of a group give birth to offspring and die.
 
-    The cycle runs every step of discrete time. Every step the agents act once each, in their order under the schedule
-    `'sequential'`, in a new random order under `'random-sequential'`, or each in its own activation under `'member'`,
-    together with the rules of its element and the other member interactions, in the order the system lists them,
-    without the reports of the step and without arrivals. An agent dies with the probability `death`, and an agent that
-    survives gives birth with the probability `birth`, or as many times as a Poisson number of the mean `rate`. A
-    probability is a number or a function of the agent and the system view, and a function that returns a condition
-    gives probability one where it holds. Every birth creates `offspring` new agents, a number or a function of the
-    parent and the system view, such as a Poisson draw, of the group `group`, or of the parent's group without one. A
-    new agent stands in the cell of its parent, with the placement `'here'`, in a neighbouring cell that no agent of the
-    group holds, with the placement `'neighbor'`, or at the location a function of the parent and the system view
-    returns, where `None` means no place, and a birth without a place creates fewer agents.
+    At every step of discrete time each agent acts once, by `schedule`. An agent dies with the probability `death`. An
+    agent that survives gives birth with the probability `birth`, or as many times as a Poisson number of mean `rate`,
+    and every birth creates `offspring` new agents of `group`, or of the group of the parent. A probability is a number
+    or a function of the agent and the system view, and a function that returns a condition gives probability one where
+    it holds. The new agents stand where `placement` says: in the cell of the parent, in a free neighbouring cell, or
+    where a function returns.
 
-    A new agent copies the states `inherit` of its parent and takes the values that `values(parent, system)` returns,
-    such as a generation one higher or drawn states. The parent splits each state of `split` with its offspring,
-    keeping the share `keep`, a number or a function of the parent and the system view such as a random cut, or else an
-    equal share, and the offspring share the rest equally. Then `mutate(values, system)` returns the values of a new
-    agent from those it would get, and the other states take their defaults. A parent that gave birth takes the values
-    `reset`, and with `replace` it is removed, so its offspring replace it, also when the birth created none. With
-    `renew` an agent that dies is renewed in place instead of removed: it keeps its identity, its place, and the states
-    the new values leave out, and takes the values of an offspring of its own. With the probability `cull` an agent
-    that does not die removes, after its births, one member of `group`, or of the target without a group, for which
-    `kin(agent, member)` holds, the first in the order of the group under the pick `'first'`, such as one it owns, or
-    a random one under `'random'`. Every
-    step a Poisson number of the mean `arrival`, a number or a function of the system view, of new agents arrive without
-    a parent, at the location of the placement function or else at a random place, with the values
-    `values(None, system)`. The process reports the `births`, `deaths`, and `arrivals` of every step. It is an agent
-    rule, so the system runs in discrete time.
+    A new agent copies the states `inherit` of its parent, takes the values that `values(parent, system)` returns, and
+    shares the states `split` with its parent, which keeps the share `keep`. Then `mutate` may change its values.
+    Further options reset or replace the parent, renew a dying agent in place, cull a member of a kin group, and add
+    arrivals without a parent, as their arguments describe. The process reports the `births`, `deaths`, and `arrivals`
+    of every step.
+
+    Unlike `JumpInteraction`, which changes numeric states of a fixed set of members, it adds and removes agents, each
+    with states of its own. Choose it when a population of individuals grows, shrinks, and passes traits to offspring.
+
+    It appears in many fields. Rabbits breed and wolves starve in a predator and prey model, cells divide and die in a
+    tumour, firms enter and exit a market, and households form and dissolve in a model of demography.
 
     Args:
         label:

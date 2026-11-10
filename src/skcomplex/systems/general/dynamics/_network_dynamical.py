@@ -1,7 +1,4 @@
-"""Define network dynamical systems.
-
-A network dynamical system puts the states of a dynamical system on every node of a graph and couples neighbours.
-"""
+"""Define the dynamical system with states on every node of a graph."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,17 +17,23 @@ from .types import Equations, Noises
 
 
 class NetworkDynamicalSystem(DynamicalSystem):
-    """States on every node of a graph, with local equations and a coupling of neighbours.
+    """A dynamical system with states on every node of a graph and coupled neighbours.
 
-    The states and the parameters are those of a `DeclaredElement`, a member of a `FieldElement` on the `NetworkSpace`
-    of the graph. The equations are the local rates of every node, and for every state with a coupling `g` the rate of
-    node `i` gains the sum over its neighbours `sum_j A_ij g(x_i, x_j)`, a `CouplingInteraction` that reads node `i` as
-    `s.member` and its neighbour `j` as `s.other`. An initial value is a number for every node or an array with one
-    value per node. The system runs in continuous time.
+    The states and parameters are those of a `DeclaredElement`, a member of a `FieldElement` on the `NetworkSpace` of
+    the graph. The equations are the local rates of every node. For every state with a coupling `g`, the rate of node
+    `i` gains `sum_j A_ij g(x_i, x_j)` over its neighbours `j`, a `CouplingInteraction` that reads node `i` as
+    `s.member` and its neighbour as `s.other`. An initial value is one number for every node or an array with one value
+    per node. The system runs in continuous time.
 
-    Diffusion on a graph in mathematics and the exchange of gap junctions between cells in physiology are network
-    dynamical systems. A subclass returns the graph from `_get_graph` and the couplings from `_get_coupling`, besides
-    the hooks of `DynamicalSystem`.
+    A subclass returns the graph from `_get_graph` and the couplings from `_get_coupling`, besides the hooks of
+    `DynamicalSystem`.
+
+    Unlike `DynamicalSystem`, which holds one copy of its states, it puts one copy on every node, written with a
+    `FieldElement`, a `NetworkSpace`, and a `CouplingInteraction`. Choose it when identical units interact along the
+    edges of a graph.
+
+    It appears in many fields. Heat diffuses on a graph in mathematics, cells exchange ions through gap junctions in
+    physiology, and oscillators synchronize on a network in physics.
 
     Attributes:
         system_:
@@ -83,7 +86,7 @@ class NetworkDynamicalSystem(DynamicalSystem):
         element: str = 'nodes',
         label: str = 'system',
     ) -> None:
-        """Store the graph, the states, the equations, the couplings, and the rest of the data.
+        """Store the graph, states, equations, couplings, and the rest of the data.
 
         Args:
             graph:
@@ -156,7 +159,7 @@ class NetworkDynamicalSystem(DynamicalSystem):
         return self.coupling or {}
 
     def _check_equations(self) -> None:
-        """Raise an error for a missing graph, or for the equation or the coupling of an unknown state.
+        """Raise an error for a missing graph, or an equation or coupling of no state.
 
         Raises:
             ValidationError:
@@ -183,7 +186,10 @@ class NetworkDynamicalSystem(DynamicalSystem):
         )
 
     def _get_coupling_interactions(self) -> list[CouplingInteraction]:
-        """Return a coupling of neighbours for every coupled state, labelled `<state>_coupling`."""
+        """Return a coupling of neighbours for every coupled state.
+
+        Each coupling is labelled `<state>_coupling`.
+        """
         element = self._get_element_label()
         return [
             CouplingInteraction(f'{state}_coupling', target=element, read=state, write=state, function=function)

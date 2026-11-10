@@ -1,4 +1,4 @@
-"""Define the stable matching spec."""
+"""Define the spec of the stable matching of Gale and Shapley."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,13 +13,20 @@ from ._random_search_spec import CLEARINGS
 
 @dataclass(frozen=True)
 class StableMatchingSpec(BaseSpec):
-    """Stable matching of Gale and Shapley.
+    """A spec of the stable matching of Gale and Shapley, by mutual preferences.
 
-    Requesters propose to providers, which take as many as they offer units. Requesters rank the providers whose reserve
-    they accept by `requester_preference(requester, provider)`, by default the lower reserve, and providers rank the
-    requesters by `provider_preference(provider, requester)`, by default the higher reserve. The requester-optimal
-    stable matching, from the hospital-resident solver of the `matching` library, pairs every requester with at most one
-    provider, and each pair matches one unit at the value of the value rule.
+    Requesters propose to providers, which take as many as they offer units. Requesters rank the providers by
+    `requester_preference(requester, provider)`, by default the lower reserve, and providers rank the requesters by
+    `provider_preference(provider, requester)`, by default the higher reserve. The stable matching that favours the
+    requesters, from the hospital and resident solver of the `matching` library, pairs every requester with at most one
+    provider, and each pair matches one unit at the value of `value`. No requester and provider then prefer each other
+    to their partners.
+
+    Unlike `BatchMatchingSpec`, which pairs by price alone, it pairs by preferences on both sides. Choose it when both
+    sides rank each other and stability matters.
+
+    It appears in many fields. Medical residents match with hospitals, students match with schools, and donors match
+    with patients in kidney exchange.
 
     Args:
         requester_preference:

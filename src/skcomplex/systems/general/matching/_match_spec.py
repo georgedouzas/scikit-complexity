@@ -1,4 +1,4 @@
-"""Define the match spec."""
+"""Define the spec of one match of a requester with a provider."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,9 +10,13 @@ from ....core.specs import BaseSpec
 
 @dataclass(frozen=True)
 class MatchSpec(BaseSpec):
-    """Match of a requester with a provider.
+    """A spec of one match, a quantity at a value per unit between two members.
 
-    It is a match of a quantity at a clearing value per unit.
+    Unlike the rule specs, which say how members match, it records one match that a rule made. Choose it when an
+    `on_match` function of a `MatchingInteraction` reads the match it receives.
+
+    It appears in many fields. A buyer pays a seller for goods, a worker takes a job at a wage, and a borrower takes a
+    loan at a rate.
 
     Args:
         requester:

@@ -1,8 +1,4 @@
-"""Define reaction-diffusion systems.
-
-A reaction-diffusion system puts the states of a dynamical system as fields on the sites of a lattice, with local
-kinetics and a diffusion of every field that has a diffusivity.
-"""
+"""Define the dynamical system of fields on a lattice with kinetics and diffusion."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,19 +17,23 @@ from .types import Equations, Noises
 
 
 class ReactionDiffusionSystem(DynamicalSystem):
-    """Fields on the sites of a lattice with local kinetics and diffusion.
+    """A dynamical system of fields on a lattice, with local kinetics and diffusion.
 
-    The states and the parameters are those of a `DeclaredElement`, a member of a `FieldElement` on a `LatticeSpace`
-    of a shape, a spacing, and a boundary. The equations are the local kinetics of every site, and every field `u` with
-    a diffusivity `D` gains the rate `D laplacian(u)`, a `RateInteraction` apart from the kinetics, so a split solver
-    can treat it. A diffusivity is a number or a function of the namespace, such as one that reads a parameter of the
-    sites. An initial value is a number for every site or an array of the shape of the lattice. The system runs in
-    continuous time.
+    The states and parameters are those of a `DeclaredElement`, a member of a `FieldElement` on a `LatticeSpace`. The
+    equations are the local kinetics of every site, and every field `u` with a diffusivity `D` gains the rate `D
+    laplacian(u)`, a separate `RateInteraction`, so a split solver can treat it apart. A diffusivity is a number or a
+    function of the namespace. An initial value is one number for every site or an array of the shape of the lattice.
+    The system runs in continuous time.
 
-    The Gray-Scott model of chemistry and the front of Fisher and Kolmogorov in ecology are reaction-diffusion systems.
     A subclass returns the diffusivities from `_get_diffusivities`, the lattice from `_get_space`, and the boundary of
     every field from `_get_boundaries`, besides the hooks of `DynamicalSystem`. A system whose kinetics are reactions
     returns them from `_get_equation_interactions`.
+
+    Unlike `NetworkDynamicalSystem`, which couples nodes of a graph, it couples the sites of a lattice by a Laplacian,
+    written with a `FieldElement` and a `RateInteraction`. Choose it when substances react locally and spread in space.
+
+    It appears in many fields. The Gray-Scott model makes spots and stripes in chemistry, the Fisher and Kolmogorov
+    front spreads a species in ecology, and the FitzHugh-Nagumo model sends waves through heart tissue.
 
     Attributes:
         system_:
@@ -97,7 +97,7 @@ class ReactionDiffusionSystem(DynamicalSystem):
         element: str = 'medium',
         label: str = 'system',
     ) -> None:
-        """Store the fields, the kinetics, the diffusivities, the lattice, and the rest of the data.
+        """Store the fields, kinetics, diffusivities, lattice, and the rest of the data.
 
         Args:
             states:
@@ -178,7 +178,7 @@ class ReactionDiffusionSystem(DynamicalSystem):
         return None
 
     def _check_equations(self) -> None:
-        """Raise an error for the equation, the noise, or the diffusivity of an unknown state.
+        """Raise an error for an equation, noise, or diffusivity of no state.
 
         Raises:
             ValidationError:
@@ -195,7 +195,7 @@ class ReactionDiffusionSystem(DynamicalSystem):
             raise ValidationError(error_msg)
 
     def _get_element(self) -> BaseElement:
-        """Return the field on the lattice whose members hold the states and the parameters.
+        """Return the field on the lattice whose members hold the states and parameters.
 
         The initial values of the states are also given to the field, which reads an array of the shape of the
         lattice as one value per site.
@@ -212,7 +212,10 @@ class ReactionDiffusionSystem(DynamicalSystem):
         )
 
     def _get_diffusion_interactions(self) -> list[RateInteraction]:
-        """Return the diffusion `D laplacian(u)` of every field that diffuses, labelled `<field>_diffusion`."""
+        """Return the diffusion `D laplacian(u)` of every field that diffuses.
+
+        Each diffusion is labelled `<field>_diffusion`.
+        """
         element = self._get_element_label()
         return [
             RateInteraction(

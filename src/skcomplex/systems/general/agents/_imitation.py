@@ -1,7 +1,4 @@
-"""Define imitation of a discrete state of the neighbours.
-
-A member imitates a random neighbour, the majority, the best, or by the Fermi rule.
-"""
+"""Define the interaction by which members copy a state of their neighbours."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -30,25 +27,25 @@ TIES = ('first', 'random')
 
 
 class ImitationInteraction(NeighborInteraction):
-    """Imitation of a discrete state of the neighbours of every member.
+    """An interaction by which members copy a discrete state from their neighbours.
 
-    The imitation happens at a rate or with a probability per step. By the rule `'random'` a member copies a neighbour
-    chosen at random, by `'majority'` it takes the option that more of its neighbours hold than any other, and by
-    `'best'` it copies the neighbour whose payoff is largest, when that payoff is larger than its own. By `'better'` it
-    picks a neighbour at random and copies it when the neighbour's payoff is larger than its own. By `'fermi'` it picks
-    a neighbour at random and copies it with probability `1 / (1 + exp(-beta (P_j - P_i)))`, where `P_j` and `P_i` are
-    the payoffs of the neighbour and of the member and `beta` is the intensity. A member without such a neighbour keeps
-    its state. The rules read the neighbourhood of the space, the graph of a network or the neighbourhood of a lattice.
+    The `rule` says whom a member copies:
 
-    In the `'rate'` form every member imitates at the rate `rate`, by jumps between every pair of options in continuous
-    time. In the `'probability'` form every member imitates with probability `probability` in every step of a
-    discrete-time system, all members at once in its `phase`, reading the states the phases before it set. In the
-    `'agent'` form the target is an agent group, and every agent imitates its neighbours in the space with probability
-    `probability` in its `phase`. The agents imitate at once, reading the states of the step before, under the schedule
-    `'synchronous'`, one after the other in their order or in a new random order every step under `'sequential'` or
-    `'random-sequential'`, each reading the states the agents before it set, or each in its own activation under
-    `'member'`. The rule `'better'` runs in the agent form only. Among neighbours of equal largest payoff, the rule
-    `'best'` of the agent form copies the first under the ties `'first'` and one drawn uniformly under `'random'`.
+    - `'random'`: a random neighbour.
+    - `'majority'`: the option that more of its neighbours hold than any other.
+    - `'best'`: the neighbour with the largest payoff, when it beats its own.
+    - `'better'`: a random neighbour, when its payoff beats its own, in the agent form only.
+    - `'fermi'`: a random neighbour, with probability `1 / (1 + exp(-beta (P_j - P_i)))`, where `P_j` and `P_i` are the
+      payoffs of the neighbour and the member.
+
+    The `form` says when: at the rate `rate` in continuous time, with the probability `probability` per step for every
+    member at once, or by agents in the order of `schedule`. A member without such a neighbour keeps its state.
+
+    Unlike `CouplingInteraction`, which averages numeric states of neighbours, it copies one discrete value from them.
+    Choose it when members adopt the choices of those around them.
+
+    It appears in many fields. Voters copy their friends in the voter model, players copy successful strategies in
+    evolutionary games on networks, and farmers adopt the crops of their neighbours.
 
     Args:
         label:

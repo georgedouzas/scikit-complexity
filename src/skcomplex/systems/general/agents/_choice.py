@@ -1,7 +1,4 @@
-"""Define choice interactions.
-
-A choice interaction sets a discrete state to an option drawn from the utilities of the options.
-"""
+"""Define the interaction by which every member chooses one option by its utility."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,25 +31,26 @@ MIN_OPTIONS = 2
 
 
 class ChoiceInteraction(Interaction):
-    """Choice of every member of a group among options.
+    """An interaction by which members of a group choose among options by utility.
 
-    The option is drawn every step from the utilities of the options by a rule. The rule `'logit'`, which is the
-    heat-bath rule, draws option `k` of utility `u_k` with probability `exp(beta u_k) / sum_j exp(beta u_j)`, where
-    `beta` is the intensity of choice. The rules `'metropolis'` and `'fermi'` propose one of the other options
-    uniformly, or with the proposal `'all'` one of all the options including the current one, and accept it with
-    probability `min(1, exp(beta (u_new - u_old)))` or `1 / (1 + exp(-beta (u_new - u_old)))`, so the rule `'fermi'`
-    with the proposal `'all'` is the heat-bath rule of a uniform proposal. The rule `'best'` draws uniformly among the
-    options of largest utility under the ties `'random'`, and takes the first of them under `'first'`. Every step, each
-    member revises its choice with probability `activity` and keeps it otherwise.
+    At every step each member revises its choice with the probability `activity` and keeps it otherwise. The `rule`
+    draws the new option from the utilities `u_k` of the options:
 
-    In the `'symbolic'` form, `utility(namespace, option)` returns the utility as a symbolic expression, where
-    `namespace.target` holds the states and parameters of the group, and every member draws at once. In the `'agent'`
-    form, the group is an agent group and `utility(agent, system, option)` returns the utility as a number, so it can
-    read the agent, its neighbours, and the history and storage of the system view. Its members draw at once, from the
-    choices of the last step, under the `'synchronous'` schedule, one after the other in their order or in a new random
-    order, each seeing the choices made before it, under the `'sequential'` or `'random-sequential'` schedule, and each
-    in its own activation under the `'member'` schedule, together with the rules of its element and the other member
-    interactions, in the order the system lists them. An option of utility `-inf` is never drawn in the agent form.
+    - `'logit'`: option `k` with probability `exp(beta u_k) / sum_j exp(beta u_j)`, where `beta` is the intensity of
+      choice.
+    - `'metropolis'` and `'fermi'`: a proposed option, accepted with probability `min(1, exp(beta (u_new - u_old)))` or
+      `1 / (1 + exp(-beta (u_new - u_old)))`.
+    - `'best'`: an option of largest utility, with ties broken by `ties`.
+
+    In the symbolic form `utility(namespace, option)` returns an expression, and every member draws at once. In the
+    agent form `utility(agent, system, option)` returns a number, the members draw by `schedule`, and an option of
+    utility `-inf` is never drawn.
+
+    Unlike `TransitionInteraction`, which moves a state between values by given rates, it draws the new value from the
+    utilities of all options at once. Choose it when members pick the option that pays best, with noise.
+
+    It appears in many fields. Commuters choose a mode of transport, consumers choose a brand, farmers choose a crop,
+    and voters choose a party by a logit model of discrete choice.
 
     Args:
         label:

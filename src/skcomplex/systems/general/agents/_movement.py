@@ -1,7 +1,4 @@
-"""Define movements.
-
-A movement moves the agents of a group by steps to other cells, nodes, or positions.
-"""
+"""Define the interaction that moves the agents of a group by steps."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,31 +31,28 @@ type Vision = float | Callable[[AgentViewProtocol, SystemViewProtocol], float]
 
 
 class MovementInteraction(Interaction):
-    """Movement of the agents of a group by steps, every step of discrete time.
+    """An interaction that moves the agents of a group by steps at every discrete step.
 
-    A step is one of five kinds:
+    The `step` says where an agent goes:
 
-    - `'neighbor'` moves an agent to a uniformly drawn cell or node next to its own, on a lattice or a network.
-    - `'gaussian'` adds to the position of an agent a normal vector whose components have the standard deviation
-      `scale`, in a continuous space.
-    - `'levy'` moves an agent in a uniformly drawn direction by a Pareto length, whose least value is `scale` and whose
-      tail exponent is `exponent`, in a continuous space.
-    - `'best'` moves an agent to the cell or node next to its own with the highest `score(agent, cell, system)`. With a
-      `vision`, a number or a function of the agent and the system view, it looks instead along every direction of the
-      neighbourhood of a lattice up to that many cells, and at the cell of the agent, in the order of the axes, the
-      positive direction first. Among cells of equal highest score, the ties `'random'` draw one uniformly, `'first'`
-      take the first in that order, and `'nearest'` take the nearest, the first of them among equal distances. By
-      default the ties are `'random'` without a vision and `'nearest'` with one.
-    - A function `step(agent, system)` returns the destination, or `None` to stay.
+    - `'neighbor'`: a random cell or node next to its own, on a lattice or a network.
+    - `'gaussian'`: its position plus a normal vector of deviation `scale`, in a continuous space.
+    - `'levy'`: a random direction and a Pareto length of least value `scale` and tail `exponent`, in a continuous
+      space.
+    - `'best'`: the next cell with the highest `score(agent, cell, system)`, or with a `vision` the best cell along each
+      direction up to that many cells, with ties broken by `ties`.
+    - A function `step(agent, system)` that returns the destination, or `None` to stay.
 
-    An agent for which `condition(agent, system)` holds attempts one step every step of time, or a Poisson number of
-    steps with the mean `rate`, and takes each attempt with the probability `probability` and then with the probability
-    `accept(agent, destination, system)`. An exclusive movement never moves an agent to a cell another agent of the
-    group holds. The agents move one after the other, in their order under the schedule `'sequential'`, in a new random
-    order every step under `'random-sequential'`, or each in its own activation under `'member'`, together with the
-    rules of its element and the other member interactions, in the order the system lists them. Every step taken charges
-    its `cost`, a `TransferInteraction` from the agent to itself or a function of the agent and the system view. The
-    movement is an agent rule, so the system runs in discrete time.
+    An agent for which `condition` holds attempts one step, or a Poisson number of mean `rate`, takes it with the
+    probability `probability`, and then with the probability `accept(agent, destination, system)`. An exclusive movement
+    never enters a cell held by another agent of the group. The agents move one after another by `schedule`, and every
+    step charges its `cost`.
+
+    Unlike `TopologyInteraction`, which changes the space, it changes where agents stand in it. Choose it when agents
+    walk, forage, or relocate.
+
+    It appears in many fields. Sheep wander a pasture, foragers follow Lévy flights, ants climb a pheromone gradient,
+    and residents move house in the segregation model of Schelling.
 
     Args:
         label:

@@ -1,4 +1,4 @@
-"""Define the random search spec."""
+"""Define the spec of a random search of requesters for providers."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,11 +13,17 @@ CLEARINGS = ('midpoint', 'requester', 'provider')
 
 @dataclass(frozen=True)
 class RandomSearchSpec(BaseSpec):
-    """Random search of requesters for providers.
+    """A spec of a random search, where requesters meet random providers and match.
 
-    Requesters in random order meet random providers and match when their limits cross. Every requester makes up to
-    `tries` meetings with providers that still offer something, and matches at the midpoint of the two limits, or at the
-    requester's or the provider's limit, the decentralised exchange of Hamill and Gilbert (2016 ch. 5).
+    Every requester, in random order, makes up to `tries` meetings with providers that still offer something, and
+    matches when the limits cross, at the midpoint of the two limits or at the limit of one side. It is the
+    decentralised exchange of Hamill and Gilbert (2016, chapter 5).
+
+    Unlike `BatchMatchingSpec`, which sees every offer, it lets each requester see only a few. Choose it when
+    information is local and search is costly.
+
+    It appears in many fields. Buyers search among sellers in a bazaar, job seekers meet a few firms, and animals search
+    for mates.
 
     Args:
         tries:

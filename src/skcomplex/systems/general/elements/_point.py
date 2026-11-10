@@ -1,4 +1,4 @@
-"""Define points, members of a continuous space whose vector state has order 2."""
+"""Define the element of a point that moves in a continuous space."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,11 +13,16 @@ from ....core.specs import StateSpec, VisualSpec
 
 
 class PointElement(Element):
-    """Point of a continuous space.
+    """An element of a point that moves in a continuous space by its acceleration.
 
-    The point is a member with a vector state `x` of order 2 that locates it. The laws that act on the point give the
-    second derivative of `x`, and the companion state `x_d1` holds its first derivative. The boundary of the space acts
-    on `x`.
+    The point has a vector state `x` of order 2, its position. The laws that act on it give the second derivative of
+    `x`, and the companion state `x_d1` holds its velocity. The boundary of the space acts on `x`.
+
+    Unlike `Element`, which declares its own states, it fixes one position of order 2 with its velocity. Choose it when
+    members are bodies that move by forces in a continuous space.
+
+    It appears in many fields. Atoms of a gas, stars of a cluster, birds of a flock, and pedestrians of a crowd are
+    points that move by the forces on them.
 
     Args:
         label:

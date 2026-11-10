@@ -1,6 +1,7 @@
-"""Reactions and reaction networks that systems of several fields share.
+"""Define the reactions and reaction networks that several fields share.
 
-Reactions move units between species, and a reaction network builds one species per name.
+A reaction moves units between states, and a reaction network builds one element per species and one reaction per row of
+its table.
 """
 
 from ._reaction import ReactionInteraction

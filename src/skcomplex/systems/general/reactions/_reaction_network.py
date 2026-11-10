@@ -1,8 +1,4 @@
-"""Define reaction network systems.
-
-A reaction network system holds species and the reactions between them, whose default propensity is a rate constant
-times the product of the reactant amounts, each raised to its stoichiometric coefficient.
-"""
+"""Define the system of species and the reactions between them."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,28 +12,25 @@ from .types import ReactionTable
 
 
 class ReactionNetworkSystem(BaseSystem[CompositeSystem]):
-    """Species and the reactions between them, with product propensities.
+    """A system of amounts and the reactions between them, written as a table.
 
     Every species is a `NonnegativeElement` named after it, whose state `x` holds its amount. Every reaction is a
-    `ReactionInteraction` with a stoichiometric coefficient for each of its reactants and products and a rate constant
-    `k`. Its propensity is `k` times the product of the reactant amounts, each raised to its coefficient, and it changes
-    the amount of every species by its coefficient among the products minus its coefficient among the reactants. So
-    `S + I -> 2 I` at the rate constant `beta` has the reactants `{'S': 1, 'I': 1}`, the products `{'I': 2}`, and the
-    propensity `beta S I`. A species among both the reactants and the products with one coefficient, such as a
-    catalyst, enters the propensity and does not change.
+    `ReactionInteraction` with a coefficient for each reactant and product and a rate constant `k`. Its propensity is
+    `k` times the product of the reactant amounts, each raised to its coefficient. So `S + I -> 2 I` at the rate
+    constant `beta` has the reactants `{'S': 1, 'I': 1}`, the products `{'I': 2}`, and the propensity `beta S I`. A
+    species that is both a reactant and a product with one coefficient, such as a catalyst, enters the propensity and
+    does not change.
 
-    Fields name this product propensity in their own words, such as the law of mass action in chemistry, homogeneous
-    mixing in epidemiology, and the encounter term of Lotka-Volterra in ecology.
+    In the mode `'rate'` the reactions are rate equations, in the mode `'jump'` the random events of a Markov chain in
+    continuous time, run by the algorithm of Gillespie, and in the mode `'langevin'` the chemical Langevin equations. A
+    subclass takes the parameters of its model under its own names and gives its species, reactions, and mode from the
+    hooks `_get_species`, `_get_reactions`, and `_get_mode`, or its reactions as interactions from `_get_interactions`.
 
-    In the mode `'rate'` the reactions are the rate equations of the amounts, in the mode `'jump'` they are the random
-    events of a continuous-time Markov chain, run by Gillespie's algorithm, and in the mode `'langevin'` they are the
-    chemical Langevin equations.
+    Unlike `CompositeSystem`, which takes any parts, it builds `NonnegativeElement` and `ReactionInteraction` parts from
+    a table of reactions. Choose it when a model is a list of reactions with rate constants.
 
-    Compartmental systems of every field are reaction networks, such as epidemics of susceptible, infected, and
-    recovered individuals or enzyme kinetics. A subclass takes the parameters of its model under its own names, and
-    gives its species, its reactions, and its mode from the hooks `_get_species`, `_get_reactions`, and `_get_mode`, or
-    its reactions as interactions from `_get_interactions`, when they are subclasses of `ReactionInteraction` with
-    roles of their own names.
+    It appears in many fields. Epidemics of susceptible, infected, and recovered people, enzyme kinetics of Michaelis
+    and Menten, and predator and prey cycles of Lotka and Volterra are reaction networks.
 
     Attributes:
         system_:

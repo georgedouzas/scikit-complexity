@@ -1,7 +1,4 @@
-"""Define the types of the matchings.
-
-The type is the rule of a matching, one of the specs of the matching algorithms.
-"""
+"""Define the type of the rule of a matching, one spec of a matching algorithm."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

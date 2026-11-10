@@ -1,6 +1,6 @@
-"""Kinetic encounters that systems of several fields share.
+"""Define the kinetic encounters that the systems of several fields share.
 
-Densities over class axes meet in binary encounters.
+Distributions over the values of a trait meet in pairs and change class.
 """
 
 from ._encounter import EncounterInteraction
