@@ -1,0 +1,160 @@
+## ADDED Requirements
+
+### Requirement: The guide holds a glossary, a decision guide for components, and a troubleshooting page
+The user guide SHALL hold a glossary that defines every mathematical and library term the guide uses, including
+component, a decision guide at `core_components/choosing_components.md` that leads from the features of a problem to
+the core components that fit it, and a troubleshooting page with one section per public error class of the core that
+shows code raising it, its message, and the fix.
+
+#### Scenario: An error without a section
+- **WHEN** a public error class of `skcomplex.core.errors` has no section on the troubleshooting page
+- **THEN** the test session fails and names the class
+
+#### Scenario: Choosing a component
+- **WHEN** a reader starts the decision guide with a population that lives on a network and changes in discrete time
+- **THEN** the guide leads to `GroupElement` on a `NetworkSpace` with `DiscreteTime` and links their reference sections
+
+### Requirement: The guide documents the shared recipes and where a new component goes
+The core components guide SHALL hold a page on `skcomplex.systems.general`, the cross-domain recipes and general
+systems that several fields share, with one section per public class of its concept subpackages in the template of
+the family pages. The section SHALL name the core components the recipe is written with. The page SHALL state the
+placement rule of `package-layout` word for word, with one worked example per step.
+
+#### Scenario: A recipe and its primitives
+- **WHEN** a reader opens the section of `ReactionInteraction` on the page of shared recipes
+- **THEN** it imports the class from `skcomplex.systems.general.reactions`, runs an epidemic and a chemical reaction
+  with it, and says that it is a `JumpInteraction` whose changes are the stoichiometric vector
+
+#### Scenario: Placing a new component
+- **WHEN** a contributor reads the placement rule on the page of shared recipes
+- **THEN** each step has an example, and an agent rule that economics and social both use leads to a concept
+  subpackage of `skcomplex.systems.general`
+
+#### Scenario: A shared recipe without a section
+- **WHEN** a public class of a concept subpackage of `skcomplex.systems.general` has no section on the page
+- **THEN** the test session fails and names the class
+
+### Requirement: Moved pages redirect
+A documentation page that moves SHALL keep its former URL as a redirect to its new URL that keeps the anchor, through
+the `redirect_maps` of the `redirects` plugin in `properdocs.yml`. The strict build SHALL fail on a link to a missing
+page or a missing anchor inside the documentation.
+
+#### Scenario: A former family page
+- **WHEN** a reader opens `parts/elements/#element` on the published site
+- **THEN** the browser lands on `families/elements/#element`
+
+#### Scenario: A former guide page
+- **WHEN** a reader opens `overview/user_guide/core_components/choosing_parts/`
+- **THEN** the browser lands on `overview/user_guide/core_components/choosing_components/`
+
+#### Scenario: A broken anchor
+- **WHEN** a page links `extend_the_library.md#where-a-new-part-goes` after the heading was renamed
+- **THEN** the strict build fails and names the link
+
+## RENAMED Requirements
+
+- FROM: `### Requirement: Compatibility is documented per kind of part from tags`
+- TO: `### Requirement: Compatibility is documented per family from tags`
+- FROM: `### Requirement: A docstring of a cross-domain part names uses from several fields`
+- TO: `### Requirement: A docstring of a cross-domain component names uses from several fields`
+- FROM: `### Requirement: A docstring of a core component compares it with its nearest parts`
+- TO: `### Requirement: A docstring of a core component compares it with its nearest components`
+- FROM: `### Requirement: The guide shows how the parts fit together`
+- TO: `### Requirement: The guide shows how the components fit together`
+
+## REMOVED Requirements
+
+### Requirement: The guide holds a glossary, a decision guide, and a troubleshooting page
+**Reason**: Its text and a scenario name called the building blocks of a system parts, and a scenario cannot be renamed in place.
+**Migration**: See the requirement "The guide holds a glossary, a decision guide for components, and a troubleshooting page", which replaces it.
+
+### Requirement: The guide documents the shared recipes and where a new part goes
+**Reason**: Its text and a scenario name called the building blocks of a system parts, and a scenario cannot be renamed in place.
+**Migration**: See the requirement "The guide documents the shared recipes and where a new component goes", which replaces it.
+
+## MODIFIED Requirements
+
+### Requirement: Compatibility is documented per family from tags
+The documentation SHALL hold one page per family, which are elements, interactions, laws, spaces, systems, solvers,
+backends, analyses, and experiments, at `families/<family>.md`, generated by `docs/generate_families.py`. Each page
+SHALL be generated from the tags, with a table of what each class declares or accepts and worked, executed examples of
+a compatible and an incompatible combination with the error it raises. The single compatibility page SHALL be removed.
+
+#### Scenario: Choosing a solver
+- **WHEN** a reader opens the solvers page
+- **THEN** it shows, for each solver, the tags it supports, and an example where a mismatched solver raises an error
+  naming the tag
+
+#### Scenario: The family pages in the navigation
+- **WHEN** the documentation builds
+- **THEN** the navigation holds a section "Families" with the nine family pages, and no page under `parts/` but the
+  redirects
+
+### Requirement: A docstring of a cross-domain component names uses from several fields
+The docstring body of every public class and function of the core components, the analysis functions, and the
+experiment functions SHALL explain in plain words what the thing does, and SHALL then name concrete uses from at least
+two fields of science. Where a use fits as code, the `Examples` section SHALL show it as a runnable example.
+
+#### Scenario: The declared element
+- **WHEN** a reader reads the docstring of `DeclaredElement`
+- **THEN** it names uses such as people infected in an epidemic, moles of a chemical species, money in an account,
+  and tokens in a place of a Petri net, and its examples build at least two of them and run
+
+#### Scenario: An analysis function
+- **WHEN** a reader reads the docstring of `recurrence`
+- **THEN** it says what a recurrence is in plain words and names uses from at least two fields
+
+### Requirement: A docstring of a core component compares it with its nearest components
+The docstring of every public class of the core elements, interactions, laws, spaces, neighbourhoods, times, and
+systems SHALL hold a paragraph that starts with "Unlike" and names what the class adds over its nearest component,
+followed by a sentence that starts with "Choose it when", and a paragraph of uses that starts with "It appears in".
+
+#### Scenario: The declared element compared
+- **WHEN** a reader reads the docstring of `DeclaredElement`
+- **THEN** it says that, unlike `Element`, it needs no subclass, since it takes its states and parameters as data, and
+  when to choose it
+
+#### Scenario: A missing comparison
+- **WHEN** a public class of a rewritten family has no paragraph that starts with "Unlike" or "It appears in"
+- **THEN** the test session fails and names the class
+
+### Requirement: Each family has generated fact sheets and a comparison table
+The family page of each family SHALL be generated from the code. It SHALL hold a comparison table with one row per
+public class, giving what it adds, when to choose it, and its typical uses from its docstring, and a fact sheet per
+class with its states, roles, parameters, law kinds, the times, solvers, and backends that accept it from its tags,
+and links to its reference section, its API entry, and the catalog systems that use or subclass it.
+
+#### Scenario: The fact sheet of an element
+- **WHEN** a reader opens the family page of elements
+- **THEN** the fact sheet of `DeclaredElement` lists the variables it takes with their specs, the solvers that accept
+  it, and links to catalog systems that use it or its field realizations, such as the metabolic networks of biology
+
+#### Scenario: A new class
+- **WHEN** a contributor adds a public element class with the comparison and uses paragraphs
+- **THEN** the table and the fact sheets show it with no edit of the generator
+
+### Requirement: The guide shows how the components fit together
+The reference SHALL open with a page that explains how elements, interactions, laws, spaces, times, and systems fit
+together as the components of a system, with diagrams of their relations and of the run of a system from `prepare` to
+a trajectory, and a worked example that builds one system step by step, running the code after every step.
+
+#### Scenario: The diagrams render
+- **WHEN** the documentation builds the page on how the components fit
+- **THEN** its diagrams render as figures and the build reports no error
+
+#### Scenario: The worked example
+- **WHEN** a reader runs the blocks of the worked example in order
+- **THEN** each block runs, and the last one simulates the finished system
+
+### Requirement: Documents show every concept in runnable code
+The README, the user guide, the generated family and systems pages, and the gallery examples SHALL show every concept
+they introduce with a concrete code block that runs in the test session or the documentation build. The prose SHALL be
+short, precise, academic, and simple. It SHALL NOT be informal and SHALL NOT pile up terms that it does not define.
+
+#### Scenario: A concept before its code
+- **WHEN** a guide page introduces a distribution over the values of a trait
+- **THEN** a runnable block that builds one follows the first paragraph that names it
+
+#### Scenario: A semicolon in a document
+- **WHEN** the prose of the README or of a user guide page outside its code blocks holds a semicolon
+- **THEN** the test session fails and names the file and the line
