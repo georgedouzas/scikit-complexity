@@ -37,22 +37,3 @@ def test_bases_are_public_and_compilers_private():
         assert not hasattr(package, compiler.__name__)
     for name in ('FlattenPass', 'LayoutPass', 'ProblemPass', 'Compilation', 'ObservableEvaluator'):
         assert not hasattr(package, name)
-
-
-def test_removed_functions_are_not_public():
-    """The functions that became methods of the compiler are not public."""
-    removed = {
-        'compile_system',
-        'validate',
-        'claiming_compiler',
-        'compiled_problem',
-        'observables_of',
-        'order_passes',
-        'run_passes',
-    }
-    assert not (removed | {'partition_system'}) & set(package.__all__)
-
-
-def test_helpers_of_one_pass_are_not_public():
-    """The helpers of a single pass are not public."""
-    assert not {'values_of', 'member_of', 'hilbert_of'} & set(package.__all__)

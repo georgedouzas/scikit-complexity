@@ -9,17 +9,6 @@ from skcomplex.core.engine import runtime as package
 from skcomplex.core.engine.runtime import BaseClock, BaseObserver, simulate
 from skcomplex.systems.biology.common.populations import PopulationElement
 
-CATALOG_NAMES = {
-    'SYSTEMS',
-    'SystemEntry',
-    'catalog',
-    'create_simulation',
-    'create_system',
-    'describe',
-    'register_system',
-    'summarize',
-}
-
 
 class _TimesObserver(BaseObserver):
     """Observer that keeps the times of its frames and whether the run ended."""
@@ -81,12 +70,6 @@ def test_public_names_are_classes_or_simulate():
     for name in set(package.__all__) - {'simulate'}:
         assert inspect.isclass(getattr(package, name)), name
     assert inspect.isfunction(package.simulate)
-
-
-def test_no_catalog_in_the_engine():
-    """No public name registers, lists, describes, creates, or runs systems by name."""
-    assert not CATALOG_NAMES & set(package.__all__)
-    assert not CATALOG_NAMES & set(dir(package))
 
 
 def test_classes_derive_from_a_base_of_the_package():

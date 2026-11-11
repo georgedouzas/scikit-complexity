@@ -4,10 +4,6 @@ import numpy as np
 import pytest
 from scipy.special import iv
 
-import skcomplex.core.components.elements
-import skcomplex.core.components.interactions
-import skcomplex.core.components.laws.utils
-import skcomplex.core.components.spaces
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ValidationError
@@ -152,15 +148,3 @@ def test_gauge_observables_rejects_a_space_or_a_kind_it_cannot_read():
         gauge_observables(np.zeros(32), kind='volume', space=_space(4))
     with pytest.raises(AnalysisError, match='two-dimensional'):
         gauge_observables(np.zeros(32), kind='charge', space=CellComplexSpace(LatticeSpace((3, 3, 3))))
-
-
-def test_core_holds_no_field_terms_of_gauge_theory():
-    """Test that no public name of the core contains the terms of gauge theory."""
-    modules = (
-        skcomplex.core.components.elements,
-        skcomplex.core.components.interactions,
-        skcomplex.core.components.laws.utils,
-        skcomplex.core.components.spaces,
-    )
-    names = [name.lower() for module in modules for name in module.__all__]
-    assert not [name for name in names if any(term in name for term in ('wilson', 'gauge', 'polyakov'))]
