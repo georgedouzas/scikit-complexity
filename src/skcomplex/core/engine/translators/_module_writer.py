@@ -1,4 +1,4 @@
-"""Write the source of a system module from the sorted parts of a system."""
+"""Write the source of a system module from the sorted variables of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +11,7 @@ from pysd.translators.structures.abstract_expressions import ArithmeticStructure
 
 from ...specs import RunSettingsSpec
 from ._expressions import SAGE_MODULE, UTILITIES_MODULE, _ExpressionWriter
-from ._system_parts_spec import _GoalSeekingSpec, _SystemPartsSpec
+from ._system_variables_spec import _GoalSeekingSpec, _SystemVariablesSpec
 
 LINE_LENGTH = 120
 INDENT = '    '
@@ -152,17 +152,17 @@ STOCK_FLOW_MODULE = 'skcomplex.systems.general.dynamics'
 
 
 class _ModuleWriter:
-    """Writer of the source of the module of a system, one block of source per part."""
+    """Writer of the source of a system module, one block of source per component."""
 
     def __init__(
         self,
-        parts: _SystemPartsSpec,
+        variables: _SystemVariablesSpec,
         settings: RunSettingsSpec,
         label: str,
         stem: str,
         expressions: _ExpressionWriter,
     ) -> None:
-        self.parts = parts
+        self.variables = variables
         self.settings = settings
         self.label = label
         self.stem = stem
@@ -202,12 +202,12 @@ class _ModuleWriter:
 
     def _get_original(self, name: str) -> str:
         """Return a name of the file without what a docstring of the module cannot hold."""
-        return self.parts.originals[name].replace('\\', '').replace('"', '').strip()
+        return self.variables.originals[name].replace('\\', '').replace('"', '').strip()
 
     def _get_label(self, base: str) -> str:
         """Return a label of a generated interaction that no variable of the file holds."""
         label = base
-        while label in self.parts.originals:
+        while label in self.variables.originals:
             label = f'{label}_generated'
         return label
 
@@ -220,12 +220,11 @@ class _ModuleWriter:
 
         It collects a value not known before a run.
         """
-        parts = self.parts
-        values = [
-            self.expressions.evaluate(parts.stocks[name].initial, member) for member in range(len(parts.members) or 1)
-        ]
+        variables = self.variables
+        members = range(len(variables.members) or 1)
+        values = [self.expressions.evaluate(variables.stocks[name].initial, member) for member in members]
         if None in values:
-            self.expressions.problems.append(f'{parts.originals[name]}: an initial value not known before a run')
+            self.expressions.problems.append(f'{variables.originals[name]}: an initial value not known before a run')
         return [0.0 if value is None else value for value in values]
 
     def _write_choice(self, name: str) -> str:
@@ -233,23 +232,23 @@ class _ModuleWriter:
 
         It is a choice by the member when a component defines one member alone.
         """
-        parts, expressions = self.parts, self.expressions
-        components = parts.auxiliaries[name]
+        variables, expressions = self.variables, self.expressions
+        components = variables.auxiliaries[name]
         if len(components) == 1:
-            return expressions.write(components[0].ast, parts.originals[name])
+            return expressions.write(components[0].ast, variables.originals[name])
         where = expressions.add_import(UTILITIES_MODULE, 'where')
         source = '0'
         for component in reversed(components):
-            value = expressions.write(component.ast, parts.originals[name])
-            for member in parts.get_covered(component) or []:
+            value = expressions.write(component.ast, variables.originals[name])
+            for member in variables.get_covered(component) or []:
                 source = f'{where}(s.member == {member}, {value}, {source})'
         return source
 
     def _write_helpers(self) -> list[str]:
         """Return the source of the function of every lookup and every auxiliary."""
-        parts, expressions = self.parts, self.expressions
+        variables, expressions = self.variables, self.expressions
         helpers = []
-        for name, table in sorted(parts.lookups.items()):
+        for name, table in sorted(variables.lookups.items()):
             series = expressions.add_import(UTILITIES_MODULE, 'series')
             helpers.append(
                 self._write_function(
@@ -258,7 +257,7 @@ class _ModuleWriter:
                     self._write_return(f'{series}(x, {expressions.write_points(table)})'),
                 ),
             )
-        for name in parts.get_order_auxiliaries(expressions.problems):
+        for name in variables.get_order_auxiliaries(expressions.problems):
             helpers.append(
                 self._write_function(
                     f'_{name}(s: SimpleNamespace, t: Expression) -> Expression',
@@ -273,16 +272,18 @@ class _ModuleWriter:
 
         Its states are the stocks and its parameters the constants.
         """
-        parts = self.parts
-        declared = [(name, 'StateSpec', self._get_stock_values(name)[0], 'stock') for name in sorted(parts.stocks)]
-        declared += [(name, 'ParameterSpec', parts.constants[name][0], 'constant') for name in sorted(parts.constants)]
+        variables = self.variables
+        declared = [(name, 'StateSpec', self._get_stock_values(name)[0], 'stock') for name in sorted(variables.stocks)]
+        declared += [
+            (name, 'ParameterSpec', variables.constants[name][0], 'constant') for name in sorted(variables.constants)
+        ]
         documented = [
             f'{INDENT * 2}{name}:\n{INDENT * 3}The {kind} `{self._get_original(name)}`.'
             for name, _, _, kind in declared
         ]
-        if parts.constants or parts.members:
+        if variables.constants or variables.members:
             self.expressions.imports.add((SPECS_MODULE, 'ParameterSpec'))
-        if parts.members:
+        if variables.members:
             declared.append(('member', 'ParameterSpec', 0.0, 'position'))
             documented.append(f'{INDENT * 2}member:\n{INDENT * 3}The position of the member in the range of the file.')
         return ELEMENT_CLASS.format(
@@ -323,7 +324,7 @@ class _ModuleWriter:
         The rate is `(goal - stock) / time` of the functions of the goal and the time.
         """
         expressions = self.expressions
-        original = self.parts.originals[stock]
+        original = self.variables.originals[stock]
         expressions.imports.add((INTERACTIONS_MODULE, 'RateInteraction'))
         goal = expressions.write(form.goal, original)
         scale = expressions.write(form.scale, original)
@@ -367,7 +368,7 @@ class _ModuleWriter:
         expressions.imports.add((INTERACTIONS_MODULE, 'RateInteraction'))
         pieces = []
         for sign, term in terms:
-            source = expressions.write(term, self.parts.originals[stock])
+            source = expressions.write(term, self.variables.originals[stock])
             operand = f'({source})' if isinstance(term, ArithmeticStructure) else source
             pieces.append(f'{"+" if sign > 0 else "-"} {operand}')
         net = ' '.join(pieces).removeprefix('+ ')
@@ -384,15 +385,15 @@ class _ModuleWriter:
 
         The observable is of the element or reduced over the group.
         """
-        if not self.parts.members:
+        if not self.variables.members:
             return f'{INDENT * 2}ObservableSpec({name!r}, _observed__{name}, element={self.label!r}),'
-        reduction = '_member_values' if self.parts.is_per_member(name) else "'mean'"
+        reduction = '_member_values' if self.variables.is_per_member(name) else "'mean'"
         return f'{INDENT * 2}ObservableSpec({name!r}, _observed__{name}, group={self.label!r}, reduce={reduction}),'
 
     def _write_observables(self, flows: Mapping[str, object], relaxations: Sequence[str]) -> tuple[list[str], str]:
         """Return the functions of the observables, and the source of their tuple items."""
-        parts = self.parts
-        names = [name for name in sorted(parts.auxiliaries) if name not in flows and parts.is_observable(name)]
+        variables = self.variables
+        names = [name for name in sorted(variables.auxiliaries) if name not in flows and variables.is_observable(name)]
         functions = [
             self._write_function(
                 f'_observed__{name}(s: SimpleNamespace) -> Expression',
@@ -401,7 +402,7 @@ class _ModuleWriter:
             )
             for name in names
         ]
-        if parts.members:
+        if variables.members:
             functions.append(
                 self._write_function(
                     '_member_values(values: object) -> object',
@@ -421,19 +422,19 @@ class _ModuleWriter:
 
         It is given the constants of the system.
         """
-        parts = self.parts
+        variables = self.variables
         name = self._get_class_name()
-        if parts.members:
+        if variables.members:
             self.expressions.imports.add((ELEMENTS_MODULE, 'GroupElement'))
-            values: dict[str, str] = {stock: repr(self._get_stock_values(stock)) for stock in sorted(parts.stocks)}
-            for key, value in sorted(parts.constants.items()):
+            values: dict[str, str] = {stock: repr(self._get_stock_values(stock)) for stock in sorted(variables.stocks)}
+            for key, value in sorted(variables.constants.items()):
                 values[key] = f'list(self.{key})' if len(value) > 1 else f'self.{key}'
-            values['member'] = repr([float(index) for index in range(len(parts.members))])
+            values['member'] = repr([float(index) for index in range(len(variables.members))])
             listed = '\n'.join(f'{INDENT * 6}{key!r}: {value},' for key, value in values.items())
-            return GROUP.format(label=self.label, name=name, size=len(parts.members), values=listed)
-        if not parts.constants:
+            return GROUP.format(label=self.label, name=name, size=len(variables.members), values=listed)
+        if not variables.constants:
             return f'{INDENT * 4}{name}({self.label!r}),'
-        arguments = '\n'.join(f'{INDENT * 5}{key}=self.{key},' for key in sorted(parts.constants))
+        arguments = '\n'.join(f'{INDENT * 5}{key}=self.{key},' for key in sorted(variables.constants))
         return f'{INDENT * 4}{name}(\n{INDENT * 5}{self.label!r},\n{arguments}\n{INDENT * 4}),'
 
     def _write_system(self, interactions: Sequence[str], observables: str) -> str:
@@ -441,9 +442,9 @@ class _ModuleWriter:
 
         Its parameters are the constants of the file.
         """
-        parts = self.parts
+        variables = self.variables
         declared = []
-        for key, value in sorted(parts.constants.items()):
+        for key, value in sorted(variables.constants.items()):
             declared.append((key, f'tuple[float, ...] = {value!r}' if len(value) > 1 else f'float = {value[0]!r}'))
         documented = [
             f'{INDENT * 2}{key}:\n{INDENT * 3}The constant `{self._get_original(key)}`.' for key, _ in declared
@@ -468,17 +469,18 @@ class _ModuleWriter:
 
         Its parameters are the constants of the file, and its flows read the functions of their amounts.
         """
-        parts = self.parts
+        variables = self.variables
         documented = [
             f'{INDENT * 2}{key}:\n{INDENT * 3}The constant `{self._get_original(key)}`.'
-            for key in sorted(parts.constants)
+            for key in sorted(variables.constants)
         ]
         label = 'The label of the system, which names it when it is nested in another one.'
         documented.append(f'{INDENT * 2}label:\n{INDENT * 3}{label}')
-        declarations = [f'{INDENT * 2}{key}: float = {value[0]!r},' for key, value in sorted(parts.constants.items())]
+        constants = sorted(variables.constants.items())
+        declarations = [f'{INDENT * 2}{key}: float = {value[0]!r},' for key, value in constants]
         declarations.append(f"{INDENT * 2}label: str = 'system',")
         stocks = '\n'.join(
-            f'{INDENT * 3}{name!r}: {self._get_stock_values(name)[0]!r},' for name in sorted(parts.stocks)
+            f'{INDENT * 3}{name!r}: {self._get_stock_values(name)[0]!r},' for name in sorted(variables.stocks)
         )
         rows = [
             f'{INDENT * 3}{name!r}: ({leaving!r}, {entering!r}, _amount__{name}),'
@@ -490,10 +492,10 @@ class _ModuleWriter:
             arguments='\n\n'.join(documented),
             observables=observables,
             declarations='\n'.join(declarations),
-            assignments='\n'.join(f'{INDENT * 2}self.{key} = {key}' for key in sorted(parts.constants)),
+            assignments='\n'.join(f'{INDENT * 2}self.{key} = {key}' for key in sorted(variables.constants)),
             label=self.label,
             stocks=stocks,
-            parameters='\n'.join(f'{INDENT * 3}{key!r}: self.{key},' for key in sorted(parts.constants)),
+            parameters='\n'.join(f'{INDENT * 3}{key!r}: self.{key},' for key in sorted(variables.constants)),
             flows='\n'.join(rows),
         )
 
@@ -527,14 +529,14 @@ class _ModuleWriter:
     def write(self) -> str:
         """Return the source of the module of the system."""
         self.expressions.imports |= BASE_IMPORTS
-        parts, settings = self.parts, self.settings
-        flows = parts.get_flows()
+        variables, settings = self.variables, self.settings
+        flows = variables.get_flows()
         helpers = self._write_helpers()
         amounts, interactions = self._write_transfers(flows)
         rates, relaxations = [], []
-        for stock in sorted(parts.stocks):
-            terms = parts.get_remaining_terms(stock, flows)
-            form = parts.get_goal_seeking(stock, terms)
+        for stock in sorted(variables.stocks):
+            terms = variables.get_remaining_terms(stock, flows)
+            form = variables.get_goal_seeking(stock, terms)
             if form is not None:
                 functions, interaction, name = self._write_relaxation(stock, form)
                 rates += functions
@@ -545,7 +547,7 @@ class _ModuleWriter:
                 rates.append(function)
                 interactions.append(interaction)
         observed, observables = self._write_observables(flows, relaxations)
-        if flows and not rates and not parts.members:
+        if flows and not rates and not variables.members:
             imports = self.expressions.imports
             imports -= BASE_IMPORTS - {(SAGE_MODULE, 'Expression'), (SPECS_MODULE, 'ObservableSpec')}
             imports -= {(INTERACTIONS_MODULE, 'TransferInteraction'), (LAWS_MODULE, 'Source'), (LAWS_MODULE, 'Sink')}

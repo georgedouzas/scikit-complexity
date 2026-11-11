@@ -37,7 +37,8 @@ def sweep(
 
     It is in the role of `validation_curve` of scikit-learn. A name without a dot is a model parameter, set on a copy of
     the system with `set_params`, or passed to the factory. A dotted path names an initial state or a parameter of a
-    part, such as `population.x` or `growth.r`, which keeps its value for the whole run. The rows come from the design:
+    component, such as `population.x` or `growth.r`, which keeps its value for the whole run. The rows come from the
+    design:
 
     - `'grid'`: every combination of a sequence of values per name, the last name varying fastest.
     - `'random'`: `n` independent samples, uniform within a pair `(low, high)` or drawn from a SciPy distribution.

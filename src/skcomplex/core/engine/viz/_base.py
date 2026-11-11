@@ -73,7 +73,7 @@ PHASE_PALETTE = (
 
 
 class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
-    """An abstract visual, which logs a part of a system to Rerun at every frame.
+    """An abstract visual, which logs a component of a system to Rerun at every frame.
 
     A visual logs the state of one element or agent group to a Rerun recording. A visual follows the common API of the
     engine. `prepare(problem)` finds the element or agent group of the problem at the entity path `path`, forgets what

@@ -151,9 +151,9 @@ class OperatorSolver(BaseSolver[OperatorProblemSpec]):
         solver.start(self._start_state(x), t)
 
     def _get_unsupported(self, problem: OperatorProblemSpec) -> list[str]:
-        """Return a description of every part of an operator problem the solver skips.
+        """Return a description of every component of an operator problem the solver skips.
 
-        These are the parts the solver does not run.
+        These are the components the solver does not run.
         """
         del problem
         return []

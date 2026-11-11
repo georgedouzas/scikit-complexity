@@ -938,7 +938,7 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _get_component_of(node: NodeSpec) -> BaseComponent:
-        """Return the part whose laws describe a node, a representative member for a group."""
+        """Return the component whose laws describe a node, a member for a group."""
         if isinstance(node.component, GroupElement):
             group = node.component
             return group.element(group.label).set_params(**(group.values or {})).prepare()

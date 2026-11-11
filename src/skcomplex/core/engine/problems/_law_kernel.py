@@ -28,7 +28,7 @@ LATTICE_BOUNDARIES = {'periodic': 'periodic', 'zero-flux': 'reflecting', 'fixed'
 
 
 class LawKernel(BaseKernel):
-    """A kernel of the laws of one part and one law kind, over members or pairs.
+    """A kernel of the laws of one component and one law kind, over members or pairs.
 
     Args:
         owner:

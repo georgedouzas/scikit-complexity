@@ -27,15 +27,15 @@ with the rule and the inventory of the design, and never by a replacement across
   `systems/_base.py`, and `interactions/_base.py`, leaving `PARTS`, `_count_parts`, `symmetric_part`,
   `antisymmetric_part`, `delay_parts`, `Part` of `_coupling.py`, and the string pieces of `_reductions.py`, verified by
   ruff, mypy on `src`, the conventions, and the tests of `tests/core/components`
-- [ ] 2.2 In `core/engine`, rename `FlattenPass._prepare_part` to `_prepare_component`, the argument `part` of
+- [x] 2.2 In `core/engine`, rename `FlattenPass._prepare_part` to `_prepare_component`, the argument `part` of
   `declared_variables`, `declarations_of`, `default_of`, and the helpers of `_utils.py` to `component`, and the locals
   of `_flows.py` and `_census.py`, and say "the components of a vector" in full in the docstrings of the vector helpers
   of `_utils.py`, verified by ruff, mypy on `src`, and the tests of `tests/core/engine`
-- [ ] 2.3 Rename `_SystemPartsSpec` to `_SystemVariablesSpec`, its module to `_system_variables_spec.py`,
+- [x] 2.3 Rename `_SystemPartsSpec` to `_SystemVariablesSpec`, its module to `_system_variables_spec.py`,
   `_read_parts` to `_read_variables`, and the argument and attribute `parts` to `variables` in
   `core/engine/translators`, verified by ruff, mypy on `src`, lint-imports, and the tests of
   `tests/core/engine/translators`
-- [ ] 2.4 Reword the docstrings, comments, and messages of `core/engine`, `core/analysis`, `core/experiments`, and
+- [x] 2.4 Reword the docstrings, comments, and messages of `core/engine`, `core/analysis`, `core/experiments`, and
   `core/specs` where part means a component, including `Tags` and its fields, the message of `_stability.py`, and the
   messages of `_utils.py` and `_calibration.py`, and keep every kept meaning of the design, verified by ruff, mypy on
   `src`, the doctests of `src/skcomplex/core`, and the tests of `tests/core/analysis`, `tests/core/experiments`, and

@@ -42,7 +42,7 @@ def build_system(source: Source, arguments: Mapping[str, object]) -> BaseSystem:
             names = ', '.join(sorted(source.get_params(deep=False)))
             error_msg = (
                 f'{", ".join(unknown)} is not a model parameter of {type(source).__name__}. Its model parameters are '
-                f'{names}, and dotted paths such as `growth.r` name the states and parameters of its parts.'
+                f'{names}, and dotted paths such as `growth.r` name the states and parameters of its components.'
             )
             raise ValidationError(error_msg)
         return clone(source).set_params(**arguments)

@@ -114,7 +114,7 @@ def sensitivity(
             system class, which takes them as keyword arguments.
 
         bounds:
-            A pair `(low, high)` per input, a model parameter or a dotted path of a state or a parameter of a part.
+            A pair `(low, high)` per input, a model parameter or a dotted path of a state or a parameter of a component.
 
         output:
             The state or observable path whose last value is the scalar output.

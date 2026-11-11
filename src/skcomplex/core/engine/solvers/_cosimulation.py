@@ -67,8 +67,8 @@ class CoSimulationSolver(Solver):
     until the next. Gauss-Seidel advances the partitions in system order, each reading the values the partitions before
     it already advanced. Jacobi advances every partition from the same values.
 
-    Choose it when parts of a system need different solvers, such as agents beside a field. It appears in many fields,
-    such as cars on a road network beside their emissions, and cells beside the nutrients they eat.
+    Choose it when components of a system need different solvers, such as agents beside a field. It appears in many
+    fields, such as cars on a road network beside their emissions, and cells beside the nutrients they eat.
 
     Args:
         solvers:

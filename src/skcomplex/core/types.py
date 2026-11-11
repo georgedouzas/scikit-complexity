@@ -80,7 +80,7 @@ class DomainKind(StrEnum):
 
 
 class VariableKind(StrEnum):
-    """A kind of role that a declared argument plays in a part, such as a state."""
+    """A kind of role that a declared argument plays in a component, such as a state."""
 
     STATE = 'state'
     PARAMETER = 'parameter'

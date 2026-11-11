@@ -88,7 +88,7 @@ def vector(components: Iterable[object]) -> FreeModuleElement:
 
     Args:
         components:
-            The components.
+            The components of the vector.
 
     Returns:
         vector:
@@ -106,7 +106,7 @@ def components_of(value: object) -> list[object]:
 
     Returns:
         components:
-            The components.
+            The components of the vector.
     """
     return list(value) if isinstance(value, FreeModuleElement) else [value]
 
@@ -207,36 +207,36 @@ def _companions(name: str, variable: VariableSpec, default: object) -> dict[str,
     return companions
 
 
-def _instance_variables(part: BaseComponent) -> dict[str, tuple[VariableSpec, object]]:
-    """Return the variables of a part instance.
+def _instance_variables(component: BaseComponent) -> dict[str, tuple[VariableSpec, object]]:
+    """Return the variables of a component instance.
 
     They are those of its class and those it declares, read once per declaration.
     """
-    declared = part._get_declared()
+    declared = component._get_declared()
     if not declared:
-        return _class_variables(type(part))
-    known = INSTANCE_VARIABLES.get(part)
+        return _class_variables(type(component))
+    known = INSTANCE_VARIABLES.get(component)
     if known is not None and known[0] is declared:
         return known[1]
-    variables = dict(_class_variables(type(part)))
+    variables = dict(_class_variables(type(component)))
     for name, item in declared.items():
         variable = _variable_of(item.spec)
         variables[name] = (variable, item.value)
         if variable.kind == VariableKind.STATE:
             variables.update(_companions(name, variable, item.value))
-    INSTANCE_VARIABLES[part] = (declared, variables)
+    INSTANCE_VARIABLES[component] = (declared, variables)
     return variables
 
 
-def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
-    """Return the declaration and the default of every variable of a part.
+def declared_variables(component: object) -> dict[str, tuple[VariableSpec, object]]:
+    """Return the declaration and the default of every variable of a component.
 
     The variables are every state, parameter, and role, with companion states. A companion state follows the state it
     belongs to. An instance adds the variables it declares from data, whose default is their value.
 
     Args:
-        part:
-            A part class or instance.
+        component:
+            A component class or instance.
 
     Returns:
         variables:
@@ -244,7 +244,7 @@ def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
 
     Raises:
         TypeError:
-            The part is not a part class or instance.
+            The component is not a component class or instance.
 
     Examples:
         >>> from typing import Annotated
@@ -258,16 +258,16 @@ def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
         >>> list(declared_variables(PendulumElement))
         ['theta', 'theta_d1']
     """
-    cls = part if isinstance(part, type) else type(part)
+    cls = component if isinstance(component, type) else type(component)
     if not issubclass(cls, BaseComponent):
-        error_msg = f'{cls.__name__} is not a part, so it declares no variables.'
+        error_msg = f'{cls.__name__} is not a component, so it declares no variables.'
         raise TypeError(error_msg)
-    return dict(_instance_variables(part)) if isinstance(part, BaseComponent) else dict(_class_variables(cls))
+    return dict(_instance_variables(component)) if isinstance(component, BaseComponent) else dict(_class_variables(cls))
 
 
 @functools.cache
 def _class_variables(cls: type[BaseComponent]) -> dict[str, tuple[VariableSpec, object]]:
-    """Return the declaration and the default of every variable of a part class.
+    """Return the declaration and the default of every variable of a component class.
 
     They are read once per class. Rules read the declarations of their agents every step, such as the group a reference
     state names, so the signature and the annotations of a class are parsed once. Callers receive a copy from
@@ -285,12 +285,12 @@ def _class_variables(cls: type[BaseComponent]) -> dict[str, tuple[VariableSpec, 
     return variables
 
 
-def declarations_of(part: object, kind: VariableKind) -> dict[str, VariableSpec]:
-    """Return the declarations of one kind of a part, with companion states for states.
+def declarations_of(component: object, kind: VariableKind) -> dict[str, VariableSpec]:
+    """Return the declarations of one kind of a component, with their companion states.
 
     Args:
-        part:
-            A part class or instance.
+        component:
+            A component class or instance.
 
         kind:
             The kind of declaration to return.
@@ -299,17 +299,17 @@ def declarations_of(part: object, kind: VariableKind) -> dict[str, VariableSpec]
         declarations:
             A mapping from name to declaration.
     """
-    return {name: variable for name, (variable, _) in declared_variables(part).items() if variable.kind == kind}
+    return {name: variable for name, (variable, _) in declared_variables(component).items() if variable.kind == kind}
 
 
-def default_of(part: object, name: str) -> object:
-    """Return the default of a declared variable of a part.
+def default_of(component: object, name: str) -> object:
+    """Return the default of a declared variable of a component.
 
     The variable is a state, a parameter, or a role, or one of its companion states.
 
     Args:
-        part:
-            A part class or instance.
+        component:
+            A component class or instance.
 
         name:
             The name of the variable.
@@ -318,18 +318,18 @@ def default_of(part: object, name: str) -> object:
         default:
             The default value.
     """
-    return declared_variables(part)[name][1]
+    return declared_variables(component)[name][1]
 
 
-def _probe_namespace(part: BaseElement | BaseInteraction) -> SimpleNamespace:
-    """Return the namespace of free symbols of the declared names of a part.
+def _probe_namespace(component: BaseElement | BaseInteraction) -> SimpleNamespace:
+    """Return the namespace of free symbols of the declared names of a component.
 
-    Probing the laws of the part reads this namespace. An element gives its states and its parameters, with `other`, the
-    neighbour of a member, holding the same names. An interaction gives its parameters and an empty namespace per role,
-    or an empty tuple for a variadic role, since the names of the bound elements are not known before compiling. Both
-    give the time `t`.
+    Probing the laws of the component reads this namespace. An element gives its states and its parameters, with
+    `other`, the neighbour of a member, holding the same names. An interaction gives its parameters and an empty
+    namespace per role, or an empty tuple for a variadic role, since the names of the bound elements are not known
+    before compiling. Both give the time `t`.
     """
-    specs = part._get_component_specs()
+    specs = component._get_component_specs()
     names = {name: var(name) for name, spec in specs.items() if not isinstance(spec, RoleSpec)}
     roles = {
         name: () if spec.variadic else SimpleNamespace() for name, spec in specs.items() if isinstance(spec, RoleSpec)

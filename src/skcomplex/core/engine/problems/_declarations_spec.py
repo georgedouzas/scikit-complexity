@@ -22,7 +22,7 @@ MEMBERS = '_members'
 
 @dataclass(frozen=True)
 class DeclarationsSpec(BaseSpec):
-    """A spec of the entries, initial values, and blocks declared for the parts.
+    """A spec of the entries, initial values, and blocks declared for the components.
 
     Args:
         time:

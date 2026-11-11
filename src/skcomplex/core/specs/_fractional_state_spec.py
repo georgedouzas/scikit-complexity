@@ -12,7 +12,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class FractionalStateSpec(BaseSpec):
-    """A spec of a state of fractional order with the path of its part.
+    """A spec of a state of fractional order with the path of its component.
 
     Args:
         path:

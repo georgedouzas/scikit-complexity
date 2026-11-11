@@ -1,4 +1,4 @@
-"""Define the capability tags of parts, systems, solvers, and backends."""
+"""Define the capability tags of components, systems, solvers, and backends."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,17 +22,17 @@ DIFFERENTIABLE_LAWS = frozenset({'rate', 'update', 'equation'})
 
 @dataclass(frozen=True)
 class Tags(BaseSpec):
-    """A set of capability tags of a part, a solver, or a backend.
+    """A set of capability tags of a component, a solver, or a backend.
 
-    They say what a part is, what a system derives from its parts, or what a solver or a backend supports. The tags of a
-    part come from its declarations and its arguments alone, so they are known before `prepare`. A set that is empty
-    means any value for `time`, `space`, `domains`, and `laws`, and a fixed structure for `structure`. Law kinds are
-    `None` when the declarations do not show them, such as for a part that writes its laws in `_get_laws` without
-    listing their classes, and the randomness is then `None` too, unless an argument shows it.
+    They say what a component is, what a system derives from its components, or what a solver or a backend supports. The
+    tags of a component come from its declarations and its arguments alone, so they are known before `prepare`. A set
+    that is empty means any value for `time`, `space`, `domains`, and `laws`, and a fixed structure for `structure`. Law
+    kinds are `None` when the declarations do not show them, such as for a component that writes its laws in `_get_laws`
+    without listing their classes, and the randomness is then `None` too, unless an argument shows it.
 
     Args:
         time:
-            The times the part runs in, among `'continuous'`, `'discrete'`, and `'static'`.
+            The times the component runs in, among `'continuous'`, `'discrete'`, and `'static'`.
 
         domains:
             The domains of the states, among `'real'`, `'integer'`, `'boolean'`, `'categorical'`, `'complex'`,
@@ -53,8 +53,9 @@ class Tags(BaseSpec):
             How the structure changes, among `'variable membership'` and `'changing topology'`, empty for a fixed one.
 
         reparameterized:
-            Whether every draw of a stochastic part is a uniform, normal, or relaxed Bernoulli or categorical draw of
-            its laws, a function of the uniform or normal value of the step, so its runs have gradients at fixed values.
+            Whether every draw of a stochastic component is a uniform, normal, or relaxed Bernoulli or categorical draw
+            of its laws, a function of the uniform or normal value of the step, so its runs have gradients at fixed
+            values.
 
     Examples:
         >>> from skcomplex.core.specs import Tags
@@ -101,7 +102,7 @@ class Tags(BaseSpec):
 
     @property
     def differentiable(self) -> bool:
-        """Whether runs of the part can be differentiated in its parameters.
+        """Whether runs of the component can be differentiated in its parameters.
 
         It holds for rate, update, and equation laws, which the JAX backend lowers to pure functions, when they are
         deterministic or their draws are reparameterized, so the JAX run draws them from a key.

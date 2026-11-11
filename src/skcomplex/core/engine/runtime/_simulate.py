@@ -207,7 +207,7 @@ def simulate(
             emission matrix.
 
         TagError:
-            The parts of the system disagree on a tag, or the solver or the backend does not support a tag of the
+            The components of the system disagree on a tag, or the solver or the backend does not support a tag of the
             system, named in the message.
 
     Examples:
@@ -273,7 +273,7 @@ def _prepare_runners(
 
     Returns:
         composite:
-            The composite of the parts of the system.
+            The composite of the components of the system.
 
         solver:
             The copy of the solver, or `None` for the compiled form to choose it.
@@ -289,7 +289,7 @@ def _prepare_runners(
 
     Raises:
         TagError:
-            The parts of the system disagree on a tag, or the solver or the backend does not support a tag.
+            The components of the system disagree on a tag, or the solver or the backend does not support a tag.
     """
     settings = system.get_run_settings()
     stepper = _clone_setting(settings['solver'] if solver is None else solver)

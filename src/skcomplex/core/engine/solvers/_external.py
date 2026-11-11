@@ -35,9 +35,9 @@ class ExternalSolver(Solver):
 
     @abstractmethod
     def _get_unsupported(self, problem: ProblemSpec) -> list[str]:
-        """Return a description of every part of a problem the library cannot run.
+        """Return a description of every component of a problem the library cannot run.
 
-        The parts are elements, interactions, or laws.
+        The components are elements, interactions, or laws.
 
         Args:
             problem:

@@ -350,7 +350,7 @@ class _CalibrationObjective:
 
         The system is compiled on JAX at the medians of the priors and at small steps of every parameter, and the
         initial states and the parameter vector of its problem must be affine in the model parameters, as they are
-        when model parameters set values of parts.
+        when model parameters set values of components.
 
         Returns:
             predict:
@@ -379,7 +379,7 @@ class _CalibrationObjective:
                 base = np.concatenate([np.zeros(problem.initial_state.size), problem.initial_parameters])
                 slopes.append((changed - base) / (factor * step))
             if not np.allclose(slopes[0], slopes[1], rtol=1e-6, atol=1e-9):
-                error_msg = f'Differentiable runs need values of parts that are affine in {name}.'
+                error_msg = f'Differentiable runs need values of components that are affine in {name}.'
                 raise ValidationError(error_msg)
             columns.append(slopes[0])
         jacobian = np.stack(columns, axis=1)

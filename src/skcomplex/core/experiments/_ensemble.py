@@ -113,7 +113,8 @@ def ensemble(
     if built.get_tags().randomness == 'deterministic' and not getattr(stepper, 'draws', False):
         error_msg = (
             f'ensemble needs the randomness stochastic, but {type(built).__name__} has the randomness deterministic. '
-            'Its runs repeat one another, so run it once with `simulate`, or give it a part or a solver that draws.'
+            'Its runs repeat one another, so run it once with `simulate`, or give it a component or a solver that '
+            'draws.'
         )
         raise TagError(error_msg)
     return _run_experiment(

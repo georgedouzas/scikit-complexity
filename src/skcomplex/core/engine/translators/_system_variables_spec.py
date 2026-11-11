@@ -1,4 +1,4 @@
-"""Define the parts of a stock-and-flow system that a file declares."""
+"""Define the variables of a stock-and-flow system that a file declares."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -39,7 +39,7 @@ class _GoalSeekingSpec(BaseSpec):
 
 
 @dataclass(frozen=True)
-class _SystemPartsSpec(BaseSpec):
+class _SystemVariablesSpec(BaseSpec):
     """Variables of a system file by snake-case name, sorted by kind.
 
     The kinds are stocks, constants, auxiliaries, and lookups.
@@ -66,7 +66,7 @@ class _SystemPartsSpec(BaseSpec):
 
         It returns the empty string for anything else.
         """
-        return _SystemPartsSpec.get_name(ast.reference) if isinstance(ast, ReferenceStructure) else ''
+        return _SystemVariablesSpec.get_name(ast.reference) if isinstance(ast, ReferenceStructure) else ''
 
     @staticmethod
     def get_subscripts(ast: ReferenceStructure) -> Sequence[str]:
@@ -92,11 +92,11 @@ class _SystemPartsSpec(BaseSpec):
             yield sign, ast
             return
         if ast.operators == ['negative']:
-            yield from _SystemPartsSpec._split_terms(ast.arguments[0], -sign)
+            yield from _SystemVariablesSpec._split_terms(ast.arguments[0], -sign)
             return
         signs = (1, *(1 if symbol == '+' else -1 for symbol in ast.operators))
         for term_sign, argument in zip(signs, ast.arguments, strict=True):
-            yield from _SystemPartsSpec._split_terms(argument, sign * term_sign)
+            yield from _SystemVariablesSpec._split_terms(argument, sign * term_sign)
 
     def _holds(self, ast: object, is_match: Callable[[object], bool], visited: set[str]) -> bool:
         """Check that an expression holds a match, directly or through auxiliaries.

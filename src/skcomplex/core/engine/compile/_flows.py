@@ -124,7 +124,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
         Raises:
             LabelError:
-                Two flows reported under one part share a label.
+                Two flows reported under one component share a label.
 
             ConservationError:
                 A flow connects holders of different quantities.
@@ -319,7 +319,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
         Raises:
             LabelError:
-                Two flows reported under one part share a label.
+                Two flows reported under one component share a label.
 
             ConservationError:
                 A flow connects holders of different quantities.
@@ -690,7 +690,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
     def _get_owner_of(flow: TransferLaw, spec: KernelSpec) -> str:
         """Return the path a flow is reported under.
 
-        It is its owner in the system of the declaring part, or that part.
+        It is its owner in the system of the declaring component, or that component.
         """
         if not flow.owner:
             return spec.owner
@@ -698,9 +698,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         return f'{scope}/{flow.owner}' if scope else flow.owner
 
     def _claim_label(self, owner: str, label: str, set_index: int) -> None:
-        """Add the label of a flow reported under a part.
+        """Add the label of a flow reported under a component.
 
-        A label the part already reports raises an error.
+        A label the component already reports raises an error.
         """
         if (f'{owner}.{label}', set_index) in self.claimed_:
             error_msg = f'{owner} reports two flows labelled {label!r}. Rename one.'

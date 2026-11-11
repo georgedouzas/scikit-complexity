@@ -76,7 +76,7 @@ FILTER_MODES = {'periodic': 'wrap', 'zero-flux': 'reflect', 'fixed': 'constant'}
 
 
 class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
-    """A lowering of the differential operators in the laws of one part to stencils.
+    """A lowering of the differential operators of the laws of a component to stencils.
 
     The lowering also returns the symbols the stencils read. `prepare(compilation)` reads the fields and the initial
     values of the compilation, and `run(laws)` returns the laws with every operator replaced by its stencil, noting the

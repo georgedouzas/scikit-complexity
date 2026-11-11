@@ -159,7 +159,7 @@ class ObservableEvaluator:
         ]
         if not own and all(new is old for new, old in zip(children, system.systems, strict=True)):
             return system
-        labels = {part.label for part in (*system.elements, *system.interactions, *system.systems)}
+        labels = {component.label for component in (*system.elements, *system.interactions, *system.systems)}
         held = []
         for reduction in own:
             label = ObservableEvaluator._get_held_label(reduction, labels)

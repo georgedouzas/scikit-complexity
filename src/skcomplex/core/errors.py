@@ -23,7 +23,7 @@ class ValidationError(SkcomplexError):
     """An error for a system, a value, or a choice of solver that is not valid.
 
     `prepare` and the compiler raise it when an argument breaks a rule of its class, or a system does not fit its solver
-    and backend. The message names the part and the fix.
+    and backend. The message names the component and the fix.
     """
 
 
@@ -85,7 +85,7 @@ class ParameterError(ValidationError):
 class LabelError(ValidationError):
     """An error for a label that is missing, duplicated, or collides with a name.
 
-    Every part needs a label that is unique among the components of its system. Rename one of the parts.
+    Every component needs a label that is unique among the components of its system. Rename one of the components.
     """
 
 
@@ -107,16 +107,17 @@ class RoleElementError(RoleError):
 class TagError(ValidationError):
     """An error for tags of a system that disagree or that a solver does not support.
 
-    The parts of a system may disagree on a capability tag, such as two parts that need different times, or a solver or
-    backend may not support the tags. Read the tags with `get_tags` and choose a solver whose tags accept them.
+    The components of a system may disagree on a capability tag, such as two components that need different times, or a
+    solver or backend may not support the tags. Read the tags with `get_tags` and choose a solver whose tags accept
+    them.
     """
 
 
 class SpaceError(ValidationError):
-    """An error for a part, a vector, or a location that does not fit the space.
+    """An error for a component, a vector, or a location that does not fit the space.
 
-    A part needs a kind of space the system lacks, a vector state has no space to give its dimension, or a location lies
-    outside its space. Give the system or the group the space the part needs.
+    A component needs a kind of space the system lacks, a vector state has no space to give its dimension, or a location
+    lies outside its space. Give the system or the group the space the component needs.
     """
 
 

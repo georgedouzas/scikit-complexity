@@ -10,16 +10,16 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class RequirementSpec(BaseSpec):
-    """A spec of what a part requires of the system it is part of.
+    """A spec of what a component requires of the system it is part of.
 
     It holds the classes of time and of space it runs in. An empty field accepts any class.
 
     Args:
         time:
-            The time classes the part runs in, such as `(ContinuousTime,)`.
+            The time classes the component runs in, such as `(ContinuousTime,)`.
 
         space:
-            The space classes the part runs in, such as `(LatticeSpace,)`.
+            The space classes the component runs in, such as `(LatticeSpace,)`.
 
     Examples:
         >>> from skcomplex.core.components.spaces import ContinuousTime

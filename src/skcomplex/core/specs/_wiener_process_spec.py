@@ -21,7 +21,7 @@ class WienerProcessSpec(BaseSpec):
 
     Args:
         label:
-            The label of the processes, unique among the parts of the system of the interactions that bind them.
+            The label of the processes, unique among the components of the system of the interactions that bind them.
 
         dimension:
             The number of processes.

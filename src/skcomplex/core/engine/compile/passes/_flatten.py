@@ -1,4 +1,4 @@
-"""Flatten the system tree into the nodes of its parts."""
+"""Flatten the system tree into the nodes of its components."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -117,15 +117,19 @@ class FlattenPass(BasePass):
                 raise ValidationError(error_msg)
 
     @staticmethod
-    def _prepare_part(part: Element | GroupElement | BaseInteraction, place: BaseSpace | None, scope: str) -> None:
+    def _prepare_component(
+        component: Element | GroupElement | BaseInteraction,
+        place: BaseSpace | None,
+        scope: str,
+    ) -> None:
         """Prepare an element, group, or interaction on its place, checking its arguments.
 
-        Its error is raised with the path of the part.
+        Its error is raised with the path of the component.
         """
         try:
-            part.prepare(place)
+            component.prepare(place)
         except SkcomplexError as error:
-            error_msg = f'{scope}{part.label}: {error}'
+            error_msg = f'{scope}{component.label}: {error}'
             raise type(error)(error_msg) from error
 
     @staticmethod
@@ -181,7 +185,7 @@ class FlattenPass(BasePass):
     def _check_children(system: CompositeSystem, scope: str, places: dict[int, BaseSpace | None]) -> None:
         """Raise an error for a child of the wrong type or a duplicated label.
 
-        Every element and interaction is prepared on its place, by the identity of the part, which checks it.
+        Every element and interaction is prepared on its place, by the identity of the component, which checks it.
         """
         children: list[tuple[Element | GroupElement | BaseInteraction | CompositeSystem, type | tuple[type, ...]]] = [
             *((element, (Element, GroupElement)) for element in system.elements),
@@ -198,7 +202,7 @@ class FlattenPass(BasePass):
                 raise ValidationError(error_msg)
             FlattenPass._check_label(child.label, scope)
             if not isinstance(child, CompositeSystem):
-                FlattenPass._prepare_part(child, places.get(id(child)), scope)
+                FlattenPass._prepare_component(child, places.get(id(child)), scope)
             if isinstance(child, GroupElement):
                 FlattenPass._check_group(child, scope)
             if child.label in labels:

@@ -211,7 +211,7 @@ def _is_changed(value: object, default: object) -> bool:
 
 
 def _composite(source: Source) -> Source:
-    """Return the composite of the parts of a system class, or another source as is.
+    """Return the composite of a system class, or another source as is.
 
     An example of a system class is a ready-made system.
 
@@ -221,7 +221,7 @@ def _composite(source: Source) -> Source:
 
     Returns:
         source:
-            The prepared composite `CompositeSystem` of a system that builds its parts, or the source itself.
+            The prepared composite `CompositeSystem` of a system that builds its components, or the source itself.
     """
     if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         return source.prepare().system_

@@ -27,7 +27,7 @@ from ...errors import ValidationError
 from ...specs import RunSettingsSpec
 from ._expressions import INTERPOLATED, _ExpressionWriter
 from ._module_writer import _ModuleWriter
-from ._system_parts_spec import _SystemPartsSpec
+from ._system_variables_spec import _SystemVariablesSpec
 
 VENSIM_SUFFIX = '.mdl'
 XMILE_SUFFIXES = ('.xmile', '.xml', '.stmx')
@@ -199,7 +199,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         elif ast.type != INTERPOLATED:
             problems.append(f'{element.name}: a lookup of the type {ast.type}')
         else:
-            lookups[_SystemPartsSpec.get_name(element.name)] = ast
+            lookups[_SystemVariablesSpec.get_name(element.name)] = ast
 
     @staticmethod
     def _read_stock(element: AbstractElement, stocks: dict[str, IntegStructure], problems: list[str]) -> None:
@@ -207,9 +207,9 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         if len(element.components) > 1:
             problems.append(f'{element.name}: a stock defined apart for every subscript')
         else:
-            stocks[_SystemPartsSpec.get_name(element.name)] = element.components[0].ast
+            stocks[_SystemVariablesSpec.get_name(element.name)] = element.components[0].ast
 
-    def _read_parts(self, problems: list[str]) -> _SystemPartsSpec:
+    def _read_variables(self, problems: list[str]) -> _SystemVariablesSpec:
         """Return the variables of the main section sorted by what they become.
 
         It collects what cannot become any.
@@ -227,7 +227,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         auxiliaries: dict[str, Sequence[AbstractComponent]] = {}
         lookups: dict[str, LookupsStructure] = {}
         for element in elements:
-            name = _SystemPartsSpec.get_name(element.name)
+            name = _SystemVariablesSpec.get_name(element.name)
             constant = self._read_constant(element, members)
             if isinstance(element.components[0], AbstractLookup):
                 self._read_lookup(element, lookups, problems)
@@ -237,10 +237,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
                 constants[name] = constant
             else:
                 auxiliaries[name] = element.components
-        return _SystemPartsSpec(
-            originals={_SystemPartsSpec.get_name(element.name): element.name for element in elements},
+        return _SystemVariablesSpec(
+            originals={_SystemVariablesSpec.get_name(element.name): element.name for element in elements},
             controls={
-                _SystemPartsSpec.get_name(item.name): item.components[0].ast
+                _SystemVariablesSpec.get_name(item.name): item.components[0].ast
                 for item in main.elements
                 if isinstance(item, AbstractControlElement)
             },
@@ -253,7 +253,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
             range_name=range_name,
         )
 
-    def _check_subscripts(self, parts: _SystemPartsSpec, problems: list[str]) -> None:
+    def _check_subscripts(self, variables: _SystemVariablesSpec, problems: list[str]) -> None:
         """Collect the variables subscripted over another range than that of the stocks.
 
         This includes variables subscripted over more than one range.
@@ -264,35 +264,40 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
                     subscripts = component.subscripts[0]
                     if len(subscripts) > 1:
                         problems.append(f'{element.name}: a variable subscripted over more than one range')
-                    elif subscripts and parts.get_covered(component) is None:
+                    elif subscripts and variables.get_covered(component) is None:
                         problems.append(f'{element.name}: a variable subscripted over {subscripts[0]}')
 
-    def _check_names(self, parts: _SystemPartsSpec, label: str, problems: list[str]) -> None:
+    def _check_names(self, variables: _SystemVariablesSpec, label: str, problems: list[str]) -> None:
         """Collect the names that collide, clash with the module, or are no identifiers."""
         seen: dict[str, list[str]] = {}
         for section in self.system_.sections:
             for element in section.elements:
                 if not isinstance(element, AbstractControlElement):
-                    seen.setdefault(_SystemPartsSpec.get_name(element.name), []).append(element.name)
+                    seen.setdefault(_SystemVariablesSpec.get_name(element.name), []).append(element.name)
         for name, originals in seen.items():
             if len(originals) > 1:
                 problems.append(f'{" and ".join(originals)}: names that share the snake-case name {name}')
             if name in RESERVED_NAMES or not name.isidentifier() or keyword.iskeyword(name):
                 problems.append(f'{originals[0]}: a name that clashes with the system module as {name}')
-        if label in parts.auxiliaries:
-            problems.append(f'{parts.originals[label]}: a name that clashes with the element. Give `name` to rename it')
+        if label in variables.auxiliaries:
+            original = variables.originals[label]
+            problems.append(f'{original}: a name that clashes with the element. Give `name` to rename it')
         if not label.isidentifier() or keyword.iskeyword(label):
             problems.append(f'{self.path}: a file that names the element {label!r}. Give `name` to rename it')
 
     @staticmethod
-    def _read_settings(parts: _SystemPartsSpec, expressions: _ExpressionWriter, problems: list[str]) -> RunSettingsSpec:
+    def _read_settings(
+        variables: _SystemVariablesSpec,
+        expressions: _ExpressionWriter,
+        problems: list[str],
+    ) -> RunSettingsSpec:
         """Return the run settings of the control section.
 
         Its length runs from its start.
         """
         values = {}
         for name in CONTROL_NAMES:
-            value = expressions.evaluate(parts.controls[name], 0)
+            value = expressions.evaluate(variables.controls[name], 0)
             if value is None:
                 problems.append(f'{name}: a control value not known before a run')
             values[name] = 0.0 if value is None else value
@@ -313,14 +318,14 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
                 The file has constructs without a counterpart, or names that clash, all of them listed.
         """
         problems: list[str] = []
-        parts = self._read_parts(problems)
+        variables = self._read_variables(problems)
         stem = Path(self.path).stem
-        label = self.name or _SystemPartsSpec.get_name(stem)
-        self._check_subscripts(parts, problems)
-        self._check_names(parts, label, problems)
-        expressions = _ExpressionWriter(parts, problems, set())
-        settings = self._read_settings(parts, expressions, problems)
-        source = _ModuleWriter(parts, settings, label, stem, expressions).write()
+        label = self.name or _SystemVariablesSpec.get_name(stem)
+        self._check_subscripts(variables, problems)
+        self._check_names(variables, label, problems)
+        expressions = _ExpressionWriter(variables, problems, set())
+        settings = self._read_settings(variables, expressions, problems)
+        source = _ModuleWriter(variables, settings, label, stem, expressions).write()
         if problems:
             listed = '\n'.join(f'- {problem}' for problem in dict.fromkeys(problems))
             error_msg = f'The file {self.path} has constructs that do not translate:\n{listed}'

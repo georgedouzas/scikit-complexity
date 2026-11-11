@@ -217,7 +217,7 @@ class OperatorCompiler(BaseCompiler):
 
         Args:
             element:
-                An element, a group, or any other part.
+                An element, a group, or any other component.
 
         Returns:
             operator:
@@ -249,7 +249,7 @@ class OperatorCompiler(BaseCompiler):
     def _get_member_of(element: BaseElement) -> Element | None:
         """Return an element itself, or the first member of a group, or `None`.
 
-        It is `None` for any other part.
+        It is `None` for any other component.
 
         Args:
             element:
@@ -321,9 +321,9 @@ class OperatorCompiler(BaseCompiler):
 
     @staticmethod
     def _check_classical(nodes: list[NodeSpec]) -> None:
-        """Raise an error for an operator system with classical parts or states.
+        """Raise an error for an operator system with classical components or states.
 
-        The parts are classical elements, or operator elements with states.
+        The components are classical elements, or operator elements with states.
         """
         classical = [
             node.path
@@ -333,7 +333,7 @@ class OperatorCompiler(BaseCompiler):
         if classical:
             error_msg = (
                 f'The system mixes operator elements with the classical elements {", ".join(classical)}, which no '
-                'single form runs. Write the operator and the classical parts as separate systems.'
+                'single form runs. Write the operator and the classical components as separate systems.'
             )
             raise IncompatibleLawsError(error_msg)
         for node in nodes:
