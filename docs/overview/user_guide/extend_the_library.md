@@ -322,7 +322,7 @@ the import contracts enforce the layering.
 ### Where a new part goes
 
 This section decides where a part of your own belongs. One ordered test, the placement rule, decides where any part
-goes, and `tests/test_sources.py` checks it mechanically. The page
+goes, and `openspec/scripts/check_conventions.py` checks it mechanically. The page
 [General realizations](core_components/general.md#where-a-part-goes) quotes the rule word for word.
 
 1. A structural base, such as a `Base` class, the composite system, or a base where laws run per member, edge,

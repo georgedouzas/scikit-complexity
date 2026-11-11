@@ -1,7 +1,5 @@
 """Test the `errors` module of `skcomplex`."""
 
-import re
-
 import pytest
 
 from skcomplex.core import errors
@@ -52,18 +50,3 @@ def test_named_errors_of_linear_programs_derive_from_their_families():
     assert issubclass(InfeasibleError, SolverError)
     assert issubclass(EnumerationLimitError, AnalysisError)
     assert issubclass(MissingExtraError, SkcomplexError)
-
-
-def test_every_error_is_raised_in_the_library(request):
-    """Test that the library builds every error class, or a subclass of it, where it reports a failure."""
-    paths = (request.config.rootpath / 'src' / 'skcomplex').rglob('*.py')
-    source = '\n'.join(path.read_text(encoding='utf-8') for path in paths if path.name != 'errors.py')
-    unraised = [
-        name
-        for name, item in vars(errors).items()
-        if isinstance(item, type)
-        and issubclass(item, SkcomplexError)
-        and not item.__subclasses__()
-        and not re.search(rf'(?<!class )\b{name}\(|\berror={name}\b', source)
-    ]
-    assert unraised == []

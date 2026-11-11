@@ -28,6 +28,8 @@ PDM names the common ones as scripts.
   - `pdm checks dependencies`: check only the dependencies for vulnerabilities and for unused or missing ones.
   - `pdm checks security`: run only the security checks, with bandit.
   - `pdm checks docs`: check only the coverage and the format of the docstrings, with interrogate and pydoclint.
+  - `pdm checks conventions`: check only the conventions of the sources, the tests, and the documentation, with
+    `openspec/scripts/check_conventions.py`.
 
 ### Tests
 
@@ -35,6 +37,9 @@ PDM names the common ones as scripts.
   the user guide.
 - `nox -s tests -- <expression>`: run only the tests whose names match the expression.
 - `nox -s quick_tests`: run a small subset of the fast tests in a few minutes, as CI does on every push.
+
+The tests of a module `src/skcomplex/<package>/_<module>.py` live in `tests/<package>/test_<module>.py`, and every test
+file mirrors a module this way. `pdm checks conventions` checks it.
 
 ### Changelog
 
@@ -78,7 +83,7 @@ This section gives the order of work on a change.
 ### Where a part goes
 
 This section decides where a new part belongs. One ordered test, the placement rule, decides where any part goes, and
-`tests/test_sources.py` checks it mechanically. The page
+`openspec/scripts/check_conventions.py` checks it mechanically. The page
 [Extend the library](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/extend_the_library/#where-a-new-part-goes)
 of the user guide gives an example of each step.
 
@@ -98,7 +103,7 @@ of the user guide gives an example of each step.
 
 This section gives the order of a Python file. Every file holds the docstring, the licence header, the imports, the
 constants block, the type aliases, the other module statements, and then the definitions. The constitution in
-`openspec/constitution.md` states the rules, and `tests/test_sources.py` checks them. The checks cover the constants
+`openspec/constitution.md` states the rules, and `openspec/scripts/check_conventions.py` checks them. The checks cover the constants
 block and the values derived from it, the symbolic functions written as `BuiltinFunction` subclasses, the class that
 owns each helper, the action word that begins the name of every method, such as `get` or `check`, and the three kinds
 of module functions that stay functions.

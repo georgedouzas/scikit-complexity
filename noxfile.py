@@ -15,6 +15,7 @@ PYTHON_VERSIONS: list[str] = ['3.12', '3.13', '3.14']
 # mkdocs-gallery reads `ast.Str`, which Python 3.14 removed.
 DOCS_PYTHON: str = '3.13'
 FILES: list[str] = ['src', 'tests', 'docs', 'noxfile.py']
+CONVENTIONS: str = 'openspec/scripts/check_conventions.py'
 EXTRAS: list[str] = ['-G', 'structures', '-G', 'rna', '-G', 'metabolism', '-G', 'relativity', '-G', 'trajectories']
 QUICK_TESTS: list[str] = [
     'tests/core/components/elements',
@@ -30,7 +31,6 @@ QUICK_TESTS: list[str] = [
     'tests/core/specs',
     'tests/core/test_base.py',
     'tests/core/test_errors.py',
-    'tests/test_sources.py',
     'tests/core/test_specs.py',
     'tests/core/test_types.py',
 ]
@@ -164,13 +164,13 @@ def formatting(session: nox.Session, file: str) -> None:
 @nox.session(python=PYTHON_VERSIONS)
 @nox.parametrize('file', FILES)
 def checks(session: nox.Session, file: str) -> None:
-    """Check code quality, dependencies or type annotations.
+    """Check code quality, dependencies, type annotations, or the conventions.
 
     Arguments:
         session: The nox session.
         file: The file to be checked.
     """
-    arg = check_cli(session, ['all', 'quality', 'dependencies', 'types', 'security', 'docs'])
+    arg = check_cli(session, ['all', 'quality', 'dependencies', 'types', 'security', 'docs', 'conventions'])
     session.run('pdm', 'install', '-dG', 'checks', '--no-default', external=True)
     if arg in ['quality', 'all']:
         session.run('ruff', 'check', file)
@@ -207,6 +207,14 @@ def checks(session: nox.Session, file: str) -> None:
         ignore_args = [flag for vuln in ignored for flag in ('--ignore-vuln', vuln)]
         session.run('pip-audit', '-r', requirements_path, *ignore_args)
         session.run('deptry', 'src', 'tests')
+    if arg in ['conventions', 'all'] and file == 'src' and session.python == PYTHON_VERSIONS[0]:
+        session.run('ruff', 'check', CONVENTIONS)
+        session.run('mypy', CONVENTIONS)
+        # The checks import the package, so they run in the project environment, which keeps its runtime dependencies
+        # away from the type checker of this one.
+        env = {'PDM_IGNORE_ACTIVE_VENV': '1'}
+        session.run('pdm', 'install', '--prod', *EXTRAS, env=env, external=True)
+        session.run('pdm', 'run', 'python', CONVENTIONS, env=env, external=True)
 
 
 @nox.session(python=PYTHON_VERSIONS)

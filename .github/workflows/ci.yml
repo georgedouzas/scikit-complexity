@@ -58,6 +58,9 @@ jobs:
     - name: Check docstring coverage
       run: pdm checks docs
 
+    - name: Check conventions
+      run: pdm checks conventions
+
   tests:
 
     strategy:

@@ -1,14 +1,10 @@
 """Test the `base` module of `skcomplex`."""
 
-import importlib
-import inspect
-import pkgutil
 from dataclasses import dataclass
 
 import pytest
 from sklearn.base import clone
 
-import skcomplex
 from skcomplex.core import errors
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.base import BasePart
@@ -103,27 +99,6 @@ def test_settings_follow_scikit_learn():
     config = ScalingConfig(4)
     assert config.get_params() == {'factor': 4}
     assert clone(config.set_params(factor=5)).factor == 5
-
-
-def test_every_base_derives_from_the_root():
-    """Test that every class named `Base*` outside the systems derives from `BaseConfig` or `BaseSpec`."""
-    outside = []
-    for module in pkgutil.walk_packages(skcomplex.__path__, 'skcomplex.'):
-        if module.name.startswith('skcomplex.systems'):
-            continue
-        try:
-            loaded = importlib.import_module(module.name)
-        except ImportError:
-            continue
-        for name, value in vars(loaded).items():
-            if (
-                inspect.isclass(value)
-                and value.__module__ == loaded.__name__
-                and name.lstrip('_').startswith('Base')
-                and not issubclass(value, BaseConfig | BaseSpec | BaseException)
-            ):
-                outside.append(f'{loaded.__name__}.{name}')
-    assert outside == []
 
 
 def test_a_class_without_a_hook_cannot_be_created():

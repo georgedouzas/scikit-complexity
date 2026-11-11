@@ -1,23 +1,32 @@
-"""Test the sources of the repository: the package, its tests, and its documentation hide no finding of the checks."""
+"""Check the conventions of the repository: the package, its tests, and its documentation hide no finding.
+
+Run it from the root of the repository, in the environment of the project, with `pdm run python
+openspec/scripts/check_conventions.py`. It prints every finding as `file:line: message` and exits with 1 when it finds
+one. It first checks its own readers on planted files, so a reader that stops finding what it should is a finding too.
+"""
 
 import ast
+import dataclasses
 import doctest
+import enum
 import importlib
 import inspect
 import multiprocessing
 import pkgutil
 import re
+import sys
+import tempfile
 import textwrap
 import tokenize
+from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import cast, is_typeddict
+from types import ModuleType
+from typing import Any, cast, is_typeddict
 
-import pytest
-
-from skcomplex.core.components.interactions import BaseInteraction
-from skcomplex.core.components.laws import RuleLaw
-
+SCRIPT = Path('openspec') / 'scripts' / 'check_conventions.py'
 FOLDERS = ('src', 'tests', 'docs')
+SOURCE = Path('src') / 'skcomplex'
+TESTS = Path('tests')
 README = 'README.md'
 USER_GUIDE = Path('docs') / 'overview' / 'user_guide'
 PYTHON_BLOCK = re.compile(r'^```python[^\n]*\n(.*?)^```$', re.MULTILINE | re.DOTALL)
@@ -43,7 +52,6 @@ DUNDER = re.compile(r'__\w+__')
 LIBRARY_HOOK = re.compile(r'_[a-z][a-z0-9_]*[a-z0-9]_')
 FACTORY_KEYWORD = re.compile(r'\w+_func|latex_name')
 UTILS_MODULE = re.compile(r'\._utils$|\.utils\.')
-CORE_GUARD = Path('tests') / 'core' / 'components' / 'test_base.py'
 FENCE = re.compile(r'^\s*(```|~~~)')
 INLINE_CODE = re.compile('`[^`\n]*`')
 CORE_COMPONENTS = USER_GUIDE / 'core_components'
@@ -57,6 +65,100 @@ FAMILY_PAGES = {
 GALLERY = Path('docs') / 'examples'
 OWN_RECEIVERS = ('self', 'cls', 'super()')
 DOCTESTS = doctest.DocTestParser()
+CLASS_PACKAGES = (
+    'skcomplex.core.components',
+    'skcomplex.core.engine',
+    'skcomplex.core.experiments',
+    'skcomplex.core.analysis',
+)
+FIELD_TERMS = (
+    'Ant',
+    'Ask',
+    'Bank',
+    'Bid',
+    'Bird',
+    'Budget',
+    'Climate',
+    'Contagion',
+    'Cow',
+    'Credit',
+    'Disease',
+    'Energy',
+    'Epidemic',
+    'Firm',
+    'Force',
+    'Gene',
+    'Grass',
+    'Heading',
+    'Infection',
+    'Institution',
+    'Market',
+    'Neuron',
+    'Opinion',
+    'Pasture',
+    'Predator',
+    'Prey',
+    'Price',
+    'Protein',
+    'Quantum',
+    'Sheep',
+    'Species',
+    'Synapse',
+    'Temperature',
+    'Trade',
+    'Traffic',
+    'Voter',
+    'Wolf',
+    'Worker',
+)
+MOLECULAR_TERMS = ('rna', 'protein', 'genotype', 'hydrophobicity', 'residue', 'nucleotide')
+ALLOWED_MAGIC_READS = frozenset(
+    [
+        '__init__',
+        '__name__',
+        '__qualname__',
+        '__doc__',
+        '__module__',
+        '__mro__',
+        '__version__',
+        '__subclasses__',
+    ],
+)
+SUMMARY_LENGTH = 80
+SUFFIXES = (
+    'Element',
+    'Interaction',
+    'Law',
+    'Space',
+    'Time',
+    'System',
+    'Solver',
+    'Backend',
+    'Observer',
+    'Spec',
+    'Result',
+    'Pass',
+    'Error',
+)
+KINDS = {suffix: suffix.lower() for suffix in SUFFIXES} | {'Neighborhood': 'neighbourhood'}
+FAMILIES = (
+    *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces', 'systems')),
+    'skcomplex.systems.general',
+)
+GENERATED_CLASSES_ALLOWED = {'core/engine/solvers/_mesa.py': 2}
+FIELDS = (
+    'biology',
+    'chemistry',
+    'computer_science',
+    'economics',
+    'engineering',
+    'mathematics',
+    'physics',
+    'social',
+)
+CONNECTOR_PACKAGES = ('core/components', 'core/engine')
+TYPE_ARGUMENTS = 3
+SERVED_FIELDS = 2
 BANNED_PHRASES = (
     'in summary',
     'in conclusion',
@@ -408,6 +510,23 @@ VERBS = frozenset(
 )
 
 
+def _locate(value: object, root: Path) -> str:
+    """Return where a class or a function of the library is defined, as `file:line`, or its module file."""
+    try:
+        path = Path(str(inspect.getsourcefile(cast(type, value))))
+        line = inspect.getsourcelines(cast(type, value))[1]
+    except (TypeError, OSError):
+        module = importlib.import_module(getattr(value, '__module__', None) or PACKAGE)
+        return f'{_relative(Path(str(module.__file__)), root)}:1'
+    return f'{_relative(path, root)}:{line}'
+
+
+def _relative(path: Path, root: Path) -> Path:
+    """Return a path relative to the root, or the path itself when it lies outside the root."""
+    resolved = path.resolve()
+    return resolved.relative_to(root.resolve()) if resolved.is_relative_to(root.resolve()) else path
+
+
 def _sources(root: Path) -> list[Path]:
     """Return the Python files of the package, its tests, and its documentation, without the generated pages."""
     return [
@@ -418,17 +537,15 @@ def _sources(root: Path) -> list[Path]:
     ]
 
 
-@pytest.mark.parametrize('word', FORBIDDEN)
-def test_no_source_hides_a_finding(request, word):
-    """Test that no source imports for type checking only or suppresses a finding of a linter or a type checker."""
-    root = request.config.rootpath
-    found = [
-        f'{path.relative_to(root)}:{number}'
+def check_no_source_hides_a_finding(root: Path) -> list[str]:
+    """Return every line that imports for type checking only or suppresses a finding of a linter or a type checker."""
+    return [
+        f'{path.relative_to(root)}:{number}: {word} appears'
+        for word in FORBIDDEN
         for path in _sources(root)
         for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), start=1)
         if word in line
     ]
-    assert not found, f'{word} appears in: {", ".join(found)}'
 
 
 def _documents(root: Path) -> list[Path]:
@@ -464,10 +581,10 @@ def _is_allowed_import(module: str, name: str) -> bool:
     return not (module == 'skcomplex' and name == 'systems')
 
 
-def _disallowed_imports(root: Path) -> list[str]:
-    """Return every import of the Python blocks of the documents that the rule forbids, as `file:line: module name`."""
+def check_documents_import_systems_from_their_subfield(root: Path) -> list[str]:
+    """Return every import of the README and the user guide beyond the system classes of a subfield."""
     return [
-        f'{document}:{start + line}: {module} {name}'
+        f'{document}:{start + line}: imports {module} {name} beyond the system classes of a subfield'
         for document in _documents(root)
         for start, code in _python_blocks(root / document)
         for line, module, name in _imported_names(code)
@@ -480,34 +597,27 @@ def _is_allowed_path(path: str) -> bool:
     return path in (SUBFIELD_PLACEHOLDER, GENERAL, CONCEPT_PLACEHOLDER) or SUBFIELD_PACKAGE.fullmatch(path) is not None
 
 
-def _disallowed_paths(root: Path) -> list[str]:
-    """Return every line of the documents that names a path below the systems other than a subfield package."""
+def check_documents_name_only_subfield_packages(root: Path) -> list[str]:
+    """Return every line of the README and the user guide that names a path below the systems but a subfield."""
     return [
-        f'{document}:{number}: {line.strip()}'
+        f'{document}:{number}: names a path below the systems other than a subfield: {line.strip()}'
         for document in _documents(root)
         for number, line in enumerate((root / document).read_text(encoding='utf-8').splitlines(), start=1)
         if not all(_is_allowed_path(path) for path in SYSTEMS_PATH.findall(line))
     ]
 
 
-def test_documents_import_systems_from_their_subfield(request):
-    """Test that the README and the user guide import system classes from their subfield and nothing else of a field."""
-    found = _disallowed_imports(request.config.rootpath)
-    assert not found, f'{len(found)} imports beyond the system classes of a subfield:\n' + '\n'.join(found)
-
-
-def test_documents_name_only_subfield_packages(request):
-    """Test that the README and the user guide name no path below the systems other than a subfield package."""
-    found = _disallowed_paths(request.config.rootpath)
-    assert not found, f'{len(found)} lines name a path below the systems other than a subfield:\n' + '\n'.join(found)
-
-
-def test_readme_custom_system_runs_from_the_core_alone(request):
-    """Test that the first custom system of the README simulates in a fresh interpreter without the catalog."""
-    text = (request.config.rootpath / README).read_text(encoding='utf-8')
-    section = text[text.index('### Build a custom system') :]
-    code = PYTHON_BLOCK.search(section).group(1)
-    assert 'simulate(' in code
+def check_readme_custom_system_runs_from_the_core_alone(root: Path) -> list[str]:
+    """Return a finding when the first custom system of the README fails to simulate without the catalog."""
+    text = (root / README).read_text(encoding='utf-8')
+    start = text.index('### Build a custom system')
+    match = PYTHON_BLOCK.search(text, start)
+    if match is None:
+        return [f'{README}:{text.count(chr(10), 0, start) + 1}: the custom system has no Python block']
+    line = text.count('\n', 0, match.start(1))
+    code = match.group(1)
+    if 'simulate(' not in code:
+        return [f'{README}:{line}: the custom system does not call `simulate`']
     check = f"""
 import sys
 {code}
@@ -517,7 +627,9 @@ assert loaded == [], loaded
     process = multiprocessing.get_context('spawn').Process(target=exec, args=(check, {'__name__': '__main__'}))
     process.start()
     process.join()
-    assert process.exitcode == 0
+    if process.exitcode != 0:
+        return [f'{README}:{line}: the custom system fails or loads the catalog in a fresh interpreter']
+    return []
 
 
 def _prose_faults(line: str) -> list[str]:
@@ -569,46 +681,46 @@ def _unnatural_lines(root: Path, documents: tuple[str, ...]) -> list[str]:
     return found
 
 
-def test_documents_read_naturally(request):
-    """Test that the prose of the README, the guide, and the gallery holds no semicolon, dash, or banned phrase."""
-    root = request.config.rootpath
+def check_documents_read_naturally(root: Path) -> list[str]:
+    """Return every prose line of the README, the guide, and the gallery with a semicolon, dash, or banned phrase."""
     gallery = sorted(str(path.relative_to(root)) for path in (root / GALLERY).rglob('*.py'))
     documents = (*(str(path) for path in _documents(root)), 'CONTRIBUTING.md', *gallery)
-    found = _unnatural_lines(root, documents)
-    assert not found, f'{len(found)} lines that do not read naturally:\n' + '\n'.join(found)
+    return _unnatural_lines(root, documents)
 
 
-def test_core_components_pages_cover_every_class(request):
-    """Test that each family page has a section per public class and imports nothing from the catalog."""
+def check_core_components_pages_cover_every_class(root: Path) -> list[str]:
+    """Return every public class without a section in its family page, and every import of the catalog there."""
     found = []
     for page, package in FAMILY_PAGES.items():
-        path = request.config.rootpath / CORE_COMPONENTS / page
+        path = root / CORE_COMPONENTS / page
         headings = set(re.findall(r'^## (\w+)$', path.read_text(encoding='utf-8'), flags=re.MULTILINE))
         module = importlib.import_module(package)
         classes = [getattr(module, name) for name in module.__all__]
         found += [
-            f'{page}: no section for {item.__name__}'
+            f'{path.relative_to(root)}:1: no section for {item.__name__}'
             for item in classes
             if isinstance(item, type) and not inspect.isabstract(item) and item.__name__ not in headings
         ]
         for start, block in _python_blocks(path):
             found += [
-                f'{page}:{start + line}: imports {module_name}'
+                f'{path.relative_to(root)}:{start + line}: imports {module_name}'
                 for line, module_name, _ in _imported_names(block)
                 if module_name == SYSTEMS or module_name.startswith(f'{SYSTEMS}.')
             ]
-    general = (request.config.rootpath / CORE_COMPONENTS / 'general.md').read_text(encoding='utf-8')
-    headings = set(re.findall(r'^## (\w+)$', general, flags=re.MULTILINE))
+    general = root / CORE_COMPONENTS / 'general.md'
+    headings = set(re.findall(r'^## (\w+)$', general.read_text(encoding='utf-8'), flags=re.MULTILINE))
     for concept in pkgutil.iter_modules(importlib.import_module(GENERAL).__path__):
         module = importlib.import_module(f'{GENERAL}.{concept.name}')
-        found += [f'general.md: no section for {name}' for name in module.__all__ if name not in headings]
-    assert not found, '\n'.join(found)
+        found += [
+            f'{general.relative_to(root)}:1: no section for {name}' for name in module.__all__ if name not in headings
+        ]
+    return found
 
 
-def test_troubleshooting_covers_every_error(request):
-    """Test that the troubleshooting page has a section per public error class of the core."""
-    page = (request.config.rootpath / USER_GUIDE / 'troubleshooting.md').read_text(encoding='utf-8')
-    headings = set(re.findall(r'^## (\w+)$', page, flags=re.MULTILINE))
+def check_troubleshooting_covers_every_error(root: Path) -> list[str]:
+    """Return every public error class of the core without a section in the troubleshooting page."""
+    page = root / USER_GUIDE / 'troubleshooting.md'
+    headings = set(re.findall(r'^## (\w+)$', page.read_text(encoding='utf-8'), flags=re.MULTILINE))
     module = importlib.import_module('skcomplex.core.errors')
     errors = [
         name
@@ -619,20 +731,9 @@ def test_troubleshooting_covers_every_error(request):
         and item.__module__ == module.__name__
         and not name.startswith('_')
     ]
-    missing = [name for name in errors if name not in headings]
-    assert errors
-    assert not missing, f'no section for {missing}'
-
-
-def test_banned_phrases_match_the_core_guard(request):
-    """Test that the banned phrases of the documents equal those of the docstring guard of the core."""
-    tree = ast.parse((request.config.rootpath / CORE_GUARD).read_text(encoding='utf-8'))
-    values = [
-        ast.literal_eval(node.value)
-        for node in tree.body
-        if isinstance(node, ast.Assign) and [ast.unparse(target) for target in node.targets] == ['BANNED_PHRASES']
-    ]
-    assert values == [BANNED_PHRASES]
+    if not errors:
+        return [f'{page.relative_to(root)}:1: the core defines no error class']
+    return [f'{page.relative_to(root)}:1: no section for {name}' for name in errors if name not in headings]
 
 
 def _is_private(name: str) -> bool:
@@ -680,60 +781,52 @@ def _docstring_examples(path: Path) -> list[tuple[int, str]]:
     return examples
 
 
-def _shown_private_names(root: Path) -> list[str]:
+def check_documents_show_only_public_names(root: Path) -> list[str]:
     """Return every private name that a docstring example, a document, or a gallery example calls or reads."""
     samples = [(path, *sample) for path in sorted((root / 'src').rglob('*.py')) for sample in _docstring_examples(path)]
     samples += [(root / document, *block) for document in _documents(root) for block in _python_blocks(root / document)]
     samples += [(path, 0, path.read_text(encoding='utf-8')) for path in sorted((root / GALLERY).rglob('*.py'))]
     return [
-        f'{path.relative_to(root)}:{start + line}: {name}'
+        f'{path.relative_to(root)}:{start + line}: uses the private name {name}'
         for path, start, code in samples
         for line, name in _private_uses(code)
     ]
 
 
-def test_documents_show_only_public_names(request):
-    """Test that no docstring example, document, or gallery example calls or reads a private name of the library."""
-    found = _shown_private_names(request.config.rootpath)
-    assert not found, f'{len(found)} uses of private names:\n' + '\n'.join(found)
-
-
-def _imported_modules(path: Path, package: str) -> list[str]:
-    """Return the absolute names of the modules that a source file of a package imports, read from its syntax tree."""
-    found: list[str] = []
+def _imported_modules(path: Path, package: str) -> list[tuple[int, str]]:
+    """Return the absolute names of the modules that a source file of a package imports, each with its line."""
+    found: list[tuple[int, str]] = []
     for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
         if isinstance(node, ast.Import):
-            found += [alias.name for alias in node.names]
+            found += [(node.lineno, alias.name) for alias in node.names]
         elif isinstance(node, ast.ImportFrom):
             base = package.split('.')[: len(package.split('.')) - node.level + 1] if node.level else []
             module = '.'.join([*base, *([node.module] if node.module else [])])
-            found += [module] + [f'{module}.{alias.name}' for alias in node.names]
+            found += [(node.lineno, module)] + [(node.lineno, f'{module}.{alias.name}') for alias in node.names]
     return found
 
 
-def test_core_never_imports_the_systems(request):
-    """Test that no module under `src/skcomplex/core` imports `skcomplex.systems`."""
-    source = request.config.rootpath / 'src'
-    found = [
-        f'{path.relative_to(source)}: {module}'
+def check_core_never_imports_the_systems(root: Path) -> list[str]:
+    """Return every import of `skcomplex.systems` by a module under `src/skcomplex/core`."""
+    source = root / 'src'
+    return [
+        f'{path.relative_to(root)}:{line}: imports {module}'
         for path in sorted((source / 'skcomplex' / 'core').rglob('*.py'))
-        for module in _imported_modules(path, '.'.join(path.relative_to(source).parent.parts))
+        for line, module in _imported_modules(path, '.'.join(path.relative_to(source).parent.parts))
         if module == SYSTEMS or module.startswith(f'{SYSTEMS}.')
     ]
-    assert not found, 'core modules import the systems:\n' + '\n'.join(found)
 
 
-def test_shared_packages_hold_only_subpackages(request):
-    """Test that the roots of `systems/general` and of every field `common` hold only `__init__.py` and subpackages."""
-    systems = request.config.rootpath / 'src' / 'skcomplex' / 'systems'
+def check_shared_packages_hold_only_subpackages(root: Path) -> list[str]:
+    """Return every loose module at the root of `systems/general` or of a field `common`."""
+    systems = root / SOURCE / 'systems'
     roots = [systems / 'general', *sorted(path.parent for path in systems.glob('*/common/__init__.py'))]
-    found = [
-        str(path.relative_to(systems))
-        for root in roots
-        for path in sorted(root.glob('*.py'))
+    return [
+        f'{path.relative_to(root)}:1: loose module at the root of a shared package'
+        for package in roots
+        for path in sorted(package.glob('*.py'))
         if path.name != '__init__.py'
     ]
-    assert not found, 'loose modules at the root of a shared package:\n' + '\n'.join(found)
 
 
 def _public_classes() -> list[type]:
@@ -776,43 +869,45 @@ def _is_handled_by_type(klass: type, modules: dict[Path, tuple[set[str], set[str
     return any(
         klass.__name__ in names and klass.__name__ not in bases
         for path, (names, bases) in modules.items()
-        if path != own
+        if path.resolve() != own.resolve()
     )
 
 
-def _is_general_form(klass: type, classes: list[type]) -> bool:
+def _law_classes(klass: type) -> tuple[type, ...]:
+    """Return the law classes an interaction class lists."""
+    return cast(tuple[type, ...], cast(Any, klass)._get_law_classes())
+
+
+def _is_general_form(klass: type, classes: list[type], interaction: type) -> bool:
     """Return whether an interaction lists the fewest law classes among those of its base that list one of its laws.
 
     `RuleLaw` counts for no class, since a law of arbitrary code is never a mathematical operation the engine lowers.
     """
-    if not issubclass(klass, BaseInteraction):
+    if not issubclass(klass, interaction):
         return False
-    laws = cast(type[BaseInteraction], klass)._get_law_classes()
+    rule = importlib.import_module('skcomplex.core.components.laws').RuleLaw
+    laws = _law_classes(klass)
     siblings = [
-        cast(type[BaseInteraction], other)._get_law_classes()
-        for other in classes
-        if issubclass(other, BaseInteraction) and other.__base__ is klass.__base__
+        _law_classes(other) for other in classes if issubclass(other, interaction) and other.__base__ is klass.__base__
     ]
-    return any(
-        len(laws) == min(len(listed) for listed in siblings if law in listed) for law in laws if law is not RuleLaw
-    )
+    return any(len(laws) == min(len(listed) for listed in siblings if law in listed) for law in laws if law is not rule)
 
 
-def test_core_components_obey_the_placement_rule(request):
-    """Test that every public class of the core components is a base, is handled by type, or is a law's general form."""
-    core = request.config.rootpath / 'src' / 'skcomplex' / 'core'
+def check_core_components_obey_the_placement_rule(root: Path) -> list[str]:
+    """Return every public class of the core components that is no base, is not handled by type, and is no form."""
+    core = root / SOURCE / 'core'
     modules = {path: _named_classes(path) for path in sorted(core.rglob('*.py'))}
     classes = _public_classes()
-    found = [
-        klass.__name__
-        for klass in classes
+    interaction = importlib.import_module('skcomplex.core.components.interactions').BaseInteraction
+    return [
+        f'{_locate(klass, root)}: {klass.__name__} is a recipe, not a core class'
+        for klass in sorted(classes, key=lambda klass: klass.__name__)
         if not (
             _is_structural_base(klass, classes)
             or _is_handled_by_type(klass, modules)
-            or _is_general_form(klass, classes)
+            or _is_general_form(klass, classes, interaction)
         )
     ]
-    assert not found, 'core classes that are recipes:\n' + '\n'.join(sorted(found))
 
 
 def _read_tree(path: Path) -> ast.Module:
@@ -1192,36 +1287,493 @@ def _checked_modules(packages: tuple[str, ...], root: Path) -> list[tuple[Path, 
     return [(path, _module_name(path, source)) for path in _python_files(folders, root)]
 
 
-def test_module_constants_lead_their_module(request):
-    """Test that every module constant is public and sits in the block after the imports, or after what it reads."""
-    found = [line for path in _python_files(FOLDERS, request.config.rootpath) for line in _misplaced_constants(path)]
-    assert not found, 'misplaced constants:\n' + '\n'.join(found)
+def check_module_constants_lead_their_module(root: Path) -> list[str]:
+    """Return every module constant that is private or sits outside the block after the imports or what it reads."""
+    return [line for path in _python_files(FOLDERS, root) for line in _misplaced_constants(path.relative_to(root))]
 
 
-def test_constant_blocks_hold_no_gap(request):
-    """Test that no blank line, comment, or attribute docstring sits in or right above a block of constants."""
-    found = [line for path in _python_files(FOLDERS, request.config.rootpath) for line in _constant_gaps(path)]
-    assert not found, 'gaps in the constant blocks:\n' + '\n'.join(found)
+def check_constant_blocks_hold_no_gap(root: Path) -> list[str]:
+    """Return every blank line, comment, or attribute docstring in or right above a block of constants."""
+    return [line for path in _python_files(FOLDERS, root) for line in _constant_gaps(path.relative_to(root))]
 
 
-def test_classes_own_the_functions_they_read(request):
-    """Test that every module function a class reads is a method, apart from kernels and helpers of public functions."""
-    found = _unowned_functions(request.config.rootpath / 'src', (PACKAGE,))
-    assert not found, 'module functions that a class should own:\n' + '\n'.join(found)
+def check_classes_own_the_functions_they_read(root: Path) -> list[str]:
+    """Return every module function a class reads that is no method, apart from kernels and helpers of functions."""
+    found = []
+    for line in _unowned_functions(root / 'src', (PACKAGE,)):
+        module, _, rest = line.partition(':')
+        path = Path('src', *module.split('.'))
+        found.append(f'{path / "__init__.py" if (root / path).is_dir() else path.with_suffix(".py")}:{rest}')
+    return found
 
 
-def test_methods_begin_with_a_verb(request):
-    """Test that every method begins with a verb, apart from magic methods, library hooks, and properties."""
-    modules = _checked_modules((PACKAGE,), request.config.rootpath)
-    found = [line for path, module in modules for line in _nonverb_methods(path, module)]
-    assert not found, 'methods that do not begin with a verb:\n' + '\n'.join(found)
+def check_methods_begin_with_a_verb(root: Path) -> list[str]:
+    """Return every method that does not begin with a verb, apart from magic methods, library hooks, and properties."""
+    modules = _checked_modules((PACKAGE,), root)
+    return [line for path, module in modules for line in _nonverb_methods(path.relative_to(root), module)]
 
 
-def test_symbolic_functions_are_builtin_subclasses(request):
-    """Test that Sage's function factory only declares unknown functions inside a function."""
-    modules = _checked_modules((PACKAGE,), request.config.rootpath)
-    found = [line for path, _ in modules for line in _factory_calls(path)]
-    assert not found, 'symbolic functions built by the factory:\n' + '\n'.join(found)
+def check_symbolic_functions_are_builtin_subclasses(root: Path) -> list[str]:
+    """Return every call of Sage's function factory but one that declares an unknown function inside a function."""
+    modules = _checked_modules((PACKAGE,), root)
+    return [line for path, _ in modules for line in _factory_calls(path.relative_to(root))]
+
+
+def _library_modules(packages: tuple[str, ...]) -> Iterator[ModuleType]:
+    """Return every module of the packages, the packages themselves first."""
+    for name in packages:
+        package = importlib.import_module(name)
+        yield package
+        for info in pkgutil.walk_packages(package.__path__, f'{name}.'):
+            yield importlib.import_module(info.name)
+
+
+def _importable_modules(package: str, skipped: Callable[[str], bool]) -> Iterator[ModuleType]:
+    """Return every module of a package that imports, leaving out the names the predicate skips."""
+    loaded = importlib.import_module(package)
+    names = [loaded.__name__] + [info.name for info in pkgutil.walk_packages(loaded.__path__, f'{package}.')]
+    for name in names:
+        if skipped(name):
+            continue
+        try:
+            yield importlib.import_module(name)
+        except ImportError:
+            continue
+
+
+def _hand_written(cls: type) -> list[str]:
+    """Return the magic methods a class defines itself in source code, leaving out those Python generates.
+
+    Dataclasses generate methods, and from Python 3.14 the annotations of a class compile to `__annotate_func__`.
+    """
+    source = str(Path(str(importlib.import_module(PACKAGE).__file__)).parent)
+    names = []
+    for name, value in vars(cls).items():
+        if not (name.startswith('__') and name.endswith('__')) or not callable(value) or name == '__annotate_func__':
+            continue
+        code = getattr(value, '__code__', None)
+        if code is not None and code.co_filename.startswith(source):
+            names.append(name)
+    return names
+
+
+def check_core_names_carry_no_field_term(root: Path) -> list[str]:
+    """Return every public name of a package of `skcomplex.core.components` that contains a term of a field."""
+    found = []
+    for module in _library_modules(CLASS_PACKAGES):
+        if not module.__name__.startswith('skcomplex.core.components'):
+            continue
+        for name in getattr(module, '__all__', []):
+            terms = sorted(set(re.findall('[A-Z][a-z]*', name)) & set(FIELD_TERMS))
+            if terms:
+                found.append(f'{_locate(getattr(module, name), root)}: {module.__name__}.{name} holds {terms}')
+    return found
+
+
+def check_no_package_exports_a_molecular_name(root: Path) -> list[str]:
+    """Return every name of RNA, proteins, or hydrophobicity that the core, the engine, or the analysis exports."""
+    prefixes = ('skcomplex.core.components', 'skcomplex.core.engine', 'skcomplex.core.analysis')
+    return [
+        f'{_locate(getattr(module, name), root)}: {module.__name__}.{name} is a molecular name'
+        for module in _library_modules(CLASS_PACKAGES)
+        if module.__name__.startswith(prefixes)
+        for name in getattr(module, '__all__', [])
+        if any(
+            term in re.sub(r'[^a-z]', ' ', re.sub(r'([A-Z])', r' \1', name).lower()).split() for term in MOLECULAR_TERMS
+        )
+    ]
+
+
+def check_no_class_defines_magic_methods(root: Path) -> list[str]:
+    """Return every class of the library that defines a magic method but `__init__`."""
+    found = []
+    for module in _library_modules(CLASS_PACKAGES):
+        for _, cls in inspect.getmembers(module, inspect.isclass):
+            if cls.__module__ != module.__name__:
+                continue
+            extra = set(_hand_written(cls)) - {'__init__'}
+            if extra:
+                found.append(f'{_locate(cls, root)}: {cls.__qualname__} defines {sorted(extra)}')
+    return found
+
+
+def check_no_module_calls_a_magic_method(root: Path) -> list[str]:
+    """Return every read of a magic method such as `__new__` or `__getitem__` of an object by the library."""
+    return [
+        f'{path.relative_to(root)}:{number}: reads {name}'
+        for path in sorted((root / SOURCE).rglob('*.py'))
+        for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), start=1)
+        for name in re.findall(r'\.(__[a-z_]+__)\b', line)
+        if name not in ALLOWED_MAGIC_READS
+    ]
+
+
+def _core_modules(root: Path) -> Iterator[tuple[Path, str, ast.Module]]:
+    """Return the path, the dotted name, and the syntax tree of every module of the core and the shared recipes."""
+    source = root / SOURCE
+    for path in sorted([*(source / 'core').rglob('*.py'), *(source / 'systems' / 'general').rglob('*.py')]):
+        yield path.relative_to(root), _module_name(path, source.parent), _read_tree(path)
+
+
+def _docstrings(root: Path) -> Iterator[tuple[str, str, str, bool]]:
+    """Return the place, the dotted name, the docstring, and the publicity of every docstring of `skcomplex.core`.
+
+    The walk descends into classes, not into functions.
+    """
+    for path, module, tree in _core_modules(root):
+        yield from _walk_docstrings(tree, path, module, public=True)
+
+
+def _walk_docstrings(node: ast.AST, path: Path, name: str, *, public: bool) -> Iterator[tuple[str, str, str, bool]]:
+    """Return the place, the dotted name, the docstring, and the publicity of a node and of the definitions in it."""
+    docstring = ast.get_docstring(node) if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef) else None
+    if docstring:
+        line = node.lineno if isinstance(node, ast.ClassDef | ast.FunctionDef) else 1
+        yield f'{path}:{line}', name, docstring, public
+    if isinstance(node, ast.Module | ast.ClassDef):
+        for child in node.body:
+            if isinstance(child, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+                is_public = public and not child.name.startswith('_')
+                yield from _walk_docstrings(child, path, f'{name}.{child.name}', public=is_public)
+
+
+def _public_definitions(root: Path, kind: type[ast.stmt]) -> Iterator[tuple[str, str, str, str]]:
+    """Return the place, the dotted name, the name, and the docstring of every top-level public class or function."""
+    for path, module, tree in _core_modules(root):
+        for node in tree.body:
+            if not isinstance(node, kind) or not isinstance(node, ast.ClassDef | ast.FunctionDef):
+                continue
+            docstring = ast.get_docstring(node)
+            if docstring and not node.name.startswith('_'):
+                yield f'{path}:{node.lineno}', f'{module}.{node.name}', node.name, docstring
+
+
+def _prose_lines(docstring: str) -> list[str]:
+    """Return the prose lines of a docstring, stripped, with doctest code and inline code removed.
+
+    A doctest block runs from a line that starts with `>>>` to the next blank line, so its outputs are exempt too.
+    """
+    lines = []
+    in_code = False
+    for line in docstring.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(('>>>', '...')):
+            in_code = True
+        elif not stripped:
+            in_code = False
+        lines.append('' if in_code else stripped)
+    text = re.sub('`[^`]*`', lambda match: '\n' * match.group().count('\n'), '\n'.join(lines))
+    return text.splitlines()
+
+
+def check_docstring_summaries_are_short(root: Path) -> list[str]:
+    """Return every docstring of `skcomplex.core` whose summary line is longer than 80 characters."""
+    return [
+        f'{place}: the summary of {name} is {len(docstring.splitlines()[0])} characters long'
+        for place, name, docstring, _ in _docstrings(root)
+        if len(docstring.splitlines()[0]) > SUMMARY_LENGTH
+    ]
+
+
+def check_docstrings_read_naturally(root: Path) -> list[str]:
+    """Return every docstring of the core with a semicolon, and every public one with a dash or a banned phrase."""
+    found = []
+    for place, name, docstring, public in _docstrings(root):
+        for line in _prose_lines(docstring):
+            faults = _prose_faults(line) if public else ['semicolon'] * (';' in line)
+            if faults:
+                found.append(f'{place}: {name}: {", ".join(faults)}: {line}')
+    return found
+
+
+def check_class_summaries_name_their_kind(root: Path) -> list[str]:
+    """Return every public class that names no kind after an article, and every summary that holds a field term."""
+    found = []
+    for place, name, short, docstring in _public_definitions(root, ast.ClassDef):
+        summary = docstring.splitlines()[0]
+        kind = next((word for suffix, word in KINDS.items() if short.endswith(suffix)), None)
+        if not summary.startswith(('A ', 'An ')) or (kind is not None and kind not in summary.lower()):
+            found.append(f'{place}: {name}: {summary}')
+    definitions = [*_public_definitions(root, ast.ClassDef), *_public_definitions(root, ast.FunctionDef)]
+    for place, name, _, docstring in definitions:
+        words = {word.lower() for word in re.findall('[A-Za-z]+', docstring.splitlines()[0])}
+        terms = sorted(term for term in FIELD_TERMS if term.lower() in words)
+        if terms:
+            found.append(f'{place}: {name} holds {terms}')
+    return found
+
+
+def check_docstrings_say_main_public_methods(root: Path) -> list[str]:
+    """Return every docstring that calls the main public methods verbs."""
+    return [
+        f'{place}: {name} says verbs'
+        for place, name, docstring, _ in _docstrings(root)
+        if re.search(r'\bverbs?\b', docstring, flags=re.IGNORECASE)
+    ]
+
+
+def check_components_compare_and_name_uses(root: Path) -> list[str]:
+    """Return every public class of a family that compares itself with no nearest part or names no uses."""
+    found = []
+    for place, name, _, docstring in _public_definitions(root, ast.ClassDef):
+        if not name.startswith(FAMILIES):
+            continue
+        paragraphs = [' '.join(paragraph.split()) for paragraph in docstring.split('\n\n')]
+        compares = any(p.startswith('Unlike') and 'Choose it when' in p for p in paragraphs)
+        names_uses = any(p.startswith('It appears in') for p in paragraphs)
+        if not (compares and names_uses):
+            found.append(f'{place}: {name} lacks its comparison or its uses')
+    return found
+
+
+def check_every_error_is_raised_in_the_library(root: Path) -> list[str]:
+    """Return every error class that the library never builds, nor a subclass of it, where it reports a failure."""
+    errors = importlib.import_module('skcomplex.core.errors')
+    paths = (root / SOURCE).rglob('*.py')
+    source = '\n'.join(path.read_text(encoding='utf-8') for path in paths if path.name != 'errors.py')
+    base = errors.SkcomplexError
+    return [
+        f'{_locate(item, root)}: {name} is never raised'
+        for name, item in vars(errors).items()
+        if isinstance(item, type)
+        and issubclass(item, base)
+        and not item.__subclasses__()
+        and not re.search(rf'(?<!class )\b{name}\(|\berror={name}\b', source)
+    ]
+
+
+def check_every_dataclass_is_a_frozen_spec_or_result(root: Path) -> list[str]:
+    """Return every dataclass of the core that is not frozen, or no spec and no result a function returns."""
+    spec = importlib.import_module('skcomplex.core.specs').BaseSpec
+    found = []
+    for module in _importable_modules('skcomplex.core', lambda _: False):
+        for value in vars(module).values():
+            own = isinstance(value, type) and value.__module__ == module.__name__
+            if not own or not isinstance(value, type) or not dataclasses.is_dataclass(value):
+                continue
+            kind = issubclass(value, spec) or (value.__name__.endswith('Result') and value.__bases__ == (object,))
+            if not (kind and cast(Any, value).__dataclass_params__.frozen):
+                found.append(f'{_locate(value, root)}: {module.__name__}.{value.__qualname__}')
+    return found
+
+
+def check_no_module_outside_the_types_defines_a_kind_or_a_protocol(root: Path) -> list[str]:
+    """Return every enum or protocol that a module but a `types` module and the systems defines."""
+
+    def skipped(name: str) -> bool:
+        """Return whether a module is a system module or a `types` module."""
+        return name.startswith('skcomplex.systems') or name.endswith('.types')
+
+    return [
+        f'{_locate(value, root)}: {module.__name__}.{value.__qualname__}'
+        for module in _importable_modules(PACKAGE, skipped)
+        for value in vars(module).values()
+        if inspect.isclass(value)
+        and value.__module__ == module.__name__
+        and (issubclass(value, enum.Enum) or getattr(value, '_is_protocol', False))
+    ]
+
+
+def check_every_base_derives_from_the_root(root: Path) -> list[str]:
+    """Return every class named `Base*` outside the systems that derives from neither `BaseConfig` nor `BaseSpec`."""
+    config = importlib.import_module('skcomplex.core.base').BaseConfig
+    spec = importlib.import_module('skcomplex.core.specs').BaseSpec
+    return [
+        f'{_locate(value, root)}: {module.__name__}.{name}'
+        for module in _importable_modules(PACKAGE, lambda name: name.startswith('skcomplex.systems'))
+        for name, value in vars(module).items()
+        if inspect.isclass(value)
+        and value.__module__ == module.__name__
+        and name.lstrip('_').startswith('Base')
+        and not issubclass(value, config | spec | BaseException)
+    ]
+
+
+def _generated_classes(root: Path) -> dict[str, list[int]]:
+    """Return the `__signature__` assignments and the calls of `type` with three arguments of a source tree."""
+    found: dict[str, list[int]] = {}
+    for path in sorted(root.rglob('*.py')):
+        lines = []
+        for node in ast.walk(ast.parse(path.read_text())):
+            is_call = isinstance(node, ast.Call) and getattr(node.func, 'id', None) == 'type'
+            is_type = is_call and len(cast(ast.Call, node).args) == TYPE_ARGUMENTS
+            is_signature = '__signature__' in {getattr(node, 'attr', None), getattr(node, 'value', None)}
+            if is_type or is_signature:
+                lines.append(cast(ast.expr, node).lineno)
+        if lines:
+            found[path.relative_to(root).as_posix()] = sorted(lines)
+    return found
+
+
+def check_library_generates_no_classes_of_parts(root: Path) -> list[str]:
+    """Return every `__signature__` assignment and every class built with `type` but the agents of Mesa."""
+    found = _generated_classes(root / SOURCE)
+    return [
+        f'{SOURCE / path}:{lines[0]}: {len(lines)} generated classes or signatures'
+        for path, lines in found.items()
+        if len(lines) != GENERATED_CLASSES_ALLOWED.get(path)
+    ] + [
+        f'{SOURCE / path}:1: expected {count} generated classes of Mesa agents'
+        for path, count in GENERATED_CLASSES_ALLOWED.items()
+        if path not in found
+    ]
+
+
+def _relative_imports(path: Path) -> set[Path]:
+    """Return the modules that a module imports relatively, through a package's re-exports too."""
+    found = set()
+    for node in ast.parse(path.read_text()).body:
+        if not isinstance(node, ast.ImportFrom) or node.level == 0:
+            continue
+        target = path.parents[node.level - 1].joinpath(*(node.module or '').split('.'))
+        if target.with_suffix('.py').is_file():
+            found.add(target.with_suffix('.py'))
+        elif (target / '__init__.py').is_file():
+            names = {alias.name for alias in node.names}
+            for item in ast.parse((target / '__init__.py').read_text()).body:
+                if isinstance(item, ast.ImportFrom) and item.level == 1 and names & {a.name for a in item.names}:
+                    found.add(target.joinpath(*str(item.module).split('.')).with_suffix('.py'))
+    return found
+
+
+def _field_imports(path: Path, field: Path) -> set[Path]:
+    """Return the modules of a field that a module imports relatively, through a package's re-exports too."""
+    return {module for module in _relative_imports(path) if module.is_relative_to(field) and module != path}
+
+
+def _defines_field(node: ast.ClassDef) -> bool:
+    """Return whether a class body gives the class variable `field`, which makes the class a system class."""
+    return any(
+        isinstance(item, ast.Assign) and any(getattr(target, 'id', None) == 'field' for target in item.targets)
+        for item in node.body
+    )
+
+
+def _defines_system(path: Path) -> bool:
+    """Return whether a module defines a system class."""
+    return any(isinstance(node, ast.ClassDef) and _defines_field(node) for node in ast.parse(path.read_text()).body)
+
+
+def _owners(field: Path) -> dict[Path, set[Path]]:
+    """Return the system modules that reach every other private module of a field, through modules defining none.
+
+    Public modules, such as the `types` module of a subfield, are part of the interface and serve no single system. A
+    module of `common` that another module of `common` imports belongs to a shared family, such as the force tables of
+    an external engine, and serves no single system either.
+    """
+    modules = [path for path in sorted(field.rglob('_*.py')) if path.name != '__init__.py']
+    imports = {path: _field_imports(path, field) for path in modules}
+    systems = {path for path in modules if _defines_system(path)}
+    common = field / 'common'
+    family = {
+        module
+        for path in modules
+        if path.is_relative_to(common)
+        for module in imports[path]
+        if module.is_relative_to(common)
+    }
+    owners: dict[Path, set[Path]] = {path: set() for path in modules if path not in systems | family}
+    for system in systems:
+        stack, seen = list(imports[system]), set()
+        while stack:
+            module = stack.pop()
+            if module in seen or module in systems or module not in imports:
+                continue
+            seen.add(module)
+            if module in owners:
+                owners[module].add(system)
+            stack.extend(imports[module])
+    return owners
+
+
+def check_no_module_serves_one_system(root: Path) -> list[str]:
+    """Return every module of a field that defines no system and serves only one system, which should hold it."""
+    found = []
+    for field in FIELDS:
+        folder = root / SOURCE / 'systems' / field
+        found += [
+            f'{module.relative_to(root)}:1: serves only {next(iter(systems)).relative_to(root)}'
+            for module, systems in _owners(folder).items()
+            if len(systems) == 1
+        ]
+    return found
+
+
+def check_no_system_module_imports_another(root: Path) -> list[str]:
+    """Return every module defining systems that imports another module defining systems of its subfield."""
+    found = []
+    for field in FIELDS:
+        folder = root / SOURCE / 'systems' / field
+        systems = [path for path in sorted(folder.rglob('_*.py')) if _defines_system(path)]
+        found += [
+            f'{path.relative_to(root)}:1: imports {module.relative_to(root)}'
+            for path in systems
+            for module in sorted(_field_imports(path, folder))
+            if module.parent == path.parent and _defines_system(module)
+        ]
+    return found
+
+
+def _general_users(systems: Path) -> dict[Path, set[str]]:
+    """Return the fields that reach every module of `systems/general`, directly or through other general modules."""
+    general = systems / 'general'
+    modules = [path for path in sorted(general.rglob('_*.py')) if path.name != '__init__.py']
+    importers: dict[Path, set[Path]] = {path: set() for path in modules}
+    for path in sorted(systems.rglob('*.py')):
+        for module in _relative_imports(path):
+            if module in importers and module != path:
+                importers[module].add(path)
+    users: dict[Path, set[str]] = {}
+    for module in modules:
+        stack, seen, fields = [module], set(), set()
+        while stack:
+            current = stack.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            for importer in importers.get(current, set()):
+                if importer.is_relative_to(general):
+                    stack.append(importer)
+                else:
+                    fields.add(importer.relative_to(systems).parts[0])
+        users[module] = fields
+    return users
+
+
+def check_every_general_module_serves_two_fields(root: Path) -> list[str]:
+    """Return every module of `systems/general` that has importers in fewer than two fields."""
+    return [
+        f'{module.relative_to(root)}:1: serves only {sorted(fields)}'
+        for module, fields in _general_users(root / SOURCE / 'systems').items()
+        if len(fields & set(FIELDS)) < SERVED_FIELDS
+    ]
+
+
+def check_connectors_live_in_the_library(root: Path) -> list[str]:
+    """Return every module of the core components or the engine that names the electrical connector."""
+    return [
+        f'{path.relative_to(root)}:{number}: names the electrical connector'
+        for package in CONNECTOR_PACKAGES
+        for path in sorted((root / SOURCE / package).rglob('*.py'))
+        for number, line in enumerate(path.read_text().splitlines(), start=1)
+        if "'electrical'" in line
+    ]
+
+
+def _mirrored_module(path: Path) -> Path | None:
+    """Return the module a test file tests, or nothing when no module of the package carries its name."""
+    name = path.stem.removeprefix('test_')
+    folder = SOURCE / path.relative_to(TESTS).parent
+    return next((module for module in (folder / f'_{name}.py', folder / f'{name}.py') if module.is_file()), None)
+
+
+def check_tests_mirror_the_sources(root: Path) -> list[str]:
+    """Return every test file that mirrors no module, as `tests/<package>/test_<module>.py` does `_<module>.py`."""
+    return [
+        f'{path.relative_to(root)}:1: mirrors no module of {SOURCE / path.relative_to(root / TESTS).parent}'
+        for path in sorted((root / TESTS).rglob('test_*.py'))
+        if _mirrored_module(path.relative_to(root)) is None
+    ]
 
 
 def _write_module(folder: Path, name: str, code: str) -> Path:
@@ -1231,10 +1783,15 @@ def _write_module(folder: Path, name: str, code: str) -> Path:
     return path
 
 
-def test_misplaced_constants_are_named(tmp_path):
-    """Test that a private constant and a constant below a function are named, and a derived value is not."""
+def _expected(name: str, found: object, expected: object) -> list[str]:
+    """Return a finding of the script itself when a reader found something other than what it should."""
+    return [] if found == expected else [f'{SCRIPT}:1: the reader {name} found {found!r}, not {expected!r}']
+
+
+def check_misplaced_constants_are_named(folder: Path) -> list[str]:
+    """Return a finding unless a private constant and a constant below a function are named, and a derived value not."""
     path = _write_module(
-        tmp_path,
+        folder,
         'constants',
         """
         import re
@@ -1245,16 +1802,14 @@ def test_misplaced_constants_are_named(tmp_path):
         _HIDDEN = 1
         """,
     )
-    assert _misplaced_constants(path) == [
-        f'{path}:7: _HIDDEN is private',
-        f'{path}:7: _HIDDEN sits below line 4',
-    ]
+    expected = [f'{path}:7: _HIDDEN is private', f'{path}:7: _HIDDEN sits below line 4']
+    return _expected('_misplaced_constants', _misplaced_constants(path), expected)
 
 
-def test_constant_gaps_are_named(tmp_path):
-    """Test that a blank line, a comment, and an attribute docstring of a block are named, and a tight block is not."""
+def check_constant_gaps_are_named(folder: Path) -> list[str]:
+    """Return a finding unless a blank line, a comment, and an attribute docstring of a block are named."""
     path = _write_module(
-        tmp_path,
+        folder,
         'gaps',
         """
         LIMIT = 3
@@ -1264,18 +1819,22 @@ def test_constant_gaps_are_named(tmp_path):
         \"\"\"The size.\"\"\"
         """,
     )
-    tight = _write_module(tmp_path, 'tight', 'LIMIT = 3\nSIZE = (\n    4,\n)\n')
-    assert _constant_gaps(path) == [
+    tight = _write_module(folder, 'tight', 'LIMIT = 3\nSIZE = (\n    4,\n)\n')
+    expected = [
         f'{path}:3: blank line in the block of SIZE',
         f'{path}:4: comment in the block of SIZE',
         f'{path}:6: attribute docstring of SIZE',
     ]
-    assert _constant_gaps(tight) == []
+    return _expected('_constant_gaps', _constant_gaps(path), expected) + _expected(
+        '_constant_gaps',
+        _constant_gaps(tight),
+        [],
+    )
 
 
-def test_unowned_functions_are_named(tmp_path):
-    """Test that a helper of a class and an unexported public function are named, and kernels and others are not."""
-    package = tmp_path / 'pack'
+def check_unowned_functions_are_named(folder: Path) -> list[str]:
+    """Return a finding unless a helper of a class and an unexported public function are named, and kernels are not."""
+    package = folder / 'pack'
     package.mkdir()
     _write_module(package, '__init__', "__all__ = ['run']")
     _write_module(
@@ -1302,18 +1861,17 @@ def test_unowned_functions_are_named(tmp_path):
                 return _helper(value) + TABLE['one'](value)
         """,
     )
-    found = _unowned_functions(tmp_path, ('pack',))
-    assert found == [
+    expected = [
         'pack._module:6: _helper is read by pack._module.Model',
         'pack._module:15: spare is public in a private module and not re-exported',
     ]
+    return _expected('_unowned_functions', _unowned_functions(folder, ('pack',)), expected)
 
 
-def test_nonverb_methods_are_named(tmp_path, monkeypatch):
-    """Test that a method that begins with a noun is named, and verbs, hooks, properties, and dunders are not."""
-    monkeypatch.syspath_prepend(str(tmp_path))
+def check_nonverb_methods_are_named(folder: Path) -> list[str]:
+    """Return a finding unless a method that begins with a noun is named, and verbs, hooks, and properties are not."""
     path = _write_module(
-        tmp_path,
+        folder,
         'methods',
         """
         class Model:
@@ -1330,13 +1888,19 @@ def test_nonverb_methods_are_named(tmp_path, monkeypatch):
                 return 0
         """,
     )
-    assert _nonverb_methods(path, 'methods') == [f'{path}:12: Model._noise']
+    sys.path.insert(0, str(folder))
+    try:
+        found = _nonverb_methods(path, 'methods')
+    finally:
+        sys.path.remove(str(folder))
+        sys.modules.pop('methods', None)
+    return _expected('_nonverb_methods', found, [f'{path}:12: Model._noise'])
 
 
-def test_factory_calls_are_named(tmp_path):
-    """Test that a factory call at module level or with a hook is named, and an unknown inside a function is not."""
+def check_factory_calls_are_named(folder: Path) -> list[str]:
+    """Return a finding unless a factory call at module level or with a hook is named, and an unknown is not."""
     path = _write_module(
-        tmp_path,
+        folder,
         'factories',
         """
         from sage.all__sagemath_symbolics import function as make
@@ -1345,21 +1909,19 @@ def test_factory_calls_are_named(tmp_path):
             return make('lead', print_func=str), make('a')
         """,
     )
-    assert _factory_calls(path) == [
-        f'{path}:3: function factory at module level',
-        f'{path}:5: function factory print_func',
-    ]
+    expected = [f'{path}:3: function factory at module level', f'{path}:5: function factory print_func']
+    return _expected('_factory_calls', _factory_calls(path), expected)
 
 
-def test_unnatural_lines_are_named(tmp_path):
-    """Test that a dash, a semicolon, and a banned phrase in prose are named, and code and list markers are not."""
-    (tmp_path / 'page.md').write_text(
+def check_unnatural_lines_are_named(folder: Path) -> list[str]:
+    """Return a finding unless a dash, a semicolon, and a banned phrase in prose are named, and code is not."""
+    (folder / 'page.md').write_text(
         textwrap.dedent(
             """
             # Page
 
             - A list item stays allowed, and so does `a - b` in inline code.
-            The text runs on \u2014 and on.
+            The text runs on — and on.
             It is a test - nothing more; it is robust.
 
             ```python
@@ -1370,17 +1932,18 @@ def test_unnatural_lines_are_named(tmp_path):
         encoding='utf-8',
     )
     example = '"""\n# Example\n\nThe text runs on - and on.\n"""\n\n# %%\n# Note that it ends.\n'
-    _write_module(tmp_path, 'plot_example', example)
-    assert _unnatural_lines(tmp_path, ('page.md', 'plot_example.py')) == [
-        'page.md:5: dash: The text runs on \u2014 and on.',
+    _write_module(folder, 'plot_example', example)
+    expected = [
+        'page.md:5: dash: The text runs on — and on.',
         'page.md:6: semicolon, dash, robust: It is a test - nothing more; it is robust.',
         'plot_example.py:5: dash: The text runs on - and on.',
         'plot_example.py:8: note that: Note that it ends.',
     ]
+    return _expected('_unnatural_lines', _unnatural_lines(folder, ('page.md', 'plot_example.py')), expected)
 
 
-def test_private_names_are_named(tmp_path):
-    """Test that a call of a private hook is named, and a subclass that defines and extends the hook is not."""
+def check_private_names_are_named(folder: Path) -> list[str]:
+    """Return a finding unless a call of a private hook is named, and a subclass that extends the hook is not."""
     code = textwrap.dedent(
         """
         class QuietElement(Element):
@@ -1395,4 +1958,88 @@ def test_private_names_are_named(tmp_path):
         system._parts
         """,
     )
-    assert _private_uses(code) == [(10, 'system._get_laws'), (11, 'system._parts')]
+    return _expected('_private_uses', _private_uses(code), [(10, 'system._get_laws'), (11, 'system._parts')])
+
+
+def check_generated_classes_finds_a_planted_signature(folder: Path) -> list[str]:
+    """Return a finding unless the reader finds a planted `__signature__` and a planted class built with `type`."""
+    (folder / 'planted.py').write_text(
+        "vars(f)['__signature__'] = 1\nf.__signature__ = 2\nC = type('C', (object,), {})\nd = type(object())\n",
+    )
+    return _expected('_generated_classes', _generated_classes(folder), {'planted.py': [1, 2, 3]})
+
+
+SELF_CHECKS = (
+    check_misplaced_constants_are_named,
+    check_constant_gaps_are_named,
+    check_unowned_functions_are_named,
+    check_nonverb_methods_are_named,
+    check_factory_calls_are_named,
+    check_unnatural_lines_are_named,
+    check_private_names_are_named,
+    check_generated_classes_finds_a_planted_signature,
+)
+CHECKS = (
+    check_tests_mirror_the_sources,
+    check_no_source_hides_a_finding,
+    check_documents_import_systems_from_their_subfield,
+    check_documents_name_only_subfield_packages,
+    check_readme_custom_system_runs_from_the_core_alone,
+    check_documents_read_naturally,
+    check_core_components_pages_cover_every_class,
+    check_troubleshooting_covers_every_error,
+    check_documents_show_only_public_names,
+    check_core_never_imports_the_systems,
+    check_shared_packages_hold_only_subpackages,
+    check_core_components_obey_the_placement_rule,
+    check_module_constants_lead_their_module,
+    check_constant_blocks_hold_no_gap,
+    check_classes_own_the_functions_they_read,
+    check_methods_begin_with_a_verb,
+    check_symbolic_functions_are_builtin_subclasses,
+    check_core_names_carry_no_field_term,
+    check_no_package_exports_a_molecular_name,
+    check_no_class_defines_magic_methods,
+    check_no_module_calls_a_magic_method,
+    check_docstring_summaries_are_short,
+    check_docstrings_read_naturally,
+    check_class_summaries_name_their_kind,
+    check_docstrings_say_main_public_methods,
+    check_components_compare_and_name_uses,
+    check_every_error_is_raised_in_the_library,
+    check_every_dataclass_is_a_frozen_spec_or_result,
+    check_no_module_outside_the_types_defines_a_kind_or_a_protocol,
+    check_every_base_derives_from_the_root,
+    check_library_generates_no_classes_of_parts,
+    check_no_module_serves_one_system,
+    check_no_system_module_imports_another,
+    check_every_general_module_serves_two_fields,
+    check_connectors_live_in_the_library,
+)
+
+
+def run_checks(root: Path) -> list[str]:
+    """Return the findings of the self-checks, each in its own folder, and then those of the checks of the root."""
+    found = []
+    for self_check in SELF_CHECKS:
+        with tempfile.TemporaryDirectory() as folder:
+            found += self_check(Path(folder))
+    for check in CHECKS:
+        found += check(root)
+    return found
+
+
+def main() -> int:
+    """Run the checks from the root of the repository, print every finding, and return the exit status."""
+    root = Path.cwd()
+    if not (root / SCRIPT).is_file():
+        sys.stderr.write(f'Run {SCRIPT} from the root of the repository.\n')
+        return 2
+    found = run_checks(root)
+    sys.stdout.write(''.join(f'{line}\n' for line in found))
+    sys.stdout.write(f'{len(found)} findings.\n')
+    return 1 if found else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -136,7 +136,7 @@ conventions are the taste it cannot check.
 
 ### Placement
 
-Every part MUST be placed by one ordered test, the placement rule, which `tests/test_sources.py` checks mechanically.
+Every part MUST be placed by one ordered test, the placement rule, which `openspec/scripts/check_conventions.py` checks mechanically.
 
 1. A structural base, such as a `Base` class, the composite system, or a base where laws run per member, edge,
    hyperedge, or pair, goes to the core.
