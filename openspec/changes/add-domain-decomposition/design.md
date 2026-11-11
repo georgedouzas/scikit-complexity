@@ -89,7 +89,9 @@ Checked on PyPI on 2026-11-11.
 
 ### Probes
 
-The targets are ratios measured with `mpiexec` on one machine and, when available, on a cluster.
+The targets are ratios measured with `mpiexec` on one machine and, when available, on a cluster. Decided by the user
+on 2026-11-11: multi-node targets stay on demand unless a multi-node runner exists. The weak scaling on four ranks of
+one machine is the benchmark that runs with the others, and the runs on 16 and 64 ranks run on demand on a cluster.
 
 - `GrayScottSystem` on 4096 by 4096 sites, 100 RK4 frames, deterministic: the run on four ranks equals the run on one
   rank within 1e-12.
@@ -115,4 +117,4 @@ Nothing breaks. `communicator=None` keeps every run as it is.
 
 ## Open Questions
 
-- Is there a CPU cluster where the weak scaling target should be measured, or should it be measured on one machine only?
+None. The user decided on 2026-11-11 that multi-node targets stay on demand unless a multi-node runner exists.
