@@ -1,4 +1,4 @@
-"""Test the holonomy score spec."""
+"""Test the `_wilson_sampling` module of `skcomplex.systems.physics.common.fields`."""
 
 import numpy as np
 import pytest

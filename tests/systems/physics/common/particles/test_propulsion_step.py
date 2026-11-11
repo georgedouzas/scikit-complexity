@@ -1,4 +1,4 @@
-"""Test the `_propulsion_step` module of `skcomplex.systems.physics.active_matter`."""
+"""Test the `_propulsion_step` module of `skcomplex.systems.physics.common.particles`."""
 
 import math
 from typing import Annotated
