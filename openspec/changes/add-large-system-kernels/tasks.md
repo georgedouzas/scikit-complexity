@@ -58,7 +58,9 @@
   verify the CPU targets locally
 - [ ] 7.2 Add the benchmarks of the Lennard-Jones fluid of 1000000 particles and of Gray-Scott on 2048 by 2048 sites
   with the targets of the design, and verify the CPU targets locally
-- [ ] 7.3 Verify the GPU targets of every benchmark on a GPU machine, or record that none was available
+- [ ] 7.3 Check that the GPU benchmarks carry the `gpu` marker, so the job `gpu` of `add-device-execution` runs them
+  through `nox -s gpu` and they gate releases, and verify their targets in a manual run of `gpu.yml` on the GPU runner,
+  or record in the design that no runner exists yet
 
 ## 8. Documentation
 

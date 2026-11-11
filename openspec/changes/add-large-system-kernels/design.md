@@ -113,7 +113,9 @@ Sparse sums use `jax.ops.segment_sum`, a stable API, rather than `jax.experiment
 
 ### Probes
 
-The targets are ratios to the Numba backend on the same machine, measured in task 1.1.
+The targets are ratios to the Numba backend on the same machine, measured in task 1.1. The GPU targets carry the `gpu`
+marker, so the GPU job of `add-device-execution`, which the user decided on 2026-11-11 gates releases, runs them on
+its runner before every release.
 
 | Probe | Size | Run | Target on the CPU device | Target on a GPU |
 | --- | --- | --- | --- | --- |
