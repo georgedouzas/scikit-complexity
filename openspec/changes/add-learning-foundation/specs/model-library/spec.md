@@ -40,8 +40,8 @@ example and an inventory entry.
 
 ### Requirement: Cart and pole
 The library SHALL provide `cart_pole` in `engineering/control`, the cart and pole of Barto, Sutton, and Anderson (1983)
-with the constants of Gymnasium's `CartPole-v1`, an environment as a class attribute, a policy part, a gallery example
-that trains the policy, and an inventory entry.
+with the constants of Gymnasium's `CartPole-v1`, an environment as a class attribute, a policy component, a gallery
+example that trains the policy, and an inventory entry.
 
 #### Scenario: Pole falls without control
 - **WHEN** the system runs from an angle of 0.05 radians with the force held at zero

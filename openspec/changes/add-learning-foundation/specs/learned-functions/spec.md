@@ -3,14 +3,14 @@
 ## Purpose
 
 Lets a user put a learned model inside any law, an Equinox module whose weights are one adaptive parameter or a
-scikit-learn regressor or pipeline, so hybrid laws, learned interactions, and learned controllers are ordinary parts
-that every backend that lowers them runs and that the fits of the library train.
+scikit-learn regressor or pipeline, so hybrid laws, learned interactions, and learned controllers are ordinary
+components that every backend that lowers them runs and that the fits of the library train.
 
 ## ADDED Requirements
 
 ### Requirement: Laws call learned models
 `learned_function(model, *inputs, weights=...)` SHALL return one expression per output of the model, usable in any law.
-For an Equinox module, the weights SHALL be one adaptive vector parameter of the part, read at every evaluation, so
+For an Equinox module, the weights SHALL be one adaptive vector parameter of the component, read at every evaluation, so
 `set_params` and the `schedule` of `simulate` change the outputs.
 
 #### Scenario: Network in a rate law
@@ -37,11 +37,11 @@ For an Equinox module, the weights SHALL be one adaptive vector parameter of the
 a given shape that is addressed by path, recorded with its shape, and changed or trained like any parameter.
 
 #### Scenario: Weight vector
-- **WHEN** a part declares `ParameterSpec(shape=(97,), adaptive=True)` and the system is simulated
+- **WHEN** a component declares `ParameterSpec(shape=(97,), adaptive=True)` and the system is simulated
 - **THEN** the trajectory records the parameter with shape `(97,)` at every frame
 
 #### Scenario: Shape not positive
-- **WHEN** a part declares `ParameterSpec(shape=(0,))`
+- **WHEN** a component declares `ParameterSpec(shape=(0,))`
 - **THEN** `prepare` raises `ValidationError` that names the shape and says sizes are positive whole numbers or role
   names
 
@@ -79,9 +79,9 @@ A system whose learned models are all Equinox modules SHALL validate as differen
 - **WHEN** the gradient of the squared error of a run of a system with a learned rate law is taken in its weights
 - **THEN** it agrees with central finite differences of step 1e-6 within 1e-6 relative error
 
-### Requirement: Hybrid laws and learned interactions are ordinary parts
-A law SHALL add a learned term to known terms, and an interaction SHALL call a learned model on the states of its
-roles, with no other declaration than the weights parameter, so they validate, run, and are analysed like other parts.
+### Requirement: Hybrid laws and learned interactions are ordinary components
+A law SHALL add a learned term to known terms, and an interaction SHALL call a learned model on the states of its roles,
+with no other declaration than the weights parameter, so they validate, run, and are analysed like other components.
 
 #### Scenario: Hybrid rate
 - **WHEN** a rate law is `r * x - learned_function(model, x, y, weights=theta)[0]` and the last layer of the model is

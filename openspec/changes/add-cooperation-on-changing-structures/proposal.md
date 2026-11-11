@@ -37,8 +37,8 @@ None.
 
 ## Impact
 
-- Systems: a new module per system in `skcomplex.systems.social.cooperation`, and the shared parts they need, if any, in
-  `social/common/games`.
+- Systems: a new module per system in `skcomplex.systems.social.cooperation`, and the shared components they need, if
+  any, in `social/common/games`.
 - No new dependency. NetworkX generates the random regular graphs, and SciPy solves the linear systems of the critical
   ratio.
 - Docs: a gallery example and an inventory entry per system. They exercise the existing primitives `networks`,

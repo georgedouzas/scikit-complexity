@@ -2,17 +2,17 @@
 
 The library exists to build and simulate systems, and in system theory a learner, a controller, a data set, and an
 environment are systems too. Data-driven and machine-learning methods should therefore enter as building blocks of the
-same kind: a law whose term is learned, a policy that is a part of a system, a fit that is an experiment whose result
-holds a system. Today the pieces exist but do not meet. `GradientStepLaw` trains adaptive parameters through an
+same kind: a law whose term is learned, a policy that is a component of a system, a fit that is an experiment whose
+result holds a system. Today the pieces exist but do not meet. `GradientStepLaw` trains adaptive parameters through an
 unrolled run, but it reads only regular sequences of parameter values. `calibrate` fits known parameters, but its
 differentiable run is private. `sparse_identification`, `mode_decomposition`, and `reservoir` learn systems, but each
-reads trajectories its own way. No law can call a network or a regressor, no part can choose actions, and no
+reads trajectories its own way. No law can call a network or a regressor, no component can choose actions, and no
 experiment can train a policy.
 
 The drafted changes, from hybrid laws and learned indicators to torch surrogates and language-model agents, each
 plan their own network primitive, their own training loop, their own data reading, or their own dependency on Equinox.
 This change defines those shared blocks once, so every draft becomes a realization on top of them and new methods,
-from system identification to reinforcement learning, plug into the same parts.
+from system identification to reinforcement learning, plug into the same components.
 
 ## What Changes
 
@@ -25,7 +25,7 @@ from system identification to reinforcement learning, plug into the same parts.
   sets, and `make_arrays`, which turns
   runs, trajectories, ensembles, or sweeps into the arrays `X` and `y` of scikit-learn, from parameters to summaries or
   from states to later states with lags, so any scikit-learn pipeline trains on simulated or observed data. Every fit
-  reads observed runs: `calibrate`, `identify`, the surrogate analyses, and the training of learned parts.
+  reads observed runs: `calibrate`, `identify`, the surrogate analyses, and the training of learned components.
 - **Learned functions in laws.** New law function `learned_function(model, *inputs, weights=...)` that calls a
   learned model inside any law. The model is an Equinox module, whose weights are one adaptive vector parameter that
   the JAX and NumPy backends lower and differentiate, or a scikit-learn regressor or pipeline, which the NumPy backend
@@ -53,12 +53,13 @@ from system identification to reinforcement learning, plug into the same parts.
   whole run by the error of short predictions or of windows (multiple shooting) for long or chaotic runs.
 - **Reinforcement learning.** New frozen spec `EnvironmentSpec`, which reads any system as an environment: its
   observation, its actions as bounded adaptive parameters or choices, its reward and terminal observables, and the time
-  between decisions. New core interaction `PolicyInteraction`, a policy as a part of the system, which sets the actions
-  from a learned function of the observation, by a categorical, normal, or deterministic draw. New experiment
+  between decisions. New core interaction `PolicyInteraction`, a policy as a component of the system, which sets the
+  actions from a learned function of the observation, by a categorical, normal, or deterministic draw. New experiment
   `train_policy(system, *, method, ...)` with `'reinforce'` and `'ppo'`, on-policy by the score of recorded draws, and
   `'pathwise'`, through the differentiable run of a system. It returns a frozen `PolicyTrainingResult` whose `system`
-  holds the trained policy and whose `trajectory` records the training, epoch by epoch, for every method. A policy bound to a group acts for every member with shared weights. Off-policy and
-  multi-agent methods are designed here and specified by follow-up changes.
+  holds the trained policy and whose `trajectory` records the training, epoch by epoch, for every method. A policy bound
+  to a group acts for every member with shared weights. Off-policy and multi-agent methods are designed here and
+  specified by follow-up changes.
 - **Forecast skill.** New analysis `forecast_skill(forecast, truth, ...)` that scores a forecast against the truth by
   lead time, with the valid prediction time and the skill against persistence, for every learned or pretrained
   forecaster.
@@ -81,7 +82,7 @@ from system identification to reinforcement learning, plug into the same parts.
   from runs.
 - `learned-functions`: Equinox modules and scikit-learn regressors and pipelines called from laws, weights as adaptive
   parameters, hybrid laws, and learned interactions.
-- `reinforcement-learning`: systems read as environments, policies as parts, and the training of policies as an
+- `reinforcement-learning`: systems read as environments, policies as components, and the training of policies as an
   experiment.
 
 ### Modified Capabilities

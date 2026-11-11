@@ -7,7 +7,7 @@
   cones, and nearest neighbours, and `_numba_stencils.py` writes lattice stencils. `LatticeSolver` applies local rules,
   array updates, cascades, and extremal laws once per step, and `MonteCarloSolver` adds checkerboard and random-order
   Monte Carlo updates.
-- Neighbourhoods are parts of `core/components/spaces`: `LatticeNeighborhood`, `RadiusNeighborhood`,
+- Neighbourhoods are components of `core/components/spaces`: `LatticeNeighborhood`, `RadiusNeighborhood`,
   `NearestNeighborhood`, `AdjacencyNeighborhood`, `DelaunayNeighborhood`, `CofaceNeighborhood`, and
   `StateTranslationNeighborhood`. Reductions over them are `NeighborReductionSpec` and reads are `NeighborReadSpec`.
 - Fields on unstructured meshes assemble sparse matrices with scikit-fem on the host.

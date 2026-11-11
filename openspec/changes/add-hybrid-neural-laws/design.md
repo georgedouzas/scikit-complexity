@@ -12,7 +12,7 @@
   with `pulse_train`, so it already lowers to JAX. The NumPy path respects the breakpoints of pulses, but the Diffrax
   calls of the JAX path do not pass them to the step size controller, so a short infusion can be stepped over.
   `ImpulseInteraction` resets states through `CrossingLaw`, which has no JAX form.
-- Pharmacokinetics lives in `systems/biology/physiology` (`_pharmacokinetics.py`), with shared parts in
+- Pharmacokinetics lives in `systems/biology/physiology` (`_pharmacokinetics.py`), with shared components in
   `systems/biology/common/pharmacokinetics`. There is no `biology/pharmacology` subfield and none is created.
 
 ## Goals / Non-Goals
@@ -71,9 +71,9 @@
 ### Systems
 
 - **Placement.** Both pharmacokinetic systems go in `systems/biology/physiology`, where pharmacokinetics lives, each in
-  its own module. Both dose through `DosingInteraction` of `biology/common/pharmacokinetics`. Parts that both share,
-  such as a first-order transfer chain of compartments, go to `biology/common/pharmacokinetics` beside it, and parts
-  that only one uses stay in its module.
+  its own module. Both dose through `DosingInteraction` of `biology/common/pharmacokinetics`. Components that both
+  share, such as a first-order transfer chain of compartments, go to `biology/common/pharmacokinetics` beside it, and
+  components that only one uses stay in its module.
 - **`tacrolimus_population_pk`.** One `BaseSystem` with `form='linear'`, `'saturable'`, or `'latent'`, `n_patients`,
   `hematocrit`, and `random_state`. The group `patients` holds the states `A1` to `A4`, `Ac`, and `Ap`, and the
   per-member covariates `CYP` and `ST` and effects `eta_Ktr`, `eta_CL`, `eta_Vc`, `eta_Q`, and `eta_Vp`, drawn at

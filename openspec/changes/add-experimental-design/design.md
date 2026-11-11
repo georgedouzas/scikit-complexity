@@ -1,7 +1,7 @@
 ## Context
 
 - `add-learning-foundation` adds `ObservationSpec`, which names the observed paths and their noise, `PolicyInteraction`,
-  a policy as a part that sets actions from a learned function of its observation, and `train_policy`.
+  a policy as a component that sets actions from a learned function of its observation, and `train_policy`.
 - `calibrate` and `identifiability` (`core/experiments/_calibration.py`, `_identifiability.py`) fit and test the
   parameters of a system. `identifiability` has the methods `'profile'` and `'refits'`, both practical: they ask
   whether the data at hand determine the parameters. `_CalibrationObjective.get_traced` gives the differentiable map

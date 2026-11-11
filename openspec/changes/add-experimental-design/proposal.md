@@ -11,7 +11,7 @@ evolution strategies, or multi-objective search (Frazier 1807.02811). Before any
 whether the parameters can be determined from the observed outputs at all, even from perfect data (Raman 6.1.2).
 
 Optuna and pymoo are already runtime dependencies, `add-learning-foundation` gives the observation model and policies as
-parts, so these become experiments with no new concept.
+components, so these become experiments with no new concept.
 
 ## What Changes
 

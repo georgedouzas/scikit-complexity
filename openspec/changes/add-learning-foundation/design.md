@@ -64,7 +64,7 @@
 | Training | the system of `TrainingInteraction`, whose time is epochs and whose states are the trained parameters |
 | System identification, system from data | the experiment `identify`, whose result holds a system |
 | Environment | any system read through an `EnvironmentSpec` |
-| Agent, controller, policy | `PolicyInteraction`, a part that sets bounded adaptive parameters from its observation |
+| Agent, controller, policy | `PolicyInteraction`, a component that sets bounded adaptive parameters from its observation |
 | Episode, rollout | a run of `simulate` with recorded draws |
 | Reward, return | an observable of the system, summed over decisions with a discount |
 | Reinforcement learning | the experiment `train_policy`, whose result holds a system with the trained policy |
@@ -72,7 +72,7 @@
 | Feature and target arrays | `make_arrays`, from runs to the `X` and `y` of any scikit-learn pipeline |
 
 No machine-learning package, base class, or verb is added. The one new package, `skcomplex.core.data`, holds functions
-that make and reshape data. Learned parts are configured with `prepare` and run with `run`, like every part.
+that make and reshape data. Learned components are configured with `prepare` and run with `run`, like every component.
 
 ### scikit-learn inside, not around
 
@@ -122,7 +122,7 @@ runs inside the experiments, and pipelines train on the arrays of `make_arrays` 
 | `CartPoleSystem` | 3, one system | `engineering/control/_cart_pole.py` | engineering |
 
 The core never imports `skcomplex.systems` (step 5). The policy is a core interaction and not a recipe because no
-core part can hold an action between decisions and expose its draws to a training (step 4). The general
+core component can hold an action between decisions and expose its draws to a training (step 4). The general
 `ChoiceInteraction` of `systems.general.agents` stays a recipe: it chooses by scores the user writes, and a learned
 policy is not a case of it.
 
@@ -321,7 +321,7 @@ step a system of this library.
   the recorded action draw, the reward, and the next observation. The store of transitions is an `ObservedRunsSpec` of
   recorded rollouts, so data logged elsewhere trains the same way. A Q-function is a second learned function passed to
   `train_policy`, and the temporal-difference loss is one more gradient for `_OptaxLoop`. No new concept is needed.
-- **Multi-agent, designed for `add-multi-agent-learning`.** Several `PolicyInteraction` parts, each with its own
+- **Multi-agent, designed for `add-multi-agent-learning`.** Several `PolicyInteraction` components, each with its own
   environment and reward, are independent learners trained in one call. A policy bound to a group already shares its
   weights across members. A centralised critic reads the joint observation. PettingZoo exposes the agents through the
   bridges.

@@ -41,7 +41,7 @@ verbs of the classes of the library, so scikit-learn enters inside the experimen
   with one agent per policy or per member of a group.
 - New systems `GymnasiumSystem` and `PettingZooSystem`, which wrap an external environment as a system whose actions
   are adaptive parameters and whose observations are states, so `PolicyInteraction` and `train_policy` act on it. They
-  are recipes of core parts in the new concept subpackage `skcomplex.systems.general.environments`, approved on
+  are recipes of core components in the new concept subpackage `skcomplex.systems.general.environments`, approved on
   2026-11-10.
 - Dependencies: Gymnasium 1.4.0, PettingZoo 1.27.0, ArviZ 1.3.0, and statsmodels 0.15.0 become runtime dependencies.
 

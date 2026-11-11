@@ -7,12 +7,12 @@ them. Multi-agent learning dynamics are a subject of their own in the references
 Foerster et al. (2018, arXiv 1709.04326), that naive independent learners of the iterated prisoner's dilemma end in
 mutual defection, is a reference the library cannot reproduce today.
 
-Learning is also the dynamics of such systems, not only a procedure run before them. Galla and Farmer (1109.4250)
-study the strategies of two learners as a dynamical system whose attractors are fixed points, limit cycles, or chaos,
-Sutton and Barto (sect. 15.10) treat the collective reinforcement learning of a population, and Carmichael et al.
-(sect. 2.4) and Mobus (ch. 11) define a learning agent as a part whose decision model changes while the system runs.
-The library learns inside a run only by payoff averaging and the SK game. It has no recipe for state dependent
-temporal difference learning, and the weights of a `PolicyInteraction` are frozen during `simulate`.
+Learning is also the dynamics of such systems, not only a procedure run before them. Galla and Farmer (1109.4250) study
+the strategies of two learners as a dynamical system whose attractors are fixed points, limit cycles, or chaos, Sutton
+and Barto (sect. 15.10) treat the collective reinforcement learning of a population, and Carmichael et al. (sect. 2.4)
+and Mobus (ch. 11) define a learning agent as a component whose decision model changes while the system runs. The
+library learns inside a run only by payoff averaging and the SK game. It has no recipe for state dependent temporal
+difference learning, and the weights of a `PolicyInteraction` are frozen during `simulate`.
 
 ## What Changes
 

@@ -94,7 +94,7 @@ with the rule and the inventory of the design, and never by a replacement across
 
 ## 7. Drafted changes
 
-- [ ] 7.1 Reword the proposals, designs, tasks, and delta specs of every drafted change under `openspec/changes`,
+- [x] 7.1 Reword the proposals, designs, tasks, and delta specs of every drafted change under `openspec/changes`,
   archive excluded, where part means a component, such as "a policy as a component of the system" in
   `add-learning-foundation`, verified by `openspec validate <change> --strict` for each changed draft
 

@@ -30,7 +30,7 @@
 - [ ] 4.2 Add the latent form of the tacrolimus system with its learned rate and readout, and verify it compiles on JAX
   and runs on NumPy
 - [ ] 4.3 Add `OralIVPKHybridSystem` in `src/skcomplex/systems/biology/physiology/_oral_iv_pharmacokinetics.py` with
-  the reference and learned forms, moving any part shared with the tacrolimus system to
+  the reference and learned forms, moving any component shared with the tacrolimus system to
   `biology/common/pharmacokinetics`, and verify the bioavailability and untrained learned form scenarios
 - [ ] 4.4 Verify the covariate map scenario on held-out compounds and the population clearance, three-sample exposure,
   and misspecified elimination scenarios, with groups and epochs small enough for the test suite

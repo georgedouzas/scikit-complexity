@@ -41,10 +41,10 @@ adds that a library the core uses is a runtime dependency, so the core cannot im
 | `LlmNetworkGrowthSystem` | 3, one system | `mathematics/networks/_llm_network_growth.py` | mathematics |
 | `GroupGuessingGameSystem` | 3, one system | `social/organizations/_group_guessing_game.py` | social |
 
-The oracle is a core primitive and not a recipe because no core part can express it today. A rule can call any Python
-function, but the engine would neither seed the call, nor keep its answer, nor replay it, which step 4 of the
-placement rule names a missing primitive. The provider adapter is a recipe because it is only a function that returns
-an `OracleSpec`, and the core never imports it (step 5).
+The oracle is a core primitive and not a recipe because no core component can express it today. A rule can call any
+Python function, but the engine would neither seed the call, nor keep its answer, nor replay it, which step 4 of the
+placement rule names a missing primitive. The provider adapter is a recipe because it is only a function that returns an
+`OracleSpec`, and the core never imports it (step 5).
 
 The new concept subpackage `language_models` needs the approval of the maintainer before it is created, since every
 new package does. Its module has importers in two fields, social and mathematics, as the general-realizations

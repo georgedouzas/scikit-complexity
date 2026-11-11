@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Lets a user read any system as an environment, put a learned policy inside the system as one of its parts, and train
-it by an experiment, so control, intervention, harvesting, and learning agents of every field share one form.
+Lets a user read any system as an environment, put a learned policy inside the system as one of its components, and
+train it by an experiment, so control, intervention, harvesting, and learning agents of every field share one form.
 
 ## ADDED Requirements
 
@@ -17,9 +17,9 @@ adaptive parameter of the system, bounds outside the bounds of the parameter, an
 - **WHEN** an environment names as action a parameter not declared adaptive
 - **THEN** `prepare` raises `ValidationError` that names the parameter and says actions are bounded adaptive parameters
 
-### Requirement: Policies are parts of the system
-`PolicyInteraction` SHALL bind through its role `target` the part it observes and controls, read the observation of its
-environment every `interval`, evaluate a learned function of it, and set the actions until the next decision, by a
+### Requirement: Policies are components of the system
+`PolicyInteraction` SHALL bind through its role `target` the component it observes and controls, read the observation of
+its environment every `interval`, evaluate a learned function of it, and set the actions until the next decision, by a
 categorical draw for choices, a normal draw clipped to the bounds for continuous actions, or the mean for a
 deterministic policy. Every stochastic action SHALL be a named draw that `record_draws` keeps and replay forces.
 

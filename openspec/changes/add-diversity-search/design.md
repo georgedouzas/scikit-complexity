@@ -3,11 +3,11 @@
 `sweep` in `core/experiments/_sweep.py` runs a system over rows of parameters from bounds or a design, with replicates,
 analyses, outputs, and executors, and returns an `ExperimentResult`. `calibrate` fits parameters to data with optuna,
 pyabc, and numpyro. A name without a dot is a model parameter set with `set_params`, and a dotted path names an initial
-state or a part parameter, so a search can reuse the same row handling.
+state or a component parameter, so a search can reuse the same row handling.
 
 `LeniaSystem` in `computer_science/automata/_lenia.py` runs Lenia with ring kernels. Particles with pair forces in
 periodic boxes run through `PairInteraction` and the particle helpers of `physics/common/particles`, but `physics` is
-another field, so particle life uses only core parts.
+another field, so particle life uses only core components.
 
 ## Goals / Non-Goals
 

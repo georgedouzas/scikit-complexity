@@ -4,9 +4,9 @@ Agüera y Arcas et al. show that self-replicating programs arise from random byt
 (2406.19108). A soup of tapes is paired at random, each pair is concatenated and run by an interpreter of a minimal
 language, BFF, whose code and data share one tape, and the tapes are split back. After a few thousand epochs a state
 transition often happens, in which replicators take over the soup, and the high-order entropy of the soup, its Shannon
-entropy minus its compressed size per byte, jumps. The core has the parts for this except two. An array update, which
-hands a whole state to a compiled function, runs only on lattices and networks, so a well-mixed group of tapes has no
-way to be updated as one array. And the entropies of the analysis layer have no estimate of Kolmogorov complexity by
+entropy minus its compressed size per byte, jumps. The core has the components for this except two. An array update,
+which hands a whole state to a compiled function, runs only on lattices and networks, so a well-mixed group of tapes has
+no way to be updated as one array. And the entropies of the analysis layer have no estimate of Kolmogorov complexity by
 compression, which the paper's measure needs.
 
 ## What Changes

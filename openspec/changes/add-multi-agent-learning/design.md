@@ -18,7 +18,8 @@ fixed strategies of Axelrod's tournaments.
 **Non-Goals:**
 - Learning with opponent learning awareness (LOLA), which differentiates through the update of the other learner. It
   can follow as a method once independent learners exist.
-- Communication channels between agents. A message is an action that another policy observes, so it needs no new part.
+- Communication channels between agents. A message is an action that another policy observes, so it needs no new
+  component.
 
 ## Decisions
 
@@ -62,7 +63,7 @@ fixed strategies of Axelrod's tournaments.
   Barto 6.1 to 6.6). `discount=0` with one row is the sample average learner of a bandit when the rate is `1 / n`, which
   `rate='average'` gives.
 - The choice is `ChoiceInteraction` with the utility of option `k` read from the row of the observed state, so choice
-  and learning stay two parts, as payoff learning and choice already are. `ChoiceInteraction` gains the rule
+  and learning stay two components, as payoff learning and choice already are. `ChoiceInteraction` gains the rule
   `'epsilon-greedy'`: the best option, ties broken as `ties` says, with probability `1 - epsilon`, and a uniform draw
   otherwise.
 - `PayoffLearningInteraction` of `economics/common/learning` is the stateless case with payoffs of every option. It

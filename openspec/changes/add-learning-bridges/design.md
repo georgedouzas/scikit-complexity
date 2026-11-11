@@ -181,7 +181,7 @@ and gives the splitters, `ParameterGrid`, `ParameterSampler`, and the scorers.
   reads the observation, the reward, and the flag.
 - `PettingZooSystem(environment, label='system')` holds one element per agent with the same states and one update law
   that steps every agent at once.
-- They are recipes of core parts used by several fields, in the new concept subpackage
+- They are recipes of core components used by several fields, in the new concept subpackage
   `systems.general.environments`, approved on 2026-11-10 and named by the concept of reinforcement learning it
   bridges.
 
