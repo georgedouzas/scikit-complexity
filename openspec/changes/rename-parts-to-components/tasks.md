@@ -67,7 +67,7 @@ with the rule and the inventory of the design, and never by a replacement across
 - [ ] 5.1 Rename `docs/generate_parts.py` to `docs/generate_components.py`, write the pages to `components/`, rename the
   constants `PARTS` of the generator and of `docs/gallery_hooks.py` to `FAMILIES`, point the links of
   `docs/generate_systems.py` at `components/elements.md`, reword the generated prose, and update `properdocs.yml` with
-  the section "Families", verified by the strict docs build
+  the section "Components", verified by the strict docs build
 - [ ] 5.2 Add `mkdocs-redirects>=1.2.3` to the `docs` group of `pyproject.toml`, lock it, list `redirects` after
   `gen-files` in `properdocs.yml` with a `redirect_maps` entry for each of the nine family pages and the two moved
   guide pages, and set `validation.links.anchors` to `warn`, verified by the strict docs build and by opening
@@ -116,7 +116,7 @@ with the rule and the inventory of the design, and never by a replacement across
 - [ ] 9.2 Run the tests in chunks with `-n 4` and the thread caps, `tests/core` package by package, `tests/systems`
   field by field, then the doctests of `src/skcomplex` and the markdown blocks of the README and
   `docs/overview/user_guide`, and verify all pass
-- [ ] 9.3 Run the strict docs build and verify it passes, with the nav section "Families", no page left under `parts/`
+- [ ] 9.3 Run the strict docs build and verify it passes, with the nav section "Components", no page left under `parts/`
   but the redirects, and every former URL redirecting
 - [ ] 9.4 Run `rg -w -i 'parts?' src tests docs README.md CONTRIBUTING.md openspec/constitution.md` and read every
   remaining match against the rule of the design, verified by each match being a kept meaning. The main specs follow

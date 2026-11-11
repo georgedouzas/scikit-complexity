@@ -87,7 +87,7 @@ a compatible and an incompatible combination with the error it raises. The singl
 
 #### Scenario: The family pages in the navigation
 - **WHEN** the documentation builds
-- **THEN** the navigation holds a section "Families" with the nine family pages, and no page under `parts/` but the
+- **THEN** the navigation holds a section "Components" with the nine family pages, and no page under `parts/` but the
   redirects
 
 ### Requirement: A docstring of a cross-domain component names uses from several fields
