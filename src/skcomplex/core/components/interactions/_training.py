@@ -36,14 +36,14 @@ class TrainingInteraction(Interaction):
     - `'adam'`: the learning rate, `beta1`, and `beta2`.
 
     Unlike `GradientInteraction`, which moves states down a potential in the time of the system, it fits parameters of
-    another system to data, one epoch per step. Choose it when a part of the model learns from data during the run.
+    another system to data, one epoch per step. Choose it when a component of the model learns from data during the run.
 
     It appears in many fields. A recurrent neural network learns to predict a time series, an echo state network fits
     its readout, and a learning agent improves its policy between rounds.
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'training'`.
+            The name of the interaction, unique among the components of its system, such as `'training'`.
 
         system:
             The path of the nested system whose parameters the interaction trains.

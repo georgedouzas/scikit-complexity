@@ -44,7 +44,7 @@ class JumpInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'births'`.
+            The name of the interaction, unique among the components of its system, such as `'births'`.
 
         target:
             The path of the element or group whose states the event changes.

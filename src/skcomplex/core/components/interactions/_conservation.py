@@ -43,7 +43,7 @@ class ConservationInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'traffic'`.
+            The name of the interaction, unique among the components of its system, such as `'traffic'`.
 
         target:
             The path of the field whose state is conserved.

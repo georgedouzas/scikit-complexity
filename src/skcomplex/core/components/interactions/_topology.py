@@ -63,7 +63,7 @@ class TopologyInteraction(NeighborInteraction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'attachment'`.
+            The name of the interaction, unique among the components of its system, such as `'attachment'`.
 
         target:
             The path of the group on the nodes of the network, of the variable group on its hyperedges for

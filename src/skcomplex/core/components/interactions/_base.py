@@ -24,7 +24,7 @@ RATE_DOMAINS = ('real', 'integer', 'complex', 'vector')
 
 
 class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
-    """An abstract interaction, the part of a system that changes states of elements.
+    """An abstract interaction, the component that changes the states of elements.
 
     An interaction binds elements through roles, such as `'source'` and `'target'`, reads their states, and returns laws
     that change them. It holds no state of its own. A state on a coupling, such as the weight of an edge, lives in a
@@ -39,8 +39,8 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
     names from `_get_role` and `_get_parameter`. An interaction that draws a random order of agents, breaks ties at
     random, or picks members at random is stochastic whatever its laws.
 
-    Unlike `BaseComponent`, it changes the states of other parts and holds none of its own. Choose it when a new kind of
-    interaction runs its laws in a way of its own, as `NeighborInteraction` runs them once per edge. Choose
+    Unlike `BaseComponent`, it changes the states of other components and holds none of its own. Choose it when a new
+    kind of interaction runs its laws in a way of its own, as `NeighborInteraction` runs them once per edge. Choose
     `Interaction` for laws that run once for the elements the roles bind.
 
     It appears in every field through its subclasses, such as infection in an epidemic, a chemical reaction, a payment
@@ -48,7 +48,7 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'growth'`.
+            The name of the interaction, unique among the components of its system, such as `'growth'`.
 
     Attributes:
         laws_:
@@ -235,7 +235,7 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
 
         Returns:
             symbol:
-                The symbol of the parameter in the namespace, read also when a part other than the interaction
+                The symbol of the parameter in the namespace, read also when a component other than the interaction
                 declares it, or else the value of the attribute of the interaction.
         """
         parameter = self._get_parameter(name)
@@ -280,7 +280,7 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
             return
         named = [kind.__name__ for kind in kinds if kind is not BaseSpec]
         accepted = [*named, *map(repr, values), *(['a function'] if functions else [])]
-        spec = ', or a spec that the part handles' if BaseSpec in kinds else ''
+        spec = ', or a spec that the component handles' if BaseSpec in kinds else ''
         error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}{spec}.'
         raise ValidationError(error_msg)
 

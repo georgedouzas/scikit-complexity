@@ -42,7 +42,7 @@ class PairInteraction(BaseInteraction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'repulsion'`.
+            The name of the interaction, unique among the components of its system, such as `'repulsion'`.
 
         first:
             The path of the group whose members are the first of every pair.

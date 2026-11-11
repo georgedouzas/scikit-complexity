@@ -62,7 +62,7 @@ class CouplingInteraction(NeighborInteraction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'consensus'`.
+            The name of the interaction, unique among the components of its system, such as `'consensus'`.
 
         target:
             The path of the group of the members, such as `'people'`. In the mode `'group'` it may also be the path of

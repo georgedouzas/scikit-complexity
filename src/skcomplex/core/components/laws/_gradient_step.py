@@ -21,7 +21,7 @@ class GradientStepLaw(BaseLaw):
     batch loss of the epoch and every metric over the whole dataset.
 
     Unlike `RateLaw`, which changes states of the system in its own time, it changes parameters of another system by
-    fitting it to data. Choose it when a part of a model learns during the run.
+    fitting it to data. Choose it when a component of a model learns during the run.
 
     It appears in many fields. A recurrent neural network learns to predict a time series, a reservoir computer fits its
     readout, and an adaptive controller tunes its gains.

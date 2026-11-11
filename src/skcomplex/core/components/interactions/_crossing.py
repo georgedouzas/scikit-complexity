@@ -35,7 +35,7 @@ class CrossingInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'bounce'`.
+            The name of the interaction, unique among the components of its system, such as `'bounce'`.
 
         target:
             The path of the element or group whose states the guard reads and the event sets.

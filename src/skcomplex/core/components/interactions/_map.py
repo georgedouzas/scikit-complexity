@@ -55,7 +55,7 @@ class MapInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'growth'`.
+            The name of the interaction, unique among the components of its system, such as `'growth'`.
 
         target:
             The path of the element or group whose state the map sets.

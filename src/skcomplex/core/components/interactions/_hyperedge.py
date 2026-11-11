@@ -42,7 +42,7 @@ class HyperedgeInteraction(BaseInteraction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'consensus'`.
+            The name of the interaction, unique among the components of its system, such as `'consensus'`.
 
         size:
             The number of members of the hyperedges the laws run on, or `None` for every size.

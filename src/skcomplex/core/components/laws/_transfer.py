@@ -66,7 +66,7 @@ class TransferLaw(BaseLaw):
 
     A transfer is one outflow of its source and one inflow of its sink, so what one loses the other gains. Its `amount`
     is a rate in continuous time, the amount moved per step in discrete time, and the size of every jump when a `rate`
-    is given. The trajectory records the amount at every frame under `<path>.<label>`, the path of the part that
+    is given. The trajectory records the amount at every frame under `<path>.<label>`, the path of the component that
     declares the transfer, or `owner`. One holder may be a state read by `shift_member` some places along a group, so
     every member transfers with the member that many places along. Past the ends of a fixed boundary no member is there,
     and the transfer moves nothing.
@@ -93,13 +93,13 @@ class TransferLaw(BaseLaw):
             The propensity of a jump that moves `amount` at random times, or `None` for a deterministic flow.
 
         label:
-            The name of the flow, unique among the flows reported under one part, or the empty string for
+            The name of the flow, unique among the flows reported under one component, or the empty string for
             `flow_<index>`.
 
         owner:
-            The path of the part the flow is reported under, relative to the system of the part that declares the
-            transfer, such as the element an interaction moves a quantity within, or the empty string for the part
-            that declares it.
+            The path of the component the flow is reported under, relative to the system of the component that declares
+            the transfer, such as the element an interaction moves a quantity within, or the empty string for the
+            component that declares it.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

@@ -68,7 +68,7 @@ class SamplingInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'spins'`.
+            The name of the interaction, unique among the components of its system, such as `'spins'`.
 
         target:
             The path of the group on the sites of a lattice, the nodes of a network, or the edges of a cell complex.

@@ -1,4 +1,4 @@
-"""Define the abstract element, the part of a system that holds its states."""
+"""Define the abstract element, the component of a system that holds its states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +13,7 @@ from ..spaces import BaseSpace
 
 
 class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
-    """An abstract element, the part of a system that holds its states.
+    """An abstract element, the component of a system that holds its states.
 
     A state is a value that changes as the system runs, such as the size of a population or the position of a particle.
     An element names its states and parameters, may give laws of its own, and is drawn with a visual. A subclass takes
@@ -30,7 +30,7 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
 
     Args:
         label:
-            The name of the element, unique among the parts of its system, such as `'rabbits'`.
+            The name of the element, unique among the components of its system, such as `'rabbits'`.
 
         visual:
             How the element is drawn, such as `VisualSpec('line')`, or `None` for `default_visual_`.
@@ -123,4 +123,4 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
             >>> list(TankElement('tank').get_states())
             ['level']
         """
-        return {name: spec for name, spec in self._get_part_specs().items() if isinstance(spec, StateSpec)}
+        return {name: spec for name, spec in self._get_component_specs().items() if isinstance(spec, StateSpec)}

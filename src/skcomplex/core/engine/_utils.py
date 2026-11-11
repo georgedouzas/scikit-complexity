@@ -329,7 +329,7 @@ def _probe_namespace(part: BaseElement | BaseInteraction) -> SimpleNamespace:
     or an empty tuple for a variadic role, since the names of the bound elements are not known before compiling. Both
     give the time `t`.
     """
-    specs = part._get_part_specs()
+    specs = part._get_component_specs()
     names = {name: var(name) for name, spec in specs.items() if not isinstance(spec, RoleSpec)}
     roles = {
         name: () if spec.variadic else SimpleNamespace() for name, spec in specs.items() if isinstance(spec, RoleSpec)

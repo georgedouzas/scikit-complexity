@@ -215,7 +215,7 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
         """Return the variables the component declares from data, by name, none by default."""
         return {}
 
-    def _get_part_specs(self) -> dict[str, Spec]:
+    def _get_component_specs(self) -> dict[str, Spec]:
         """Return the specs of this component.
 
         They are those of its class, then those it declares from data.

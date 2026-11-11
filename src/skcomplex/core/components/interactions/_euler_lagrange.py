@@ -42,7 +42,7 @@ class EulerLagrangeInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'pendulum'`.
+            The name of the interaction, unique among the components of its system, such as `'pendulum'`.
 
         target:
             The path of the element or group whose states are the coordinates.

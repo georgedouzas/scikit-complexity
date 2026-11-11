@@ -1,4 +1,4 @@
-"""Define the spec of a part with its place in the tree of a system."""
+"""Define the spec of a component with its place in the tree of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

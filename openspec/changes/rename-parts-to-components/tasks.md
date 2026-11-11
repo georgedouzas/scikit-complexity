@@ -22,7 +22,7 @@ with the rule and the inventory of the design, and never by a replacement across
 
 ## 2. Private names and messages of the core
 
-- [ ] 2.1 In `core/components`, rename `_get_part_specs` to `_get_component_specs`, `CompositeSystem._get_parts` to
+- [x] 2.1 In `core/components`, rename `_get_part_specs` to `_get_component_specs`, `CompositeSystem._get_parts` to
   `_get_components` with its locals, and reword the docstrings and the messages of `systems/_composite.py`,
   `systems/_base.py`, and `interactions/_base.py`, leaving `PARTS`, `_count_parts`, `symmetric_part`,
   `antisymmetric_part`, `delay_parts`, `Part` of `_coupling.py`, and the string pieces of `_reductions.py`, verified by

@@ -31,7 +31,7 @@ class DeclaredElement(Element):
 
     Args:
         label:
-            The name of the element, unique among the parts of its system, such as `'infected'` or `'account'`.
+            The name of the element, unique among the components of its system, such as `'infected'` or `'account'`.
 
         visual:
             How the element is drawn, such as `VisualSpec('line')`, or `None` for `default_visual_`.

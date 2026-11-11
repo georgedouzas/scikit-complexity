@@ -22,9 +22,9 @@ class LinearProgramLaw(BaseLaw):
     """A law that sets algebraic states to the optimum of a linear program.
 
     A linear program maximizes or minimizes a linear objective under linear constraints. The law sets its variables,
-    which are algebraic states, to the optimum at every time. The laws whose variables overlap, from any part, form one
-    program: their variables unite, their constraints add, and at most one of them holds objectives. The objectives are
-    solved in order, and each optimum is kept within a relative tolerance of `1e-9` while the next one is solved.
+    which are algebraic states, to the optimum at every time. The laws whose variables overlap, from any component, form
+    one program: their variables unite, their constraints add, and at most one of them holds objectives. The objectives
+    are solved in order, and each optimum is kept within a relative tolerance of `1e-9` while the next one is solved.
 
     Unlike `EquationLaw`, which fixes states by equations, it fixes them by an optimum under inequalities. Choose it
     when a quantity at each time is the best choice under constraints.

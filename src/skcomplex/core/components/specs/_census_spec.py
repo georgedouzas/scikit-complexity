@@ -1,4 +1,4 @@
-"""Define the spec of the laws of every part of a system."""
+"""Define the spec of the laws of every component of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,9 +18,9 @@ from ._census_record_spec import CensusRecordSpec
 
 @dataclass(frozen=True)
 class CensusSpec(BaseSpec):
-    """A spec of the laws of every part of a system, and the errors of failing parts.
+    """A spec of the laws and the errors of every component of a system.
 
-    A part fails when it cannot declare or collect its laws, and the census keeps its error instead of its laws.
+    A component fails when it cannot declare or collect its laws, and the census keeps its error instead of its laws.
 
     Args:
         system:

@@ -36,7 +36,7 @@ class NeighborInteraction(BaseInteraction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'diffusion'`.
+            The name of the interaction, unique among the components of its system, such as `'diffusion'`.
 
         layer:
             The layer of the network whose edges the interaction runs on, or `None` for the layer of the edge group it

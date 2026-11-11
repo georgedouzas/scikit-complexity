@@ -41,7 +41,7 @@ class LocalRuleInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'life'`.
+            The name of the interaction, unique among the components of its system, such as `'life'`.
 
         target:
             The path of the group on the cells of a lattice, the nodes of a network, or a Cayley graph.

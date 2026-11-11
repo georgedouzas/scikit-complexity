@@ -367,7 +367,7 @@ def test_system_tags_reject_parts_on_spaces_that_nothing_joins():
     """Test that elements on a lattice and on a network, in a system without a space, disagree on the space."""
     on_lattice = GroupElement('cells', element=StockElement, space=LatticeSpace((3,)))
     on_network = GroupElement('nodes', element=StockElement, space=NetworkSpace(nx.cycle_graph(3)))
-    with pytest.raises(TagError, match=r"The parts 'cells' and 'nodes' disagree on the tag 'space'"):
+    with pytest.raises(TagError, match=r"The components 'cells' and 'nodes' disagree on the tag 'space'"):
         CompositeSystem(elements=[on_lattice, on_network]).get_tags()
     joined = CompositeSystem(elements=[on_lattice, on_network], space=ContinuousSpace(n_dim=2)).get_tags()
     assert joined.space == {'continuous', 'lattice', 'network'}

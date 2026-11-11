@@ -102,7 +102,7 @@ def test_base_system_rejects_parts_that_are_no_system():
         def _build_system(self):
             return StockElement('stock')
 
-    with pytest.raises(ValidationError, match='builds its parts as a CompositeSystem, not as StockElement'):
+    with pytest.raises(ValidationError, match='builds its components as a CompositeSystem, not as StockElement'):
         BrokenSystem().prepare()
 
 
@@ -115,5 +115,5 @@ def test_base_system_rejects_parts_that_are_no_composite():
         def _build_system(self):
             return GrowthSystem()
 
-    with pytest.raises(ValidationError, match='builds its parts as a CompositeSystem, not as GrowthSystem'):
+    with pytest.raises(ValidationError, match='builds its components as a CompositeSystem, not as GrowthSystem'):
         NestingSystem().prepare()

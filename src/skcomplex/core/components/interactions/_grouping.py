@@ -62,7 +62,7 @@ class GroupingInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'trades'`.
+            The name of the interaction, unique among the components of its system, such as `'trades'`.
 
         target:
             The path of the group whose members are grouped.

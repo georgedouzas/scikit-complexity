@@ -39,7 +39,7 @@ class GroupElement(BaseElement):
 
     Args:
         label:
-            The name of the group, unique among the parts of its system, such as `'herds'`.
+            The name of the group, unique among the components of its system, such as `'herds'`.
 
         element:
             The element class of every member, such as a class with one state `x` for the size of a herd.
@@ -187,7 +187,7 @@ class GroupElement(BaseElement):
         They are read from a member only when it declares variables from data.
         """
         if issubclass(self.element, DeclaredElement):
-            return self._get_member()._get_part_specs()
+            return self._get_member()._get_component_specs()
         return self.element._get_specs()
 
     def get_declaring_element(self) -> type[BaseElement] | BaseElement:

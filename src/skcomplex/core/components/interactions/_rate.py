@@ -43,7 +43,7 @@ class RateInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'recovery'`.
+            The name of the interaction, unique among the components of its system, such as `'recovery'`.
 
         target:
             The path of the element or group whose state the rate changes.

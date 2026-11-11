@@ -57,7 +57,7 @@ class TransitionInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'infection'`.
+            The name of the interaction, unique among the components of its system, such as `'infection'`.
 
         target:
             The path of the element or group whose state moves.

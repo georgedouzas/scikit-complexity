@@ -28,7 +28,7 @@ class Interaction(BaseInteraction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'predation'`.
+            The name of the interaction, unique among the components of its system, such as `'predation'`.
 
     Examples:
         >>> from typing import Annotated

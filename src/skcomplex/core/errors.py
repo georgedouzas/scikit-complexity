@@ -85,7 +85,7 @@ class ParameterError(ValidationError):
 class LabelError(ValidationError):
     """An error for a label that is missing, duplicated, or collides with a name.
 
-    Every part needs a label that is unique among the parts of its system. Rename one of the parts.
+    Every part needs a label that is unique among the components of its system. Rename one of the parts.
     """
 
 

@@ -40,7 +40,7 @@ class Element(BaseElement):
 
     Args:
         label:
-            The name of the element, unique among the parts of its system, such as `'rabbits'`.
+            The name of the element, unique among the components of its system, such as `'rabbits'`.
 
         visual:
             How the element is drawn, such as `VisualSpec('line')`, or `None` for `default_visual_`.
