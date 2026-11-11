@@ -17,8 +17,8 @@
   verify the unknown-noise scenario and its doctest in `tests/core/specs/test_observation_spec.py`
 - [ ] 2.2 Add `ObservedRunSpec` and `ObservedRunsSpec` with their checks of paths and times, export them, and verify the
   paths-with-their-own-times and times-that-decrease scenarios and their doctests
-- [ ] 2.3 Add `read_runs` for pandas data frames in long and wide form in `src/skcomplex/core/data/_read.py`, export
-  it from `skcomplex.core.data`, and verify the long-frame and missing-column scenarios in `tests/core/data/`
+- [ ] 2.3 Add `read_runs` for pandas data frames in long and wide form in `src/skcomplex/core/data/_read.py`, export it
+  from `skcomplex.core.data`, and verify the long-frame and missing-column scenarios in `tests/core/data/test_read.py`
 - [ ] 2.4 Extend `read_runs` to xarray datasets with the dimensions `time` and `run` and conditions as coordinates, and
   verify the dataset-with-conditions scenario
 - [ ] 2.5 Add `observe` on trajectories with the six noise models and readout observables in

@@ -188,8 +188,8 @@ Decided by the user on 2026-11-11: CI tests SLURM with a Docker image of a SLURM
 - Environment: the job builds the wheel of the package, installs `uv` into the shared volume, and creates there a
   virtual environment of Python 3.13 with the wheel, the extra `ray`, and the development groups `tests` and `slurm`,
   exported from the lock file, so every node runs the same locked versions.
-- Tests: `tests/core/experiments/test_slurm.py`, marked `slurm`, which `tests/conftest.py` registers and skips when
-  `sbatch` is not on the path. It runs in the controller container with `pytest -m slurm`.
+- Tests: the SLURM scenarios of `tests/core/experiments/test_executors.py`, marked `slurm`, which `tests/conftest.py`
+  registers and skips when `sbatch` is not on the path. It runs in the controller container with `pytest -m slurm`.
   - Dask: an `sbatch` script starts `dask scheduler` on the first node and `dask worker` on both nodes with `srun`,
     writing a scheduler file to `/data`. The test connects a `Client` to that file and runs an ensemble of 200
     stochastic SIR runs with seed 7 on `client.get_executor()`, and the result must equal the serial result.

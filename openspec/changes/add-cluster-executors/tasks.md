@@ -79,7 +79,7 @@
   in `tests/conftest.py` with a skip when `sbatch` is not on the path, and verify the SLURM tests are skipped on a
   machine without SLURM
 - [ ] 7.3 Add the `sbatch` scripts that start a Dask scheduler and workers and a Ray head and worker on the two nodes
-  under `.github/slurm/`, and `tests/core/experiments/test_slurm.py` with the Dask-on-SLURM and Ray-on-SLURM scenarios
+  under `.github/slurm/`, and the Dask-on-SLURM and Ray-on-SLURM scenarios in `tests/core/experiments/test_executors.py`
   and the ensemble on the `SlurmClusterExecutor` of executorlib, and verify all three pass on the local cluster of task
   7.1, or record in the design why Ray does not fit the runner and leave its test on demand
 - [ ] 7.4 Add the job `slurm` to `ci.yml`, which starts the cluster, waits for idle nodes with a timeout, builds the

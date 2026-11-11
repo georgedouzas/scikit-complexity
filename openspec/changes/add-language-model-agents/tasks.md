@@ -1,7 +1,8 @@
 ## 1. Oracle specs
 
-- [ ] 1.1 Add `OracleSpec` and `QueryRecordSpec` in `src/skcomplex/core/specs/`, export them, and verify the
-  not-callable scenario and their doctests in `tests/core/specs/`
+- [ ] 1.1 Add `OracleSpec` and `QueryRecordSpec` in `src/skcomplex/core/specs/_oracle_spec.py` and
+  `_query_record_spec.py`, export them, and verify the not-callable scenario and their doctests in
+  `tests/core/specs/test_oracle_spec.py` and `test_query_record_spec.py`
 - [ ] 1.2 Add `query` to `SystemViewProtocol` and to `SystemView` of `core/engine/solvers/_mesa.py`, with call seeds
   from a generator spawned for queries, and verify the rule-that-asks and other-draws-unchanged scenarios in
   `tests/core/engine/solvers/test_mesa.py`
