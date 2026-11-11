@@ -2,7 +2,7 @@
 
 ## Purpose
 Defines the general systems of `skcomplex.systems.general` that systems of several fields share, what each takes as
-data, what parts it builds, and how a field system subclasses it with its own parameters.
+data, what components it builds, and how a field system subclasses it with its own parameters.
 
 ## Requirements
 

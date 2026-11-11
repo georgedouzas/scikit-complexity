@@ -67,6 +67,7 @@ None.
 - `experiments`: designs sweep dotted initial states or component parameters.
 - `model-library`: a ready-made system keeps an element class that is a component others compose.
 - `constraint-based-models`: a switch may be set by an `UpdateLaw` of another component.
+- `rewriting-systems`: the elements and laws of rewriting are the rewriting components that live in the core.
 
 ## Impact
 

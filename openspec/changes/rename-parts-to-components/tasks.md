@@ -84,12 +84,12 @@ with the rule and the inventory of the design, and never by a replacement across
 
 ## 6. Specs and the constitution
 
-- [ ] 6.1 Reword the placement rule and the Project Profile of `openspec/constitution.md`, the section "Where a
+- [x] 6.1 Reword the placement rule and the Project Profile of `openspec/constitution.md`, the section "Where a
   component goes" of CONTRIBUTING, `core_components/general.md`, and `extend_the_library.md` so that the four texts of
   the rule are the same, verified by reading them side by side and by the conventions
-- [ ] 6.2 Reword the purpose of `openspec/specs/general-systems/spec.md`, which a delta cannot change, verified by
+- [x] 6.2 Reword the purpose of `openspec/specs/general-systems/spec.md`, which a delta cannot change, verified by
   `openspec validate --specs --strict`
-- [ ] 6.3 Check that every main spec requirement that says part for a component is covered by a delta spec of this
+- [x] 6.3 Check that every main spec requirement that says part for a component is covered by a delta spec of this
   change, adding a delta for any the inventory missed, verified by `openspec validate rename-parts-to-components --strict`
 
 ## 7. Drafted changes
