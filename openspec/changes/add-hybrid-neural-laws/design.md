@@ -36,7 +36,7 @@
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | Breakpoints of pulse inputs on JAX | 2, solver support | `core/engine/solvers/_gradient_descent.py` and the shared Diffrax constants | pharmacology (doses), ecology (stocking), engineering (pulsed inputs), epidemiology (vaccination campaigns) |
 | `individual` and `effects` of `identify` | 2, an option of an experiment over any system | `core/experiments/_identification.py` | pharmacology (patients), ecology (sites), epidemiology (regions), psychology and economics (subjects and firms) |

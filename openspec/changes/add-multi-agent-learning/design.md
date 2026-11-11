@@ -25,7 +25,7 @@ fixed strategies of Axelrod's tournaments.
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | Independent learners, `centralised`, `opponents` | 2, options of an experiment over any system | `core/experiments/_policy_training.py` | social systems (games, norms), economics (markets of learning traders), ecology (foraging and predator and prey learning), computer science (games) |
 | `LearningPrisonersDilemmaSystem` | 3, one system | `social/cooperation/_learning_dilemma.py` | social |

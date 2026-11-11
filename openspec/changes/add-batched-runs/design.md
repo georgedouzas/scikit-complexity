@@ -30,7 +30,7 @@
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | Batched run of one compiled problem | 2, a runtime procedure the engine runs on any problem | new private module `core/engine/runtime/_batches.py` | every field with ensembles or sweeps: epidemiology (outbreak ensembles), ecology (extinction risk), climate (initial condition ensembles), finance (Monte Carlo paths), dynamical systems (orbit diagrams, basins) |
 | Batched loops of the JAX and Numba backends | 2, backend lowerings that `_batches.py` reads | `core/engine/backends/_jax.py`, `core/engine/backends/_numba.py` | the same fields |

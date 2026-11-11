@@ -30,7 +30,7 @@
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `communicator` of `simulate`, slabs, halo exchange, and reductions of observables | 2, a runtime procedure the engine runs on any lattice problem | new private module `core/engine/runtime/_decomposition.py` | statistical physics (Ising, Potts, contact process), chemistry (reaction-diffusion), ecology (spatial populations), climate (gridded models), materials science (phase field) |
 | Slab shape of the lattice compile pass | 2, a compile pass of lattices | `core/engine/compile/passes/_lattices.py` | the same fields |

@@ -35,7 +35,7 @@
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | JAX cell list and neighbour reads | 2, backend lowerings of the neighbourhoods of `core/components/spaces` | new private module `core/engine/backends/_jax_neighbours.py` | physics (particles, granular matter), active matter and collective behaviour (flocks, swarms), ecology (foraging agents), epidemiology (spatial contacts), chemistry (Brownian reactants) |
 | Lattice gathers and the `lattice` loop | 2, backend lowerings and a loop the solvers read | `core/engine/backends/_jax.py`, `_jax_loops.py`, and `core/specs/_accelerated_spec.py` | statistical physics (Ising, Potts), epidemiology (contact process), ecology (forest fires), computer science (cellular automata), chemistry (pattern formation) |

@@ -31,7 +31,7 @@ adds that a library the core uses is a runtime dependency, so the core cannot im
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `OracleSpec`, `QueryRecordSpec` | 2, the runtime records and replays them by type | `skcomplex.core.specs` | social systems of language-model agents, human-in-the-loop experiments in economics and psychology, calls to a remote simulator in engineering co-simulation, pretrained policies in robotics and ecology of behaviour |
 | `query` of the system view, `oracles` of `simulate`, the record, the cache, and the replay | 2, the engine handles them | `core/engine/solvers/_mesa.py`, `core/engine/runtime` | as above |

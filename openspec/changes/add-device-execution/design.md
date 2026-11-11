@@ -36,7 +36,7 @@
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `device` and `precision` of `JaxBackend` | 2, settings of a backend the engine runs by type | `core/engine/backends/_jax.py` | every field with large runs: physics (oscillators, particles), epidemiology (stochastic outbreaks), neuroscience (spiking networks), ecology, finance (Monte Carlo paths) |
 | JAX loops `iterate`, `rk4`, `velocity_verlet`, `yoshida4`, `euler_maruyama`, `gillespie` | 2, backend lowerings that the solvers call through `AcceleratedSpec` | new private module `core/engine/backends/_jax_loops.py` | the same fields, through every solver that reads `accelerated` |

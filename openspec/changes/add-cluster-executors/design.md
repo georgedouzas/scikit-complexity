@@ -33,7 +33,7 @@
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `RayExecutor` | 2, an executor the experiments run by type | new private module `core/experiments/_executors.py`, exported from `skcomplex.core.experiments` | every field with large ensembles or sweeps: epidemiology, climate, ecology, finance, statistical physics, and the rollouts of reinforcement learning |
 | Chunks, thread limits, and named failures | 2, procedures of the experiment runner | `core/experiments/_executors.py` | the same fields |

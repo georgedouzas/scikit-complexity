@@ -573,19 +573,15 @@ It SHALL be recorded in trajectories like a state, and it SHALL remain settable 
 - **THEN** the parameter changes in the trajectory only at steps where the expression exceeds the target
 
 ### Requirement: Core packages mirror the system definition
-The modelling packages of `skcomplex.core.components` SHALL be `system`, `components`, `interactions`, `space`, which holds space
-and time, and `laws`, each exporting the general primitives of its part of a system. A primitive that belongs to one
-formalism SHALL live in that formalism's package under `skcomplex.formalisms`, never in a modelling package.
+The modelling packages of `skcomplex.core.components` SHALL be `systems`, `elements`, `interactions`, `spaces`, which
+holds space and time, and `laws`, each exporting the general components of one kind of building block of a system. A
+recipe that serves some fields only SHALL live under `skcomplex.systems`, never in a modelling package.
 
-#### Scenario: Primitives by part
-- **WHEN** a user imports `CompositeSystem`, `Element`, `Interaction`, `LatticeSpace`, `DiscreteTime`, and `Rate`
-- **THEN** they come from `core.system`, `core.components`, `core.interactions`, `core.space`, `core.space`, and
-  `core.laws`
-
-#### Scenario: Formalism primitives by formalism
-- **WHEN** a user imports `Particle`, `PairPotential`, `Rule`, and `Field`
-- **THEN** they come from `formalisms.particles`, `formalisms.particles`, `formalisms.agents`, and
-  `formalisms.fields`
+#### Scenario: Components by kind
+- **WHEN** a user imports `CompositeSystem`, `Element`, `Interaction`, `LatticeSpace`, `DiscreteTime`, and
+  `ArrayUpdateLaw`
+- **THEN** they come from `core.components.systems`, `core.components.elements`, `core.components.interactions`,
+  `core.components.spaces`, `core.components.spaces`, and `core.components.laws`
 
 ### Requirement: Backends live by their reach
 Every general backend SHALL live in `skcomplex.core.engine.backends`, a backend that serves one formalism SHALL live in that

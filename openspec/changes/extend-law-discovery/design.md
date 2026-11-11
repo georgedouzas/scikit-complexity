@@ -152,7 +152,7 @@
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | New options of `sparse_identification` and `mode_decomposition` | 2, analyses that read series by their tags | `skcomplex.core.analysis` | physics, chemistry, ecology, epidemiology, social spreading, engineering |
 | `system` and `learned` of `sparse_identification` | 2, an option of an analysis that reads series and systems by their tags | `core/analysis/_sparse_identification.py` | ecology and epidemiology (unknown rates of hybrid models), pharmacology (covariate maps), physics and chemistry (closures), engineering (grey box models) |

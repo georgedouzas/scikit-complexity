@@ -55,7 +55,7 @@ and `identify` works without it, so the foundation stays smaller.
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `cv`, `groups`, `scoring`, `param_grid`, `split`, and the selection fields of the results | 2, arguments of experiments over any system | `core/experiments/_identification.py`, `_calibration.py`, `_policy_training.py`, and the private `_selection.py` they share | every field with data or a policy |
 | `aic`, `bic`, `loo`, `waic`, `residuals`, `replicates` | 2, fields and options of the results of experiments over any system | `core/experiments/_identification.py`, `_calibration.py` | ecology and epidemiology (rival mechanistic and hybrid models), systems biology (model selection of Raman 6.4), engineering (validation of identified plants), climate and finance (forecast models) |

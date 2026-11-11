@@ -21,7 +21,7 @@ pivot acceleration of size `mu`.
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | The methods `'dqn'`, `'sac'`, and `'fqi'` | 2, estimators of an experiment over any system | `core/experiments/_policy_training.py` | engineering (control), epidemiology and medicine (treatment logs), ecology (harvest logs), economics (logged decisions) |
 | The temporal-difference gradient | 2, an estimator of the shared loop | `core/engine/solvers/_gradient_descent.py` | as above |

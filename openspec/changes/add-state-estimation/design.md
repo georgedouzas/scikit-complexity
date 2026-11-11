@@ -33,7 +33,7 @@
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `assimilate`, `AssimilationResult` | 2, an experiment over any system that reads its compiled step and the `ObservationSpec` of the data by type | `skcomplex.core.experiments` | climate and weather (Lorenz-96, station data), epidemiology (nowcasting from reported cases), neuroscience (hidden membrane states), engineering (tracking, sensor fusion), ecology (populations from counts), pharmacology (concentrations of individuals) |
 | `calibrate(method='pmmh')` | 2, an option of an experiment over any system | `core/experiments/_calibration.py` | epidemiology (stochastic outbreaks), ecology (stochastic populations from counts), finance (stochastic volatility), systems biology (stochastic gene expression) |

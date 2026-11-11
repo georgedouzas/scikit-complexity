@@ -26,7 +26,7 @@ through `where` on angles.
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `_derivative_` of `total`, `mean`, `variance` | 2, operators the compiler lowers, whose derivative is part of the operator | `core/components/laws/utils/_reductions.py` | active inference in collective behaviour, gradient-based crowd models in social systems, mean-field games in economics, energy minimisation of particle clusters in physics, belief dynamics on networks in opinion dynamics |
 | `FreeEnergyInteraction` | 3, one system | `biology/collective_behaviour/_active_inference_flock.py` | biology |

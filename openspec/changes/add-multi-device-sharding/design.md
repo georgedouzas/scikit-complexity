@@ -32,7 +32,7 @@
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | Mesh and shardings of states, parameters, and batches | 2, a backend lowering the engine runs on any problem | new private module `core/engine/backends/_jax_sharding.py` | every field with ensembles or large systems: statistical physics, active matter, epidemiology, climate, neuroscience |
 | Halo exchange of lattices | 2, a backend lowering of `LatticeNeighborhood` reads | `core/engine/backends/_jax_sharding.py` | statistical physics, chemistry (pattern formation), ecology, cellular automata |

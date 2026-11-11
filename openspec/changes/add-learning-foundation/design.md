@@ -102,7 +102,7 @@ runs inside the experiments, and pipelines train on the arrays of `make_arrays` 
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `ObservationSpec`, `ObservedRunSpec`, `ObservedRunsSpec` | 2, the losses, `identify`, `calibrate`, and the surrogate analyses read them by type | `skcomplex.core.specs` | ecology (pelt and census counts), epidemiology (reported cases), pharmacology (sparse samples), climate (station series), engineering (sensors), neuroscience (recordings) |
 | `read_runs`, `observe`, `split_runs`, `make_arrays` | 2, functions that build the spec the fits read and the arrays any pipeline reads, as `sklearn.datasets` and `train_test_split` do | `skcomplex.core.data`, approved on 2026-11-10 | as above |

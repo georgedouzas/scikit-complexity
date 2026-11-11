@@ -30,7 +30,7 @@ another field, so particle life uses only core components.
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `diversity_search`, `DiversitySearchResult` | 2, an experiment the layer runs over any system | `skcomplex.core.experiments` | artificial life, robot morphology and control in engineering, design of materials and molecules in chemistry, exploration of ecological and economic regimes, policy design in social systems |
 | `open_endedness`, `OpenEndednessResult` | 2, an analysis that reads trajectories by their tags | `skcomplex.core.analysis` | artificial life, the evolution of technologies and cultures, the training of learning systems, long runs of evolutionary models in biology |

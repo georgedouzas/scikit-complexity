@@ -38,7 +38,7 @@
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `design_experiment`, `DesignResult` | 2, an experiment over any system with an observation model | `skcomplex.core.experiments` | pharmacology (sampling times), epidemiology (allocation of tests), ecology (survey times), engineering (excitation signals), systems biology (perturbations), physics (measurement settings) |
 | The adaptive design system | 2, a private system that the experiment builds from a `PolicyInteraction` and the system | `core/experiments/_experimental_design.py` | as above |
