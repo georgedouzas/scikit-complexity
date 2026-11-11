@@ -1,7 +1,7 @@
 # Rewriting systems
 
 This page grows a structure generation by generation, as an L-system grows a plant or a substitution tiling grows a
-fractal. A rewriting system replaces all its parts in parallel at every step, so one generation rewrites every symbol
+fractal. A rewriting system replaces every part of its structure in parallel at every step, so one generation rewrites every symbol
 of a word or every tile of a patch at once.
 
 ## A first rewriting system

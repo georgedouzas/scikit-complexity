@@ -94,25 +94,24 @@ and the functions you pass.
 
 ## What enters the core
 
-This section tells where a part of your own belongs. A class enters the core when it is a structural base, or when the
-engine handles it by type, such as a variational principle, a conservation law, or a Markov jump process, and when it
-applies in principle to other domains than the one that first needs it. Every other part is a recipe written with core
-parts, placed by the systems that use it. The [placement rule](../core_components/general.md#where-a-part-goes) states
-the test.
+This section tells where a component of your own belongs. A class enters the core when it is a structural base, or when
+the engine handles it by type, such as a variational principle, a conservation law, or a Markov jump process, and when
+it applies in principle to other domains than the one that first needs it. Every other component is a recipe written
+with core components, placed by the systems that use it. The [placement
+rule](../core_components/general.md#where-a-component-goes) states the test.
 
-The case of one field is a thin subclass of a general class in `skcomplex.systems`, even when it only renames
-arguments. It lives with the one system that uses it, or with the code its field shares when several systems use it.
-A recipe that several fields share lives in `skcomplex.systems.general`.
-These subclasses double as examples of how to build a part of your own, and the page of each system shows them. The
-interactions of `LotkaVolterraSystem`, for example, are rate interactions except predation. `prepare` builds the parts
-of a system class in `system_`:
+The case of one field is a thin subclass of a general class in `skcomplex.systems`, even when it only renames arguments.
+It lives with the one system that uses it, or with the code its field shares when several systems use it. A recipe that
+several fields share lives in `skcomplex.systems.general`. These subclasses double as examples of how to build a
+component of your own, and the page of each system shows them. The interactions of `LotkaVolterraSystem`, for example,
+are rate interactions except predation. `prepare` builds the components of a system class in `system_`:
 
 ```python
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem().prepare().system_
-{type(part).__name__: isinstance(part, RateInteraction) for part in system.interactions}
+{type(component).__name__: isinstance(component, RateInteraction) for component in system.interactions}
 ```
 
 `ExponentialGrowthInteraction` and `MortalityInteraction` subclass `RateInteraction`. `PredationInteraction` does not,

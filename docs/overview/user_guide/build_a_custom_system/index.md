@@ -1,6 +1,6 @@
 # Build a custom system
 
-This tutorial builds one model three ways: from the parts of the core, as a subclass of a shared recipe, and as a
+This tutorial builds one model three ways: from the components of the core, as a subclass of a shared recipe, and as a
 system class with model parameters. The model is the predator and prey cycle of the snowshoe hare and the Canada lynx,
 and every later tutorial of the guide starts from it.
 
@@ -45,11 +45,11 @@ Carpenter estimated `alpha = 0.55`, `beta = 0.028`, `gamma = 0.80`, and `delta =
 posterior of a Bayesian fit. The sections below use these rates and start from the records of 1900, 30.0 thousand
 hares and 4.0 thousand lynx.
 
-## From the parts of the core
+## From the components of the core
 
 Each population is a `DeclaredElement` with one state `x`, and each term of the equations is a `RateInteraction`. An
 interaction that reads the other population names it in `sources`, and its rate reads it as `s.sources[0]`.
-[How the parts fit](../core_components/index.md) explains each part in turn.
+[How the components fit](../core_components/index.md) explains each component in turn.
 
 ```python continuation
 from skcomplex.core.components.elements import DeclaredElement
@@ -135,8 +135,8 @@ sorted(jumps.get_tags().laws), jumps.get_tags().randomness
 
 ## As a system class with model parameters
 
-A `BaseSystem` subclass writes its parts in `_build_system` from its model parameters, so `set_params`, `clone`, and
-the experiments of the library change them by name.
+A `BaseSystem` subclass writes its components in `_build_system` from its model parameters, so `set_params`, `clone`,
+and the experiments of the library change them by name.
 
 ```python continuation
 from skcomplex.core.components.systems import BaseSystem
@@ -205,12 +205,12 @@ simulate(catalog, until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
 
 ## Recipes by kind of system
 
-The pages below build other kinds of system from the same parts.
+The pages below build other kinds of system from the same components.
 
 - [Defining elements](defining_elements.md)
 - [Kinds of dynamics](kinds_of_dynamics.md)
 - [General interactions](general_interactions.md)
-- [Connected components](connected_components.md)
+- [Ports and connections](ports_and_connections.md)
 - [Delays, events, drivers, and noise](delays_events_drivers_and_noise.md)
 - [Stochastic maps](stochastic_maps.md)
 - [Anomalous processes](anomalous_processes.md)

@@ -3,7 +3,7 @@
 This tutorial runs the predator and prey model of the [build tutorial](build_a_custom_system/index.md) and reads what
 the run returns. It sets the [run settings](glossary.md#run-settings), chooses a [solver](glossary.md#solver) and a [backend](glossary.md#backend) from the [tags](glossary.md#tag) of the [system](glossary.md#system), makes random runs
 reproducible, records and replays their draws, and closes with large systems, external simulators, and systems whose
-parts need different solvers.
+components need different solvers.
 
 ## The first run
 
@@ -49,15 +49,16 @@ of the highest count. The system itself does not change in a run, so the same in
 
 ## The trajectory
 
-A [Trajectory][skcomplex.core.engine.runtime.Trajectory] holds the frames of a run. Every [state](glossary.md#state) and parameter has a
-[dotted name](glossary.md#dotted-name), the [label](glossary.md#label) of its part and the name of the value, such as `prey.x` or `predation.a`.
+A [Trajectory][skcomplex.core.engine.runtime.Trajectory] holds the frames of a run. Every [state](glossary.md#state) and
+parameter has a [dotted name](glossary.md#dotted-name), the [label](glossary.md#label) of its component and the name of
+the value, such as `prey.x` or `predation.a`.
 
 ```python continuation
 trajectory.names, trajectory.times[:3].tolist(), trajectory.states.shape, trajectory.parameters.shape
 ```
 
 - `names` lists the states `prey.x` and `predators.x`, then the parameters `growth.r`, `predation.a`, `predation.b`,
-  and `death.d`, the parameters of the built parts.
+  and `death.d`, the parameters of the built components.
 - `times` holds the time of every frame, 0, 1, 2, and so on.
 - `states` holds one row per frame and one column per state, here 21 frames of 2 states.
 - `parameters` holds one row per frame and one column per parameter, 21 by 4.
@@ -107,9 +108,9 @@ predation the hares grow at the rate 0.55 a year and reach 5735.6 thousand in te
 lynx hold back. A ramp works the same way: `schedule={'growth.r': lambda t: 0.55 + 0.01 * t}` raises the birth rate
 from 0.55 to 0.75 over twenty years.
 
-A changed [model parameter](glossary.md#model-parameter), such as `LotkaVolterraSystem(r=0.65)` or `set_params(r=0.65)`, builds a new set of parts,
-which compile again. A schedule changes a value of the built parts, so it names them by their path, such as
-`growth.r`.
+A changed [model parameter](glossary.md#model-parameter), such as `LotkaVolterraSystem(r=0.65)` or `set_params(r=0.65)`,
+builds a new set of components, which compile again. A schedule changes a value of the built components, so it names
+them by their path, such as `growth.r`.
 
 ### Observables and invariants
 
@@ -463,9 +464,9 @@ law it cannot run. The library translates a system to LAMMPS as follows.
 
 ## Co-simulation
 
-Some systems hold parts that need different solvers, such as farming agents next to the differential equation of the
-land they harvest. Such a system is split into [partitions](glossary.md#partition) at the boundaries of its [nested systems](glossary.md#nested-system), and each partition
-runs with its own solver.
+Some systems hold components that need different solvers, such as farming agents next to the differential equation of
+the land they harvest. Such a system is split into [partitions](glossary.md#partition) at the boundaries of its [nested
+systems](glossary.md#nested-system), and each partition runs with its own solver.
 
 ```python
 from skcomplex.core.engine.runtime import simulate

@@ -3,8 +3,8 @@
 An interaction changes the states of elements. It binds elements through roles, such as `target` and `source`, reads
 their states, and returns laws, the equations or rules that a solver runs. It holds no state of its own. An element
 holds the states, a space says which members neighbour each other, and a system composes elements, interactions, and a
-space into one model. [How the parts fit](index.md) shows the families together, and the
-[interactions parts page](../../../parts/interactions.md) compares every interaction class and holds its fact sheet.
+space into one model. [How the components fit](index.md) shows the families together, and the [interactions
+page](../../../components/interactions.md) compares every interaction class and holds its fact sheet.
 
 ## Interaction
 
@@ -142,7 +142,7 @@ PredationInteraction('hunting', prey='rabbits', predator='foxes').get_params()
 
 Its parameters are the two roles, the label, and the rates `a` and `b`.
 
-See its [fact sheet](../../../parts/interactions.md#interaction)
+See its [fact sheet](../../../components/interactions.md#interaction)
 and its [API entry][skcomplex.core.components.interactions.Interaction].
 
 ## RateInteraction
@@ -237,7 +237,7 @@ simulate(ward, until=5, dt=5.0).get_values('infected.x').round(1).tolist()
 
 The infected fall from 100 to 36.8 in five days, which is `100 exp(-0.2 t)`.
 
-See its [fact sheet](../../../parts/interactions.md#rateinteraction)
+See its [fact sheet](../../../components/interactions.md#rateinteraction)
 and its [API entry][skcomplex.core.components.interactions.RateInteraction].
 
 ## TransferInteraction
@@ -336,7 +336,7 @@ PaymentInteraction('wages', payer='firm', payee='worker', value=2000.0).amount
 
 The wages flow at 2000.0 per unit of time.
 
-See its [fact sheet](../../../parts/interactions.md#transferinteraction)
+See its [fact sheet](../../../components/interactions.md#transferinteraction)
 and its [API entry][skcomplex.core.components.interactions.TransferInteraction].
 
 ## JumpInteraction
@@ -428,7 +428,7 @@ BirthInteraction('births', target='population').get_params()
 
 Its parameters are the label, the target, and `b`.
 
-See its [fact sheet](../../../parts/interactions.md#jumpinteraction)
+See its [fact sheet](../../../components/interactions.md#jumpinteraction)
 and its [API entry][skcomplex.core.components.interactions.JumpInteraction].
 
 ## MapInteraction
@@ -524,7 +524,7 @@ simulate(census, until=3).get_values('population.x').round(4).tolist()
 
 With `r = 4` the map is chaotic, and the fraction jumps to 0.36, 0.9216, and 0.289.
 
-See its [fact sheet](../../../parts/interactions.md#mapinteraction)
+See its [fact sheet](../../../components/interactions.md#mapinteraction)
 and its [API entry][skcomplex.core.components.interactions.MapInteraction].
 
 ## TransitionInteraction
@@ -629,7 +629,7 @@ RecoveryInteraction('recovery', target='people').get_params()
 
 Its parameters are the label, the target, and `gamma`.
 
-See its [fact sheet](../../../parts/interactions.md#transitioninteraction)
+See its [fact sheet](../../../components/interactions.md#transitioninteraction)
 and its [API entry][skcomplex.core.components.interactions.TransitionInteraction].
 
 ## CrossingInteraction
@@ -735,7 +735,7 @@ FiringInteraction('spike', target='neuron', theta=1.5).get_params()
 
 Its parameters are the label, the target, and `theta`.
 
-See its [fact sheet](../../../parts/interactions.md#crossinginteraction)
+See its [fact sheet](../../../components/interactions.md#crossinginteraction)
 and its [API entry][skcomplex.core.components.interactions.CrossingInteraction].
 
 ## GradientInteraction
@@ -837,7 +837,7 @@ round(float(simulate(relaxation, until=1, dt=1.0).get_values('particle.x')[-1]),
 
 The particle relaxes from 1 to 0.135 in one unit of time, which is `exp(-2)`.
 
-See its [fact sheet](../../../parts/interactions.md#gradientinteraction)
+See its [fact sheet](../../../components/interactions.md#gradientinteraction)
 and its [API entry][skcomplex.core.components.interactions.GradientInteraction].
 
 ## EulerLagrangeInteraction
@@ -946,7 +946,7 @@ PendulumInteraction('swing', target='bob', l=2.0).get_params()
 
 Its parameters are the label, the target, `g`, and `l`.
 
-See its [fact sheet](../../../parts/interactions.md#eulerlagrangeinteraction)
+See its [fact sheet](../../../components/interactions.md#eulerlagrangeinteraction)
 and its [API entry][skcomplex.core.components.interactions.EulerLagrangeInteraction].
 
 ## HamiltonianInteraction
@@ -1066,7 +1066,7 @@ BondInteraction('vibration', target='bond', k=4.0).get_params()
 
 Its parameters are the label, the target, `k`, and `m`.
 
-See its [fact sheet](../../../parts/interactions.md#hamiltonianinteraction)
+See its [fact sheet](../../../components/interactions.md#hamiltonianinteraction)
 and its [API entry][skcomplex.core.components.interactions.HamiltonianInteraction].
 
 ## ConservationInteraction
@@ -1170,7 +1170,7 @@ TrafficInteraction('traffic', target='road', v=1.2).get_params()
 
 Its parameters are the label, the target, and `v`.
 
-See its [fact sheet](../../../parts/interactions.md#conservationinteraction)
+See its [fact sheet](../../../components/interactions.md#conservationinteraction)
 and its [API entry][skcomplex.core.components.interactions.ConservationInteraction].
 
 ## NeighborInteraction
@@ -1264,7 +1264,7 @@ lattice or a network space for the group, as above.
 **A field realization.** The subclass above is already a field realization, the exchange of heat or of people
 between neighbours. A field writes its own laws for one edge in the same way, such as an infection along each contact.
 
-See its [fact sheet](../../../parts/interactions.md#neighborinteraction)
+See its [fact sheet](../../../components/interactions.md#neighborinteraction)
 and its [API entry][skcomplex.core.components.interactions.NeighborInteraction].
 
 ## CouplingInteraction
@@ -1366,7 +1366,7 @@ simulate(weak, until=4, dt=2.0).get_values('fireflies.theta').round(3).tolist()
 
 With half the strength, the phases are 0.426 and 0.574 after 2 seconds and 0.49 and 0.51 after 4, a slower approach.
 
-See its [fact sheet](../../../parts/interactions.md#couplinginteraction)
+See its [fact sheet](../../../components/interactions.md#couplinginteraction)
 and its [API entry][skcomplex.core.components.interactions.CouplingInteraction].
 
 ## PairInteraction
@@ -1497,7 +1497,7 @@ LennardJonesInteraction('lj', 'gas', 'gas', epsilon=0.5).get_params()
 
 Its parameters are the two groups, the cutoff, the label, `epsilon`, and `sigma`.
 
-See its [fact sheet](../../../parts/interactions.md#pairinteraction)
+See its [fact sheet](../../../components/interactions.md#pairinteraction)
 and its [API entry][skcomplex.core.components.interactions.PairInteraction].
 
 ## HyperedgeInteraction
@@ -1603,7 +1603,7 @@ of 2 or more, or `None` for every size.
 **A field realization.** The subclasses above are already field realizations, the opinions of groups in social
 science and the triads of physics.
 
-See its [fact sheet](../../../parts/interactions.md#hyperedgeinteraction)
+See its [fact sheet](../../../components/interactions.md#hyperedgeinteraction)
 and its [API entry][skcomplex.core.components.interactions.HyperedgeInteraction].
 
 ## GroupingInteraction
@@ -1716,7 +1716,7 @@ float(simulate(exchange, until=5, random_state=0).get_agents('traders', 5).value
 
 The total wealth stays 60.
 
-See its [fact sheet](../../../parts/interactions.md#groupinginteraction)
+See its [fact sheet](../../../components/interactions.md#groupinginteraction)
 and its [API entry][skcomplex.core.components.interactions.GroupingInteraction].
 
 ## LocalRuleInteraction
@@ -1822,7 +1822,7 @@ LifeInteraction('life', target='board').get_params()
 
 Its parameters are the label and the target.
 
-See its [fact sheet](../../../parts/interactions.md#localruleinteraction)
+See its [fact sheet](../../../components/interactions.md#localruleinteraction)
 and its [API entry][skcomplex.core.components.interactions.LocalRuleInteraction].
 
 ## SamplingInteraction
@@ -1942,7 +1942,7 @@ round(abs(float(values[-1].mean())), 2)
 
 At the high temperature 10 the spins stay disordered, with a magnetization of 0.06 in size.
 
-See its [fact sheet](../../../parts/interactions.md#samplinginteraction)
+See its [fact sheet](../../../components/interactions.md#samplinginteraction)
 and its [API entry][skcomplex.core.components.interactions.SamplingInteraction].
 
 ## TopologyInteraction
@@ -2031,7 +2031,7 @@ CitationInteraction('citations', m=3).get_params()
 
 Its parameters are the label and `m`.
 
-See its [fact sheet](../../../parts/interactions.md#topologyinteraction)
+See its [fact sheet](../../../components/interactions.md#topologyinteraction)
 and its [API entry][skcomplex.core.components.interactions.TopologyInteraction].
 
 ## ConnectionInteraction
@@ -2146,7 +2146,7 @@ PinNodeInteraction('ground', members=['first', 'second']).ports
 
 The node names the port `a` of both members.
 
-See its [fact sheet](../../../parts/interactions.md#connectioninteraction)
+See its [fact sheet](../../../components/interactions.md#connectioninteraction)
 and its [API entry][skcomplex.core.components.interactions.ConnectionInteraction].
 
 ## TrainingInteraction
@@ -2288,7 +2288,7 @@ SquaredErrorTrainingInteraction('fit', system='account', trained=['unit.a'], dat
 
 The training uses the optimizer `'sgd'`.
 
-See its [fact sheet](../../../parts/interactions.md#traininginteraction)
+See its [fact sheet](../../../components/interactions.md#traininginteraction)
 and its [API entry][skcomplex.core.components.interactions.TrainingInteraction].
 
 ## BaseInteraction
@@ -2305,5 +2305,5 @@ issubclass(Interaction, BaseInteraction), issubclass(NeighborInteraction, BaseIn
 
 Both are subclasses of `BaseInteraction`.
 
-See its [fact sheet](../../../parts/interactions.md#baseinteraction)
+See its [fact sheet](../../../components/interactions.md#baseinteraction)
 and its [API entry][skcomplex.core.components.interactions.BaseInteraction].

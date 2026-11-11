@@ -2,10 +2,10 @@
 
 A law is one equation or rule by which states change, such as a rate, the next value at a step, a random jump, or an
 algebraic equation. Elements and interactions return laws from their hook `_get_laws`, and the compiler lowers the laws
-of a system to one problem that a solver runs. The kind of law decides the form of that problem: rate laws give
-ordinary differential equations, update laws give a map, and jump laws give a Markov chain in continuous time.
-[How the parts fit](index.md) shows the families together, and the [laws parts page](../../../parts/laws.md) compares
-every law class and holds its fact sheet.
+of a system to one problem that a solver runs. The kind of law decides the form of that problem: rate laws give ordinary
+differential equations, update laws give a map, and jump laws give a Markov chain in continuous time. [How the
+components fit](index.md) shows the families together, and the [laws page](../../../components/laws.md)
+compares every law class and holds its fact sheet.
 
 ## ArrayUpdateLaw
 
@@ -133,7 +133,7 @@ int(simulate(dropping, until=4, random_state=0).get_lattice('table.height')[-1].
 
 Four steps drop 4 grains on the table.
 
-See its [fact sheet](../../../parts/laws.md#arrayupdatelaw)
+See its [fact sheet](../../../components/laws.md#arrayupdatelaw)
 and its [API entry][skcomplex.core.components.laws.ArrayUpdateLaw].
 
 ## BilinearLaw
@@ -258,7 +258,7 @@ outcome probabilities `B[h, k, i]`. The fix is an array `outcomes` of shape `(cl
 markets. A field gives its interaction the names of its own populations and parameters, as `KillingInteraction` names
 the prey, the hunter, and the killing rate `k`.
 
-See its [fact sheet](../../../parts/laws.md#bilinearlaw)
+See its [fact sheet](../../../components/laws.md#bilinearlaw)
 and its [API entry][skcomplex.core.components.laws.BilinearLaw].
 
 ## BoundaryLaw
@@ -370,7 +370,7 @@ laws take random draws. The fix is a `NoiseLaw` for the random part.
 **A field realization.** The rotor above is a realization of mechanics. A field of soft matter writes the same law as
 the reflection of a diffusing particle at the walls of a channel.
 
-See its [fact sheet](../../../parts/laws.md#boundarylaw)
+See its [fact sheet](../../../components/laws.md#boundarylaw)
 and its [API entry][skcomplex.core.components.laws.BoundaryLaw].
 
 ## CascadeLaw
@@ -496,7 +496,7 @@ max_iterations." The condition `z < 0` never holds for heights, and the fix is `
 **A field realization.** The two elements above are realizations of the sandpile and of seismology. A field also wraps
 the drive and the relaxation in one interaction, with the threshold and the share as its arguments.
 
-See its [fact sheet](../../../parts/laws.md#cascadelaw)
+See its [fact sheet](../../../components/laws.md#cascadelaw)
 and its [API entry][skcomplex.core.components.laws.CascadeLaw].
 
 ## CrossingLaw
@@ -603,7 +603,7 @@ The message reads "The direction of a crossing is -1, 0, or 1, but got 2." The f
 **A field realization.** The neuron above is a realization of neuroscience, and a thermostat of engineering switches a
 heater with the same law when the temperature crosses a set point.
 
-See its [fact sheet](../../../parts/laws.md#crossinglaw)
+See its [fact sheet](../../../components/laws.md#crossinglaw)
 and its [API entry][skcomplex.core.components.laws.CrossingLaw].
 
 ## DissipatorLaw
@@ -735,7 +735,7 @@ fix is an expression of local operators, such as `local_operator(namespace.psi, 
 **A field realization.** The atom and the cavity above are realizations of quantum optics. A qubit of quantum
 computing loses its phase through a dissipator whose operator is the Pauli matrix `z`.
 
-See its [fact sheet](../../../parts/laws.md#dissipatorlaw)
+See its [fact sheet](../../../components/laws.md#dissipatorlaw)
 and its [API entry][skcomplex.core.components.laws.DissipatorLaw].
 
 ## EquationLaw
@@ -824,7 +824,7 @@ system, solves them together for the highest derivatives, adds the rate laws on 
 result to first order. `ScipyODESolver` then integrates it. Equations that share a `target` add into one before the
 solve.
 
-**How it combines.** Equations of several parts couple through their derivatives, as the two angles of a double
+**How it combines.** Equations of several components couple through their derivatives, as the two angles of a double
 pendulum do through a mass matrix. `EulerLagrangeInteraction` and `ConnectionInteraction` return equation laws, and a
 `RateLaw` on the same state adds a force.
 
@@ -847,7 +847,7 @@ the highest derivative with the function as its value.
 **A field realization.** The circuit above is a realization of electrical engineering, and the pendulum one of
 mechanics. A robot arm writes one equation per joint in the same way.
 
-See its [fact sheet](../../../parts/laws.md#equationlaw)
+See its [fact sheet](../../../components/laws.md#equationlaw)
 and its [API entry][skcomplex.core.components.laws.EquationLaw].
 
 ## ExtremalLaw
@@ -955,7 +955,7 @@ The message reads "Unknown extremum 'median'. Use one of min, max."
 **A field realization.** The species above are a realization of evolutionary biology, and the fibres one of the
 physics of materials.
 
-See its [fact sheet](../../../parts/laws.md#extremallaw)
+See its [fact sheet](../../../components/laws.md#extremallaw)
 and its [API entry][skcomplex.core.components.laws.ExtremalLaw].
 
 ## FluxLaw
@@ -1063,7 +1063,7 @@ The message reads "Unknown numerical flux 'roe'. Use 'rusanov' or 'godunov'."
 **A field realization.** The road above is a realization of traffic engineering, and a river channel of hydrology
 writes the flux of a flood wave in the same way.
 
-See its [fact sheet](../../../parts/laws.md#fluxlaw)
+See its [fact sheet](../../../components/laws.md#fluxlaw)
 and its [API entry][skcomplex.core.components.laws.FluxLaw].
 
 ## GeneratorLaw
@@ -1200,13 +1200,13 @@ The message reads "A generator takes an operator built from local operators, but
 
 **A field realization.** The spin above is a realization of physics, and the walker one of quantum search on a graph.
 
-See its [fact sheet](../../../parts/laws.md#generatorlaw)
+See its [fact sheet](../../../components/laws.md#generatorlaw)
 and its [API entry][skcomplex.core.components.laws.GeneratorLaw].
 
 ## GradientStepLaw
 
-A `GradientStepLaw` takes optimizer steps on the parameters of a nested system, so that a part of a model learns from
-data during the run. One step of the outer system is one epoch, and `TrainingInteraction` returns the law. Here the
+A `GradientStepLaw` takes optimizer steps on the parameters of a nested system, so that a component of a model learns
+from data during the run. One step of the outer system is one epoch, and `TrainingInteraction` returns the law. Here the
 factor `a` of the map `x' = a x` is fitted to a series that decays by 0.8 per step.
 
 ```python
@@ -1317,7 +1317,7 @@ The message says that the optimizer `'newton'` of `'fit'` is not supported and l
 **A field realization.** A field of machine learning names the nested system a recurrent network and the trained
 parameters its weights, and a reservoir computer trains only its readout.
 
-See its [fact sheet](../../../parts/laws.md#gradientsteplaw)
+See its [fact sheet](../../../components/laws.md#gradientsteplaw)
 and its [API entry][skcomplex.core.components.laws.GradientStepLaw].
 
 ## JumpLaw
@@ -1429,7 +1429,7 @@ The message says that the jump of `n` has the increment `k`, which holds a symbo
 **A field realization.** The colony above is a realization of population biology, and the queue one of operations
 research. Chemistry writes each reaction as a jump law whose changes are the stoichiometric numbers.
 
-See its [fact sheet](../../../parts/laws.md#jumplaw)
+See its [fact sheet](../../../components/laws.md#jumplaw)
 and its [API entry][skcomplex.core.components.laws.JumpLaw].
 
 ## LinearProgramLaw
@@ -1544,7 +1544,7 @@ the plants can meet, or one of those policies.
 
 **A field realization.** The cell above is a realization of systems biology, and the grid one of energy economics.
 
-See its [fact sheet](../../../parts/laws.md#linearprogramlaw)
+See its [fact sheet](../../../components/laws.md#linearprogramlaw)
 and its [API entry][skcomplex.core.components.laws.LinearProgramLaw].
 
 ## LocalRuleLaw
@@ -1645,7 +1645,7 @@ at once is `'synchronous'`, the default.
 **A field realization.** The board above is a realization of computer science. A model of excitable tissue writes the
 states of resting, excited, and refractory cells as one table rule.
 
-See its [fact sheet](../../../parts/laws.md#localrulelaw)
+See its [fact sheet](../../../components/laws.md#localrulelaw)
 and its [API entry][skcomplex.core.components.laws.LocalRuleLaw].
 
 ## MatchLaw
@@ -1749,7 +1749,7 @@ The message reads "The match 'match' has capacity 0. Give a positive integer."
 **A field realization.** The market above is a realization of economics. A labour market matches workers with firms
 by a `pairing` function, and a school choice model matches students with schools.
 
-See its [fact sheet](../../../parts/laws.md#matchlaw)
+See its [fact sheet](../../../components/laws.md#matchlaw)
 and its [API entry][skcomplex.core.components.laws.MatchLaw].
 
 ## NoiseLaw
@@ -1857,7 +1857,7 @@ The message reads "The Hurst index of the noise of x is 1.0. Give a number in (0
 **A field realization.** The stock above is a realization of finance, and the particle one of physics. Biology writes
 the molecular noise of gene expression with the same law.
 
-See its [fact sheet](../../../parts/laws.md#noiselaw)
+See its [fact sheet](../../../components/laws.md#noiselaw)
 and its [API entry][skcomplex.core.components.laws.NoiseLaw].
 
 ## ProductionLaw
@@ -1927,7 +1927,7 @@ The message reads "The probability of a production is in [0, 1], not 1.5."
 **A field realization.** The [WordElement](elements.md#wordelement) section holds the algae of Lindenmayer, a
 realization of botany.
 
-See its [fact sheet](../../../parts/laws.md#productionlaw)
+See its [fact sheet](../../../components/laws.md#productionlaw)
 and its [API entry][skcomplex.core.components.laws.ProductionLaw].
 
 ## RateLaw
@@ -2061,7 +2061,7 @@ simulate(epidemic, until=10, dt=10.0).get_values('infected.x').round(1).tolist()
 
 The infected fall from 100 to 36.8 in ten days.
 
-See its [fact sheet](../../../parts/laws.md#ratelaw)
+See its [fact sheet](../../../components/laws.md#ratelaw)
 and its [API entry][skcomplex.core.components.laws.RateLaw].
 
 ## RuleLaw
@@ -2141,7 +2141,7 @@ one Mesa step per unit of time and activates every agent in random order. A rule
 the system, and a rule of an interaction receives the system.
 
 **How it combines.** An element whose laws include rules is an agent. Rules read the pairs of a `MatchLaw`, order
-themselves by `phase` within a step, and run beside `UpdateLaw`s of other parts. The system gives a rule its random
+themselves by `phase` within a step, and run beside `UpdateLaw`s of other components. The system gives a rule its random
 generator `system.rng` and the agents of other groups.
 
 **Limits and errors.** A rule runs arbitrary Python, so the compiler can neither lower nor differentiate it. The
@@ -2162,7 +2162,7 @@ The message reads "The function of a rule must be callable, but it is 'graze'." 
 
 **A field realization.** The sheep above are a realization of ecology, and the traders one of economics.
 
-See its [fact sheet](../../../parts/laws.md#rulelaw)
+See its [fact sheet](../../../components/laws.md#rulelaw)
 and its [API entry][skcomplex.core.components.laws.RuleLaw].
 
 ## SampleLaw
@@ -2278,7 +2278,7 @@ The message names the unknown move `'swap'` and lists the six moves.
 
 **A field realization.** The magnet above is a realization of statistical physics, and the tissue one of biology.
 
-See its [fact sheet](../../../parts/laws.md#samplelaw)
+See its [fact sheet](../../../components/laws.md#samplelaw)
 and its [API entry][skcomplex.core.components.laws.SampleLaw].
 
 ## Sink
@@ -2378,8 +2378,7 @@ or `Source()`. The fix is `Source()` for an inflow from outside.
 **A field realization.** A field names its sinks by their meaning, such as `Sink('atmosphere')` for the emissions of a
 carbon cycle.
 
-See its [fact sheet](../../../parts/laws.md#sink)
-and its [API entry][skcomplex.core.components.laws.Sink].
+See its [API entry][skcomplex.core.components.laws.Sink]. It is a spec, not a component, so it has no fact sheet.
 
 ## Source
 
@@ -2476,8 +2475,7 @@ The message says that the sink of a transfer must be the symbol of a scalar stat
 
 **A field realization.** A field names its sources by their meaning, such as `Source('births')` for a population.
 
-See its [fact sheet](../../../parts/laws.md#source)
-and its [API entry][skcomplex.core.components.laws.Source].
+See its [API entry][skcomplex.core.components.laws.Source]. It is a spec, not a component, so it has no fact sheet.
 
 ## SubstitutionLaw
 
@@ -2552,7 +2550,7 @@ is `('square', AffineSpec(scale=1 / 3))`.
 **A field realization.** The [PatchElement](elements.md#patchelement) section holds the Cantor set and the Sierpinski
 triangle, realizations of mathematics.
 
-See its [fact sheet](../../../parts/laws.md#substitutionlaw)
+See its [fact sheet](../../../components/laws.md#substitutionlaw)
 and its [API entry][skcomplex.core.components.laws.SubstitutionLaw].
 
 ## TransferLaw
@@ -2671,7 +2669,7 @@ The message reads "A transfer moves a quantity into or out of a state, but both 
 
 **A field realization.** The epidemic above is a realization of epidemiology, and the accounts one of finance.
 
-See its [fact sheet](../../../parts/laws.md#transferlaw)
+See its [fact sheet](../../../components/laws.md#transferlaw)
 and its [API entry][skcomplex.core.components.laws.TransferLaw].
 
 ## TransitionLaw
@@ -2768,7 +2766,7 @@ fix is the full second row `[0.4, 0.6]`.
 
 **A field realization.** The weather above is a realization of meteorology, and the ratings one of finance.
 
-See its [fact sheet](../../../parts/laws.md#transitionlaw)
+See its [fact sheet](../../../components/laws.md#transitionlaw)
 and its [API entry][skcomplex.core.components.laws.TransitionLaw].
 
 ## UpdateLaw
@@ -2868,7 +2866,7 @@ The message says that the update law is an increment with the source 0.0 and ask
 
 **A field realization.** The insects above are a realization of ecology, and the account one of finance.
 
-See its [fact sheet](../../../parts/laws.md#updatelaw)
+See its [fact sheet](../../../components/laws.md#updatelaw)
 and its [API entry][skcomplex.core.components.laws.UpdateLaw].
 
 ## BaseLaw
@@ -2890,5 +2888,5 @@ issubclass(UpdateLaw, BaseLaw), law.targets_, sorted(map(str, law.reads_)), law.
 Every law derives from `BaseLaw`. The rate law above changes `x`, reads `k` and `x`, and has the value -1.0 at
 `x = 2` and `k = 0.5`.
 
-See its [fact sheet](../../../parts/laws.md#baselaw)
+See its [fact sheet](../../../components/laws.md#baselaw)
 and its [API entry][skcomplex.core.components.laws.BaseLaw].

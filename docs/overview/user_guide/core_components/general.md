@@ -1,11 +1,11 @@
 # General realizations
 
 `skcomplex.systems.general` holds the recipes that systems of several fields share, such as a nonnegative amount, a
-reaction, an agent that moves, or a market that matches buyers with sellers. A recipe is a part written with the public
-parts of the core alone, so each one is also an example of how to build a part of your own. The core never imports
-these recipes, and every field imports them freely. [How the parts fit](index.md) shows the parts of the core that the
-recipes are written with, and the section [Where a part goes](#where-a-part-goes) at the end of this page gives the
-rule that decides whether a new part is a recipe.
+reaction, an agent that moves, or a market that matches buyers with sellers. A recipe is a component written with the
+public components of the core alone, so each one is also an example of how to build a component of your own. The core
+never imports these recipes, and every field imports them freely. [How the components fit](index.md) shows the
+components of the core that the recipes are written with, and the section [Where a component
+goes](#where-a-component-goes) at the end of this page gives the rule that decides whether a new component is a recipe.
 
 The package has one subpackage per concept, and every recipe is imported from its subpackage.
 
@@ -276,8 +276,8 @@ sorted(jumps.get_tags().laws), jumps.get_tags().randomness
 
 The laws are `['jump']` and the randomness is `'stochastic'`.
 
-**How it combines.** Its species are usually `NonnegativeElement` parts. With `target`, a species may be the name of a
-state of the target alone, and a target that is a group or a field reacts in every member. `modifiers` enter the
+**How it combines.** Its species are usually `NonnegativeElement` components. With `target`, a species may be the name
+of a state of the target alone, and a target that is a group or a field reacts in every member. `modifiers` enter the
 propensity without changing, as a catalyst does, and `propensity` replaces the product form, such as a saturating rate
 of enzyme kinetics.
 
@@ -378,7 +378,7 @@ sir.set_params(mode='jump').get_tags().randomness
 The jump mode makes the system `'stochastic'`.
 
 **How it combines.** It is a [`BaseSystem`](systems.md#basesystem), so `simulate`, `calibrate`, and the analyses take
-it as they take any system. A field system subclasses it and gives its parts through hooks:
+it as they take any system. A field system subclasses it and gives its components through hooks:
 
 - `_get_species` returns the initial amount of every species by name.
 - `_get_reactions` returns the reaction table.
@@ -653,8 +653,8 @@ The rooms reach the same temperature, 1.0 each, and the total stays 3.
 
 **How the engine runs it.** The states are those of a `DeclaredElement` that is the member of a
 [`FieldElement`](elements.md#fieldelement) on the [`NetworkSpace`](spaces.md#networkspace) of the graph. The equations
-are `RateInteraction` parts, and the coupling is a [`CouplingInteraction`](interactions.md#couplinginteraction) that
-reads node `i` as `s.member` and its neighbour as `s.other`. The system runs in continuous time.
+are `RateInteraction` components, and the coupling is a [`CouplingInteraction`](interactions.md#couplinginteraction)
+that reads node `i` as `s.member` and its neighbour as `s.other`. The system runs in continuous time.
 
 **How it combines.** A subclass returns the graph from `_get_graph` and the couplings from `_get_coupling`, besides
 the hooks of `DynamicalSystem`. A local equation may also read the graph Laplacian, as network diffusion does.
@@ -1645,7 +1645,7 @@ See its [API entry][skcomplex.systems.general.matching].
 ### A market in two phases
 
 Traders quote prices in one phase and trade in a batch auction in the next, while a clerk sets a fee from the volume
-traded. The phases and the clerk are parts of the core, which the section
+traded. The phases and the clerk are components of the core, which the section
 [Phases, institutions, and learning](../build_a_custom_system/agent_based_systems.md#phases-institutions-and-learning)
 explains.
 
@@ -1744,14 +1744,14 @@ The clearing prices of the rounds are 1.018, 1.231, 1.074, none in the fourth ro
 4, 1, 0, and 2. No bid of the fourth round covers an ask, so nothing trades. The clerk counts 11 goods bought and
 ends with a fee of 0.11. The state `cap` names the money of a buyer, the most value it can give.
 
-## Where a part goes
+## Where a component goes
 
-One ordered test, the placement rule of the package layout, decides where any new part goes. The source tests check it
-mechanically. It reads, word for word:
+One ordered test, the placement rule of the package layout, decides where any new component goes. The source tests check
+it mechanically. It reads, word for word:
 
-> Every new part SHALL be placed by one ordered test. A structural base SHALL go to the core. A part the engine
-> handles by type, or an operator generated from one function, SHALL go to the core under a mathematical name. Any
-> other part is a recipe, placed by its users: `skcomplex.systems.general.<concept>` for several fields,
+> Every new component SHALL be placed by one ordered test. A structural base SHALL go to the core. A component the
+> engine handles by type, or an operator generated from one function, SHALL go to the core under a mathematical name.
+> Any other component is a recipe, placed by its users: `skcomplex.systems.general.<concept>` for several fields,
 > `systems/<field>/common/<family>` for one field, its system's module for one system. The core SHALL never import
 > `skcomplex.systems`.
 
@@ -1759,10 +1759,10 @@ A field with its own term names its recipe, and `general` uses neutral names. On
 
 **A structural base.** A base where laws run once per triangle of a cell complex goes to the core, as
 [`HyperedgeInteraction`](interactions.md#hyperedgeinteraction) does, which runs its laws once per hyperedge, and
-[`CompositeSystem`](systems.md#compositesystem), which holds the parts of a system. Parts of every field build on
-them.
+[`CompositeSystem`](systems.md#compositesystem), which holds the components of a system. Components of every field build
+on them.
 
-**A part the engine handles by type.** A law that a kernel lowers goes to the core under a mathematical name.
+**A component the engine handles by type.** A law that a kernel lowers goes to the core under a mathematical name.
 [`GroupingInteraction`](interactions.md#groupinginteraction) stays in the core, since a compile pass lowers it by type
 to kernels over random groups, and economics and social science both form groups. `BilinearLaw` is in the core
 because the compiler names it, while `EncounterInteraction`, which only builds bilinear laws, is a recipe.
@@ -1782,11 +1782,11 @@ from skcomplex.core.components.interactions import GroupingInteraction, Hyperedg
 from skcomplex.core.components.laws import BilinearLaw
 from skcomplex.systems.general.agents import ChoiceInteraction
 
-parts = [HyperedgeInteraction, GroupingInteraction, BilinearLaw, ChoiceInteraction]
-[part.__module__.rsplit('.', 1)[0] for part in parts]
+components = [HyperedgeInteraction, GroupingInteraction, BilinearLaw, ChoiceInteraction]
+[component.__module__.rsplit('.', 1)[0] for component in components]
 ```
 
-The first three parts live in `skcomplex.core.components` and the choice in `skcomplex.systems.general.agents`. The
+The first three components live in `skcomplex.core.components` and the choice in `skcomplex.systems.general.agents`. The
 toppling lives in the physics `common` package and the satisfiability in the module of its system, so the guide names
 them without importing them, since only system classes are imported from a field.
 
@@ -1839,7 +1839,7 @@ The message says that the role `target` of `sat` accepts the domain `boolean`, b
 `on` of the domain `real`. The fix is a state of the domain `{0, 1}`, declared with
 `StateSpec(domain=FiniteEnumeratedSet([0, 1]))`.
 
-Finally, `sparse_identification` of the core returns a `CompositeSystem` of core parts, never a class of
+Finally, `sparse_identification` of the core returns a `CompositeSystem` of core components, never a class of
 `skcomplex.systems`, so the core runs without the catalog.
 
 ### Recipes of one field

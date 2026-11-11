@@ -212,7 +212,7 @@ def _component_lines(kinds: list[type], depth: int) -> list[str]:
 def _core_link(core: type, depth: int) -> str:
     """Return the name of a class of the core, linked to its fact sheet where its family has fact sheets."""
     if issubclass(core, BaseElement):
-        return f'[`{core.__name__}`]({"../" * depth}parts/elements.md#{core.__name__.lower()})'
+        return f'[`{core.__name__}`]({"../" * depth}components/elements.md#{core.__name__.lower()})'
     return f'`{core.__name__}`'
 
 
@@ -319,7 +319,7 @@ def system_page(name: str, title: str, examples: dict[str, Example]) -> str:
         *_tag_lines(system_class),
         '## Class',
         '',
-        'The source of the class shows how it builds its parts from its model parameters.',
+        'The source of the class shows how it builds its components from its model parameters.',
         '',
         '```python',
         inspect.getsource(system_class).rstrip(),

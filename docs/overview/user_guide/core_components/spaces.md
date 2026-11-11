@@ -2,10 +2,10 @@
 
 A space places the members of a group and says who neighbours whom. A neighbourhood picks, around one member, the
 members that a law reads. A time says whether the states flow, step, or are solved once. Elements hold the states,
-interactions return the laws that change them, and a system composes all of these parts into one model.
-[How the parts fit](index.md) shows the families together, and the [spaces parts page](../../../parts/spaces.md)
-compares every class of this page and holds its fact sheet. All of them live in `skcomplex.core.components.spaces`.
-The page takes the spaces first, then the neighbourhoods, then the times, and each family ends with its base class.
+interactions return the laws that change them, and a system composes all of these components into one model. [How the
+components fit](index.md) shows the families together, and the [spaces page](../../../components/spaces.md)
+compares every class of this page and holds its fact sheet. All of them live in `skcomplex.core.components.spaces`. The
+page takes the spaces first, then the neighbourhoods, then the times, and each family ends with its base class.
 
 ## LatticeSpace
 
@@ -95,7 +95,7 @@ class ForestSpace(LatticeSpace):
 ForestSpace(4, 5).prepare().size_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#latticespace)
+See its [fact sheet](../../../components/spaces.md#latticespace)
 and its [API entry][skcomplex.core.components.spaces.LatticeSpace].
 
 ## NetworkSpace
@@ -184,7 +184,7 @@ class ContactNetworkSpace(NetworkSpace):
 ContactNetworkSpace(people=20, density=0.2).prepare().size_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#networkspace)
+See its [fact sheet](../../../components/spaces.md#networkspace)
 and its [API entry][skcomplex.core.components.spaces.NetworkSpace].
 
 ## ContinuousSpace
@@ -266,7 +266,7 @@ class PeriodicBoxSpace(ContinuousSpace):
 PeriodicBoxSpace(5.0).prepare().extent_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#continuousspace)
+See its [fact sheet](../../../components/spaces.md#continuousspace)
 and its [API entry][skcomplex.core.components.spaces.ContinuousSpace].
 
 ## CellComplexSpace
@@ -339,7 +339,7 @@ class GaugeLatticeSpace(CellComplexSpace):
 len(GaugeLatticeSpace(4).prepare().hyperedges_)
 ```
 
-See its [fact sheet](../../../parts/spaces.md#cellcomplexspace)
+See its [fact sheet](../../../components/spaces.md#cellcomplexspace)
 and its [API entry][skcomplex.core.components.spaces.CellComplexSpace].
 
 ## PhaseSpace
@@ -408,7 +408,7 @@ class VelocitySpace(PhaseSpace):
 VelocitySpace(8, 16).prepare().shape_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#phasespace)
+See its [fact sheet](../../../components/spaces.md#phasespace)
 and its [API entry][skcomplex.core.components.spaces.PhaseSpace].
 
 ## SimplexSpace
@@ -476,7 +476,7 @@ class StrategySpace(SimplexSpace):
 StrategySpace(10).prepare().shape_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#simplexspace)
+See its [fact sheet](../../../components/spaces.md#simplexspace)
 and its [API entry][skcomplex.core.components.spaces.SimplexSpace].
 
 ## MeshSpace
@@ -519,11 +519,11 @@ class DiffusionElement(Element):
 
 shape = skfem.MeshTri.init_lshaped().refined(1)
 walls = {'u': ('fixed', 0.0)}
-part = FieldElement(
-    'part', element=DiffusionElement, space=MeshSpace(shape.p, shape.t), values={'u': 1.0}, boundary=walls,
+bracket = FieldElement(
+    'bracket', element=DiffusionElement, space=MeshSpace(shape.p, shape.t), values={'u': 1.0}, boundary=walls,
     discretization='finite-element',
 )
-simulate(CompositeSystem(elements=[part]), until=1, dt=0.5).get_values('part.u').max(axis=1).round(3).tolist()
+simulate(CompositeSystem(elements=[bracket]), until=1, dt=0.5).get_values('bracket.u').max(axis=1).round(3).tolist()
 ```
 
 The hottest node falls from 1 to 0.013 after half a time unit, and after one unit it rounds to 0.
@@ -555,7 +555,7 @@ from skcomplex.core.errors import ValidationError
 
 try:
     FieldElement(
-        'part', element=DiffusionElement, space=MeshSpace(shape.p, shape.t), boundary={'u': 0.0},
+        'bracket', element=DiffusionElement, space=MeshSpace(shape.p, shape.t), boundary={'u': 0.0},
         discretization='finite-element',
     ).prepare()
 except ValidationError as error:
@@ -563,7 +563,7 @@ except ValidationError as error:
 message
 ```
 
-The message reads "Unknown boundary '0.0' of part.u. Use 'periodic', 'zero-flux', or ('fixed', value)." The fix is
+The message reads "Unknown boundary '0.0' of bracket.u. Use 'periodic', 'zero-flux', or ('fixed', value)." The fix is
 `('fixed', 0.0)`.
 
 **A field realization.** A field builds the mesh of its domain, such as an L-shaped plate refined a given number of
@@ -579,7 +579,7 @@ class PlateSpace(MeshSpace):
 PlateSpace(1).prepare().size_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#meshspace)
+See its [fact sheet](../../../components/spaces.md#meshspace)
 and its [API entry][skcomplex.core.components.spaces.MeshSpace].
 
 ## CayleySpace
@@ -648,7 +648,7 @@ class FreeGroupSpace(CayleySpace):
 FreeGroupSpace(rank=2, ball=1).prepare().size_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#cayleyspace)
+See its [fact sheet](../../../components/spaces.md#cayleyspace)
 and its [API entry][skcomplex.core.components.spaces.CayleySpace].
 
 ## BaseSpace
@@ -663,7 +663,7 @@ from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, Lattice
 issubclass(LatticeSpace, BaseSpace), issubclass(ContinuousSpace, BaseSpace)
 ```
 
-See its [fact sheet](../../../parts/spaces.md#basespace)
+See its [fact sheet](../../../components/spaces.md#basespace)
 and its [API entry][skcomplex.core.components.spaces.BaseSpace].
 
 ## BallNeighborhood
@@ -764,7 +764,7 @@ class VonNeumannNeighborhood(BallNeighborhood):
 len(VonNeumannNeighborhood().prepare().offsets_)
 ```
 
-See its [fact sheet](../../../parts/spaces.md#ballneighborhood)
+See its [fact sheet](../../../components/spaces.md#ballneighborhood)
 and its [API entry][skcomplex.core.components.spaces.BallNeighborhood].
 
 ## LatticeNeighborhood
@@ -839,7 +839,7 @@ class UpwindNeighborhood(LatticeNeighborhood):
 UpwindNeighborhood().prepare().offsets_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#latticeneighborhood)
+See its [fact sheet](../../../components/spaces.md#latticeneighborhood)
 and its [API entry][skcomplex.core.components.spaces.LatticeNeighborhood].
 
 ## AdjacencyNeighborhood
@@ -930,7 +930,7 @@ class HouseholdNeighborhood(AdjacencyNeighborhood):
 HouseholdNeighborhood().layer
 ```
 
-See its [fact sheet](../../../parts/spaces.md#adjacencyneighborhood)
+See its [fact sheet](../../../components/spaces.md#adjacencyneighborhood)
 and its [API entry][skcomplex.core.components.spaces.AdjacencyNeighborhood].
 
 ## CofaceNeighborhood
@@ -1021,7 +1021,7 @@ class PlaquetteNeighborhood(CofaceNeighborhood):
 PlaquetteNeighborhood().prepare().label
 ```
 
-See its [fact sheet](../../../parts/spaces.md#cofaceneighborhood)
+See its [fact sheet](../../../components/spaces.md#cofaceneighborhood)
 and its [API entry][skcomplex.core.components.spaces.CofaceNeighborhood].
 
 ## RadiusNeighborhood
@@ -1106,7 +1106,7 @@ round(SightNeighborhood().angle, 3)
 
 The half-angle is 2.356, three quarters of `pi`, so the bird sees all but a cone behind it.
 
-See its [fact sheet](../../../parts/spaces.md#radiusneighborhood)
+See its [fact sheet](../../../components/spaces.md#radiusneighborhood)
 and its [API entry][skcomplex.core.components.spaces.RadiusNeighborhood].
 
 ## NearestNeighborhood
@@ -1190,7 +1190,7 @@ class StarlingNeighborhood(NearestNeighborhood):
 StarlingNeighborhood().k
 ```
 
-See its [fact sheet](../../../parts/spaces.md#nearestneighborhood)
+See its [fact sheet](../../../components/spaces.md#nearestneighborhood)
 and its [API entry][skcomplex.core.components.spaces.NearestNeighborhood].
 
 ## DelaunayNeighborhood
@@ -1277,7 +1277,7 @@ class ContactNeighborhood(DelaunayNeighborhood):
 ContactNeighborhood().prepare().label
 ```
 
-See its [fact sheet](../../../parts/spaces.md#delaunayneighborhood)
+See its [fact sheet](../../../components/spaces.md#delaunayneighborhood)
 and its [API entry][skcomplex.core.components.spaces.DelaunayNeighborhood].
 
 ## MemoryNeighborhood
@@ -1363,7 +1363,7 @@ class TreeNeighborhood(MemoryNeighborhood):
 TreeNeighborhood().prepare().elements_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#memoryneighborhood)
+See its [fact sheet](../../../components/spaces.md#memoryneighborhood)
 and its [API entry][skcomplex.core.components.spaces.MemoryNeighborhood].
 
 ## StateTranslationNeighborhood
@@ -1446,7 +1446,7 @@ class ShiftedTranslationNeighborhood(StateTranslationNeighborhood):
 ShiftedTranslationNeighborhood().prepare().elements_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#statetranslationneighborhood)
+See its [fact sheet](../../../components/spaces.md#statetranslationneighborhood)
 and its [API entry][skcomplex.core.components.spaces.StateTranslationNeighborhood].
 
 ## BaseNeighborhood
@@ -1460,7 +1460,7 @@ from skcomplex.core.components.spaces import BallNeighborhood, BaseNeighborhood,
 issubclass(BallNeighborhood, BaseNeighborhood), issubclass(RadiusNeighborhood, BaseNeighborhood)
 ```
 
-See its [fact sheet](../../../parts/spaces.md#baseneighborhood)
+See its [fact sheet](../../../components/spaces.md#baseneighborhood)
 and its [API entry][skcomplex.core.components.spaces.BaseNeighborhood].
 
 ## ContinuousTime
@@ -1502,7 +1502,7 @@ On this path the price is 108.3 after half a year and 126.2 after a year.
 laws between them. Rate laws alone go to `ScipyODESolver`, rates with noise to `EulerMaruyamaSolver`, and jumps to
 `GillespieSolver`.
 
-**How it combines.** A system without a time takes the time its parts agree on, so a system of rate laws runs in
+**How it combines.** A system without a time takes the time its components agree on, so a system of rate laws runs in
 continuous time without naming it. Its laws come from `RateInteraction`, `JumpInteraction`, `CrossingInteraction`, and
 elements with rate laws of their own.
 
@@ -1541,7 +1541,7 @@ class DaysTime(ContinuousTime):
 DaysTime().prepare().label
 ```
 
-See its [fact sheet](../../../parts/spaces.md#continuoustime)
+See its [fact sheet](../../../components/spaces.md#continuoustime)
 and its [API entry][skcomplex.core.components.spaces.ContinuousTime].
 
 ## DiscreteTime
@@ -1612,7 +1612,7 @@ class GenerationsTime(DiscreteTime):
 GenerationsTime().prepare().schedule_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#discretetime)
+See its [fact sheet](../../../components/spaces.md#discretetime)
 and its [API entry][skcomplex.core.components.spaces.DiscreteTime].
 
 ## StaticTime
@@ -1732,7 +1732,7 @@ class EquilibriumTime(StaticTime):
 EquilibriumTime().prepare().schedule_ is None
 ```
 
-See its [fact sheet](../../../parts/spaces.md#statictime)
+See its [fact sheet](../../../components/spaces.md#statictime)
 and its [API entry][skcomplex.core.components.spaces.StaticTime].
 
 ## BaseTime
@@ -1746,5 +1746,5 @@ from skcomplex.core.components.spaces import BaseTime, ContinuousTime, DiscreteT
 issubclass(ContinuousTime, BaseTime), issubclass(DiscreteTime, BaseTime)
 ```
 
-See its [fact sheet](../../../parts/spaces.md#basetime)
+See its [fact sheet](../../../components/spaces.md#basetime)
 and its [API entry][skcomplex.core.components.spaces.BaseTime].

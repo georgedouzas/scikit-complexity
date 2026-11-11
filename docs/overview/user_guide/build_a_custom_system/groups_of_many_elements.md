@@ -54,7 +54,7 @@ all members with array operations. A group follows these rules.
 - A group parameter takes one value for every member, or one value per member, in the `schedule` of `simulate`.
 
 The ready-made `IdealGasSystem` builds such a gas of non-interacting molecules in a reflecting box, with the model
-parameters `n_molecules`, `kT`, and `size`. `prepare` builds its parts in `system_`.
+parameters `n_molecules`, `kT`, and `size`. `prepare` builds its components in `system_`.
 
 ```python
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
@@ -152,7 +152,8 @@ these arguments.
   reading member and one column per reduced member. Member `i` then reads `sum_j W_ij a_j`, such as a payoff matrix.
   A vector with one weight per reduced member is a row that every reading member shares, such as the activities of a
   moment. A shaped parameter, such as `weights=s.W`, gives weights that a schedule, an experiment, or a training
-  interaction changes, as [Shaped parameters and coupling tensors](learning_by_gradient_steps.md#shaped-parameters-and-coupling-tensors) shows.
+  interaction changes, as [Shaped parameters](learning_by_gradient_steps.md#shaped-parameters) and
+  [Coupling tensors](learning_by_gradient_steps.md#coupling-tensors) show.
 - `over` names the group by its namespace, such as `over=s.neurons`, when the expression reads no symbol of it.
 
 Reductions follow these rules.

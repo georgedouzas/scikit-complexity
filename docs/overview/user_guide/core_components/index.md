@@ -1,9 +1,9 @@
-# How the parts fit
+# How the components fit
 
-This page explains the parts that every [system](../glossary.md#system) is made of and how a run turns them into numbers. It ends with a
-predator and its prey on a lattice, built one part at a time.
+This page explains the components that every [system](../glossary.md#system) is made of and how a run turns them into
+numbers. It ends with a predator and its prey on a lattice, built one component at a time.
 
-## The parts
+## The components
 
 An [element](../glossary.md#element) holds [states](../glossary.md#state), the numbers that change as the system runs, such as the size of a population. An [interaction](../glossary.md#interaction)
 reads states through its [roles](../glossary.md#role) and returns [laws](../glossary.md#law) that change them. A law is one equation or rule for one state, such as
@@ -57,21 +57,23 @@ all elements, and an epidemic, a reaction, and a payment are all interactions.
 
 ```mermaid
 flowchart LR
-    A[System] -->|prepare checks the parts and collects their laws| B[Laws]
+    A[System] -->|prepare checks the components and collects their laws| B[Laws]
     B -->|the compiler lowers the laws| C[Problem]
     C -->|a solver advances it on a backend| D[Frames]
     D -->|observers record them| E[Trajectory]
 ```
 
-`prepare` checks every part and binds every role to an element. The [compiler](../glossary.md#compiler) reads the laws of the parts and builds a
-problem of one mathematical form, such as a system of [ordinary differential equations](../glossary.md#ordinary-differential-equation). A [solver](../glossary.md#solver) advances the problem
-from [frame](../glossary.md#frame) to frame, and a [backend](../glossary.md#backend), NumPy by default, evaluates its functions. [Observers](../glossary.md#observer) receive the frames, and the
-recorder keeps them as the trajectory that `simulate` returns.
+`prepare` checks every component and binds every role to an element. The [compiler](../glossary.md#compiler) reads the
+laws of the components and builds a problem of one mathematical form, such as a system of [ordinary differential
+equations](../glossary.md#ordinary-differential-equation). A [solver](../glossary.md#solver) advances the problem from
+[frame](../glossary.md#frame) to frame, and a [backend](../glossary.md#backend), NumPy by default, evaluates its
+functions. [Observers](../glossary.md#observer) receive the frames, and the recorder keeps them as the trajectory that
+`simulate` returns.
 
 ## A system step by step
 
 Prey grow and predators hunt them on every site of a lattice, and prey move between neighbouring sites. Each step below
-adds one part and runs what it has so far.
+adds one component and runs what it has so far.
 
 ### The elements
 
@@ -112,7 +114,7 @@ habitats.values['prey'][:3].round(2).tolist()
 
 ### The interactions
 
-Two `RateInteraction` parts give the local equations of Lotka and Volterra. Prey grow at rate one and are eaten in
+Two `RateInteraction` components give the local equations of Lotka and Volterra. Prey grow at rate one and are eaten in
 proportion to the predators, and predators grow in proportion to the prey and die at rate one. Each interaction names
 the states its role reads.
 
@@ -160,7 +162,7 @@ time = ContinuousTime()
 
 ### The system
 
-A `CompositeSystem` holds the parts. Its [tags](../glossary.md#tag) come from them: rate laws in continuous time.
+A `CompositeSystem` holds the components. Its [tags](../glossary.md#tag) come from them: rate laws in continuous time.
 
 ```python continuation
 from skcomplex.core.components.systems import CompositeSystem
@@ -185,11 +187,11 @@ trajectory.get_values('habitats.prey').mean(axis=1).round(2).tolist()
 
 ## The main public methods
 
-Every part has two [main public methods](../glossary.md#main-public-methods), and both return the part itself. `prepare` checks the part against what it
-works on, such as the space of its system. `run` sets what the part contributes: the laws of an element, an
-interaction, or a system in `laws_`, and the value of a law in `value_`. A part runs only after it is prepared. Every
-part also has `get_params`, `set_params`, and `get_tags`, as scikit-learn estimators do. `simulate` is a function,
-since it is what is done to a system and not a part of it.
+Every component has two [main public methods](../glossary.md#main-public-methods), and both return the component itself.
+`prepare` checks the component against what it works on, such as the space of its system. `run` sets what the component
+contributes: the laws of an element, an interaction, or a system in `laws_`, and the value of a law in `value_`. A
+component runs only after it is prepared. Every component also has `get_params`, `set_params`, and `get_tags`, as
+scikit-learn estimators do. `simulate` is a function, since it is what is done to a system and not a component of it.
 
 A law runs on its own too, so it can be checked before it joins a system. This rate law gives its rate at `x = 10`.
 
@@ -216,7 +218,7 @@ The laws of a system give its tags, and the tags decide the default solver.
 A run also records [observables](../glossary.md#observable), named values computed from the states at every frame, and checks the [invariants](../glossary.md#invariant) it is
 given.
 
-## Where the parts live
+## Where the components live
 
 | Family | Import from | Reference |
 | --- | --- | --- |

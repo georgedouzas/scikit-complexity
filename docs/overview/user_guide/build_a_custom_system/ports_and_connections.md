@@ -1,4 +1,4 @@
-# Connected components
+# Ports and connections
 
 This page assembles a system from components that connect through ports, the way engineers draw circuits and
 plants. A port is the point where a component meets its neighbours, such as the pin of a resistor. Each component

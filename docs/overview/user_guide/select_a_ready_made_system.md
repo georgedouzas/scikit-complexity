@@ -1,7 +1,8 @@
 # Select a ready-made system
 
 This page finds a system of the catalog, reads what it models, and runs it with the settings it was tuned for. The
-catalog is the set of ready-made systems of `skcomplex.systems`, each a class built from the public parts of the core.
+catalog is the set of ready-made systems of `skcomplex.systems`, each a class built from the public components of the
+core.
 
 ## The catalog
 
@@ -140,7 +141,7 @@ system what a builder needs to copy:
 
 A system of your own follows the same steps. Declare the element and interaction types, and write a class that builds
 the system from its parameters, as the page [System classes](system_classes.md) shows. The tutorial
-[Check a system](check.md#what-an-interaction-needs) shows how to find which parts fit together, and the
+[Check a system](check.md#what-an-interaction-needs) shows how to find which components fit together, and the
 [contributing guide](../../development/contributing.md#adding-a-system-to-the-catalog) covers adding a system to the
 catalog.
 

@@ -33,9 +33,9 @@ trajectory = simulate(system, observers=[observer])
 # The closed loop `x' = (A - B K) x` decays at the rate of its slowest eigenvalue, so the energy, a quadratic form of
 # the state, should fall as `exp(2 Re(lambda) t)` once the faster mode has died out.
 
-parts = system.prepare().system_
-linear = linearization(CompositeSystem(elements=list(parts.elements)))
-gain = np.array([parts.interactions[0].gain])
+composite = system.prepare().system_
+linear = linearization(CompositeSystem(elements=list(composite.elements)))
+gain = np.array([composite.interactions[0].gain])
 slowest = max(np.linalg.eigvals(linear.A - linear.B @ gain).real)
 times, energy = trajectory.times, trajectory.get_values('energy')
 decay = energy[40] * np.exp(2 * slowest * (times - times[40]))

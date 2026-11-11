@@ -21,8 +21,8 @@ space.size_, space.shape_, space.periodic_, space.positions_[4].tolist()
 The lattice has 12 sites in an array of shape `(4, 3)`, it wraps, and its fifth site, the second of the second row,
 sits at the position `[1.0, 1.0]`.
 
-A space is a part of its system and has the same main public methods. `prepare()` checks the arguments and derives the
-facts, whose names end in `_`.
+A space is a component of its system and has the same main public methods. `prepare()` checks the arguments and derives
+the facts, whose names end in `_`.
 
 - `size_` is the number of sites, and `n_dim_` the dimension.
 - `shape_` is the shape of the arrays of the sites, and `positions_` the position of every site.

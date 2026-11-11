@@ -119,7 +119,7 @@ group, such as a cell that mutates into another subsystem. The law follows these
 
 ## External actions
 
-This section adds a policy that acts on the population from outside. External actions need no part of their own. A
+This section adds a policy that acts on the population from outside. External actions need no component of their own. A
 micro-scale action, such as a welfare policy that acts on the transitions between wealth classes, is an encounter whose
 field role binds a group with fixed states, a group that no law changes. A macro-scale action, such as a recruitment of
 security forces in proportion to the mean criminality, is a [`RateLaw`](../core_components/laws.md#ratelaw) that reads

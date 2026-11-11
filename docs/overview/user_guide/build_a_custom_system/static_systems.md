@@ -58,7 +58,7 @@ equations are solved in one of two ways.
 - Otherwise `RootSolver` solves them with `scipy.optimize.root` and their exact Jacobian, from the initial state as the
   guess. It raises a `SolverError` that names the equations and the largest residual when the solve does not converge.
 
-Equations combine across the parts of a system.
+Equations combine across the components of a system.
 
 - A target on a group gives one unknown per member, and reductions such as `total` couple the members.
 - The equations of one target from every element and interaction add.
@@ -85,9 +85,9 @@ round(float(trajectory.get_values('ensemble.entropy')[0]), 4)
 
 With 12 spins at temperature 2.0, the entropy per spin is 0.6309.
 
-Quenched disorder, randomness drawn once and then held fixed, is drawn when the system builds its parts. So a disorder
-average sweeps its `random_state` as an axis of `sweep`. The `replicates` of `ensemble` share one draw of the disorder
-and vary only the dynamics.
+Quenched disorder, randomness drawn once and then held fixed, is drawn when the system builds its components. So a
+disorder average sweeps its `random_state` as an axis of `sweep`. The `replicates` of `ensemble` share one draw of the
+disorder and vary only the dynamics.
 
 ## Contact clusters
 

@@ -2,15 +2,15 @@
 
 A system composes elements, interactions, nested systems, a space, and a time into one model that `simulate` runs.
 Elements hold the states, interactions return the laws that change them, a space places the members of a group, and a
-time says whether the states flow, step, or are solved once. A `CompositeSystem` takes these parts as data. A
+time says whether the states flow, step, or are solved once. A `CompositeSystem` takes these components as data. A
 `BaseSystem` builds them from the parameters of a model, so users can set, sweep, and calibrate them. `RunSettings`
-holds the end time, the step, and the solver that suit a system class. [How the parts fit](index.md) shows the
-families together, and the [systems parts page](../../../parts/systems.md) compares the system classes and holds their
-fact sheets.
+holds the end time, the step, and the solver that suit a system class. [How the components fit](index.md) shows the
+families together, and the [systems page](../../../components/systems.md) compares the system classes and
+holds their fact sheets.
 
 ## CompositeSystem
 
-A `CompositeSystem` holds the parts of a model as they are given. Here prey grow and predators hunt them on every
+A `CompositeSystem` holds the components of a model as they are given. Here prey grow and predators hunt them on every
 site of a lattice of three by three sites, and prey move between neighbouring sites. The prey start unevenly, with
 more on the first site and fewer on the third.
 
@@ -57,8 +57,8 @@ simulate(savings, until=10, dt=5.0).get_values('account.x').round(2).tolist()
 The withdrawals exceed the interest, so the balance falls to 602.36 after five years and to 91.79 after ten.
 
 **How the engine runs it.** `prepare` prepares the space and the time first, then the elements and the nested
-systems on the space, then the interactions. The compiler collects the laws of every part and lowers them to one
-problem, and the tags of the system come from its parts. The tags choose the default solver.
+systems on the space, then the interactions. The compiler collects the laws of every component and lowers them to one
+problem, and the tags of the system come from its components. The tags choose the default solver.
 
 ```python continuation
 tags = ecosystem.get_tags()
@@ -82,11 +82,11 @@ trajectory.get_values('savings/account.x').round(2).tolist(), trajectory.get_val
 ```
 
 The account falls to 928.22 and 852.76 under its own laws, and the fund grows to 96.44 and 185.52. A nested system
-may also be a `BaseSystem` subclass, which the composite replaces by the parts it builds.
+may also be a `BaseSystem` subclass, which the composite replaces by the components it builds.
 
-**Limits and errors.** The parts are fixed when the system is built, so a parameter sweep over a composite rebuilds
-the parts by hand. A `BaseSystem` builds them from parameters. Every role must name an element of the system, and the
-run raises a `RoleError`, a kind of `ValidationError`, for a path that names none.
+**Limits and errors.** The components are fixed when the system is built, so a parameter sweep over a composite rebuilds
+the components by hand. A `BaseSystem` builds them from parameters. Every role must name an element of the system, and
+the run raises a `RoleError`, a kind of `ValidationError`, for a path that names none.
 
 ```python continuation
 from skcomplex.core.errors import ValidationError
@@ -127,14 +127,14 @@ simulate(SavingsSystem(withdrawal=50.0), until=10, dt=10.0).get_values('account.
 
 Withdrawals of 50 a year equal the interest on 1000 at 5 percent, so the balance stays at 1000.
 
-See its [fact sheet](../../../parts/systems.md#compositesystem)
+See its [fact sheet](../../../components/systems.md#compositesystem)
 and its [API entry][skcomplex.core.components.systems.CompositeSystem].
 
 ## BaseSystem
 
 A `BaseSystem` is the base of a system class with model parameters. The subclass takes the parameters as arguments of
-its `__init__` and stores each under the same name, as a scikit-learn estimator does, and it builds its parts in the
-hook `_build_system`. Class variables such as `until` and `dt` are its tuned run settings. Here an outbreak grows
+its `__init__` and stores each under the same name, as a scikit-learn estimator does, and it builds its components in
+the hook `_build_system`. Class variables such as `until` and `dt` are its tuned run settings. Here an outbreak grows
 logistically in a town, at the rate `beta` among `population` people.
 
 ```python
@@ -197,8 +197,8 @@ before, after
 With `k = 0.1` the coffee falls from 90 to 45.8 and 29.5 degrees, and with `k = 0.05` it cools more slowly, to 62.5 and
 45.8 degrees.
 
-**How the engine runs it.** `prepare` builds the parts again when a parameter has changed by value since the last
-build, and prepares them as `system_`. The tags of the system are those of its parts, never declared, and `clone`
+**How the engine runs it.** `prepare` builds the components again when a parameter has changed by value since the last
+build, and prepares them as `system_`. The tags of the system are those of its components, never declared, and `clone`
 copies the parameters, as for any scikit-learn estimator.
 
 ```python continuation
@@ -208,7 +208,7 @@ copy = clone(cup)
 copy.get_params(), sorted(copy.get_tags().laws), type(copy.prepare().system_).__name__
 ```
 
-The clone has the cooling constant 0.05 that `set_params` gave the cup, its laws are rates, and its parts form a
+The clone has the cooling constant 0.05 that `set_params` gave the cup, its laws are rates, and its components form a
 `CompositeSystem`.
 
 **How it combines.** A system class nests inside a `CompositeSystem` through `systems`, and its states are named by
@@ -221,7 +221,7 @@ simulate(town, until=10, dt=10.0).get_values('outbreak/infected.x').round(1).tol
 
 The nested outbreak reaches 168.7 infected after ten days, as it does alone.
 
-**Limits and errors.** The hook `_build_system` returns the `CompositeSystem` of the parts, and `prepare` raises a
+**Limits and errors.** The hook `_build_system` returns the `CompositeSystem` of the components, and `prepare` raises a
 `ValidationError` for anything else, such as one element.
 
 ```python continuation
@@ -240,13 +240,13 @@ except ValidationError as error:
 message
 ```
 
-The message reads "TankSystem builds its parts as a CompositeSystem, not as DeclaredElement." The fix is to return
+The message reads "TankSystem builds its components as a CompositeSystem, not as DeclaredElement." The fix is to return
 `CompositeSystem(self.label, elements=[tank])`.
 
 **A field realization.** The subclasses above are field realizations, an outbreak of epidemiology and the cooling of
 physics. The catalog writes each of its systems the same way.
 
-See its [fact sheet](../../../parts/systems.md#basesystem)
+See its [fact sheet](../../../components/systems.md#basesystem)
 and its [API entry][skcomplex.core.components.systems.BaseSystem].
 
 ## RunSettings
@@ -367,4 +367,4 @@ class SeasonSystem(OutbreakSystem):
 SeasonSystem(days=20.0).get_run_settings()['until']
 ```
 
-See its [API entry][skcomplex.core.components.systems.RunSettings]. It is not a part, so it has no fact sheet.
+See its [API entry][skcomplex.core.components.systems.RunSettings]. It is not a component, so it has no fact sheet.

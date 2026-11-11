@@ -2,13 +2,13 @@
 
 This tutorial turns the hare and lynx model into a system class of the catalog, checks it the way the tests of the
 catalog do, and writes its inventory entry and its gallery example. It ends with the steps of a contribution to the
-repository. The page [Extend the library](extend_the_library.md) explains where a new part goes, and this page follows
-its placement rule.
+repository. The page [Extend the library](extend_the_library.md) explains where a new component goes, and this page
+follows its placement rule.
 
 ## The system class
 
 A system of the catalog is a subclass of [`BaseSystem`][skcomplex.core.components.systems.BaseSystem] whose name ends
-in `System`. It takes its model parameters as arguments, stores each under its own name, and builds its parts in
+in `System`. It takes its model parameters as arguments, stores each under its own name, and builds its components in
 `_build_system`. Four class variables describe it:
 
 - `field` is the field path, a field and a subfield of the catalog, such as `'biology/ecology'`.
@@ -16,12 +16,12 @@ in `System`. It takes its model parameters as arguments, stores each under its o
 - `references` are the works the model comes from, each an author and a year.
 - `until` and `dt` are the tuned run settings, which `simulate` reads when a call leaves them out.
 
-The tutorial [Build a custom system](build_a_custom_system/index.md) wrote the model as `PeltSystem` from core parts.
-The class below builds it from the same core parts. A class of the catalog would build it from the parts that the
-systems of ecology share in `skcomplex.systems.biology.common`, a population element and the growth, predation, and
-mortality interactions, so that one model has one implementation. Its defaults are the rates of Carpenter (2018)
-and the pelt records of 1900, and its docstring follows the style of the catalog: a summary, a paragraph on what the model shows,
-the arguments, and an example.
+The tutorial [Build a custom system](build_a_custom_system/index.md) wrote the model as `PeltSystem` from core
+components. The class below builds it from the same core components. A class of the catalog would build it from the
+components that the systems of ecology share in `skcomplex.systems.biology.common`, a population element and the growth,
+predation, and mortality interactions, so that one model has one implementation. Its defaults are the rates of Carpenter
+(2018) and the pelt records of 1900, and its docstring follows the style of the catalog: a summary, a paragraph on what
+the model shows, the arguments, and an example.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -149,9 +149,9 @@ observer.logged_frames_ == len(trajectory.times), copy is not system, hares
 The observer logged all eleven frames, the clone is a new object, and the hares rise from 30.0 to 81.2 thousand in
 1903, as in the build tutorial. The tuned `dt` of one year set the length of the run.
 
-A class of the catalog must also run like the same parts put together by hand, and it must say what it is through its
-capability tags. The block below compares the states of a run with those of `LotkaVolterraSystem`, which holds the same
-model with the rates `r`, `a`, `b`, and `d`, and reads the tags.
+A class of the catalog must also run like the same components put together by hand, and it must say what it is through
+its capability tags. The block below compares the states of a run with those of `LotkaVolterraSystem`, which holds the
+same model with the rates `r`, `a`, `b`, and `d`, and reads the tags.
 
 ```python continuation
 import numpy as np
@@ -200,9 +200,9 @@ docs/examples/biology/ecology/
     plot_hare_lynx.py            the gallery example
 ```
 
-The module holds one system with the parts only it uses. A part that several systems of ecology share goes to
-`skcomplex.systems.biology.common`, and a part that several fields share goes to `skcomplex.systems.general`, as the
-placement rule of [Extend the library](extend_the_library.md#where-a-new-part-goes) says.
+The module holds one system with the components only it uses. A component that several systems of ecology share goes to
+`skcomplex.systems.biology.common`, and a component that several fields share goes to `skcomplex.systems.general`, as
+the placement rule of [Extend the library](extend_the_library.md#where-a-new-component-goes) says.
 
 ### The inventory entry
 

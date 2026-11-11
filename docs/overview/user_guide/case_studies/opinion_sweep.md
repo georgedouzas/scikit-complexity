@@ -36,9 +36,9 @@ tags = opinions_model.get_tags()
 [element.label for element in opinions_model.prepare().system_.elements], sorted(tags.time), tags.randomness
 ```
 
-`prepare` builds the parts and checks that they fit together. The model has one element, the group `people` that holds
-the agents. Time is discrete, since the model steps through rounds of encounters, and the model is stochastic, since the
-pairs meet at random. A run therefore needs a seed, and a study needs several runs per setting.
+`prepare` builds the components and checks that they fit together. The model has one element, the group `people` that
+holds the agents. Time is discrete, since the model steps through rounds of encounters, and the model is stochastic,
+since the pairs meet at random. A run therefore needs a seed, and a study needs several runs per setting.
 
 ## One run and its clusters
 

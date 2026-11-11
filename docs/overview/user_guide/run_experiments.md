@@ -24,7 +24,7 @@ system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024,
 The system has the populations `prey` and `predators`, each with the [state](glossary.md#state) `x`, and the [interactions](glossary.md#interaction) `growth`,
 `predation`, and `death`. An experiment names a value in two ways. A name without a dot, such as `r`, is a model
 parameter of the system, set on a copy with `set_params`. A dotted path, such as `growth.r` or `prey.x`, is a parameter
-or an initial state of a part, which keeps its value for the whole run.
+or an initial state of a component, which keeps its value for the whole run.
 
 ## Sweeps
 
@@ -132,8 +132,9 @@ message
 ```
 
 The message says that `ensemble` needs the randomness `stochastic` while `LotkaVolterraSystem` is deterministic, and
-suggests running it once with `simulate` or giving it a part or a [solver](glossary.md#solver) that draws. The randomness is one of the
-capability [tags](glossary.md#tag) of a system, which the page [Check a system](check.md) describes.
+suggests running it once with `simulate` or giving it a component or a [solver](glossary.md#solver) that draws. The
+randomness is one of the capability [tags](glossary.md#tag) of a system, which the page [Check a system](check.md)
+describes.
 
 On a small island the populations are counted one animal at a time, and chance decides each birth and death. The
 [recipe](glossary.md#recipe) `ReactionNetworkSystem` of `skcomplex.systems.general.reactions` runs the four terms of the model as reactions.

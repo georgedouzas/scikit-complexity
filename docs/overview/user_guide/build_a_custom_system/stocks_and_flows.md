@@ -289,7 +289,7 @@ outside flow variables, or are subscripted, keeps the shape of a custom system. 
 are the stocks and whose parameters are the constants, and a system class on
 [`BaseSystem`](../core_components/systems.md#basesystem) that builds the element and its interactions.
 
-Time in the module runs from zero, and `Time` in the file becomes `t + START`. The parts of the file become these.
+Time in the module runs from zero, and `Time` in the file becomes `t + START`. The variables of the file become these.
 
 - A flow variable that leaves one stock and enters another is a flow between them. A flow variable of one stock is a
   flow with the environment, a [`TransferInteraction`](../core_components/interactions.md#transferinteraction) with

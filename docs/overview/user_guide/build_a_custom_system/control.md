@@ -63,8 +63,8 @@ value. Without one it keeps its initial value.
 
 ## Objectives and optimal control
 
-This section finds the control that minimises a cost over a run. An objective defines a control problem, not a part of
-a system, so the optimal control solvers take it as arguments. The plant `x' = u` starts at `x = 1`, and the cost
+This section finds the control that minimises a cost over a run. An objective defines a control problem, not a component
+of a system, so the optimal control solvers take it as arguments. The plant `x' = u` starts at `x = 1`, and the cost
 integrates `(x^2 + u^2) / 2` over one time unit, so the control must pull the state to zero without spending too much
 effort. `PontryaginSolver` solves the problem by the maximum principle of Pontryagin.
 

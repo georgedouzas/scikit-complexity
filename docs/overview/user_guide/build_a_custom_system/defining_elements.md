@@ -61,8 +61,8 @@ scikit-learn estimator. A class annotates each variable with `typing.Annotated` 
 - The domain of a state or a parameter is a Sage set, such as `RR`, `ZZ`, `CC`, `RealSet.closed_open(0, oo)`, or
   `FiniteEnumeratedSet(['S', 'I', 'R'])`.
 - `_get_laws(s)` returns the laws of the class, and returns none by default.
-- `get_params`, `set_params`, `clone`, and `repr` follow the scikit-learn estimator contract, so every part clones with
-  its values.
+- `get_params`, `set_params`, `clone`, and `repr` follow the scikit-learn estimator contract, so every component clones
+  with its values.
 
 Inside `_get_laws`, `s` is the namespace of symbols. `s.rate` is the symbol of the parameter, and `s.target.n` is the
 symbol of the state of the element bound to the role `target`. Parameters stay symbols, so the `schedule` of

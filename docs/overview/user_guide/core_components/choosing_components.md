@@ -1,9 +1,9 @@
-# Choosing parts
+# Choosing components
 
-This guide leads from the features of a problem to the parts of the core that model it. Four questions, asked in
+This guide leads from the features of a problem to the components of the core that model it. Four questions, asked in
 order, fix the time, the element, the space, and the interactions, and a [`CompositeSystem`](systems.md#compositesystem)
-then holds the parts. [How the parts fit](index.md) explains each family, and every leaf below links the reference
-section of its part.
+then holds the components. [How the components fit](index.md) explains each family, and every leaf below links the
+reference section of its component.
 
 ```mermaid
 flowchart TD
@@ -30,7 +30,7 @@ flowchart TD
     A -->|the answer is a balance or an optimum| D[StaticTime]
 ```
 
-| Leaf | Part | Typical laws |
+| Leaf | Component | Typical laws |
 | --- | --- | --- |
 | it changes at every instant | [`ContinuousTime`](spaces.md#continuoustime) | rates, noises, and random events |
 | it changes once per round | [`DiscreteTime`](spaces.md#discretetime) | updates, local rules, and agent rules |
@@ -40,7 +40,7 @@ flowchart TD
 
 ## Is it one amount, a vector, or many members?
 
-This question fixes the element, the part that holds the states. One amount, or a few named numbers, sits in one
+This question fixes the element, the component that holds the states. One amount, or a few named numbers, sits in one
 element. A vector, such as the position of a body, is one state with several components. Many alike units, such as the
 people of an epidemic on a network or the cells of a grid, are the members of a group, and a quantity that has a value
 at every point of a space is a field.
@@ -56,7 +56,7 @@ flowchart TD
     A -->|a word or a pattern of tiles| H[WordElement or PatchElement]
 ```
 
-| Leaf | Part |
+| Leaf | Component |
 | --- | --- |
 | the numbers are data | [`DeclaredElement`](elements.md#declaredelement) |
 | the model is a class of its own | [`Element`](elements.md#element) |
@@ -99,7 +99,7 @@ A `GroupElement` takes the space as `space=...` and `on='sites'`, and a group on
 
 ## How do they act?
 
-This question fixes the interactions, the parts that read states and return the laws that change them. Members that
+This question fixes the interactions, the components that read states and return the laws that change them. Members that
 change at rates act through rate laws in continuous time. Members that set their next values once per step act
 through maps. Agents that look around, decide, and act one after another follow agent rules.
 
@@ -120,7 +120,7 @@ flowchart TD
     L -->|members in random groups| N[GroupingInteraction]
 ```
 
-| Leaf | Part |
+| Leaf | Component |
 | --- | --- |
 | its own rate | [`RateInteraction`](interactions.md#rateinteraction) |
 | amounts that move between holders | [`TransferInteraction`](interactions.md#transferinteraction) |
@@ -139,8 +139,8 @@ reactions at a product propensity with [`ReactionInteraction`](general.md#reacti
 
 ## A worked path
 
-This section follows the four questions for one problem and builds the parts they lead to. A population of people lives
-on a friendship network, and each day every person moves their opinion halfway towards the mean opinion of their
+This section follows the four questions for one problem and builds the components they lead to. A population of people
+lives on a friendship network, and each day every person moves their opinion halfway towards the mean opinion of their
 friends.
 
 1. The opinions change once a day, so the state steps, and the time is [`DiscreteTime`](spaces.md#discretetime).

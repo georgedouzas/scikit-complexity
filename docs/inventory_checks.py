@@ -203,7 +203,8 @@ def _tag_problems(name: str, entry: dict[str, Any], system_class: type[BaseSyste
     except SkcomplexError as error:
         return [*problems, f'{name} has a system class whose tags cannot be derived: {error}']
     if tags.laws is None:
-        problems.append(f'{name} has a system class whose parts do not show their law kinds, so list their law_classes')
+        error_msg = f'{name} has a system class whose components do not show their law kinds, so list their law_classes'
+        problems.append(error_msg)
     return problems
 
 

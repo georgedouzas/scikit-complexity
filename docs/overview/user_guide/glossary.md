@@ -49,15 +49,22 @@ path cannot be predicted. A positive Lyapunov exponent is its signature. See
 
 ## Co-simulation
 
-Co-simulation runs the partitions of one system, each with its own solver, and exchanges their values at
-synchronisation points. It joins parts that no single solver runs, such as agents beside a differential equation. See
+Co-simulation runs the partitions of one system, each with its own solver, and exchanges their values at synchronisation
+points. It joins components that no single solver runs, such as agents beside a differential equation. See
 [Simulate](simulate.md#co-simulation).
 
 ## Compiler
 
 The compiler reads the laws of a prepared system and builds one problem of a mathematical form, such as a system of
 ordinary differential equations. A solver then advances that problem. See
-[How the parts fit](core_components/index.md#a-run).
+[How the components fit](core_components/index.md#a-run).
+
+## Component
+
+A component is a building block of a system: an element, an interaction, a law, a space, a neighbourhood, a time, or a
+nested system. Every component derives from `BaseComponent`, has a label, and returns its laws and its capability tags.
+A component of a vector or a connected component of a network keeps its usual meaning. See
+[How the components fit](core_components/index.md#the-components).
 
 ## Credible interval
 
@@ -77,7 +84,7 @@ zero up. A role names the domains it accepts, and a state of another domain does
 
 ## Dotted name
 
-A dotted name joins the label of a part and the name of one of its values, such as `prey.x` or `predation.a`. A
+A dotted name joins the label of a component and the name of one of its values, such as `prey.x` or `predation.a`. A
 trajectory, a schedule, and an experiment name states and parameters this way. See
 [Simulate](simulate.md#the-trajectory).
 
@@ -93,8 +100,8 @@ what chance alone can do. See [Run experiments](run_experiments.md#ensembles).
 
 ## Field realization
 
-A field realization is a subclass of a core part that names it in the words of one field and fixes its arguments, such
-as a compartment of an epidemic written as a `DeclaredElement`. The catalog writes its systems this way. See
+A field realization is a subclass of a core component that names it in the words of one field and fixes its arguments,
+such as a compartment of an epidemic written as a `DeclaredElement`. The catalog writes its systems this way. See
 [System classes](system_classes.md#field-realizations).
 
 ## Fixed point
@@ -157,8 +164,8 @@ The kind of an element says how many members it holds and where they sit, such a
 
 ## Label
 
-A label is the name of a part, unique among the parts of its system. Roles bind elements by label, and dotted names
-start with it. See [Check a system](check.md#two-parts-with-one-label).
+A label is the name of a component, unique among the components of its system. Roles bind elements by label, and dotted
+names start with it. See [Check a system](check.md#two-components-with-one-label).
 
 ## Law
 
@@ -167,8 +174,8 @@ interactions return laws, and the compiler joins them into a problem. See [Laws]
 
 ## Law kind
 
-The law kind of a part is the kind of law it returns, such as `rate`, `update`, or `jump`. The law kinds of a system
-decide its mathematical form and its default solver. See [Check a system](check.md#tags).
+The law kind of a component is the kind of law it returns, such as `rate`, `update`, or `jump`. The law kinds of a
+system decide its mathematical form and its default solver. See [Check a system](check.md#tags).
 
 ## Likelihood
 
@@ -188,8 +195,9 @@ means chaos, a negative one contraction, and zero a direction along which paths 
 
 ## Main public methods
 
-The main public methods of a part are `prepare`, which checks it against what it works on, and `run`, which sets what
-it contributes. Both return the part itself. See [How the parts fit](core_components/index.md#the-main-public-methods).
+The main public methods of a component are `prepare`, which checks it against what it works on, and `run`, which sets
+what it contributes. Both return the component itself. See [How the components
+fit](core_components/index.md#the-main-public-methods).
 
 ## Markov chain Monte Carlo
 
@@ -211,7 +219,7 @@ member holds its own copy of the states of the class. See [GroupElement](core_co
 ## Model parameter
 
 A model parameter is an argument of a system class, such as the growth rate `r`, set with `set_params`. Changing it
-builds new parts, while a dotted name changes a value of the built parts. See
+builds new components, while a dotted name changes a value of the built components. See
 [Change it](change_it.md#model-parameters).
 
 ## Neighbourhood
@@ -222,7 +230,7 @@ lattice or every point within a radius. Interactions over neighbours read it. Se
 
 ## Nested system
 
-A nested system is a system held inside another as one of its parts. Its elements are reached by paths such as
+A nested system is a system held inside another as one of its components. Its elements are reached by paths such as
 `village/farmers`, and it becomes a partition when its laws fit one form. See [Simulate](simulate.md#co-simulation).
 
 ## Observable
@@ -248,7 +256,7 @@ a steady state, a few a periodic cycle, and many a cycle that does not repeat. S
 
 ## Partition
 
-A partition is a part of a system that runs with its own solver during co-simulation. Each nested system whose laws
+A partition is a group of the components of a system that runs with its own solver during co-simulation. Each nested system whose laws
 fit one form becomes one. See [Simulate](simulate.md#co-simulation).
 
 ## Phase space
@@ -340,13 +348,13 @@ See [Spaces, neighbourhoods, and times](core_components/spaces.md).
 ## Spec
 
 A spec is a small frozen record that describes a value, such as a `StateSpec` that gives the domain and the order of a
-state. Parts read specs for their declarations and settings. See
-[How the parts fit](core_components/index.md#the-elements).
+state. Components read specs for their declarations and settings. See
+[How the components fit](core_components/index.md#the-elements).
 
 ## State
 
 A state is a number that changes as a system runs, such as the size of a population. Its initial value is the
-default of its argument. See [How the parts fit](core_components/index.md#the-parts).
+default of its argument. See [How the components fit](core_components/index.md#the-components).
 
 ## Steady state
 
@@ -382,17 +390,18 @@ A sweep runs a system once per row of a design of parameter values and collects 
 ## System
 
 A system composes elements, interactions, a space, and a time into one model that `simulate` runs. A system class
-builds its parts from model parameters. See [Systems](core_components/systems.md).
+builds its components from model parameters. See [Systems](core_components/systems.md).
 
 ## System class
 
-A system class is a subclass of `BaseSystem` that builds its parts from model parameters and tunes its run settings.
-The catalog holds ready-made system classes. See [System classes](system_classes.md).
+A system class is a subclass of `BaseSystem` that builds its components from model parameters and tunes its run
+settings. The catalog holds ready-made system classes. See [System classes](system_classes.md).
 
 ## Tag
 
-A tag records a capability of a part, such as its time, its law kinds, the domains of its states, or its randomness.
-The tags of a system join those of its parts and choose its solver. See [Check a system](check.md#tags).
+A tag records a capability of a component, such as its time, its law kinds, the domains of its states, or its
+randomness. The tags of a system join those of its components and choose its solver. See [Check a
+system](check.md#tags).
 
 ## Time
 

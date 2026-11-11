@@ -6,7 +6,7 @@ running example is `LotkaVolterraSystem`, the predator and prey model of Lotka (
 ## Changing a ready-made system
 
 A ready-made system changes in three places. Its model parameters change the system itself, the arguments of
-`simulate` change how it runs, and its parts can leave the class and run as a system of your own.
+`simulate` change how it runs, and its components can leave the class and run as a system of your own.
 
 ### Model parameters
 
@@ -29,14 +29,14 @@ simulate(LotkaVolterraSystem(r=1.5, predators=5.0)).get_values('prey.x').max().r
 ```
 
 With a faster growth and fewer predators at the start, the prey peak at 41. `set_params` changes the parameters of an
-existing system, and `prepare` builds its parts from them.
+existing system, and `prepare` builds its components from them.
 
 ```python continuation
 logistic = LotkaVolterraSystem().set_params(K=200.0)
 logistic.prepare().system_.interactions
 ```
 
-The parts are a `LogisticGrowthInteraction` with `K=200.0`, a `PredationInteraction`, and a `MortalityInteraction`.
+The components are a `LogisticGrowthInteraction` with `K=200.0`, a `PredationInteraction`, and a `MortalityInteraction`.
 `prepare` keeps them as `system_`, the [`CompositeSystem`](core_components/systems.md#compositesystem) of the elements
 and interactions of the system.
 
@@ -97,7 +97,7 @@ trajectory.get_values('predators.x')[-1].round(3)
 ```
 
 The predators end at 0.48 at time 30. States and parameters are named by their dotted path, such as `prey.x` and
-`predation.a`. The labels of the elements and interactions are those of the parts in `system_` after `prepare`. The
+`predation.a`. The labels of the elements and interactions are those of the components in `system_` after `prepare`. The
 section [Run settings](simulate.md#run-settings) of the simulation tutorial lists every run setting.
 
 ## Composing systems
@@ -163,8 +163,8 @@ The rabbits fall from 50 to 0.735 in ten time units. The interaction `hunt` sits
 parameters are named by their path, such as `meadow/rabbits.n` and `hunt.a`, in the trajectory, in initial values, and
 in parameter changes.
 
-A ready-made system nests in the same way, through its parts. Give each nested system its own label, since a system
-class has the label `system` by default, and nest the composite `system_` of its parts.
+A ready-made system nests in the same way, through its components. Give each nested system its own label, since a system
+class has the label `system` by default, and nest the composite `system_` of its components.
 
 ```python
 from skcomplex.core.components.systems import CompositeSystem

@@ -1,6 +1,6 @@
 # Kinds of dynamics
 
-This page shows where the parts of each kind of dynamics live, and how `simulate` turns the laws of a system into a
+This page shows where the classes of each kind of dynamics live, and how `simulate` turns the laws of a system into a
 problem that a [solver](../glossary.md#solver) runs. A kind of dynamics is the form of the change, such as rates in
 continuous time, local rules on a lattice, or operators on a quantum state.
 
@@ -20,13 +20,13 @@ The tags read `['rate']` and `['continuous']`, so the system returns rates in co
 solver of ordinary differential equations. After 160 days, 941.2 people have recovered.
 
 Some kinds of dynamics, such as lattice dynamics or operator dynamics, serve few systems. None of them is a package of
-its own. Its laws, elements, and spaces are parts of the core, and its compiler passes, solvers, and visuals are parts
-of the engine, beside those of every other kind.
+its own. Its laws, elements, and spaces are components of the core, and its compiler passes, solvers, and visuals are
+parts of the engine, beside those of every other kind.
 
 ## Where each kind lives
 
-The table below finds the parts that a kind of dynamics needs. The column "Core" names the parts you build a system
-from, and the column "Engine" names what compiles and runs them.
+The table below finds the classes that a kind of dynamics needs. The column "Core" names the components you build a
+system from, and the column "Engine" names what compiles and runs them.
 
 | Kind | Core | Engine |
 | --- | --- | --- |

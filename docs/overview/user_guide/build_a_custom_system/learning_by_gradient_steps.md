@@ -67,7 +67,7 @@ round(float(trajectory.get_values('decay/unit.a')[-1]), 3), bool(trajectory.get_
 ```
 
 The trained rate is 0.8, the rate of the data, and the loss of the last epoch is below `1e-6`.
-`TrainingInteraction`, of `skcomplex.core.components.interactions`, writes this with the existing parts.
+`TrainingInteraction`, of `skcomplex.core.components.interactions`, writes this with the existing components.
 
 - The inner system is a nested system, such as `decay` above.
 - Its trained parameters are declared `ParameterSpec(adaptive=True)`.
@@ -83,9 +83,9 @@ The trained rate is 0.8, the rate of the data, and the loss of the last epoch is
 - `GradientStepLaw` takes optimizer steps on the adaptive parameters of a nested system once per epoch. It follows the
   gradient of a loss over unrolled runs of that system, computed by automatic differentiation with JAX.
 
-## The parts of training
+## The components of training
 
-This section describes each part of a training run and the options it takes.
+This section describes each component of a training run and the options it takes.
 
 - **The inner system.** It is an ordinary system, a discrete map or ordinary differential equations written as
   symbolic laws, so it runs, is analysed, and is visualised alone, before or after training. The trained system of a

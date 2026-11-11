@@ -47,8 +47,8 @@
 ## Overview
 
 `scikit-complexity` simulates and analyses complex systems from any field of science. You describe a system by its
-parts, and the library derives its equations, picks a solver unless you choose one, runs the simulation, and can stream
-it to the [Rerun](https://rerun.io) viewer.
+components, and the library derives its equations, picks a solver unless you choose one, runs the simulation, and can
+stream it to the [Rerun](https://rerun.io) viewer.
 
 Complex systems are usually modelled in separate tools, often one for each field, each with its own conventions. Here
 every field shares one small vocabulary in the style of [scikit-learn](https://scikit-learn.org). Elements carry
@@ -114,8 +114,8 @@ states, interactions change them through laws, and systems nest and compose.
   scaling laws, and system identification. The experiment functions run parameter sweeps, sensitivity analyses,
   calibrations, and studies of basin stability.
 - **Mature libraries underneath.** SciPy, NetworkX, Mesa, LAMMPS, QuTiP, JAX, and others do the numerical work.
-- **Parts of your own.** The ready-made systems use the same public classes as you do, so each one is also an example
-  for a system of your own.
+- **Components of your own.** The ready-made systems use the same public classes as you do, so each one is also an
+  example for a system of your own.
 
 ## Installation
 
@@ -321,8 +321,8 @@ The equation of the stock is the logistic growth `-0.0005 (n - 1000) n` minus th
 
 ### Find out which components fit
 
-This section checks that parts fit before you build a system with them. An interaction states what it needs from each
-role, and an element states what it carries.
+This section checks that components fit before you build a system with them. An interaction states what it needs from
+each role, and an element states what it carries.
 
 ```python continuation
 hunt = PredationInteraction('hunt', predator='foxes', prey='rabbits')
@@ -356,8 +356,8 @@ message
 The message says that the role `prey` reads `n` but the element `tank` carries `level`. It proposes three fixes: bind
 the role to an element that carries the state, declare the state on the element, or read another state.
 
-The [parts pages](https://georgedouzas.github.io/scikit-complexity/parts/elements/) list every element, interaction, law,
-solver, and backend with the tags they accept, and the
+The [component pages](https://georgedouzas.github.io/scikit-complexity/components/elements/) list every element,
+interaction, law, solver, and backend with the tags they accept, and the
 [user guide](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/check/#what-an-interaction-needs)
 walks through the choices in order.
 

@@ -2,8 +2,8 @@
 
 An element holds the states of a system, the numbers that change as the system runs. An interaction reads these states
 and returns laws that change them, a space places the members of a group, and a system composes elements,
-interactions, and a space into one model. [How the parts fit](index.md) shows the families together, and the
-[elements parts page](../../../parts/elements.md) compares every element class and holds its fact sheet.
+interactions, and a space into one model. [How the components fit](index.md) shows the families together, and the
+[elements page](../../../components/elements.md) compares every element class and holds its fact sheet.
 
 ## DeclaredElement
 
@@ -89,7 +89,7 @@ class CompartmentElement(DeclaredElement):
 CompartmentElement('susceptible', people=990.0).get_value('x')
 ```
 
-See its [fact sheet](../../../parts/elements.md#declaredelement)
+See its [fact sheet](../../../components/elements.md#declaredelement)
 and its [API entry][skcomplex.core.components.elements.DeclaredElement].
 
 ## Element
@@ -194,7 +194,7 @@ class CapacitorElement(Element):
 CapacitorElement('c1', v=5.0).get_params()
 ```
 
-See its [fact sheet](../../../parts/elements.md#element)
+See its [fact sheet](../../../components/elements.md#element)
 and its [API entry][skcomplex.core.components.elements.Element].
 
 ## GroupElement
@@ -285,7 +285,7 @@ class ForestElement(GroupElement):
 ForestElement('forest', size=4).prepare().size_
 ```
 
-See its [fact sheet](../../../parts/elements.md#groupelement)
+See its [fact sheet](../../../components/elements.md#groupelement)
 and its [API entry][skcomplex.core.components.elements.GroupElement].
 
 ## FieldElement
@@ -375,7 +375,7 @@ class RodElement(FieldElement):
 RodElement('rod', sites=8).prepare().size_
 ```
 
-See its [fact sheet](../../../parts/elements.md#fieldelement)
+See its [fact sheet](../../../components/elements.md#fieldelement)
 and its [API entry][skcomplex.core.components.elements.FieldElement].
 
 ## WordElement
@@ -440,7 +440,7 @@ The message says that the word would reach 5 symbols at generation 3, above its 
 **A field realization.** The subclasses above are already field realizations, the algae of biology and the sequence
 of symbolic dynamics.
 
-See its [fact sheet](../../../parts/elements.md#wordelement)
+See its [fact sheet](../../../components/elements.md#wordelement)
 and its [API entry][skcomplex.core.components.elements.WordElement].
 
 ## PatchElement
@@ -508,7 +508,7 @@ The message names the unknown prototile `square`. The fix is a tile of the proto
 **A field realization.** The two subclasses above are realizations of mathematics, and a tiling of physics, such as
 the Penrose tiling of a quasicrystal, is written the same way.
 
-See its [fact sheet](../../../parts/elements.md#patchelement)
+See its [fact sheet](../../../components/elements.md#patchelement)
 and its [API entry][skcomplex.core.components.elements.PatchElement].
 
 ## BaseElement
@@ -522,5 +522,5 @@ from skcomplex.core.components.elements import BaseElement, Element, GroupElemen
 issubclass(Element, BaseElement), issubclass(GroupElement, BaseElement)
 ```
 
-See its [fact sheet](../../../parts/elements.md#baseelement)
+See its [fact sheet](../../../components/elements.md#baseelement)
 and its [API entry][skcomplex.core.components.elements.BaseElement].

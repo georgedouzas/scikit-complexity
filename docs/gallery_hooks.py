@@ -34,7 +34,7 @@ LOGGER = logging.getLogger('mkdocs.plugins.skcomplex_gallery')
 GALLERY_PAGES = 'generated/gallery/'
 SYSTEMS_NAVIGATION = 'systems/SUMMARY.md'
 USER_GUIDE = 'overview/user_guide/'
-PARTS = 'parts/'
+FAMILIES = 'components/'
 SHOW_EXPRESSION = '_show_expression'
 PYTHON_BLOCK = re.compile(r'^```python(?P<continuation> continuation)?\n(?P<code>.*?)^```$', re.MULTILINE | re.DOTALL)
 RUNNING_TIME = '**Total running time of the script:**'
@@ -111,7 +111,7 @@ def _with_shown_expressions(code: str) -> str:
 
 
 def _with_executed_code(markdown: str, page: str) -> str:
-    """Return the Markdown of a guide or parts page with the values of its expressions.
+    """Return the Markdown of a guide or a component page with the values of its expressions.
 
     The values of the expressions of its Python blocks are shown below them. A block runs in a module of its own,
     registered as a real one because observables pickle the functions of a block, and a block that continues another
@@ -158,7 +158,7 @@ def _with_executed_code(markdown: str, page: str) -> str:
 
 
 def on_page_markdown(markdown: str, page: Page, **kwargs: object) -> str:
-    """Run the blocks of a guide or parts page, or tidy a gallery page.
+    """Run the blocks of a guide or a component page, or tidy a gallery page.
 
     For an example page, it also describes the system.
 
@@ -176,7 +176,7 @@ def on_page_markdown(markdown: str, page: Page, **kwargs: object) -> str:
         markdown:
             The Markdown without the empty subsections, with the description and references of the system of an example.
     """
-    if page.file.src_uri.startswith((USER_GUIDE, PARTS)):
+    if page.file.src_uri.startswith((USER_GUIDE, FAMILIES)):
         return _with_executed_code(markdown, page.file.src_uri)
     system = _systems_of_examples().get(Path(page.file.src_uri).stem)
     if system is None or not page.file.src_uri.startswith(GALLERY_PAGES):

@@ -50,8 +50,8 @@ tags = school.get_tags()
 [element.label for element in school.prepare().system_.elements], sorted(tags.laws), tags.randomness
 ```
 
-`prepare` builds the parts and checks that they fit together. The system has the elements `S`, `I`, and `R`, its laws
-are rates, and it is deterministic, so one run gives the answer and no ensemble is needed. The tags tell `simulate`
+`prepare` builds the components and checks that they fit together. The system has the elements `S`, `I`, and `R`, its
+laws are rates, and it is deterministic, so one run gives the answer and no ensemble is needed. The tags tell `simulate`
 which solver fits.
 
 ## A first simulation

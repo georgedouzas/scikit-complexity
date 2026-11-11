@@ -66,7 +66,7 @@ rules.
 
 ## Merged programs
 
-This section adds a constraint to a program from another part of the system. The laws whose variables overlap, from
+This section adds a constraint to a program from another component of the system. The laws whose variables overlap, from
 any element or interaction, form one program. Their variables unite, their constraints add, and at most one of them
 holds objectives. So an [`Interaction`](../core_components/interactions.md#interaction) adds a bound to the program of
 an element by returning a law over the variable it bounds, and the tighter of two bounds holds. Here a road closure
@@ -175,8 +175,8 @@ combinatorially, so the enumeration stops after `timeout` seconds with `Enumerat
 ## Metabolism
 
 The metabolic systems of the catalog, such as `FluxBalanceSystem`, `DynamicFBASystem`, `CommunityFBASystem`, and
-`CometsSystem`, are built from the parts above. A metabolic network is an element whose data are its reactions. It has
-one algebraic state per reaction, one adaptive switch per gene, and one lower and one upper bound parameter per
+`CometsSystem`, are built from the components above. A metabolic network is an element whose data are its reactions. It
+has one algebraic state per reaction, one adaptive switch per gene, and one lower and one upper bound parameter per
 reaction.
 
 `ElementaryFluxModesSystem` runs on the default install. The systems built on the E. coli core model, which COBRApy

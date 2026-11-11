@@ -1,4 +1,4 @@
-"""Generate one page per kind of part.
+"""Generate one page per kind of component.
 
 Each page has a table of the capability tags of its classes, and executed examples.
 """
@@ -28,7 +28,7 @@ from skcomplex.systems import all_systems
 from skcomplex.systems.general import dynamics
 from skcomplex.systems.general.reactions import ReactionNetworkSystem
 
-PARTS = 'parts'
+FAMILIES = 'components'
 REFERENCE = '../overview/user_guide/core_components'
 SHOWN = 10
 EXPERIMENT_NEEDS = {
@@ -68,7 +68,7 @@ def _table(header: list[str], rows: Iterable[list[str]]) -> list[str]:
 
 
 def _page(title: str, intro: str, header: list[str], rows: Iterable[list[str]], examples: str) -> str:
-    """Return a page of a kind of part.
+    """Return a page of a kind of component.
 
     It holds its title, its introduction, its table, and its examples.
     """
@@ -244,7 +244,7 @@ def _fact_sheet(
 
 
 def _family_classes(package: ModuleType) -> list[type[BaseComponent]]:
-    """Return the public part classes of a family package, sorted by name."""
+    """Return the public component classes of a family package, sorted by name."""
     every = (getattr(package, name) for name in package.__all__)
     found = (item for item in every if isinstance(item, type) and issubclass(item, BaseComponent))
     return sorted(found, key=lambda item: item.__name__)
@@ -369,9 +369,9 @@ def _interactions_page() -> str:
     intro = """
 An interaction changes the states of the elements bound to its roles. A role is a named slot, such as `target`, and it
 lists the domains of the states it accepts. Each interaction also lists the kinds of the laws it can return, and its
-arguments choose among them. The law kinds fix the time the interaction runs in, so the parts of one system must agree
-on it. `get_tags()` of an interaction returns the law kinds for the arguments you passed. The table lists the roles of
-each interaction class of the core, with the domains they accept, and its law kinds.
+arguments choose among them. The law kinds fix the time the interaction runs in, so the components of one system must
+agree on it. `get_tags()` of an interaction returns the law kinds for the arguments you passed. The table lists the
+roles of each interaction class of the core, with the domains they accept, and its law kinds.
 """
     examples = """
 ## A compatible interaction
@@ -398,7 +398,7 @@ The decay has the law kind `rate` and the time `continuous`, and the tank falls 
 ## An incompatible interaction
 
 A `MapInteraction` returns an `update` law of discrete time. It cannot join the rate in one system unless the system
-has a time that joins the two, so `simulate` raises a `TagError` that names the tag the parts disagree on.
+has a time that joins the two, so `simulate` raises a `TagError` that names the tag the components disagree on.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -421,7 +421,7 @@ assert "tag 'time'" in message
 ```
 
 The map has the law kind `update` and the time `discrete`. The message says that `decay` and `halve` disagree on the
-tag `time`, and asks for a time that joins them or for parts of one time.
+tag `time`, and asks for a time that joins them or for components of one time.
 """
     facts = _facts(_family_classes(interactions), 'interactions')
     header = ['Interaction', 'Roles and accepted domains', 'Law kinds']
@@ -851,8 +851,8 @@ message
 assert 'randomness stochastic' in message
 ```
 
-The message says that `ensemble` needs the randomness stochastic, and advises one run with `simulate`, or a part or a
-solver that draws.
+The message says that `ensemble` needs the randomness stochastic, and advises one run with `simulate`, or a component or
+a solver that draws.
 
 ## A compatible calibration
 
@@ -905,7 +905,7 @@ The message says that calibration fits model parameters, which `set_params` take
 def _core_systems() -> list[type[BaseSystem]]:
     """Return the system classes of the core that can be built.
 
-    They are the base and the composite you build from parts.
+    They are the base and the composite you build from components.
     """
     found = _public_classes(systems, BaseSystem)
     return sorted(found, key=lambda system: (system is not CompositeSystem, system.__name__))
@@ -948,11 +948,11 @@ def _systems_page() -> str:
         for system in _core_systems()
     ]
     intro = """
-A system is a part that holds elements, interactions, nested systems, a space, and a time. `BaseSystem` is the base
-of every system. A subclass takes the parameters of its model in `__init__`, builds its parts from them in
-`_build_system`, and derives its capability tags from its parts, which `get_tags()` returns. `CompositeSystem` takes
-its parts as data, so it needs no subclass. A general system that several fields share, such as
-`ReactionNetworkSystem` of `skcomplex.systems.general.reactions`, is a recipe built from core parts. The ready-made
+A system is a component that holds elements, interactions, nested systems, a space, and a time. `BaseSystem` is the base
+of every system. A subclass takes the parameters of its model in `__init__`, builds its components from them in
+`_build_system`, and derives its capability tags from its components, which `get_tags()` returns. `CompositeSystem`
+takes its components as data, so it needs no subclass. A general system that several fields share, such as
+`ReactionNetworkSystem` of `skcomplex.systems.general.reactions`, is a recipe built from core components. The ready-made
 systems of `skcomplex.systems` subclass these, one class per model. The [catalog](../systems/catalog.md) lists them by
 field and by topic, with their import paths, model parameters, and capability tags, and `all_systems` of
 `skcomplex.systems` finds them by field, topic, or tag. The table lists the system classes of the core.
@@ -1027,7 +1027,7 @@ The list holds the first three stochastic systems of epidemiology, in alphabetic
 
 
 def main() -> None:
-    """Write the page of every kind of part into the documentation."""
+    """Write the page of every kind of component into the documentation."""
     pages = {
         'elements': _elements_page,
         'interactions': _interactions_page,
@@ -1040,7 +1040,7 @@ def main() -> None:
         'experiments': _experiments_page,
     }
     for name, page in pages.items():
-        with mkdocs_gen_files.open(f'{PARTS}/{name}.md', 'w') as file:
+        with mkdocs_gen_files.open(f'{FAMILIES}/{name}.md', 'w') as file:
             file.write(page())
 
 
