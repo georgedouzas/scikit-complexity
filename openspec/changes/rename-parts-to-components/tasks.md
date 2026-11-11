@@ -111,14 +111,14 @@ with the rule and the inventory of the design, and never by a replacement across
 
 ## 9. Integration
 
-- [ ] 9.1 Run ruff, mypy on `src`, `tests`, and `docs`, lint-imports, and the conventions, and verify all pass with no
+- [x] 9.1 Run ruff, mypy on `src`, `tests`, and `docs`, lint-imports, and the conventions, and verify all pass with no
   suppression added
-- [ ] 9.2 Run the tests in chunks with `-n 4` and the thread caps, `tests/core` package by package, `tests/systems`
+- [x] 9.2 Run the tests in chunks with `-n 4` and the thread caps, `tests/core` package by package, `tests/systems`
   field by field, then the doctests of `src/skcomplex` and the markdown blocks of the README and
   `docs/overview/user_guide`, and verify all pass
-- [ ] 9.3 Run the strict docs build and verify it passes, with the nav section "Components", no page left under `parts/`
+- [x] 9.3 Run the strict docs build and verify it passes, with the nav section "Components", no page left under `parts/`
   but the redirects, and every former URL redirecting
-- [ ] 9.4 Run `rg -w -i 'parts?' src tests docs README.md CONTRIBUTING.md openspec/constitution.md` and read every
+- [x] 9.4 Run `rg -w -i 'parts?' src tests docs README.md CONTRIBUTING.md openspec/constitution.md` and read every
   remaining match against the rule of the design, verified by each match being a kept meaning. The main specs follow
   at archive, when the delta specs of this change are synced
-- [ ] 9.5 Run `openspec validate rename-parts-to-components --strict` and verify it passes
+- [x] 9.5 Run `openspec validate rename-parts-to-components --strict` and verify it passes
