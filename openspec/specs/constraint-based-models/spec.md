@@ -45,7 +45,7 @@ constraints add, and at most one of them SHALL hold objectives.
 
 ### Requirement: Switches gate variables through adaptive parameters
 A bound SHALL be able to read adaptive parameters with the domain `{0, 1}` through `either` and `both`, so that a
-knock-out sets a parameter to 0 at construction, between runs, or by an `UpdateLaw` of another part.
+knock-out sets a parameter to 0 at construction, between runs, or by an `UpdateLaw` of another component.
 
 #### Scenario: Isozymes
 - **WHEN** a reaction is bounded by `1000 * either(g1, g2)` and only `g1` is switched off

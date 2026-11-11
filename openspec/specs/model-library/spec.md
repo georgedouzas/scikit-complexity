@@ -3179,9 +3179,9 @@ in `biology.collective_behaviour`, and the region and holonomy scores in their s
 
 ### Requirement: Ready-made systems use the general system of their shape
 A ready-made system whose structure is that of a general system SHALL subclass it, imported from
-`skcomplex.systems.general`, unless its element class is a part that other systems or users compose, such as an element
-of a field `common` package. Its own element class SHALL then leave the catalog, and its equations SHALL move into the
-hooks of the system.
+`skcomplex.systems.general`, unless its element class is a component that other systems or users compose, such as an
+element of a field `common` package. Its own element class SHALL then leave the catalog, and its equations SHALL move
+into the hooks of the system.
 
 #### Scenario: Map of one field
 - **WHEN** a contributor reads `HenonMapSystem` of `mathematics/dynamical_systems`

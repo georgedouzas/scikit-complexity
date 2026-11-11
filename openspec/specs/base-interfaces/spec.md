@@ -144,7 +144,7 @@ SHALL live in `skcomplex.core.types` and end in `Protocol`.
 ### Requirement: Runs keep their results as attributes
 Every main public method of a configurable object SHALL return the object itself, and every hook SHALL return `None`. A run SHALL
 keep what it produces in an attribute ending in `_`, named once for each family:
-- elements, interactions, and systems keep their laws in `laws_`, and no other part has `laws_`,
+- elements, interactions, and systems keep their laws in `laws_`, and no other component has `laws_`,
 - laws keep their contribution in `value_`,
 - compilers keep the compiled problem in `problem_`,
 - lowerings keep what they lowered in `lowered_`,
@@ -205,10 +205,10 @@ class that generates source SHALL load it through a `SourceLoader`.
 
 ### Requirement: Preparing validates first
 `prepare` SHALL check the settings of an object, and the specs it owns, at the start of `_prepare`, before the object
-derives anything or sets any attribute ending in `_`, raising the error that names the part and the argument at fault.
-A bad setting SHALL be reported before a missing or wrong context. An owner SHALL prepare the parts it owns, and SHALL
-call `_check` on the specs it reads. A composite that fails on one part MAY leave earlier parts prepared, and preparing
-again SHALL replace their attributes.
+derives anything or sets any attribute ending in `_`, raising the error that names the component and the argument at
+fault. A bad setting SHALL be reported before a missing or wrong context. An owner SHALL prepare the components it
+owns, and SHALL call `_check` on the specs it reads. A composite that fails on one component MAY leave earlier
+components prepared, and preparing again SHALL replace their attributes.
 
 #### Scenario: A bad spec fails at prepare
 - **WHEN** a user builds a system with an interaction that holds an invalid spec, and simulates it
@@ -224,33 +224,34 @@ again SHALL replace their attributes.
 - **THEN** the second `prepare` raises an error that names the parameter
 
 #### Scenario: Removed names
-- **WHEN** a user lists the attributes of `BaseConfig`, `BaseSpec`, and `BasePart`, and the names in
+- **WHEN** a user lists the attributes of `BaseConfig`, `BaseSpec`, and `BaseComponent`, and the names in
   `skcomplex.core.errors`
-- **THEN** none has `check`, `BaseConfig` and `BasePart` have no `_check` and no `_validated`, `BaseSpec` has no
+- **THEN** none has `check`, `BaseConfig` and `BaseComponent` have no `_check` and no `_validated`, `BaseSpec` has no
   `prepare` and no `run`, and `NotCheckedError` does not exist
 
-### Requirement: Estimators are the parts and the engine
-The classes with `prepare` and `run` SHALL be the parts a modeler defines, which are elements, interactions, laws,
-spaces, times, and systems, and the engine that runs them, which is solvers, backends, compilers and their passes,
-observers, visuals, clocks, kernels, and printers. Simulating, analysing, running experiments, and calibrating SHALL be
-functions of a system or of its results.
+### Requirement: Estimators are the components and the engine
+The classes with `prepare` and `run` SHALL be the components a modeler defines, which are elements, interactions,
+laws, spaces, times, and systems, and the engine that runs them, which is solvers, backends, compilers and their
+passes, observers, visuals, clocks, kernels, and printers. Simulating, analysing, running experiments, and calibrating
+SHALL be functions of a system or of its results.
 
 #### Scenario: Listing estimators
 - **WHEN** a test lists the public classes of `skcomplex.core` that have `prepare` and `run`
-- **THEN** every one is a part or a class of the engine, and none is an experiment or a calibration
+- **THEN** every one is a component or a class of the engine, and none is an experiment or a calibration
 
 ### Requirement: Systems form a class hierarchy
-`BaseSystem` SHALL be the base of every system: it SHALL hold `prepare`, `run`, `get_tags()` derived from the parts,
-nesting, and the passing of model parameters down to the parts. `CompositeSystem(BaseSystem)` SHALL be the generic composite of
-elements, interactions, and nested systems. A class SHALL NOT be chosen by mathematical form, which the tags give.
+`BaseSystem` SHALL be the base of every system: it SHALL hold `prepare`, `run`, `get_tags()` derived from the
+components, nesting, and the passing of model parameters down to the components. `CompositeSystem(BaseSystem)` SHALL
+be the generic composite of elements, interactions, and nested systems. A class SHALL NOT be chosen by mathematical
+form, which the tags give.
 
 #### Scenario: Generic composite
 - **WHEN** a user builds `CompositeSystem(elements=[...], interactions=[...])`
-- **THEN** it is a `BaseSystem`, and its tags come from its parts
+- **THEN** it is a `BaseSystem`, and its tags come from its components
 
 ### Requirement: Ready-made systems are classes with model parameters
 Every ready-made system SHALL be a class deriving from `BaseSystem` or from a general system of the core, whose
-constructor only stores the model's own parameters and whose `prepare` builds its parts from them. `get_params`,
+constructor only stores the model's own parameters and whose `prepare` builds its components from them. `get_params`,
 `set_params`, and `clone` SHALL work on those parameters.
 
 #### Scenario: Changing a model parameter
@@ -260,10 +261,11 @@ constructor only stores the model's own parameters and whose `prepare` builds it
 ### Requirement: General systems enter the core only when fields share them
 The core SHALL hold only the systems that are building blocks: `BaseSystem`, the base of every system, and
 `CompositeSystem`, the composite of elements, interactions, and nested systems that the engine flattens. A general
-system that builds a `CompositeSystem` from core parts, such as `ReactionNetworkSystem`, is a recipe. It SHALL be named
-after its mathematics, never after a field quantity, and SHALL live in a subpackage of `skcomplex.systems.general` when
-systems of two fields share its structure, or in the `common` package of one field otherwise. A ready-made system SHALL
-subclass only `BaseSystem`, general systems of `skcomplex.systems.general`, or systems of its own field.
+system that builds a `CompositeSystem` from core components, such as `ReactionNetworkSystem`, is a recipe. It SHALL be
+named after its mathematics, never after a field quantity, and SHALL live in a subpackage of
+`skcomplex.systems.general` when systems of two fields share its structure, or in the `common` package of one field
+otherwise. A ready-made system SHALL subclass only `BaseSystem`, general systems of `skcomplex.systems.general`, or
+systems of its own field.
 
 #### Scenario: Shared structure
 - **WHEN** an epidemic model and a chemical kinetics model both build species and reactions with product propensities
