@@ -1,5 +1,6 @@
 """Test the NumPy and Numba backends, compiled callables, kernel caching, and compiled stepper loops."""
 
+import inspect
 from collections import defaultdict
 from typing import Annotated
 
@@ -14,6 +15,7 @@ from skcomplex.core.components.interactions import Interaction, PairInteraction
 from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine import backends as package
 from skcomplex.core.engine._utils import vector
 from skcomplex.core.engine.backends import BaseBackend, JaxBackend, NumbaBackend, NumpyBackend, _numba
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -28,6 +30,7 @@ from skcomplex.core.engine.solvers import (
 )
 from skcomplex.core.errors import BackendWarning, SolverError
 from skcomplex.core.specs import (
+    BaseSpec,
     CallSpec,
     LoweredFunctionsSpec,
     ParameterSpec,
@@ -36,7 +39,7 @@ from skcomplex.core.specs import (
     StepSpec,
     VisualSpec,
 )
-from skcomplex.core.types import FormKind
+from skcomplex.core.types import FormKind, OrderKind
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction
 from skcomplex.systems.physics.common.particles import HarmonicPotentialInteraction, MassPointElement
@@ -514,3 +517,24 @@ def test_backends_support_the_tags_of_the_classes_they_support():
     assert JaxBackend.get_supported_tags().space == {'none'}
     assert 'noise' not in JaxBackend.get_supported_tags().laws
     assert 'noise' in NumpyBackend.get_supported_tags().laws
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
+def test_backends_support_every_order(backend):
+    """Test that every backend supports integer and fractional orders."""
+    assert backend._get_support().orders == set(OrderKind)
+
+
+def test_public_names_are_classes_under_the_bases():
+    """Every public name is a backend or a value a backend returns."""
+    for name in package.__all__:
+        item = getattr(package, name)
+        assert inspect.isclass(item), name
+        assert issubclass(item, BaseBackend | BaseSpec), name
+
+
+def test_backends_name_themselves_and_their_support():
+    """Every concrete backend answers the hooks of its name and of what it supports."""
+    for backend in (package.NumpyBackend, package.NumbaBackend, package.JaxBackend):
+        assert isinstance(backend._get_name(), str)
+        assert backend._get_support().laws

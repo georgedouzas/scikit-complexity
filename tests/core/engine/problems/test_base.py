@@ -1,4 +1,4 @@
-"""Test that the public names of the problems package are classes under its bases."""
+"""Test the `_base` module of `skcomplex.core.engine.problems`."""
 
 import enum
 import inspect

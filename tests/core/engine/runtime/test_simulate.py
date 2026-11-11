@@ -13,6 +13,7 @@ from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import normal
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, StaticTime
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
+from skcomplex.core.engine import runtime as package
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import RecorderObserver, Trajectory, _simulate, simulate
@@ -287,3 +288,9 @@ def test_replay_needs_a_trajectory_with_draws():
     recorded = simulate(_kicked(0.5), until=5, random_state=0)
     with pytest.raises(ValidationError, match='holds no draws'):
         simulate(_kicked(0.5), until=5, random_state=0, replay=recorded)
+
+
+def test_simulate_rejects_a_system_name():
+    """Simulating a system name raises an error that names what it took."""
+    with pytest.raises(ValidationError, match=r"simulate takes a system, not 'sir'"):
+        package.simulate('sir', until=1)

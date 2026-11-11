@@ -1,4 +1,4 @@
-"""Test the NumPy, Numba, and Lepton code that the expression printer writes for every operator."""
+"""Test the `_expression_printer` module of `skcomplex.core.engine.problems`."""
 
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor

@@ -18,6 +18,8 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
 
+from ....conftest import SpinElement
+
 
 class BallElement(Element):
     """Point of a continuous space, with a vector state `x` of order 2."""
@@ -300,3 +302,9 @@ def test_group_on_sites_takes_the_visual_of_its_space():
     assert network.prepare().default_visual_ == VisualSpec('sites')
     inherited = GroupElement('cells', element=HeightElement, on='sites')
     assert inherited.prepare(LatticeSpace((3,))).default_visual_ == VisualSpec('image')
+
+
+def test_lattice_group_keeps_the_expectation_visual():
+    """Test that a lattice of operator elements is drawn by its expectations."""
+    chain = GroupElement('chain', element=SpinElement, space=LatticeSpace(3), on='sites').prepare()
+    assert chain.default_visual_.kind == 'expectations'

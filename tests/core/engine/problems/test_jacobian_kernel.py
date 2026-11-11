@@ -1,4 +1,4 @@
-"""Test the exact Jacobian of drifts that read reductions, and its sparsity pattern."""
+"""Test the `_jacobian_kernel` module of `skcomplex.core.engine.problems`."""
 
 from typing import Annotated
 

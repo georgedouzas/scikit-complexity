@@ -20,6 +20,8 @@ from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
+from .conftest import _damped_rotation, _last_values
+
 MATRIX = np.asarray([[-0.1, 2.0, 0.0], [-2.0, -0.3, 0.5], [0.0, 0.0, -0.5]])
 DRIVEN = np.asarray([[-0.1, 1.0], [-1.0, -0.2]])
 DRIVE = np.asarray([0.0, 1.0])
@@ -122,6 +124,13 @@ def _fit(source, **settings):
 def _linear_values(trajectory, samples):
     """Return the first samples of the states of the linear trajectory, one column per state."""
     return np.column_stack([trajectory.get_values(name)[:samples] for name in NAMES])
+
+
+def _fit_labels(labels, dt=0.1):
+    """Return the mode decomposition of decaying series of the given variables, sampled every `dt`."""
+    times = np.arange(30) * dt
+    values = np.exp(-np.outer(times, np.arange(1, len(labels) + 1)))
+    return mode_decomposition(values, variables=labels, dt=dt)
 
 
 def test_mode_decomposition_recovers_linear_eigenvalues():
@@ -311,3 +320,33 @@ def test_mode_decomposition_input_name_differs_from_states():
     values = np.random.default_rng(0).normal(size=(50, 2))
     decomposition = _fit(values, variables=['a.x', 'b.x'], inputs=['b.x'])
     assert decomposition.inputs == ['x_input']
+
+
+@pytest.mark.parametrize(
+    ('labels', 'states'),
+    [
+        (['a.x', 'b.y'], ['x', 'y']),
+        (['a.x', 'b.x'], ['a_x', 'b_x']),
+        (['cells.n[0]', 'cells.n[1]'], ['n_0', 'n_1']),
+        (['lambda', 'label'], ['lambda_', 'label_']),
+        (['variables'], ['variables_']),
+        (['0', '1'], ['v_0', 'v_1']),
+    ],
+)
+def test_surrogate_names_states_after_variables(labels, states):
+    """Test that the states take the last part of every label, or the whole label where those clash."""
+    assert _fit_labels(labels).states == states
+
+
+def test_surrogate_accepts_steps_with_rounding_noise():
+    """Test that steps equal up to rounding count as uniform."""
+    assert _fit_labels(['x']).dt == pytest.approx(0.1)
+
+
+def test_mode_decomposition_keeps_its_reference_values():
+    """Test the run of the linear surrogate against the values recorded before it moved to declared states."""
+    analysis = mode_decomposition(_damped_rotation(), variables=['x', 'y'], dt=0.05)
+    assert _last_values(analysis, ['x', 'y'], 1.0, 0.01) == pytest.approx(
+        [-0.25240559441454513, 0.5515162392689774],
+        rel=1e-9,
+    )

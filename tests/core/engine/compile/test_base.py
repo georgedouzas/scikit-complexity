@@ -1,9 +1,15 @@
 """Test the `base` module."""
 
+import inspect
+
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.engine import compile as package
 from skcomplex.core.engine.compile import BaseCompiler, BasePass
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
+from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 
 
 def test_base_compiler_resolve_backend():
@@ -15,3 +21,38 @@ def test_base_pass_get_replaced():
     """Test `BasePass._get_replaced` on a small case."""
     x = var('x')
     assert str(BasePass._get_replaced(RateLaw(x, -x), value=-2 * x).value) == '-2*x'
+
+
+def test_public_names_are_classes():
+    """Every public name is a class."""
+    for name in package.__all__:
+        assert inspect.isclass(getattr(package, name)), name
+
+
+def test_bases_are_public_and_compilers_private():
+    """The bases are public, and the compilers and passes of the library's forms are private."""
+    assert set(package.__all__) == {'BaseCompiler', 'BasePass', 'BaseLowering', 'HilbertSpaceError'}
+    for compiler in (PassCompiler, OperatorCompiler, RewritingCompiler):
+        assert issubclass(compiler, package.BaseCompiler)
+        assert not hasattr(package, compiler.__name__)
+    for name in ('FlattenPass', 'LayoutPass', 'ProblemPass', 'Compilation', 'ObservableEvaluator'):
+        assert not hasattr(package, name)
+
+
+def test_removed_functions_are_not_public():
+    """The functions that became methods of the compiler are not public."""
+    removed = {
+        'compile_system',
+        'validate',
+        'claiming_compiler',
+        'compiled_problem',
+        'observables_of',
+        'order_passes',
+        'run_passes',
+    }
+    assert not (removed | {'partition_system'}) & set(package.__all__)
+
+
+def test_helpers_of_one_pass_are_not_public():
+    """The helpers of a single pass are not public."""
+    assert not {'values_of', 'member_of', 'hilbert_of'} & set(package.__all__)

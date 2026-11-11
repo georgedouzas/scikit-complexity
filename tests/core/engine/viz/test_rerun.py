@@ -7,6 +7,7 @@ import networkx as nx
 import numpy as np
 import pytest
 import rerun as rr
+import rerun.blueprint as rrb
 from sage.all__sagemath_symbolics import CC, I
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
@@ -17,6 +18,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import (
+    AgentsVisual,
     BaseVisual,
     ImageVisual,
     PointsVisual,
@@ -24,14 +26,22 @@ from skcomplex.core.engine.viz import (
     ScalarsVisual,
     SiteVisual,
 )
+from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, TopologyRequestSpec, VisualSpec
+from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem, LotkaVolterraSystem
+from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem, LotkaVolterraSystem, WolfSheepSystem
+from skcomplex.systems.biology.epidemiology import SIRSystem
+from skcomplex.systems.biology.evolution import MoranProcessSystem
+from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
+from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
 from skcomplex.systems.economics.resources import HilsaFisherySystem
 from skcomplex.systems.physics.common.particles import ConstantForceInteraction, MassPointElement
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 from skcomplex.systems.social.opinion_dynamics import VoterSystem
 from skcomplex.systems.social.segregation import SchellingSystem
+
+from .conftest import _prepared, _views, default_blueprint
 
 
 class LoggedPaths:
@@ -49,6 +59,17 @@ class LoggedPaths:
 def _run(system, observer, until=1.0, dt=0.1):
     """Return the trajectory of a system run with a Rerun observer."""
     return simulate(system, until=until, dt=dt, observers=[observer])
+
+
+def primary_view(system):
+    """Return the primary view of a system or a compiled problem."""
+    return _prepared(system).views_[0]
+
+
+def _whole_run_series(blueprint):
+    """Return whether every time series view of a blueprint shows the time range of the whole run."""
+    series = [view for view in _views(blueprint) if isinstance(view, rrb.TimeSeriesView)]
+    return bool(series) and all('TimeAxis' in view.properties for view in series)
 
 
 def test_rerun_observer_saves_recording(tmp_path):
@@ -535,3 +556,167 @@ def test_changing_network_logs_present_nodes_and_changed_edges(on_system):
     assert [len(item.node_ids.as_arrow_array()) for item in nodes] == [2, 3, 4, 5]
     assert len(edges) == 4
     assert [type(view).__name__ for view in visual.views_] == ['GraphView']
+
+
+def test_default_blueprint_shows_one_dimensional_points_over_whole_run():
+    """Test that the time series view of the positions of a one-dimensional gas shows the whole run."""
+    blueprint = default_blueprint(IdealGasSystem(n_molecules=10, n_dim=1).prepare().system_)
+    assert 'gas/x' in [str(view.origin) for view in _views(blueprint)]
+    assert _whole_run_series(blueprint)
+
+
+def test_default_blueprint_shows_other_states_of_points_over_whole_run():
+    """Test that the time series view of the other states of two-dimensional points shows the whole run."""
+
+    class WalkerElement(Element):
+        """Walker element."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = VisualSpec('points', {'position': 'x'}),
+            *,
+            x: Annotated[object, StateSpec(vector=True)] = 0.0,
+            energy: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.energy = energy
+
+    blueprint = default_blueprint(
+        CompositeSystem(
+            elements=[GroupElement('walkers', element=WalkerElement, size=3)],
+            space=ContinuousSpace(n_dim=2),
+        ),
+    )
+    assert [type(view).__name__ for view in _views(blueprint)] == ['Spatial2DView', 'TimeSeriesView']
+    assert _whole_run_series(blueprint)
+
+
+def test_default_blueprint_of_ode_system():
+    """Test that the populations share one time series view, without parameters, collapsed, and following."""
+    blueprint = default_blueprint(LotkaVolterraSystem().prepare().system_)
+    views = _views(blueprint)
+    assert len(views) == 1
+    assert isinstance(views[0], rrb.TimeSeriesView)
+    assert views[0].contents == ['/prey/**', '/predators/**']
+    assert blueprint.collapse_panels
+    assert blueprint.time_panel.play_state == 'following'
+    assert blueprint.top_panel.state == 'hidden'
+
+
+def test_default_blueprint_of_field_system():
+    """Test that each field state gets a 2D view side by side."""
+    blueprint = default_blueprint(GrayScottSystem(shape=(16, 16)).prepare().system_)
+    assert isinstance(blueprint.root_container, rrb.Horizontal)
+    assert [str(view.origin) for view in _views(blueprint)] == ['cells/u', 'cells/v']
+
+
+def test_default_blueprint_puts_spatial_views_above_series():
+    """Test that agents share one spatial view above the time series of their counts."""
+    blueprint = default_blueprint(WolfSheepSystem().prepare().system_)
+    assert isinstance(blueprint.root_container, rrb.Vertical)
+    spatial, series = _views(blueprint)
+    assert spatial.contents == ['/grass/**', '/sheep/**', '/wolves/**']
+    assert isinstance(series, rrb.TimeSeriesView)
+
+
+def test_default_blueprint_splits_series_by_six():
+    """Test that a type with more than six series is split over several views."""
+    system = CompositeSystem(elements=[PopulationElement(f'p{index}') for index in range(8)])
+    names = [str(view.name) for view in _views(default_blueprint(system))]
+    assert names == ['PopulationElement 1', 'PopulationElement 2']
+
+
+def test_default_blueprint_with_parameters():
+    """Test that parameters get a time series view on request."""
+    views = _views(default_blueprint(LotkaVolterraSystem().prepare().system_, parameters=True))
+    assert [str(view.origin) for view in views][-1] == '/'
+    assert views[-1].contents == ['/parameters/**']
+
+
+@pytest.mark.parametrize(
+    ('system_class', 'kind', 'origin'),
+    [(GrayScottSystem, 'Spatial2DView', 'cells/u'), (SIRSystem, 'TimeSeriesView', '/')],
+)
+def test_primary_view_is_first_view(system_class, kind, origin):
+    """Test that the primary view is the first view of the default blueprint."""
+    system = system_class().prepare().system_
+    view = primary_view(system)
+    assert (type(view).__name__, str(view.origin)) == (kind, origin)
+    assert str(_views(default_blueprint(system))[0].origin) == origin
+
+
+def test_views_are_empty_without_declared_views():
+    """Test that a system with no declared views has no views and an empty default blueprint."""
+    observer = _prepared(CompositeSystem(), blueprint='default')
+    assert observer.views_ == []
+    assert _views(observer.blueprint_) == []
+
+
+@pytest.mark.parametrize('settings', [{'primary': 'cells/u'}, {'parameters': True}, {'blueprint': 'grid'}])
+def test_rerun_observer_check_rejects_settings_without_the_default_blueprint(settings):
+    """Test that the settings of the default blueprint are rejected without it, as is an unknown blueprint name."""
+    with pytest.raises(ValidationError, match='default'):
+        RerunObserver(**settings).prepare()
+
+
+def test_rerun_observer_saves_blueprint_next_to_recording(tmp_path):
+    """Test that a saved recording gets its blueprint with the same stem."""
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint='default')
+    simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1, observers=[observer])
+    assert (tmp_path / 'run.rrd').exists()
+    assert (tmp_path / 'run.rbl').exists()
+    assert isinstance(observer.blueprint_, rrb.Blueprint)
+
+
+def test_rerun_observer_without_blueprint_writes_recording_only(tmp_path):
+    """Test that no blueprint is sent or saved when none is given."""
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
+    simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1, observers=[observer])
+    assert observer.blueprint_ is None
+    assert not (tmp_path / 'run.rbl').exists()
+
+
+def test_rerun_observer_accepts_given_blueprint(tmp_path):
+    """Test that a given blueprint is sent unchanged."""
+    blueprint = rrb.Blueprint(rrb.TimeSeriesView(origin='/prey'))
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint=blueprint)
+    simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1, observers=[observer])
+    assert observer.blueprint_ is blueprint
+
+
+def test_rerun_observer_rejects_unknown_blueprint(tmp_path):
+    """Test that an unknown blueprint name is rejected."""
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint='grid')
+    with pytest.raises(ValidationError, match='default'):
+        simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1, observers=[observer])
+
+
+def test_default_blueprint_puts_named_primary_view_first():
+    """Test that a view named as primary comes first, with its row above the others."""
+    views = _views(default_blueprint(BoidsSystem().prepare().system_, primary='reporters'))
+    assert [str(view.name) for view in views] == ['reporters', 'flock']
+
+
+def test_default_blueprint_rejects_unknown_primary_view():
+    """Test that a primary view that matches no view is rejected with the names of the views."""
+    with pytest.raises(ValidationError, match='The views are: u, v'):
+        default_blueprint(GrayScottSystem(shape=(16, 16)).prepare().system_, primary='cells/w')
+
+
+def test_primary_view_of_one_dimensional_lattice_is_space_time():
+    """Test that a one-dimensional lattice puts its space-time image first."""
+    view = primary_view(ElementaryAutomatonSystem().prepare().system_)
+    assert type(view).__name__ == 'Spatial2DView'
+    assert str(view.origin) == 'cells/space_time/alive'
+    assert str(view.name) == 'alive history'
+
+
+def test_primary_view_of_agents_without_space_is_a_trait_series():
+    """Test that agents without a space show the statistics of their colored trait first, not the reporters."""
+    problem = PassCompiler().prepare(MoranProcessSystem().prepare().system_).run().problem_
+    assert problem.agent_space is None
+    assert AgentsVisual(path=problem.agents[0].path).prepare(problem).views_ == []
+    view = primary_view(problem)
+    assert (type(view).__name__, str(view.name)) == ('TimeSeriesView', 'population trait')

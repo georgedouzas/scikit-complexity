@@ -5,8 +5,20 @@ import time
 
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine import runtime as package
 from skcomplex.core.engine.runtime import BaseClock, BaseObserver, simulate
 from skcomplex.systems.biology.common.populations import PopulationElement
+
+CATALOG_NAMES = {
+    'SYSTEMS',
+    'SystemEntry',
+    'catalog',
+    'create_simulation',
+    'create_system',
+    'describe',
+    'register_system',
+    'summarize',
+}
 
 
 class _TimesObserver(BaseObserver):
@@ -62,3 +74,26 @@ def test_clock_prepare_marks_the_start():
     assert before <= clock.started_ <= time.perf_counter()
     assert clock.max_lag_ == 0.0
     assert clock.run(1.0) is clock
+
+
+def test_public_names_are_classes_or_simulate():
+    """Every public name is a class, apart from `simulate`, the function that runs a system."""
+    for name in set(package.__all__) - {'simulate'}:
+        assert inspect.isclass(getattr(package, name)), name
+    assert inspect.isfunction(package.simulate)
+
+
+def test_no_catalog_in_the_engine():
+    """No public name registers, lists, describes, creates, or runs systems by name."""
+    assert not CATALOG_NAMES & set(package.__all__)
+    assert not CATALOG_NAMES & set(dir(package))
+
+
+def test_classes_derive_from_a_base_of_the_package():
+    """Every observer derives from the observer base and every clock from the clock base."""
+    for name in package.__all__:
+        item = getattr(package, name)
+        if name.endswith('Observer'):
+            assert issubclass(item, package.BaseObserver), name
+        if name.endswith('Clock'):
+            assert issubclass(item, package.BaseClock), name

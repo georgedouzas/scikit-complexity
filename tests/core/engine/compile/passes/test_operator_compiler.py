@@ -1,5 +1,6 @@
 """Test the `OperatorCompiler` class."""
 
+import math
 from operator import attrgetter
 from typing import Annotated
 
@@ -18,10 +19,19 @@ from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile import BaseCompiler, BasePass
 from skcomplex.core.engine.compile._observables import ObservableEvaluator
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
+from skcomplex.core.engine.problems._operator_problem_spec import OperatorProblemSpec
 from skcomplex.core.errors import IncompatibleLawsError, ValidationError
-from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import (
+    HilbertSpec,
+    ObservableSpec,
+    ParameterSpec,
+    RoleSpec,
+    StateSpec,
+    VisualSpec,
+)
+from skcomplex.core.types import FormKind
 from skcomplex.systems.biology.common.populations import PopulationElement
-from skcomplex.systems.physics.common.quantum import QUBIT, QubitElement
+from skcomplex.systems.physics.common.quantum import QUBIT, ModeElement, QubitElement, mode_space
 
 from .....conftest import SpinElement, _spin_space
 
@@ -286,3 +296,24 @@ def test_operator_compiler_get_hilbert_state():
             self.psi = psi
 
     assert OperatorCompiler._get_hilbert_state(TwoLevelElement) == 'psi'
+
+
+def test_dimension_rejects_an_element_without_a_hilbert_space():
+    """Test that a subsystem without a Hilbert space raises an error."""
+    with pytest.raises(ValidationError, match='takes no HilbertSpec'):
+        _ = OperatorCompiler._get_view_of(SpinElement('p', hilbert=None)).dimension
+
+
+def test_compiler_gives_the_dimensions_of_a_chain_and_a_mode():
+    """Test that a chain of spins and a mode compile to the tensor product of their spaces."""
+    system = CompositeSystem(
+        elements=[
+            GroupElement('chain', element=SpinElement, space=LatticeSpace(10), on='sites'),
+            ModeElement('cavity', hilbert=mode_space(4)),
+        ],
+    )
+    problem = OperatorCompiler().prepare(system).run().problem_
+    assert isinstance(problem, OperatorProblemSpec)
+    assert problem.form == FormKind.OPERATOR
+    assert list(problem.dimensions) == [2] * 10 + [5]
+    assert math.prod(problem.dimensions) == 5120

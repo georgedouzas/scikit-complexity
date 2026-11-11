@@ -8,13 +8,25 @@ from sage.all__sagemath_symbolics import CC, SR, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import MatrixGroupSpec, StateSpec
+from skcomplex.core.specs import (
+    MatrixGroupSpec,
+    ParameterSpec,
+    RoleSpec,
+    StateSpec,
+    VisualSpec,
+)
+
+from ...conftest import RotorElement
 
 COLOR = MatrixGroupSpec('SU', 3)
+HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
 
 
 class _NematicElement(Element):
@@ -39,6 +51,39 @@ def _matrix_on(shape):
     compiler = PassCompiler().prepare(CompositeSystem(elements=[field]))
     compiler.run(None)
     return _NematicElement.seen[-1], compiler.problem_.states
+
+
+class PersonElement(Element):
+    """Person whose health is one of three labels."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        health: Annotated[object, StateSpec(domain=HEALTH)] = 'susceptible',
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.health = health
+
+
+class ProgressionInteraction(Interaction):
+    """Progression of the health of its target to the next label."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        step: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.step = step
+
+    def _get_laws(self, s):
+        """Return the progression of the health."""
+        return [UpdateLaw(s.target.health, s.target.health + s.step)]
 
 
 def test_check_rejects_vector_and_tensor_together():
@@ -119,3 +164,78 @@ def test_matrix_group_state_holds_its_matrices_alone(arguments):
 def test_state_gives_its_domain_tag(arguments, tag):
     """Test that a state spec gives the domain tag of its values."""
     assert StateSpec(**arguments)._get_domain_tag() == tag
+
+
+@pytest.mark.parametrize(
+    ('spec', 'message'),
+    [
+        (StateSpec(order=0), 'order'),
+        (StateSpec(order=-0.5), 'order'),
+        (StateSpec(order=float('nan')), 'order'),
+        (StateSpec(order=1.5), 'order'),
+        (StateSpec(lags=-1), 'lags'),
+        (StateSpec(lags=1.5), 'lags'),
+        (StateSpec(order=2, lags=1), 'not both'),
+        (StateSpec(order=2, initial=(0.0, 1.0)), '2 initial values were given for 1'),
+        (StateSpec(reference='banks', vector=True), 'scalar of order 1'),
+        (StateSpec(reference='banks', lags=1), 'scalar of order 1'),
+    ],
+)
+def test_state_spec_rejects_invalid_orders_and_lags(spec, message):
+    """Test that an order that is not positive or integral, negative lags, or too many initial values are rejected."""
+    with pytest.raises(ValidationError, match=message):
+        spec._check()
+
+
+@pytest.mark.parametrize('spec', [StateSpec(order=0.6), StateSpec(order=2.0), StateSpec(lags=2, initial=(1.0, 2.0))])
+def test_state_spec_accepts_fractional_orders_and_lags(spec):
+    """Test that a fractional order, an integral order given as a float, and lags with their initial values pass."""
+    spec._check()
+
+
+def test_categorical_values_round_trip_as_labels():
+    """Test that categorical states take labels as values and return them as labels."""
+    system = CompositeSystem(
+        elements=[PersonElement('ann', health='infected')],
+        interactions=[ProgressionInteraction('p', target='ann')],
+    )
+    trajectory = simulate(system, until=1)
+    assert trajectory.get_values('ann.health').tolist() == ['infected', 'recovered']
+
+
+def test_categorical_rejects_unknown_label():
+    """Test that an initial value outside the alphabet is rejected."""
+    with pytest.raises(ValidationError, match=r"ann\.health = 'dead' is not in its domain"):
+        simulate(CompositeSystem(elements=[PersonElement('ann', health='dead')]), until=1)
+
+
+def test_simulate_does_not_check_values_outside_alphabet():
+    """Test that a run leaves a state that a law moves outside its alphabet unchecked."""
+    system = CompositeSystem(
+        elements=[PersonElement('ann', health='recovered')],
+        interactions=[ProgressionInteraction('p', target='ann')],
+    )
+    unchecked = simulate(system, until=1)
+    assert unchecked.states[-1, 0] == 3.0
+
+
+def test_angle_wraps_into_one_turn():
+    """Test that an angle growing past pi lies in (-pi, pi] after every step."""
+    system = CompositeSystem(elements=[RotorElement('r', theta=6.0, omega=1.0)])
+    values = simulate(system, until=3, dt=0.5).get_values('r.theta')
+    assert np.all((values[1:] > -np.pi) & (values[1:] <= np.pi))
+    assert values[-1] == pytest.approx(9.0 - 2 * np.pi, abs=1e-6)
+
+
+def test_angle_swings_around_zero_without_jumping():
+    """Test that an angle decreasing through zero stays near zero instead of jumping a full turn."""
+    system = CompositeSystem(elements=[RotorElement('r', theta=0.1, omega=-1.0)])
+    values = simulate(system, until=1, dt=0.1).get_values('r.theta')
+    assert np.all((values > -np.pi) & (values <= np.pi))
+    assert values[-1] == pytest.approx(-0.9, abs=1e-6)
+
+
+def test_state_spec_rejects_an_unknown_role():
+    """Test that a role is one of the names analyses read."""
+    with pytest.raises(ValidationError, match='The role of a state'):
+        StateSpec(role='spin')._check()

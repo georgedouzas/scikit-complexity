@@ -1,15 +1,40 @@
 """Test the `_base` module of `skcomplex.core.engine.solvers`."""
 
+import inspect
+
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import RR
 
+from skcomplex.core.engine import solvers
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.problems import BaseProblemSpec
-from skcomplex.core.engine.solvers import BaseSolver, GillespieSolver, LatticeSolver, MonteCarloSolver, ScipyODESolver
-from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import EntrySpec, LayoutSpec, StepSpec
-from skcomplex.core.types import FormKind
+from skcomplex.core.engine.solvers import (
+    AgentView,
+    BaseSolver,
+    FractionalABMSolver,
+    GillespieSolver,
+    GrunwaldLetnikovSolver,
+    L1Solver,
+    LatticeSolver,
+    MonteCarloSolver,
+    ScipyODESolver,
+    Solver,
+    SystemView,
+)
+from skcomplex.core.errors import SkcomplexError, SolverError
+from skcomplex.core.specs import BaseSpec, EntrySpec, LayoutSpec, StepSpec
+from skcomplex.core.types import FormKind, OrderKind
+
+SOLVERS = [
+    item
+    for item in vars(solvers).values()
+    if inspect.isclass(item)
+    and issubclass(item, BaseSolver)
+    and not inspect.isabstract(item)
+    and item not in {BaseSolver, Solver}
+]
+VIEWS = {AgentView, SystemView}
 
 
 def test_solver_rejects_a_problem_of_another_form():
@@ -108,3 +133,37 @@ def test_solvers_support_the_tags_of_the_classes_they_support():
     assert GillespieSolver.get_supported_tags().laws == {'jump', 'update'}
     assert 'none' not in LatticeSolver.get_supported_tags().space
     assert MonteCarloSolver.get_supported_tags().laws == {'sampling'}
+
+
+@pytest.mark.parametrize('solver', SOLVERS, ids=lambda solver: solver.__name__)
+def test_every_solver_declares_orders(solver):
+    """Test that every solver declares the orders it integrates."""
+    assert solver._get_support().orders
+
+
+@pytest.mark.parametrize('solver', [GrunwaldLetnikovSolver, L1Solver, FractionalABMSolver])
+def test_fractional_solvers_support_every_order(solver):
+    """Test that the fractional solvers integrate integer and fractional orders."""
+    assert solver._get_support().orders == set(OrderKind)
+
+
+def test_public_names_are_classes_under_the_bases():
+    """Every public name is a solver, a value a solver returns, an error, or a view that system rules receive."""
+    for name in solvers.__all__:
+        item = getattr(solvers, name)
+        assert inspect.isclass(item), name
+        assert issubclass(item, BaseSolver | BaseSpec | SkcomplexError) or item in VIEWS, name
+
+
+def test_concrete_solvers_answer_their_hooks():
+    """Every concrete solver names its form and what it supports, and takes a random state and an end time."""
+    for name in solvers.__all__:
+        item = getattr(solvers, name)
+        if not inspect.isclass(item) or not issubclass(item, BaseSolver) or inspect.isabstract(item):
+            continue
+        try:
+            item._get_form()
+            item._get_support()
+        except NotImplementedError:
+            continue
+        assert {'random_state', 'until'} <= set(item().get_params()), name

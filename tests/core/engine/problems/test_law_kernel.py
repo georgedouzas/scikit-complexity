@@ -1,4 +1,4 @@
-"""Test the functions that the `_law_kernel` module of `skcomplex.core.engine.problems` calls."""
+"""Test the `_law_kernel` module of `skcomplex.core.engine.problems`."""
 
 from typing import Annotated, ClassVar
 

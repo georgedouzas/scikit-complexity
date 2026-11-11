@@ -14,6 +14,8 @@ from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.mathematics.dynamical_systems import LorenzSystem
 
+from .conftest import _damped_rotation, _last_values
+
 LORENZ_TERMS = {
     (0, 'x'): -10.0,
     (0, 'y'): 10.0,
@@ -92,3 +94,12 @@ def test_sparse_identification_rejects_a_negative_horizon():
     """Test that a negative horizon raises an error naming it."""
     with pytest.raises(AnalysisError, match='horizon'):
         sparse_identification(np.zeros((10, 1)), horizon=-1)
+
+
+def test_sparse_identification_keeps_its_reference_values():
+    """Test the run of the sparse surrogate against the values recorded before it moved to declared states."""
+    analysis = sparse_identification(_damped_rotation(), variables=['x', 'y'], degree=1, threshold=0.01, dt=0.05)
+    assert _last_values(analysis, ['x', 'y'], 1.0, 0.01) == pytest.approx(
+        [-0.25163852889586635, 0.5533559045838776],
+        rel=1e-9,
+    )

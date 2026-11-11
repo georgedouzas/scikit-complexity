@@ -1,8 +1,9 @@
 """Test the `_lattice` module of `skcomplex.core.components.spaces`."""
 
+import networkx as nx
 import pytest
 
-from skcomplex.core.components.spaces import AdjacencyNeighborhood, BallNeighborhood, LatticeSpace
+from skcomplex.core.components.spaces import AdjacencyNeighborhood, BallNeighborhood, LatticeSpace, NetworkSpace
 from skcomplex.core.errors import ValidationError
 
 
@@ -79,3 +80,11 @@ def test_lattice_space_balls_and_neighbour_pairs():
     assert space._get_ball(1).prepare().offsets_ == ((-1,), (0,), (1,))
     assert space._get_neighbor_pairs() == [(0, 1), (1, 2)]
     assert sorted(LatticeSpace(3).prepare()._get_neighbor_pairs()) == [(0, 1), (1, 2), (2, 0)]
+
+
+def test_neighbor_pairs_list_lattice_and_network_bonds():
+    """Test that neighbour pairs are the bonds of periodic and open lattices and of networks."""
+    assert LatticeSpace(4).prepare()._get_neighbor_pairs() == [(0, 1), (1, 2), (2, 3), (3, 0)]
+    assert LatticeSpace(3, boundary='fixed').prepare()._get_neighbor_pairs() == [(0, 1), (1, 2)]
+    assert len(LatticeSpace((2, 3)).prepare()._get_neighbor_pairs()) == 9
+    assert NetworkSpace(nx.path_graph(3)).prepare()._get_neighbor_pairs() == [(0, 1), (1, 2)]

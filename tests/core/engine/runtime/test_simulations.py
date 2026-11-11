@@ -16,6 +16,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine import runtime as package
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, simulate
 from skcomplex.core.engine.runtime._simulations import Simulation
@@ -611,3 +612,9 @@ def test_simulation_runs_the_solver_instance_passed():
     )
     solver = ScipyODESolver(method='RK45')
     assert Simulation(system, solver=solver).prepare().run(until=0.1).stepper_ is solver
+
+
+def test_simulation_is_private():
+    """The simulation that `simulate` runs is not public."""
+    assert 'Simulation' not in package.__all__
+    assert not hasattr(package, 'Simulation')

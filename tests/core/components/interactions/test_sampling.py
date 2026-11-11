@@ -22,7 +22,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, PartnerSpec, StateSpec, VisualSpec
 from skcomplex.systems.physics.common.fields import HolonomyScoreSpec, WilsonSamplingInteraction
 
 SIDE = 16
@@ -517,3 +517,10 @@ def test_holonomy_score_needs_a_group_on_the_edges_of_a_cell_complex():
     system = CompositeSystem(elements=[sites], interactions=[_matrix_sampling(ISOSPIN)], time=DiscreteTime())
     with pytest.raises(ValidationError, match='edges of a CellComplexSpace'):
         simulate(system, until=1, random_state=0)
+
+
+def test_variant_refuses_a_spec_and_lists_what_it_takes():
+    """Test that a move refuses a spec, and lists its names and functions."""
+    interaction = SamplingInteraction('a', target='b', state='x', objective=lambda s: 0.0, move=PartnerSpec())
+    with pytest.raises(ValidationError, match=r'Unknown move .*a function'):
+        interaction.prepare()

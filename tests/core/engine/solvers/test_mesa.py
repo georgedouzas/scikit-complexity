@@ -1,10 +1,13 @@
 """Test agent-based systems on the Mesa backend: recognition, spaces, populations, reproducibility, and support."""
 
+import json
+from importlib.resources import files
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import pytest
+from shapely import Point, Polygon, box
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
@@ -22,7 +25,14 @@ from skcomplex.core.engine.compile.passes._agents import AgentsPass
 from skcomplex.core.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView, MesaSolver
-from skcomplex.core.errors import IncompatibleLawsError, LabelError, SimulationError, SpaceError, ValidationError
+from skcomplex.core.errors import (
+    BackendError,
+    IncompatibleLawsError,
+    LabelError,
+    SimulationError,
+    SpaceError,
+    ValidationError,
+)
 from skcomplex.core.specs import (
     ObservableSpec,
     ParameterSpec,
@@ -34,11 +44,16 @@ from skcomplex.core.specs import (
     VisualSpec,
 )
 from skcomplex.core.types import FormKind
+from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
+from skcomplex.systems.general.agents import MovementInteraction
+
+from ....conftest import QueueElement, _queue_run
 
 SEEN: list[object] = []
 UNDECLARED: list[bool] = []
 LOG: list[tuple[str, int]] = []
+RECORDED_BOIDS = 'recorded_boids_two_dimensions.json'
 
 
 class BreederElement(Element):
@@ -184,6 +199,101 @@ def _money_system():
         elements=[GroupElement('agents', element=MoneyAgentElement, size=50)],
         time=DiscreteTime(),
     )
+
+
+class NeighbourProbeElement(Element):
+    """Test helper that records what a rule reads of the system and its neighbours."""
+
+    seen: list[object]
+
+    def __init__(self, label, visual=None, *, near: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label, visual=visual)
+        self.near = near
+
+    def _get_laws(self, namespace):
+        """Test helper laws."""
+        return [RuleLaw(self.read)]
+
+    def read(self, agent, system):
+        """Test helper rule that keeps the dimensions and counts the neighbours within radii."""
+        NeighbourProbeElement.seen.append(
+            (agent.id, system.dimensions, len(agent.get_neighbors(2.0)), len(agent.get_neighbors(4.0))),
+        )
+
+
+class IdleElement(Element):
+    """Test helper agent whose rule does nothing."""
+
+    def _get_laws(self, namespace):
+        """Test helper laws."""
+        return [RuleLaw(self.idle)]
+
+    def idle(self, agent, system):
+        """Test helper rule."""
+
+
+def _simulate(system, until=0, random_state=0):
+    """Return the trajectory of a system on the Mesa solver."""
+    return simulate(system, until=until, solver=MesaSolver(), random_state=random_state)
+
+
+def _concave_polygon():
+    """Return an L of three unit squares around a missing fourth, with a hole of area 0.1 in the first square."""
+    hole = [(0.2, 0.2), (0.7, 0.2), (0.7, 0.4), (0.2, 0.4)]
+    return Polygon([(0, 0), (2, 0), (2, 1), (1, 1), (1, 2), (0, 2)], holes=[hole]), box(0.2, 0.2, 0.7, 0.4)
+
+
+def _lengths(values):
+    """Return the length of the queue of every agent."""
+    return np.asarray([len(item) for item in values], dtype=float)
+
+
+class EmployerElement(Element):
+    """Test helper Employer."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        offer: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.offer = offer
+
+    def _get_laws(self, s):
+        """Test helper laws."""
+        return [RuleLaw(self.post, phase='offers')]
+
+    def post(self, agent, system):
+        """Test helper post."""
+        agent.offer = system.time + 1.0
+
+
+class WorkerElement(Element):
+    """Test helper Worker."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        accepted: Annotated[float, StateSpec()] = -1.0,
+        stale: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.accepted = accepted
+        self.stale = stale
+
+    def _get_laws(self, s):
+        """Test helper laws."""
+        return [RuleLaw(self.accept, phase='acceptance')]
+
+    def accept(self, agent, system):
+        """Test helper accept."""
+        best = max(employer.offer for employer in system.get_agents('employers', AgentView))
+        agent.stale += float(best != system.time + 1.0)
+        agent.accepted = best
 
 
 def test_rule_laws_make_elements_agents():
@@ -1118,3 +1228,428 @@ def test_rule_draw_rejects_an_unknown_distribution():
     system = CompositeSystem(elements=[GroupElement('coins', element=OddElement, size=2)], time=DiscreteTime())
     with pytest.raises(ValidationError, match="distribution 'wobbly'"):
         simulate(system, until=1, random_state=0)
+
+
+def test_recorded_two_dimensional_trajectories_load():
+    """Test that the trajectories recorded before three-dimensional spaces load with their frames and shapes."""
+    recorded = json.loads((files(__package__) / RECORDED_BOIDS).read_text())
+    assert sorted(int(frame) for frame in recorded) == [0, 1, 5, 10, 20]
+    assert np.asarray(recorded['20']['locations']).shape == (10, 2)
+
+
+def test_two_dimensional_space_keeps_recorded_trajectories():
+    """Test that a system on a two-dimensional continuous space repeats the trajectories recorded before the change."""
+    recorded = json.loads((files(__package__) / RECORDED_BOIDS).read_text())
+    for _ in range(2):
+        trajectory = simulate(BoidsSystem(10).prepare().system_, until=20, dt=1, random_state=0)
+        for frame, values in recorded.items():
+            snapshot = trajectory.get_agents('flock', int(frame))
+            assert snapshot.ids.tolist() == values['ids']
+            np.testing.assert_allclose(snapshot.locations, values['locations'], rtol=1e-9, atol=1e-9)
+            np.testing.assert_allclose(snapshot.values['vx'], values['vx'], rtol=1e-9, atol=1e-9)
+            np.testing.assert_allclose(snapshot.values['vy'], values['vy'], rtol=1e-9, atol=1e-9)
+
+
+def test_three_dimensional_box_places_agents_inside():
+    """Test that the system view reports three dimensions, and agents without a location start inside the box."""
+    NeighbourProbeElement.seen = []
+    group = GroupElement('probes', element=NeighbourProbeElement, size=200)
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 5.0, 2.0)))
+    locations = _simulate(system, until=1).get_agents('probes', 0).locations
+    assert NeighbourProbeElement.seen[0][1] == (10.0, 5.0, 2.0)
+    assert locations.shape == (200, 3)
+    assert locations.min() >= 0.0
+    assert np.all(locations.max(axis=0) <= (10.0, 5.0, 2.0))
+    assert locations[:, 2].max() > 1.0
+
+
+def test_neighbours_across_the_depth_boundary():
+    """Test that two agents across the periodic third side find each other within a radius of 0.5."""
+
+    class NearElement(NeighbourProbeElement):
+        """Test helper that counts the neighbours within 0.5."""
+
+        def read(self, agent, system):
+            """Test helper rule."""
+            agent.near = float(len(agent.get_neighbors(0.5)))
+
+    group = GroupElement('probes', element=NearElement, size=2, location=[(5.0, 5.0, 0.2), (5.0, 5.0, 9.9)])
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic'))
+    assert _simulate(system, until=1).get_agents('probes', 1).values['near'].tolist() == [1.0, 1.0]
+
+
+def test_displacement_takes_the_minimum_image_in_depth():
+    """Test that the displacement between agents across the third side wraps every coordinate."""
+
+    class ShiftElement(NeighbourProbeElement):
+        """Test helper that keeps the depth of the shortest vector to the other agent."""
+
+        def read(self, agent, system):
+            """Test helper rule."""
+            other = next(item for item in system.get_agents('probes') if item.id != agent.id)
+            agent.near = float(agent.get_displacement_to(other)[2])
+
+    group = GroupElement('probes', element=ShiftElement, size=2, location=[(5.0, 5.0, 0.2), (5.0, 5.0, 9.9)])
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic'))
+    near = _simulate(system, until=1).get_agents('probes', 1).values['near']
+    np.testing.assert_allclose(near, [-0.3, 0.3])
+
+
+def test_depth_counts_in_the_distance():
+    """Test that agents that differ by 3 in the third coordinate are neighbours within 4 and not within 2."""
+    NeighbourProbeElement.seen = []
+    group = GroupElement('probes', element=NeighbourProbeElement, size=2, location=[(5.0, 5.0, 1.0), (5.0, 5.0, 4.0)])
+    _simulate(CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0, 10.0))), until=1)
+    assert [item[2:] for item in NeighbourProbeElement.seen] == [(0, 1), (0, 1)]
+
+
+def test_gaussian_steps_spread_in_depth():
+    """Test that the variance of the third coordinate grows under Gaussian steps and positions stay in the box."""
+    group = GroupElement('walkers', element=Element, size=100, location=(5.0, 5.0, 5.0))
+    walk = MovementInteraction('walk', target='walkers', step='gaussian', scale=0.1)
+    system = CompositeSystem(
+        elements=[group],
+        interactions=[walk],
+        space=ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic'),
+    )
+    trajectory = _simulate(system, until=100)
+    variances = [trajectory.get_agents('walkers', frame).locations[:, 2].var() for frame in (0, 10, 100)]
+    assert variances[0] < variances[1] < variances[2]
+    for frame in (1, 50, 100):
+        locations = trajectory.get_agents('walkers', frame).locations
+        assert locations.min() >= 0.0
+        assert locations.max() <= 10.0
+
+
+def test_trajectory_reports_three_coordinates_per_agent():
+    """Test that a trajectory holds one row of 3 coordinates per agent alive at frame 5, with the agent ids."""
+    group = GroupElement('walkers', element=Element, size=7)
+    walk = MovementInteraction('walk', target='walkers', step='gaussian', scale=0.1)
+    system = CompositeSystem(
+        elements=[group],
+        interactions=[walk],
+        space=ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic'),
+    )
+    snapshot = _simulate(system, until=5).get_agents('walkers', 5)
+    assert snapshot.locations.shape == (7, 3)
+    assert len(snapshot.ids) == 7
+
+
+@pytest.mark.parametrize(
+    ('space', 'dimension'),
+    [
+        (ContinuousSpace(extent=(5.0, 5.0, 5.0, 5.0)), '4 dimensions'),
+        (ContinuousSpace(n_dim=2), '2 dimensions'),
+        (ContinuousSpace(extent=(5.0,)), '1 dimensions'),
+    ],
+)
+def test_unsupported_continuous_space_is_rejected_before_the_first_frame(space, dimension):
+    """Test that a space that is no box of two or three sides raises a named error when the solver prepares."""
+    group = GroupElement('probes', element=NeighbourProbeElement, size=2)
+    problem = PassCompiler(solver=MesaSolver()).prepare(CompositeSystem(elements=[group], space=space)).run().problem_
+    with pytest.raises(BackendError, match=f"continuous space 'space'.*{dimension}.*two or three dimensions"):
+        MesaSolver().prepare(problem)
+    with pytest.raises(BackendError, match='two or three dimensions'):
+        _simulate(CompositeSystem(elements=[group], space=space), until=1)
+
+
+@pytest.mark.parametrize(
+    'location',
+    [(1.0, 2.0), [(1.0, 2.0), (1.0, 2.0), (1.0, 2.0)], box(0.0, 0.0, 1.0, 1.0)],
+)
+def test_location_of_the_wrong_length_is_reported(location):
+    """Test that the compile report holds an initial location that does not fit a three-dimensional space."""
+    group = GroupElement('probes', element=NeighbourProbeElement, size=3, location=location)
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
+    report = PassCompiler().prepare(system).report_
+    issue = next(item for item in report.issues if item.code == 'location-dimension')
+    assert issue.path == 'probes'
+    assert '2 coordinates' in issue.message
+    assert '3 dimensions' in issue.message
+
+
+def test_locations_that_fit_their_space_are_not_reported():
+    """Test that fitting positions and polygons in a two-dimensional space leave the compile report clean."""
+    for location in ((1.0, 2.0, 3.0), [(1.0, 2.0, 3.0)] * 2):
+        group = GroupElement('probes', element=NeighbourProbeElement, size=2, location=location)
+        system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
+        assert PassCompiler().prepare(system).report_.ok
+    group = GroupElement('probes', element=NeighbourProbeElement, size=2, location=[box(0.0, 0.0, 1.0, 1.0)] * 2)
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0)))
+    assert PassCompiler().prepare(system).report_.ok
+
+
+def test_move_to_of_the_wrong_length_raises_space_error():
+    """Test that a move to a location that does not fit the space raises a named error during the run."""
+    group = GroupElement('walkers', element=Element, size=1, location=(1.0, 1.0, 1.0))
+    walk = MovementInteraction('walk', target='walkers', step=lambda agent, system: (2.0, 2.0))
+    system = CompositeSystem(elements=[group], interactions=[walk], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
+    with pytest.raises(SpaceError, match='has 2 coordinates, and the space has 3 dimensions'):
+        _simulate(system, until=1)
+
+
+def test_agents_per_census_region():
+    """Test that members start inside the polygons given as their locations."""
+    regions = [box(0.0, 0.0, 4.0, 4.0), box(5.0, 5.0, 9.0, 9.0), box(0.0, 5.0, 4.0, 9.0)]
+    group = GroupElement('people', element=IdleElement, size=150, location=[regions[0]] * 100 + [regions[1]] * 50)
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0), regions={'census': regions}))
+    snapshot = _simulate(system).get_agents('people', 0)
+    assert all(regions[0].contains(Point(point)) for point in snapshot.locations[:100])
+    assert all(regions[1].contains(Point(point)) for point in snapshot.locations[100:])
+
+
+def test_one_polygon_is_shared_by_every_member():
+    """Test that one polygon as the location of a group places every member at its own point inside it."""
+    region = box(1.0, 1.0, 2.0, 2.0)
+    group = GroupElement('people', element=IdleElement, size=5, location=region)
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0)))
+    locations = _simulate(system).get_agents('people', 0).locations
+    assert all(region.contains(Point(point)) for point in locations)
+    assert len({tuple(point) for point in locations}) == 5
+
+
+def test_region_placement_is_reproducible():
+    """Test that two runs with one random state start the agents at the same points, and another seed differs."""
+
+    def start(random_state):
+        group = GroupElement('people', element=IdleElement, size=20, location=box(0.0, 0.0, 4.0, 4.0))
+        system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0)))
+        return _simulate(system, random_state=random_state).get_agents('people', 0).locations
+
+    np.testing.assert_array_equal(start(0), start(0))
+    assert not np.array_equal(start(0), start(1))
+
+
+def test_placement_is_uniform_in_a_concave_polygon_with_a_hole():
+    """Test that 20000 agents lie in an L with a hole, with the share of each unit square equal to its area share."""
+    polygon, hole = _concave_polygon()
+    group = GroupElement('people', element=IdleElement, size=20000, location=polygon)
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(2.0, 2.0)))
+    locations = _simulate(system).get_agents('people', 0).locations
+    assert all(polygon.contains(Point(point)) for point in locations[:2000])
+    x, y = locations[:, 0], locations[:, 1]
+    assert not np.any((x > 0.2) & (x < 0.7) & (y > 0.2) & (y < 0.4))
+    assert not np.any((x > 1.0) & (y > 1.0))
+    shares = [np.mean((x < 1) & (y < 1)), np.mean((x >= 1) & (y < 1)), np.mean((x < 1) & (y >= 1))]
+    np.testing.assert_allclose(shares, np.array([0.9, 1.0, 1.0]) / polygon.area, atol=0.02)
+    assert hole.area == pytest.approx(0.1)
+
+
+def test_move_to_a_favourite_place():
+    """Test that a step returning the polygon of a region moves the agent into it, and the agent finds it there."""
+    places = [box(0.0, 0.0, 2.0, 2.0), box(3.0, 3.0, 5.0, 5.0), box(4.0, 4.0, 6.0, 6.0)]
+    found = []
+
+    def to_favourite(agent, system):
+        found.append(system.get_regions('places'))
+        return system.get_region('places', 1)
+
+    def read(agent, system):
+        found.append(agent.get_regions_here('places'))
+
+    class ReaderElement(Element):
+        """Test helper that reads the regions of its agent."""
+
+        def _get_laws(self, namespace):
+            """Test helper laws."""
+            return [RuleLaw(read)]
+
+    group = GroupElement('people', element=ReaderElement, size=30, location=places[0])
+    move = MovementInteraction('move', target='people', step=to_favourite, schedule='member')
+    system = CompositeSystem(
+        elements=[group],
+        interactions=[move],
+        space=ContinuousSpace(extent=(10.0, 10.0), regions={'places': places}),
+    )
+    locations = _simulate(system, until=2).get_agents('people', 2).locations
+    assert all(places[1].contains(Point(point)) for point in locations)
+    assert 3 in found
+    assert [0] in found
+    assert any(1 in item for item in found if isinstance(item, list))
+
+
+def test_created_agent_is_placed_in_a_polygon():
+    """Test that a created agent starts inside the polygon of its location."""
+    region = box(1.0, 1.0, 2.0, 2.0)
+
+    class SpawnerElement(Element):
+        """Test helper that creates one agent in a region."""
+
+        def _get_laws(self, namespace):
+            """Test helper laws."""
+            return [RuleLaw(self.spawn)]
+
+        def spawn(self, agent, system):
+            """Test helper rule."""
+            if system.count('people') == 1:
+                system.create('people', location=region)
+
+    group = GroupElement('people', element=SpawnerElement, size=1, location=(4.0, 4.0), variable=True)
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0)))
+    locations = _simulate(system, until=1).get_agents('people', 1).locations
+    assert locations.shape == (2, 2)
+    assert region.contains(Point(locations[1]))
+
+
+@pytest.mark.parametrize(
+    ('step', 'error', 'message'),
+    [
+        (lambda agent, system: agent.get_regions_here('absent'), SimulationError, 'no region layer'),
+        (lambda agent, system: system.get_region('places', 5), SimulationError, 'has 1 regions'),
+        (lambda agent, system: Polygon([(0, 0), (1, 1), (1, 0), (0, 1)]), SpaceError, 'invalid polygon'),
+    ],
+)
+def test_region_queries_and_invalid_polygons_raise_named_errors(step, error, message):
+    """Test that an unknown layer, an unknown region, and an invalid polygon raise errors that say what is wrong."""
+    group = GroupElement('people', element=IdleElement, size=1, location=(1.0, 1.0))
+    move = MovementInteraction('move', target='people', step=step)
+    space = ContinuousSpace(extent=(5.0, 5.0), regions={'places': [box(0.0, 0.0, 1.0, 1.0)]})
+    with pytest.raises(error, match=message):
+        _simulate(CompositeSystem(elements=[group], interactions=[move], space=space), until=1)
+
+
+def test_polygon_is_no_location_of_a_lattice():
+    """Test that a polygon as the location of an agent on a lattice raises a named error."""
+    group = GroupElement('people', element=IdleElement, size=1, location=box(0.0, 0.0, 1.0, 1.0))
+    with pytest.raises(SpaceError, match='location of a continuous space'):
+        _simulate(CompositeSystem(elements=[group], space=LatticeSpace((5, 5))))
+
+
+def test_snapshots_keep_tuples_as_they_were():
+    """Test that each snapshot keeps one tuple per agent, in a one-dimensional array of objects."""
+    trajectory = _queue_run()
+    first, last = trajectory.get_agents('queues', 0), trajectory.get_agents('queues', 3)
+    assert first.values['orders'].shape == (2,)
+    assert first.values['orders'].dtype == object
+    assert first.values['orders'].tolist() == [(), (7,)]
+    assert last.values['orders'].tolist() == [(2, 3), (2, 3)]
+
+
+def test_composition_counts_agents_by_tuple():
+    """Test that the composition of a group counts its agents by the tuples they hold."""
+    seen = []
+
+    class CountingElement(QueueElement):
+        """Agent of a queue that records the composition of its group."""
+
+        def _step(self, agent, system):
+            """Record the composition, and then step."""
+            seen.append(dict(system.get_composition('queues', 'orders')))
+            super()._step(agent, system)
+
+    group = GroupElement('queues', element=CountingElement, size=2, values={'orders': [(), (7,)]})
+    simulate(CompositeSystem(elements=[group], time=DiscreteTime()), until=1, random_state=0)
+    assert seen[0] == {(): 1, (7,): 1}
+    assert sum(seen[1].values()) == 2
+
+
+def test_history_keeps_reported_objects():
+    """Test that the reports of a run keep an object at every frame."""
+    values = _queue_run().get_values('queues.longest')
+    assert values.dtype == object
+    assert isinstance(values[-1], tuple)
+
+
+def test_observable_keeps_a_hashable_value():
+    """Test that an observable of a group by a function of its values may give an object."""
+    observables = [ObservableSpec('lengths', group='queues', variable='orders', reduce=_lengths)]
+    group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
+    system = CompositeSystem(elements=[group], time=DiscreteTime())
+    trajectory = simulate(system, until=2, observables=observables, random_state=0)
+    assert trajectory.get_values('lengths')[0] == pytest.approx([0, 1])
+
+
+def test_offer_before_acceptance():
+    """Every acceptance refers to an offer made earlier in the same step."""
+    system = CompositeSystem(
+        elements=[
+            GroupElement('workers', element=WorkerElement, size=5),
+            GroupElement('employers', element=EmployerElement, size=3),
+        ],
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers'), PhaseSpec('acceptance')])),
+    )
+    trajectory = simulate(system, until=10, random_state=0)
+    workers = trajectory.get_agents('workers', 10)
+    assert np.all(workers.values['stale'] == 0)
+    assert np.all(workers.values['accepted'] == trajectory.get_agents('employers', 10).values['offer'].max())
+
+
+def test_undeclared_phase_raises():
+    """A rule in a phase that the system does not declare raises an error."""
+    system = CompositeSystem(elements=[GroupElement('employers', element=EmployerElement, size=2)])
+    with pytest.raises(SimulationError, match='offers'):
+        simulate(system, until=1)
+
+
+def test_run_reads_the_phases_of_a_nested_system():
+    """Test that rules run in a phase that the schedule of a nested system declares."""
+    nested = CompositeSystem(
+        label='market',
+        elements=[GroupElement('employers', element=EmployerElement, size=2)],
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers')])),
+    )
+    trajectory = simulate(CompositeSystem(systems=[nested]), until=3, random_state=0)
+    assert np.all(trajectory.get_agents('market/employers', 3).values['offer'] == 4.0)
+
+
+def test_phases_keep_unphased_systems():
+    """Rules without a phase run in the default phase."""
+
+    class CounterElement(Element):
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            count: Annotated[float, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.count = count
+
+        def _get_laws(self, s):
+            return [RuleLaw(self.tick)]
+
+        def tick(self, agent, system):
+            agent.count += 1
+
+    system = CompositeSystem(
+        elements=[GroupElement('counters', element=CounterElement, size=3)],
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('extra', repeat=2)])),
+    )
+    trajectory = simulate(system, until=4, random_state=0)
+    assert trajectory.get_agents('counters', 4).values['count'].tolist() == [4.0, 4.0, 4.0]
+
+
+def test_sequential_and_by_type_order():
+    """Sequential activation follows creation, and by-type activation follows the listed groups."""
+    seen = []
+
+    class FirstElement(Element):
+        def _get_laws(self, s):
+            return [RuleLaw(lambda agent, system: seen.append(('first', agent.id)), phase='go')]
+
+    class SecondElement(Element):
+        def _get_laws(self, s):
+            return [RuleLaw(lambda agent, system: seen.append(('second', agent.id)), phase='go')]
+
+    system = CompositeSystem(
+        elements=[
+            GroupElement('first', element=FirstElement, size=3),
+            GroupElement('second', element=SecondElement, size=3),
+        ],
+        time=DiscreteTime(
+            schedule=PhasesScheduleSpec([PhaseSpec('go', activation='by-type', groups=['second', 'first'])]),
+        ),
+    )
+    simulate(system, until=1, random_state=0)
+    assert [group for group, _ in seen] == ['second'] * 3 + ['first'] * 3
+    seen.clear()
+    sequential = CompositeSystem(
+        elements=[
+            GroupElement('first', element=FirstElement, size=3),
+            GroupElement('second', element=SecondElement, size=3),
+        ],
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('go', 'sequential')])),
+    )
+    simulate(sequential, until=1, random_state=0)
+    assert [identity for _, identity in seen] == sorted(identity for _, identity in seen)
