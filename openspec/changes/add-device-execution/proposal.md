@@ -29,8 +29,12 @@ changes for massive simulations, and the batched, sharded, and large-system chan
   method of Gillespie, lower to JAX. Draws come from a JAX key derived from the random state of the run, so a seeded run
   repeats exactly on one device. JAX streams are not NumPy streams, so a JAX run agrees with a NumPy run in
   distribution, not draw by draw.
-- **GPU tests.** A `gpu` test marker. Tests with it are skipped when JAX sees no GPU, and a new `gpu_tests` session of
-  nox runs them and fails without a GPU. CI keeps running every device test on the CPU device of JAX.
+- **GPU tests.** A `gpu` test marker. Tests with it are skipped when JAX sees no GPU, and a new `gpu` session of nox
+  runs them and the benchmarks and fails without a GPU. CI keeps running every device test on the CPU device of JAX.
+- **A GPU runner gates releases.** A workflow runs the `gpu` session on a GPU runner whose label is a repository
+  setting, a self-hosted runner or a GitHub GPU larger runner, as the maintainer chooses. The release workflow needs it
+  before publishing. Until a runner is configured, the job is skipped with a warning that says the GPU tests did not
+  run, never a silent pass.
 - **Benchmarks.** Benchmarks of a large Kuramoto system and of a stochastic SIR ensemble member on the CPU and the GPU
   device of JAX against the Numba backend, with targets set as ratios to the Numba time on the same machine.
 - **No new compute backend.** JAX covers NVIDIA and AMD GPUs. CuPy, Numba CUDA, PyTorch, Warp, and Taichi were
@@ -58,8 +62,9 @@ changes for massive simulations, and the batched, sharded, and large-system chan
 - Dependencies: none new. `jax` stays a runtime dependency. The GPU plugins `jax-cuda12-plugin`,
   `jax-cuda13-plugin`, and `jax-rocm7-plugin` are installed by the user through the extras of `jax`, as the README
   shows.
-- Tests and CI: the `gpu` marker in `tests/conftest.py`, the `gpu_tests` session in `noxfile.py`, and a manual GitHub
-  workflow for a GPU runner.
+- Tests and CI: the `gpu` marker in `tests/conftest.py`, the `gpu` session in `noxfile.py`, a reusable workflow
+  `.github/workflows/gpu.yml` for a GPU runner, the release workflow, which needs it, and the setup of both kinds of
+  runner in `CONTRIBUTING.md`.
 - Docs: a devices section in the simulate page of the user guide and the GPU install lines in the README.
 - Order: first of the changes for massive simulations. `add-cluster-executors` runs in parallel with it.
   `add-batched-runs`, `add-large-system-kernels`, `add-multi-device-sharding`, and `add-domain-decomposition` follow.

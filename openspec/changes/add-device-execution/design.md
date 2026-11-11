@@ -41,7 +41,7 @@
 | `device` and `precision` of `JaxBackend` | 2, settings of a backend the engine runs by type | `core/engine/backends/_jax.py` | every field with large runs: physics (oscillators, particles), epidemiology (stochastic outbreaks), neuroscience (spiking networks), ecology, finance (Monte Carlo paths) |
 | JAX loops `iterate`, `rk4`, `velocity_verlet`, `yoshida4`, `euler_maruyama`, `gillespie` | 2, backend lowerings that the solvers call through `AcceleratedSpec` | new private module `core/engine/backends/_jax_loops.py` | the same fields, through every solver that reads `accelerated` |
 | JAX lowering of noise and jump laws | 2, backend lowerings of law kinds | `core/engine/backends/_jax.py` | stochastic chemistry, epidemiology, finance, population genetics |
-| `gpu` marker and `gpu_tests` session | not a part of the package | `tests/conftest.py`, `noxfile.py` | none |
+| `gpu` marker, `gpu` session, and GPU workflow | not a part of the package | `tests/conftest.py`, `noxfile.py`, `.github/workflows/gpu.yml`, `.github/workflows/release.yml` | none |
 
 No new package and no new concept. A device is a setting of a backend, as `parallel` is a setting of the Numba
 backend, and the loops fill a spec the solvers already read.
@@ -125,10 +125,33 @@ with `vmap`, and shards them over devices, which the later changes need.
 - `tests/conftest.py` registers the marker `gpu: a test that needs a GPU that JAX sees` and skips such tests with the
   reason "no GPU device" when `jax.devices('gpu')` raises.
 - Every device test that does not need a GPU uses `device='cpu'`, so CI covers the device code on its runners.
-- A nox session `gpu_tests` runs `pytest -m gpu` and fails when JAX sees no GPU, so a run on a GPU machine cannot pass
-  by skipping.
-- A workflow `.github/workflows/gpu.yml` runs `gpu_tests` on `workflow_dispatch` on a runner labelled `gpu`. It does
-  not block merges, since the project has no GPU runner yet.
+- A nox session `gpu` takes `all`, `tests`, or `benchmarks`, as the other sessions take their arguments. `tests` runs
+  `pytest -m gpu`, `benchmarks` runs `pytest -m benchmark --benchmarks`, the benchmarks on the CPU and on the GPU, and
+  `all` runs both. It fails when JAX sees no GPU, so a run on a GPU machine cannot pass by skipping.
+
+### GPU runner and releases
+
+Decided by the user on 2026-11-11: a GPU runner gates releases on the GPU tests and benchmarks.
+
+- The runner is the maintainer's infrastructure, so the workflow does not name one. The repository variable
+  `GPU_RUNNER` holds the label of the runner: the label of a self-hosted runner on a machine with an NVIDIA GPU and the
+  CUDA driver, or the name of a GitHub GPU larger runner, which GitHub bills per minute and which an organisation
+  creates in its settings. `CONTRIBUTING.md` documents both, with the driver, the JAX plugin, and the variable to set.
+- `.github/workflows/gpu.yml` is a reusable workflow, called by `release.yml` and started by hand with
+  `workflow_dispatch`. Its first job, on `ubuntu-latest`, reads `GPU_RUNNER`. When the variable is set, the job `gpu`
+  runs on that label: it installs the package with `jax[cuda13]`, prints `jax.devices()`, and runs `nox -s gpu`. A
+  last job `gate`, which always runs, fails when `gpu` failed or was cancelled.
+- Until a runner exists, `GPU_RUNNER` is empty, the job `gpu` is skipped, and `gate` writes a warning annotation and a
+  line in the job summary: "No GPU runner is configured (repository variable GPU_RUNNER), so the GPU tests and
+  benchmarks did not run." The release then proceeds with that warning in its run, so a skip is visible and never
+  reads as a pass.
+- `release.yml` calls `gpu.yml` as the job `gpu`, and `build` and `docs-release` need both `ci` and `gpu`, so a failing
+  GPU test or a missed GPU target stops the release before anything is published.
+- Pushes and pull requests do not run the GPU job, which keeps the cost of a rented runner to releases and manual
+  runs. CI keeps covering the device code on the CPU device.
+- Several GPUs and several nodes: the multi-GPU benchmarks of `add-multi-device-sharding` run in the same job when the
+  runner holds two GPUs or more, and are skipped with their reason otherwise. Multi-node targets stay on demand unless
+  a multi-node runner exists.
 
 ### Probes
 
@@ -153,7 +176,9 @@ written in the benchmark docstrings.
   distribution for the JAX backend, and the NumPy and Numba promise of equal draws is unchanged.
 - [Compile time of the loops] → One compile per problem and loop, reused across frames and runs of the same problem
   through the problem cache of experiments. It dominates short runs, which the docs say keep the default backend.
-- [No GPU runner] → The CPU device runs the device code in CI. GPU tests run on demand.
+- [No GPU runner yet] → The CPU device runs the device code in CI, and the release job warns that the GPU tests did
+  not run until `GPU_RUNNER` is set.
+- [Cost of a rented GPU runner] → The job runs only for releases and by hand.
 
 ## Migration Plan
 
@@ -162,4 +187,4 @@ it. A problem that ran on the forward functions of the JAX backend runs on the l
 
 ## Open Questions
 
-- Should the project rent a GPU runner, so `gpu_tests` gates releases rather than runs on demand?
+None. The user decided on 2026-11-11 that a GPU runner gates releases.

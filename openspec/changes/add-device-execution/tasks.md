@@ -51,23 +51,40 @@
 ## 6. GPU tests and benchmarks
 
 - [ ] 6.1 Register the `gpu` marker and its skip in `tests/conftest.py`, and verify the machine-without-a-GPU scenario
-- [ ] 6.2 Add the `gpu_tests` session to `noxfile.py`, and verify the GPU-session-without-a-GPU scenario
-- [ ] 6.3 Add `.github/workflows/gpu.yml`, which runs `gpu_tests` on `workflow_dispatch` on a runner labelled `gpu`,
-  and verify it with `actionlint`
-- [ ] 6.4 Add the benchmarks of the large Kuramoto system on the CPU device and the GPU, and verify the CPU target
+- [ ] 6.2 Add the `gpu` session to `noxfile.py` with the arguments `all`, `tests`, and `benchmarks`, and verify the
+  GPU-session-without-a-GPU scenario
+- [ ] 6.3 Add the benchmarks of the large Kuramoto system on the CPU device and the GPU, and verify the CPU target
   locally and the GPU target on the GPU machine of task 1.1
-- [ ] 6.5 Verify the GPU-device scenario on the GPU machine
+- [ ] 6.4 Verify the GPU-device scenario on the GPU machine
 
-## 7. Documentation
+## 7. GPU runner
 
-- [ ] 7.1 Add a devices section to `docs/overview/user_guide/simulate.md` with `device`, `precision`, the cost of
+- [ ] 7.1 Add the reusable workflow `.github/workflows/gpu.yml`, with `workflow_call` and `workflow_dispatch`, a job
+  that reads the repository variable `GPU_RUNNER`, a job `gpu` that runs `nox -s gpu` on that label when it is set,
+  and a job `gate` that always runs, fails when `gpu` failed or was cancelled, and writes the no-runner warning to the
+  annotations and the job summary when `GPU_RUNNER` is empty, and verify it with `actionlint`
+- [ ] 7.2 Call `gpu.yml` from `.github/workflows/release.yml` as the job `gpu` and make `build` and `docs-release` need
+  `ci` and `gpu`, and verify with `actionlint` and by reading the job graph that no publishing job can start before
+  `gpu` ends
+- [ ] 7.3 Start `gpu.yml` by hand with `GPU_RUNNER` empty, and verify the run shows the job `gpu` as skipped and the
+  warning that names `GPU_RUNNER`, which is the no-GPU-runner scenario
+- [ ] 7.4 Document in the release section of `CONTRIBUTING.md` the two kinds of runner, a self-hosted runner with an
+  NVIDIA GPU, its driver, and its label, and a GitHub GPU larger runner created in the organisation settings, and the
+  variable `GPU_RUNNER` that names either, and verify the variable and job names match `gpu.yml`
+- [ ] 7.5 When a runner is configured, start `gpu.yml` by hand on it, and verify the `gpu` session passes there and a
+  deliberately failing test marked `gpu` on a scratch branch fails `gate`, which is the failing-GPU-test scenario, or
+  record in the design that no runner exists yet
+
+## 8. Documentation
+
+- [ ] 8.1 Add a devices section to `docs/overview/user_guide/simulate.md` with `device`, `precision`, the cost of
   double precision on consumer GPUs, the deterministic XLA flag, and a runnable example on the CPU device, and verify
   the markdown tests run it
-- [ ] 7.2 Add the GPU install lines for CUDA 12, CUDA 13, and ROCm to the installation section of `README.md` and to
+- [ ] 8.2 Add the GPU install lines for CUDA 12, CUDA 13, and ROCm to the installation section of `README.md` and to
   the troubleshooting page, which also states that Apple silicon runs on the CPU, and verify the docs build
 
-## 8. Integration
+## 9. Integration
 
-- [ ] 8.1 Run `nox` (formatting, ruff, mypy, pydoclint, import contracts, tests of the touched modules with the thread
+- [ ] 9.1 Run `nox` (formatting, ruff, mypy, pydoclint, import contracts, tests of the touched modules with the thread
   limits set to 1, doctests, and the strict docs build) and verify every session passes
-- [ ] 8.2 Run `openspec validate add-device-execution --strict` and verify it passes
+- [ ] 9.2 Run `openspec validate add-device-execution --strict` and verify it passes
