@@ -45,15 +45,17 @@ No new package. An executor is already a concept of the experiments, and a store
 ### Dependencies
 
 Checked on PyPI on 2026-11-11. The rule of the Project Profile decides: a library that the core imports is a runtime
-dependency, whatever its weight or licence. `skcomplex.core.experiments` imports all four below.
+dependency, whatever its weight or licence. Ray is the one exception, decided by the user on 2026-11-11 and described
+below.
 
 | Library | Version | Released | Licence | Status |
 | --- | --- | --- | --- | --- |
 | distributed (with dask) | 2026.8.0 | 2026-08-24 | BSD-3-Clause | Added as `distributed>=2026.8.0`. Already installed through pyabc. Imported for `KilledWorker` and the client executor in tests |
-| ray | 2.60.0 | 2026-11-04 | Apache-2.0 | Added as `ray>=2.59.0` (2026-10-02), since 2.60.0 is a week old. Wheels for CPython 3.12 to 3.14 on Linux x86_64 and aarch64 and macOS arm64, about 79 MB |
+| ray | 2.60.0 | 2026-11-04 | Apache-2.0 | The optional extra `ray = ["ray>=2.59.0"]` (2026-10-02), since 2.60.0 is a week old. Wheels for CPython 3.12 to 3.14 on Linux x86_64 and aarch64 and macOS arm64, about 79 MB |
 | zarr | 3.4.2 | 2026-10-27 | MIT | Added as `zarr>=3.4.0` (2026-09-15). The chunked array store of the results |
 | xarray | 2026.9.0 | 2026-09-29 | Apache-2.0 | Added as `xarray>=2026.9.0`, as `add-learning-foundation` also does. Whichever change lands first declares it |
-| dask-jobqueue | 0.9.0 | 2024-08-22 | BSD-3-Clause | Not a dependency. The user installs it to start a Dask cluster on SLURM or PBS. Its last release is past the 24 month limit, though its repository had commits in December 2025, so it could not be a runtime dependency without an exception in the Project Profile |
+| dask-jobqueue | 0.9.0 | 2024-08-22 | BSD-3-Clause | Not a dependency, not even for tests. The user installs it to start a Dask cluster on SLURM or PBS. Its last release is past the 24 month limit, though its repository had commits in December 2025 |
+| executorlib | 1.11.0 | 2026-10-23 | BSD-3-Clause | Added to a development group `slurm`, used only by the SLURM job of CI to run the executorlib recipe of the docs |
 
 Alternatives surveyed for SLURM and PBS:
 
@@ -69,8 +71,31 @@ scheduler, none of them an `Executor`. `RayExecutor` is therefore the adapter th
 that call `ray.remote(function).options(...).remote(*arguments).future()`. The multiprocessing `Pool` of Ray was
 rejected because the experiments need futures to stream chunks as they complete.
 
-Weight: Ray adds about 79 MB and a gRPC stack to every install. The rule makes it a runtime dependency. An extra would
-break the rule, and the open question asks the user whether the rule should bend here.
+### Ray as an optional extra
+
+Decided by the user on 2026-11-11: Ray is the optional extra `ray`, installed with
+`pip install 'scikit-complexity[ray]'`. It is an explicit exception to the rule that libraries the core uses are
+runtime dependencies, because Ray adds about 79 MB and a gRPC stack to every install that does not use it. The Project
+Profile records the exception and its reason.
+
+- `RayExecutor` stays in `skcomplex.core.experiments`, so it sits beside the other executors and every experiment
+  accepts it. Its constructor only stores its settings. Its first use, `submit`, imports `ray` through `import_extra`,
+  which raises `MissingExtraError` whose message names `RayExecutor` and the install command of the extra. The Ray
+  exceptions that the named failures read are imported the same way, only when the executor is a `RayExecutor`.
+- The core must never import `skcomplex.systems`, and `import_extra` lives in `skcomplex/systems/_extras.py`. Decision:
+  move it down to `skcomplex/core/errors.py`, beside `MissingExtraError`, the error it exists to raise. Its second
+  argument `system` becomes `owner`, the name of whatever needs the extra, since `SpacetimeSpace` and `RayExecutor` are
+  not systems, and its message reads "{owner} needs the extra '{extra}'". Every caller passes it positionally, so only
+  the import lines of the systems modules change. `systems/_extras.py` is removed, and `skcomplex.systems` keeps
+  exporting the same function, so user code that imports it there works unchanged.
+- Rejected: a private method of `RayExecutor` that imports Ray itself, which would hold the message of the error in two
+  places. Rejected: a second helper in core beside the one in systems, for the same reason.
+- deptry lists `ray` with the other extras that are imported by name on first use.
+- The extra joins every place that installs the extras: `optional-dependencies` of `pyproject.toml`, the `EXTRAS` of
+  `noxfile.py`, and the `pdm install -G ...` lines of `ci.yml`, `release.yml`, and `docs.yml`. The docs deploy of
+  0.9.0 failed because the extra `relativity` was missing from the workflows, so a task checks every install line
+  against the extras of `pyproject.toml`. The default install job of CI, which installs no extra, checks that
+  `RayExecutor().submit` raises `MissingExtraError` naming `ray`.
 
 ### Executors
 
@@ -135,16 +160,50 @@ The targets are ratios to the current code on the same machine, measured in task
 
 ## Risks / Trade-offs
 
-- [Ray is heavy] → It is the user's explicit choice, and the rule makes it a runtime dependency. The open question
-  offers the alternative.
+- [Ray is heavy] → It is the optional extra `ray`, so only the users of `RayExecutor` install it.
+- [An extra missing from a workflow] → A task checks every install line against the extras of `pyproject.toml`, and
+  the default install job checks the error of the missing extra.
 - [Ray and Dask tests are slow to start] → One fixture per test session starts each local cluster once. The tests that
   start one are marked slow when they pass 10 seconds.
-- [Clusters cannot be tested in CI] → The SLURM, PBS, and cloud recipes are documented as code that the tests do not
-  run, and the local clusters test the same executors.
+- [Clusters are hard to test in CI] → The SLURM job tests Dask and Ray on a real SLURM cluster in Docker. The PBS and
+  cloud recipes stay code that the tests do not run, and the local clusters test the same executors.
+- [The SLURM job is slow or flaky to start] → One cluster per job, started once, with a timeout on the wait for its
+  nodes, and the image pinned to a release tag that Renovate bumps.
 - [Pickling systems for remote workers] → Systems already pickle for process pools. Dask and Ray use cloudpickle, which
   also pickles factories defined in a notebook.
 - [A store on a network file system can be slow] → Chunks are written by the caller in whole Zarr chunks, so no chunk is
   written twice.
+
+### SLURM in CI
+
+Decided by the user on 2026-11-11: CI tests SLURM with a Docker image of a SLURM cluster.
+
+- Image: `giovtorres/slurm-docker-cluster`, checked on 2026-11-11. Its latest release, 3.0.2, came out on 2026-10-19,
+  its repository had commits on 2026-10-19 and is not archived, its licence is MIT, and it builds Slurm 26.05. Each
+  release publishes images for amd64 and arm64 on Docker Hub, tagged by the Slurm version and the release. The job pins
+  a release tag, and Renovate, which the project already runs, proposes new tags.
+- Cluster: `.github/slurm/compose.yml` starts the controller, the database daemon, and two compute nodes from the
+  pinned image, with a shared volume at `/data`, as the compose file of the image does. The job waits until `sinfo`
+  shows both nodes idle.
+- Environment: the job builds the wheel of the package, installs `uv` into the shared volume, and creates there a
+  virtual environment of Python 3.13 with the wheel, the extra `ray`, and the development groups `tests` and `slurm`,
+  exported from the lock file, so every node runs the same locked versions.
+- Tests: `tests/core/experiments/test_slurm.py`, marked `slurm`, which `tests/conftest.py` registers and skips when
+  `sbatch` is not on the path. It runs in the controller container with `pytest -m slurm`.
+  - Dask: an `sbatch` script starts `dask scheduler` on the first node and `dask worker` on both nodes with `srun`,
+    writing a scheduler file to `/data`. The test connects a `Client` to that file and runs an ensemble of 200
+    stochastic SIR runs with seed 7 on `client.get_executor()`, and the result must equal the serial result.
+  - Ray: an `sbatch` script starts `ray start --head` on the first node and `ray start --address` on the other with
+    `srun`, as the SLURM guide of Ray does. The test calls `ray.init(address='auto')` and runs the same ensemble on
+    `RayExecutor()`. Two Ray nodes fit the memory of a standard runner, so Ray is part of the job. If it proves
+    unreliable there, the task records why and the Ray part runs on demand.
+  - executorlib: the same ensemble on its `SlurmClusterExecutor`, which tests the executorlib recipe of the docs.
+- Tool choice: the job starts the Dask and Ray clusters with their own command line tools and `sbatch`, so it needs
+  neither dask-jobqueue nor executorlib for that. dask-jobqueue is not used, since its last release is past the 24
+  month limit. executorlib is maintained, its executor is the documented SLURM path without Dask or Ray, and so it is
+  the one tool the job adds, in the development group `slurm`.
+- The job `slurm` sits in `ci.yml`, so it runs on pushes and pull requests, and the release workflow, which calls
+  `ci.yml`, needs it before publishing.
 
 ## Migration Plan
 
@@ -154,6 +213,4 @@ they get faster with the same results.
 
 ## Open Questions
 
-- Ray as a runtime dependency adds about 79 MB to every install. Keep it there, as the rule says, or allow an extra
-  `ray` as an exception to the rule?
-- Should the project test SLURM in CI with the Docker image of a SLURM cluster, as dask-jobqueue does?
+None. The user decided on 2026-11-11 that Ray is the optional extra `ray` and that CI tests SLURM with a Docker image.

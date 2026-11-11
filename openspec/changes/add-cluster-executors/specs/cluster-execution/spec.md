@@ -35,6 +35,28 @@ initialised SHALL raise `ExperimentError`, whose message names `ray.init`.
 - **WHEN** a user passes `RayExecutor()` before calling `ray.init`
 - **THEN** the experiment raises `ExperimentError`, whose message names `ray.init`
 
+### Requirement: Ray is an optional extra
+Ray SHALL come with the optional extra `ray`. `RayExecutor` SHALL import it on its first submission, and a missing
+extra SHALL raise `MissingExtraError`, whose message names the extra and its install command.
+
+#### Scenario: Ray extra missing
+- **WHEN** a user without the extra `ray` runs an ensemble on `RayExecutor()`
+- **THEN** it raises `MissingExtraError`, whose message names `RayExecutor` and `pip install 'scikit-complexity[ray]'`
+
+### Requirement: Experiments run on a SLURM cluster
+Every experiment that takes `executor` SHALL return the result of the serial executor on a Dask cluster and on a Ray
+cluster started on SLURM nodes, and CI SHALL check it on a SLURM cluster in Docker.
+
+#### Scenario: Dask on SLURM
+- **WHEN** an ensemble of 200 stochastic SIR runs with seed 7 executes on the executor of a Dask client whose scheduler
+  and workers run as a SLURM job on two nodes, in a test marked `slurm`
+- **THEN** the result equals the result of `executor='serial'`
+
+#### Scenario: Ray on SLURM
+- **WHEN** the same ensemble executes on `RayExecutor()` connected to a Ray cluster started as a SLURM job on two
+  nodes, in a test marked `slurm`
+- **THEN** the result equals the result of `executor='serial'`
+
 ### Requirement: Runs travel in chunks that compile once
 The experiments of runs SHALL take `chunk_size` and SHALL send the runs of one compiled structure in chunks, each
 compiled once on its worker, and a result SHALL not depend on the chunk size. On a process or remote worker, a chunk

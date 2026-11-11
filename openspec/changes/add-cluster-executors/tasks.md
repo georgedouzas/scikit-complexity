@@ -4,21 +4,36 @@
 
 - [ ] 1.1 Time the current ensemble of 10000 stochastic SIR runs with `executor='process'` and four processes, count
   its compiles, write both in the benchmark docstring, and verify the time repeats within 10% over three runs
-- [ ] 1.2 Add `distributed>=2026.8.0`, `ray>=2.59.0`, `zarr>=3.4.0`, and `xarray>=2026.9.0` (unless
-  `add-learning-foundation` already did) to the runtime dependencies in `pyproject.toml` and the Project Profile with
-  their release dates and licences, and verify `pdm install` resolves on Python 3.12, 3.13, and 3.14 and all four
-  import
-- [ ] 1.3 Add session fixtures for a Dask `LocalCluster` of two workers and a local Ray runtime of two CPUs in
+- [ ] 1.2 Add `distributed>=2026.8.0`, `zarr>=3.4.0`, and `xarray>=2026.9.0` (unless `add-learning-foundation`
+  already did) to the runtime dependencies and the extra `ray = ["ray>=2.59.0"]` to `optional-dependencies` in
+  `pyproject.toml`, record them in the Project Profile with their release dates and licences and Ray as the explicit
+  exception to the rule on runtime dependencies with its reason, add `ray` to the `DEP002` list of deptry, and verify
+  `pdm install -G ray` resolves on Python 3.12, 3.13, and 3.14, all four import, and `nox -s checks -- dependencies`
+  passes
+- [ ] 1.3 Add `ray` to the `EXTRAS` of `noxfile.py` and to every `pdm install -G ...` line of
+  `.github/workflows/ci.yml`, `.github/workflows/release.yml`, and `.github/workflows/docs.yml`, and verify that every
+  install line names the same extras as `EXTRAS`, that `actionlint` passes, that `nox -s docs -- build` passes, and
+  that the next CI run passes its tests and docs jobs with Ray installed, since the docs deploy of 0.9.0 failed on an
+  extra missing from the workflows
+- [ ] 1.4 Move `import_extra` from `skcomplex/systems/_extras.py` to `skcomplex/core/errors.py`, rename its argument
+  `system` to `owner` with the message "{owner} needs the extra", import it from `skcomplex.core.errors` in the
+  systems modules, keep it exported from `skcomplex.systems`, remove `systems/_extras.py`, and verify the existing
+  tests of missing extras, the doctests, and the import contracts pass
+- [ ] 1.5 Add session fixtures for a Dask `LocalCluster` of two workers and a local Ray runtime of two CPUs in
   `tests/core/experiments/conftest.py`, and verify both start and stop cleanly in one test run
 
 ## 2. Executors
 
-- [ ] 2.1 Add `RayExecutor` in `core/experiments/_executors.py` with `submit` and `shutdown`, export it from
-  `skcomplex.core.experiments`, and verify the ray-not-started scenario in `tests/core/experiments/test_executors.py`
-- [ ] 2.2 Move the submission of `_run_experiment` and `_map_calls` to one path that submits futures and collects them
+- [ ] 2.1 Add `RayExecutor` in `core/experiments/_executors.py` with `submit` and `shutdown`, import Ray on the first
+  `submit` through `import_extra`, export it from `skcomplex.core.experiments`, and verify the ray-extra-missing
+  scenario, with the import of `ray` made to fail, and the ray-not-started scenario in
+  `tests/core/experiments/test_executors.py`
+- [ ] 2.2 Add a step to the job `default-install` of `ci.yml`, which installs no extra, that checks
+  `RayExecutor().submit` raises `MissingExtraError` naming `ray`, and verify it passes in CI
+- [ ] 2.3 Move the submission of `_run_experiment` and `_map_calls` to one path that submits futures and collects them
   with `as_completed`, ordered by run index at the end, and verify the existing serial, thread, and process tests pass
   unchanged
-- [ ] 2.3 Verify the local-Dask-cluster, refits-on-Dask, and local-Ray-runtime scenarios
+- [ ] 2.4 Verify the local-Dask-cluster, refits-on-Dask, and local-Ray-runtime scenarios
 
 ## 3. Chunks
 
@@ -55,24 +70,41 @@
   the dead-Ray-worker scenario by killing the worker process of a running task
 - [ ] 6.3 Verify the error-of-a-run scenario, so errors that a run raises itself propagate unchanged
 
-## 7. Benchmarks
+## 7. SLURM in CI
 
-- [ ] 7.1 Add the benchmark of the ensemble of 10000 stochastic SIR runs on a Dask `LocalCluster` of four workers
+- [ ] 7.1 Add `.github/slurm/compose.yml` with the controller, the database daemon, and two compute nodes of
+  `giovtorres/slurm-docker-cluster` pinned to the release tag of 3.0.2 (2026-10-19) or newer, with a shared volume at
+  `/data`, and verify locally that `docker compose up` gives two idle nodes in `sinfo`
+- [ ] 7.2 Add the development group `slurm` with `executorlib>=1.11.0` to `pyproject.toml`, register the `slurm` marker
+  in `tests/conftest.py` with a skip when `sbatch` is not on the path, and verify the SLURM tests are skipped on a
+  machine without SLURM
+- [ ] 7.3 Add the `sbatch` scripts that start a Dask scheduler and workers and a Ray head and worker on the two nodes
+  under `.github/slurm/`, and `tests/core/experiments/test_slurm.py` with the Dask-on-SLURM and Ray-on-SLURM scenarios
+  and the ensemble on the `SlurmClusterExecutor` of executorlib, and verify all three pass on the local cluster of task
+  7.1, or record in the design why Ray does not fit the runner and leave its test on demand
+- [ ] 7.4 Add the job `slurm` to `ci.yml`, which starts the cluster, waits for idle nodes with a timeout, builds the
+  wheel, creates the shared environment of Python 3.13 with the extra `ray` and the groups `tests` and `slurm` from the
+  lock file, and runs `pytest -m slurm` in the controller, and verify it with `actionlint` and a passing CI run, and
+  that the release workflow, which calls `ci.yml`, cannot publish before it passes
+
+## 8. Benchmarks
+
+- [ ] 8.1 Add the benchmark of the ensemble of 10000 stochastic SIR runs on a Dask `LocalCluster` of four workers
   against the baseline of task 1.1, and verify it takes at most the baseline time
 
-## 8. Documentation
+## 9. Documentation
 
-- [ ] 8.1 Add a clusters section to `docs/overview/user_guide/run_experiments.md` with Dask, `RayExecutor`,
+- [ ] 9.1 Add a clusters section to `docs/overview/user_guide/run_experiments.md` with Dask, `RayExecutor`,
   `chunk_size`, `store`, `convert_to_dataset`, the thread limits, and the named failures, with runnable examples on a
   local Dask cluster and a local Ray runtime, and verify the markdown tests run them
-- [ ] 8.2 Add recipes, as code that the tests do not run, for Dask on SLURM and PBS through dask-jobqueue, for
+- [ ] 9.2 Add recipes, as code that the tests do not run, for Dask on SLURM and PBS through dask-jobqueue, for
   executorlib on SLURM, for `LocalCUDACluster` of dask-cuda, for the Ray cluster launcher on a cloud and on SLURM, and
-  for KubeRay, and verify the docs build
-- [ ] 8.3 Update the docstrings of every experiment that takes `executor` to name Dask and `RayExecutor`, and verify
+  for KubeRay, with the install of the extra `ray`, and verify the docs build
+- [ ] 9.3 Update the docstrings of every experiment that takes `executor` to name Dask and `RayExecutor`, and verify
   the doctests and pydoclint pass
 
-## 9. Integration
+## 10. Integration
 
-- [ ] 9.1 Run `nox` (formatting, ruff, mypy, pydoclint, deptry, pip-audit, import contracts, tests of the touched
+- [ ] 10.1 Run `nox` (formatting, ruff, mypy, pydoclint, deptry, pip-audit, import contracts, tests of the touched
   modules with the thread limits set to 1, doctests, and the strict docs build) and verify every session passes
-- [ ] 9.2 Run `openspec validate add-cluster-executors --strict` and verify it passes
+- [ ] 10.2 Run `openspec validate add-cluster-executors --strict` and verify it passes
