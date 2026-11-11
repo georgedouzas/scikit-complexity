@@ -66,13 +66,13 @@ reads the spec, and preparing a system SHALL check every law and spec it holds.
 - **THEN** it equals the registered kind with `==`
 
 ### Requirement: Behaviour is named, not magic
-No class of `core`, `engine`, or `formalisms` SHALL define a magic method except `__init__` and the arithmetic of
+No class of `skcomplex.core` SHALL define a magic method except `__init__` and the arithmetic of
 the quantum operators. Collections SHALL be read with named methods and properties, the symbol namespace of laws
 SHALL store its symbols as plain attributes, and an agent rule SHALL read and set states through the properties of a
 view class generated per group.
 
 #### Scenario: Magic methods
-- **WHEN** every class of `core`, `engine`, and `formalisms` is listed with the magic methods it defines itself
+- **WHEN** every class of `skcomplex.core` is listed with the magic methods it defines itself
 - **THEN** none defines one besides `__init__` and the quantum operator arithmetic
 
 #### Scenario: Reading a trajectory
@@ -103,7 +103,7 @@ or `reservoir`, which takes its settings as keyword arguments and returns a froz
 
 ### Requirement: The runtime reads problems through their base
 The runtime, the visuals, and the analyses SHALL read a problem only through the fields and readers of
-`BaseProblem`, without `getattr` fallbacks, and the engine SHALL call no method of a formalism's problem.
+`BaseProblemSpec`, without `getattr` fallbacks, and the engine SHALL call no method of a problem subclass.
 
 #### Scenario: Quantum run through the base
 - **WHEN** a quantum system is simulated, recorded, and shown in Rerun

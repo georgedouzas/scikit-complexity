@@ -584,13 +584,13 @@ recipe that serves some fields only SHALL live under `skcomplex.systems`, never 
   `core.components.spaces`, `core.components.spaces`, and `core.components.laws`
 
 ### Requirement: Backends live by their reach
-Every general backend SHALL live in `skcomplex.core.engine.backends`, a backend that serves one formalism SHALL live in that
-formalism, and `compile` and `solvers` SHALL hold no backend.
+Every backend SHALL live in `skcomplex.core.engine.backends`, an external simulator SHALL be a solver of
+`skcomplex.core.engine.solvers`, and `compile` and `solvers` SHALL hold no backend.
 
 #### Scenario: Backends in one package
-- **WHEN** the test suite lists the registered backends
-- **THEN** NumPy and Numba are defined in `skcomplex.core.engine.backends`, Mesa in `skcomplex.formalisms.agents`, and
-  LAMMPS in `skcomplex.formalisms.particles`
+- **WHEN** the test suite lists the backends and the external solvers
+- **THEN** `NumpyBackend`, `NumbaBackend`, and `JaxBackend` are defined in `skcomplex.core.engine.backends`, and
+  `MesaSolver` and `LammpsSolver` in `skcomplex.core.engine.solvers`
 
 ### Requirement: Noise laws name the Wiener process they share
 A noise law SHALL accept an optional process. A law with no process SHALL drive every component and member with its

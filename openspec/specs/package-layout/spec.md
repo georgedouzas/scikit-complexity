@@ -6,7 +6,7 @@ the general interface and the interface never depends on a system.
 
 ## Requirements
 
-### Requirement: Dependencies run from formalisms to engine to core
+### Requirement: Dependencies run from experiments to analysis to engine to components
 The packages of `skcomplex.core` SHALL import downward in the order `experiments`, `analysis`, `engine`, `components`,
 and the modules `base`, `types`, `specs`, and `errors` of `skcomplex.core` below them, so `analysis` never imports
 `experiments`, `engine` imports neither, `components` imports none of them, and those modules import no package.
@@ -110,27 +110,28 @@ The package SHALL expose exactly two subpackages, `skcomplex.core` and `skcomple
 - **WHEN** a user imports `skcomplex.core.engine`, `skcomplex.core.analysis`, `skcomplex.core.errors`, or `skcomplex.systems`
 - **THEN** the import fails, since the old paths keep no alias
 
-### Requirement: The core problems package holds what a system compiles to
-`skcomplex.core.components.problems` SHALL hold the compiler's `Problem`, the kernels, reductions, neighbourhoods, and printing
-that a problem's numeric functions are written from, the `Lowering` a backend returns, and `BaseBackend` with the
-registry of backends. It SHALL import no package of `skcomplex.core.engine`, and the engine SHALL register the loader that
-imports its backends.
+### Requirement: The engine problems package holds what a system compiles to
+`skcomplex.core.engine.problems` SHALL hold `BaseProblemSpec`, the compiler's `ProblemSpec`, and the kernels, printers,
+and searches that a problem's numeric functions are written from. It SHALL import no other package of
+`skcomplex.core.engine` than `types`. A backend SHALL be passed to compilation as an instance, and without one the
+compiler SHALL choose `NumbaBackend` for large systems and `NumpyBackend` for the others.
 
-#### Scenario: Backend base
-- **WHEN** a user imports `BaseBackend`, `Lowering`, and `Problem` from `skcomplex.core.components.problems`
-- **THEN** every import succeeds, and `NumbaBackend` of `skcomplex.core.engine.backends` derives from `BaseBackend`
+#### Scenario: Problem bases
+- **WHEN** a user imports `BaseProblemSpec`, `ProblemSpec`, and `BaseKernel` from `skcomplex.core.engine.problems`
+- **THEN** every import succeeds
 
-#### Scenario: Backends load on demand
-- **WHEN** a system is compiled with the backend `'numba'` and `skcomplex.core.engine.backends` was never imported
-- **THEN** the registry of backends imports it through the loader the engine registered, and the compile succeeds
+#### Scenario: Backend chosen by size
+- **WHEN** a system whose groups hold 10 members in total is compiled without a backend
+- **THEN** the compiled problem runs on `NumpyBackend`
 
 ### Requirement: The runtime reads the base problem
-The runtime SHALL run any problem through what `BaseProblem` holds, and SHALL read the compiler's fields only of a
-`Problem`. The quantum and rewriting problems SHALL derive from `BaseProblem` alone, with the fields they use.
+The runtime SHALL run any problem through what `BaseProblemSpec` holds, and SHALL read the compiler's fields only of
+a `ProblemSpec`. The operator and rewriting problems SHALL derive from `BaseProblemSpec` alone, with the fields they
+use.
 
-#### Scenario: Problem of a formalism
+#### Scenario: Problems beyond the compiler's
 - **WHEN** a quantum system and a rewriting system are simulated and recorded
-- **THEN** both runs succeed, and neither problem is a subclass of `skcomplex.core.components.problems.Problem`
+- **THEN** both runs succeed, and neither problem is a subclass of `skcomplex.core.engine.problems.ProblemSpec`
 
 ### Requirement: A system compiler is not a pass
 `BaseCompiler` of `skcomplex.core.engine.compile` SHALL be the public base of the compilers that compile a whole system
@@ -143,7 +144,7 @@ whose subclasses are steps of one compilation.
 
 ### Requirement: Every class derives from the base it is
 Every element and group SHALL derive from `BaseElement`, every interaction from `BaseInteraction`, every space from
-`BaseSpace`, every law from `BaseLaw`, every problem from `BaseProblem`, every solver from `BaseSolver`, every backend
+`BaseSpace`, every law from `BaseLaw`, every problem from `BaseProblemSpec`, every solver from `BaseSolver`, every backend
 from `BaseBackend`, and every spec from `BaseSpec`, and every one of these bases
 SHALL derive from `BaseConfig`. Validation SHALL read a domain's kind from the domain.
 
@@ -152,12 +153,12 @@ SHALL derive from `BaseConfig`. Validation SHALL read a domain's kind from the d
   `skcomplex.core.analysis`, `skcomplex.core.experiments`, and `skcomplex.core.specs` against `BaseConfig`
 - **THEN** every check holds
 
-#### Scenario: Formalism domain
+#### Scenario: Domain of a state
 - **WHEN** a quantum state declares a `HilbertDomain` and the system is validated
 - **THEN** validation reads its kind from the domain
 
 #### Scenario: Solver over a base problem
-- **WHEN** a solver is written against `BaseSolver` alone and prepared with a `BaseProblem` of its form
+- **WHEN** a solver is written against `BaseSolver` alone and prepared with a `BaseProblemSpec` of its form
 - **THEN** it advances the problem through `run`
 
 ### Requirement: Bases are unrelated

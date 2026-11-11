@@ -279,7 +279,7 @@ every pair.
 ### Requirement: Systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -652,7 +652,7 @@ simulation's steps (Thurner et al. 2018 §3.5.2, Trzaska 2023 §3.5).
 ### Requirement: Rewriting systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -941,7 +941,7 @@ spatial prisoner's dilemma rather than registering it again.
 ### Requirement: Agent economy systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -988,7 +988,7 @@ diffusion, the beer game, and a stock-flow consistent monetary economy as system
 ### Requirement: Stock-flow systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1150,7 +1150,7 @@ with a given correlation, as a system class.
 ### Requirement: Correlated noise systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1174,7 +1174,7 @@ Lorenz as system classes with the order as an argument.
 ### Requirement: Fractional dynamics systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1253,7 +1253,7 @@ transition tables in their system packages and their standard moments declared b
 ### Requirement: Kinetic systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1294,7 +1294,7 @@ the core holds no controller.
 ### Requirement: Optimal control systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1337,7 +1337,7 @@ which shows an analysis plot from its run.
 ### Requirement: Group cellular automaton systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1399,7 +1399,7 @@ networks, coupled logistic maps, Vicsek flocking, and DebtRank interbank contagi
 ### Requirement: Adaptive network systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
