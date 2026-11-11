@@ -14,7 +14,7 @@ import rerun.blueprint as rrb
 from ...components.spaces import PhaseSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ..enums import ComplexPartKind
+from ..enums import ComplexComponentKind
 from ..problems import BaseProblemSpec, FrameSpec
 from ._base import BaseVisual
 
@@ -266,10 +266,10 @@ class ImageVisual(BaseVisual):
                 cyclic = frame.problem.states.get_entry(name).period is not None
                 self._log_image(recording, path, magnitudes, cyclic=cyclic)
                 continue
-            self._log_image(recording, f'{path}/{ComplexPartKind.MODULUS}', magnitudes, cyclic=False)
+            self._log_image(recording, f'{path}/{ComplexComponentKind.MODULUS}', magnitudes, cyclic=False)
             self._log_image(
                 recording,
-                f'{path}/{ComplexPartKind.PHASE}',
+                f'{path}/{ComplexComponentKind.PHASE}',
                 np.angle(np.asarray(values, dtype=complex)),
                 cyclic=True,
             )
@@ -329,7 +329,7 @@ class ImageVisual(BaseVisual):
             if problem.states.get_entry(name).is_complex:
                 views += [
                     kind(origin=f'{path}/{part}', name=f'{state} {part}')
-                    for part in (ComplexPartKind.MODULUS, ComplexPartKind.PHASE)
+                    for part in (ComplexComponentKind.MODULUS, ComplexComponentKind.PHASE)
                 ]
             else:
                 views.append(kind(origin=path, name=state))

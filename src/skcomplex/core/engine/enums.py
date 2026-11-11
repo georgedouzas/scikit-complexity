@@ -37,12 +37,12 @@ class LinearOperatorKind(StrEnum):
     INVERSE_HELMHOLTZ = 'inverse_helmholtz'
 
 
-class ComplexPartKind(StrEnum):
-    """A kind of part of a complex value that a visual draws, such as its modulus.
+class ComplexComponentKind(StrEnum):
+    """A quantity that a visual draws from a complex value, such as its modulus.
 
     Examples:
-        >>> from skcomplex.core.engine.enums import ComplexPartKind
-        >>> f'state/{ComplexPartKind.PHASE}'
+        >>> from skcomplex.core.engine.enums import ComplexComponentKind
+        >>> f'state/{ComplexComponentKind.PHASE}'
         'state/phase'
     """
 

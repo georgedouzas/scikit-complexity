@@ -17,7 +17,7 @@ from ...components.spaces import BaseSpace, NetworkSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
 from ...specs import AgentSnapshotSpec
-from ..enums import ComplexPartKind
+from ..enums import ComplexComponentKind
 from ..problems import BaseProblemSpec, FrameSpec
 
 UPWARD = np.array([1.0, -1.0])
@@ -27,7 +27,7 @@ POINT_SHARE = 0.02
 CROWD_SIZE = 10
 CROWD_EXPONENT = 0.25
 GRID_RADIUS = 0.4
-PARTS = (ComplexPartKind.REAL, ComplexPartKind.IMAG)
+PARTS = (ComplexComponentKind.REAL, ComplexComponentKind.IMAG)
 SERIES_COLORS = (
     (230, 159, 0),
     (86, 180, 233),
