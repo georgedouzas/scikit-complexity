@@ -16,9 +16,9 @@ from sage.modules.free_module_element import FreeModuleElement
 from ..components.base import BaseComponent
 from ..components.elements import BaseElement, GroupElement
 from ..components.interactions import BaseInteraction
+from ..enums import VariableKind
 from ..errors import SkcomplexError
 from ..specs import DeclaredVariableSpec, EntrySpec, ParameterSpec, RoleSpec, StateSpec, VariableSpec
-from ..types import VariableKind
 
 INSTANCE_VARIABLES: weakref.WeakKeyDictionary[
     BaseComponent,

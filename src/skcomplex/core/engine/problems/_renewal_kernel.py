@@ -11,7 +11,8 @@ import numpy.typing as npt
 from ...errors import SolverError, ValidationError
 from ...specs import DrawSpec, RenewalRecordSpec, RunStateSpec
 from ...types import Array, Indices
-from ..types import Drawn, ReadKind
+from ..enums import ReadKind
+from ..types import Drawn
 from ._base import BaseKernel
 from ._draw_kernel import DrawKernel
 from ._expression_printer import ExpressionPrinter

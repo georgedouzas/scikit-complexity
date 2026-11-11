@@ -17,8 +17,9 @@ from ...components.laws import (
     TransferLaw,
 )
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...enums import NoiseKind, OrderKind
 from ...specs import SupportSpec
-from ...types import Array, NoiseKind, OrderKind
+from ...types import Array
 from ._sde import SDESolver
 
 

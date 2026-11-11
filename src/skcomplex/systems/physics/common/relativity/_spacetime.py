@@ -22,9 +22,9 @@ from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.laws.utils import derivative
 from .....core.components.spaces import BaseSpace, ContinuousSpace
+from .....core.enums import ElementKind
 from .....core.errors import SpaceError, ValidationError
 from .....core.specs import RoleSpec
-from .....core.types import ElementKind
 from ...._extras import import_extra
 
 type Christoffel = tuple[tuple[tuple[Expression, ...], ...], ...]

@@ -21,9 +21,10 @@ from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import NamespaceFunction, PairPotential, Target
+from .....core.enums import ElementKind
 from .....core.errors import ValidationError
 from .....core.specs import CallSpec, ParameterSpec, RoleSpec, Tags
-from .....core.types import Array, ElementKind
+from .....core.types import Array
 
 TENSORS = ('free-draining', 'oseen', 'rotne-prager-yamakawa')
 FORMS = ('rate', 'map')

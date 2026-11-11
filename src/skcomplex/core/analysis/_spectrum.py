@@ -11,9 +11,10 @@ import numpy.typing as npt
 from scipy import signal
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import _check_choice, _check_settings, _read_fields, _read_real, _read_series
 from .types import Source
 

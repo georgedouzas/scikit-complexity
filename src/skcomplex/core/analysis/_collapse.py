@@ -10,9 +10,10 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import optimize
 
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import _check_choice, _check_settings
 from .types import Source
 

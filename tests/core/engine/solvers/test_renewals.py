@@ -16,9 +16,9 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RenewalSolver, RK4Solver, ScipyODESolver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import ParameterSpec, RenewalRecordSpec, StateSpec, StepSpec, VisualSpec
-from skcomplex.core.types import FormKind
 
 
 class CounterElement(Element):

@@ -23,9 +23,9 @@ from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import BaseSpace, DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
+from ....core.enums import ElementKind
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, RoleSpec, StateSpec
-from ....core.types import ElementKind
 
 SENSES = ('at-least', 'at-most')
 

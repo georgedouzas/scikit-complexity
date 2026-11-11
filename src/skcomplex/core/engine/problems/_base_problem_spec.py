@@ -14,11 +14,12 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...components.spaces import BaseSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec, CompiledInteractionSpec
 from ...components.systems import CompositeSystem
+from ...enums import FormKind
 from ...specs._base_spec import BaseSpec
 from ...specs._layout_spec import LayoutSpec
 from ...specs._observable_spec import ObservableSpec
 from ...specs._variable_spec import VariableSpec
-from ...types import Array, FormKind
+from ...types import Array
 from ._markov_kernel import MarkovKernel
 from ._renewal_kernel import RenewalKernel
 from ._topology_kernel import TopologyKernel
@@ -93,7 +94,7 @@ class BaseProblemSpec(BaseSpec):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.types import FormKind
+        >>> from skcomplex.core.enums import FormKind
         >>> from skcomplex.core.engine._utils import symbol
         >>> from skcomplex.core.specs import LayoutSpec
         >>> from skcomplex.core.engine.problems import BaseProblemSpec

@@ -10,6 +10,7 @@ from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import RR, SR, ConditionSet, Expression
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import (
     BaseSpec,
@@ -20,7 +21,6 @@ from ...specs import (
     SamplerSpec,
     Tags,
 )
-from ...types import ElementKind
 from ..laws import ArrayUpdateLaw, BaseLaw, SampleLaw
 from ..spaces import (
     BallNeighborhood,

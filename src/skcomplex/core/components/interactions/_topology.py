@@ -7,9 +7,9 @@ from collections.abc import Callable, Mapping
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import BaseSpec, RoleSpec, Tags, TopologyRequestSpec
-from ...types import ElementKind
 from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import where
 from ..spaces import BaseSpace

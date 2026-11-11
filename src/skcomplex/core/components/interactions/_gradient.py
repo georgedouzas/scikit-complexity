@@ -13,9 +13,9 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.structure.element import Matrix
 from sage.symbolic.operators import add_vararg, mul_vararg
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec
-from ...types import ElementKind
 from ..base import BaseComponent
 from ..laws import BaseLaw, RateLaw
 from ..laws.utils import laplacian, partial

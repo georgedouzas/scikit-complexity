@@ -11,9 +11,10 @@ import numpy.typing as npt
 from scipy import optimize
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, SeriesSpec
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import STEP_TOLERANCE, _check_choice, _check_settings, _read_fields, _read_real, _read_series, _step_of
 from .types import Source
 

@@ -10,7 +10,7 @@ from ....components.elements import BaseElement, GroupElement
 from ....components.interactions import BaseInteraction
 from ....components.laws import MatchLaw, RuleLaw
 from ....components.specs import NodeSpec
-from ....types import VariableKind
+from ....enums import VariableKind
 from ..._utils import bound_labels, declarations_of, probe_laws
 from .._base import BasePass
 from .._compilation import Compilation

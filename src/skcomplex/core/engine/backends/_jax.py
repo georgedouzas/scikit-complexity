@@ -14,9 +14,11 @@ from jax.scipy.special import logsumexp
 
 from ...components.laws import EquationLaw, GradientStepLaw, RateLaw, UpdateLaw
 from ...components.spaces import ContinuousTime, DiscreteTime
+from ...enums import FormKind, OrderKind
 from ...errors import BackendError, ValidationError
 from ...specs import LoweredFunctionsSpec, ReadSpec, SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
+from ..enums import ReadKind
 from ..problems._draw_kernel import DrawKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
@@ -24,7 +26,7 @@ from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
-from ..types import ReadKind, TracedArray, TracedFunction
+from ..types import TracedArray, TracedFunction
 from ._base import BaseBackend
 
 FORMS = (FormKind.ODE, FormKind.DISCRETE)
@@ -181,7 +183,7 @@ class JaxBackend(BaseBackend):
             >>> import jax.numpy as jnp
             >>> import numpy as np
             >>> from skcomplex.core.engine.backends import JaxBackend
-            >>> from skcomplex.core.types import FormKind
+            >>> from skcomplex.core.enums import FormKind
             >>> run = JaxBackend.unroll(lambda t, x, p: p * x, FormKind.DISCRETE, np.array([0.0, 2.0]))
             >>> np.asarray(run(jnp.array([1.0]), 3.0)).ravel().tolist()
             [1.0, 9.0]

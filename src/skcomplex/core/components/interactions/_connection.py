@@ -9,9 +9,9 @@ from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec
-from ...types import ElementKind
 from ..base import BaseComponent
 from ..laws import BaseLaw, EquationLaw
 from ..spaces import BaseSpace

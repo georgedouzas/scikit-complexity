@@ -27,9 +27,10 @@ from ....core.components.laws.utils import where
 from ....core.components.spaces import BallNeighborhood, BaseSpace, DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.components.types import SystemViewProtocol
+from ....core.enums import ElementKind
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, ObservableSpec, RoleSpec, StateSpec
-from ....core.types import Array, ElementKind
+from ....core.types import Array
 
 SEEDS = 2**31
 ANNEALING = 'annealing'

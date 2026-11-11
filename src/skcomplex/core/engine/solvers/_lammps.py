@@ -25,9 +25,10 @@ from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, NoiseLaw, Rate
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...components.specs import CompiledElementSpec, CompiledInteractionSpec
 from ...components.systems import CompositeSystem
+from ...enums import FormKind, NoiseKind, OrderKind, VariableKind
 from ...errors import BackendError, SolverError
 from ...specs import SupportSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind, VariableKind
+from ...types import Array
 from .._utils import declarations_of, symbol, symbols_of
 from ..backends import NumpyBackend
 from ..compile._pass_compiler import PassCompiler

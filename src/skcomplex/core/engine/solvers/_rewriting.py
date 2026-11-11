@@ -7,9 +7,10 @@ import numpy as np
 
 from ...components.laws import ProductionLaw, SubstitutionLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...specs import PatchStructureSpec, RunStateSpec, StructureStateSpec, SupportSpec, WordStructureSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
 from ..problems._patch_kernel import PatchKernel
 from ..problems._rewriting_problem_spec import RewritingProblemSpec
 from ..problems._word_kernel import WordKernel

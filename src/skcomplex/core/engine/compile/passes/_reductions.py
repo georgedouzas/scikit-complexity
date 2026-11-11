@@ -5,10 +5,10 @@
 
 from dataclasses import replace
 
+from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._reduction_schedule_spec import ReductionScheduleSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from ._reduction_lowering import ReductionLowering

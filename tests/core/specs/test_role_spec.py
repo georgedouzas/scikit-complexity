@@ -2,9 +2,9 @@
 
 import pytest
 
+from skcomplex.core.enums import ElementKind
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec
-from skcomplex.core.types import ElementKind
 
 
 def test_role_spec_is_variadic_or_a_noise_role():

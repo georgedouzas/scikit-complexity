@@ -13,11 +13,12 @@ from sage.all__sagemath_symbolics import Expression
 from ...components.laws import BaseLaw, CrossingLaw, RuleLaw
 from ...components.specs import CensusSpec, NodeSpec
 from ...components.systems import CompositeSystem
+from ...enums import FormKind
 from ...errors import PipelineError
 from ...specs import MatrixLawSpec, TopologyRequestSpec
 from ...specs._plan_spec import _PlanSpec
-from ...types import FormKind
 from ..backends import BaseBackend
+from ..enums import ReadKind
 from ..problems import ProblemSpec
 from ..problems._block_spec import BlockSpec
 from ..problems._declarations_spec import DeclarationsSpec
@@ -38,7 +39,6 @@ from ..problems._symmetry_spec import SymmetrySpec
 from ..problems._topology_kernel import TopologyKernel
 from ..problems._transfer_network_spec import TransferNetworkSpec
 from ..problems._transfer_state_spec import TransferStateSpec
-from ..types import ReadKind
 from ._bound_renewal_spec import BoundRenewalSpec
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]

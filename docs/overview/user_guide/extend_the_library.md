@@ -315,7 +315,7 @@ so that each imports only the packages below it. From top to bottom:
 4. `skcomplex.core.components` defines what a system is.
 5. `skcomplex.core.specs` holds the specs.
 6. `skcomplex.core.base` holds `BaseConfig`.
-7. `skcomplex.core.types` and `skcomplex.core.errors` hold the types and the errors.
+7. `skcomplex.core.types`, `skcomplex.core.enums`, and `skcomplex.core.errors` hold the types, the kinds, and the errors.
 
 No part of the core imports `skcomplex.systems`, and the systems import only the public modules of the core. Tests of
 the import contracts enforce the layering.
@@ -367,7 +367,8 @@ This section lists the modules that every package of the core shares.
   component.
 - `skcomplex.core.errors` holds the errors and warnings, such as `ValidationError`, `RoleError`, `SolverError`, and
   `RewritingError`.
-- `skcomplex.core.types` holds the types that every layer reads, such as arrays, functions, keys, and kinds.
+- `skcomplex.core.types` holds the types that every layer reads, such as arrays, functions, and keys.
+- `skcomplex.core.enums` holds the kinds that every layer reads, such as `DataKind`, `FormKind`, and `ElementKind`.
 - `skcomplex.core.specs` holds the specs, frozen values that declare, record, or hold what the classes read. These
   include the specs that annotate states, parameters, and roles, such as `StateSpec`, `ParameterSpec`, and `RoleSpec`,
   the specs of runs and structures, such as `ObservableSpec` and `WienerProcessSpec`, and the specs of rules, domains,

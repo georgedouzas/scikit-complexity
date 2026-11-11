@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..types import Array, DataKind
+from ..enums import DataKind
+from ..types import Array
 from ._base_spec import BaseSpec
 
 

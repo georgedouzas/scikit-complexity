@@ -12,9 +12,9 @@ from typing import Annotated, ClassVar, SupportsFloat
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, log
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec, Tags
-from ...types import ElementKind
 from ..base import BaseComponent
 from ..laws import BaseLaw, JumpLaw, RuleLaw, TransitionLaw, UpdateLaw
 from ..laws.utils import both, neighbors, residence, uniform, where

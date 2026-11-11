@@ -22,9 +22,9 @@ from skcomplex.core.engine.solvers import (
     Solver,
     SystemView,
 )
+from skcomplex.core.enums import FormKind, OrderKind
 from skcomplex.core.errors import SkcomplexError, SolverError
 from skcomplex.core.specs import BaseSpec, EntrySpec, LayoutSpec, StepSpec
-from skcomplex.core.types import FormKind, OrderKind
 
 SOLVERS = [
     item

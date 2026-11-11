@@ -8,9 +8,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from ...enums import ElementKind
 from ...specs._base_spec import BaseSpec
 from ...specs._entry_spec import EntrySpec
-from ...types import ElementKind, ProcessKey
+from ...types import ProcessKey
 from ..laws import BaseLaw
 from ..spaces import BaseSpace
 

@@ -10,9 +10,9 @@ from sage.all__sagemath_symbolics import CC
 from ....components.laws import RuleLaw
 from ....components.spaces import BaseSpace
 from ....components.specs import CompiledAgentsSpec, NodeSpec
+from ....enums import VariableKind
 from ....errors import BackendError, LabelError, ValidationError
 from ....specs import VisualSpec
-from ....types import VariableKind
 from ..._utils import declarations_of
 from ...problems._block_spec import BlockSpec
 from ...problems._kernel_spec import KernelSpec

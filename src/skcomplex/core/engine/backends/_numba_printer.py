@@ -16,6 +16,7 @@ from ...components.spaces import DelaunayNeighborhood, NearestNeighborhood, Radi
 from ...errors import BackendError, ValidationError
 from ...specs import EntrySpec, ReadSpec
 from .._utils import symbols_of
+from ..enums import ReadKind
 from ..problems import BasePrinter
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
@@ -29,7 +30,6 @@ from ..problems._reduction_kernel import ReductionKernel
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._static_search import StaticSearch
-from ..types import ReadKind
 from ._base import AUTO_MEMBERS
 from ._numba_components import GIANT, LABEL, LARGEST, SIZE
 

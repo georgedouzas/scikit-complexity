@@ -8,9 +8,9 @@ from __future__ import annotations
 from ....components.spaces import ContinuousTime
 from ....components.specs import CensusRecordSpec, NodeSpec
 from ....components.systems import CompositeSystem
+from ....enums import FormKind, OrderKind, VariableKind
 from ....errors import BackendError, SolverError
 from ....specs import FractionalStateSpec, IssueSpec
-from ....types import FormKind, OrderKind, VariableKind
 from ..._utils import declarations_of
 from ...backends import BaseBackend
 from .._base import BaseCompiler, BasePass

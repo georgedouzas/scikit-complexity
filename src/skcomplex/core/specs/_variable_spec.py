@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import RR
 
-from ..types import VariableKind
+from ..enums import VariableKind
 from ._base_spec import BaseSpec
 from ._matrix_group_spec import MatrixGroupSpec
 

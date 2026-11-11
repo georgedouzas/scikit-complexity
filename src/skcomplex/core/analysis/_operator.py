@@ -17,9 +17,10 @@ from ..engine.compile.passes._operator_compiler import DENSE_LIMIT, OperatorComp
 from ..engine.problems import BaseProblemSpec
 from ..engine.problems._operator_problem_spec import OperatorProblemSpec
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError, ParameterError
 from ..specs import AnalysisTags, RunStateSpec, SectorSpec
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import _check_choice, _check_settings, _composite, _read_system
 from .types import Source
 

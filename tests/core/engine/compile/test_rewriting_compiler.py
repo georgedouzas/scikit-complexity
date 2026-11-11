@@ -16,6 +16,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
 from skcomplex.core.engine.runtime import RecorderObserver, simulate
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import IncompatibleLawsError, RewritingError, ValidationError
 from skcomplex.core.specs import (
     AffineSpec,
@@ -28,7 +29,6 @@ from skcomplex.core.specs import (
     StateSpec,
     WordStructureSpec,
 )
-from skcomplex.core.types import FormKind
 from skcomplex.systems.biology.common.populations import PopulationElement
 
 X = symbol('x')

@@ -19,9 +19,10 @@ from ..components.laws import BaseLaw, RateLaw
 from ..components.spaces import BaseTime, ContinuousTime
 from ..components.systems import CompositeSystem
 from ..engine.runtime import simulate
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, DeclaredVariableSpec, ParameterSpec, SamplesSpec, StateSpec, VisualSpec
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import _read_samples
 from ._utils import load_module
 from .types import Runs

@@ -16,9 +16,9 @@ from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CoSimulationSolver, RK4Solver
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import InfeasibleError, ValidationError
 from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, RoleSpec, RunStateSpec, StateSpec
-from skcomplex.core.types import FormKind
 
 TOY_NAMES = ('v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'b1', 'b2', 'vbio')
 TOY_REVERSIBLE = ('v4', 'v6', 'b2')

@@ -6,8 +6,8 @@
 from collections.abc import Iterable
 
 from ....components.spaces import StaticTime
+from ....enums import FormKind
 from ....errors import IncompatibleLawsError
-from ....types import FormKind
 from .._base import BasePass
 from .._compilation import Compilation
 from .._forms import COMBINED, FORMS

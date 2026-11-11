@@ -15,9 +15,10 @@ from ..components.systems import CompositeSystem
 from ..engine.problems import ProblemSpec
 from ..engine.runtime import Trajectory
 from ..engine.runtime._simulations import Simulation
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import _check_choice, _check_settings, _composite, _read_series
 from .types import Source
 

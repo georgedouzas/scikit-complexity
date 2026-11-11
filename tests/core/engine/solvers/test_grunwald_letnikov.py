@@ -21,9 +21,9 @@ from skcomplex.core.engine.solvers import (
     RK4Solver,
 )
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import StateSpec, StepSpec, VisualSpec
-from skcomplex.core.types import FormKind
 
 SCHEMES = [GrunwaldLetnikovSolver, L1Solver, FractionalABMSolver]
 

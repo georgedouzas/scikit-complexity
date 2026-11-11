@@ -31,8 +31,9 @@ from ..engine.problems import ProblemSpec
 from ..engine.runtime import Trajectory, simulate
 from ..engine.solvers import BaseSolver
 from ..engine.types import TracedArray, TracedFunction
+from ..enums import FormKind
 from ..errors import SkcomplexError, ValidationError
-from ..types import Array, FormKind
+from ..types import Array
 from ._designs import _check_bounds
 from ._runs import _check_count, _check_source
 from ._utils import build_system

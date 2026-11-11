@@ -14,9 +14,10 @@ from ..components.laws import BaseLaw, RateLaw
 from ..components.spaces import ContinuousTime
 from ..components.systems import CompositeSystem
 from ..engine._utils import vector
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, SamplesSpec
-from ..types import Array, ComplexArray, DataKind
+from ..types import Array, ComplexArray
 from ._base import _read_samples
 from ._sparse_identification import (
     _check_horizon,

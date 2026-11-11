@@ -16,9 +16,9 @@ from ....core.components.interactions import SCHEDULES, JumpInteraction
 from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.enums import ElementKind
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, Tags
-from ....core.types import ElementKind
 from .types import Stoichiometry
 
 MODES = ('rate', 'jump', 'langevin')

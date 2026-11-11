@@ -13,16 +13,17 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components.laws import BaseLaw, TransitionLaw, UpdateLaw
 from ....components.laws.utils import categorical, where
+from ....enums import DomainKind
 from ....errors import ValidationError
 from ....specs import CallSpec, EntrySpec, MatrixLawSpec, RunStateSpec
-from ....types import Array, DomainKind
+from ....types import Array
 from ..._utils import symbols_of
+from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._markov_kernel import MarkovKernel
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import BlockLaws, Compilation
 

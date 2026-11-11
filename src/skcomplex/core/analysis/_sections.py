@@ -13,9 +13,10 @@ from ..engine.problems import ProblemSpec
 from ..engine.problems._event_kernel import EventKernel
 from ..engine.runtime._simulations import Simulation
 from ..engine.solvers import Solver
+from ..enums import DataKind, FormKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, EventRecordSpec
-from ..types import Array, DataKind, FormKind
+from ..types import Array
 from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_system
 from ._utils import compile_problem
 from .types import Source

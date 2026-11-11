@@ -25,6 +25,7 @@ from skcomplex.core.engine.compile.passes._agents import AgentsPass
 from skcomplex.core.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView, MesaSolver
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import (
     BackendError,
     IncompatibleLawsError,
@@ -43,7 +44,6 @@ from skcomplex.core.specs import (
     StepSpec,
     VisualSpec,
 )
-from skcomplex.core.types import FormKind
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.general.agents import MovementInteraction

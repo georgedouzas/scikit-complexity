@@ -5,8 +5,8 @@
 
 from dataclasses import dataclass
 
+from ..enums import ElementKind
 from ..errors import ValidationError
-from ..types import ElementKind
 from ._base_spec import BaseSpec
 from ._parameter_spec import ParameterSpec
 from ._state_spec import StateSpec
@@ -47,7 +47,7 @@ class RoleSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.core.specs import RoleSpec
-        >>> from skcomplex.core.types import ElementKind
+        >>> from skcomplex.core.enums import ElementKind
         >>> RoleSpec(variadic=True).variadic
         True
         >>> role = RoleSpec(elements=(ElementKind.GROUP,), states=('state',))

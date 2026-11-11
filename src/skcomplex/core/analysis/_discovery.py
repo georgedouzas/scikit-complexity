@@ -13,8 +13,8 @@ import numpy as np
 
 from ..components.systems import CompositeSystem
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..specs import NetworkSnapshotSpec
-from ..types import DataKind
 from ._alignment import alignment
 from ._autocatalytic import autocatalytic_sets
 from ._automata import automaton

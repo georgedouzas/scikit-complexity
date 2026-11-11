@@ -374,7 +374,7 @@ layers = [
     "skcomplex.core.components",
     "skcomplex.core.specs",
     "skcomplex.core.base",
-    "skcomplex.core.types | skcomplex.core.errors",
+    "skcomplex.core.types | skcomplex.core.enums | skcomplex.core.errors",
 ]
 
 [[tool.importlinter.contracts]]
@@ -411,7 +411,7 @@ layers = [
     "compile",
     "backends",
     "problems",
-    "types",
+    "types | enums",
 ]
 
 [[tool.importlinter.contracts]]

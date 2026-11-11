@@ -18,6 +18,7 @@ from ..components.systems import BaseSystem, CompositeSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Trajectory
+from ..enums import DataKind, DomainKind, FormKind
 from ..errors import AnalysisError, TagError, ValidationError
 from ..specs import (
     AnalysisTags,
@@ -28,7 +29,7 @@ from ..specs import (
     SnapshotsSpec,
     Tags,
 )
-from ..types import Array, DataKind, DomainKind, FormKind
+from ..types import Array
 from .types import Run, Runs, Source
 
 SERIES_DIMENSIONS = 1

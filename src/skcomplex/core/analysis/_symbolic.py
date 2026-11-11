@@ -38,10 +38,11 @@ from ..engine.compile._rewriting_compiler import RewritingCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._operator_problem_spec import OperatorProblemSpec
 from ..engine.problems._transfer_network_spec import TransferNetworkSpec
+from ..enums import DataKind, FormKind
 from ..errors import AnalysisError, ConservationError
 from ..specs import AnalysisTags
 from ..specs._unknown_spec import _UnknownSpec
-from ..types import Array, ComplexArray, DataKind, FormKind
+from ..types import Array, ComplexArray
 from ._base import _check_choice, _check_settings, _composite, _read_system
 from ._operator import _operator_problem
 from ._utils import compile_problem

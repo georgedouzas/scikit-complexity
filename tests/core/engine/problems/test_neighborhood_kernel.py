@@ -17,8 +17,8 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.engine._utils import declarations_of
 from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
+from skcomplex.core.enums import VariableKind
 from skcomplex.core.specs import StateSpec
-from skcomplex.core.types import VariableKind
 
 
 def test_neighborhood_kernel_get_neighbor_sets():

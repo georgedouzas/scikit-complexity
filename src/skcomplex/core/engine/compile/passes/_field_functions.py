@@ -16,10 +16,12 @@ from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, FluxLaw
 from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import LatticeSpace, MeshSpace, PhaseSpace, SimplexSpace
+from ....enums import VariableKind
 from ....errors import PipelineError, ValidationError
 from ....specs import LayoutSpec, RunStateSpec
-from ....types import Array, VariableKind, VectorFunction
+from ....types import Array, VectorFunction
 from ..._utils import declarations_of
+from ...enums import ReadKind
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._expression_printer import ExpressionPrinter
@@ -29,7 +31,6 @@ from ...problems._law_kernel import LawKernel
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from ...problems._reference_spec import ReferenceSpec
 from ...problems._symmetry_spec import SymmetrySpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 

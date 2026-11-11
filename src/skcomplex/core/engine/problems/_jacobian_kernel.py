@@ -16,7 +16,8 @@ from ...errors import ValidationError
 from ...specs import ReadSpec, RunStateSpec
 from ...types import Array, Indices
 from .._utils import symbols_of
-from ..types import ReadKind, Sparse
+from ..enums import ReadKind
+from ..types import Sparse
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 from ._finite_volume_kernel import FiniteVolumeKernel

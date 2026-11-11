@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.types import FormKind
+from skcomplex.core.enums import FormKind
 from skcomplex.systems.biology.common.kinetics import CompartmentElement
 from skcomplex.systems.biology.epidemiology import (
     InfectionInteraction,

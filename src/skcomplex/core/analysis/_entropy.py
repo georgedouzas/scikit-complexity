@@ -13,9 +13,10 @@ import numpy.typing as npt
 import ordpy
 from scipy import stats
 
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, BaseSpec
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import SNAPSHOT_DIMENSIONS, _check_choice, _check_settings, _read_fields, _read_series
 from ._utils import load_module
 from .types import Source

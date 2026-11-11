@@ -18,10 +18,10 @@ from ....errors import PipelineError, ValidationError
 from ....specs import DrawSpec
 from ....types import Indices
 from ..._utils import components_of, symbol, symbols_of
+from ...enums import ReadKind
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._reference_spec import ReferenceSpec
 from ...problems._renewal_kernel import READ_SOURCES, MemberFunction, RenewalKernel, Sampler
-from ...types import ReadKind
 from .._base import BasePass
 from .._bound_renewal_spec import BoundRenewalSpec
 from .._compilation import Compilation

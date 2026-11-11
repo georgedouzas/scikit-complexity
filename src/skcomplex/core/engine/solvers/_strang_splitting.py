@@ -11,9 +11,10 @@ from sklearn.base import clone
 
 from ...components.laws import BilinearLaw, FluxLaw, RateLaw
 from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...specs import RunStateSpec, SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
 from ..problems import ProblemSpec
 from ..problems._steps import step_count
 from ._rk4 import RK4Solver

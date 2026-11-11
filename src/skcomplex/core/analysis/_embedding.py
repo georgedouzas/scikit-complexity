@@ -10,9 +10,10 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import cKDTree
 
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import _check_choice, _check_settings, _read_series
 from ._information import _delayed_information, _symbolize
 from .types import Source

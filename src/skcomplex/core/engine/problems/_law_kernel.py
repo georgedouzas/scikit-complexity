@@ -14,7 +14,8 @@ from ...errors import ValidationError
 from ...specs import CallSpec, LayoutSpec, NoiseProcessSpec, RunStateSpec, WienerBlockSpec
 from ...specs._jump_channels_spec import _JumpChannelsSpec
 from ...types import Array, Indices
-from ..types import OptionalPairs, ReadFunction, ReadKind
+from ..enums import ReadKind
+from ..types import OptionalPairs, ReadFunction
 from ._base import BaseKernel
 from ._edge_search import EdgeSearch
 from ._expression_printer import ExpressionPrinter

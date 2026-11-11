@@ -20,9 +20,10 @@ from ...components.laws import (
     TransferLaw,
 )
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import SolverError, ValidationError
 from ...specs import SupportSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind
+from ...types import Array
 from ..problems import ProblemSpec
 from ._horizon_error import HorizonError
 from ._solver import Solver

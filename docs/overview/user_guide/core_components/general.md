@@ -1805,7 +1805,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import RoleElementError
 from skcomplex.core.specs import RoleSpec, StateSpec
-from skcomplex.core.types import ElementKind
+from skcomplex.core.enums import ElementKind
 
 
 class BitRuleInteraction(Interaction):

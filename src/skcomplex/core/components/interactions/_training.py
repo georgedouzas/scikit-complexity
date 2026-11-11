@@ -10,9 +10,9 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import DatasetSpec, ObservableSpec, ParameterSpec, RoleSpec
-from ...types import ElementKind
 from ..base import BaseComponent
 from ..laws import BaseLaw, GradientStepLaw
 from ..spaces import BaseSpace

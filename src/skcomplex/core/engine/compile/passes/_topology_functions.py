@@ -10,10 +10,11 @@ from sage.all__sagemath_symbolics import SR
 
 from ....components.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....components.spaces import NetworkSpace
+from ....enums import VariableKind
 from ....errors import PipelineError, ValidationError
 from ....specs import CapacityRowsSpec, EntrySpec, LayoutSpec, NetworkRowsSpec, TopologyRequestSpec
 from ....specs._weight_spec import _WeightSpec
-from ....types import Array, VariableKind
+from ....types import Array
 from ..._utils import declarations_of, declared_variables, default_of
 from ...problems._block_spec import BlockSpec
 from ...problems._compiled_request_spec import CompiledRequestSpec

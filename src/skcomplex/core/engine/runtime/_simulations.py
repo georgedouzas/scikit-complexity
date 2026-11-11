@@ -15,9 +15,10 @@ from sklearn.base import clone
 
 from ...base import BaseConfig
 from ...components.systems import CompositeSystem
+from ...enums import FormKind
 from ...errors import ParameterError, SimulationError, ValidationError
 from ...specs import AgentStateSpec, EntrySpec, ObservableSpec, RunStateSpec, StepSpec, StructureStateSpec
-from ...types import Array, FormKind
+from ...types import Array
 from ..backends import BaseBackend
 from ..compile import BaseCompiler
 from ..compile._observables import ObservableEvaluator

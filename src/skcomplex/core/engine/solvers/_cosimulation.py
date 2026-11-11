@@ -36,10 +36,11 @@ from ...components.spaces import (
     MeshSpace,
     NetworkSpace,
 )
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import ContextError, SolverError, ValidationError
 from ...specs import AgentSnapshotSpec, AgentStateSpec, EntrySpec, StepSpec, SupportSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind
+from ...types import Array
 from ..backends import NumbaBackend, NumpyBackend
 from ..compile._observables import ObservableEvaluator
 from ..compile._pass_compiler import PassCompiler

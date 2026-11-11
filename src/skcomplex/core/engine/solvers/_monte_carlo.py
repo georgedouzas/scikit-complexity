@@ -6,8 +6,8 @@
 
 from ...components.laws import SampleLaw
 from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...specs import SupportSpec
-from ...types import FormKind, OrderKind
 from ._lattice import LatticeSolver
 
 

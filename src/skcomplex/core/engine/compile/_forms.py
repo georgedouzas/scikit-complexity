@@ -17,7 +17,7 @@ from ...components.laws import (
     SampleLaw,
     UpdateLaw,
 )
-from ...types import FormKind
+from ...enums import FormKind
 from ._renewal_law import RenewalLaw
 
 LATTICE_LAWS: tuple[type, ...] = (LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, ExtremalLaw)

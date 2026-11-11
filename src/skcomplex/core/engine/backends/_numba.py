@@ -48,9 +48,11 @@ from ...components.spaces import (
     NetworkSpace,
     StaticTime,
 )
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import BackendWarning, ValidationError
 from ...specs import AcceleratedSpec, EntrySpec, LoweredFunctionsSpec, NeighborReadSpec, SupportSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind, VectorFunction
+from ...types import Array, VectorFunction
+from ..enums import ReadKind
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
@@ -62,7 +64,6 @@ from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._source_loader import SourceLoader
 from ..problems._steps import step_count
-from ..types import ReadKind
 from . import _numba_components, _numba_neighbours, _numba_stencils
 from ._base import BaseBackend
 from ._numba_loops import LOOPS, NO_BOUNDARY

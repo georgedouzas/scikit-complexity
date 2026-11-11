@@ -12,9 +12,10 @@ from sage.all__sagemath_symbolics import SR, Expression, solve
 
 from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw
 from ...components.spaces import ContinuousTime
+from ...enums import OrderKind
 from ...errors import SolverError, ValidationError
 from ...specs import ControlSolutionSpec, SupportSpec
-from ...types import Array, OrderKind
+from ...types import Array
 from ..problems import ProblemSpec
 from ..problems._control_problem_spec import _ControlProblemSpec
 from ..types import Cost, GridFunction

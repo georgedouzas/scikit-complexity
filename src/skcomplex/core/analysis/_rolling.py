@@ -10,9 +10,10 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import _check_choice, _read_real, _read_series
 from .types import Source
 

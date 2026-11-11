@@ -39,9 +39,9 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.enums import ElementKind
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, TopologyRequestSpec
-from skcomplex.core.types import ElementKind
 from skcomplex.systems.general.agents import (
     BirthDeathInteraction,
     ChoiceInteraction,

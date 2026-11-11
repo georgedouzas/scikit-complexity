@@ -32,10 +32,12 @@ from ....components.spaces import (
     PhaseSpace,
 )
 from ....components.specs import NodeSpec
+from ....enums import VariableKind
 from ....errors import LabelError, RoleError, ValidationError
 from ....specs import EntrySpec, NeighborReadSpec, WienerProcessSpec
-from ....types import Indices, VariableKind
+from ....types import Indices
 from ..._utils import bound_labels, declarations_of, domain_of, symbol, vector
+from ...enums import ReadKind
 from ...problems import ProblemSpec
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
@@ -45,7 +47,6 @@ from ...problems._observed_spec import ObservedSpec
 from ...problems._pair_search import PairSearch
 from ...problems._reference_spec import ReferenceSpec
 from ...problems._set_symbol_spec import EDGE_NAMES, MEMBER_REFERENCE, SetSymbolSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from .._observables import ObservableEvaluator

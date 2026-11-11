@@ -17,9 +17,9 @@ from ...components.interactions import TrainingInteraction
 from ...components.laws import EquationLaw, GradientStepLaw, RateLaw, UpdateLaw
 from ...components.spaces import DiscreteTime
 from ...components.systems import CompositeSystem
+from ...enums import FormKind
 from ...errors import SkcomplexError, SolverError, ValidationError
 from ...specs import EntrySpec, IssueSpec, LayoutSpec, ObservableSpec, ParameterSpec
-from ...types import FormKind
 from .._utils import symbol, symbols_of
 from ..backends import BaseBackend, JaxBackend
 from ..problems import BaseProblemSpec, ProblemSpec

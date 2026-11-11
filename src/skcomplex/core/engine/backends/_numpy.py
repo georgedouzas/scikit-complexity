@@ -38,9 +38,10 @@ from ...components.spaces import (
     NetworkSpace,
     StaticTime,
 )
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import ValidationError
 from ...specs import LoweredFunctionsSpec, SupportSpec
-from ...types import FormKind, NoiseKind, OrderKind, VectorFunction
+from ...types import VectorFunction
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec

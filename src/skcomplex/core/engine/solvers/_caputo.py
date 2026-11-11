@@ -10,9 +10,10 @@ import numpy as np
 
 from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw, TransferLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
 from ..problems import ProblemSpec
 from ._solver import Solver
 

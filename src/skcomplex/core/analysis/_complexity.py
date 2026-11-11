@@ -9,9 +9,10 @@ from dataclasses import dataclass
 import numpy as np
 import ordpy
 
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import SNAPSHOT_DIMENSIONS, _read_fields, _read_series
 from ._entropy import TIES, _break_ties
 from .types import Source

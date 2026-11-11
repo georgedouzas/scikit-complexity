@@ -24,9 +24,9 @@ from ..components.laws import (
 from ..components.systems import CompositeSystem
 from ..engine._utils import declared_variables, probe_laws
 from ..engine.runtime import Trajectory, simulate
+from ..enums import VariableKind
 from ..errors import ValidationError
 from ..specs import VariableSpec
-from ..types import VariableKind
 from ._runs import _check_source
 from ._utils import build_system
 from .types import Source

@@ -9,8 +9,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from ...components.laws import BaseLaw
+from ...enums import FormKind
 from ...specs._base_spec import BaseSpec
-from ...types import FormKind
 from ._draw_kernel import DrawKernel
 from ._kernel_spec import KernelSpec
 from ._law_kernel import LawKernel

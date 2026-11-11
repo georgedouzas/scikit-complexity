@@ -19,9 +19,9 @@ from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, uniform, where
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.enums import ElementKind
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, Tags
-from ....core.types import ElementKind
 
 RULES = ('logit', 'metropolis', 'fermi', 'best')
 FORMS = ('symbolic', 'agent')

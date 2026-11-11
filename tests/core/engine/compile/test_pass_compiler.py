@@ -63,6 +63,7 @@ from skcomplex.core.engine.compile.passes._operator_compiler import OperatorComp
 from skcomplex.core.engine.problems import ProblemSpec
 from skcomplex.core.engine.solvers import GillespieSolver, LammpsSolver, MilsteinSolver, PontryaginSolver, RK4Solver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
+from skcomplex.core.enums import ElementKind, FormKind, NoiseKind
 from skcomplex.core.errors import (
     IncompatibleLawsError,
     LabelError,
@@ -88,7 +89,6 @@ from skcomplex.core.specs import (
     VisualSpec,
     WienerProcessSpec,
 )
-from skcomplex.core.types import ElementKind, FormKind, NoiseKind
 from skcomplex.systems.biology.common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,

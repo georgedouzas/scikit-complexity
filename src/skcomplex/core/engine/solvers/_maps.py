@@ -7,8 +7,9 @@ import math
 
 from ...components.laws import BoundaryLaw, LinearProgramLaw, TransferLaw, TransitionLaw, UpdateLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
 from ..problems import ProblemSpec
 from ._base import BaseSolver
 from ._solver import Solver

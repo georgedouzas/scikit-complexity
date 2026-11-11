@@ -15,9 +15,10 @@ import numpy.typing as npt
 from scipy import stats
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError, UnobservedStatesWarning
 from ..specs import AnalysisTags
-from ..types import AnyArray, Array, DataKind, IntArray
+from ..types import AnyArray, Array, IntArray
 from ._base import _check_choice, _check_settings, _read_series
 from ._information import _knn_chain, _log_determinant, _row_codes
 from ._markov import _stationary_distribution

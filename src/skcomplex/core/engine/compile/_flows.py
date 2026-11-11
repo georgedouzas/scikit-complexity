@@ -27,11 +27,13 @@ from ...components.laws.utils import shift_member
 from ...components.laws.utils._delays import delay_parts
 from ...components.laws.utils._draws import draws_in
 from ...components.spaces import DiscreteTime
+from ...enums import VariableKind
 from ...errors import ConservationError, LabelError, ValidationError
 from ...specs import EntrySpec
 from ...specs._compiled_flow_spec import _CompiledFlowSpec
-from ...types import Array, VariableKind
+from ...types import Array
 from .._utils import declarations_of, symbol, symbols_of
+from ..enums import ReadKind
 from ..problems._block_spec import BlockSpec
 from ..problems._born_spec import _BornSpec
 from ..problems._compiled_delay_spec import _CompiledDelaySpec
@@ -44,7 +46,6 @@ from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._transfer_network_spec import TransferNetworkSpec
 from ..problems._transfer_state_spec import TransferStateSpec
-from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 from ._members import MemberLowering

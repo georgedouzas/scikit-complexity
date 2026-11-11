@@ -10,9 +10,9 @@ from typing import Annotated, ClassVar, cast
 from sage.all__sagemath_symbolics import SR, oo, sqrt
 from sage.sets.real_set import RealSet
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
-from ...types import ElementKind
 from ..laws import BaseLaw, RateLaw
 from ..spaces import BaseSpace
 from ..types import NamespaceFunction, PairPotential, Target

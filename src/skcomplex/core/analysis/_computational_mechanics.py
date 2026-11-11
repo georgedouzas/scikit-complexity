@@ -10,9 +10,10 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import stats
 
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
-from ..types import Array, DataKind, IntArray, IntTuple
+from ..types import Array, IntArray, IntTuple
 from ._base import _read_series
 from .types import Source
 

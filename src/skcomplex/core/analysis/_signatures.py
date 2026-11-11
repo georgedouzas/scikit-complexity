@@ -9,9 +9,10 @@ import networkx as nx
 import numpy as np
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind, FormKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, JumpPathSpec, SeriesSpec, SignatureSpec, SnapshotsSpec
-from ..types import Array, DataKind, FormKind
+from ..types import Array
 from ._alignment import _mean_rotation, _mean_vector_length
 from ._base import _composite, _get_data_kinds, _read_fields, _read_networks, _read_path, _read_series, _read_snapshots
 from ._correlation import _autocorrelation_time, _correlation_length

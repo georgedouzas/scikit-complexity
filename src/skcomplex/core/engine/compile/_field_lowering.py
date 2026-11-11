@@ -38,6 +38,7 @@ from ...errors import ValidationError
 from ...specs import NeighborReadSpec, RunStateSpec
 from ...types import Array, Indices, IntTuple
 from .._utils import domain_of, symbol
+from ..enums import ReadKind
 from ..problems._collision_kernel import CollisionKernel
 from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._diffusive_limit_spec import DiffusiveLimitSpec
@@ -46,7 +47,6 @@ from ..problems._field_operator_kernel import FieldOperatorKernel
 from ..problems._kernel_spec import KernelSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
 from ..problems._reference_spec import ReferenceSpec
-from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 

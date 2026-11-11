@@ -8,9 +8,10 @@ import numpy as np
 
 from ...components.laws import BoundaryLaw, JumpLaw, TransferLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError, ValidationError
 from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
 from ..problems import ProblemSpec
 from ..problems._draw_recorder import DrawRecorder
 from ._base import BaseSolver

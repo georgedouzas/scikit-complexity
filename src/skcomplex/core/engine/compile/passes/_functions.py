@@ -14,6 +14,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.spaces import DelaunayNeighborhood, DiscreteTime
 from ....components.systems import CompositeSystem
+from ....enums import FormKind
 from ....errors import BackendWarning, ValidationError
 from ....specs import (
     DEFAULT_PHASE,
@@ -24,9 +25,10 @@ from ....specs import (
     PhasesScheduleSpec,
     RunStateSpec,
 )
-from ....types import Array, FormKind, Indices, VectorFunction
+from ....types import Array, Indices, VectorFunction
 from ..._utils import symbols_of
 from ...backends import BaseBackend, NumpyBackend
+from ...enums import ReadKind
 from ...problems import ProblemSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._draw_kernel import DrawKernel
@@ -41,7 +43,6 @@ from ...problems._output_spec import OutputSpec
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._sweep_spec import _SweepSpec
-from ...types import ReadKind
 from .._algebraic_law import AlgebraicLaw
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation

@@ -17,11 +17,13 @@ from ...components.laws.utils import local_operator
 from ...components.laws.utils._local_operators import has_operator
 from ...components.specs import NodeSpec
 from ...components.systems import CompositeSystem
+from ...enums import FormKind, VariableKind
 from ...errors import ValidationError
 from ...specs import EntrySpec, NeighborReadSpec, ObservableSpec, ReadSpec, RunStateSpec, StateSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
-from ...types import Array, FormKind, Indices, VariableKind
+from ...types import Array, Indices
 from .._utils import bound_labels, declarations_of, symbol, symbols_of
+from ..enums import ReadKind
 from ..problems import BaseProblemSpec, ProblemSpec
 from ..problems._drive_kernel import DriveKernel
 from ..problems._expression_printer import ExpressionPrinter
@@ -33,7 +35,7 @@ from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
-from ..types import AgentsFunction, Declared, ObservableFunction, ReadKind
+from ..types import AgentsFunction, Declared, ObservableFunction
 from ._base import BaseCompiler, BasePass
 from ._flows import TransferLowering
 from ._member_reductions import _MemberReductions

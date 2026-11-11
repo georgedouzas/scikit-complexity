@@ -12,7 +12,7 @@ from scipy import sparse
 from ...errors import InfeasibleError, SolverError
 from ...specs import RunStateSpec
 from ...types import Array, Indices
-from ..types import LinearProgramBound
+from ..enums import LinearProgramBound
 from ._base import BaseKernel
 from ._linear_program_spec import LinearProgramDualSpec, LinearProgramSpec
 

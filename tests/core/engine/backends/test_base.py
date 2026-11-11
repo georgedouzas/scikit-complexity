@@ -28,6 +28,7 @@ from skcomplex.core.engine.solvers import (
     RK4Solver,
     VelocityVerletSolver,
 )
+from skcomplex.core.enums import FormKind, OrderKind
 from skcomplex.core.errors import BackendWarning, SolverError
 from skcomplex.core.specs import (
     BaseSpec,
@@ -39,7 +40,6 @@ from skcomplex.core.specs import (
     StepSpec,
     VisualSpec,
 )
-from skcomplex.core.types import FormKind, OrderKind
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction
 from skcomplex.systems.physics.common.particles import HarmonicPotentialInteraction, MassPointElement

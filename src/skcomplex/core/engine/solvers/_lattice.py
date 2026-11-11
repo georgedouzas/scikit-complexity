@@ -7,8 +7,9 @@ import math
 
 from ...components.laws import ArrayUpdateLaw, BoundaryLaw, CascadeLaw, ExtremalLaw, LocalRuleLaw, UpdateLaw
 from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...specs import CascadeRecordSpec, RunStateSpec, SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
 from ._solver import Solver
 
 

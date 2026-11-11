@@ -20,6 +20,7 @@ from skcomplex.core.engine.compile import BaseCompiler, BasePass
 from skcomplex.core.engine.compile._observables import ObservableEvaluator
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.problems._operator_problem_spec import OperatorProblemSpec
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import IncompatibleLawsError, ValidationError
 from skcomplex.core.specs import (
     HilbertSpec,
@@ -29,7 +30,6 @@ from skcomplex.core.specs import (
     StateSpec,
     VisualSpec,
 )
-from skcomplex.core.types import FormKind
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.physics.common.quantum import QUBIT, ModeElement, QubitElement, mode_space
 

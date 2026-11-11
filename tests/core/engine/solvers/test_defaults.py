@@ -5,7 +5,7 @@ from skcomplex.core.engine.solvers import (
     RewritingSolver,
 )
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
-from skcomplex.core.types import FormKind, OrderKind
+from skcomplex.core.enums import FormKind, OrderKind
 
 
 def test_default_solvers_solve_their_form():

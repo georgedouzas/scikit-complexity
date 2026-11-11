@@ -22,14 +22,15 @@ from ....components.laws.utils import coordinate
 from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from ....components.specs import CensusRecordSpec, NodeSpec
+from ....enums import VariableKind
 from ....errors import LabelError, SpaceError, ValidationError
 from ....specs import EntrySpec, PowerSeriesSpec, TensorSpec, VariableSpec, WienerProcessSpec
-from ....types import Array, VariableKind
+from ....types import Array
 from ..._utils import components_of, declarations_of, default_of, symbol, vector
+from ...enums import ReadKind
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 

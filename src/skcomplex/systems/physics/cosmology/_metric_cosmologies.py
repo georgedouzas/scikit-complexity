@@ -29,9 +29,9 @@ from ....core.components.laws.utils import derivative, partial
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
+from ....core.enums import ElementKind
 from ....core.errors import SpaceError, ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import ElementKind
 from ..common.relativity import SpacetimeSpace
 
 COUPLING = 8 * math.pi

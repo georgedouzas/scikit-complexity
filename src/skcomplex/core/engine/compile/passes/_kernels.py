@@ -19,6 +19,7 @@ from ....errors import PipelineError, ValidationError
 from ....specs import CallSpec, LayoutSpec, NoiseProcessSpec, WienerProcessSpec
 from ....types import ProcessKey
 from ..._utils import components_of, symbols_of
+from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
@@ -26,7 +27,6 @@ from ...problems._lowered_kernels_spec import LoweredKernelsSpec
 from ...problems._output_spec import OutputSpec
 from ...problems._random_stream import RandomStream
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._laws import KERNEL_FREE_LAWS

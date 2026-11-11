@@ -10,9 +10,10 @@ import numpy as np
 import numpy.typing as npt
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, NetworkSnapshotSpec
-from ..types import Array, DataKind, Indices
+from ..types import Array, Indices
 from .types import Source
 
 TAGS = AnalysisTags(DataKind.NETWORK)

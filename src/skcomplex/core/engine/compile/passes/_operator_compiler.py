@@ -25,9 +25,10 @@ from ....components.specs import (
     SubsystemSpec,
 )
 from ....components.systems import CompositeSystem
+from ....enums import FormKind, VariableKind
 from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
 from ....specs import EntrySpec, HilbertSpec, IssueSpec, LayoutSpec, ObservableSpec
-from ....types import Array, FormKind, VariableKind
+from ....types import Array
 from ..._utils import declarations_of, symbol, vector
 from ...backends import BaseBackend
 from ...problems import BaseProblemSpec

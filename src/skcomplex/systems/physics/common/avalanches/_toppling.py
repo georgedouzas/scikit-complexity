@@ -16,9 +16,10 @@ import numpy as np
 from .....core.components.interactions import NeighborInteraction
 from .....core.components.laws import ArrayUpdateLaw, BaseLaw, CascadeLaw, LocalRuleLaw
 from .....core.components.spaces import BallNeighborhood, BaseNeighborhood, BaseSpace, LatticeNeighborhood
+from .....core.enums import ElementKind
 from .....core.errors import ValidationError
 from .....core.specs import BaseSpec, RoleSpec
-from .....core.types import Array, ElementKind
+from .....core.types import Array
 
 MODES = ('redistribute', 'reset', 'random')
 

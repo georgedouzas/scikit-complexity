@@ -19,9 +19,9 @@ from ..engine._utils import declarations_of
 from ..engine.compile._observables import ObservableEvaluator
 from ..engine.problems import ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
+from ..enums import DataKind, VariableKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, ObservableSpec, SymmetrySpec
-from ..types import DataKind, VariableKind
 from ._base import _check_choice, _check_settings, _composite, _read_system
 from ._stability import StabilityResult
 from .types import Source

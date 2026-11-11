@@ -23,10 +23,11 @@ from ...components.laws import (
     TransferLaw,
 )
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...specs import RunStateSpec, SupportSpec
 from ...specs._segment_spec import _SegmentSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
 from ..problems import ProblemSpec
 from ._event_locator import EventLocator
 from ._history import RESTART, History

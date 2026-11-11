@@ -6,8 +6,9 @@
 
 from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...specs import SupportSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind
+from ...types import Array
 from ._solver import Solver
 
 

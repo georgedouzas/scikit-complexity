@@ -9,9 +9,9 @@ from typing import Annotated, ClassVar
 
 from sage.modules.free_module_element import FreeModuleElement
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec, Tags
-from ...types import ElementKind
 from ..base import BaseComponent
 from ..laws import BaseLaw, FluxLaw, RateLaw
 from ..laws.utils import divergence

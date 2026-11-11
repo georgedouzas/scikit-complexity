@@ -9,10 +9,10 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.laws import BaseLaw, UpdateLaw
 from ..._utils import vector
+from ...enums import ReadKind
 from ...problems._declarations_spec import ACTIVE, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 

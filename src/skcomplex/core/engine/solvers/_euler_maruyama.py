@@ -9,9 +9,10 @@ import numpy as np
 
 from ...components.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw, TransferLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...enums import NoiseKind, OrderKind
 from ...errors import SolverError
 from ...specs import SupportSpec
-from ...types import Array, NoiseKind, OrderKind
+from ...types import Array
 from ..problems._steps import step_count
 from ._base import BaseSolver
 from ._sde import SDESolver

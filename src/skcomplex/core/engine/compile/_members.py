@@ -16,10 +16,10 @@ from ...components.spaces._lattice import BOUNDARIES
 from ...errors import ValidationError
 from ...specs import NeighborReadSpec
 from .._utils import domain_of, symbol, vector
+from ..enums import ReadKind
 from ..problems._kernel_spec import KernelSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
 from ..problems._reference_spec import ReferenceSpec
-from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 

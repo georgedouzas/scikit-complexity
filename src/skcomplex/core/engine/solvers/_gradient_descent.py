@@ -14,9 +14,10 @@ import optax
 from ...components.interactions import OPTIMIZERS
 from ...components.laws import GradientStepLaw
 from ...components.spaces import DiscreteTime
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError, ValidationError
 from ...specs import StructureStateSpec, SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
 from ..backends import JaxBackend
 from ..problems._learning_problem_spec import LearningProblemSpec
 from ..types import TracedArray

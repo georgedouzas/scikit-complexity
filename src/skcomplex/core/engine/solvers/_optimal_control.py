@@ -13,10 +13,11 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, SR, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ...enums import FormKind
 from ...errors import SolverError, ValidationError
 from ...specs import ControlSolutionSpec
 from ...specs._control_spec import _ControlSpec
-from ...types import Array, FormKind
+from ...types import Array
 from .._utils import symbols_of
 from ..compile._observables import ObservableEvaluator
 from ..problems import ProblemSpec

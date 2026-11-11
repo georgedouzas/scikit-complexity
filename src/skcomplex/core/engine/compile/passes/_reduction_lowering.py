@@ -33,6 +33,7 @@ from ....components.spaces import (
     NetworkSpace,
     RadiusNeighborhood,
 )
+from ....enums import VariableKind
 from ....errors import PipelineError, RoleError, ValidationError
 from ....specs import (
     CallSpec,
@@ -45,8 +46,9 @@ from ....specs import (
 )
 from ....specs._capacity_rows_spec import ACTIVE_THRESHOLD
 from ....specs._held_reduction_spec import _HeldReductionSpec
-from ....types import Indices, VariableKind
+from ....types import Indices
 from ..._utils import declarations_of, domain_of, symbol, symbols_of, vector
+from ...enums import ReadKind
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
@@ -55,7 +57,6 @@ from ...problems._neighborhood_kernel import NeighborhoodKernel
 from ...problems._reduction_kernel import ReductionKernel
 from ...problems._reference_spec import ReferenceSpec
 from ...problems._static_search import StaticSearch
-from ...types import ReadKind
 from .._base import BaseLowering, BasePass
 from .._compilation import Compilation
 from .._observables import _HeldElement

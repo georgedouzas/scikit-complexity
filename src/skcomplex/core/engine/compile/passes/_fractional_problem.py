@@ -12,8 +12,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ....components.laws import NoiseLaw
+from ....enums import FormKind
 from ....specs import FractionalRowsSpec, FractionalStateSpec, LayoutSpec
-from ....types import Array, FormKind
+from ....types import Array
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec

@@ -40,17 +40,18 @@ from ....components.laws.utils._tensors import distribute_operators
 from ....components.spaces import CellComplexSpace, LatticeSpace
 from ....components.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....components.systems import CompositeSystem
+from ....enums import ElementKind, VariableKind
 from ....errors import RoleElementError, SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
 from ....specs import CallSpec, EntrySpec, TensorSpec
-from ....types import ElementKind, ProcessKey, VariableKind
+from ....types import ProcessKey
 from ..._utils import components_of, declarations_of, symbol, symbols_of, vector
+from ...enums import ReadKind
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
 from ...problems._pair_search import PairSearch
 from ...problems._topology_kernel import TopologyKernel
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from .._field_lowering import FieldLowering

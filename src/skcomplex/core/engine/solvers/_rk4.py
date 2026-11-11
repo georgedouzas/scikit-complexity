@@ -20,9 +20,10 @@ from ...components.laws import (
     TransferLaw,
 )
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
 from ..problems._steps import step_count
 from ..types import Interpolant
 from ._base import BaseSolver

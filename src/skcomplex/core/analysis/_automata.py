@@ -22,10 +22,11 @@ from ..components.laws import LocalRuleLaw
 from ..components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
 from ..components.systems import CompositeSystem
 from ..components.types import Reach
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, BaseSpec, LinearRuleSpec, OuterTotalisticSpec, SubshiftSpec, TableSpec, TotalisticSpec
 from ..specs._composed_rule_spec import _ComposedRuleSpec
-from ..types import DataKind, Indices, IntArray
+from ..types import Indices, IntArray
 from ._base import _check_choice, _check_settings, _composite
 from ._utils import load_module
 from .types import Item, Source

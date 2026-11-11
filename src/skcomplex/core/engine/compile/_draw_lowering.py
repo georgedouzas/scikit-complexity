@@ -20,12 +20,12 @@ from ...errors import ValidationError
 from ...specs import CallSpec, DrawSpec, EntrySpec, NamedDrawSpec, NeighborReadSpec, SampledDrawSpec
 from ...types import Array, Indices
 from .._utils import components_of, symbol, symbols_of, vector
+from ..enums import ReadKind
 from ..problems._draw_kernel import DrawKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._kernel_spec import KernelSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._request_spec import _RequestSpec
-from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 from ._members import MemberLowering

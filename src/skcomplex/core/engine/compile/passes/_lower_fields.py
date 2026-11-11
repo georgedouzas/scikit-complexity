@@ -11,11 +11,12 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, RateLaw
 from ....components.laws.utils._phase import COORDINATE_PREFIX
+from ...enums import ReadKind
 from ...problems._diffusive_limit_spec import DiffusiveLimitSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._linear_term_spec import OPERATORS, LinearTermSpec
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind, Terms
+from ...types import Terms
 from .._base import BasePass
 from .._compilation import Compilation
 from .._field_lowering import FieldLowering

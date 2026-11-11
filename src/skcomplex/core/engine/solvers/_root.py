@@ -8,9 +8,10 @@ from scipy.optimize import root
 
 from ...components.laws import EquationLaw, LinearProgramLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace, StaticTime
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...specs import RunStateSpec, SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
 from ..problems import ProblemSpec
 from ..problems._jacobian_kernel import JacobianKernel
 from ._solver import Solver

@@ -15,9 +15,9 @@ from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import AlgebraicStateError, SolverError, ValidationError
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
-from skcomplex.core.types import FormKind
 from skcomplex.systems.engineering.common.electrical import (
     ELECTRICAL,
     CapacitorElement,

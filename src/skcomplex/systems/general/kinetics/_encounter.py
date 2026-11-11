@@ -14,9 +14,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, BilinearLaw, RateLaw
 from ....core.components.laws.utils import collision_integral
 from ....core.components.spaces import BaseSpace
+from ....core.enums import ElementKind
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, Tags
-from ....core.types import ElementKind
 
 OUTCOMES = ('conservative', 'destructive', 'proliferative')
 

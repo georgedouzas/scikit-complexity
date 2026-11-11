@@ -7,8 +7,8 @@ import rerun.blueprint as rrb
 from skcomplex.core.analysis import scaling
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import GeometryVisual, RerunObserver
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.types import FormKind
 from skcomplex.systems.mathematics.fractals import (
     CantorSetSystem,
     KochCurveSystem,

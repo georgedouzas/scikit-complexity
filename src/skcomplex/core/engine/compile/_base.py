@@ -14,6 +14,7 @@ from sage.all__sagemath_symbolics import Expression
 from ...base import BaseConfig
 from ...components.laws import BaseLaw
 from ...components.systems import CompositeSystem
+from ...enums import FormKind
 from ...errors import (
     LabelError,
     ParameterError,
@@ -26,7 +27,6 @@ from ...errors import (
     ValidationError,
 )
 from ...specs import IssueSpec, ObservableSpec, SupportSpec, ValidationReportSpec
-from ...types import FormKind
 from ..backends import BaseBackend, NumbaBackend, NumpyBackend
 from ..backends._base import AUTO_MEMBERS
 from ..problems import BaseProblemSpec

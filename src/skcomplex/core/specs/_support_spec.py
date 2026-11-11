@@ -9,7 +9,7 @@ from collections.abc import Iterable
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 
-from ..types import NoiseKind, OrderKind
+from ..enums import NoiseKind, OrderKind
 from ._base_spec import BaseSpec
 from ._tags import Tags
 

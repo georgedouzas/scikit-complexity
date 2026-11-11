@@ -18,10 +18,11 @@ from ....components.interactions import ConnectionInteraction
 from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.laws.utils._reductions import reductions_in
 from ....components.spaces import StaticTime
+from ....enums import VariableKind
 from ....errors import ValidationError
 from ....specs import CallSpec, IssueSpec
 from ....specs._orders_spec import _OrdersSpec
-from ....types import Array, VariableKind
+from ....types import Array
 from ..._utils import components_of, declarations_of, symbol, vector
 from ...problems._block_spec import BlockSpec
 from ...problems._kernel_spec import KernelSpec

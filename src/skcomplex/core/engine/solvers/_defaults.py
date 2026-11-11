@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...types import FormKind
+from ...enums import FormKind
 from ._base import BaseSolver
 from ._euler_maruyama import EulerMaruyamaSolver
 from ._fractional_abm import FractionalABMSolver

@@ -12,9 +12,10 @@ from sage.all__sagemath_symbolics import SR, Expression
 from scipy.linalg import solve_continuous_are
 
 from ..engine.problems import ProblemSpec
+from ..enums import DataKind, FormKind
 from ..errors import AnalysisError, ValidationError
 from ..specs import AnalysisTags
-from ..types import Array, DataKind, FormKind
+from ..types import Array
 from ._base import _composite, _read_system
 from ._stability import StabilityResult
 from ._utils import compile_problem

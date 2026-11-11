@@ -10,9 +10,9 @@ from typing import Annotated, ClassVar, cast
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
+from ...enums import ElementKind
 from ...errors import SimulationError, ValidationError
 from ...specs import PartnerSpec, RoleSpec, Tags
-from ...types import ElementKind
 from ..laws import BaseLaw, MatchLaw, RuleLaw, Sink, Source, TransferLaw
 from ..laws.utils import shift_member, where
 from ..spaces import BaseSpace

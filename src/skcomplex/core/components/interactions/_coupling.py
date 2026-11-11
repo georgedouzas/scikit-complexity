@@ -14,9 +14,9 @@ from sage.all__sagemath_symbolics import SR, Expression, arctan2, cos, oo, sin
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import BaseSpec, ParameterSpec, RoleSpec, Tags
-from ...types import ElementKind
 from ..laws import BaseLaw, RateLaw, UpdateLaw
 from ..laws.utils import count, delayed, hyperedges, maximum, minimum, neighbors, shift_member, total
 from ..spaces import BaseNeighborhood, BaseSpace

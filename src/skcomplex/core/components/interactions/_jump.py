@@ -11,9 +11,9 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec, Tags
-from ...types import ElementKind
 from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import uniform, where
 from ..spaces import BaseSpace

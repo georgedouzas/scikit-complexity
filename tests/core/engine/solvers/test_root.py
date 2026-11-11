@@ -21,9 +21,9 @@ from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import IssueSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec
-from skcomplex.core.types import FormKind
 
 
 class SurvivalElement(Element):

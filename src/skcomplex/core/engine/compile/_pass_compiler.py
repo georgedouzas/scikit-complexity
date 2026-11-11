@@ -58,6 +58,7 @@ from ...components.spaces import (
 )
 from ...components.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ...components.systems import CompositeSystem
+from ...enums import DomainKind, ElementKind, FormKind, NoiseKind, VariableKind
 from ...errors import (
     AlgebraicStateError,
     BackendError,
@@ -84,7 +85,7 @@ from ...specs import (
 from ...specs._draw_spec import RELAXED_KINDS
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...specs._issue_spec import ERROR, WARNING
-from ...types import Array, DomainKind, ElementKind, FormKind, NoiseKind, ProcessKey, VariableKind, VectorFunction
+from ...types import Array, ProcessKey, VectorFunction
 from .._utils import bound_labels, declarations_of, default_of, symbol
 from ..backends import BaseBackend
 from ..problems import BaseProblemSpec, ProblemSpec

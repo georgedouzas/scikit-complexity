@@ -18,10 +18,11 @@ from ..components.systems import CompositeSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import ProblemSpec
 from ..engine.problems._linear_program_kernel import LinearProgramKernel
+from ..enums import DataKind
 from ..errors import AnalysisError, EnumerationLimitError
 from ..specs import AnalysisTags, RunStateSpec
 from ..specs._base_spec import BaseSpec
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import _composite
 from .types import Source
 

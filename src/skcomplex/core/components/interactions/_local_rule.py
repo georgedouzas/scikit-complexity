@@ -7,9 +7,9 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec
-from ...types import ElementKind
 from ..laws import BaseLaw, LocalRuleLaw
 from ..spaces import BaseNeighborhood, BaseSpace
 from ._interaction import Interaction

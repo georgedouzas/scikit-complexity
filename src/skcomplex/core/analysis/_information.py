@@ -14,9 +14,10 @@ import numpy.typing as npt
 import ordpy
 from scipy import stats
 
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
-from ..types import AnyArray, Array, DataKind
+from ..types import AnyArray, Array
 from ._base import _check_choice, _check_settings, _read_real, _read_series
 from ._entropy import _block_entropies, _shannon
 from ._utils import load_module

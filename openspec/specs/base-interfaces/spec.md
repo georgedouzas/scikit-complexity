@@ -133,13 +133,16 @@ An object that keeps state between calls or acts SHALL be a class under the base
 - **WHEN** a user inspects the class that records observables during a run
 - **THEN** it derives from `BaseConfig` and is not a dataclass
 
-### Requirement: Kinds and protocols are types
-Every enum of the library outside the systems SHALL live in `skcomplex.core.types` and end in `Kind`, and every protocol
-SHALL live in `skcomplex.core.types` and end in `Protocol`.
+### Requirement: Enums and protocols live in their modules
+Every enum of the core SHALL live in the `enums` module of the lowest layer that reads it, `skcomplex.core.enums` or
+`skcomplex.core.engine.enums`. Every type alias and protocol SHALL live in the `types` module of its layer, and every
+protocol SHALL end in `Protocol`.
 
-#### Scenario: Kinds from types
-- **WHEN** a user imports `NoiseKind`, `OrderKind`, `FormKind`, and `RecordProtocol` from `skcomplex.core.types`
-- **THEN** every import succeeds and no other module of the library defines an enum or a protocol
+#### Scenario: Kinds from enums
+- **WHEN** a user imports `NoiseKind`, `OrderKind`, and `FormKind` from `skcomplex.core.enums`, and
+  `AgentViewProtocol` from `skcomplex.core.components.types`
+- **THEN** every import succeeds, and no module of the core outside an `enums` module defines an enum, and none
+  outside a `types` module defines a protocol
 
 ### Requirement: Runs keep their results as attributes
 Every main public method of a configurable object SHALL return the object itself, and every hook SHALL return `None`. A run SHALL

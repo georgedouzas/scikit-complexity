@@ -14,9 +14,9 @@ from ...components.elements import GroupElement, PatchElement, WordElement
 from ...components.laws import ProductionLaw, SubstitutionLaw
 from ...components.specs import CompiledElementSpec, NodeSpec
 from ...components.systems import CompositeSystem
+from ...enums import FormKind, VariableKind
 from ...errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
 from ...specs import EntrySpec, IssueSpec, LayoutSpec, ParametersSpec
-from ...types import FormKind, VariableKind
 from .._utils import declarations_of, symbol
 from ..problems import BaseProblemSpec
 from ..problems._patch_kernel import PatchKernel

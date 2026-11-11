@@ -100,7 +100,7 @@ The role `target` accepts an element of any kind, reads its state `x`, and accep
 `accepts` of the role compares it with the kind of an element.
 
 ```python continuation
-from skcomplex.core.types import ElementKind
+from skcomplex.core.enums import ElementKind
 
 target.accepts(ElementKind.ELEMENT), target.accepts(ElementKind.GROUP)
 ```

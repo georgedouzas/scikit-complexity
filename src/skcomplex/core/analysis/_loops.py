@@ -18,10 +18,11 @@ from ..engine.problems import ProblemSpec
 from ..engine.problems._expression_printer import ExpressionPrinter
 from ..engine.problems._loop_term_spec import LoopTermSpec
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
 from ..specs._loop_spec import _LoopSpec
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import _check_choice, _check_settings, _composite, _read_system
 from ._stability import StabilityResult
 from ._symbolic import _transfer_network

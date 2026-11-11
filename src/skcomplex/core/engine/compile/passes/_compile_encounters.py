@@ -19,10 +19,10 @@ from ....specs import TableValuesSpec
 from ....types import Indices
 from ..._utils import symbols_of
 from ...backends import BaseBackend
+from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._encounter_kernel import EncounterKernel
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation, Laws
 

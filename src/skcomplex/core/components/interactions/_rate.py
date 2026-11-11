@@ -11,9 +11,9 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import SR, vector
 from sage.modules.free_module_element import FreeModuleElement
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec, Tags, WienerProcessSpec
-from ...types import ElementKind
 from ..base import BaseComponent
 from ..laws import BaseLaw, NoiseLaw, RateLaw
 from ..spaces import BaseSpace

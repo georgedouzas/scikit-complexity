@@ -7,12 +7,12 @@ from collections.abc import Iterable, Mapping
 
 from ....components.specs import CensusSpec
 from ....components.systems import CompositeSystem
+from ....enums import FormKind
 from ....errors import IncompatibleLawsError, UnregisteredLawError
 from ....specs import IssueSpec
 from ....specs._owners_spec import _OwnersSpec
 from ....specs._plan_spec import _PlanSpec
 from ....specs._planned_partition_spec import _PlannedPartitionSpec
-from ....types import FormKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._forms import FORMS

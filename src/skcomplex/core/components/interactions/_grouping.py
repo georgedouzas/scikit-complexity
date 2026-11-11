@@ -9,9 +9,9 @@ from typing import Annotated, ClassVar, cast
 
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import BaseSpec, PartnerSpec, ReductionSpec, RoleSpec, Tags
-from ...types import ElementKind
 from ..laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
 from ..laws.utils import both, count, maximum, mean, minimum, total, variance
 from ..laws.utils._reductions import reductions_in

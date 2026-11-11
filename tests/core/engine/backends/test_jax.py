@@ -15,9 +15,9 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import BackendError, SolverError, ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.types import FormKind
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 

@@ -48,7 +48,7 @@ class LearningProblemSpec(BaseProblemSpec):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.types import FormKind
+        >>> from skcomplex.core.enums import FormKind
         >>> from skcomplex.core.engine._utils import symbol
         >>> from skcomplex.core.specs import LayoutSpec
         >>> from skcomplex.core.engine.problems._learning_problem_spec import LearningProblemSpec

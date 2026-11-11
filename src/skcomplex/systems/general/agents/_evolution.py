@@ -15,9 +15,10 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.enums import ElementKind
 from ....core.errors import SimulationError, ValidationError
 from ....core.specs import BaseSpec, ParameterSpec, RoleSpec
-from ....core.types import Array, ElementKind
+from ....core.types import Array
 
 SELECTIONS = ('tournament', 'roulette', 'proportional', 'rank')
 REPLACEMENTS = ('generational', 'moran', 'death-birth', 'truncation', 'best-mutant')

@@ -1652,20 +1652,24 @@ def check_every_dataclass_is_a_frozen_spec_or_result(root: Path) -> list[str]:
     return found
 
 
-def check_no_module_outside_the_types_defines_a_kind_or_a_protocol(root: Path) -> list[str]:
-    """Return every enum or protocol that a module but a `types` module and the systems defines."""
+def check_enums_and_protocols_live_in_their_modules(root: Path) -> list[str]:
+    """Return every enum outside an `enums` module and every protocol outside a `types` module, the systems aside."""
 
     def skipped(name: str) -> bool:
-        """Return whether a module is a system module or a `types` module."""
-        return name.startswith('skcomplex.systems') or name.endswith('.types')
+        """Return whether a module is a system module."""
+        return name.startswith('skcomplex.systems')
+
+    def misplaced(value: type, module: str) -> bool:
+        """Return whether an enum or a protocol is defined outside the module of its kind."""
+        if issubclass(value, enum.Enum):
+            return not module.endswith('.enums')
+        return getattr(value, '_is_protocol', False) and not module.endswith('.types')
 
     return [
         f'{_locate(value, root)}: {module.__name__}.{value.__qualname__}'
         for module in _importable_modules(PACKAGE, skipped)
         for value in vars(module).values()
-        if inspect.isclass(value)
-        and value.__module__ == module.__name__
-        and (issubclass(value, enum.Enum) or getattr(value, '_is_protocol', False))
+        if inspect.isclass(value) and value.__module__ == module.__name__ and misplaced(value, module.__name__)
     ]
 
 
@@ -2244,7 +2248,7 @@ CHECKS = (
     check_components_compare_and_name_uses,
     check_every_error_is_raised_in_the_library,
     check_every_dataclass_is_a_frozen_spec_or_result,
-    check_no_module_outside_the_types_defines_a_kind_or_a_protocol,
+    check_enums_and_protocols_live_in_their_modules,
     check_every_base_derives_from_the_root,
     check_library_generates_no_classes_of_components,
     check_components_are_not_called_parts,

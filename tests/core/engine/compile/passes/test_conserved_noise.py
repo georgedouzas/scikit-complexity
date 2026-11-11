@@ -13,9 +13,9 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
+from skcomplex.core.enums import NoiseKind
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
-from skcomplex.core.types import NoiseKind
 
 
 class ConservedElement(Element):

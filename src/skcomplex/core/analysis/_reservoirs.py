@@ -14,9 +14,10 @@ from ..components.laws import BaseLaw, UpdateLaw
 from ..components.spaces import DiscreteTime
 from ..components.systems import CompositeSystem
 from ..engine._utils import vector
+from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, CallSpec, SamplesSpec
-from ..types import Array, DataKind
+from ..types import Array
 from ._base import _read_samples
 from ._sparse_identification import (
     _check_horizon,

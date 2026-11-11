@@ -32,6 +32,7 @@ from ...components.spaces import (
 )
 from ...components.specs import CompiledAgentsSpec
 from ...components.systems import CompositeSystem
+from ...enums import FormKind, OrderKind, VariableKind
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
 from ...specs import (
     DEFAULT_PHASE,
@@ -42,7 +43,7 @@ from ...specs import (
     PhasesScheduleSpec,
     SupportSpec,
 )
-from ...types import Array, FormKind, OrderKind, VariableKind
+from ...types import Array
 from .._utils import declarations_of, default_of
 from ..compile._observables import ObservableEvaluator
 from ..problems import ProblemSpec

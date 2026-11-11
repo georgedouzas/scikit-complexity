@@ -12,9 +12,9 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import GrunwaldLetnikovSolver, L1Solver, RK4Solver
+from skcomplex.core.enums import FormKind, OrderKind
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, SupportSpec, VisualSpec
-from skcomplex.core.types import FormKind, OrderKind
 
 
 class RoughElement(Element):

@@ -10,10 +10,11 @@ from typing import ClassVar
 import numpy as np
 
 from ...base import BaseConfig
+from ...enums import FormKind
 from ...errors import ContextError, SolverError, ValidationError
 from ...specs import StepSpec, SupportSpec, Tags
 from ...specs._base_record_spec import BaseRecordSpec
-from ...types import Array, FormKind
+from ...types import Array
 from ..problems import BaseProblemSpec, ProblemSpec
 from ..problems._draw_recorder import DrawRecorder
 from ..types import BoundaryFunction, InterpolatingStepFunction

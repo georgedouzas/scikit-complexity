@@ -11,9 +11,10 @@ from scipy.ndimage import map_coordinates
 
 from ...components.laws import FluxLaw, RateLaw
 from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
 from ..problems import ProblemSpec
 from ..problems._finite_volume_kernel import FiniteVolumeKernel
 from ..problems._steps import step_count

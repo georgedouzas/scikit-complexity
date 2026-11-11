@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..enums import DataKind
 from ..errors import ValidationError
-from ..types import DataKind
 from ._base_spec import BaseSpec
 from ._tags import RANDOMNESS, SPACES, TIMES, Tags
 

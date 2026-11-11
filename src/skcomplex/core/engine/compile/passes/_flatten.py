@@ -13,9 +13,9 @@ from ....components.interactions import BaseInteraction
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....components.specs import NodeSpec
 from ....components.systems import CompositeSystem
+from ....enums import VariableKind
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
 from ....specs import WienerProcessSpec
-from ....types import VariableKind
 from ..._utils import declarations_of, probe_laws
 from .._base import BasePass
 from .._laws import AGENT_LAWS

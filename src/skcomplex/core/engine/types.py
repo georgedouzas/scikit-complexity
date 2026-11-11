@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Mapping, Sequence
-from enum import IntEnum, StrEnum
 from types import SimpleNamespace
 
 import jax
@@ -58,26 +57,3 @@ type Declared = dict[str, tuple[str, ObservableSpec]]
 type Number = RingElement | int | float | complex
 type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
 type SpectralBlock = tuple[IntTuple, list[Indices], ComplexArray]
-
-
-class LinearProgramBound(IntEnum):
-    """A bound of a column or a row of a linear program that a compiled value gives."""
-
-    COLUMN_LOWER = 0
-    COLUMN_UPPER = 1
-    ROW_LOWER = 2
-    ROW_UPPER = 3
-
-
-class ReadKind(StrEnum):
-    """A kind of read of a symbol for each evaluation index of a kernel."""
-
-    MEMBER = 'member'
-    SINGLE = 'single'
-    FIRST = 'first'
-    SECOND = 'second'
-    NEIGHBOR = 'neighbor'
-    DERIVED = 'derived'
-    REDUCED = 'reduced'
-    OTHER = 'other'
-    SOURCE = 'source'
