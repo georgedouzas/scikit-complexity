@@ -341,11 +341,11 @@ a function undefined at zero, and SHALL compile to the same values as the equiva
 
 #### Scenario: Share of a group total
 - **WHEN** an interaction bound to a group of 4 members with `x = 1, 2, 3, 4` declares
-  `Rate(s.cells.x, s.cells.x / count(over=s.cells))`
+  `RateLaw(s.cells.x, s.cells.x / count(over=s.cells))`
 - **THEN** the system compiles, and the rate of member `i` is `x_i / 4`
 
 #### Scenario: Weighted reduction in a denominator
-- **WHEN** an interaction bound to a group declares `Rate(s.cells.x, s.cells.x / total(s.cells.x, weights=W))` with a
+- **WHEN** an interaction bound to a group declares `RateLaw(s.cells.x, s.cells.x / total(s.cells.x, weights=W))` with a
   matrix `W` of positive entries
 - **THEN** the system compiles on the NumPy and the Numba backends, and both drifts equal `x_i / sum_j W_ij x_j`
 
@@ -368,7 +368,7 @@ the interaction, the role, the reference, and the group size.
 
 #### Scenario: Hub reads one site
 - **WHEN** an interaction binds its plain role `site` to `sites[3]` of a group with `x = 0, 1, 2, 3, 4` and declares
-  `Rate(s.hub.y, s.site.x)`
+  `RateLaw(s.hub.y, s.site.x)`
 - **THEN** the rate of `hub.y` is 3, the same as with a variadic role bound to `['sites[3]']`
 
 #### Scenario: Member past the end
