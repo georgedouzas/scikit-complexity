@@ -112,6 +112,17 @@ None new. The table records the libraries surveyed for communication across node
 Speed targets are scaling ratios on the same machine, measured on real GPUs. Emulated CPU devices share one machine's
 cores, so in CI they check results only.
 
+Decided by the user on 2026-11-11: a GPU runner gates releases on the GPU tests and benchmarks, through the job `gpu`
+of `add-device-execution`, whose runner label is the repository variable `GPU_RUNNER`.
+
+- The tests and benchmarks of several GPUs carry the `gpu` marker and run in that job. Each checks
+  `len(jax.devices('gpu'))` and skips with the reason "needs two GPUs or more, found N" when the runner holds fewer,
+  so a single-GPU runner shows the skip in the test report rather than passing it in silence.
+- When the runner holds two GPUs or more, their results and scaling targets gate releases like the other GPU tests.
+  The maintainer chooses the runner, so a release on a single-GPU runner proceeds with the multi-GPU skips listed.
+- Multi-node targets, the two-node runs of `jax.distributed.initialize` on GPUs, stay on demand unless a multi-node
+  runner exists. CI keeps checking the multi-process path with two local CPU processes.
+
 - Batch: the ensemble of 100000 stochastic SIR runs of `add-batched-runs` on the GPUs of one node runs at least 0.8
   times the GPU count faster than on one of them.
 - Weak scaling of one system: an Ising system of 8192 by 8192 sites on one GPU, and of 8192 times the GPU count by 8192
@@ -127,8 +138,9 @@ cores, so in CI they check results only.
   the cost. Explicit partitions can follow for spaces whose probes miss their targets.
 - [A multi-process script that diverges between processes deadlocks] → The backend checks the devices against the
   processes and raises before compiling. The docs state that every process must run the same code.
-- [No multi-GPU runner in CI] → Emulated CPU devices and two local CPU processes test the results in CI, and the speed
-  targets run on demand on GPU machines.
+- [No multi-GPU runner in CI] → Emulated CPU devices and two local CPU processes test the results in CI. The multi-GPU
+  targets run in the release GPU job when its runner holds several GPUs and are skipped with their reason otherwise,
+  and the multi-node targets run on demand.
 - [Padding adds work] → At most one member or run per device.
 
 ## Migration Plan
@@ -137,4 +149,5 @@ Nothing breaks. A single device behaves as in `add-device-execution`, and `store
 
 ## Open Questions
 
-- Which multi-GPU machine or cluster should the scaling targets be measured on, and should those numbers gate releases?
+None. The user decided on 2026-11-11 that the GPU runner gates releases, multi-GPU targets included when the runner
+holds several GPUs, and that multi-node targets stay on demand unless a runner exists.

@@ -48,8 +48,14 @@
 ## 7. Benchmarks
 
 - [ ] 7.1 Add the scaling benchmarks of the ensemble over GPUs, of the weak scaling of a lattice, and of the strong
-  scaling of the SIS network of 10000000 nodes, marked `benchmark` and `gpu`, and verify their targets on a multi-GPU
-  machine, or record that none was available
+  scaling of the SIS network of 10000000 nodes, marked `benchmark` and `gpu`, each skipped with the reason "needs two
+  GPUs or more, found N" on fewer GPUs, and verify the skip reason on a machine with one GPU or none
+- [ ] 7.2 Check that the job `gpu` of `.github/workflows/gpu.yml` from `add-device-execution` runs these benchmarks
+  through `nox -s gpu`, so they gate releases when the runner holds several GPUs, and verify their targets in a manual
+  run of `gpu.yml` on a multi-GPU runner, or record in the design that none exists yet
+- [ ] 7.3 Write in the release section of `CONTRIBUTING.md` that the multi-GPU targets need a runner with two GPUs or
+  more and that the multi-node targets run on demand, with the command that runs them on a SLURM allocation, and
+  verify the command matches the launch recipe of task 8.2
 
 ## 8. Documentation
 

@@ -50,7 +50,9 @@ devices and nodes, and streams the frames of runs larger than one host to a Zarr
   `add-cluster-executors`.
 - Dependencies: none new. `jax` and `zarr`, the latter added by `add-cluster-executors`.
 - Tests: emulated CPU devices through `XLA_FLAGS=--xla_force_host_platform_device_count=4` in CI, two local processes
-  with the gloo collectives of the CPU for the multi-process tests, and `gpu` tests for real GPUs.
+  with the gloo collectives of the CPU for the multi-process tests, and `gpu` tests for real GPUs, which the GPU job of
+  `add-device-execution` runs before every release. The multi-GPU tests and benchmarks gate releases when the GPU
+  runner holds two GPUs or more, and the multi-node targets stay on demand unless a multi-node runner exists.
 - Docs: a section on several devices and nodes in the simulate page of the user guide, with SLURM and Open MPI launch
   recipes that the tests do not run.
 - Order: after `add-batched-runs`, `add-large-system-kernels`, and `add-cluster-executors`, whose store it reuses.
