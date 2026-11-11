@@ -50,8 +50,10 @@ None. `jax.vmap` and `concurrent.futures.ThreadPoolExecutor` are already in use.
 - It advances the batch frame by frame, as `Simulation` advances one state. Before every frame it evaluates the
   schedules of every run into the parameter rows, so scenarios with changes at times batch. After every frame it copies
   the batch to the host once.
-- The solver must have an accelerated loop for the problem's form. The others raise `ValidationError`, whose message
-  names `RK4Solver`, `VelocityVerletSolver`, `Yoshida4Solver`, `EulerMaruyamaSolver`, `GillespieSolver`, and
+- The solver must have an accelerated loop for the problem's form. `_simulate_batch` raises `ValidationError` for the
+  others, and `_run_experiment` checks the solver before it batches, so an experiment never reaches that error: it
+  runs the runs of such a structure one by one and warns once with `BackendWarning`, whose message names the solver and
+  `RK4Solver`, `VelocityVerletSolver`, `Yoshida4Solver`, `EulerMaruyamaSolver`, `GillespieSolver`, and
   `IterationSolver`. `add-large-system-kernels` adds the loops of `LatticeSolver` and `MonteCarloSolver`, which then
   batch with no change here.
 - Rejected: a batch as one long state vector of a replicated problem. It is what `_replicate` does at the level of the
@@ -102,6 +104,25 @@ None. `jax.vmap` and `concurrent.futures.ThreadPoolExecutor` are already in use.
   `tests/core/engine/runtime/test_trajectories.py` import the private `_replicate`, which the constitution forbids,
   and their two tests move to batched ensembles of declared elements and of the Lotka-Volterra system.
 
+### Batched runs by default
+
+Decided by the user on 2026-11-11: `vectorized=True` becomes the default of the experiments of runs once the
+benchmarks show that batched runs never lose, with a reported serial fallback for systems that cannot batch.
+
+- The gate is a set of benchmarks marked `benchmark`, one per experiment of runs, each timed with `vectorized=True` and
+  `vectorized=False` on the same machine. They cover the NumPy and Numba backends and the CPU device of JAX, with the
+  GPU device on the GPU runner of `add-device-execution`, at 1, 10, 1000, and 100000 runs, for a map of single
+  elements, an ODE system of groups, and a stochastic reaction network. Batched runs never lose when every case takes
+  at most the unbatched time, within the 10% spread of three repeats.
+- The flip waits for the gate. A losing case is fixed first, for instance by a run count below which the experiment
+  runs one by one, and the outcome of every case is written in the benchmark docstrings and in this design.
+- The fallback stays explicit after the flip. A structure whose solver has no accelerated loop runs one by one with the
+  `BackendWarning` above, whether `vectorized=True` is the default or passed.
+- The flip is BREAKING. Seeded results are unchanged, exactly on the NumPy and Numba backends and within 1e-10 on the
+  JAX backend, as the equality above requires. What changes is behaviour: the fallback warning appears for systems that
+  ran silently before, and a batch holds more runs in memory at once. The breaking commit, and so the changelog, says
+  both and names `vectorized=False` as the way back.
+
 ### Probes
 
 The targets are ratios to the current code on the same machine, measured in task 1.1.
@@ -129,9 +150,9 @@ The targets are ratios to the current code on the same machine, measured in task
 ## Migration Plan
 
 `vectorized=True` of `orbit_diagram` and `basin_stability` keeps its results within 1e-12 for the systems replication
-accepted. The examples of both experiments run unchanged.
+accepted. The examples of both experiments run unchanged. When the default flips, scripts keep their seeded results,
+and a script that needs runs one by one, or wants no fallback warning, passes `vectorized=False`.
 
 ## Open Questions
 
-- Should `vectorized=True` become the default when the solver has an accelerated loop, once the benchmarks show it never
-  loses to one task per run?
+None. The user decided on 2026-11-11 that batched runs become the default once the benchmarks show they never lose.

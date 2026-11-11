@@ -9,16 +9,18 @@ random streams, on every backend, so ensembles and sweeps of any kind of system 
 
 ### Requirement: A batch runs many runs of one problem
 The runtime SHALL run a batch of initial states, parameters, schedules, and random streams of one compiled problem with
-a solver that has an accelerated loop, and SHALL return one trajectory per run. A solver without an accelerated loop
-SHALL raise `ValidationError`, whose message names the solvers that batch.
+a solver that has an accelerated loop, and SHALL return one trajectory per run. The runs of a solver without an
+accelerated loop SHALL run one by one, and the experiment SHALL warn with `BackendWarning`, whose message names the
+solver and the solvers that batch.
 
 #### Scenario: Batch of initial states
 - **WHEN** a Lorenz system runs as a batch of 8 initial states with `RK4Solver` on the NumPy backend
 - **THEN** each of the 8 trajectories equals the run of its initial state alone within 1e-12
 
 #### Scenario: Solver without a loop
-- **WHEN** a batch of runs is asked of a system whose solver is `ScipyODESolver`
-- **THEN** it raises `ValidationError`, whose message names `RK4Solver`
+- **WHEN** an ensemble of 10 runs of a system whose solver is `ScipyODESolver` executes with `vectorized=True`
+- **THEN** it equals the result with `vectorized=False` and warns with `BackendWarning`, whose message names
+  `ScipyODESolver` and `RK4Solver`
 
 ### Requirement: Batches run on every backend
 The JAX backend SHALL run a batch as one vectorised device program, the Numba backend SHALL run it on threads with one

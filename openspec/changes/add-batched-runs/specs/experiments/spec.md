@@ -21,9 +21,13 @@ runs of one compiled problem, for systems with groups and child systems as for s
 ## ADDED Requirements
 
 ### Requirement: Experiments of runs run in batches
-`ensemble`, `sweep`, `compare_scenarios`, `basin_stability`, and `orbit_diagram` SHALL take `vectorized` and
-`batch_size`, and with `vectorized=True` SHALL run the runs that share a compiled structure as batches, one batch per
-task of the executor.
+`ensemble`, `sweep`, `compare_scenarios`, `basin_stability`, and `orbit_diagram` SHALL take `vectorized`, which SHALL
+default to `True`, and `batch_size`, and with `vectorized=True` SHALL run the runs that share a compiled structure as
+batches, one batch per task of the executor.
+
+#### Scenario: Batched by default
+- **WHEN** a user runs an ensemble of 100 stochastic SIR runs with seed 7 without passing `vectorized`
+- **THEN** the runs execute in batches, and the result equals the result with `vectorized=False`
 
 #### Scenario: Vectorised sweep
 - **WHEN** a user sweeps the growth rate of the logistic map over 200 values with `vectorized=True`
@@ -38,7 +42,14 @@ task of the executor.
 - **THEN** the result equals the result with `vectorized=False`
 
 ### Requirement: Batched experiments are benchmarked against runs one by one
-The benchmarks SHALL time batched experiments against the current runs one task per run on the same machine.
+The benchmarks SHALL time every experiment of runs with `vectorized=True` against `vectorized=False` on the same
+machine, on the NumPy and Numba backends and the JAX backend, at small and large run counts, and batched runs SHALL take
+at most the time of runs one by one in every case.
+
+#### Scenario: Small ensemble does not lose
+- **WHEN** an ensemble of 10 runs of the logistic map runs with `vectorized=True` and with `vectorized=False` on the
+  Numba backend, in a test marked `benchmark`
+- **THEN** the batched run takes at most the time of the runs one by one
 
 #### Scenario: Ensemble of a stochastic reaction network
 - **WHEN** 100000 replicates of a stochastic SIR reaction network of 1000 people run with `GillespieSolver` by

@@ -26,8 +26,10 @@
 - [ ] 3.1 Add `core/engine/runtime/_batches.py` with `_simulate_batch`, which advances the batch frame by frame with the
   solver's batched loop, evaluates the schedules of every run before each frame, copies the batch once per frame, and
   returns one trajectory per run, and verify it through the public experiments in task 5.1
-- [ ] 3.2 Raise `ValidationError` for a solver without an accelerated loop, and verify the solver-without-a-loop
-  scenario through `ensemble` in `tests/core/experiments/test_ensemble.py`
+- [ ] 3.2 Raise `ValidationError` in `_simulate_batch` for a solver without an accelerated loop, check the solver in
+  `_run_experiment` before batching, run such a structure one by one with one `BackendWarning` that names the solver
+  and the solvers that batch, and verify the solver-without-a-loop scenario through `ensemble` in
+  `tests/core/experiments/test_ensemble.py`
 - [ ] 3.3 Size batches from the bytes of one run and the free memory of the device or the host, wrap out-of-memory
   errors in `ExperimentError`, and verify the automatic-size scenario with a fake memory report and the
   too-large-a-batch scenario on the CPU device
@@ -55,18 +57,34 @@
 ## 6. Benchmarks
 
 - [ ] 6.1 Add the benchmark of the ensemble of a stochastic reaction network, and verify its target locally
-- [ ] 6.2 Add the benchmark of the orbit diagram on a GPU, marked `gpu`, and verify its target on a GPU machine, or
-  record that none was available
+- [ ] 6.2 Add the benchmark of the orbit diagram on a GPU, marked `gpu`, and verify its target on the GPU runner of
+  `add-device-execution`, or record that none was available
+- [ ] 6.3 Add the gate benchmarks, one per experiment of runs, that time `vectorized=True` against `vectorized=False`
+  on the NumPy and Numba backends and the CPU device of JAX, at 1, 10, 1000, and 100000 runs, for a map of single
+  elements, an ODE system of groups, and a stochastic reaction network, with the GPU cases marked `gpu`, and verify
+  the small-ensemble-does-not-lose scenario
+- [ ] 6.4 Run the gate benchmarks on an idle machine and on the GPU runner, write the outcome of every case in the
+  benchmark docstrings and the design, and verify that batched runs take at most the unbatched time in every case,
+  within the 10% spread of three repeats, or fix the losing cases first and run the gate again
 
 ## 7. Documentation
 
 - [ ] 7.1 Add a batched runs section to `docs/overview/user_guide/run_experiments.md` with `vectorized`, `batch_size`,
-  the solvers that batch, and a runnable ensemble example, and verify the markdown tests run it
+  the solvers that batch, the fallback warning, and a runnable ensemble example, and verify the markdown tests run it
 - [ ] 7.2 Update the docstrings of `orbit_diagram` and `basin_stability`, which describe replication into members, and
   verify the doctests pass
 
-## 8. Integration
+## 8. Batched runs by default
 
-- [ ] 8.1 Run `nox` (formatting, ruff, mypy, pydoclint, import contracts, tests of the touched modules with the thread
+- [ ] 8.1 Check that task 6.4 passed on every case, and stop if one loses
+- [ ] 8.2 BREAKING: make `vectorized=True` the default of `ensemble`, `sweep`, `compare_scenarios`, `basin_stability`,
+  and `orbit_diagram`, update their docstrings and the batched runs section of the user guide, commit it as a breaking
+  change (`feat!:`) whose body names the fallback warning, the memory of a batch, and `vectorized=False` as the way
+  back, so the changelog lists it, and verify the batched-by-default scenario and that every existing seeded
+  experiment test passes unchanged
+
+## 9. Integration
+
+- [ ] 9.1 Run `nox` (formatting, ruff, mypy, pydoclint, import contracts, tests of the touched modules with the thread
   limits set to 1, doctests, and the strict docs build) and verify every session passes
-- [ ] 8.2 Run `openspec validate add-batched-runs --strict` and verify it passes
+- [ ] 9.2 Run `openspec validate add-batched-runs --strict` and verify it passes
