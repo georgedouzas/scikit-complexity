@@ -30,9 +30,8 @@ the `n_components` of decompositions. Those meanings stay, and the design gives 
   placement rule say component. The guide page `core_components/choosing_parts.md` becomes
   `core_components/choosing_components.md`, and `build_a_custom_system/connected_components.md` becomes
   `build_a_custom_system/ports_and_connections.md`, so its title no longer reads as graph theory.
-- The generated reference pages move from `parts/<family>.md` to `families/<family>.md`, built by
-  `docs/generate_families.py` in place of `docs/generate_parts.py`. They cover solvers, backends, analyses, and
-  experiments as well as the components, so they are named after the families they describe. Each former URL
+- The generated reference pages move from `parts/<family>.md` to `components/<family>.md`, built by
+  `docs/generate_components.py` in place of `docs/generate_parts.py`, as the maintainer chose. Each former URL
   redirects to the new one with the anchor kept, through the `mkdocs-redirects` plugin.
 - The main specs whose requirement text says part for a building block are updated through delta specs, and the
   drafted changes under `openspec/changes` are reworded in place.
@@ -59,7 +58,7 @@ None.
 - `capability-tags`: components declare tags and systems derive them from their components.
 - `system-validation`: an unknown variant names the component at fault.
 - `user-documentation`: the family pages, the docstring requirements, the recipes page, the overview page, the
-  decision guide, and the runnable documents say component, the family pages move to `families/`, and moved pages
+  decision guide, and the runnable documents say component, the family pages move to `components/`, and moved pages
   redirect.
 - `declared-state-elements`: the library generates no component classes.
 - `general-systems`: a shape covered by one core component, and tags that follow from the components a dynamical

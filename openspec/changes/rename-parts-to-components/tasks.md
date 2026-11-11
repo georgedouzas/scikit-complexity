@@ -64,9 +64,9 @@ with the rule and the inventory of the design, and never by a replacement across
 
 ## 5. Documentation
 
-- [ ] 5.1 Rename `docs/generate_parts.py` to `docs/generate_families.py`, write the pages to `families/`, rename the
+- [ ] 5.1 Rename `docs/generate_parts.py` to `docs/generate_components.py`, write the pages to `components/`, rename the
   constants `PARTS` of the generator and of `docs/gallery_hooks.py` to `FAMILIES`, point the links of
-  `docs/generate_systems.py` at `families/elements.md`, reword the generated prose, and update `properdocs.yml` with
+  `docs/generate_systems.py` at `components/elements.md`, reword the generated prose, and update `properdocs.yml` with
   the section "Families", verified by the strict docs build
 - [ ] 5.2 Add `mkdocs-redirects>=1.2.3` to the `docs` group of `pyproject.toml`, lock it, list `redirects` after
   `gen-files` in `properdocs.yml` with a `redirect_maps` entry for each of the nine family pages and the two moved
@@ -79,7 +79,7 @@ with the rule and the inventory of the design, and never by a replacement across
   troubleshooting page, and the gallery examples where part means a component, rename the headings such as "How the
   components fit" and "Where a new component goes", and update every link to their anchors, verified by the markdown
   blocks of `docs/overview/user_guide`, the conventions, and the strict docs build
-- [ ] 5.5 Reword the README and CONTRIBUTING, with the link of the README to `families/elements/` and the link of
+- [ ] 5.5 Reword the README and CONTRIBUTING, with the link of the README to `components/elements/` and the link of
   CONTRIBUTING to `#where-a-new-component-goes`, verified by the markdown blocks of the README and the conventions
 
 ## 6. Specs and the constitution

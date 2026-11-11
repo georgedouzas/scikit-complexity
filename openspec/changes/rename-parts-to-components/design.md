@@ -206,11 +206,13 @@ No issue code holds the word, and the capability tags change only in the wording
 ### Pages, generators, and published links
 
 The generated pages under `parts/` describe nine families: elements, interactions, laws, spaces, systems, solvers,
-backends, analyses, and experiments. Calling them components would name solvers, backends, analyses, and experiments
-components, which they are not. The specs and the convention script already call them the family pages, so they move
-to `families/<family>.md`, the nav section becomes "Families", the generator becomes `docs/generate_families.py`, and
-the constants `PARTS` of the generator and of `docs/gallery_hooks.py` become `FAMILIES`. The link builder of
-`docs/generate_systems.py` points at `families/elements.md`.
+backends, analyses, and experiments. The maintainer chose on 2026-11-11 to match the new word in the URL, so they move
+to `components/<family>.md`, the nav section becomes "Components", the generator becomes `docs/generate_components.py`,
+and the constants `PARTS` of the generator and of `docs/gallery_hooks.py` become `FAMILIES`, since a constant named
+after components would read as the list of components. The pages of solvers, backends, analyses, and experiments sit
+under the same path, and the index page of the section says that it covers the components and the tools that run and
+study them. The link builder of `docs/generate_systems.py` points at `components/elements.md`. The alternative
+`components/` was rejected by the maintainer.
 
 The guide pages `core_components/choosing_parts.md` and `build_a_custom_system/connected_components.md` become
 `choosing_components.md` and `ports_and_connections.md`. Their headings and the headings that say part, such as
