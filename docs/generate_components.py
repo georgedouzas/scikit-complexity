@@ -23,7 +23,8 @@ from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine import backends, solvers
 from skcomplex.core.engine.backends import BaseBackend
 from skcomplex.core.engine.solvers import BaseSolver
-from skcomplex.core.specs import LAWS, SPACES, TIMES, AnalysisTags, ParameterSpec, RoleSpec, StateSpec, Tags
+from skcomplex.core.enums import LawTag, SpaceTag, TimeTag
+from skcomplex.core.specs import AnalysisTags, ParameterSpec, RoleSpec, StateSpec, Tags
 from skcomplex.systems import all_systems
 from skcomplex.systems.general import dynamics
 from skcomplex.systems.general.reactions import ReactionNetworkSystem
@@ -87,9 +88,9 @@ def _supported_rows(runners: Iterable[type[BaseSolver] | type[BaseBackend]]) -> 
         rows.append(
             [
                 f'`{runner.__name__}`',
-                _values(tags.time, TIMES),
-                _values(tags.space, SPACES),
-                _values(tags.laws, LAWS),
+                _values(tags.time, TimeTag),
+                _values(tags.space, SpaceTag),
+                _values(tags.laws, LawTag),
             ],
         )
     return rows
@@ -209,7 +210,7 @@ def _fact_sheet(
     compiled = [runner for runner in engines if not runner.get_supported_tags().get_missing(tags)]
     if family != 'systems' and not issubclass(item, BaseNeighborhood):
         facts += [
-            f'- Times: {_values(times, TIMES)}',
+            f'- Times: {_values(times, TimeTag)}',
             f'- Solvers: {_values([runner.__name__ for runner in accepted], [runner.__name__ for runner in runners])}',
             f'- Backends: {_values([runner.__name__ for runner in compiled], [runner.__name__ for runner in engines])}',
         ]
@@ -437,7 +438,7 @@ def _laws_page() -> str:
     for law in _public_classes(laws, BaseLaw):
         tags = BaseComponent._get_law_tags([law])
         spaces = {tag for space in law.get_requirements().space for tag in getattr(space, 'space_tags', ())}
-        cells = [_values(tags.laws), _values(tags.time, TIMES), _values(spaces, SPACES), f'`{tags.randomness}`']
+        cells = [_values(tags.laws), _values(tags.time, TimeTag), _values(spaces, SpaceTag), f'`{tags.randomness}`']
         rows.append([f'`{law.__name__}`', *cells])
     intro = """
 A law is the mathematical object an interaction returns, such as a rate, a noise, a jump, or an update. Its kind is a

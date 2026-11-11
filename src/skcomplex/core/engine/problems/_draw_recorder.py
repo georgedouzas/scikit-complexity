@@ -11,11 +11,16 @@ import numpy.typing as npt
 from scipy import stats
 
 from ...base import BaseConfig
+from ...enums import DrawKind
 from ...errors import ValidationError
 from ...specs import DrawLogSpec, DrawRecordSpec, DrawSpec
 from ...types import Array
 
-KEYWORDS = {'uniform': ('low', 'high'), 'normal': ('mean', 'deviation'), 'bernoulli': ('p',)}
+KEYWORDS: dict[str, tuple[str, ...]] = {
+    DrawKind.UNIFORM: ('low', 'high'),
+    DrawKind.NORMAL: ('mean', 'deviation'),
+    DrawKind.BERNOULLI: ('p',),
+}
 
 
 class DrawRecorder(BaseConfig[None, int]):

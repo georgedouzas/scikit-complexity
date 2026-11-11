@@ -2,8 +2,9 @@
 
 import pytest
 
+from skcomplex.core.enums import DomainTag, LawTag, RandomnessTag, SpaceTag, StructureTag, TimeTag
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import DOMAINS, LAWS, RANDOMNESS, SPACES, STRUCTURES, TIMES, Tags
+from skcomplex.core.specs import Tags
 
 
 def test_tags_reject_an_unknown_value():
@@ -44,17 +45,17 @@ def test_empty_fields_support_anything_and_unknown_laws_are_not_checked():
 
 
 def test_tags_accept_every_value_of_the_public_vocabularies():
-    """Test that the vocabularies of the tags, public names of the specs, hold the values `Tags` accepts."""
+    """Test that the enums of the tags hold the values `Tags` accepts."""
     tags = Tags(
-        time=frozenset(TIMES),
-        domains=frozenset(DOMAINS),
-        space=frozenset(SPACES),
-        laws=frozenset(LAWS),
-        randomness=RANDOMNESS[-1],
-        structure=frozenset(STRUCTURES),
+        time=frozenset(TimeTag),
+        domains=frozenset(DomainTag),
+        space=frozenset(SpaceTag),
+        laws=frozenset(LawTag),
+        randomness=RandomnessTag.STOCHASTIC,
+        structure=frozenset(StructureTag),
     )
     tags._check()
-    assert tags.time == frozenset(TIMES)
+    assert tags.time == {'continuous', 'discrete', 'static'}
 
 
 def test_tags_differentiable_covers_reparameterized_draws():

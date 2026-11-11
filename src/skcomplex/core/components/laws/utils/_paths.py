@@ -5,10 +5,11 @@
 
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ....enums import PathReductionKind
 from ....errors import ValidationError
 from ....specs import LayerSpec
 from ...spaces import BaseNeighborhood
-from ._reductions import PATH_REDUCTIONS, SHORTEST_PATHS, _neighborhood_symbol
+from ._reductions import SHORTEST_PATHS, _neighborhood_symbol
 
 
 def shortest_paths(
@@ -58,7 +59,7 @@ def shortest_paths(
         >>> [item.kind for item in neighborhoods_in(var('c') - shortest_paths(var('up'), reduce='closeness'))]
         ['path-closeness']
     """
-    if reduce not in PATH_REDUCTIONS:
-        error_msg = f'Unknown shortest paths reduction {reduce!r}. Use one of {", ".join(PATH_REDUCTIONS)}.'
+    if reduce not in PathReductionKind:
+        error_msg = f'Unknown shortest paths reduction {reduce!r}. Use one of {", ".join(PathReductionKind)}.'
         raise ValidationError(error_msg)
-    return SHORTEST_PATHS(SR(active), _neighborhood_symbol(over), PATH_REDUCTIONS.index(reduce))
+    return SHORTEST_PATHS(SR(active), _neighborhood_symbol(over), tuple(PathReductionKind).index(reduce))

@@ -5,10 +5,11 @@
 
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ....enums import ComponentReductionKind
 from ....errors import ValidationError
 from ....specs import LayerSpec
 from ...spaces import BaseNeighborhood
-from ._reductions import COMPONENT_REDUCTIONS, COMPONENTS, _neighborhood_symbol
+from ._reductions import COMPONENTS, _neighborhood_symbol
 
 
 def components(
@@ -59,7 +60,7 @@ def components(
         >>> [item.kind for item in neighborhoods_in(1 + components(var('open'), reduce='largest'))]
         ['component-largest']
     """
-    if reduce not in COMPONENT_REDUCTIONS:
-        error_msg = f'Unknown components reduction {reduce!r}. Use one of {", ".join(COMPONENT_REDUCTIONS)}.'
+    if reduce not in ComponentReductionKind:
+        error_msg = f'Unknown components reduction {reduce!r}. Use one of {", ".join(ComponentReductionKind)}.'
         raise ValidationError(error_msg)
-    return COMPONENTS(SR(active), _neighborhood_symbol(over), COMPONENT_REDUCTIONS.index(reduce))
+    return COMPONENTS(SR(active), _neighborhood_symbol(over), tuple(ComponentReductionKind).index(reduce))

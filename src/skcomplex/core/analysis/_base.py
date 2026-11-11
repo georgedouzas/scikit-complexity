@@ -5,7 +5,7 @@
 
 import inspect
 import sys
-from collections.abc import Callable, Sequence, Set
+from collections.abc import Callable, Collection, Sequence, Set
 from functools import partial
 
 import networkx as nx
@@ -155,7 +155,7 @@ def _check_tags(analysis: Callable[..., object], source: object, kind: str | Non
         raise TagError(error_msg)
 
 
-def _check_choice(analysis: str, name: str, value: object, choices: tuple[object, ...]) -> None:
+def _check_choice(analysis: str, name: str, value: object, choices: Collection[object]) -> None:
     """Raise an error for a setting of an analysis that is not one of its choices."""
     if value not in choices:
         error_msg = f'{analysis} has {name}={value!r}. Use one of {", ".join(map(str, choices))}.'

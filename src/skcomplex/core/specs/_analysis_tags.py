@@ -7,10 +7,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..enums import DataKind
+from ..enums import DataKind, RandomnessTag, SpaceTag, TimeTag
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
-from ._tags import RANDOMNESS, SPACES, TIMES, Tags
+from ._tags import Tags
 
 
 @dataclass(frozen=True)
@@ -55,15 +55,16 @@ class AnalysisTags(BaseSpec):
                 The data kind or a tag is unknown, named in the message with the values of its field.
         """
         fields = {
-            'data': ({self.data}, tuple(DataKind)),
-            'time': (self.time, TIMES),
-            'space': (self.space, SPACES),
-            'randomness': (frozenset() if self.randomness is None else {self.randomness}, RANDOMNESS),
+            'data': ({self.data}, DataKind),
+            'time': (self.time, TimeTag),
+            'space': (self.space, SpaceTag),
+            'randomness': (frozenset() if self.randomness is None else {self.randomness}, RandomnessTag),
         }
         for name, (values, known) in fields.items():
             unknown = sorted(set(values) - set(known))
             if unknown:
-                error_msg = f'The {name} tag {unknown[0]!r} is unknown. Use one of {", ".join(map(repr, known))}.'
+                accepted = ', '.join(repr(str(item)) for item in known)
+                error_msg = f'The {name} tag {unknown[0]!r} is unknown. Use one of {accepted}.'
                 raise ValidationError(error_msg)
 
     def get_missing(self, tags: Tags) -> dict[str, list[str]]:

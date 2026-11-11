@@ -103,7 +103,7 @@ This section describes each component of a training run and the options it takes
   trained parameters under their inner paths, such as `decay/unit.a`, the mean batch loss of every epoch as
   `<interaction>/loss`, and every metric over the whole dataset as `<interaction>/<metric>`. The same observables given
   to `simulate` with the trained system record the loss in a forward run.
-- **The optimizer.** `optimizer` is one of `OPTIMIZERS`, `'sgd'`, `'momentum'`, `'rmsprop'`, and `'adam'`, run by
+- **The optimizer.** `optimizer` is one of `OptimizerKind`, `'sgd'`, `'momentum'`, `'rmsprop'`, and `'adam'`, run by
   Optax. Its hyperparameters, `learning_rate`, `momentum`, `beta1`, and `beta2`, the decay of `'rmsprop'`, are
   parameters of the interaction. So a schedule such as `{'fit.learning_rate': ...}` changes them at the next frame.
   `batch_size` sets the number of sequences of a batch, shuffled by the random stream of the run, so a seed repeats a

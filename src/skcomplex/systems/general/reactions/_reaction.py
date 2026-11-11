@@ -12,11 +12,11 @@ from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components.base import BaseComponent
-from ....core.components.interactions import SCHEDULES, JumpInteraction
+from ....core.components.interactions import JumpInteraction
 from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.enums import ElementKind
+from ....core.enums import ElementKind, ScheduleKind
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, Tags
 from .types import Stoichiometry
@@ -384,7 +384,7 @@ class ReactionInteraction(JumpInteraction):
         if self.form not in FORMS:
             error_msg = f'Reaction {self.label!r} has the form {self.form!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
-        self._check_variant('schedule', self.schedule, SCHEDULES)
+        self._check_variant('schedule', self.schedule, ScheduleKind)
         if self.form != 'agent' and self.schedule != 'synchronous':
             error_msg = f'The schedule {self.schedule!r} of reaction {self.label!r} runs agent rules. Use form="agent".'
             raise ValidationError(error_msg)

@@ -58,7 +58,7 @@ from ...components.spaces import (
 )
 from ...components.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ...components.systems import CompositeSystem
-from ...enums import DomainKind, ElementKind, FormKind, NoiseKind, VariableKind
+from ...enums import DomainKind, ElementKind, FormKind, NoiseKind, SeverityKind, VariableKind
 from ...errors import (
     AlgebraicStateError,
     BackendError,
@@ -84,7 +84,6 @@ from ...specs import (
 )
 from ...specs._draw_spec import RELAXED_KINDS
 from ...specs._held_reduction_spec import _HeldReductionSpec
-from ...specs._issue_spec import ERROR, WARNING
 from ...types import Array, ProcessKey, VectorFunction
 from .._utils import bound_labels, declarations_of, default_of, symbol
 from ..backends import BaseBackend
@@ -266,11 +265,11 @@ class PassCompiler(BaseCompiler):
         if self.compilation_ is None or self.compilation_.census is None:
             return issues
         issues = self._get_issues_of(self.compilation_)
-        if not any(issue.severity == ERROR for issue in issues):
+        if not any(issue.severity == SeverityKind.ERROR for issue in issues):
             issues += self._get_program_issues(self.compilation_)
-        if not any(issue.severity == ERROR for issue in issues):
+        if not any(issue.severity == SeverityKind.ERROR for issue in issues):
             issues += self._get_structure_issues(self.compilation_)
-        if not any(issue.severity == ERROR for issue in issues):
+        if not any(issue.severity == SeverityKind.ERROR for issue in issues):
             issues += self._plan_issues(self.compilation_)
         return issues
 
@@ -1330,7 +1329,9 @@ class PassCompiler(BaseCompiler):
                         'without a temperature, which has no gradient on JAX.'
                     )
                     fix = f'Give the draw {draw.name!r} a temperature, such as `temperature=0.1`, to relax it.'
-                    issues.append(IssueSpec('not-differentiable', record.path, message, fix, severity=WARNING))
+                    issues.append(
+                        IssueSpec('not-differentiable', record.path, message, fix, severity=SeverityKind.WARNING),
+                    )
         return issues
 
     @staticmethod

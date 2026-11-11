@@ -7,7 +7,7 @@ a random event, or a transfer between members.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ._base import SCHEDULES, BaseInteraction
+from ._base import BaseInteraction
 from ._connection import ConnectionInteraction
 from ._conservation import ConservationInteraction
 from ._coupling import CouplingInteraction
@@ -26,13 +26,11 @@ from ._pair import PairInteraction
 from ._rate import RateInteraction
 from ._sampling import SamplingInteraction
 from ._topology import TopologyInteraction
-from ._training import OPTIMIZERS, TrainingInteraction
+from ._training import TrainingInteraction
 from ._transfer import TransferInteraction
 from ._transition import TransitionInteraction
 
 __all__: list[str] = [
-    'OPTIMIZERS',
-    'SCHEDULES',
     'BaseInteraction',
     'ConnectionInteraction',
     'ConservationInteraction',

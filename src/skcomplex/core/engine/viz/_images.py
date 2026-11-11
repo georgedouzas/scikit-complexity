@@ -14,8 +14,9 @@ import rerun.blueprint as rrb
 from ...components.spaces import PhaseSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
+from ..enums import ComplexPartKind
 from ..problems import BaseProblemSpec, FrameSpec
-from ._base import MODULUS, PHASE, BaseVisual
+from ._base import BaseVisual
 
 MIN_HISTORY = 64
 MAX_HISTORY = 256
@@ -265,8 +266,13 @@ class ImageVisual(BaseVisual):
                 cyclic = frame.problem.states.get_entry(name).period is not None
                 self._log_image(recording, path, magnitudes, cyclic=cyclic)
                 continue
-            self._log_image(recording, f'{path}/{MODULUS}', magnitudes, cyclic=False)
-            self._log_image(recording, f'{path}/{PHASE}', np.angle(np.asarray(values, dtype=complex)), cyclic=True)
+            self._log_image(recording, f'{path}/{ComplexPartKind.MODULUS}', magnitudes, cyclic=False)
+            self._log_image(
+                recording,
+                f'{path}/{ComplexPartKind.PHASE}',
+                np.angle(np.asarray(values, dtype=complex)),
+                cyclic=True,
+            )
 
     def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return one 2D spatial view per chosen state.
@@ -321,7 +327,10 @@ class ImageVisual(BaseVisual):
             kind = rrb.TensorView if len(shape) - len(self.plane_) > IMAGE_RANK else rrb.Spatial2DView
             views += self._get_moment_views(element, path)
             if problem.states.get_entry(name).is_complex:
-                views += [kind(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)]
+                views += [
+                    kind(origin=f'{path}/{part}', name=f'{state} {part}')
+                    for part in (ComplexPartKind.MODULUS, ComplexPartKind.PHASE)
+                ]
             else:
                 views.append(kind(origin=path, name=state))
         return [*histories, *views]

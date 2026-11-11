@@ -12,7 +12,7 @@ from typing import Annotated, ClassVar, SupportsFloat
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, log
 
-from ...enums import ElementKind
+from ...enums import ElementKind, ScheduleKind
 from ...errors import ValidationError
 from ...specs import RoleSpec, Tags
 from ..base import BaseComponent
@@ -24,7 +24,6 @@ from ._interaction import Interaction
 
 KINDS = ('rate', 'probability', 'condition', 'matrix')
 OVERS = ('member', 'neighbors', 'cell')
-SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 FORMS = ('symbolic', 'agent')
 
 
@@ -236,10 +235,10 @@ class TransitionInteraction(Interaction):
         if self.form not in FORMS:
             error_msg = f'The form of transition {self.label!r} is {self.form!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
-        if self.schedule not in SCHEDULES or (self.form == 'symbolic' and self.schedule != 'synchronous'):
+        if self.schedule not in ScheduleKind or (self.form == 'symbolic' and self.schedule != 'synchronous'):
             error_msg = (
-                f'The schedule of transition {self.label!r} is {self.schedule!r}. Use one of {", ".join(SCHEDULES)}, '
-                'and the agent form for another than `synchronous`.'
+                f'The schedule of transition {self.label!r} is {self.schedule!r}. Use one of '
+                f'{", ".join(ScheduleKind)}, and the agent form for another than `synchronous`.'
             )
             raise ValidationError(error_msg)
         if self.over == 'cell' and (self.form != 'agent' or kind == 'matrix' or self.after is not None):

@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import ClassVar
@@ -11,6 +11,7 @@ from typing import ClassVar
 import numpy as np
 import numpy.typing as npt
 
+from ...enums import DomainKind
 from ...errors import SpaceError, ValidationError
 from ...specs import BaseSpec, InteractionRequirementSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, Tags
 from ..base import BaseComponent
@@ -18,9 +19,8 @@ from ..laws import BaseLaw
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 
-SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 GRID_CANDIDATES = ('neighbors', 'cell', 'local')
-RATE_DOMAINS = ('real', 'integer', 'complex', 'vector')
+RATE_DOMAINS = (DomainKind.REAL, DomainKind.INTEGER, DomainKind.COMPLEX, DomainKind.VECTOR)
 
 
 class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
@@ -247,7 +247,7 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
         self,
         name: str,
         value: object,
-        values: Sequence[object],
+        values: Collection[object],
         kinds: tuple[type, ...] = (),
         *,
         functions: bool = False,
@@ -279,7 +279,7 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
         if isinstance(value, kinds) or (functions and callable(value)) or any(value == item for item in values):
             return
         named = [kind.__name__ for kind in kinds if kind is not BaseSpec]
-        accepted = [*named, *map(repr, values), *(['a function'] if functions else [])]
+        accepted = [*named, *(repr(str(item)) for item in values), *(['a function'] if functions else [])]
         spec = ', or a spec that the component handles' if BaseSpec in kinds else ''
         error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}{spec}.'
         raise ValidationError(error_msg)

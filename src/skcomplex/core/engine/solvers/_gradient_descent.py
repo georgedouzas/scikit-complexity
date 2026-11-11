@@ -11,10 +11,9 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 
-from ...components.interactions import OPTIMIZERS
 from ...components.laws import GradientStepLaw
 from ...components.spaces import DiscreteTime
-from ...enums import FormKind, OrderKind
+from ...enums import FormKind, OptimizerKind, OrderKind
 from ...errors import SolverError, ValidationError
 from ...specs import StructureStateSpec, SupportSpec
 from ...types import Array
@@ -125,13 +124,16 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         """
         name = self._get_law().optimizer
         names = {'learning_rate': 'learning_rate'}
-        if name == OPTIMIZERS[1]:
+        if name == OptimizerKind.MOMENTUM:
             names['momentum'] = 'momentum'
-        elif name == OPTIMIZERS[2]:
+        elif name == OptimizerKind.RMSPROP:
             names['decay'] = 'beta2'
-        elif name == OPTIMIZERS[3]:
+        elif name == OptimizerKind.ADAM:
             names.update(b1='beta1', b2='beta2')
-        factory = {OPTIMIZERS[2]: optax.rmsprop, OPTIMIZERS[3]: optax.adam}.get(name, optax.sgd)
+        factory = {OptimizerKind.RMSPROP: optax.rmsprop, OptimizerKind.ADAM: optax.adam}.get(
+            OptimizerKind(name),
+            optax.sgd,
+        )
         values = self._get_hyperparameters(self.problem_.initial_parameters)
         optimizer = optax.inject_hyperparams(factory)(**{key: values[item] for key, item in names.items()})
         return optimizer, names

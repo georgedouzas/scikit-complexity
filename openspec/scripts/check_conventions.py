@@ -164,6 +164,7 @@ NAME_WORD = re.compile(r'[A-Z]+(?![a-z])|[A-Z]?[a-z]+|[0-9]+')
 PART_CONTEXT = 120
 KEPT_PART_NAMES = frozenset(
     [
+        'ComplexPartKind',
         'PARTS',
         'PART_NAMES',
         'Part',

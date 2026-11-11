@@ -5,11 +5,9 @@
 
 from dataclasses import dataclass
 
+from ..enums import SamplerKind, SweepKind
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
-
-SAMPLERS = ('metropolis', 'glauber', 'heat-bath')
-MONTE_CARLO_SCHEDULES = ('checkerboard', 'random-sequential', 'colored')
 
 
 @dataclass(frozen=True)
@@ -49,11 +47,9 @@ class SamplerSpec(BaseSpec):
             ValidationError:
                 The kind of sampler or the schedule is unknown.
         """
-        if self.kind not in SAMPLERS:
-            error_msg = f'Unknown sampler {self.kind!r}. Use one of {", ".join(SAMPLERS)}.'
+        if self.kind not in SamplerKind:
+            error_msg = f'Unknown sampler {self.kind!r}. Use one of {", ".join(SamplerKind)}.'
             raise ValidationError(error_msg)
-        if self.schedule not in MONTE_CARLO_SCHEDULES:
-            error_msg = (
-                f'Unknown Monte Carlo schedule {self.schedule!r}. Use one of {", ".join(MONTE_CARLO_SCHEDULES)}.'
-            )
+        if self.schedule not in SweepKind:
+            error_msg = f'Unknown Monte Carlo schedule {self.schedule!r}. Use one of {", ".join(SweepKind)}.'
             raise ValidationError(error_msg)

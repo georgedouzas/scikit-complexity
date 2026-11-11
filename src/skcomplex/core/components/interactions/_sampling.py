@@ -10,7 +10,7 @@ from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import RR, SR, ConditionSet, Expression
 
-from ...enums import ElementKind
+from ...enums import ElementKind, MoveKind
 from ...errors import ValidationError
 from ...specs import (
     BaseSpec,
@@ -29,7 +29,7 @@ from ..spaces import (
 )
 from ._interaction import Interaction
 
-MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'cluster')
+MOVES = (MoveKind.FLIP, MoveKind.RANDOM_VALUE, MoveKind.ROTATE, MoveKind.GAUSSIAN, MoveKind.CLUSTER)
 
 
 def _is_positive(value: float) -> bool:

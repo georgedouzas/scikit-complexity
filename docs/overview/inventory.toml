@@ -12,7 +12,7 @@
 # Every entry also maps to the system vocabulary as `system`: its components and interaction bindings, from the
 # `vocabulary` tables. Its time, space, laws, and state domains are the capability tags of `skcomplex.core.specs`:
 # the check reads them from `get_tags()` of the system class of an implemented entry, so they are not written here,
-# and an entry that is pending or blocked writes them with the values of `TIMES`, `SPACES`, `LAWS`, and `DOMAINS`.
+# and an entry that is pending or blocked writes them with the values of `TimeTag`, `SpaceTag`, `LawTag`, and `DomainTag`.
 #
 # The inventory check in docs/inventory_checks.py, which the documentation build runs, compares it with the system
 # classes, their tags, the vocabulary, and the OpenSpec changes.

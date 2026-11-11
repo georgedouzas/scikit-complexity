@@ -10,15 +10,13 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ...enums import ElementKind
+from ...enums import ElementKind, OptimizerKind
 from ...errors import ValidationError
 from ...specs import DatasetSpec, ObservableSpec, ParameterSpec, RoleSpec
 from ..base import BaseComponent
 from ..laws import BaseLaw, GradientStepLaw
 from ..spaces import BaseSpace
 from ._interaction import Interaction
-
-OPTIMIZERS = ('sgd', 'momentum', 'rmsprop', 'adam')
 
 
 class TrainingInteraction(Interaction):
@@ -58,7 +56,7 @@ class TrainingInteraction(Interaction):
             The sequences of the parameters of the nested system that set its inputs and targets at every step.
 
         optimizer:
-            The name of the optimizer, one of `OPTIMIZERS`.
+            The name of the optimizer, one of `OptimizerKind`.
 
         learning_rate:
             The learning rate of the optimizer.
@@ -139,10 +137,10 @@ class TrainingInteraction(Interaction):
 
         The batch size and the truncation must be positive integers.
         """
-        if self.optimizer not in OPTIMIZERS:
+        if self.optimizer not in OptimizerKind:
             error_msg = (
                 f'The optimizer of {self.label!r} is {self.optimizer!r}, which is not supported. Choose one of '
-                f'{", ".join(map(repr, OPTIMIZERS))}.'
+                f'{", ".join(repr(str(name)) for name in OptimizerKind)}.'
             )
             raise ValidationError(error_msg)
         for name in ('batch_size', 'truncation'):

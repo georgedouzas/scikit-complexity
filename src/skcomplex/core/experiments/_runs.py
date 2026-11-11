@@ -22,6 +22,7 @@ from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Trajectory
 from ..engine.runtime._simulate import _compile_problem, _simulate
 from ..engine.solvers import BaseSolver
+from ..enums import ExecutorKind
 from ..errors import ExperimentError, ValidationError
 from ..specs import ObservableSpec
 from ..specs._run_result_spec import _RunResultSpec
@@ -30,7 +31,6 @@ from ._utils import build_system
 from .specs._task_spec import _TaskSpec
 from .types import Output, Row, Source
 
-EXECUTORS = ('serial', 'thread', 'process')
 TIME_TOLERANCE = 1e-12
 
 
@@ -114,7 +114,7 @@ def _map_calls[Argument, Value](
         ValidationError:
             The executor is unknown.
     """
-    if isinstance(executor, str) and executor not in EXECUTORS:
+    if isinstance(executor, str) and executor not in ExecutorKind:
         error_msg = f"executor = {executor!r} must be 'serial', 'thread', 'process', or an executor."
         raise ValidationError(error_msg)
     if executor == 'serial':
@@ -512,7 +512,7 @@ def _run_experiment(
     """
     system = _check_source(source)
     _check_count('replicates', replicates)
-    if isinstance(executor, str) and executor not in EXECUTORS:
+    if isinstance(executor, str) and executor not in ExecutorKind:
         error_msg = f"executor = {executor!r} must be 'serial', 'thread', 'process', or an executor."
         raise ValidationError(error_msg)
     named = _name_analyses(analyses)

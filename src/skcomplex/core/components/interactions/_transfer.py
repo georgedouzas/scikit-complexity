@@ -10,7 +10,7 @@ from typing import Annotated, ClassVar, cast
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
-from ...enums import ElementKind
+from ...enums import BoundaryKind, ElementKind, ScheduleKind
 from ...errors import SimulationError, ValidationError
 from ...specs import PartnerSpec, RoleSpec, Tags
 from ..laws import BaseLaw, MatchLaw, RuleLaw, Sink, Source, TransferLaw
@@ -22,11 +22,11 @@ from ._interaction import Interaction
 FORMS = ('symbolic', 'agent')
 PAIRINGS = ('members', 'random', 'pairs', 'neighbors', 'neighbor-pairs', 'cell', 'site')
 GRID_PAIRINGS = ('neighbors', 'neighbor-pairs', 'cell', 'site')
-SCHEDULES = ('random-sequential', 'member')
+SCHEDULES = (ScheduleKind.RANDOM_SEQUENTIAL, ScheduleKind.MEMBER)
 ACTORS = ('source', 'target')
 REMOVALS = ('source', 'target')
 LEG_LENGTHS = (3, 4)
-BOUNDARIES = ('periodic', 'fixed')
+BOUNDARIES = (BoundaryKind.PERIODIC, BoundaryKind.FIXED)
 NAMED_PARTNERS = {
     'random': PartnerSpec('all', 'uniform'),
     'pairs': PartnerSpec('all', 'uniform', capacity=1),

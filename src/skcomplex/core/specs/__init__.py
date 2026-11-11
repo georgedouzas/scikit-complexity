@@ -46,7 +46,7 @@ from ._lowered_functions_spec import LoweredFunctionsSpec
 from ._matrix_group_spec import MatrixGroupSpec
 from ._matrix_law_spec import MatrixLawSpec
 from ._module_spec import Letters, ModuleSpec
-from ._move_spec import MOVES, MoveSpec
+from ._move_spec import MoveSpec
 from ._named_draw_spec import NamedDrawSpec
 from ._neighbor_read_spec import NeighborReadSpec
 from ._neighbor_reduction_spec import NeighborReductionSpec
@@ -63,7 +63,7 @@ from ._parameters_spec import ParametersSpec
 from ._partner_spec import PartnerSpec
 from ._patch_structure_spec import PatchStructureSpec
 from ._phase_spec import PhaseSpec
-from ._phases_schedule_spec import ACTIVATIONS, DEFAULT_PHASE, PhasesScheduleSpec
+from ._phases_schedule_spec import DEFAULT_PHASE, PhasesScheduleSpec
 from ._power_series_spec import PowerSeriesSpec
 from ._prototile_spec import PrototileSpec
 from ._read_spec import ReadSpec
@@ -74,7 +74,7 @@ from ._role_spec import RoleSpec, Spec
 from ._run_settings_spec import RunSettingsSpec
 from ._run_state_spec import RunStateSpec
 from ._sampled_draw_spec import SampledDrawSpec
-from ._sampler_spec import MONTE_CARLO_SCHEDULES, SAMPLERS, SamplerSpec
+from ._sampler_spec import SamplerSpec
 from ._samples_spec import SamplesSpec
 from ._schedule_spec import ScheduleSpec
 from ._sector_spec import SectorSpec
@@ -89,9 +89,9 @@ from ._support_spec import SupportSpec
 from ._symmetry_spec import SymmetrySpec
 from ._table_spec import TableSpec
 from ._table_values_spec import TableValuesSpec
-from ._tags import DOMAINS, LAWS, RANDOMNESS, SPACES, STOCHASTIC_LAWS, STRUCTURES, TIMES, Tags
+from ._tags import STOCHASTIC_LAWS, Tags
 from ._tensor_spec import TensorSpec
-from ._topology_request_spec import EDGE_KINDS, ENDS, HYPEREDGE_KINDS, TOPOLOGY_KINDS, TopologyRequestSpec
+from ._topology_request_spec import EDGE_KINDS, ENDS, HYPEREDGE_KINDS, TopologyRequestSpec
 from ._totalistic_spec import TotalisticSpec
 from ._validation_report_spec import ValidationReportSpec
 from ._variable_spec import VariableSpec
@@ -101,22 +101,11 @@ from ._wiener_process_spec import WienerProcessSpec
 from ._word_structure_spec import WordStructureSpec
 
 __all__ = [
-    'ACTIVATIONS',
     'DEFAULT_PHASE',
-    'DOMAINS',
     'EDGE_KINDS',
     'ENDS',
     'HYPEREDGE_KINDS',
-    'LAWS',
-    'MONTE_CARLO_SCHEDULES',
-    'MOVES',
-    'RANDOMNESS',
-    'SAMPLERS',
-    'SPACES',
     'STOCHASTIC_LAWS',
-    'STRUCTURES',
-    'TIMES',
-    'TOPOLOGY_KINDS',
     'TURTLE_SYMBOLS',
     'AcceleratedSpec',
     'AffineSpec',

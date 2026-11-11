@@ -9,12 +9,12 @@ from dataclasses import dataclass
 import numpy as np
 import ordpy
 
-from ..enums import DataKind
+from ..enums import DataKind, TieKind
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
 from ..types import Array
 from ._base import SNAPSHOT_DIMENSIONS, _read_fields, _read_series
-from ._entropy import TIES, _break_ties
+from ._entropy import _break_ties
 from .types import Source
 
 TAGS = AnalysisTags(DataKind.SERIES)
@@ -108,8 +108,8 @@ def complexity(
         >>> plane.entropy.round(2).tolist(), plane.complexity.round(2).tolist()
         ([1.0], [0.0])
     """
-    if ties not in TIES:
-        error_msg = f'complexity has ties={ties!r}. Use one of {", ".join(TIES)}.'
+    if ties not in TieKind:
+        error_msg = f'complexity has ties={ties!r}. Use one of {", ".join(TieKind)}.'
         raise AnalysisError(error_msg)
     sizes = dimension if isinstance(dimension, tuple) else (dimension,)
     if any(int(size) < 1 for size in sizes) or delay < 1:

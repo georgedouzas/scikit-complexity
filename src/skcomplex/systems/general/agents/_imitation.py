@@ -12,12 +12,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import SCHEDULES, NeighborInteraction
+from ....core.components.interactions import NeighborInteraction
 from ....core.components.laws import BaseLaw, JumpLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, neighbors, uniform, where
 from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.enums import ElementKind
+from ....core.enums import ElementKind, ScheduleKind
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, Tags
 
@@ -160,7 +160,7 @@ class ImitationInteraction(NeighborInteraction):
 
         It also raises it for either of them not default outside the agent form.
         """
-        self._check_variant('schedule', self.schedule, SCHEDULES)
+        self._check_variant('schedule', self.schedule, ScheduleKind)
         self._check_variant('ties', self.ties, TIES)
         if self.form != 'agent' and (self.schedule != 'synchronous' or self.ties != 'first'):
             error_msg = (

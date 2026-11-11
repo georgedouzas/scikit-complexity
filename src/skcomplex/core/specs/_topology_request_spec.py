@@ -7,24 +7,21 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from types import SimpleNamespace
 
+from ..enums import TopologyKind
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
 
-TOPOLOGY_KINDS = (
-    'add-edge',
-    'remove-edge',
-    'rewire',
-    'add-node',
-    'remove-node',
-    'add-hyperedge',
-    'remove-hyperedge',
-    'replace-node',
-    'close-triangle',
-    'contract-edge',
-    'duplicate-node',
+EDGE_KINDS = frozenset(
+    {
+        TopologyKind.ADD_EDGE,
+        TopologyKind.REMOVE_EDGE,
+        TopologyKind.REWIRE,
+        TopologyKind.CLOSE_TRIANGLE,
+        TopologyKind.CONTRACT_EDGE,
+        TopologyKind.DUPLICATE_NODE,
+    },
 )
-EDGE_KINDS = ('add-edge', 'remove-edge', 'rewire', 'close-triangle', 'contract-edge', 'duplicate-node')
-HYPEREDGE_KINDS = ('add-node', 'add-hyperedge')
+HYPEREDGE_KINDS = frozenset({TopologyKind.ADD_NODE, TopologyKind.ADD_HYPEREDGE})
 ENDS = ('source', 'target')
 DIRECTIONS = ('out', 'in', 'both')
 MIN_HYPEREDGE = 2
@@ -149,8 +146,8 @@ class TopologyRequestSpec(BaseSpec):
                 callable or belongs to a request other than `'add-edge'`, or a probability of duplication lies outside
                 `[0, 1]`.
         """
-        if self.kind not in TOPOLOGY_KINDS:
-            error_msg = f'Unknown topology request {self.kind!r}. Use one of {", ".join(TOPOLOGY_KINDS)}.'
+        if self.kind not in TopologyKind:
+            error_msg = f'Unknown topology request {self.kind!r}. Use one of {", ".join(TopologyKind)}.'
             raise ValidationError(error_msg)
         if self.keep not in ENDS:
             error_msg = f'A rewiring keeps the source or the target of its edge, not {self.keep!r}.'

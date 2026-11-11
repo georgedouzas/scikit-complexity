@@ -12,11 +12,11 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, matrix
 from sage.structure.element import Matrix
 
+from ..enums import SymmetryKind
 from ..errors import ValidationError
 from ..types import Array, IntArray
 from ._base_spec import BaseSpec
 
-TENSOR_SYMMETRIES = ('full', 'symmetric', 'antisymmetric', 'traceless')
 TENSOR_DIMENSIONS = (2, 3)
 AXIS_NAMES = 'xyz'
 
@@ -55,8 +55,8 @@ class TensorSpec(BaseSpec):
 
         The space must have two or three dimensions.
         """
-        if self.symmetry not in TENSOR_SYMMETRIES:
-            error_msg = f'The tensor symmetry is {self.symmetry!r}. Use one of {", ".join(TENSOR_SYMMETRIES)}.'
+        if self.symmetry not in SymmetryKind:
+            error_msg = f'The tensor symmetry is {self.symmetry!r}. Use one of {", ".join(SymmetryKind)}.'
             raise ValidationError(error_msg)
         if self.n_dim not in TENSOR_DIMENSIONS:
             error_msg = f'A tensor state needs a space of 2 or 3 dimensions, but its space has {self.n_dim}.'

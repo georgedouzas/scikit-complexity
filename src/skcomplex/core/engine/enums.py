@@ -27,3 +27,26 @@ class ReadKind(StrEnum):
     REDUCED = 'reduced'
     OTHER = 'other'
     SOURCE = 'source'
+
+
+class LinearOperatorKind(StrEnum):
+    """A kind of linear operator that a term of a field rate applies to a state."""
+
+    LAPLACIAN = 'laplacian'
+    PARTIAL = 'partial'
+    INVERSE_HELMHOLTZ = 'inverse_helmholtz'
+
+
+class ComplexPartKind(StrEnum):
+    """A kind of part of a complex value that a visual draws, such as its modulus.
+
+    Examples:
+        >>> from skcomplex.core.engine.enums import ComplexPartKind
+        >>> f'state/{ComplexPartKind.PHASE}'
+        'state/phase'
+    """
+
+    REAL = 'real'
+    IMAG = 'imag'
+    MODULUS = 'modulus'
+    PHASE = 'phase'

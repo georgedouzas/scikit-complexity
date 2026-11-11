@@ -16,6 +16,7 @@ from ...components.laws import BaseLaw, UpdateLaw
 from ...components.laws.utils import clip, logistic, stop_gradient, where
 from ...components.laws.utils._draws import draws_in
 from ...components.laws.utils._reductions import reductions_in
+from ...enums import DrawKind
 from ...errors import ValidationError
 from ...specs import CallSpec, DrawSpec, EntrySpec, NamedDrawSpec, NeighborReadSpec, SampledDrawSpec
 from ...types import Array, Indices
@@ -30,7 +31,7 @@ from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 from ._members import MemberLowering
 
-NORMAL_KINDS = frozenset({'normal'})
+NORMAL_KINDS = frozenset({DrawKind.NORMAL})
 SHIFT = 'shift_member'
 RELAXATION_FLOOR = 1e-12
 DISTRIBUTIONS = tuple(

@@ -7,17 +7,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..enums import DomainTag, LawTag, RandomnessTag, SpaceTag, StructureTag, TimeTag
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
 
-TIMES = ('continuous', 'discrete', 'static')
-DOMAINS = ('real', 'integer', 'boolean', 'categorical', 'complex', 'vector', 'matrix group', 'power series')
-SPACES = ('none', 'continuous', 'lattice', 'network', 'hypergraph', 'cell complex', 'phase space', 'curved spacetime')
-LAWS = ('rate', 'noise', 'jump', 'update', 'equation', 'sampling')
-RANDOMNESS = ('deterministic', 'stochastic')
-STRUCTURES = ('variable membership', 'changing topology')
-STOCHASTIC_LAWS = frozenset({'noise', 'jump', 'sampling'})
-DIFFERENTIABLE_LAWS = frozenset({'rate', 'update', 'equation'})
+STOCHASTIC_LAWS = frozenset({LawTag.NOISE, LawTag.JUMP, LawTag.SAMPLING})
+DIFFERENTIABLE_LAWS = frozenset({LawTag.RATE, LawTag.UPDATE, LawTag.EQUATION})
 
 
 @dataclass(frozen=True)
@@ -87,17 +82,18 @@ class Tags(BaseSpec):
                 A tag is unknown, named in the message with the values of its field.
         """
         fields = {
-            'time': (self.time, TIMES),
-            'domains': (self.domains, DOMAINS),
-            'space': (self.space, SPACES),
-            'laws': (self.laws or frozenset(), LAWS),
-            'randomness': (frozenset() if self.randomness is None else {self.randomness}, RANDOMNESS),
-            'structure': (self.structure, STRUCTURES),
+            'time': (self.time, TimeTag),
+            'domains': (self.domains, DomainTag),
+            'space': (self.space, SpaceTag),
+            'laws': (self.laws or frozenset(), LawTag),
+            'randomness': (frozenset() if self.randomness is None else {self.randomness}, RandomnessTag),
+            'structure': (self.structure, StructureTag),
         }
         for name, (values, known) in fields.items():
             unknown = sorted(set(values) - set(known))
             if unknown:
-                error_msg = f'The {name} tag {unknown[0]!r} is unknown. Use one of {", ".join(map(repr, known))}.'
+                accepted = ', '.join(repr(str(item)) for item in known)
+                error_msg = f'The {name} tag {unknown[0]!r} is unknown. Use one of {accepted}.'
                 raise ValidationError(error_msg)
 
     @property

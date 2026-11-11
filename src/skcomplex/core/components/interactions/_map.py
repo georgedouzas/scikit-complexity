@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...enums import ElementKind
+from ...enums import ElementKind, ScheduleKind
 from ...errors import ValidationError
 from ...specs import BaseSpec, RoleSpec, Tags
 from ..base import BaseComponent
@@ -20,7 +20,6 @@ from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import uniform
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
-from ._base import SCHEDULES
 from ._interaction import Interaction
 
 MODES = ('replace', 'increment')
@@ -167,7 +166,7 @@ class MapInteraction(Interaction):
         super()._prepare(context)
         self._check_variant('mode', self.mode, MODES, (BaseSpec,))
         for name, value, variants in (
-            ('schedule', self.schedule, SCHEDULES),
+            ('schedule', self.schedule, tuple(ScheduleKind)),
             ('form', self.form, FORMS),
         ):
             if value not in variants:

@@ -14,12 +14,12 @@ from sage.sets.real_set import RealSet
 from scipy.special import expit, softmax
 
 from ....core.components.base import BaseComponent
-from ....core.components.interactions import SCHEDULES, Interaction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, uniform, where
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.enums import ElementKind
+from ....core.enums import ElementKind, ScheduleKind
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, Tags
 
@@ -170,7 +170,7 @@ class ChoiceInteraction(Interaction):
         """Raise an error for an unknown variant or a symbolic choice not synchronous."""
         self._check_variant('rule', self.rule, RULES, (BaseSpec,))
         for name, value, variants in (
-            ('schedule', self.schedule, SCHEDULES),
+            ('schedule', self.schedule, tuple(ScheduleKind)),
             ('form', self.form, FORMS),
             ('proposal', self.proposal, PROPOSALS),
             ('ties', self.ties, TIES),

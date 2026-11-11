@@ -31,7 +31,7 @@ from ..engine.problems import ProblemSpec
 from ..engine.runtime import Trajectory, simulate
 from ..engine.solvers import BaseSolver
 from ..engine.types import TracedArray, TracedFunction
-from ..enums import FormKind
+from ..enums import CalibrationMethodKind, FormKind, LossKind
 from ..errors import SkcomplexError, ValidationError
 from ..types import Array
 from ._designs import _check_bounds
@@ -39,15 +39,20 @@ from ._runs import _check_count, _check_source
 from ._utils import build_system
 from .types import Bounds, Source
 
-METHODS = ('local', 'global', 'abc_smc', 'mcmc', 'variational')
-LOSSES = {
-    'local': ('squares', 'likelihood', 'events'),
-    'global': ('squares', 'likelihood', 'events'),
-    'abc_smc': ('squares',),
-    'mcmc': ('likelihood', 'events'),
-    'variational': ('likelihood', 'squares'),
+LOSSES: dict[str, tuple[LossKind, ...]] = {
+    CalibrationMethodKind.LOCAL: (LossKind.SQUARES, LossKind.LIKELIHOOD, LossKind.EVENTS),
+    CalibrationMethodKind.GLOBAL: (LossKind.SQUARES, LossKind.LIKELIHOOD, LossKind.EVENTS),
+    CalibrationMethodKind.ABC_SMC: (LossKind.SQUARES,),
+    CalibrationMethodKind.MCMC: (LossKind.LIKELIHOOD, LossKind.EVENTS),
+    CalibrationMethodKind.VARIATIONAL: (LossKind.LIKELIHOOD, LossKind.SQUARES),
 }
-BUDGETS = {'local': 0, 'global': 200, 'abc_smc': 20000, 'mcmc': 0, 'variational': 2000}
+BUDGETS: dict[str, int] = {
+    CalibrationMethodKind.LOCAL: 0,
+    CalibrationMethodKind.GLOBAL: 200,
+    CalibrationMethodKind.ABC_SMC: 20000,
+    CalibrationMethodKind.MCMC: 0,
+    CalibrationMethodKind.VARIATIONAL: 2000,
+}
 CENTRAL = (0.0005, 0.9995)
 PRIOR_FAMILIES = ('uniform', 'norm', 'lognorm', 'truncnorm', 'beta', 'gamma', 'expon')
 PREDICTIVE_DRAWS = 200
@@ -488,12 +493,11 @@ def _check_priors(bounds: Bounds) -> dict[str, stats.rv_continuous]:
 
 def _check_settings(method: str, loss: str, data: object, bounds: Bounds, replicates: int) -> None:
     """Raise an error for an invalid method, loss, data, replicates, or bounds."""
-    if method not in METHODS:
-        error_msg = f'Unknown method {method!r}. Use one of {", ".join(METHODS)}.'
+    if method not in CalibrationMethodKind:
+        error_msg = f'Unknown method {method!r}. Use one of {", ".join(CalibrationMethodKind)}.'
         raise ValidationError(error_msg)
     if loss not in LOSSES[method]:
-        known = sorted({item for items in LOSSES.values() for item in items})
-        start = f'Unknown loss {loss!r}.' if loss not in known else f'The method {method!r} does not take {loss!r}.'
+        start = f'Unknown loss {loss!r}.' if loss not in LossKind else f'The method {method!r} does not take {loss!r}.'
         error_msg = f'{start} The method {method!r} takes the losses {", ".join(LOSSES[method])}.'
         raise ValidationError(error_msg)
     if loss == 'events' and not (isinstance(data, Trajectory) and data.draws is not None):
@@ -807,7 +811,7 @@ def _check_differentiable(objective: _CalibrationObjective) -> None:
     """Raise an error for variational calibration without the tag `differentiable`."""
     system = objective.build([float(prior.median()) for prior in objective.priors.values()])
     if not system.get_tags().differentiable:
-        others = ', '.join(method for method in METHODS if method != 'variational')
+        others = ', '.join(method for method in CalibrationMethodKind if method != CalibrationMethodKind.VARIATIONAL)
         error_msg = (
             f'Variational calibration differentiates runs, but {type(system).__name__} does not hold the tag '
             f'differentiable. Use one of the methods {others}, which do not need it.'

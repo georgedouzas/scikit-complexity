@@ -11,10 +11,10 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, RateLaw
 from ....components.laws.utils._phase import COORDINATE_PREFIX
-from ...enums import ReadKind
+from ...enums import LinearOperatorKind, ReadKind
 from ...problems._diffusive_limit_spec import DiffusiveLimitSpec
 from ...problems._kernel_spec import KernelSpec
-from ...problems._linear_term_spec import OPERATORS, LinearTermSpec
+from ...problems._linear_term_spec import LinearTermSpec
 from ...problems._reference_spec import ReferenceSpec
 from ...types import Terms
 from .._base import BasePass
@@ -167,7 +167,7 @@ class LowerFieldsPass(BasePass):
             return [(SR(1), (), value)]
         operator = value.operator()
         name = getattr(operator, 'name', lambda: '')()
-        if name in OPERATORS:
+        if name in LinearOperatorKind:
             return LowerFieldsPass._get_operator_terms(name, value.operands(), states)
         combine = {'add_vararg': LowerFieldsPass._sum_terms, 'mul_vararg': LowerFieldsPass._get_product_terms}.get(
             LowerFieldsPass._get_name_of(operator),

@@ -6,11 +6,11 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from ..enums import ActivationKind
 from ..errors import ValidationError
 from ._phase_spec import PhaseSpec
 from ._schedule_spec import ScheduleSpec
 
-ACTIVATIONS = ('random', 'sequential', 'simultaneous', 'by-type', 'visits')
 DEFAULT_PHASE = 'default'
 
 
@@ -47,10 +47,9 @@ class PhasesScheduleSpec(ScheduleSpec):
             error_msg = f'The phases {names} repeat a name. Give every phase of a step its own name.'
             raise ValidationError(error_msg)
         for phase in self.phases:
-            if phase.activation not in ACTIVATIONS:
-                error_msg = (
-                    f'Unknown activation {phase.activation!r} of phase {phase.name!r}. Use one of {ACTIVATIONS}.'
-                )
+            if phase.activation not in ActivationKind:
+                accepted = tuple(map(str, ActivationKind))
+                error_msg = f'Unknown activation {phase.activation!r} of phase {phase.name!r}. Use one of {accepted}.'
                 raise ValidationError(error_msg)
             if phase.visits < 0:
                 error_msg = f'Phase {phase.name!r} visits {phase.visits} times per agent. Give a number at least 0.'

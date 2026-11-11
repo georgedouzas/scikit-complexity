@@ -5,8 +5,9 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from skcomplex.core.components.interactions import OPTIMIZERS, TrainingInteraction
+from skcomplex.core.components.interactions import TrainingInteraction
 from skcomplex.core.components.laws import GradientStepLaw
+from skcomplex.core.enums import OptimizerKind
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import DatasetSpec, ObservableSpec
 
@@ -23,7 +24,7 @@ def test_check_unknown_optimizer():
     """Test that an unknown optimizer raises an error naming it and the supported ones."""
     with pytest.raises(ValidationError, match="'lbfgs-b'") as error:
         _training(optimizer='lbfgs-b').prepare()
-    assert all(repr(name) in str(error.value) for name in OPTIMIZERS)
+    assert all(f"'{name}'" in str(error.value) for name in OptimizerKind)
 
 
 @pytest.mark.parametrize(('name', 'value'), [('batch_size', 0), ('truncation', 1.5)])

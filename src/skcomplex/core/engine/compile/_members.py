@@ -257,4 +257,4 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 value read past the ends of a fixed boundary.
         """
         expression, offset, boundary, fill = call.operands()
-        return expression, int(offset), BOUNDARIES[int(boundary)], float(fill)
+        return expression, int(offset), BOUNDARIES[int(boundary)].value, float(fill)

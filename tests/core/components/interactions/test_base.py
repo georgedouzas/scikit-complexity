@@ -584,7 +584,7 @@ def test_get_requirements_accepts_any_space_when_a_law_does():
 def test_every_core_interaction_declares_its_roles():
     """Test that every role of every interaction of the core names the kinds of element it accepts."""
     found = _interaction_classes()
-    assert {kind.__name__ for kind in found} == set(interactions.__all__) - {'OPTIMIZERS', 'SCHEDULES'}
+    assert {kind.__name__ for kind in found} == set(interactions.__all__)
     for kind in found:
         for name, spec in kind._get_specs().items():
             if isinstance(spec, RoleSpec) and not spec.noise:

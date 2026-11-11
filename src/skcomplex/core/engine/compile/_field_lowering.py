@@ -897,7 +897,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 '`inverse_helmholtz` its boundary as `boundary=`, with a number as the fixed value.'
             )
             raise ValidationError(error_msg)
-        return INVERSION_BOUNDARIES[int(code)], float(value)
+        return INVERSION_BOUNDARIES[int(code)].value, float(value)
 
     def _get_inverse(
         self,

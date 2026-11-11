@@ -11,12 +11,13 @@ from typing import ClassVar
 import numpy as np
 import numpy.typing as npt
 
+from ...enums import BoundaryKind
 from ...errors import ValidationError
 from ._ball import BallNeighborhood
 from ._base import BaseNeighborhood, BaseSpace
 from ._lattice_neighborhood import LatticeNeighborhood
 
-BOUNDARIES = ('periodic', 'fixed', 'reflecting')
+BOUNDARIES = (BoundaryKind.PERIODIC, BoundaryKind.FIXED, BoundaryKind.REFLECTING)
 GEOMETRIES = ('square', 'triangular')
 SQUARE_METRICS = ('chebyshev', 'manhattan')
 TRIANGULAR_ROW_HEIGHT = float(np.sqrt(3.0) / 2)

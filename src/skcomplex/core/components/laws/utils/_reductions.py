@@ -13,6 +13,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression, arctan2, cos, sin, var, vector
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....enums import ComponentReductionKind, PathReductionKind
 from ....errors import ValidationError
 from ....specs import HyperedgeReductionSpec, LayerSpec, NeighborReductionSpec, ReductionSpec
 from ....types import AnyArray
@@ -43,8 +44,6 @@ KINDS = {
 NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean', 'argmax')
 MIN_HYPEREDGE_SIZE = 2
 MAX_NEIGHBOR_HYPEREDGE_SIZE = 5
-COMPONENT_REDUCTIONS = ('label', 'size', 'largest', 'giant')
-PATH_REDUCTIONS = ('betweenness', 'closeness')
 WEIGHTS: dict[str, object] = {}
 FUNCTIONS: dict[str, Callable[[AnyArray], object]] = {}
 NEIGHBORHOODS: dict[str, object] = {}
@@ -145,7 +144,7 @@ class _ComponentsFunction(_OperatorFunction):
         parts = [str(active)]
         if not _ReductionFunction._is_placeholder(over, 0):
             parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
-        parts.append(f'reduce={COMPONENT_REDUCTIONS[int(SR(kind))]!r}')
+        parts.append(f'reduce={tuple(ComponentReductionKind)[int(SR(kind))].value!r}')
         return f'components({", ".join(parts)})'
 
 
@@ -166,7 +165,7 @@ class _ShortestPathsFunction(_OperatorFunction):
         parts = [str(active)]
         if not _ReductionFunction._is_placeholder(over, 0):
             parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
-        parts.append(f'reduce={PATH_REDUCTIONS[int(SR(kind))]!r}')
+        parts.append(f'reduce={tuple(PathReductionKind)[int(SR(kind))].value!r}')
         return f'shortest_paths({", ".join(parts)})'
 
 
@@ -989,7 +988,7 @@ def _component_reduction(call: Expression) -> NeighborReductionSpec:
     active, over, kind = call.operands()
     return NeighborReductionSpec(
         call=call,
-        kind=f'component-{COMPONENT_REDUCTIONS[int(SR(kind))]}',
+        kind=f'component-{tuple(ComponentReductionKind)[int(SR(kind))]}',
         argument=active,
         weight=None,
         over=None if _ReductionFunction._is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
@@ -1004,7 +1003,7 @@ def _path_reduction(call: Expression) -> NeighborReductionSpec:
     active, over, kind = call.operands()
     return NeighborReductionSpec(
         call=call,
-        kind=f'path-{PATH_REDUCTIONS[int(SR(kind))]}',
+        kind=f'path-{tuple(PathReductionKind)[int(SR(kind))]}',
         argument=active,
         weight=None,
         over=None if _ReductionFunction._is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],

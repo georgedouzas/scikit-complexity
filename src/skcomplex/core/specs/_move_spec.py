@@ -6,10 +6,9 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ..enums import MoveKind
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
-
-MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'function', 'cluster')
 
 
 @dataclass(frozen=True)
@@ -65,8 +64,8 @@ class MoveSpec(BaseSpec):
             ValidationError:
                 The kind of move is unknown, or a function move has no callable function.
         """
-        if self.kind not in MOVES:
-            error_msg = f'Unknown move {self.kind!r}. Use one of {", ".join(MOVES)}.'
+        if self.kind not in MoveKind:
+            error_msg = f'Unknown move {self.kind!r}. Use one of {", ".join(MoveKind)}.'
             raise ValidationError(error_msg)
         if self.kind == 'function' and not callable(self.function):
             error_msg = f'A function move proposes values by a callable function, but got {self.function!r}.'

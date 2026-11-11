@@ -13,8 +13,9 @@ import rerun.blueprint as rrb
 from ...components.spaces import MeshSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
+from ..enums import ComplexPartKind
 from ..problems import BaseProblemSpec, FrameSpec
-from ._base import MODULUS, PHASE, BaseVisual
+from ._base import BaseVisual
 
 SURFACE_DIMENSION = 2
 
@@ -115,12 +116,18 @@ class MeshVisual(BaseVisual):
             modulus, phase = np.abs(values), np.angle(values)
             self._log_mesh(
                 recording,
-                f'{path}/{MODULUS}',
+                f'{path}/{ComplexPartKind.MODULUS}',
                 mesh,
                 modulus,
                 self._get_colors(modulus, self.low, self.high),
             )
-            self._log_mesh(recording, f'{path}/{PHASE}', mesh, phase, BaseVisual._get_phase_colors(phase))
+            self._log_mesh(
+                recording,
+                f'{path}/{ComplexPartKind.PHASE}',
+                mesh,
+                phase,
+                BaseVisual._get_phase_colors(phase),
+            )
 
     def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return one 3D spatial view per chosen state.
@@ -156,7 +163,8 @@ class MeshVisual(BaseVisual):
             path = f'{element.path}/{state}'
             if problem.states.get_entry(name).is_complex:
                 views += [
-                    rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)
+                    rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}')
+                    for part in (ComplexPartKind.MODULUS, ComplexPartKind.PHASE)
                 ]
             else:
                 views.append(rrb.Spatial3DView(origin=path, name=state))
