@@ -220,7 +220,7 @@ class CuckerSmaleAlignmentInteraction(PairInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         first:
             The path of the group or particle of the first members.
@@ -300,7 +300,7 @@ class PhoreticAttractionInteraction(PairInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         first:
             The path of the group or particle of the first members.
@@ -563,7 +563,7 @@ class LivingCrystalsSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         system = MotilityInducedPhaseSeparationSystem._get_active_disks(
             self.n_particles,
             self.size,
@@ -760,7 +760,7 @@ class TonerTuSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         values = {

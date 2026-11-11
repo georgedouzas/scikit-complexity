@@ -508,7 +508,7 @@ class VertexCopyingSystem(BaseSystem):
         self.seed_nodes = seed_nodes
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         space = NetworkSpace(nx.complete_graph(self.seed_nodes))
         nodes = BarabasiAlbertSystem._get_nodes(CopyingVertexElement, self.n_nodes)
         growth = TopologyInteraction(

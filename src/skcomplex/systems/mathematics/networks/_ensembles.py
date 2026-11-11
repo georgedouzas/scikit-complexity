@@ -252,7 +252,7 @@ class NetworkAttackSystem(BaseSystem):
         return (1 - s.source.targeted) * s.source.rate + hub
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.strategy not in STRATEGIES:
             error_msg = f'Unknown strategy {self.strategy!r}. Use one of {", ".join(STRATEGIES)}.'
             raise ValidationError(error_msg)
@@ -342,7 +342,7 @@ class RandomGraphEnsemblesSystem(BaseSystem):
         self.steps = steps
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.ensemble not in ENSEMBLES:
             error_msg = f'Unknown ensemble {self.ensemble!r}. Use one of {", ".join(ENSEMBLES)}.'
             raise ValidationError(error_msg)

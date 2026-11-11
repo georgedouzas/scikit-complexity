@@ -250,7 +250,7 @@ class OptimalVelocitySystem(BaseSystem):
         self.perturbation = perturbation
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         headway = self.length / self.n_cars
         speed = self.V0 * (np.tanh(headway - self.hc) + np.tanh(self.hc))
         cars = GroupElement(
@@ -355,7 +355,7 @@ class IntelligentDriverSystem(BaseSystem):
         self.perturbation = perturbation
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         cars = GroupElement(
             'cars',
             element=CarElement,
@@ -453,7 +453,7 @@ class DelayedCarFollowingSystem(BaseSystem):
         self.power = power
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         lead = LeadCarElement('car_0', x=0.0, v=self.u, u=self.u, amplitude=self.amplitude, omega=self.omega)
         followers = [CarElement(f'car_{index}', x=-index * self.spacing, v=self.u) for index in range(1, self.n_cars)]
         interactions = [

@@ -152,7 +152,7 @@ class BakSneppenSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Bak-Sneppen system."""
+        """Return the components of the Bak-Sneppen system."""
         space = (LatticeSpace(self.size) if self.graph is None else NetworkSpace(self.graph)).prepare()
         count = int(space.size_ or 0)
         fitness = np.random.default_rng(self.random_state).random(count)

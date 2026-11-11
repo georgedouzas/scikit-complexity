@@ -221,7 +221,7 @@ class ImmuneCompetitionSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        They come with the tumour and immune observables of the built parts.
+        They come with the tumour and immune observables of the built components.
 
         Returns:
             settings:
@@ -232,7 +232,7 @@ class ImmuneCompetitionSystem(BaseSystem):
         return settings
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the kinetic system of tumour and immune cells.
+        """Return the components of the kinetic system of tumour and immune cells.
 
         The system is the competition between tumour cells and immune cells.
         """

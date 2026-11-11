@@ -30,7 +30,7 @@ class TwoPinElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -94,7 +94,7 @@ class ResistorElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -153,7 +153,7 @@ class CapacitorElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -217,7 +217,7 @@ class InductorElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -281,7 +281,7 @@ class VoltageSourceElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -342,7 +342,7 @@ class CurrentSourceElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -401,7 +401,7 @@ class GroundElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -444,7 +444,7 @@ class DiodeElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -510,7 +510,7 @@ class ChuaDiodeElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -578,7 +578,7 @@ class OperationalAmplifierElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.

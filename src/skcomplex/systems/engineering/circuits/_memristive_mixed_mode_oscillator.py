@@ -217,7 +217,7 @@ class MemristiveMixedModeOscillatorSystem(BaseSystem):
         self.b = b
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         circuit = MemristiveCircuitElement(
             'circuit',
             x=self.x,

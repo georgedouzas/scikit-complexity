@@ -1215,7 +1215,7 @@ class KirschnerPanettaSystem(BaseSystem):
         self.u2 = u2
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Kirschner-Panetta system of effector cells."""
+        """Return the components of the Kirschner-Panetta system of effector cells."""
         site = KirschnerPanettaTumourElement(
             'site',
             E=self.E,
@@ -1360,7 +1360,7 @@ class DendriticCellVaccineSystem(BaseSystem):
         self.doses = doses
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of helper and cytotoxic T cells."""
+        """Return the components of helper and cytotoxic T cells."""
         site = VaccinatedTumourElement(
             'site',
             A=self.A,
@@ -1540,7 +1540,7 @@ class AntiPD1CheckpointSystem(BaseSystem):
         self.c_l = c_l
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of activated T cells."""
+        """Return the components of activated T cells."""
         site = CheckpointTumourElement(
             'site',
             E=self.E,
@@ -1698,7 +1698,7 @@ class DelayedDCVaccineSystem(BaseSystem):
         self.tau3 = tau3
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour and eight innate and adaptive immune populations."""
+        """Return the components of a tumour and eight innate and adaptive immune populations."""
         site = DelayedVaccinatedTumourElement(
             'site',
             dose=self.dose,
@@ -2006,7 +2006,7 @@ class TumourImmuneSuppressionSystem(BaseSystem):
         self.EMR = EMR
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour against dendritic."""
+        """Return the components of a tumour against dendritic."""
         site = SuppressedTumourElement(
             'site',
             alpha_a=self.alpha_a,

@@ -234,7 +234,7 @@ class ThreeGeneBooleanNetworkSystem(BaseSystem):
         self.x = x
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the three-gene Boolean network of Raman.
+        """Return the components of the three-gene Boolean network of Raman.
 
         The network is updated synchronously.
         """
@@ -290,7 +290,7 @@ class MammalianCellCycleSystem(BaseSystem):
         self.knockouts = knockouts
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Boolean system of the mammalian cell cycle.
+        """Return the components of the Boolean system of the mammalian cell cycle.
 
         The system is the one of Faure et al.
         """
@@ -351,7 +351,7 @@ class BooleanRepressilatorSystem(BaseSystem):
         self.delay = delay
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Boolean repressilator."""
+        """Return the components of the Boolean repressilator."""
         if self.delay < 0:
             error_msg = f'The delay must be a nonnegative number of steps, not {self.delay}.'
             raise ValidationError(error_msg)
@@ -437,7 +437,7 @@ class NoisyBooleanNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Boolean network of Huepe and Aldana-González."""
+        """Return the components of the Boolean network of Huepe and Aldana-González."""
         if self.k % 2 == 0:
             error_msg = f'The number of inputs must be odd so that the majority is defined, not {self.k}.'
             raise ValidationError(error_msg)

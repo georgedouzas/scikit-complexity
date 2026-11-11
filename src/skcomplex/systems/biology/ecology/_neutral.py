@@ -134,7 +134,7 @@ class NeutralMacroecologySystem(BaseSystem):
         self.d1 = d1
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of many species under neutral birth."""
+        """Return the components of many species under neutral birth."""
         return CompositeSystem(
             self.label,
             elements=[

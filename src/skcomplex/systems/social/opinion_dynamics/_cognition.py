@@ -242,7 +242,7 @@ class CognitiveConsistencySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         graph = self.graph
         graph = nx.complete_graph(40) if graph is None else graph
         size = nx.number_of_nodes(graph)

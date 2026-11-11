@@ -187,7 +187,7 @@ class NeutralBiodiversitySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a neutral community of constant size."""
+        """Return the components of a neutral community of constant size."""
         labels = np.random.default_rng(self.random_state).integers(self.species, size=self.individuals).astype(float)
         return CompositeSystem(
             self.label,

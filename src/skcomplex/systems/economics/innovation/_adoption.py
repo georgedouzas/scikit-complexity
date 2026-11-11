@@ -233,7 +233,7 @@ class PhoneAdoptionSystem(BaseSystem):
         return owners
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         growth = self.growth
         width, height = (int(side) for side in self.shape)
         rng = np.random.default_rng(self.random_state)

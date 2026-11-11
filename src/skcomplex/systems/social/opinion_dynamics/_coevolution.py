@@ -322,7 +322,7 @@ class CoevolvingVoterSystem(BaseSystem):
         return where(uniform('u') < copying, 1 - voter.opinion, voter.opinion)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         space = NetworkSpace(nx.gnp_random_graph(self.n_voters, self.mean_degree / (self.n_voters - 1), seed=rng))
         opinions = (rng.random(self.n_voters) < FIRST_OPINION_SHARE).astype(float)
@@ -413,7 +413,7 @@ class JoinAClubSystem(BaseSystem):
         return where(uniform('d') < agent.deciding, choice, agent.opinion)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         space = NetworkSpace(nx.gnp_random_graph(self.n_agents, self.mean_degree / (self.n_agents - 1), seed=rng))
         opinions = (rng.random(self.n_agents) < FIRST_OPINION_SHARE).astype(float)

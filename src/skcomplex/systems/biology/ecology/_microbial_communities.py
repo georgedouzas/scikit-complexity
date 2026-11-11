@@ -178,7 +178,7 @@ class GeneralizedLotkaVolterraSystem(BaseSystem):
         return namespace.target.b * namespace.target.x
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the generalized Lotka-Volterra microbial community."""
+        """Return the components of the generalized Lotka-Volterra microbial community."""
         size = len(self.b)
         abundances = [0.1] * size if self.x is None else [float(value) for value in self.x]
         if len(abundances) != size or len(self.a) != size or any(len(row) != size for row in self.a):

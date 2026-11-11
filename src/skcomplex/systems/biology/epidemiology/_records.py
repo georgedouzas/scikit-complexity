@@ -211,7 +211,7 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of yearly strains that infect less resistant residents.
+        """Return the components of yearly strains that infect less resistant residents.
 
         A strain infects every resident less resistant than its strength.
         """

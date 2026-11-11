@@ -263,7 +263,7 @@ class AdaptiveSISSystem(BaseSystem):
         return NetworkSpace(nx.gnp_random_graph(n, k / (n - 1), seed=seed))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the SIS epidemic on a network."""
+        """Return the components of the SIS epidemic on a network."""
         space = self._get_random_network(self.n, self.k, self.seed)
         initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
         hosts = GroupElement(
@@ -388,7 +388,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         return probability
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of SIS spreading on an activity-driven temporal network.
+        """Return the components of SIS spreading on an activity-driven temporal network.
 
         The edges of the network last one step.
         """

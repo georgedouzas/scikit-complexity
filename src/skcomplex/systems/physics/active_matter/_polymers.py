@@ -187,7 +187,7 @@ class ActivePolymerSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         angles = np.random.default_rng(self.random_state).uniform(0.0, 2 * np.pi, self.n_beads)
         chain = FieldElement(
             'chain',

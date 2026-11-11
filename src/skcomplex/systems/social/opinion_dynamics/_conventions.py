@@ -164,7 +164,7 @@ class NamingGameSystem(BaseSystem):
         self.n_agents = n_agents
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         namers = GroupElement(
             'namers',
             element=NamerElement,

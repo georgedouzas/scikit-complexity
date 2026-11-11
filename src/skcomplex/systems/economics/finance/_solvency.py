@@ -283,7 +283,7 @@ class DefaultCascadeSystem(BaseSystem):
         return liabilities, external, capital
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.liabilities is None or self.equity is None:
             rng = np.random.default_rng(self.random_state)
             matrix, external, capital = self._get_gai_kapadia_network(
@@ -381,7 +381,7 @@ class EisenbergNoeClearingSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.liabilities is None or self.external is None:
             rng = np.random.default_rng(self.random_state)
             links = rng.random((self.n_banks, self.n_banks)) < self.density

@@ -178,7 +178,7 @@ class WestBrownEnquistSystem(BaseSystem):
         self.l_c = l_c
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the distribution network of West."""
+        """Return the components of the distribution network of West."""
         graph = nx.balanced_tree(self.n, self.depth)
         space = NetworkSpace(graph).prepare()
         _, children = space.edges_[None]

@@ -69,7 +69,7 @@ class GiantComponentInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         nodes:
             The path of the group on the nodes, whose activity the interaction sets.
@@ -117,7 +117,7 @@ class TriadicRegulationInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         nodes:
             The path of the group on the nodes, whose activity the regulators read.

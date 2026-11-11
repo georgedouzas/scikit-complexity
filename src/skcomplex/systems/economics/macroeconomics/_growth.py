@@ -155,7 +155,7 @@ class SolowSystem(BaseSystem):
         self.delta = delta
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[EconomyElement('economy', k=self.k)],
@@ -246,7 +246,7 @@ class MultiplierAcceleratorSystem(DynamicalSystem):
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return {
             'Y': self._get_next_income,
         }

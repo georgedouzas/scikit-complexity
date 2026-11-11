@@ -181,7 +181,7 @@ class CurieWeissSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         spins = CurieWeissSystem._get_initial_spins(self.n_spins, self.initial, self.random_state)
         group = GroupElement(
             'spins',
@@ -256,7 +256,7 @@ class SherringtonKirkpatrickSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_spins), (self.n_spins, self.n_spins)), 1)
         spins = CurieWeissSystem._get_initial_spins(self.n_spins, 'random', rng)

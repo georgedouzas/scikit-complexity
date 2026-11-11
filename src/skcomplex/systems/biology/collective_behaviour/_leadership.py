@@ -158,7 +158,7 @@ class SchoolingInteraction(ZoneCouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of fish.
@@ -247,7 +247,7 @@ class SwimmingInteraction(MovementInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of fish.
@@ -368,7 +368,7 @@ class CouzinLeadershipSystem(BaseSystem):
         return float(system.rng.normal(0.0, agent.noise))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Couzin shoal."""
+        """Return the components of the Couzin shoal."""
         rng = np.random.default_rng(self.random_state)
         radius = 5.0 * np.sqrt(rng.uniform(0.0, 1.0, self.n_fish))
         place = rng.uniform(0.0, 2 * math.pi, self.n_fish)

@@ -499,7 +499,7 @@ class CriminalitySystem(BaseSystem):
         self.retirement = retirement
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         citizens = np.zeros(self.classes)
         citizens[0], citizens[-1] = 1.0 - self.criminals, self.criminals
         return CompositeSystem(
@@ -557,7 +557,7 @@ class CriminalitySystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         system = self._get_pass_parameters()

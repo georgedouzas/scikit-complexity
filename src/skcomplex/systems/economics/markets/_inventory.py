@@ -217,7 +217,7 @@ class CarDealerSystem(BaseSystem):
         return distributed_delay(_get_orders(dealer), order=3, time=dealer.delivery_delay)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         dealer = CarDealershipElement(
             'dealer',
             inventory=self.inventory,

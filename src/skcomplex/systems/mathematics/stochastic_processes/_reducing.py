@@ -431,7 +431,7 @@ class FragmentationSystem(BaseSystem):
         self.rate = rate
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -506,7 +506,7 @@ class CascadingSampleSpaceReducingSystem(BaseSystem):
         self.mu = mu
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[

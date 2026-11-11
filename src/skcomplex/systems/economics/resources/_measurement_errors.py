@@ -209,7 +209,7 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
         self.restocking = restocking
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         fisheries = GroupElement(
             'fisheries',
             element=MeasuredFisheryElement,

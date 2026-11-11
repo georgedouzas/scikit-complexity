@@ -173,7 +173,7 @@ class BondSamplingInteraction(SpinSamplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the lattice group of spins.
@@ -394,7 +394,7 @@ class MattisSpinGlassSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = EdwardsAndersonSystem._get_square(self.size)
         rng = np.random.default_rng(self.random_state)
         pattern = rng.choice([-1.0, 1.0], size=shape)

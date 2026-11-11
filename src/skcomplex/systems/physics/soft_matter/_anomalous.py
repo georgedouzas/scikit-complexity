@@ -321,7 +321,7 @@ class ContinuousTimeRandomWalkSystem(BaseSystem):
         self.n_dim = n_dim
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         walkers = GroupElement(
             'walkers',
             element=ContinuousTimeWalkerElement,
@@ -425,7 +425,7 @@ class LevyWalkSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         directions = np.random.default_rng(self.random_state).standard_normal((self.n_walkers, self.n_dim))
         velocities = self.speed * directions / np.linalg.norm(directions, axis=1, keepdims=True)
         walkers = GroupElement(
@@ -519,7 +519,7 @@ class AnnealedTransientTimeMotionSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         coefficients = np.random.default_rng(self.random_state).beta(self.sigma, 1.0, self.n_walkers)
         walkers = GroupElement(
             'walkers',

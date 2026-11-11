@@ -409,7 +409,7 @@ class ExplorationPreferentialReturnSystem(BaseSystem):
         self.least_jump = least_jump
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         individuals = GroupElement('individuals', element=ExplorerElement, size=self.n_individuals)
         displacement = ExplorationInteraction(
             'displacement',
@@ -484,7 +484,7 @@ class ContainerMobilitySystem(BaseSystem):
         self.exponent = exponent
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         individuals = GroupElement('individuals', element=ExplorerElement, size=self.n_individuals)
         displacement = ContainerMobilityInteraction(
             'displacement',

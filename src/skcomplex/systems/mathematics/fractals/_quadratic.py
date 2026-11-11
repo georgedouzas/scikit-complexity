@@ -233,7 +233,7 @@ class MandelbrotSystem(BaseSystem):
         self.radius = radius
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         points = MandelbrotSystem._get_plane(self.shape, self.window)
         return MandelbrotSystem._get_escape_field(self.label, self.shape, np.zeros_like(points), points, self.radius)
 
@@ -292,7 +292,7 @@ class JuliaSystem(BaseSystem):
         self.radius = radius
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         points = MandelbrotSystem._get_plane(self.shape, self.window)
         return MandelbrotSystem._get_escape_field(self.label, self.shape, points, complex(self.c), self.radius)
 
@@ -352,7 +352,7 @@ class InverseJuliaSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         start = rng.uniform(-1.0, 1.0, self.n_points) + 1j * rng.uniform(-1.0, 1.0, self.n_points)
         values = {'z': start, 'omega': complex(self.omega), 'p': self.p}

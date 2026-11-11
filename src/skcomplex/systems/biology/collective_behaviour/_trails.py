@@ -349,7 +349,7 @@ class ActiveWalkersSystem(BaseSystem):
         return walker.intensity * (1 - system.get_field('target.G', cell) / walker.G_max)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         rng = np.random.default_rng(self.random_state)
         corners = self._get_corners(self.size, self.size)
         starts = rng.integers(len(corners), size=self.n_walkers)

@@ -567,7 +567,7 @@ class KramersEscapeSystem(BaseSystem):
         ]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         positions = -1.0 + np.random.default_rng(self.random_state).normal(0.0, 0.1, self.n_particles)
         group = GroupElement(
             'particles',
@@ -640,7 +640,7 @@ class MultiplicativeNoiseSystem(BaseSystem):
         self.convention = convention
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         group = GroupElement(
             'particles',
             element=ModulatedParticleElement,
@@ -807,7 +807,7 @@ class DiffusionInASpeckleFieldSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         centers = rng.uniform(0.0, self.size, (self.n_hotspots, 2))
         intensities = (1 - rng.random(self.n_hotspots)) ** -0.5

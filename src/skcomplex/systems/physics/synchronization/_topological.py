@@ -199,14 +199,14 @@ class TopologicalKuramotoSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         settings['observables'] = tuple(self._get_topological_observables(self._build_system()))
         return settings
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.model not in MODELS:
             error_msg = f'Unknown model {self.model!r}. Use one of {", ".join(MODELS)}.'
             raise ValidationError(error_msg)

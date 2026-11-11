@@ -447,7 +447,7 @@ class CellAdhesionInteraction(RegionSamplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of sites.
@@ -719,7 +719,7 @@ class CellularPottsSystem(BaseSystem):
         The deviation is that of the areas from their target.
         """
         tissue = next(element for element in system.elements if element.label == 'tissue')
-        adhesion = next(part for part in system.interactions if isinstance(part, CellAdhesionInteraction))
+        adhesion = next(item for item in system.interactions if isinstance(item, CellAdhesionInteraction))
         space = tissue.space.prepare()
         sizes = np.ones(space.size_)
         if isinstance(space, NetworkSpace):
@@ -768,7 +768,7 @@ class CellularPottsSystem(BaseSystem):
         self.random_state = random_state
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the built parts.
+        """Return the tuned run settings, with the observables of the built components.
 
         The observables are the homotypic contacts and the deviation of the areas.
 
@@ -812,7 +812,7 @@ class CellularPottsSystem(BaseSystem):
         return graph
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the cellular Potts model of a confluent tissue."""
+        """Return the components of the cellular Potts model of a confluent tissue."""
         rows, columns = (int(size) for size in self.shape)
         height, width = (int(size) for size in self.cell_shape)
         if self.lattice not in LATTICES:

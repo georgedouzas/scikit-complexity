@@ -336,7 +336,7 @@ class BinaryAntDecisionSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of ants that choose between two equal branches to food.
+        """Return the components of ants that choose between two equal branches to food.
 
         The branches lead to a food source.
         """
@@ -428,7 +428,7 @@ class RatsSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a colony of calm and nervous rats."""
+        """Return the components of a colony of calm and nervous rats."""
         groups = [
             RatsElement('calm', x=float(self.n_rats - self.nervous)),
             RatsElement('nervous', x=float(self.nervous)),

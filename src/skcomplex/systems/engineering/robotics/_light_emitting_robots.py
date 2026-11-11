@@ -305,7 +305,7 @@ class LightEmittingRobotsSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         positions = rng.uniform(0.0, self.side, (self.n_robots, 2))
         robots = GroupElement(

@@ -52,7 +52,7 @@ class GeometricBrownianMotionSystem(BaseSystem):
         self.sigma = sigma
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[AssetElement('asset', price=self.price)],

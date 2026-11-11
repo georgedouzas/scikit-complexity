@@ -363,7 +363,7 @@ class ElFarolSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         masks = [
             float(sum(1 << int(index) for index in rng.choice(len(PREDICTORS), self.n_predictors, replace=False)))

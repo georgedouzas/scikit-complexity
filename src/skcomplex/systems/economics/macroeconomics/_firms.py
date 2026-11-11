@@ -226,7 +226,7 @@ class ToyFirmInvestmentSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         profits = self.pbar + 2.0 * np.random.default_rng(self.random_state).random(self.n_firms)
         firms = GroupElement(
             'firms',

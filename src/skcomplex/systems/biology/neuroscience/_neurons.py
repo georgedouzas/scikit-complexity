@@ -226,7 +226,7 @@ class IntegrateAndFireSystem(BaseSystem):
         self.I = I
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the leaky integrate-and-fire neuron."""
+        """Return the components of the leaky integrate-and-fire neuron."""
         neuron = LeakyIntegrateAndFireElement(
             'neuron',
             v=self.v,
@@ -307,7 +307,7 @@ class IzhikevichSystem(BaseSystem):
         self.I = I
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Izhikevich neuron."""
+        """Return the components of the Izhikevich neuron."""
         neuron = IzhikevichElement(
             'neuron',
             v=self.v,

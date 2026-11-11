@@ -240,7 +240,7 @@ class FlightInteraction(MovementInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of boids.
@@ -284,7 +284,7 @@ class FlockingInteraction(ZoneCouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of boids.
@@ -346,7 +346,7 @@ class HeadingInteraction(MapInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of boids.
@@ -536,7 +536,7 @@ class SpatialFlightInteraction(MovementInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of boids.
@@ -634,7 +634,7 @@ class BoidsSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of Reynolds' boids in two dimensions.
+        """Return the components of Reynolds' boids in two dimensions.
 
         The boids are birds that flock by local rules without a leader.
         """
@@ -731,7 +731,7 @@ class Boids3dSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of Boids in three dimensions.
+        """Return the components of Boids in three dimensions.
 
         The boids are birds that flock by local rules in a periodic cube.
         """
@@ -835,7 +835,7 @@ class BirdSwarmSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a swarm of self-propelled birds.
+        """Return the components of a swarm of self-propelled birds.
 
         A pair potential holds the birds together.
         """

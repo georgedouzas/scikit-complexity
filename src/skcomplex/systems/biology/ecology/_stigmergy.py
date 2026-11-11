@@ -774,7 +774,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         return [cells[start:end] for start, end in itertools.pairwise(bounds)]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of plants, prey, and predators on a grid."""
+        """Return the components of plants, prey, and predators on a grid."""
         rng = np.random.default_rng(self.random_state)
         plant_cells, prey_cells, predator_cells = self._get_random_cells(
             rng,

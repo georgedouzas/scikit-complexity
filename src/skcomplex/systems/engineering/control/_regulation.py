@@ -468,7 +468,7 @@ class PidInvertedPendulumSystem(BaseSystem):
         self.l = l
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         cart = CartPendulumElement('cart', theta=self.theta, M=self.M, m=self.m, l=self.l)
         controller = PIDInteraction(
             'pid',
@@ -550,7 +550,7 @@ class LqrOscillatorSystem(BaseSystem):
         self.r = r
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         oscillator = DrivenOscillatorElement('oscillator', x=self.x, omega=self.omega, zeta=self.zeta)
         linear = linearization(
             CompositeSystem(elements=[oscillator]),

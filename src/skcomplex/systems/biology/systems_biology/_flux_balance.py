@@ -72,7 +72,7 @@ class FluxBalanceSystem(BaseSystem):
         self.parsimonious = parsimonious
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of flux balance analysis of a metabolic network."""
+        """Return the components of flux balance analysis of a metabolic network."""
         if self.network not in NETWORKS:
             error_msg = f'Unknown network {self.network!r}. Use one of {", ".join(NETWORKS)}.'
             raise ValidationError(error_msg)

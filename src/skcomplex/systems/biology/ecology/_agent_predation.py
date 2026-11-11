@@ -282,7 +282,7 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         ]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of prey and predators that walk on a grid."""
+        """Return the components of prey and predators that walk on a grid."""
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers(0, [self.width, self.height], size=(self.prey + self.predators, 2))
         locations = [tuple(int(item) for item in cell) for cell in cells]

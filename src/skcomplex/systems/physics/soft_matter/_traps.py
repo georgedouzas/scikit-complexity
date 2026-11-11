@@ -160,7 +160,7 @@ class BiasedTrapWalkSystem(BaseSystem):
         return next_occupied, np.maximum(visited, next_occupied), np.where(stays, clock + 1, 0.0)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = (self.n_walkers, self.n_sites)
         tau = np.ceil(self.tau0 * (1 - np.random.default_rng(self.random_state).random(shape)) ** (-1 / self.alpha))
         start = np.zeros(shape)

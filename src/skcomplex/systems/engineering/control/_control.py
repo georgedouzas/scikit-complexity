@@ -33,7 +33,7 @@ class HeatCapacityElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -88,7 +88,7 @@ class ThermalConductorElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -148,7 +148,7 @@ class ConvectionElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -204,7 +204,7 @@ class HeatingResistorElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -787,7 +787,7 @@ class HeatedRoomSystem(BaseSystem):
         self.surface_conductance = surface_conductance
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         upper, lower = self.setting + self.band / 2, self.setting - self.band / 2
         return CompositeSystem(
             self.label,

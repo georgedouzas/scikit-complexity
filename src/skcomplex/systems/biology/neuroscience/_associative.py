@@ -269,7 +269,7 @@ class AssociativeThoughtProcessSystem(BaseSystem):
         self.start = start
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the dense homogeneous associative network of Gros."""
+        """Return the components of the dense homogeneous associative network of Gros."""
         size = 1 + max(max(clique) for clique in self.cliques)
         links = np.zeros((size, size))
         for clique in self.cliques:

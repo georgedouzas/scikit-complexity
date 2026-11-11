@@ -459,7 +459,7 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
         ).prepare()
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.plant not in PLANTS:
             error_msg = f'The plant {self.plant!r} is unknown. Use one of {", ".join(PLANTS)}.'
             raise ValidationError(error_msg)

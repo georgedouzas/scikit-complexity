@@ -190,7 +190,7 @@ class ExponentialGrowthSystem(BaseSystem):
         self.r = r
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a population that grows at a constant per-capita rate.
+        """Return the components of a population that grows at a constant per-capita rate.
 
         The population grows or declines.
         """
@@ -245,7 +245,7 @@ class LogisticGrowthSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a population that grows logistically.
+        """Return the components of a population that grows logistically.
 
         It grows towards its carrying capacity.
         """
@@ -313,7 +313,7 @@ class VaryingCapacityLogisticSystem(BaseSystem):
         self.period = period
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of logistic growth under a seasonal carrying capacity."""
+        """Return the components of logistic growth under a seasonal carrying capacity."""
         return CompositeSystem(
             self.label,
             elements=[PopulationElement('population', x=self.n)],
@@ -381,7 +381,7 @@ class HutchinsonSystem(BaseSystem):
         self.tau = tau
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of Hutchinson's delayed logistic equation."""
+        """Return the components of Hutchinson's delayed logistic equation."""
         return CompositeSystem(
             self.label,
             elements=[PopulationElement('population', x=self.n)],
@@ -453,7 +453,7 @@ class LotkaVolterraSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of prey and predators whose populations oscillate.
+        """Return the components of prey and predators whose populations oscillate.
 
         Their populations oscillate through predation.
         """
@@ -532,7 +532,7 @@ class FibonacciRabbitsSystem(DynamicalSystem):
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of Fibonacci's rabbits."""
+        """Return the components of Fibonacci's rabbits."""
         return {
             'pairs': lambda s: s.target.pairs + lag(s.target.pairs, 1),
         }
@@ -581,7 +581,7 @@ class RickerSystem(BaseSystem):
         self.r = r
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of Ricker's map of a population in discrete generations."""
+        """Return the components of Ricker's map of a population in discrete generations."""
         return CompositeSystem(
             self.label,
             elements=[PopulationElement('population', x=self.n)],

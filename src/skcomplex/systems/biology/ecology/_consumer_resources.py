@@ -485,7 +485,7 @@ class ConsumerResourceSystem(BaseSystem):
         self.v = v
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of consumer species that compete only through resources.
+        """Return the components of consumer species that compete only through resources.
 
         They compete only through the resources they take up.
         """

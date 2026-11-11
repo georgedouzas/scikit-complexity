@@ -223,7 +223,7 @@ class AggregateAveragingInteraction(MapInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         source:
             The path of the unit whose value the aggregate reads.
@@ -311,7 +311,7 @@ class DiffusiveCouplingInteraction(RateInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         source:
             The path of the element whose state the coupling reads.

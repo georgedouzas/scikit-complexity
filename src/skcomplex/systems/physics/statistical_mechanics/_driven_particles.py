@@ -456,7 +456,7 @@ class ZeroRangeProcessSystem(BaseSystem):
         return np.bincount(sites, minlength=n_sites).astype(float)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         occupations = self._scatter(round(self.density * self.n_sites), self.n_sites, self.random_state)
         sites = GroupElement(
             'sites',
@@ -569,7 +569,7 @@ class DissipativeZeroRangeSystem(BaseSystem):
         return np.concatenate(rings)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         n_nodes = self._get_level_start(self.n_levels + 1, self.branches)
         nodes = GroupElement(
             'nodes',

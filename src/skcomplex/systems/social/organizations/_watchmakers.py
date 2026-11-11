@@ -217,7 +217,7 @@ class WatchmakersSystem(BaseSystem):
         self.interruption = interruption
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the elements and interactions of the system."""
         hora_tasks = (self.parts - 1) // (self.subassembly - 1)
         group = GroupElement(
             'watchmakers',

@@ -613,7 +613,7 @@ class FuzzyOilDropSystem(BaseSystem):
         return FuzzyOilDropSystem._read_value(structure, 'relative-distance', positions) + self._read_clashes(positions)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the fuzzy oil drop of a protein."""
+        """Return the components of the fuzzy oil drop of a protein."""
         import_extra('Bio.PDB', 'fuzzy_oil_drop', 'structures')
         if self.dynamics not in DYNAMICS:
             error_msg = f'Unknown dynamics {self.dynamics!r}. Use one of {", ".join(DYNAMICS)}.'

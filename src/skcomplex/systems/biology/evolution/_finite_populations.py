@@ -583,7 +583,7 @@ class MoranProcessSystem(BaseSystem):
         self.mutation = mutation
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Moran process."""
+        """Return the components of the Moran process."""
         traits = np.zeros(self.size)
         traits[: self.mutants] = 1.0
         return CompositeSystem(
@@ -676,7 +676,7 @@ class TangledNatureSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Tangled Nature system."""
+        """Return the components of the Tangled Nature system."""
         genome = float(np.random.default_rng(self.random_state).integers(2**self.length))
         life_cycle = TangledNatureLifeCycleInteraction(
             'evolution',
@@ -760,7 +760,7 @@ class AdaptiveClimbingSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a finite population."""
+        """Return the components of a finite population."""
         fitness = AdaptiveClimbingInteraction._get_random_fitness(0, self.seed)
         return CompositeSystem(
             self.label,
@@ -842,7 +842,7 @@ class NKLandscapeSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         genomes = np.random.default_rng(self.random_state).integers(0, 2**self.n, size=self.climbers)
         fitness = [ClimberElement._get_nk_fitness(int(genome), self.n, self.k, self.seed) for genome in genomes]
         group = GroupElement(

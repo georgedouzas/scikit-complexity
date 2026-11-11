@@ -347,7 +347,7 @@ class ShepherdingSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a shepherd that drives a scattered flock to a goal.
+        """Return the components of a shepherd that drives a scattered flock to a goal.
 
         The shepherd collects the flock first.
         """

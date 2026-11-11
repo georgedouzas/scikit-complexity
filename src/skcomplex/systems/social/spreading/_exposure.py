@@ -212,7 +212,7 @@ class HypergraphExposureSisSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         hypergraph = xgi.Hypergraph()
         hypergraph.add_nodes_from(range(self.n_nodes))

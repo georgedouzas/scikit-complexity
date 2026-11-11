@@ -138,7 +138,7 @@ class SwiftHohenbergEnergyInteraction(GradientInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field.
@@ -337,7 +337,7 @@ class SwiftHohenbergSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = tuple(self.shape)
         values = {'u': ComplexGinzburgLandauSystem._get_noise(shape, 0.01, self.random_state)}
         space = LatticeSpace(shape, spacing=self.length / shape[0])

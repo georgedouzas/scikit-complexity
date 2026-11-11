@@ -206,7 +206,7 @@ class CommuteInteraction(MovementInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of residents.
@@ -244,7 +244,7 @@ class PlaceVisitsInteraction(MapInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of residents.
@@ -289,7 +289,7 @@ class SentimentInteraction(MapInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of residents.
@@ -539,7 +539,7 @@ class KauaiPopulationSystem(BaseSystem):
         return weights
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         regions = load_island_layers() if self.layers is None else self.layers
         counts = load_island_populations() if self.populations is None else self.populations
         if len(counts) != len(regions['census']):

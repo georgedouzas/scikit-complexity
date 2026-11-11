@@ -411,7 +411,7 @@ class ExponentialLinearGrowthSystem(BaseSystem):
         self.r = r
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour."""
+        """Return the components of a tumour."""
         return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
@@ -466,7 +466,7 @@ class PowerLawGrowthSystem(BaseSystem):
         self.p = p
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour whose proliferating part scales as a power of its size.
+        """Return the components of a tumour whose proliferating part scales as a power of its size.
 
         The growth is `dn/dt = r n^p`.
         """
@@ -529,7 +529,7 @@ class VonBertalanffySystem(BaseSystem):
         self.d = d
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour that grows by the balance of anabolism and catabolism.
+        """Return the components of a tumour that grows by the balance of anabolism and catabolism.
 
         The growth is `dn/dt = r n^p - d n`.
         """
@@ -595,7 +595,7 @@ class GeneralizedLogisticSystem(BaseSystem):
         self.p = p
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour that saturates at a carrying capacity."""
+        """Return the components of a tumour that saturates at a carrying capacity."""
         return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
@@ -650,7 +650,7 @@ class GompertzSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour whose growth slows as the room left shrinks.
+        """Return the components of a tumour whose growth slows as the room left shrinks.
 
         The growth slows as the logarithm of the room left.
         """
@@ -714,7 +714,7 @@ class DynamicCarryingCapacitySystem(BaseSystem):
         self.d = d
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of Gompertz growth under a carrying capacity."""
+        """Return the components of Gompertz growth under a carrying capacity."""
         return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n), VasculatureElement('vessels', K=self.K)],
@@ -787,7 +787,7 @@ class SkipperLogKillSystem(BaseSystem):
         self.width = width
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the log-kill system."""
+        """Return the components of the log-kill system."""
         return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
@@ -878,7 +878,7 @@ class NortonSimonSystem(BaseSystem):
         self.start = start
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Norton-Simon system."""
+        """Return the components of the Norton-Simon system."""
         return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],

@@ -258,7 +258,7 @@ class CccModelSystem(BaseSystem):
         return tuple((int(i), int(j), int(k)) for i, j, k in triples)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         entities = GroupElement(
             'entities',

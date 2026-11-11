@@ -196,7 +196,7 @@ class FreeGroupAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         space = CayleySpace(free_group(self.rank), ball=self.radius)
         return FreeGroupAutomatonSystem._get_majority_system(
             self.label,
@@ -254,7 +254,7 @@ class LamplighterAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         space = CayleySpace(lamplighter(), ball=self.radius)
         cells = FreeGroupAutomatonSystem._get_random_cells(space.prepare().size_, self.density, self.random_state)
         parity = TotalisticSpec({total: total % 2 for total in range(len(LAMPLIGHTER_MEMORY.elements) + 1)})
@@ -321,7 +321,7 @@ class HeisenbergAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         space = CayleySpace(heisenberg(), ball=self.radius)
         return FreeGroupAutomatonSystem._get_majority_system(
             self.label,
@@ -535,7 +535,7 @@ class SubshiftsSystem(BaseSystem):
         return np.where(blocked, center, flipped)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         flips = LocalRuleInteraction(
             'flips',
             target='cells',

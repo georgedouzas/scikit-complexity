@@ -223,7 +223,7 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a square grid of vessels.
+        """Return the components of a square grid of vessels.
 
         It is fed at one corner and drained at every other node.
         """

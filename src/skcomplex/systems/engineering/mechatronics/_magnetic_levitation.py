@@ -129,7 +129,7 @@ class MagneticLevitationSystem(BaseSystem):
         self.m = m
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         start = self.m / (2 * math.cosh(self.b)) if self.v is None else self.v
         push = {'v': lambda s: s.target.v + s.target.m}
         pull = {'v': lambda s: s.target.v - s.target.m}

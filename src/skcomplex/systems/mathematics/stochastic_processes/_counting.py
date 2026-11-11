@@ -155,7 +155,7 @@ class BernoulliProcessSystem(BaseSystem):
         self.p = p
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         trial = MapInteraction(
             'trial',
             target='trials',
@@ -221,7 +221,7 @@ class PoissonProcessSystem(BaseSystem):
         self.rate = rate
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         counters = GroupElement(
             'counters',
             element=PoissonCounterElement,

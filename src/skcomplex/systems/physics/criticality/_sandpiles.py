@@ -78,7 +78,7 @@ class ToppleInteraction(LocalRuleInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the lattice group of sites.
@@ -168,7 +168,7 @@ class FixedEnergySandpileSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         size = int(np.prod(self.shape))
         rng = np.random.default_rng(self.random_state)
         grains = rng.integers(size, size=round(self.density * size))

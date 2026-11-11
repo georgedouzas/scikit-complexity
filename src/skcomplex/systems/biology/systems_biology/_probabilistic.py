@@ -250,7 +250,7 @@ class ProbabilisticBooleanNetworkSystem(BaseSystem):
         self.active = active
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a probabilistic Boolean network."""
+        """Return the components of a probabilistic Boolean network."""
         chosen = SHMULEVICH_NETWORK if self.network is None else self.network
         nodes = [ProbabilisticNodeElement(name, x=int(name in self.active)) for name in chosen]
         functions = [

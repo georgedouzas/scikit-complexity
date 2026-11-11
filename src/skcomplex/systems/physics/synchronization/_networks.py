@@ -85,7 +85,7 @@ class EdgeCouplingInteraction(KuramotoCouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of oscillators on the nodes.
@@ -129,7 +129,7 @@ class LogisticCouplingInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of maps, on the nodes of a lattice or network.
@@ -276,7 +276,7 @@ class KuramotoOnNetworksSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         space = KuramotoOnNetworksSystem._get_network(
             self.network,
             self.n_oscillators,

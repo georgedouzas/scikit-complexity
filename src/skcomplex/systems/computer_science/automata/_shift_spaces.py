@@ -398,7 +398,7 @@ class ContextFreeSubshiftSystem(BaseSystem):
         return LatticeNeighborhood(tuple((offset,) for offset in range(1 - size, size)))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.initial is None:
             generator = np.random.default_rng(self.random_state)
             blocks: list[float] = []
@@ -473,7 +473,7 @@ class MorseSubshiftSystem(BaseSystem):
         self.axiom = axiom
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return CompositeSystem(self.label, elements=[MorseElement('morse', axiom=self.axiom, alphabet='01')])
 
 

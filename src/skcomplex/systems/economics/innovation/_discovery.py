@@ -297,7 +297,7 @@ class InteractingUrnsNetworkSystem(BaseSystem):
         self.m0 = m0
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         graph = self.graph
         graph = nx.karate_club_graph() if graph is None else graph
         nodes = list(graph.nodes)

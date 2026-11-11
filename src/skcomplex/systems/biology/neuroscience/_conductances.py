@@ -244,7 +244,7 @@ class HodgkinHuxleySystem(BaseSystem):
         }
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Hodgkin-Huxley neuron."""
+        """Return the components of the Hodgkin-Huxley neuron."""
         gates = self._get_resting_gates(self.v)
         return CompositeSystem(
             self.label,
@@ -357,7 +357,7 @@ class FitzhughNagumoODESystem(BaseSystem):
         self.I = I
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the FitzHugh-Nagumo neuron."""
+        """Return the components of the FitzHugh-Nagumo neuron."""
         kinetics = FitzHughNagumoInteraction(
             'kinetics',
             target='neuron',

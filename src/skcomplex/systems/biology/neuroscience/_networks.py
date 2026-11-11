@@ -479,7 +479,7 @@ class DelayedLIFNetworkSystem(BaseSystem):
         return list(nx.gnp_random_graph(n_neurons, probability, seed=rng, directed=True).edges)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a random network of leaky integrate-and-fire neurons."""
+        """Return the components of a random network of leaky integrate-and-fire neurons."""
         rng = np.random.default_rng(self.random_state)
         potentials = rng.uniform(10.0, 20.0, self.n_neurons)
         neurons = [
@@ -612,7 +612,7 @@ class LegionSystem(BaseSystem):
         return total / np.maximum(neighbours, 1.0)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a LEGION network."""
+        """Return the components of a LEGION network."""
         marks = np.asarray(self.stimulus, dtype=float)
         rng = np.random.default_rng(self.random_state)
         values = {

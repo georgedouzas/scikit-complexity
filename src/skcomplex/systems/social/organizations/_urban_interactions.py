@@ -178,7 +178,7 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         return 1 - logistic(distance, radius - 2 * ln(spread), 2 * temperature)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.exponent <= MIN_EXPONENT:
             error_msg = f'The degree exponent of the city is {self.exponent!r}. Give an exponent above {MIN_EXPONENT}.'
             raise ValidationError(error_msg)

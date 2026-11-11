@@ -315,7 +315,7 @@ class FisheryCapitalSystem(BaseSystem):
         ) * OilEconomySystem._harvest(holder, yields)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         fishery = FisheryElement(
             'fishery',
             resource=self.resource,

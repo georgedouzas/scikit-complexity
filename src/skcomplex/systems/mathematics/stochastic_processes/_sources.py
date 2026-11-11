@@ -185,7 +185,7 @@ class HiddenMarkovSourceSystem(BaseSystem):
         self.emission = emission
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         chain = TransitionInteraction(
             'chain',
             target='source',

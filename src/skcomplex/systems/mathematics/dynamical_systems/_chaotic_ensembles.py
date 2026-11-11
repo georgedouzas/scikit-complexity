@@ -326,7 +326,7 @@ class SkewTentMapSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         start = SkewTentMapSystem._draw_cloud(self.n_points, self.x, self.spread, self.random_state)
         return CompositeSystem(
             self.label,
@@ -402,7 +402,7 @@ class DoublingMapSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         start = (
             np.floor(
                 self.q * SkewTentMapSystem._draw_cloud(self.n_points, self.x, self.spread, self.random_state) + 1 / 2,

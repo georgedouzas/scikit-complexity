@@ -102,7 +102,7 @@ class WilsonSamplingInteraction(SamplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group on the edges of a cell complex.

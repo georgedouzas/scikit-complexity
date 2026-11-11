@@ -50,7 +50,7 @@ class ElementaryFluxModesSystem(BaseSystem):
         self.knockouts = knockouts
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the toy network of Raman.
+        """Return the components of the toy network of Raman.
 
         Its steady-state cone is what `elementary_modes` enumerates.
         """

@@ -288,7 +288,7 @@ class OriginFixationWalkSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        They include the shares and the fitness of the genome of the built parts.
+        They include the shares and the fitness of the genome of the built components.
 
         Returns:
             settings:
@@ -299,7 +299,7 @@ class OriginFixationWalkSystem(BaseSystem):
         return settings
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a monomorphic population."""
+        """Return the components of a monomorphic population."""
         rng = np.random.default_rng(self.random_state)
         fields = rng.normal(0.0, self.field_scale, self.loci)
         upper = np.triu(rng.normal(0.0, self.coupling / np.sqrt(self.loci), (self.loci, self.loci)), 1)

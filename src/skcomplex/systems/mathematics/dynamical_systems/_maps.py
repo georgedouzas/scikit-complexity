@@ -97,7 +97,7 @@ class LogisticMapSystem(BaseSystem):
         self.r = r
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         logistic = MapInteraction(
             'x_map',
             target='map',
@@ -492,7 +492,7 @@ class BakerMapSystem(DynamicalSystem):
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return {
             'x': lambda s: where(
                 s.target.x < s.target.alpha,
@@ -658,7 +658,7 @@ class IntermittencyMapSystem(DynamicalSystem):
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return {
             'x': lambda s: mod(s.target.x + s.target.x**s.target.z, 1),
         }
@@ -788,7 +788,7 @@ class CatMapSystem(DynamicalSystem):
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return {
             'x': lambda s: mod(2 * s.target.x + s.target.y, 1),
             'y': lambda s: mod(s.target.x + s.target.y, 1),
@@ -869,7 +869,7 @@ class LoziMapSystem(DynamicalSystem):
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return {
             'x': lambda s: 1 + s.target.y - s.target.a * abs_symbolic(s.target.x),
             'y': lambda s: s.target.b * s.target.x,

@@ -488,7 +488,7 @@ class RidesharingSystem(BaseSystem):
         cab.task = PICKING_UP
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers((self.width, self.height), size=(self.n_cabs + 1, 2))
         riders = GroupElement(

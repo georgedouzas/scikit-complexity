@@ -333,7 +333,7 @@ class BrockHommesSystem(BaseSystem):
         self.initial = initial
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         traders = GroupElement('traders', element=HeuristicTraderElement, size=self.n_traders)
         learning = PayoffLearningInteraction(
             'learning',

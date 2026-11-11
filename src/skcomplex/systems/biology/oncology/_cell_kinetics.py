@@ -358,7 +358,7 @@ class CellCycleChemotherapySystem(BaseSystem):
         self.v = v
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of tumour cells in cell-cycle compartments under killing."""
+        """Return the components of tumour cells in cell-cycle compartments under killing."""
         if self.dormant:
             dormant_interactions = [
                 ReactionInteraction(
@@ -505,7 +505,7 @@ class ErythropoiesisMercaptopurineSystem(BaseSystem):
         self.n = n
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the production of red cells under 6-mercaptopurine.
+        """Return the components of the production of red cells under 6-mercaptopurine.
 
         The level of the drug is constant.
         """

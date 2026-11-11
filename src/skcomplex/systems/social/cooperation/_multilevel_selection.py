@@ -47,7 +47,7 @@ class SelectionDriftInteraction(ConservationInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field whose state is carried.
@@ -300,7 +300,7 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         return own_share / (own_share + other_share)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, PAIRWISE_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         z, u = coordinate('z'), integration_variable('z')
@@ -446,7 +446,7 @@ class TwoLevelReplicatorSystem(BaseSystem):
         )
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, ADDITIVE_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         z, u = coordinate('z'), integration_variable('z')
@@ -618,7 +618,7 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         return [0, x * ((1 - x) * punished - y * exploited), y * ((1 - y) * exploited - x * punished)]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, TRIMORPHIC_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         gain = self._get_trimorphic_victory_gain(self.victory, payoffs)

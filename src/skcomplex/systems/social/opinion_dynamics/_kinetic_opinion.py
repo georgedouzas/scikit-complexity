@@ -280,7 +280,7 @@ class KineticOpinionSystem(BaseSystem):
         self.eta = eta
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         initial = 1.0 + 0.1 * opinion_grid(self.levels)
         return CompositeSystem(
             self.label,
@@ -312,7 +312,7 @@ class KineticOpinionSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         system = self._get_pass_parameters()

@@ -297,7 +297,7 @@ class LorenzSystem(BaseSystem):
         self.beta = beta
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -667,7 +667,7 @@ class NoseHooverSystem(BaseSystem):
         self.z = z
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(self.label, elements=[NoseHooverElement('oscillator', x=self.x, y=self.y, z=self.z)])
 
 
@@ -809,7 +809,7 @@ class LangfordSystem(BaseSystem):
         self.f = f
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[

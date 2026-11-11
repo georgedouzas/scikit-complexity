@@ -125,7 +125,7 @@ class HasselmannSystem(BaseSystem):
         return s.target.sigma
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         feedback = RelaxationTimeInteraction(
             'feedback',
             target='ocean',

@@ -225,7 +225,7 @@ class EnergyReturnSystem(BaseSystem):
         self.birth_rate = birth_rate
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         sector = EnergySectorElement(
             'energy',
             reserve=self.reserve,

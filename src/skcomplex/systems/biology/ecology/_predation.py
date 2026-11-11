@@ -356,7 +356,7 @@ class RosenzweigMacarthurSystem(BaseSystem):
         self.rate = rate
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of fast prey and slow predators.
+        """Return the components of fast prey and slow predators.
 
         Their carrying capacity shrinks at a rate.
         """
@@ -443,7 +443,7 @@ class NicholsonBaileySystem(BaseSystem):
         self.c = c
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of hosts and parasitoids in discrete generations."""
+        """Return the components of hosts and parasitoids in discrete generations."""
         return CompositeSystem(
             self.label,
             elements=[PopulationElement('hosts', x=self.hosts), PopulationElement('parasitoids', x=self.parasitoids)],
@@ -534,7 +534,7 @@ class LotkaVolterraWithHarvestingSystem(BaseSystem):
         self.predator_harvest = predator_harvest
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of Lotka-Volterra predation with harvesting.
+        """Return the components of Lotka-Volterra predation with harvesting.
 
         Both species are harvested with a constant effort.
         """
@@ -629,7 +629,7 @@ class StochasticPredatorPreySystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of prey and predators born and killed one at a time."""
+        """Return the components of prey and predators born and killed one at a time."""
         return CompositeSystem(
             self.label,
             elements=[PopulationElement('prey', x=self.prey), PopulationElement('predators', x=self.predators)],

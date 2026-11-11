@@ -63,7 +63,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or field whose states and parameters are the unknowns of the ansatz.
@@ -654,7 +654,7 @@ class FLRWCosmologySystem(BaseSystem):
         return diagonal_matrix(SR, [-density, pressure, pressure, pressure])
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         curvature = 1 - self.omega_matter - self.omega_radiation - self.omega_lambda
         square = self.H0**2 * (
             self.omega_matter / self.a + self.omega_radiation / self.a**2 + self.omega_lambda * self.a**2 + curvature
@@ -745,7 +745,7 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
         self.mass = mass
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.radius <= 2 * self.mass:
             error_msg = (
                 f'The radius {self.radius} is inside the Schwarzschild radius 2 M = {2 * self.mass}. Give a larger '

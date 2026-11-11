@@ -279,7 +279,7 @@ class NKCSSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the NKCS model of Kauffman and Johnsen."""
+        """Return the components of the NKCS model of Kauffman and Johnsen."""
         genomes = np.random.default_rng(self.random_state).integers(0, 2**self.n, size=self.n_species).astype(float)
         species = GroupElement(
             'species',

@@ -281,7 +281,7 @@ class MangroveSuccessionSystem(BaseSystem):
         self.seedlings = seedlings
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the regrowth of a mangrove forest after a clear cut.
+        """Return the components of the regrowth of a mangrove forest after a clear cut.
 
         The forest is of the Sundarbans.
         """

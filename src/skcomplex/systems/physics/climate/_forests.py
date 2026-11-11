@@ -263,7 +263,7 @@ class ForestDiebackSystem(BaseSystem):
         self.gamma = gamma
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         forest = ForestCoverElement(
             'forest',
             v=self.v,
@@ -391,7 +391,7 @@ class SocialForestDiebackSystem(BaseSystem):
         return people.x * (1 - people.x) * (-people.alpha + cost + people.delta * (2 * people.x - 1))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         forest = ForestCoverElement('forest', v=self.v, Tv=self.Tv)
         people = MitigatorsElement(
             'people',

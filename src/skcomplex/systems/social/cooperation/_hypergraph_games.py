@@ -317,7 +317,7 @@ class HypergraphPublicGoodsSystem(BaseSystem):
         return hypergraph
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         hypergraph = self._get_hypergraph(self.n_nodes, self.sizes, self.hyperdegree, rng)
         graph = xgi.to_graph(hypergraph)
@@ -459,7 +459,7 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
         return graph, triangles
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         graph, triangles = self._get_triangle_attachment(self.n_nodes, rng)
         filled = rng.random(len(triangles)) < self.simplices

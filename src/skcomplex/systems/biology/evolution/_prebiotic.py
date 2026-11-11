@@ -279,7 +279,7 @@ class EigenQuasispeciesSystem(BaseSystem):
         return gained / self._get_mean_fitness(master)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the shares of a population around a master sequence.
+        """Return the components of the shares of a population around a master sequence.
 
         The shares are at every number of mutations from the master sequence.
         """
@@ -362,7 +362,7 @@ class HypercyclesSystem(BaseSystem):
         self.topology = topology
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a hypercycle of self-replicating molecules.
+        """Return the components of a hypercycle of self-replicating molecules.
 
         The catalysis of the network keeps a set of them alive.
         """

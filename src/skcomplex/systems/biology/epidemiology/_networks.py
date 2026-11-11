@@ -152,7 +152,7 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         return member.lam * member.k * (1 - member.rho) * namespace.other.rho
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the SIS epidemic on a network with power-law degrees."""
+        """Return the components of the SIS epidemic on a network with power-law degrees."""
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
         classes = GroupElement(

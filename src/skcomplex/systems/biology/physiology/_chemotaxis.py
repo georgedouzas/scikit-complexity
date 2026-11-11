@@ -218,7 +218,7 @@ class HyperbolicChemotaxisSystem(BaseSystem):
         self.width = width
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of cells and a chemical moving with finite speed."""
+        """Return the components of cells and a chemical moving with finite speed."""
         spacing = 0.8 / self.sites
         axis = -0.4 + spacing * (np.arange(self.sites) + 0.5)
         x, y = np.meshgrid(axis, axis, indexing='ij')

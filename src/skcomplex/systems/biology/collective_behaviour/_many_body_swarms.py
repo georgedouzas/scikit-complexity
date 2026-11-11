@@ -351,7 +351,7 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import ManyBodyAlignmentSwarmSystem
         >>> system = ManyBodyAlignmentSwarmSystem(12).prepare().system_
-        >>> system.elements[0].prepare().size_, [part.label for part in system.interactions]
+        >>> system.elements[0].prepare().size_, [component.label for component in system.interactions]
         (12, ['pairs', 'flanking', 'encirclement'])
     """
 

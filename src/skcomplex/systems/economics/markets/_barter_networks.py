@@ -422,7 +422,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
         return graph
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = self._trade_network(self.topology, self.n_agents, self.n_groups, self.shortcuts, rng)
         goods = rng.integers(1, int(self.endowment) + 1, size=(2, self.n_agents)).astype(float)

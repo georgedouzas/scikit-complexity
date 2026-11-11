@@ -38,7 +38,7 @@ class BhatnagarGrossKrookInteraction(RelaxationTimeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field on a phase space.
@@ -250,7 +250,7 @@ class EnskogSystem(BaseSystem):
         self.half_width = half_width
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         gas, frequency = BoltzmannEquationSystem._get_uniform_gas(
             self.positions,
             self.velocities,
@@ -446,7 +446,7 @@ class VlasovEquationSystem(BaseSystem):
         return [coordinate('v'), -gradient(inverse_helmholtz(1 - density), 1)[0]]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.setup not in SETUPS:
             error_msg = f'Unknown set-up {self.setup!r} of the Vlasov equation. Use one of {", ".join(SETUPS)}.'
             raise ValidationError(error_msg)

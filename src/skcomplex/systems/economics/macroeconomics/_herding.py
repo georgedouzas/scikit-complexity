@@ -169,7 +169,7 @@ class NetworkHerdingSystem(BaseSystem):
         return np.divide(herding * links, rows, out=np.zeros_like(links), where=rows > 0)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         weights = (
             self._get_random_links(self.n_agents, self.density, self.herding, rng)

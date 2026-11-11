@@ -37,7 +37,7 @@ class KickInteraction(CrossingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the oscillator whose states the kicks set.
@@ -399,7 +399,7 @@ class DuffingSystem(DynamicalSystem):
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return {
             'x': lambda s: (
                 -s.target.delta * derivative(s.target.x, 1)
@@ -532,7 +532,7 @@ class HenonHeilesSystem(BaseSystem):
         return _get_henon_heiles_energy(s.target)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[HenonHeilesElement('star', x=self.x, y=self.y, px=self.px, py=self.py)],
@@ -606,7 +606,7 @@ class StuartLandauSystem(BaseSystem):
         self.beta = beta
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[

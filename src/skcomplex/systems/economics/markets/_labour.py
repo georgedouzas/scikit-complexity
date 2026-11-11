@@ -393,7 +393,7 @@ class LabourMarketSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         employed = rng.random(self.n_workers) >= self.unemployment
         employers = np.where(employed, rng.integers(self.n_firms, size=self.n_workers), -1).astype(float)

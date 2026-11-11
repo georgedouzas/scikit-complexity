@@ -112,7 +112,7 @@ class DynamicFBASystem(BaseSystem):
         return settings
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a batch culture of the E. coli core system.
+        """Return the components of a batch culture of the E. coli core system.
 
         It needs the extra `metabolism`.
         """

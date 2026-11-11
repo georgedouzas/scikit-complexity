@@ -1163,7 +1163,7 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
         self.a = a
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of prostate cancer under continuous androgen suppression."""
+        """Return the components of prostate cancer under continuous androgen suppression."""
         tumour = AndrogenSuppressionElement(
             'tumour',
             AD=self.AD,
@@ -1347,7 +1347,7 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
         self.h1 = h1
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Ideta system of intermittent androgen suppression."""
+        """Return the components of the Ideta system of intermittent androgen suppression."""
         tumour = IntermittentSuppressionElement(
             'tumour',
             AD=self.AD,
@@ -1556,7 +1556,7 @@ class ProstateCellQuotaSystem(BaseSystem):
         return uptake
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Portz cell-quota system of prostate cancer."""
+        """Return the components of the Portz cell-quota system of prostate cancer."""
         tumour = CellQuotaProstateElement(
             'tumour',
             AD=self.AD,
@@ -1697,7 +1697,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
     lower activation. The normal cells fill a capacity that grows with the age-dependent prostate volume, and the PSA
     the cells produce in the tissue leaks into the serum through the normal epithelium and, faster, through the tumour.
     Cells are in billions, receptors in nM, PSA in ng/mL, and time in hours, the age in years. The book leaves several
-    parts open, filled as follows. The half saturations `psi2`, `phi2`, and `psi4` of the cancer cells are those of the
+    values open, filled as follows. The half saturations `psi2`, `phi2`, and `psi4` of the cancer cells are those of the
     normal cells. The death rate is `psi3_i / (psi4 + UD + UT)`. One activation `UT`, `UD` holds for all cell types, and
     so does `sigma`. The independent cells gain the part `m1` of the divisions of the dependent cells. The negligible
     interaction `c1` is 0. The capacity of the normal cells is the prostate volume over the volume of a billion cells,
@@ -1801,7 +1801,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         return division
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         prostate = AndrogenReceptorProstateElement(
             'prostate',
             N=self.N,
@@ -1964,7 +1964,7 @@ class PiecewiseLinearIASSystem(BaseSystem):
         self.h1 = h1
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         if self.patient not in PATIENT_FACTORS:
             error_msg = f'The patient type must be 1, 2, or 3, got {self.patient!r}.'
             raise ValidationError(error_msg)
@@ -2074,7 +2074,7 @@ class TamoxifenCellCycleSystem(BaseSystem):
         return room
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         tumour = TamoxifenTumourElement('tumour', Ag=self.Ag, As=self.As, Am=self.Am, u=self.u, a1=self.a1, a2=self.a2)
         interactions = [
             ReactionInteraction(

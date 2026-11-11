@@ -422,7 +422,7 @@ class WheelRailContactSystem(BaseSystem):
         self.Ms = Ms
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rail = RailSegmentElement(
             'rail',
             F=self.F,

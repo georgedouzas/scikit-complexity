@@ -178,7 +178,7 @@ class AlievPanfilovSystem(BaseSystem):
         self.mu2 = mu2
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Aliev-Panfilov system of cardiac tissue."""
+        """Return the components of the Aliev-Panfilov system of cardiac tissue."""
         rows, columns = self.shape
         u, v = np.zeros(self.shape), np.zeros(self.shape)
         u[: rows // 2, :] = 1.0

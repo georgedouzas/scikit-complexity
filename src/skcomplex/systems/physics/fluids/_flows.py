@@ -519,7 +519,7 @@ class DecayingTurbulenceSystem(BaseSystem):
         return values / np.abs(values).max()
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = tuple(self.shape)
         vorticity = 5 * self._smooth_noise(shape, self.modes, self.random_state)
         return incompressible_flow(shape, nu=self.nu, vorticity=vorticity, label=self.label)
@@ -648,7 +648,7 @@ class BurgersSystem(BaseSystem):
         self.amplitude = amplitude
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         spacing = 2 * math.pi / self.n
         centers = (np.arange(self.n) + 0.5) * spacing
         values = {'u': self.mean + self.amplitude * np.sin(centers)}

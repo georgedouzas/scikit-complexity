@@ -580,7 +580,7 @@ class TCRGeneTherapySystem(BaseSystem):
         self.g2 = g2
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the predator-prey system of a gene therapy.
+        """Return the components of the predator-prey system of a gene therapy.
 
         The therapy lets the T cells recognise the tumour.
         """
@@ -713,7 +713,7 @@ class SirnaTGFBetaSystem(BaseSystem):
         self.du = du
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Kirschner-Panetta system with TGF-beta."""
+        """Return the components of the Kirschner-Panetta system with TGF-beta."""
         site = SirnaTgfBetaElement(
             'site',
             E=self.E,
@@ -871,7 +871,7 @@ class OncolyticVirusSystem(BaseSystem):
         self.d = d
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of uninfected and infected tumour cells.
+        """Return the components of uninfected and infected tumour cells.
 
         The cells share a carrying capacity.
         """
@@ -976,7 +976,7 @@ class OncolyticVirusDendriticSystem(BaseSystem):
         self.a5 = a5
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour treated with an oncolytic adenovirus."""
+        """Return the components of a tumour treated with an oncolytic adenovirus."""
         site = OncolyticVirusDendriticElement(
             'site',
             AU=self.AU,

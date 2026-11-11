@@ -219,7 +219,7 @@ class LangevinTrafficSystem(BaseSystem):
         self.D1 = D1
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         density = self.n_cars / self.length
         positions = np.arange(self.n_cars) * self.length / self.n_cars
         cars = GroupElement(
@@ -324,7 +324,7 @@ class TrafficDensityEquationSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         rho = self.density * (1 + self.perturbation * rng.standard_normal(self.n))
         values = {

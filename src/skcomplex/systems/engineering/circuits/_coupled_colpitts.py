@@ -236,7 +236,7 @@ class CoupledColpittsSystem(BaseSystem):
         self.epsilon = epsilon
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         starts = ((0.1, 0.0, 0.0), (0.0, 0.1, 0.2))
         oscillators = [
             ColpittsOscillatorElement(

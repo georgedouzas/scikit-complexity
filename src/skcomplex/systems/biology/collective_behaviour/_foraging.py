@@ -335,7 +335,7 @@ class PheromoneForagingSystem(BaseSystem):
         return float(not self._is_homing(ant, system) and not self._searches(ant, system))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of ants that find food and lay a pheromone trail home."""
+        """Return the components of ants that find food and lay a pheromone trail home."""
         nest, food = (5, self.height // 2), (self.width - 6, self.height // 2)
         ants = GroupElement(
             'ants',

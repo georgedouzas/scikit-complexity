@@ -201,7 +201,7 @@ class VonThunenSystem(BaseSystem):
         self.rates = rates
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         centre = (self.size - 1) / 2
         rows, columns = np.indices((self.size, self.size))
         distance = np.hypot(rows - centre, columns - centre)

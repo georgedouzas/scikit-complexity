@@ -105,7 +105,7 @@ class SimplexAgeingInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         nodes:
             The path of the group on the nodes.
@@ -148,7 +148,7 @@ class SizeBiasedMoveInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of walker densities on the nodes.

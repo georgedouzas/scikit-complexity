@@ -327,7 +327,7 @@ class HeadingAlignmentInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of particles.
@@ -589,7 +589,7 @@ class VicsekSystem(BaseSystem):
         self.memory = memory
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.neighbors is not None and self.vision is not None:
             error_msg = 'A Vicsek flock aligns with its nearest neighbours or within a vision cone, not both.'
             raise ParameterError(error_msg)
@@ -776,7 +776,7 @@ class GinelliNematicsSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         alignment = HeadingAlignmentInteraction('alignment', target='flock', nematic=True)
         return VicsekSystem._get_flock(
             self.label,

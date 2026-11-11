@@ -38,7 +38,7 @@ class PolarAlignmentInteraction(PairInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         first:
             The path of the group or particle of the first members.

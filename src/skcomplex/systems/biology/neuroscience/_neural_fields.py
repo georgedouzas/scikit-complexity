@@ -159,7 +159,7 @@ class AmariNeuralFieldSystem(BaseSystem):
         return rate
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Amari neural field.
+        """Return the components of the Amari neural field.
 
         Its lateral inhibition holds a stationary bump of activity.
         """

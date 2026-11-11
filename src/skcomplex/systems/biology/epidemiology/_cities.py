@@ -245,7 +245,7 @@ class EpisimsCitySystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a synthetic city in the spirit of EpiSims."""
+        """Return the components of a synthetic city in the spirit of EpiSims."""
         rng = np.random.default_rng(self.seed)
         homes = rng.integers(0, max(1, round(self.people / self.household)), self.people)
         n_homes = int(homes.max()) + 1

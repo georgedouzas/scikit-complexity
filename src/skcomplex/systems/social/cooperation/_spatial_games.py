@@ -515,7 +515,7 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         players = GroupElement(
             'players',
             element=PrisonerElement,
@@ -595,7 +595,7 @@ class PublicGoodsGameSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         strategies = SpatialPrisonersDilemmaSystem._get_random_strategies(self.shape, self.share, self.random_state)
         players = GroupElement(
             'players',
@@ -707,7 +707,7 @@ class IteratedLatticeDilemmaSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         if self.extremes:
             strategies = self.rounds * rng.integers(2, size=tuple(self.shape)).astype(float)

@@ -174,7 +174,7 @@ class SupplyChainDiffusionSystem(BaseSystem):
         return graph
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         network = self._supply_network(self.buyers, self.factories, rng) if self.graph is None else self.graph
         if not isinstance(network, nx.DiGraph):

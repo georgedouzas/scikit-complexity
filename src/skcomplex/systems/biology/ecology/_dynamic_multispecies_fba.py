@@ -87,7 +87,7 @@ class DynamicMultispeciesFBASystem(BaseSystem):
         self.km = km
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of two E. coli core strains that differ in glucose uptake.
+        """Return the components of two E. coli core strains that differ in glucose uptake.
 
         They differ in maximal glucose uptake on one medium.
         """

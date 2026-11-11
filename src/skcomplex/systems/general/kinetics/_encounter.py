@@ -46,7 +46,7 @@ class EncounterInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         candidate:
             The path of the group of the candidate density.

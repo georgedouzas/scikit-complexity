@@ -251,7 +251,7 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
         return s.source.b / s.source.lifetime
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         allocation = TransferInteraction(
             'allocation',
             source='contest',
@@ -370,7 +370,7 @@ class ShiftingTheBurdenSystem(BaseSystem):
         return s.source.erosion * s.source.intervention * s.source.capability
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         burden = BurdenElement(
             'burden',
             capability=self.capability,
@@ -492,7 +492,7 @@ class EscalationSystem(BaseSystem):
         return where(desired > race.b, desired - race.b, 0) / race.adjustment_time
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         race = ArmsRaceElement(
             'race',
             a=self.a,
@@ -628,7 +628,7 @@ class PolicyResistanceSystem(BaseSystem):
         return PolicyResistanceSystem._pull(s.source, 'c') / s.source.intensification_time
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         standoff = StandoffElement(
             'standoff',
             stock=self.stock,
@@ -759,7 +759,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
         return performance.erosion * (performance.perceived - performance.desired) / performance.goal_time
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         element = PerformanceElement(
             'performance',
             performance=self.performance,

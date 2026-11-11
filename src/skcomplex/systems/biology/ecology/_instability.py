@@ -188,7 +188,7 @@ class IntrinsicInstabilitySystem(BaseSystem):
         return clip(where(bernoulli('mutation', s.p) > 0, s.y + s.nu * s.x, grown), low=0)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of Jensen's coupled populations."""
+        """Return the components of Jensen's coupled populations."""
         populations = UnstablePopulationsElement(
             'populations',
             x=self.x,

@@ -279,7 +279,7 @@ class RlcCircuitSystem(BaseSystem):
         self.omega = omega
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -369,7 +369,7 @@ class ChuaSystem(BaseSystem):
         self.beta = beta
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.nonlinearity not in CHUA_NONLINEARITIES:
             error_msg = f"Unknown nonlinearity {self.nonlinearity!r}. Use 'piecewise-linear' or 'sine'."
             raise ParameterError(error_msg)
@@ -462,7 +462,7 @@ class MixedModeChuaSystem(BaseSystem):
         self.c = c
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         circuit = MixedModeChuaCircuitElement(
             'circuit',
             x=self.x,
@@ -721,7 +721,7 @@ class ImpulsiveCircuitsSystem(BaseSystem):
         self.T = T
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         circuit = KickedCircuitElement('circuit', x=self.x, x_d1=self.current, L=self.L, R=self.R, C=self.C, A=self.A)
         kick = {'x_d1': lambda s: s.target.x_d1 + s.target.A / (s.target.L * s.target.C)}
         impulse = PulseInteraction('impulse', target='circuit', reset=kick, period=self.T)

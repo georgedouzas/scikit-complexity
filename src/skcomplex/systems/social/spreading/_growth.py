@@ -189,7 +189,7 @@ class SimonYuleSystem(BaseSystem):
         self.words_per_step = words_per_step
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         words = GroupElement(
             'words',
             element=GrowingWordElement,

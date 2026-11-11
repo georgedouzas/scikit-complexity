@@ -511,7 +511,7 @@ class EvacuationSystem(BaseSystem):
         self.recovery = recovery
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rooms = building_of(self.branching, self.depth).number_of_nodes()
         initial = np.zeros((rooms + 1, self.speeds))
         initial[:rooms, self.speeds // 2] = 1.0 / rooms
@@ -562,7 +562,7 @@ class EvacuationSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         system = self._get_pass_parameters()

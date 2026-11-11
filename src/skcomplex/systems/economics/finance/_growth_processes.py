@@ -321,7 +321,7 @@ class GibratProcessSystem(BaseSystem):
         self.sigma = sigma
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         firms = GroupElement(
             'firms',
             element=GibratFirmElement,
@@ -392,7 +392,7 @@ class MultiplicativeProcessSystem(BaseSystem):
         self.c = c
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         firms = GroupElement(
             'firms',
             element=GibratFirmElement,
@@ -471,7 +471,7 @@ class KestenProcessSystem(BaseSystem):
         self.b_high = b_high
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         firms = GroupElement(
             'firms',
             element=KestenFirmElement,

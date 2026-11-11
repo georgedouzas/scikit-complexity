@@ -346,7 +346,7 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
         return float(energies[amino.astype(int), row.astype(int)].sum())
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         import_extra('Bio.PDB', 'early_stage_folding_intermediate', 'structures')
         if self.temperature <= 0:
             error_msg = f'The temperature of the system must be positive, but it is {self.temperature}.'

@@ -1160,7 +1160,7 @@ class MetaphoriaSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         shape = self.shape
         if self.mode not in MODES:
             error_msg = f'Unknown mode {self.mode!r}. Use one of {MODES}.'
@@ -1273,7 +1273,7 @@ class MetaphoriaSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         settings['observables'] = MetaphoriaSystem._get_metaphoria_observables(self._get_pass_parameters())

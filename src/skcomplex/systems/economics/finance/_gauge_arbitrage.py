@@ -117,7 +117,7 @@ class TraderCurrentInteraction(NeighborInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group on the sites.
@@ -296,7 +296,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         return np.asarray(field, dtype=float)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         space = CellComplexSpace(LatticeSpace((self.size, self.size))).prepare()
         density = 1.0 + self.bump * np.random.default_rng(self.seed).random(self.size * self.size)
         field = self._get_initial_field(space.incidences_[0], density - density.mean())
@@ -326,7 +326,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         settings['observables'] = GaugeArbitrageMarketSystem._get_market_observables(self._get_pass_parameters())

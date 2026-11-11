@@ -279,7 +279,7 @@ class CommodityCycleSystem(BaseSystem):
         return distributed_delay(_get_capacity_orders(market), order=3, time=market.construction_delay)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         market = CommodityMarketElement(
             'market',
             inventory=self.inventory,

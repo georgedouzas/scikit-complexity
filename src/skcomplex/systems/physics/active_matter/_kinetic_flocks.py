@@ -37,7 +37,7 @@ class AngularAlignmentInteraction(EncounterInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         candidate:
             The path of the field on a phase space with a periodic orientation axis.
@@ -132,7 +132,7 @@ class AngularDiffusionInteraction(EncounterInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         candidate:
             The path of the field on a phase space with a periodic orientation axis.

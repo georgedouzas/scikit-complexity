@@ -459,7 +459,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
         )
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.dynamics not in DYNAMICS or (self.dynamics == 'fictitious-play' and self.n_firms != DUOPOLY):
             error_msg = (
                 f'OligopolyEquilibriaSystem has dynamics={self.dynamics!r} and n_firms={self.n_firms!r}. Use one of '
@@ -489,7 +489,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         settings['observables'] = OligopolyEquilibriaSystem._get_price_observables(self._get_pass_parameters())

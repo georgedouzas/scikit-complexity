@@ -707,7 +707,7 @@ class BeerGameSystem(BaseSystem):
         )
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         throughput = self.demand * self.dispatch_time
         echelons: list[EchelonElement] = []
         for label in ECHELONS:

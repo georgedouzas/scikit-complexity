@@ -149,7 +149,7 @@ class PolymerJoiningInteraction(Interaction):
 
     At every step, undirected exploration joins two polymers drawn at random from the pool, and directed exploration
     joins the polymer made most recently with one drawn at random. The joined polymer, of the summed length, is added
-    to the pool, and its parts stay in it.
+    to the pool, and the two polymers it joins stay in it.
 
     Args:
         label:
@@ -276,7 +276,7 @@ class AssemblyGrowthSystem(BaseSystem):
         self.alpha = alpha
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the numbers of objects at successive assembly indices."""
+        """Return the components of the numbers of objects at successive assembly indices."""
         group = GroupElement(
             'levels',
             element=AssemblyLevelElement,
@@ -329,7 +329,7 @@ class PolymerAssemblyPoolSystem(BaseSystem):
         self.capacity = capacity
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         pool = GroupElement('pool', element=PolymerElement, size=1, variable=True, capacity=self.capacity)
         return CompositeSystem(
             self.label,

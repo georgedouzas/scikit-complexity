@@ -444,7 +444,7 @@ class NkTechnologySystem(BaseSystem):
         return matrix
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the elements and interactions of the system."""
         rng = np.random.default_rng(self.random_state)
         dependencies = self._get_design_structure(self.n_components, self.d, rng)
         components = GroupElement(
@@ -502,7 +502,7 @@ class ArthurPolakSystem(BaseSystem):
         self.max_inputs = max_inputs
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the elements and interactions of the system."""
         primitives = (NAND, FALSE, TRUE)
         technologies = GroupElement(
             'technologies',

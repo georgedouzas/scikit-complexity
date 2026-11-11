@@ -707,7 +707,7 @@ class StemCellDifferentiationSystem(BaseSystem):
         return target.d2, SR(1)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the eight-compartment system of stem-cell lineages.
+        """Return the components of the eight-compartment system of stem-cell lineages.
 
         The lineages are normal and malignant.
         """
@@ -927,7 +927,7 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
         self.tau2 = tau2
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the bone marrow and blood system of leukaemia."""
+        """Return the components of the bone marrow and blood system of leukaemia."""
         patient = BoneMarrowBloodElement('patient', m1=self.m1, m3=self.m3, tau1=self.tau1, tau2=self.tau2)
         interactions = [
             RateInteraction(
@@ -1109,7 +1109,7 @@ class LeukaemiaStemCellsSystem(BaseSystem):
         self.d4 = d4
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of normal and leukaemic stem cells."""
+        """Return the components of normal and leukaemic stem cells."""
         niche = LeukaemiaStemCellsElement(
             'niche',
             NS=self.NS,

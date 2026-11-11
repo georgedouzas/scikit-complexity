@@ -206,7 +206,7 @@ class RepressilatorSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the repressilator of Elowitz and Leibler."""
+        """Return the components of the repressilator of Elowitz and Leibler."""
         mode = 'jump' if self.stochastic else 'rate'
         expression = {'b': self.b, 'beta': self.beta, 'delta': self.delta}
         repression = {'alpha': self.alpha, 'alpha0': self.alpha0, 'K': self.K, 'n': self.n}
@@ -298,7 +298,7 @@ class ToggleSwitchSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the genetic toggle switch of Gardner."""
+        """Return the components of the genetic toggle switch of Gardner."""
         mode = 'jump' if self.stochastic else 'rate'
         expression = {'b': self.b, 'beta': self.beta, 'delta': self.delta}
         repression = {'alpha': self.alpha, 'alpha0': self.alpha0, 'K': self.K, 'n': self.n}
@@ -383,7 +383,7 @@ class NegativeAutoregulationSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a gene that represses its own transcription.
+        """Return the components of a gene that represses its own transcription.
 
         The gene makes its protein in bursts.
         """

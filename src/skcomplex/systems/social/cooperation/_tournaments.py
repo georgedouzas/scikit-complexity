@@ -251,7 +251,7 @@ class PrisonersDilemmaTournamentSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         genomes = np.random.default_rng(self.random_state).integers(0, 2, (self.n_agents, GENES)).astype(float)
         visual = VisualSpec('histograms', {'color_by': 'fitness'})
         agents = GroupElement(

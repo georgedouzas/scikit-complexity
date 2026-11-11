@@ -378,7 +378,7 @@ class DoubleAuctionSystem(BaseSystem):
         seller.profit += trade.quantity * (trade.value - seller.value)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.protocol not in PROTOCOLS:
             error_msg = f'Unknown protocol {self.protocol!r}. Use one of {PROTOCOLS}.'
             raise ValueError(error_msg)

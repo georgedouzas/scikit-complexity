@@ -204,7 +204,7 @@ class WattsMayConcurrencySystem(BaseSystem):
         self.nu = nu
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the SEIR epidemic of Watts and May."""
+        """Return the components of the SEIR epidemic of Watts and May."""
         population = PartnershipEpidemicElement(
             'population',
             S=1 - self.infected,
@@ -298,7 +298,7 @@ class PairFormationSISSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the SIS epidemic on partnerships that are replaced at once.
+        """Return the components of the SIS epidemic on partnerships that are replaced at once.
 
         The partnerships dissolve and are replaced at once.
         """

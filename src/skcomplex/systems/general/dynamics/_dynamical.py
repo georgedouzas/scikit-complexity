@@ -29,8 +29,8 @@ class DynamicalSystem(BaseSystem[CompositeSystem]):
     `_get_time`, the label of the element from `_get_element_label`, and the specs of the variables from
     `_get_variables`.
 
-    Unlike `CompositeSystem`, which takes any parts, it is written with one `DeclaredElement` and one `RateInteraction`
-    or `MapInteraction` per state. Choose it when a model is a set of equations, one per state.
+    Unlike `CompositeSystem`, which takes any components, it is written with one `DeclaredElement` and one
+    `RateInteraction` or `MapInteraction` per state. Choose it when a model is a set of equations, one per state.
 
     It appears in many fields. The Lorenz flow of mathematics, the populations of Wilson and Cowan in neuroscience, the
     Hénon map, and the multiplier and accelerator model of economics are dynamical systems.

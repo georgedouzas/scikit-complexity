@@ -149,7 +149,7 @@ class ReplicatorDynamicsSystem(BaseSystem):
         self.C = C
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the replicator dynamics of a game."""
+        """Return the components of the replicator dynamics of a game."""
         matrix = (
             (((self.V - self.C) / 2, self.V), (0.0, self.V / 2))
             if self.payoff is None
@@ -220,7 +220,7 @@ class RockPaperScissorsSystem(BaseSystem):
         return np.where(beaten, neighbor, strategy)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of rock, paper, and scissors on a lattice."""
+        """Return the components of rock, paper, and scissors on a lattice."""
         strategies = (
             np.random.default_rng(self.random_state).integers(0, STRATEGIES, size=tuple(self.shape)).astype(float)
         )

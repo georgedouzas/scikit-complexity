@@ -43,14 +43,14 @@ with the rule and the inventory of the design, and never by a replacement across
 
 ## 3. Systems of the fields
 
-- [ ] 3.1 Replace `Return the parts of the system` by `Return the components of the system` and `unique among the
+- [x] 3.1 Replace `Return the parts of the system` by `Return the components of the system` and `unique among the
   parts of its system` by `unique among the components of its system`, file by file in every field, and give the
   technology and watchmakers systems the summary `Return the elements and interactions of the system`, verified by the
   conventions and the doctests of `src/skcomplex/systems`
-- [ ] 3.2 Reword the other docstrings of `skcomplex.systems` where part means a component, such as the observables of
+- [x] 3.2 Reword the other docstrings of `skcomplex.systems` where part means a component, such as the observables of
   the built components and the hooks of general systems, and keep the domain words of the watchmakers, the technology
   designs, and the fractions of cells, verified by ruff and the doctests of `src/skcomplex/systems`
-- [ ] 3.3 Run the tests of `tests/systems` in chunks of one field at a time, and verify that all pass
+- [x] 3.3 Run the tests of `tests/systems` in chunks of one field at a time, and verify that all pass
 
 ## 4. Tests
 

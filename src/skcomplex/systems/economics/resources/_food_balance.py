@@ -213,7 +213,7 @@ class RiceFoodBalanceSystem(BaseSystem):
         return where(gap > 0, gap, 0)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         region = RiceBalanceElement(
             'region',
             area_cultivated=self.area_cultivated,

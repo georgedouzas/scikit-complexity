@@ -158,7 +158,7 @@ class ContourUptakeInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of cells.
@@ -261,7 +261,7 @@ class ClosedContourCellExchangeSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         rng = np.random.default_rng(self.random_state)
         cells = GroupElement(
             'cells',
@@ -361,7 +361,7 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         if graph is None:

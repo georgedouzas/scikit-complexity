@@ -425,7 +425,7 @@ class CharbonneauTrafficSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         positions = np.cumsum(rng.uniform(3.0, 17.0, self.n_cars))
         cars = GroupElement(
@@ -498,7 +498,7 @@ class RingRoadDriversSystem(BaseSystem):
         self.speed_limit = speed_limit
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         positions = np.linspace(0.0, self.length, self.n_cars, endpoint=False)
         drivers = GroupElement(
             'drivers',

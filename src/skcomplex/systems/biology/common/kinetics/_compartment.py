@@ -20,7 +20,7 @@ class CompartmentElement(NonnegativeElement):
 
     Args:
         label:
-            The label of the compartment, unique among the parts of its system.
+            The label of the compartment, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.

@@ -109,7 +109,7 @@ class TwoCompartmentPharmacokineticsSystem(BaseSystem):
         self.k21 = k21
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         reactions = [
             ReactionInteraction(
                 'distribution',

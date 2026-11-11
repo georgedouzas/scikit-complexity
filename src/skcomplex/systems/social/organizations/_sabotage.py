@@ -363,7 +363,7 @@ class InsiderSabotageSystem(BaseSystem):
         return float(agent.predisposed + agent.disgruntlement + agent.stress + agent.skill + agent.affect)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         predisposed = (rng.random(self.n_employees) < PREDISPOSED).astype(float)
         affect = rng.choice(AFFECTS, self.n_employees, p=AFFECT_SHARES)

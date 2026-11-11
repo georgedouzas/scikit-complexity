@@ -442,7 +442,7 @@ class LightSeekingRobotsSystem(BaseSystem):
         self.R = R
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         headings = np.linspace(0.0, 2 * np.pi, self.n_robots, endpoint=False)
         robots = GroupElement(
             'robots',
@@ -536,7 +536,7 @@ class SwarmtaxisSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         start = np.array([self.size / 5, self.size / 2])
         points = np.clip(start + rng.normal(0.0, self.spread, (self.n_robots, 2)), 0.0, self.size)

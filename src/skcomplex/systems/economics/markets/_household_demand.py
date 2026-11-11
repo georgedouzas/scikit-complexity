@@ -276,7 +276,7 @@ class HouseholdDemandSystem(BaseSystem):
         return np.asarray(means, dtype=float)[quintiles] + deviation * rng.normal(size=len(budgets))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         budgets = self._get_budgets(self.n_households, self.minimum, rng)
         alphas = np.clip(self._draw_by_quintile(budgets, self.shares, self.share_deviation, rng), 0.0, 1.0)

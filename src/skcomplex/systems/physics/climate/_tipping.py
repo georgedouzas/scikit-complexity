@@ -152,7 +152,7 @@ class TippingCascadeNetworkSystem(BaseSystem):
         return s.member.d * (s.other.x + 1)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         graph = nx.path_graph(4) if self.graph is None else self.graph
         size = graph.number_of_nodes()
         values = {

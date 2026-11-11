@@ -204,7 +204,7 @@ class CardiovascularSystem(BaseSystem):
         self.volume = volume
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         period = 60.0 / self.heart_rate
         systole = 0.375 * period
         ventricle = ChamberElement(

@@ -252,7 +252,7 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         return road.vmax * road.rho * (1 - road.rho / road.rho_max)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         density = np.where(np.arange(self.n) < self.n // 2, self.upstream, self.downstream).astype(float)
         values = {'rho': density, 'vmax': self.vmax, 'rho_max': self.rho_max}
         space = LatticeSpace(self.n, spacing=1 / self.n)
@@ -342,7 +342,7 @@ class PayneSystem(BaseSystem):
         self.tau = tau
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         density = self.density
         rho = PayneSystem._get_density_bump(self.n, density, self.bump)
         values = {
@@ -469,7 +469,7 @@ class KernerKonhauserSystem(BaseSystem):
         return V0 * (1 / (1 + np.exp((rho / rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         density = self.density
         rho = PayneSystem._get_density_bump(self.n, density, self.bump)
         values = {
@@ -660,7 +660,7 @@ class GktTrafficSystem(BaseSystem):
         return np.asarray(squared / (2 * road.V0) * (np.sqrt(1 + 4 * road.V0**2 / squared) - 1))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         centers = (np.arange(self.n) + 0.5) * self.length / self.n
         start, width, wake = 0.3 * self.length, 0.20125, 0.805
         rho = self.density + self.amplitude * (

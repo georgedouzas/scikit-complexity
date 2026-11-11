@@ -177,7 +177,7 @@ class GoodsTradersSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.goods not in (2, 3):
             error_msg = f'The traders barter 2 or 3 goods, but got {self.goods}.'
             raise ValueError(error_msg)

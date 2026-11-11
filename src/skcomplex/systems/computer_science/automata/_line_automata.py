@@ -128,7 +128,7 @@ class NilpotentAutomatonSystem(BaseSystem):
         return np.where(killed, 0.0, center)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.n < MIN_NILPOTENT_CLASS:
             error_msg = f'The nilpotency class of the automaton is at least 2, but it is {self.n}.'
             raise ParameterError(error_msg)
@@ -217,7 +217,7 @@ class InvolutiveAutomatonSystem(BaseSystem):
         return np.where(np.all(window == alpha, axis=0), 0.0, np.where(np.all(window == beta, axis=0), 1.0, center))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.n < MIN_INVOLUTION_RUN:
             error_msg = f'The run length of the involutive automaton is at least 3, but it is {self.n}.'
             raise ParameterError(error_msg)

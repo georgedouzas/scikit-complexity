@@ -371,7 +371,7 @@ class WolfSheepSystem(BaseSystem):
         ]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the wolf and sheep predation system.
+        """Return the components of the wolf and sheep predation system.
 
         It has one grass patch per cell.
         """

@@ -169,7 +169,7 @@ class CascadeClassifierSystem(BaseSystem):
         self.feed = feed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         entry = (self.n_stages + 1) // 2 if self.feed_stage is None else self.feed_stage
         stages = [
             StageElement(f'stage_{index}', feed=self.feed if index == entry else 0.0)

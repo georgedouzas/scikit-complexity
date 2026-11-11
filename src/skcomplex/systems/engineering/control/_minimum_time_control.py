@@ -211,7 +211,7 @@ class MinimumTimeControlSystem(BaseSystem):
         self.interval = interval
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.plant not in PLANTS:
             error_msg = f'Unknown plant {self.plant!r}. Use one of {", ".join(PLANTS)}.'
             raise ParameterError(error_msg)

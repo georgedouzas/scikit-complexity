@@ -222,7 +222,7 @@ class HahnfeldtSystem(BaseSystem):
         self.start = start
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Hahnfeldt system."""
+        """Return the components of the Hahnfeldt system."""
         tumour = AngiogenicTumourElement(
             'tumour',
             A=self.A,

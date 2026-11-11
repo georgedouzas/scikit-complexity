@@ -370,7 +370,7 @@ class AntColonyOptimizationSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of ants that find the shortest path on a Delaunay road network.
+        """Return the components of ants that find the shortest path on a Delaunay road network.
 
         The path joins two points of the network.
         """

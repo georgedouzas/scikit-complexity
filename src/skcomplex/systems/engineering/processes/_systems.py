@@ -492,7 +492,7 @@ class RiceMillingSystem(BaseSystem):
         self.expansion_time = expansion_time
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         mill = RiceMillElement(
             'mill',
             paddy=self.harvest,
@@ -586,7 +586,7 @@ class SolidWasteSystem(BaseSystem):
         self.landfill_capacity = landfill_capacity
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         city = WasteSystemElement(
             'city',
             population=self.population,
@@ -673,7 +673,7 @@ class FoodReliefSystem(BaseSystem):
         self.stock_time = stock_time
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         relief = ReliefPipelineElement(
             'relief',
             affected=self.affected,
@@ -763,7 +763,7 @@ class IrrigationSystem(BaseSystem):
         self.pump_capacity = pump_capacity
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         scheme = IrrigationSchemeElement(
             'scheme',
             river_inflow=self.river_inflow,

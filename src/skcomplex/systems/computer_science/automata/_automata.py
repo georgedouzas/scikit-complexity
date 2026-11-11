@@ -280,7 +280,7 @@ class LangtonsAntSystem(BaseSystem):
         return color, ant
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         ant = np.full(tuple(self.shape), -1.0)
         ant[self.shape[0] // 2, self.shape[1] // 2] = self.heading
         return CompositeSystem(

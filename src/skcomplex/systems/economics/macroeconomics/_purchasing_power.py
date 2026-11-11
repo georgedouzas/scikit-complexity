@@ -273,7 +273,7 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
         self.D = D
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         variables = {
             name: DeclaredVariableSpec(float(value), ParameterSpec())
             for i in range(SECTORS)
@@ -293,7 +293,7 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         settings['observables'] = CategorizedPurchasingPowerSystem._get_observables(self._get_pass_parameters())

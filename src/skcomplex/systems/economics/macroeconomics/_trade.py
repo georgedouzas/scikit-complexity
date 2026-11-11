@@ -301,7 +301,7 @@ class ExchangeRatesSystem(BaseSystem):
         ]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rate = self.imports * self.world_price / (self.exports * self.home_price)
         home = TradingEconomyElement(
             'home',

@@ -74,7 +74,7 @@ class LandauEnergyInteraction(GradientInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field.
@@ -233,7 +233,7 @@ class AllenCahnSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return AllenCahnSystem._get_ordering(
             self.label,
             shape=self.shape,
@@ -317,7 +317,7 @@ class CahnHilliardSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return AllenCahnSystem._get_ordering(
             self.label,
             shape=self.shape,

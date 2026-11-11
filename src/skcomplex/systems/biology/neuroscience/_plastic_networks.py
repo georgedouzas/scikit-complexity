@@ -490,7 +490,7 @@ class STDPNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of theta neurons on a random directed network."""
+        """Return the components of theta neurons on a random directed network."""
         rng = np.random.default_rng(self.seed)
         graph = nx.gnp_random_graph(self.n_neurons, self.p, seed=int(rng.integers(2**31)), directed=True)
         space = NetworkSpace(graph)
@@ -600,7 +600,7 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of phase units coupled all to all through adaptive delays.
+        """Return the components of phase units coupled all to all through adaptive delays.
 
         The conduction delays adapt to the activity of the units.
         """

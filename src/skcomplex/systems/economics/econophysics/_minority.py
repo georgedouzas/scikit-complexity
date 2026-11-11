@@ -341,7 +341,7 @@ class MinorityGameSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.n_agents % 2 == 0:
             error_msg = f'The minority game needs an odd number of agents, got {self.n_agents}.'
             raise ValueError(error_msg)

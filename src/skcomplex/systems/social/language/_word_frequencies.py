@@ -162,7 +162,7 @@ class MandelbrotLeastEffortSystem(BaseSystem):
         self.n_words = n_words
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         costs = np.log(np.arange(1, self.n_words + 1) + 1.0)
         visual = VisualSpec('histograms', {'color_by': 'probability'})
         words = GroupElement('words', element=WordElement, size=self.n_words, values={'cost': costs}, visual=visual)

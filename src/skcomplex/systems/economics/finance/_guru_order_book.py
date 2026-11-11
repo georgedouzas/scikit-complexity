@@ -451,7 +451,7 @@ class GuruOrderBookSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         links = rng.integers(self.n_traders - 1, size=self.n_traders)
         links += links >= np.arange(self.n_traders)

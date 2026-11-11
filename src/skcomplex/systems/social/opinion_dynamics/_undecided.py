@@ -214,7 +214,7 @@ class ThreeStateOpinionSystem(BaseSystem):
         return 1.0 if draw < against + support else 0.0
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = nx.random_regular_graph(self.degree, self.n_agents, seed=int(rng.integers(2**31)))
         voters = GroupElement(
@@ -327,7 +327,7 @@ class UndecidedFlowsSystem(BaseSystem):
         return s.source.eta * s.source.support * s.source.undecided**s.source.drive
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         population = UndecidedFlowsElement(
             'population',
             undecided=self.n_agents,

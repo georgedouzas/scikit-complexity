@@ -1017,7 +1017,7 @@ class ChemoimmunotherapySystem(BaseSystem):
         return kill
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour with NK cells."""
+        """Return the components of a tumour with NK cells."""
         tumour = ChemoimmunotherapyTumourElement(
             'tumour',
             A=self.A,
@@ -1270,7 +1270,7 @@ class ClonalChemoimmunotherapySystem(BaseSystem):
         self.u_vaccine = u_vaccine
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of two competing tumour clones."""
+        """Return the components of two competing tumour clones."""
         tumour = ClonalTumourElement(
             'tumour',
             A1=self.A1,
@@ -1435,7 +1435,7 @@ class ChemovirotherapySystem(BaseSystem):
         return shape
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of tumour cells, an oncolytic virus, and a drug.
+        """Return the components of tumour cells, an oncolytic virus, and a drug.
 
         The tumour cells are uninfected and infected, and the drug is chemotherapeutic.
         """
@@ -1568,7 +1568,7 @@ class GliomaChemovirotherapySystem(BaseSystem):
         return rate
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         brain = GliomaBrainElement('brain', AU=self.AU, V=self.V, u1=self.u1)
         interactions = [
             RateInteraction(
@@ -1914,7 +1914,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
         return effect
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Hahnfeldt tumour."""
+        """Return the components of the Hahnfeldt tumour."""
         tumour = AngiogenesisImmunotherapyTumourElement(
             'tumour',
             A=self.A,

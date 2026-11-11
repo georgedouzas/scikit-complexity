@@ -261,7 +261,7 @@ class CompetitionSystem(BaseSystem):
         self.alpha21 = alpha21
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of two species that compete for the same resources.
+        """Return the components of two species that compete for the same resources.
 
         They coexist or exclude each other.
         """
@@ -361,7 +361,7 @@ class MutualismSystem(BaseSystem):
         self.handling = handling
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of two species that grow logistically and feed each other."""
+        """Return the components of two species that grow logistically and feed each other."""
         return CompositeSystem(
             self.label,
             elements=[PopulationElement('first', x=self.first), PopulationElement('second', x=self.second)],
@@ -433,7 +433,7 @@ class FoodWebsSystem(BaseSystem):
         self.links = links
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a food web."""
+        """Return the components of a food web."""
         populations = self.populations
         growth = self.growth
         mortality = self.mortality

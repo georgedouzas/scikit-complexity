@@ -102,7 +102,7 @@ class WinfreeMeanFieldInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of oscillators.
@@ -200,7 +200,7 @@ class WinfreeSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         oscillators = GroupElement(
             'oscillators',
             element=PhaseOscillatorElement,

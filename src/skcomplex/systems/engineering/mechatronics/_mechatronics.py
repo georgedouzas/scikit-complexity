@@ -31,7 +31,7 @@ class ArmatureElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -72,7 +72,7 @@ class InertiaElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -120,7 +120,7 @@ class QuarterCarElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -209,7 +209,7 @@ class MotorCouplingInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         armature:
             The path of the armature.
@@ -349,7 +349,7 @@ class DcMotorSystem(BaseSystem):
         return dissipation
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -451,7 +451,7 @@ class QuarterCarSystem(BaseSystem):
         self.kt = kt
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         car = QuarterCarElement(
             'car',
             m1=self.m1,

@@ -350,7 +350,7 @@ class MeadowCapacitySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of cows that graze a summer of 25 weeks on a meadow."""
+        """Return the components of cows that graze a summer of 25 weeks on a meadow."""
         rng = np.random.default_rng(self.random_state)
         cells = [(column, row) for column in range(self.width) for row in range(self.height)]
         picks = rng.choice(len(cells), size=self.cows, replace=False)

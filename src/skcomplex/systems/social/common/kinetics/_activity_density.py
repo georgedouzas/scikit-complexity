@@ -21,7 +21,7 @@ class ActivityDensityElement(NonnegativeElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.

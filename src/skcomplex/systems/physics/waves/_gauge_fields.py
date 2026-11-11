@@ -335,7 +335,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
 
         Args:
             system:
-                The parts of the system.
+                The components of the system.
 
         Returns:
             observables:

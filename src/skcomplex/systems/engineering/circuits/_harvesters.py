@@ -160,7 +160,7 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
         self.C = C
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         harvester = PiezoHarvesterElement(
             'harvester',
             m1=self.m1,

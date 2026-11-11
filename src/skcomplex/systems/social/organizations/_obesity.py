@@ -442,7 +442,7 @@ class ObesitySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         homes, works = rng.uniform(0, self.size, (2, self.n_places, 2))
         home, work = (

@@ -195,7 +195,7 @@ class CournotDuopolySystem(BaseSystem):
         self.error = error
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         firms = GroupElement(
             'firms',
             element=DuopolistElement,

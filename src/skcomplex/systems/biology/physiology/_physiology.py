@@ -242,7 +242,7 @@ class MackeyGlassSystem(BaseSystem):
         self.tau = tau
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         return CompositeSystem(
             self.label,
             elements=[MackeyGlassElement('cells', x=self.x, beta=self.beta, gamma=self.gamma, n=self.n, tau=self.tau)],

@@ -325,7 +325,7 @@ class EnzymeAdaptationCircuitSystem(BaseSystem):
         self.at = at
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a circuit of three enzymes A, B, and C of Ma et al."""
+        """Return the components of a circuit of three enzymes A, B, and C of Ma et al."""
         signs = np.asarray(self.links)
         if signs.shape != (3, 3) or not np.isin(signs, (-1, 0, 1)).all():
             error_msg = f'The links must be a 3 by 3 matrix of 1, -1, and 0, not {self.links!r}.'

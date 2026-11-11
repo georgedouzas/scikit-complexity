@@ -319,7 +319,7 @@ class FlashingRatchetSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         times = np.cumsum(rng.exponential(1 / self.rate, int(2 * self.rate * self.duration) + 10))
         particles = GroupElement(

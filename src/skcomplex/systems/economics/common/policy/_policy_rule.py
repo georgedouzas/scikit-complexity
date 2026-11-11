@@ -1,6 +1,6 @@
 """Define policy rules.
 
-They are single actors whose rules read observables and set the parameters of other parts.
+They are single actors whose rules read observables and set the parameters of other components.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>

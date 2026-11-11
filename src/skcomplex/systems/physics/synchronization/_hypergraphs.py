@@ -36,7 +36,7 @@ class SimplexCouplingInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of oscillators on the nodes.
@@ -165,7 +165,7 @@ class HypergraphKuramotoSystem(BaseSystem):
         return xgi.fast_random_hypergraph(n_oscillators, [links, triangles], seed=seed)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         hypergraph = self._get_simplices(self.n_oscillators, self.links, self.triangles, self.seed)
         space = NetworkSpace(nx.complete_graph(self.n_oscillators), hyperedges=hypergraph)
         sizes = [len(members) for members in hypergraph.edges.members(dtype=list)]

@@ -135,7 +135,7 @@ class KimuraDiffusionSystem(BaseSystem):
         self.replicates = replicates
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of replicate populations."""
+        """Return the components of replicate populations."""
         alleles = GroupElement(
             'alleles',
             element=AlleleFrequencyElement,

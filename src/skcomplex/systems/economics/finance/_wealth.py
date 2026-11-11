@@ -141,7 +141,7 @@ class BouchaudMezardWealthSystem(BaseSystem):
         return s.target.sigma * s.target.W
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         returns = RateInteraction('returns', target='agents', state='W', noise=self._returns, convention='stratonovich')
         if self.graph is None:
             values = {'W': self.wealth, 'J': self.J, 'sigma': self.sigma, 'degree': self.n_agents - 1}

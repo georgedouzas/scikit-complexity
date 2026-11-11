@@ -402,7 +402,7 @@ class SznajdSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         graph = self.graph
         graph = nx.cycle_graph(50) if graph is None else graph
         size = nx.number_of_nodes(graph)
@@ -468,7 +468,7 @@ class GalamMajoritySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         citizens = GroupElement(
             'citizens',
             element=CitizenElement,
@@ -540,7 +540,7 @@ class SocialImpactSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
         people = GroupElement(

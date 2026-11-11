@@ -168,7 +168,7 @@ class RegulatoryFBASystem(BaseSystem):
         self.km = km
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a batch culture with Boolean catabolite repression.
+        """Return the components of a batch culture with Boolean catabolite repression.
 
         The culture grows on glucose and acetate.
         """

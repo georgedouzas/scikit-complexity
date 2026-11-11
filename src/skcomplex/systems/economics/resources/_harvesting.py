@@ -267,7 +267,7 @@ class HarvestingSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         land = CompositeSystem('land', elements=[StockElement('stock', n=self.K, r=self.r, K=self.K)])
         village = CompositeSystem(
             'village',

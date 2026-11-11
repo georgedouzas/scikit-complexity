@@ -133,7 +133,7 @@ class NagelSchreckenbergSystem(BaseSystem):
         return following
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         velocity = np.full(self.length, -1.0)
         velocity[rng.choice(self.length, size=round(self.density * self.length), replace=False)] = 0.0

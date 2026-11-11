@@ -280,7 +280,7 @@ class EchoChamberRadicalizationSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         low, power = self.least_activity ** (1 - self.exponent), 1 - self.exponent
         activities = (low + rng.random(self.n_agents) * (1 - low)) ** (1 / power)

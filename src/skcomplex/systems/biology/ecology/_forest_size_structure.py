@@ -45,7 +45,7 @@ class SizeGrowthInteraction(ConservationInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field whose state is carried.
@@ -250,7 +250,7 @@ class ForestSizeStructureSystem(BaseSystem):
         self.resources = resources
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the McKendrick-von Foerster density of trees.
+        """Return the components of the McKendrick-von Foerster density of trees.
 
         The density is over position across a strip and height.
         """

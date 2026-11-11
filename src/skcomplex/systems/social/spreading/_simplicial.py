@@ -81,7 +81,7 @@ class SimplicialInfectionInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of nodes.
@@ -223,7 +223,7 @@ class SimplicialContagionSystem(BaseSystem):
         return graph, [*graph.edges, *(edge for edge in members if len(edge) == TRIANGLE)]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         pairs = math.comb(self.n_nodes - 1, PAIR - 1)
         triples = math.comb(self.n_nodes - 1, TRIANGLE - 1)
         triangles = min(self.mean_triangles / triples, 1.0)

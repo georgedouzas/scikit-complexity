@@ -256,7 +256,7 @@ class DebtrankSystem(BaseSystem):
         return lent / lent.sum()
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.liabilities is None or self.capital is None:
             matrix, capitals = self._get_random_exposures(
                 self.n_banks,

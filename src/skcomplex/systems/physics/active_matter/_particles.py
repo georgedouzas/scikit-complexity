@@ -715,7 +715,7 @@ class RunAndTumbleSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_agents, self.size, self.random_state)
         group = GroupElement(
             'bacteria',
@@ -798,7 +798,7 @@ class DepotBrownianParticlesSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         velocities = np.random.default_rng(self.random_state).normal(0.0, 0.01, (self.n_particles, 2))
         group = GroupElement(
             'walkers',
@@ -888,7 +888,7 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
             'swimmers',

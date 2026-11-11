@@ -249,7 +249,7 @@ class KineticWealthExchangeSystem(BaseSystem):
         self.amount = amount
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.debt is not None and self.saving:
             error_msg = 'Give either a saving propensity or a debt limit, not both.'
             raise ValueError(error_msg)

@@ -352,7 +352,7 @@ class TwoBodyOrbitSystem(BaseSystem):
         return _get_kepler_energy(s.target)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         speed = float(np.sqrt(self.G * self.mass * (1 + self.eccentricity) / self.radius))
         return CompositeSystem(
             self.label,
@@ -548,7 +548,7 @@ class RestrictedThreeBodySystem(BaseSystem):
         return _get_rotating_frame_energy(s.target)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -631,7 +631,7 @@ class SitnikovSystem(BaseSystem):
         return -1 / sqrt(s.target.z**2 + distance**2)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[SitnikovBodyElement('body', z=self.z, z_d1=self.vz, e=self.e)],

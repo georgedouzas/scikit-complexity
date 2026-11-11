@@ -117,7 +117,7 @@ class SignedRegulationInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         nodes:
             The path of the group on the nodes, whose activity the regulators read.
@@ -178,7 +178,7 @@ class PercolationInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         nodes:
             The path of the group on the nodes, whose activity the interaction sets.
@@ -378,7 +378,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         return hyperedges, np.asarray(negatives), np.asarray(positives)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = self._get_waxman_torus(
             round(self.density * self.side**2),

@@ -209,7 +209,7 @@ class HeatLShapeSystem(BaseSystem):
         self.temperature = temperature
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         grid = skfem.MeshTri.init_lshaped().refined(self.refine)
         mesh = MeshSpace(grid.p, grid.t)
         return CompositeSystem(

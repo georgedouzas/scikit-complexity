@@ -35,7 +35,7 @@ class WealthDensityElement(NonnegativeElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The label of the element, unique among the components of its system.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
@@ -420,7 +420,7 @@ class KineticWealthWelfareSystem(BaseSystem):
         self.tax = tax
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         initial = np.exp(-((wealth_classes(self.classes) - 0.5) ** 2) / 0.05)
         components: list[GroupElement] = [
             GroupElement(
@@ -464,7 +464,7 @@ class KineticWealthWelfareSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         system = self._get_pass_parameters()

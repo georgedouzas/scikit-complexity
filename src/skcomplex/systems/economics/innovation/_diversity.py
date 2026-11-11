@@ -116,7 +116,7 @@ class CreativePhaseTransitionSystem(BaseSystem):
         return where(produced < 1 - current, produced, 1 - current)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[AdjacentPossibleElement('system', x=self.x, d=self.r * self.x**2 * (1 - self.x), r=self.r)],

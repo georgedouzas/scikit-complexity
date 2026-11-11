@@ -148,7 +148,7 @@ class NetworkSuperpositionSystem(BaseSystem):
         return (low**power + uniform * (high**power - low**power)) ** (1 / power)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if not 0 < self.low <= self.high <= 1:
             error_msg = (
                 f'The linking probabilities lie in [{self.low}, {self.high}]. Give bounds with 0 < low <= high <= 1.'

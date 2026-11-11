@@ -38,7 +38,7 @@ class DelayedCouplingInteraction(RateInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         source:
             The path of the oscillator whose delayed phase the coupling reads.
@@ -240,7 +240,7 @@ class KuramotoSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         oscillators = GroupElement(
             'oscillators',
@@ -332,7 +332,7 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         alpha, mu, nu = math.pi / 2 - self.beta, (1 + self.A) / 2, (1 - self.A) / 2
         populations = [

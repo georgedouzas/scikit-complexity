@@ -213,7 +213,7 @@ class WillingMajoritySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         opinions = rng.integers(2, size=self.n_agents).astype(float)
         stubborn = rng.random(self.n_agents) < self.zealots

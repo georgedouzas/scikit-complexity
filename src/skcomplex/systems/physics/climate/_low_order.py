@@ -228,7 +228,7 @@ class Lorenz84System(BaseSystem):
         self.G = G
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -284,7 +284,7 @@ class Lorenz96System(BaseSystem):
         self.perturbation = perturbation
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         values = np.full(self.n_sites, float(self.F))
         values[0] += self.perturbation
         return CompositeSystem(

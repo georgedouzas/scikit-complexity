@@ -204,7 +204,7 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
         return namespace.source.mu * namespace.source.i
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the SIR epidemic on an uncorrelated power-law network."""
+        """Return the components of the SIR epidemic on an uncorrelated power-law network."""
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
         classes = GroupElement(

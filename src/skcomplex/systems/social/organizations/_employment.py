@@ -124,7 +124,7 @@ class EmploymentTakeoverSystem(BaseSystem):
         return np.where(employers[0] > 0, following, colours[0])
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         rows, columns = np.indices((self.size, self.size))
         employers = ((rows + columns) % 2 == 0).astype(float)

@@ -629,7 +629,7 @@ class DePillisRadunskayaSystem(BaseSystem):
         self.a2 = a2
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the de Pillis-Radunskaya system of immune."""
+        """Return the components of the de Pillis-Radunskaya system of immune."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -710,7 +710,7 @@ class MultidrugResistanceSystem(BaseSystem):
         self.u3 = u3
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour of eight populations resistant to three drugs.
+        """Return the components of a tumour of eight populations resistant to three drugs.
 
         The populations are resistant to subsets of the drugs.
         """
@@ -1022,7 +1022,7 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
         self.a = a
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the tumour-immune system of resting and hunting cells.
+        """Return the components of the tumour-immune system of resting and hunting cells.
 
         The conversion of the cells is delayed.
         """
@@ -1184,7 +1184,7 @@ class DelayedMetastasisSystem(BaseSystem):
         self.tau = tau
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of normal and tumour cells at a primary and a secondary site."""
+        """Return the components of normal and tumour cells at a primary and a secondary site."""
         patient = MetastasisChemotherapyElement(
             'patient',
             Np=self.Np,

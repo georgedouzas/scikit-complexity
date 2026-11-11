@@ -188,12 +188,12 @@ class SpacetimeSpace(ContinuousSpace):
     def _prepare(self, context: None = None) -> None:
         """Set the coordinates, the metric, its inverse, and the tensors.
 
-        The tensors are derived again only when their source changed. A space is prepared again whenever a part that
-        reads it is prepared, so the derivation, the slow step, runs only for a metric, coordinates, or a curvature flag
-        that differ by value from those of the last derivation.
+        The tensors are derived again only when their source changed. A space is prepared again whenever a component
+        that reads it is prepared, so the derivation, the slow step, runs only for a metric, coordinates, or a curvature
+        flag that differ by value from those of the last derivation.
 
         It first raises an error for an invalid metric or coordinates that clash. It checks its label through the base
-        of the parts, not the box of a continuous space, which it does not have.
+        of the components, not the box of a continuous space, which it does not have.
 
         Args:
             context:
@@ -302,7 +302,7 @@ class GeodesicInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or group whose state is the position.

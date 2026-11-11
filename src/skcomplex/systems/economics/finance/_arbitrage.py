@@ -150,7 +150,7 @@ class ArbitrageTradersSystem(BaseSystem):
         )
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         spacing = self.length / self.n_sites
         positions = (np.arange(self.n_sites) + 0.5) * spacing - self.length / 2
         rho = np.exp(-(positions**2)) / np.sqrt(np.pi)

@@ -199,7 +199,7 @@ class SelfIndexedShiftSystem(BaseSystem):
         return value
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         space = CayleySpace(free_group(2) if self.group is None else self.group, ball=self.radius, fill=NO_ELEMENT)
         size = space.prepare().size_
         if self.initial is None:
@@ -285,7 +285,7 @@ class PowerSeriesAutomatonSystem(BaseSystem):
         return ring.reduce(here - ring.multiply(variable, right))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         ring = PowerSeriesSpec(self.order, self.field)
         if self.initial is None:
             values = np.zeros((self.size, self.order))

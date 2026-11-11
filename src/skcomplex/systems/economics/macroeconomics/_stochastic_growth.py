@@ -203,7 +203,7 @@ class BrockMirmanGrowthSystem(BaseSystem):
         self.regime = regime
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         chain = ((self.persistence, 1 - self.persistence), (1 - self.persistence, self.persistence))
         return CompositeSystem(
             self.label,

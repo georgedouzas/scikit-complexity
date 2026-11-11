@@ -70,7 +70,7 @@ class AdaptiveCouplingInteraction(NeighborInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         nodes:
             The path of the group of phase oscillators on the nodes.

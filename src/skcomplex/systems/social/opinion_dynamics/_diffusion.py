@@ -318,7 +318,7 @@ class InfluentialsSystem(BaseSystem):
         return float(np.argmax(agent.belief))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
         belief = rng.integers(0, 5, (size, N_LEVELS)).astype(float)
@@ -432,7 +432,7 @@ class ThresholdAdoptionSystem(BaseSystem):
         return np.mod(position, size)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         drawn = (
             rng.uniform(1, 100, self.n_agents)

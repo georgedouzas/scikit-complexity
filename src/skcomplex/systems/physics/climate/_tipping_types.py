@@ -571,7 +571,7 @@ class LeadingFollowingCascadeSystem(BaseSystem):
         self.omega = omega
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.follower not in FOLLOWERS:
             error_msg = f'Unknown follower {self.follower!r}. Use one of {", ".join(FOLLOWERS)}.'
             raise ValidationError(error_msg)

@@ -333,7 +333,7 @@ class MajorityRuleSystem(BaseSystem):
         return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         values = self._get_random_cells(self.shape, self.density, self.random_state)
         return CompositeSystem(
             self.label,
@@ -402,7 +402,7 @@ class VoterSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
@@ -471,7 +471,7 @@ class VoterVariantsSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph

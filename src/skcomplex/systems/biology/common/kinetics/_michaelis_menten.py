@@ -32,7 +32,7 @@ class MichaelisMentenInteraction(ReactionInteraction):
 
     Args:
         label:
-            The label of the reaction, unique among the parts of its system.
+            The label of the reaction, unique among the components of its system.
 
         target:
             The path of the element, group, or field whose states the species named by a state alone are.

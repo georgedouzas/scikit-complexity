@@ -165,7 +165,7 @@ class AbsorbingBirthDeathSystem(BaseSystem):
         self.epsilon = epsilon
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         particles = ReactingParticlesElement(
             'particles',
             n=float(round(self.density * self.volume)),

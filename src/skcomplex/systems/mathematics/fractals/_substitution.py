@@ -269,7 +269,7 @@ class KochCurveSystem(BaseSystem):
         self.angle = angle
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         word = KochElement(
             'koch',
             axiom='F',
@@ -317,7 +317,7 @@ class CantorSetSystem(BaseSystem):
         self.ratio = ratio
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for a ratio outside of `(0, 1/2)`, then check the parts.
+        """Raise an error for a ratio outside of `(0, 1/2)`, then check the components.
 
         Args:
             context:
@@ -333,7 +333,7 @@ class CantorSetSystem(BaseSystem):
             raise ValidationError(error_msg)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         interval = PrototileSpec('interval', [(0.0, 0.0), (1.0, 0.0)])
         cantor = CantorElement('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1), ratio=self.ratio)
         return CompositeSystem(self.label, elements=[cantor])
@@ -383,7 +383,7 @@ class SierpinskiSubstitutionSystem(BaseSystem):
         self.filled = filled
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         prototile, _ = SierpinskiElement._get_sierpinski_tiles(self.shape)
         sierpinski = SierpinskiElement('sierpinski', shape=self.shape, prototiles=[prototile], filled=self.filled)
         return CompositeSystem(self.label, elements=[sierpinski])

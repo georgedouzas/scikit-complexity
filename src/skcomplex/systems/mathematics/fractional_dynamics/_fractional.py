@@ -189,7 +189,7 @@ class FractionalRelaxationSystem(DynamicalSystem):
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return {
             'x': lambda s: -s.target.lam * s.target.x,
         }

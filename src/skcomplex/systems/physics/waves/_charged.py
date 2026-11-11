@@ -202,7 +202,7 @@ class ChargedSchrodingerSystem(BaseSystem):
         self.duration = duration
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         spacing = self.length / self.n_sites
         positions = spacing * np.arange(self.n_sites) - self.length / 2
         envelope = np.exp(-(positions**2) / (4 * self.width**2)) / (2 * np.pi * self.width**2) ** 0.25

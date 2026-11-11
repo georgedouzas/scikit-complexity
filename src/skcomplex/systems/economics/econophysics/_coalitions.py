@@ -355,7 +355,7 @@ class ElFarolCoalitionsSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         strategies = rng.uniform(-1.0, 1.0, (self.n_agents, self.n_strategies, self.memory + 1))
         patrons = GroupElement(

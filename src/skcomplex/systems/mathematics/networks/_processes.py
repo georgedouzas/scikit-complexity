@@ -174,7 +174,7 @@ class NetworkRandomWalkSystem(BaseSystem):
             agent.steps += 1
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         graph = NetworkRandomWalkSystem._get_graph_or_default(self.graph)
         walk = MovementInteraction('walk', target='walkers', step='neighbor', cost=self._count_step)
         return CompositeSystem(

@@ -485,7 +485,7 @@ class WilsonCowanSystem(BaseSystem):
         return inhibition
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         cortex = WilsonCowanElement(
             'cortex',
             E=self.E,
@@ -587,7 +587,7 @@ class ThetaNeuronsSystem(BaseSystem):
         return [float(value) for value in center + width * stats.cauchy.ppf(levels)]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a network of theta neurons."""
+        """Return the components of a network of theta neurons."""
         phases = np.random.default_rng(self.random_state).uniform(0.0, 2 * math.pi, self.n_neurons)
         neurons = GroupElement(
             'neurons',
@@ -661,7 +661,7 @@ class WinnersTakeAllSystem(BaseSystem):
         self.x = x
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a winner-take-all network of units.
+        """Return the components of a winner-take-all network of units.
 
         The units have self-limited growth and mutual inhibition.
         """
@@ -747,7 +747,7 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
         return gradient
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a neuron."""
+        """Return the components of a neuron."""
         neuron = PolyhomeostaticNeuronElement(
             'neuron',
             mu=self.mu,

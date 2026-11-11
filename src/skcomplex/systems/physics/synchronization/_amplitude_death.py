@@ -35,7 +35,7 @@ class GlobalCouplingInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group.
@@ -197,7 +197,7 @@ class OscillatorDeathSystem(BaseSystem):
         raise ValidationError(message)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         omegas = self._get_frequency_quantiles(self.n_oscillators, self.width, self.distribution)
         x, y = OscillatorDeathSystem._spread_on_circle(self.n_oscillators, self.random_state)
         oscillators = GroupElement(
@@ -301,7 +301,7 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         taus = 1 + self.heterogeneity * (2 * (np.arange(self.n_systems) + 1 / 2) / self.n_systems - 1)
         x, y = OscillatorDeathSystem._spread_on_circle(self.n_systems, self.random_state)
         radius = math.sqrt(abs(self.beta))

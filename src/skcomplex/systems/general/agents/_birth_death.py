@@ -53,7 +53,7 @@ class BirthDeathInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the variable group whose agents give birth and die.
