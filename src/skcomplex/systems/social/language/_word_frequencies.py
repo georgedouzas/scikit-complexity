@@ -10,7 +10,7 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import exp
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EquationLaw
@@ -107,7 +107,7 @@ class LeastEffortInteraction(Interaction):
         self.target = target
         self.words = words
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equations of the exponent and of the probabilities.
 
         Args:

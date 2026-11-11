@@ -19,7 +19,7 @@ from pymoo.core.problem import Problem
 from pymoo.core.termination import NoTermination
 from sage.all__sagemath_symbolics import Expression, cos, pi
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, SamplingInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
@@ -431,7 +431,7 @@ class RunningBestInteraction(Interaction):
         self.target = target
         self.source = source
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the update of the lowest value.
 
         Args:

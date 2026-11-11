@@ -14,7 +14,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...errors import ValidationError
 from ...specs import RoleSpec, Tags, WienerProcessSpec
 from ...types import ElementKind
-from ..base import BasePart
+from ..base import BaseComponent
 from ..laws import BaseLaw, NoiseLaw, RateLaw
 from ..spaces import BaseSpace
 from ._base import RATE_DOMAINS
@@ -259,7 +259,7 @@ class RateInteraction(Interaction):
         """
         return None if self.noise is None else self._evaluate(self.noise, namespace)
 
-    def _get_noise_law(self, state: object, amplitude: object, namespace: SimpleNamespace) -> BasePart:
+    def _get_noise_law(self, state: object, amplitude: object, namespace: SimpleNamespace) -> BaseComponent:
         """Return the noise law of an amplitude.
 
         It goes by the process, the convention, and the Hurst index.
@@ -273,7 +273,7 @@ class RateInteraction(Interaction):
             process = handle if self.index is None else handle[self.index]
         return NoiseLaw(state, amplitude, convention=self.convention, process=process, conserved=self.conserved)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the rate law of the state and its noise law, both divided by the divisor.
 
         Args:
@@ -286,7 +286,7 @@ class RateInteraction(Interaction):
         """
         state = getattr(self._get_member(namespace, 'target'), self.state)
         rate = self._divide(self._broadcast(self._get_rate(namespace), state), namespace)
-        laws: list[BasePart] = [RateLaw(state, rate)]
+        laws: list[BaseComponent] = [RateLaw(state, rate)]
         noise = self._get_noise(namespace)
         if noise is not None:
             laws.append(self._get_noise_law(state, self._divide(noise, namespace), namespace))

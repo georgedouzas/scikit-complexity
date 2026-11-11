@@ -10,7 +10,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.laws import EquationLaw
 from ....core.components.spaces import StaticTime
@@ -92,7 +92,7 @@ class LinearQuadraticSurvivalElement(Element):
         self.repair_rate = repair_rate
         self.delivery_time = delivery_time
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equations of the Lea-Catcheside factor, the survival, and the dose.
 
         The dose is the biologically effective dose.

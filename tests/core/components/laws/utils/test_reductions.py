@@ -12,7 +12,7 @@ import scipy.sparse
 import scipy.special
 from sage.all__sagemath_symbolics import RR, SR, atan2, cos, exp, pi, sin, sqrt, tanh, var, vector
 
-from skcomplex.core.components.base import BasePart
+from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EquationLaw, RateLaw, UpdateLaw
@@ -1283,7 +1283,7 @@ class LogPartitionInteraction(Interaction):
         self.target = target
         self.energies = energies
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
         """Return the equation of the reduction."""
         return [EquationLaw(s.target.value == log_sum_exp(s.energies.energy, over=s.energies), target=s.target.value)]
 
@@ -1336,7 +1336,7 @@ class BoltzmannInteraction(Interaction):
         self.n_spins = n_spins
         self.temperature = temperature
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
         """Return the equations of the log partition function, the mean energy, and the entropy per spin."""
         weight = -s.levels.energy / s.temperature
         log_partition = log_sum_exp(weight, over=s.levels)

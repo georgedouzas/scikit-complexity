@@ -16,7 +16,7 @@ from sage.symbolic.operators import add_vararg, mul_vararg
 from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import ElementKind
-from ..base import BasePart
+from ..base import BaseComponent
 from ..laws import BaseLaw, RateLaw
 from ..laws.utils import laplacian, partial
 from ..laws.utils._tensors import distribute_operators
@@ -300,7 +300,7 @@ class GradientInteraction(Interaction):
             if isinstance(spec, RoleSpec) and not spec.variadic and not spec.noise
         ]
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the rate of every moving state.
 
         The rate is minus the derivative of the potential over the divisor.
@@ -314,7 +314,7 @@ class GradientInteraction(Interaction):
                 The rate laws of the moving states.
         """
         potential = SR(self._get_potential(namespace))
-        laws: list[BasePart] = []
+        laws: list[BaseComponent] = []
         for member in self._get_members(namespace):
             for name in self._get_names():
                 state = getattr(member, name)

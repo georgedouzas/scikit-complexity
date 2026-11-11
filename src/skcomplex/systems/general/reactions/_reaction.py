@@ -11,7 +11,7 @@ from typing import Annotated, ClassVar, SupportsFloat
 from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.interactions import SCHEDULES, JumpInteraction
 from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import where
@@ -329,14 +329,14 @@ class ReactionInteraction(JumpInteraction):
             return SR(self.propensity(namespace))
         return self._get_product_propensity(namespace, self._get_parameter_symbol('k', namespace))
 
-    def _get_langevin_laws(self, propensity: Expression, changes: dict[Expression, float]) -> list[BasePart]:
+    def _get_langevin_laws(self, propensity: Expression, changes: dict[Expression, float]) -> list[BaseComponent]:
         """Return the drift of the reaction and the noise of its Wiener process.
 
         The noise of its one Wiener process acts on every state it changes.
         """
         amplitude = sqrt(where(propensity > 0, propensity, 0))
-        rates: list[BasePart] = [RateLaw(state, change * propensity) for state, change in changes.items()]
-        noises: list[BasePart] = [
+        rates: list[BaseComponent] = [RateLaw(state, change * propensity) for state, change in changes.items()]
+        noises: list[BaseComponent] = [
             NoiseLaw(state, change * amplitude, process=self.label) for state, change in changes.items()
         ]
         return rates + noises
@@ -503,7 +503,7 @@ class ReactionInteraction(JumpInteraction):
         """
         self._update_agents(system, self.schedule, self._get_agent_step, self._apply_agent_step)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the laws of the reaction in its mode, or the rule of the agent form.
 
         Args:

@@ -50,7 +50,7 @@ deer.n, clone(birth).rate
 ```
 
 The deer start at 40.0, and the clone of the births keeps the rate 0.2. Every element class derives from `Element`,
-and every interaction class from `Interaction`. Both, like laws and systems, derive from `BasePart`, which is a
+and every interaction class from `Interaction`. Both, like laws and systems, derive from `BaseComponent`, which is a
 scikit-learn estimator. A class annotates each variable with `typing.Annotated` and a spec from
 `skcomplex.core.specs`. The class follows these rules.
 

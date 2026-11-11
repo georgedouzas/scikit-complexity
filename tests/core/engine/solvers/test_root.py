@@ -12,7 +12,7 @@ import pytest
 from sage.all__sagemath_symbolics import SR, cos, exp, var
 from scipy.special import logsumexp
 
-from skcomplex.core.components.base import BasePart
+from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EquationLaw, RateLaw
@@ -43,7 +43,7 @@ class SurvivalElement(Element):
         self.beta = beta
         self.D = D
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the survival equation."""
         return [EquationLaw(exp(-s.alpha * s.D - s.beta * s.D**2) == s.S, target=s.S)]
 
@@ -65,7 +65,7 @@ class ValueElement(Element):
 class FixedPointElement(ValueElement):
     """Fixed point of the cosine."""
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the fixed point equation."""
         return [EquationLaw(s.x == cos(s.x), target=s.x)]
 
@@ -73,7 +73,7 @@ class FixedPointElement(ValueElement):
 class NoSolutionElement(ValueElement):
     """Equation without a real solution."""
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equation."""
         return [EquationLaw(s.x**2 == -1, target=s.x)]
 
@@ -81,7 +81,7 @@ class NoSolutionElement(ValueElement):
 class MeanFieldElement(ValueElement):
     """Member whose equation reads the total of its group."""
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the coupled equation of one member."""
         return [EquationLaw(s.x == s.b + total(s.x) / 10, target=s.x)]
 
@@ -89,7 +89,7 @@ class MeanFieldElement(ValueElement):
 class SoftmaxFieldElement(ValueElement):
     """Member whose equation reads the log-sum-exp of its group."""
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the coupled equation of one member."""
         return [EquationLaw(s.x == s.b - log_sum_exp(s.x), target=s.x)]
 
@@ -97,7 +97,7 @@ class SoftmaxFieldElement(ValueElement):
 class TermElement(ValueElement):
     """Element whose equation an interaction adds to."""
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the first term of the equation."""
         return [EquationLaw(s.x, 3.0, target=s.x)]
 
@@ -105,7 +105,7 @@ class TermElement(ValueElement):
 class StrayTargetElement(ValueElement):
     """Element with an equation whose target is not a state."""
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equation."""
         return [EquationLaw(s.x == 1, target=var('z'))]
 
@@ -113,7 +113,7 @@ class StrayTargetElement(ValueElement):
 class NoTargetElement(ValueElement):
     """Element with an equation without a target."""
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equation."""
         return [EquationLaw(s.x == 1)]
 
@@ -121,7 +121,7 @@ class NoTargetElement(ValueElement):
 class RateElement(ValueElement):
     """Element with a rate law."""
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the rate."""
         return [RateLaw(s.x, 1.0)]
 
@@ -139,7 +139,7 @@ class CyclicElement(Element):
         self.x = x
         self.y = y
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the two equations."""
         return [EquationLaw(s.x == s.y / 2 + 1, target=s.x), EquationLaw(s.y == s.x / 2 + 1, target=s.y)]
 
@@ -168,7 +168,7 @@ class CournotElement(Element):
         self.lambda_i = lambda_i
         self.lambda_j = lambda_j
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the conditions of Forrest (2018, equation 21.5)."""
         return [
             EquationLaw(s.alpha - 2 * s.q_i - s.q_j == s.c_i / (1 + s.lambda_i), target=s.q_i),
@@ -190,7 +190,7 @@ class TermInteraction(Interaction):
         self.target = target
         self.gain = gain
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the term of the equation."""
         return [EquationLaw(0, s.gain, target=s.target.x)]
 

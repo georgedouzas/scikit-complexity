@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from typing import ClassVar
 
 from ...specs import ConnectorSpec
-from ..base import BasePart
+from ..base import BaseComponent
 from ._base import BaseElement
 
 
@@ -90,7 +90,7 @@ class Element(BaseElement):
         """
         return None
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the element for a namespace of symbols, none by default.
 
         Args:

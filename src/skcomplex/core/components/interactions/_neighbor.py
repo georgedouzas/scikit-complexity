@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from types import SimpleNamespace
 
-from ..base import BasePart
+from ..base import BaseComponent
 from ._base import BaseInteraction
 
 
@@ -65,7 +65,7 @@ class NeighborInteraction(BaseInteraction):
         super().__init__(label)
         self.layer = layer
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the interaction for one edge, none by default.
 
         Args:

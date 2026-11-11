@@ -13,7 +13,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import ElementKind
-from ..base import BasePart
+from ..base import BaseComponent
 from ..laws import BaseLaw, RateLaw
 from ..spaces import BaseSpace
 from ..types import Target
@@ -194,7 +194,7 @@ class HamiltonianInteraction(Interaction):
             return vector(SR, [hamiltonian.diff(component) for component in state])
         return hamiltonian.diff(state)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the rate of every coordinate, `dH/dp`, and of every momentum, `-dH/dq`.
 
         Args:
@@ -207,7 +207,7 @@ class HamiltonianInteraction(Interaction):
         """
         pairs = self._get_pairs(namespace)
         hamiltonian = SR(self._get_hamiltonian(namespace))
-        laws: list[BasePart] = []
+        laws: list[BaseComponent] = []
         for q, p in pairs:
             laws.append(RateLaw(q, self._get_derivative(hamiltonian, p)))
             laws.append(RateLaw(p, -self._get_derivative(hamiltonian, q)))

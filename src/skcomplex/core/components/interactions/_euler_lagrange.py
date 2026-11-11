@@ -13,7 +13,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import ElementKind
-from ..base import BasePart
+from ..base import BaseComponent
 from ..laws import BaseLaw, EquationLaw
 from ..laws.utils import derivative
 from ..spaces import BaseSpace
@@ -169,7 +169,7 @@ class EulerLagrangeInteraction(Interaction):
             raise ValidationError(error_msg)
         return [SR(force) for force in forces]
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the Euler-Lagrange equation of every coordinate.
 
         Args:
@@ -188,7 +188,7 @@ class EulerLagrangeInteraction(Interaction):
         dissipation = SR(0 if self.dissipation is None else self.dissipation(namespace)).subs(velocities)
         forces = self._get_forces(namespace, len(coordinates))
         time = SR(namespace.t)
-        laws: list[BasePart] = []
+        laws: list[BaseComponent] = []
         for q, slot, force in zip(coordinates, slots, forces, strict=True):
             momentum = lagrangian.diff(slot)
             change = momentum.diff(time) + sum(

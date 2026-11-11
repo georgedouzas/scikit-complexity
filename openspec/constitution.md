@@ -281,7 +281,7 @@ to fill in as the project takes shape.
   declares abstract and every class MUST implement, returning `None`; `_release` is optional and does nothing by
   default. No family MUST add a verb of its own. Domains, problems, terms, and compiled records are values: frozen specs
   deriving from `BaseSpec`, the only base whose hooks have defaults, whose only hook they usually implement is `_check`. A system is
-  defined by elements, interactions, and laws alone, its parts, which derive from `BasePart`. Elements and groups derive from
+  defined by elements, interactions, and laws alone, its components, which derive from `BaseComponent`. Elements and groups derive from
   `BaseElement`, and interactions from `BaseInteraction`, which both take the label and the values of the declared
   states, parameters, and roles in one explicit constructor and list them in `get_params`, through the declaration
   helpers they share. A system holds its elements, interactions, and nested systems, and is none of them. What a

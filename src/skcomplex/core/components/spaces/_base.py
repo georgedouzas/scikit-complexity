@@ -14,10 +14,10 @@ import numpy.typing as npt
 
 from ...errors import SpaceError
 from ...specs import Tags
-from ..base import BasePart
+from ..base import BaseComponent
 
 
-class BaseNeighborhood(BasePart[None, SimpleNamespace]):
+class BaseNeighborhood(BaseComponent[None, SimpleNamespace]):
     """An abstract neighbourhood, the members a law reads around a member of a space.
 
     A neighbourhood stores its arguments in its `__init__`, and `prepare` checks them and derives what the engine reads,
@@ -38,7 +38,7 @@ class BaseNeighborhood(BasePart[None, SimpleNamespace]):
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Run nothing, since a neighbourhood contributes no laws to a system."""
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return no laws, since a neighbourhood only tells laws which members they read."""
         return []
 
@@ -47,7 +47,7 @@ class BaseNeighborhood(BasePart[None, SimpleNamespace]):
         super()._prepare(context)
 
 
-class BaseSpace(BasePart[None, SimpleNamespace]):
+class BaseSpace(BaseComponent[None, SimpleNamespace]):
     """An abstract space, where the members of a group live and who neighbours whom.
 
     A space also gives vector states their dimension. It stores its arguments in its `__init__`, `prepare` checks them
@@ -97,7 +97,7 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Run nothing, since a space contributes no laws to a system."""
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws the space contributes for a namespace of symbols.
 
         There are none by default.
@@ -224,7 +224,7 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
         return row[row < self.size_]
 
 
-class BaseTime(BasePart[None, SimpleNamespace]):
+class BaseTime(BaseComponent[None, SimpleNamespace]):
     """An abstract time, which decides the kind of laws a system may hold.
 
     A time stores its arguments in its `__init__`, `prepare` checks them and sets its schedule, and `_get_frames`
@@ -254,7 +254,7 @@ class BaseTime(BasePart[None, SimpleNamespace]):
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Run nothing, since a time contributes no laws to a system."""
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return no laws.
 
         The time decides which laws a system may hold but contributes none.

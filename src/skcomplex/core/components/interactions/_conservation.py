@@ -12,7 +12,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...errors import ValidationError
 from ...specs import RoleSpec, Tags
 from ...types import ElementKind
-from ..base import BasePart
+from ..base import BaseComponent
 from ..laws import BaseLaw, FluxLaw, RateLaw
 from ..laws.utils import divergence
 from ..spaces import BaseSpace
@@ -165,7 +165,7 @@ class ConservationInteraction(Interaction):
         """
         return None if self.flux is None else self.flux(namespace)
 
-    def _get_transport_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_transport_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the laws of the divergence of the flux.
 
         This is the hook a subclass overrides to lower its own flux.
@@ -179,7 +179,7 @@ class ConservationInteraction(Interaction):
             return [RateLaw(state, -divergence(components))]
         return [FluxLaw(state, flux, limiter=self.limiter, riemann=self.riemann)]
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the laws of the divergence of the flux and the rate of the source.
 
         Args:

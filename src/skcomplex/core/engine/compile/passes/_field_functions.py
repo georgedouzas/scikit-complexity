@@ -137,7 +137,7 @@ class FieldFunctionsPass(BasePass):
             nodes = place.space.boundary_nodes_
             coordinates = place.space.positions_[nodes]
             for variable, entry in block.entries.items():
-                if variable not in declarations_of(place.get_declaring_part(), VariableKind.STATE):
+                if variable not in declarations_of(place.get_declaring_element(), VariableKind.STATE):
                     continue
                 kind, value = place._get_boundary(variable)
                 if kind != 'fixed':

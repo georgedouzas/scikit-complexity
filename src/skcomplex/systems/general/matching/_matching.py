@@ -12,7 +12,7 @@ from typing import Annotated, ClassVar
 
 import numpy as np
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, MatchLaw, RuleLaw
 from ....core.components.laws.utils import transfer
@@ -792,7 +792,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         if isinstance(self.rule, RULES):
             self.rule._check()
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the rule that matches the members in the matching's phase.
 
         Args:

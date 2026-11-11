@@ -6,7 +6,7 @@ from typing import Annotated
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.components.base import BasePart
+from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement, Element
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import BaseLaw
@@ -16,7 +16,7 @@ from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
-class DoublingPart(BasePart):
+class DoublingPart(BaseComponent):
     """Part that doubles its input after counting its preparations."""
 
     def __init__(self, label, factor=2):
@@ -41,7 +41,7 @@ class DoublingPart(BasePart):
         self.doubled_ = self.factor * inputs
 
 
-class SpecifiedPart(BasePart):
+class SpecifiedPart(BaseComponent):
     """Part that declares a state, a parameter, and a role, and one plain argument."""
 
     def __init__(
@@ -144,6 +144,6 @@ def test_element_runs_into_its_laws():
 def test_parts_derive_from_the_part_base():
     """Test that every part of a system is a part, and a part cannot be made without its hooks."""
     parts = (BaseElement, BaseInteraction, BaseLaw, CompositeSystem, BaseSpace, BaseTime, BaseNeighborhood)
-    assert all(issubclass(part, BasePart) for part in parts)
+    assert all(issubclass(part, BaseComponent) for part in parts)
     with pytest.raises(TypeError, match='abstract'):
-        BasePart('part')
+        BaseComponent('part')

@@ -7,15 +7,15 @@ with the rule and the inventory of the design, and never by a replacement across
 
 ## 1. Public names
 
-- [ ] 1.1 Rename `BasePart` to `BaseComponent` in `src/skcomplex/core/components/base.py`, with its docstring, its
+- [x] 1.1 Rename `BasePart` to `BaseComponent` in `src/skcomplex/core/components/base.py`, with its docstring, its
   doctest class `DoublingComponent`, and every import and annotation in `src`, `tests`, `docs`, and the
   constitution lines that name the class, verified by `rg -w BasePart src tests docs README.md CONTRIBUTING.md`
   finding nothing, ruff, mypy on `src`, `tests`, and `docs`, lint-imports, and the tests of `tests/core/components`,
   `tests/core/test_base.py`, `tests/core/engine/solvers/test_root.py`, and `tests/core/components/laws/utils`
-- [ ] 1.2 Rename `GroupElement.get_declaring_part` to `get_declaring_element`, with its return name in the docstring
+- [x] 1.2 Rename `GroupElement.get_declaring_part` to `get_declaring_element`, with its return name in the docstring
   and its callers in `core/engine`, `core/analysis`, and the doctests of the Barkley, Gray-Scott, and Schnakenberg
   systems, verified by `rg -w get_declaring_part src` finding nothing, mypy on `src`, and the doctests of those modules
-- [ ] 1.3 Commit the two renames as one breaking change, `refactor!:`, whose
+- [x] 1.3 Commit the two renames as one breaking change, `refactor!:`, whose
   footer `BREAKING CHANGE:` says that `BasePart` is now `BaseComponent` and `get_declaring_part` is now
   `get_declaring_element` with no alias, verified by the changelog preview of `git-changelog` listing it under breaking
   changes

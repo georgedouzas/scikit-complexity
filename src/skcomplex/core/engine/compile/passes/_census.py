@@ -13,7 +13,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.structure.element import Matrix
 from sage.symbolic.function import SymbolicFunction
 
-from ....components.base import BasePart
+from ....components.base import BaseComponent
 from ....components.elements import FieldElement, GroupElement
 from ....components.interactions import BaseInteraction
 from ....components.laws import (
@@ -817,7 +817,7 @@ class CensusPass(BasePass):
         return None
 
     @staticmethod
-    def _get_returned_laws(spec: KernelSpec, component: BasePart) -> Sequence[BasePart]:
+    def _get_returned_laws(spec: KernelSpec, component: BaseComponent) -> Sequence[BaseComponent]:
         """Return the laws a component returns.
 
         A read of a state a role does not have raises an error of the role.
@@ -855,7 +855,7 @@ class CensusPass(BasePass):
             raise RoleElementError(error_msg) from error
 
     @staticmethod
-    def _get_declared_laws(spec: KernelSpec, component: BasePart) -> list[BaseLaw]:
+    def _get_declared_laws(spec: KernelSpec, component: BaseComponent) -> list[BaseLaw]:
         """Return the laws a component returns for its namespace.
 
         It first checks their classes against its binding.
@@ -937,12 +937,12 @@ class CensusPass(BasePass):
         return [*rules, *checked]
 
     @staticmethod
-    def _get_component_of(node: NodeSpec) -> BasePart:
+    def _get_component_of(node: NodeSpec) -> BaseComponent:
         """Return the part whose laws describe a node, a representative member for a group."""
         if isinstance(node.component, GroupElement):
             group = node.component
             return group.element(group.label).set_params(**(group.values or {})).prepare()
-        if not isinstance(node.component, BasePart):
+        if not isinstance(node.component, BaseComponent):
             error_msg = f'The node {node.path} holds a {type(node.component).__name__}, which declares no laws.'
             raise TypeError(error_msg)
         return node.component

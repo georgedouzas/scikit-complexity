@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 from scipy.special import expit, softmax
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.interactions import SCHEDULES, Interaction
 from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, uniform, where
@@ -329,7 +329,7 @@ class ChoiceInteraction(Interaction):
         """
         self._update_agents(system, self.schedule, self._get_choice, self._set_choice)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the update of the state of every revising member, or the agent-form rule.
 
         The agent form returns its rule instead.

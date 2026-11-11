@@ -13,7 +13,7 @@ from types import SimpleNamespace
 
 from ...errors import RoleElementError, TagError
 from ...specs import Tags
-from ..base import BasePart
+from ..base import BaseComponent
 from ..elements import BaseElement
 from ..interactions import BaseInteraction
 from ..spaces import BaseSpace, BaseTime
@@ -114,7 +114,7 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
         """Return the system itself, whose parts are its arguments."""
         return self
 
-    def _get_parts(self) -> list[BasePart]:
+    def _get_parts(self) -> list[BaseComponent]:
         """Return the parts of the system.
 
         They are its space, its time, its elements, its interactions, and its systems.
@@ -139,7 +139,7 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
             RoleElementError:
                 A role is bound to an element with a state of a domain the role does not accept.
         """
-        BasePart._prepare(self, context)
+        BaseComponent._prepare(self, context)
         space = self.space if self.space is not None else context
         for part in (self.space, self.time):
             if part is not None:
@@ -179,7 +179,7 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
         composite._prepared = True
         return composite
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of every part, each for the namespace of its label.
 
         Args:

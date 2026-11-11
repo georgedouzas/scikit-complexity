@@ -13,7 +13,7 @@ import numpy.typing as npt
 
 from ...errors import SpaceError, ValidationError
 from ...specs import BaseSpec, InteractionRequirementSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, Tags
-from ..base import BasePart
+from ..base import BaseComponent
 from ..laws import BaseLaw
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
@@ -23,7 +23,7 @@ GRID_CANDIDATES = ('neighbors', 'cell', 'local')
 RATE_DOMAINS = ('real', 'integer', 'complex', 'vector')
 
 
-class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
+class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
     """An abstract interaction, the part of a system that changes states of elements.
 
     An interaction binds elements through roles, such as `'source'` and `'target'`, reads their states, and returns laws
@@ -39,7 +39,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     names from `_get_role` and `_get_parameter`. An interaction that draws a random order of agents, breaks ties at
     random, or picks members at random is stochastic whatever its laws.
 
-    Unlike `BasePart`, it changes the states of other parts and holds none of its own. Choose it when a new kind of
+    Unlike `BaseComponent`, it changes the states of other parts and holds none of its own. Choose it when a new kind of
     interaction runs its laws in a way of its own, as `NeighborInteraction` runs them once per edge. Choose
     `Interaction` for laws that run once for the elements the roles bind.
 
@@ -73,7 +73,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = ()
-    laws_: Sequence[BasePart]
+    laws_: Sequence[BaseComponent]
 
     def _get_argument(self, name: str) -> object:
         """Return the value of an argument of the general interaction.

@@ -537,7 +537,7 @@ def _linearised_rates(
     The Laplacians of the rates become eigenvalues. The rates add the laws of the field's element and of the
     interactions bound to the field.
     """
-    part = field.get_declaring_part()
+    part = field.get_declaring_element()
     member = field._get_member() if isinstance(part, BaseElement) else field.element(field.label)
     states = list(declarations_of(part, VariableKind.STATE))
     values = {name: default_of(part, name) for name in states} | dict(field.values or {})

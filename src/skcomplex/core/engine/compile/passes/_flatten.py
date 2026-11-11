@@ -323,7 +323,7 @@ class FlattenPass(BasePass):
             sized, active = FlattenPass._copy_with_capacity(FlattenPass._get_sized(element, space), place)
             if isinstance(sized, GroupElement):
                 path, members = f'{scope}{element.label}', sized.size_
-                node = NodeSpec(path, scope, sized, place, sized.get_declaring_part(), members, active=active)
+                node = NodeSpec(path, scope, sized, place, sized.get_declaring_element(), members, active=active)
             else:
                 declaring = sized if isinstance(sized, DeclaredElement) else type(sized)
                 node = NodeSpec(f'{scope}{element.label}', scope, sized, place, declaring)

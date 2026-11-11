@@ -8,11 +8,11 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 from ...specs import StateSpec, Tags, VisualSpec
-from ..base import BasePart
+from ..base import BaseComponent
 from ..spaces import BaseSpace
 
 
-class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
+class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
     """An abstract element, the part of a system that holds its states.
 
     A state is a value that changes as the system runs, such as the size of a population or the position of a particle.
@@ -21,7 +21,7 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
     `Annotated`, and stores it under the same name, as a scikit-learn estimator does. It returns its laws from
     `_get_laws`, or an empty list when it has none.
 
-    Unlike `BasePart`, it holds states, and the interactions and laws of a system read and change them through it.
+    Unlike `BaseComponent`, it holds states, and the interactions and laws of a system read and change them through it.
     Choose it when a new kind of element stores its members in a way of its own, as `GroupElement` does. Choose
     `Element` for one entity with named states.
 
@@ -66,7 +66,7 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
         {'label': 'rabbits', 'n': 40, 'r': 0.5, 'visual': VisualSpec(kind='line', options={})}
     """
 
-    laws_: Sequence[BasePart]
+    laws_: Sequence[BaseComponent]
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Set `laws_`, the laws of the element for a namespace of symbols.

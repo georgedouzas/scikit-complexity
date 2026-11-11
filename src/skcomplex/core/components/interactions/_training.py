@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ...errors import ValidationError
 from ...specs import DatasetSpec, ObservableSpec, ParameterSpec, RoleSpec
 from ...types import ElementKind
-from ..base import BasePart
+from ..base import BaseComponent
 from ..laws import BaseLaw, GradientStepLaw
 from ..spaces import BaseSpace
 from ._interaction import Interaction
@@ -192,7 +192,7 @@ class TrainingInteraction(Interaction):
         self._check_observables()
         self.data._check()
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the gradient-step law of the training."""
         del namespace
         law = GradientStepLaw(

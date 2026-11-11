@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import SR
 from ...errors import ValidationError
 from ...specs import BaseSpec, RoleSpec, Tags
 from ...types import ElementKind
-from ..base import BasePart
+from ..base import BaseComponent
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import uniform
 from ..spaces import BaseSpace
@@ -248,7 +248,7 @@ class MapInteraction(Interaction):
             return SR(0)
         return uniform(re.sub(r'\W', '_', f'order_{self.label}'))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the update of the state to its next value, or the rule of the agent form.
 
         Args:

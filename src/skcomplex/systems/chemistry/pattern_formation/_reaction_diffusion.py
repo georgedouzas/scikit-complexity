@@ -111,7 +111,7 @@ class GrayScottSystem(ReactionDiffusionSystem):
 
     Examples:
         >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
-        >>> GrayScottSystem((32, 32), F=0.04).prepare().system_.elements[0].get_declaring_part().get_value('F')
+        >>> GrayScottSystem((32, 32), F=0.04).prepare().system_.elements[0].get_declaring_element().get_value('F')
         0.04
     """
 
@@ -352,7 +352,7 @@ class SchnakenbergSystem(ReactionDiffusionSystem):
 
     Examples:
         >>> from skcomplex.systems.chemistry.pattern_formation import SchnakenbergSystem
-        >>> SchnakenbergSystem((8, 8)).prepare().system_.elements[0].get_declaring_part().get_value('Dv')
+        >>> SchnakenbergSystem((8, 8)).prepare().system_.elements[0].get_declaring_element().get_value('Dv')
         40.0
     """
 

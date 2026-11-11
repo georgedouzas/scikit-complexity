@@ -7,7 +7,7 @@ from sklearn.base import clone
 
 from skcomplex.core import errors
 from skcomplex.core.base import BaseConfig
-from skcomplex.core.components.base import BasePart
+from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import CompositeSystem
@@ -59,10 +59,10 @@ def test_prepare_validates_a_setting_changed_after_preparing():
 
 def test_no_public_check_remains():
     """Test that the bases have no public `check`, no `_validated`, and the error for an unchecked object is gone."""
-    assert not any(hasattr(base, 'check') for base in (BaseConfig, BaseSpec, BasePart))
-    assert not any(hasattr(base, '_validated') for base in (BaseConfig, BaseSpec, BasePart))
+    assert not any(hasattr(base, 'check') for base in (BaseConfig, BaseSpec, BaseComponent))
+    assert not any(hasattr(base, '_validated') for base in (BaseConfig, BaseSpec, BaseComponent))
     assert not hasattr(BaseConfig, '_check')
-    assert not hasattr(BasePart, '_check')
+    assert not hasattr(BaseComponent, '_check')
     assert not hasattr(BaseSpec, 'prepare')
     assert not hasattr(BaseSpec, 'run')
     assert not hasattr(errors, 'NotCheckedError')

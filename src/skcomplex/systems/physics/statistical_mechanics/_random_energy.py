@@ -11,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EquationLaw
@@ -125,7 +125,7 @@ class BoltzmannSumInteraction(Interaction):
         self.temperature = temperature
         self.n_spins = n_spins
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the log partition function, mean energy, and entropy per spin equations.
 
         Args:

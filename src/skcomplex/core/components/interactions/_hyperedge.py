@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 from ...errors import ValidationError
-from ..base import BasePart
+from ..base import BaseComponent
 from ..spaces import BaseSpace
 from ._base import BaseInteraction
 
@@ -72,7 +72,7 @@ class HyperedgeInteraction(BaseInteraction):
         super().__init__(label)
         self.size = size
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the interaction for one hyperedge, none by default.
 
         Args:

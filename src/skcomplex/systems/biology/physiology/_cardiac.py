@@ -233,7 +233,7 @@ class BarkleySystem(ReactionDiffusionSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.physiology import BarkleySystem
-        >>> BarkleySystem((20, 20), gamma=3.0).prepare().system_.elements[0].get_declaring_part().get_value('gamma')
+        >>> BarkleySystem((20, 20), gamma=3.0).prepare().system_.elements[0].get_declaring_element().get_value('gamma')
         3.0
     """
 

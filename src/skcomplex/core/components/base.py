@@ -1,4 +1,4 @@
-"""Define the abstract base of every part of a system."""
+"""Define the abstract base of every component of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,38 +18,39 @@ from ..errors import ValidationError
 from ..specs import STOCHASTIC_LAWS, DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec, Tags
 
 
-class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
-    """An abstract part of a system, with a label, laws, and capability tags.
+class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
+    """An abstract component of a system, with a label, laws, and capability tags.
 
-    The parts of a system are its elements, interactions, laws, spaces, times, and the system itself. Every part has a
-    label, returns its laws from `_get_laws`, and implements two hooks that the main public methods `prepare` and `run`
-    call:
+    The components of a system are its elements, interactions, laws, spaces, times, and the system itself. Every
+    component has a label, returns its laws from `_get_laws`, and implements two hooks that the main public methods
+    `prepare` and `run` call:
 
-    - `_prepare(context)` checks the arguments, prepares the part against its context, and sets its attributes that end
-      in `_`. It starts with `super()._prepare(context)`, so this base checks the label and the declared specs first.
-    - `_run(inputs)` sets what the part contributes: `laws_`, the laws of an element, an interaction, or a system, or
-      `value_`, the value of a law.
+    - `_prepare(context)` checks the arguments, prepares the component against its context, and sets its attributes that
+      end in `_`. It starts with `super()._prepare(context)`, so this base checks the label and the declared specs
+      first.
+    - `_run(inputs)` sets what the component contributes: `laws_`, the laws of an element, an interaction, or a system,
+      or `value_`, the value of a law.
 
     The context of `prepare` depends on the family: a law is prepared against the path of its owner, an element against
-    the space of its system. A part declares which arguments of its constructor are states, parameters, or roles by
+    the space of its system. A component declares which arguments of its constructor are states, parameters, or roles by
     annotating them with `StateSpec`, `ParameterSpec`, or `RoleSpec` inside `Annotated`.
 
-    A part returns its capability tags from `get_tags`, which reads only its declarations and arguments, so the tags are
-    known before `prepare`. Each family derives them in `_get_tags`. A part whose run draws random numbers that its laws
-    do not show, such as an agent rule that reads `system.rng`, sets the class attribute `draws`, or returns it from
-    `_draws` when its arguments decide it. A part whose draws are all uniform, normal, or relaxed Bernoulli or
-    categorical draws sets `reparameterized`, so its runs on JAX are differentiable.
+    A component returns its capability tags from `get_tags`, which reads only its declarations and arguments, so the
+    tags are known before `prepare`. Each family derives them in `_get_tags`. A component whose run draws random numbers
+    that its laws do not show, such as an agent rule that reads `system.rng`, sets the class attribute `draws`, or
+    returns it from `_draws` when its arguments decide it. A component whose draws are all uniform, normal, or relaxed
+    Bernoulli or categorical draws sets `reparameterized`, so its runs on JAX are differentiable.
 
     Unlike `BaseConfig`, which only stores and checks arguments, it adds laws, a context for `prepare`, and tags. Choose
-    it when a new family of parts is needed, and choose the base of an existing family, such as `BaseElement`,
+    it when a new family of components is needed, and choose the base of an existing family, such as `BaseElement`,
     otherwise.
 
     It appears in every field through its families, such as the populations, infections, and contact networks of an
     epidemic, or the accounts, payments, and markets of an economy.
 
     Examples:
-        >>> from skcomplex.core.components.base import BasePart
-        >>> class DoublingPart(BasePart):
+        >>> from skcomplex.core.components.base import BaseComponent
+        >>> class DoublingComponent(BaseComponent):
         ...     def __init__(self, label, factor=2):
         ...         super().__init__(label)
         ...         self.factor = factor
@@ -63,22 +64,22 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         ...
         ...     def _run(self, value):
         ...         self.doubled_ = self.factor_ * value
-        >>> DoublingPart('doubling').prepare().run(3).doubled_
+        >>> DoublingComponent('doubling').prepare().run(3).doubled_
         6.0
     """
 
     draws: ClassVar[bool] = False
-    """Whether the run of the part draws random numbers that the kinds of its laws do not show."""
+    """Whether the run of the component draws random numbers that the kinds of its laws do not show."""
 
     reparameterized: ClassVar[bool] = False
-    """Whether every draw of the part is a uniform, normal, or relaxed draw of its laws, which JAX differentiates."""
+    """Whether every draw of the component is a uniform, normal, or relaxed draw that JAX differentiates."""
 
     def __init__(self, label: str) -> None:
-        """Store the label of the part.
+        """Store the label of the component.
 
         Args:
             label:
-                The label of the part, unique among the parts of its system.
+                The label of the component, unique among the components of its system.
         """
         self.label = label
 
@@ -100,7 +101,7 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
 
         The specs come in the order of the constructor. The annotations of the constructors of the bases count too, and
         a subclass wins, so a subclass that takes an argument of its base again without annotating it keeps the spec of
-        the base. The specs of a class are read once, since compiling a system reads them for every part.
+        the base. The specs of a class are read once, since compiling a system reads them for every component.
 
         Returns:
             specs:
@@ -168,24 +169,24 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         return Tags(time=common, laws=laws, randomness=randomness)
 
     def _get_tags(self) -> Tags:
-        """Return the tags the declarations of the part show, none by default."""
+        """Return the tags the declarations of the component show, none by default."""
         return Tags(laws=None, randomness=None)
 
     def _get_draws(self) -> bool:
-        """Return whether the part draws random numbers its law kinds do not show.
+        """Return whether the component draws random numbers its law kinds do not show.
 
         The default is `draws`.
         """
         return self.draws
 
     def get_tags(self) -> Tags:
-        """Return the capability tags of the part.
+        """Return the capability tags of the component.
 
         They come from its declarations and its arguments alone.
 
         Returns:
             tags:
-                The tags of the part, known before it is prepared.
+                The tags of the component, known before it is prepared.
 
         Examples:
             >>> from typing import Annotated
@@ -199,7 +200,7 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
             >>> sorted(CellElement('cell').get_tags().domains)
             ['boolean']
 
-            A part whose rules draw random numbers declares it, so its randomness is stochastic:
+            A component whose rules draw random numbers declares it, so its randomness is stochastic:
 
             >>> class WalkerElement(CellElement):
             ...     draws = True
@@ -211,25 +212,25 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         return replace(tags, reparameterized=True) if self.reparameterized else tags
 
     def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the variables the part declares from data, by name, none by default."""
+        """Return the variables the component declares from data, by name, none by default."""
         return {}
 
     def _get_part_specs(self) -> dict[str, Spec]:
-        """Return the specs of this part.
+        """Return the specs of this component.
 
         They are those of its class, then those it declares from data.
         """
         return {**self._get_specs(), **{name: item.spec for name, item in self._get_declared().items()}}
 
     def _prepare(self, context: ContextT | None) -> None:
-        """Check the label and the declared specs of the part.
+        """Check the label and the declared specs of the component.
 
         A child starts its own `_prepare` with `super()._prepare(context)`, so these checks come first, and then
         checks its own arguments before it sets any attribute that ends in `_`.
 
         Args:
             context:
-                The context of the part, which this base does not read.
+                The context of the component, which this base does not read.
 
         Raises:
             ValidationError:
@@ -240,14 +241,14 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
             spec._check()
 
     @abstractmethod
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the laws the part contributes for a namespace of symbols.
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
+        """Return the laws the component contributes for a namespace of symbols.
 
         A law contributes itself.
         """
 
-    def _get_laws_of(self, inputs: object) -> Sequence[BasePart]:
-        """Return the laws of the part for a namespace of symbols.
+    def _get_laws_of(self, inputs: object) -> Sequence[BaseComponent]:
+        """Return the laws of the component for a namespace of symbols.
 
         Args:
             inputs:
@@ -255,7 +256,7 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
 
         Returns:
             laws:
-                The laws of the part.
+                The laws of the component.
 
         Raises:
             ValidationError:

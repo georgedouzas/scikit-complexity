@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import ZZ
 
 from ...errors import SpaceError, ValidationError
 from ...specs import RoleSpec, Spec, StateSpec, Tags, VisualSpec
-from ..base import BasePart
+from ..base import BaseComponent
 from ..spaces import BaseSpace, NetworkSpace
 from ._base import BaseElement
 from ._declared import DeclaredElement
@@ -190,13 +190,13 @@ class GroupElement(BaseElement):
             return self._get_member()._get_part_specs()
         return self.element._get_specs()
 
-    def get_declaring_part(self) -> type[BaseElement] | BaseElement:
+    def get_declaring_element(self) -> type[BaseElement] | BaseElement:
         """Return what declares the states and parameters of a member.
 
         It is the element class, or a member with the values of the group when the class takes its variables as data.
 
         Returns:
-            part:
+            element:
                 The element class, or a member with the values of the group.
 
         Examples:
@@ -204,7 +204,7 @@ class GroupElement(BaseElement):
             >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
             >>> values = {'variables': {'x': DeclaredVariableSpec(1.0, StateSpec())}}
             >>> group = GroupElement('cells', element=DeclaredElement, size=2, values=values)
-            >>> group.get_declaring_part().get_value('x')
+            >>> group.get_declaring_element().get_value('x')
             1.0
         """
         return self._get_member() if issubclass(self.element, DeclaredElement) else self.element
@@ -390,7 +390,7 @@ class GroupElement(BaseElement):
         if space is not None and self.default_visual_ == VisualSpec():
             self.default_visual_ = VisualSpec(space.default_visual_ or 'sites')
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the element type for a namespace of symbols.
 
         The laws are written for one member.

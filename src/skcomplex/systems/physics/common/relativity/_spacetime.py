@@ -17,7 +17,7 @@ from sage.structure.element import Matrix
 from sage.symbolic.function import BuiltinFunction, SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 
-from .....core.components.base import BasePart
+from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.laws.utils import derivative
@@ -204,7 +204,7 @@ class SpacetimeSpace(ContinuousSpace):
                 The metric is not a symmetric square matrix of one row per coordinate, a coordinate is not a variable,
                 two coordinates coincide, or the metric is degenerate.
         """
-        BasePart._prepare(self, context)
+        BaseComponent._prepare(self, context)
         coordinates = self._get_coordinates()
         if not coordinates or not all(item.is_symbol() for item in coordinates):
             error_msg = f'The coordinates {self.coordinates!r} are not variables. Give Sage variables or their names.'
@@ -385,7 +385,7 @@ class GeodesicInteraction(Interaction):
             raise SpaceError(error_msg)
         self.space_ = self.space.prepare()
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the rate law of the second derivative of the position.
 
         It is minus the connection on the tangent.

@@ -14,7 +14,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 from sage.sets.real_set import RealSet
 
-from .....core.components.base import BasePart
+from .....core.components.base import BaseComponent
 from .....core.components.interactions import MapInteraction
 from .....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from .....core.components.laws.utils import where
@@ -203,7 +203,7 @@ class PayoffLearningInteraction(MapInteraction):
         for name, score in zip(self.scores, scores, strict=True):
             setattr(agent, name, float(score))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the update of every score towards its payoff, or the agent-form rule.
 
         Args:
@@ -216,7 +216,7 @@ class PayoffLearningInteraction(MapInteraction):
         """
         if self.form == 'agent':
             return super()._get_laws(namespace)
-        laws: list[BasePart] = []
+        laws: list[BaseComponent] = []
         for index, name in enumerate(self.scores):
             score = getattr(self._get_member(namespace, 'target'), name)
             payoff = self.payoff(namespace, index)

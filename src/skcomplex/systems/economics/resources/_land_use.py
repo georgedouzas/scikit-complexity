@@ -10,7 +10,7 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EquationLaw
@@ -126,7 +126,7 @@ class BidRentInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equation of the crop of highest bid.
 
         Args:

@@ -14,7 +14,7 @@ from gallery_tools import library_systems
 
 from skcomplex.core import analysis, experiments
 from skcomplex.core.components import elements, interactions, laws, spaces, systems
-from skcomplex.core.components.base import BasePart
+from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import BaseLaw
@@ -163,7 +163,11 @@ def _links(items: list[str], more: str) -> str:
     return shown if len(items) <= SHOWN else f'{shown}, and more in {more}'
 
 
-def _fact_sheet(item: type[BasePart], catalog: list[tuple[str, type[BaseSystem], set[type]]], family: str) -> list[str]:
+def _fact_sheet(
+    item: type[BaseComponent],
+    catalog: list[tuple[str, type[BaseSystem], set[type]]],
+    family: str,
+) -> list[str]:
     """Return the fact sheet of a class of the core: its variables, tags, solvers, errors, links, and uses.
 
     Elements and interactions list their states and parameters, laws their kind, and spaces and times their tag.
@@ -172,7 +176,7 @@ def _fact_sheet(item: type[BasePart], catalog: list[tuple[str, type[BaseSystem],
         specs = item._get_specs()
         states = {name: spec for name, spec in specs.items() if isinstance(spec, StateSpec)}
         parameters = [name for name, spec in specs.items() if isinstance(spec, ParameterSpec)]
-        laws = BasePart._get_law_tags(item._get_declared_laws()).laws
+        laws = BaseComponent._get_law_tags(item._get_declared_laws()).laws
         tags = Tags(domains=frozenset(spec._get_domain_tag() for spec in states.values()) - {None}, laws=laws)
         domain_cells = {
             name: _values({spec._get_domain_tag()} - {None}, empty='a whole structure') for name, spec in states.items()
@@ -187,7 +191,7 @@ def _fact_sheet(item: type[BasePart], catalog: list[tuple[str, type[BaseSystem],
             f'- Law kinds: {_values(laws, empty="none of its own")}',
         ]
     elif issubclass(item, BaseLaw):
-        tags = BasePart._get_law_tags([item]) if item.get_requirements() is not None else Tags()
+        tags = BaseComponent._get_law_tags([item]) if item.get_requirements() is not None else Tags()
         facts = [f'- Law kind: {_values(tags.laws, empty="from a subclass")}', f'- Randomness: `{tags.randomness}`']
     elif issubclass(item, BaseTime):
         tags = Tags(time=frozenset({item.time_tag}) - {''})
@@ -239,14 +243,14 @@ def _fact_sheet(item: type[BasePart], catalog: list[tuple[str, type[BaseSystem],
     return lines
 
 
-def _family_classes(package: ModuleType) -> list[type[BasePart]]:
+def _family_classes(package: ModuleType) -> list[type[BaseComponent]]:
     """Return the public part classes of a family package, sorted by name."""
     every = (getattr(package, name) for name in package.__all__)
-    found = (item for item in every if isinstance(item, type) and issubclass(item, BasePart))
+    found = (item for item in every if isinstance(item, type) and issubclass(item, BaseComponent))
     return sorted(found, key=lambda item: item.__name__)
 
 
-def _facts(items: list[type[BasePart]], family: str) -> str:
+def _facts(items: list[type[BaseComponent]], family: str) -> str:
     """Return the comparison table and the fact sheets of the classes of a family."""
     catalog = _catalog_classes()
     rows = [[f'[`{item.__name__}`](#{item.__name__.lower()})', *_comparison(item)] for item in items]
@@ -266,7 +270,7 @@ def _elements_page() -> str:
     for element in _public_classes(elements, BaseElement):
         states = {name: spec for name, spec in element._get_specs().items() if isinstance(spec, StateSpec)}
         domains = {spec._get_domain_tag() for spec in states.values()} - {None}
-        tags = BasePart._get_law_tags(element._get_declared_laws())
+        tags = BaseComponent._get_law_tags(element._get_declared_laws())
         names = ', '.join(f'`{name}`' for name in states) or 'from a subclass'
         whole = 'from a subclass' if not states else 'a whole structure'
         rows.append([f'`{element.__name__}`', names, _values(domains, empty=whole), _values(tags.laws, empty='none')])
@@ -360,7 +364,7 @@ def _interactions_page() -> str:
     for interaction in _public_classes(interactions, BaseInteraction):
         roles = [(name, spec) for name, spec in interaction._get_specs().items() if isinstance(spec, RoleSpec)]
         cells = '<br>'.join(_role_cell(name, role) for name, role in roles) or 'from a subclass'
-        tags = BasePart._get_law_tags(interaction._get_declared_laws())
+        tags = BaseComponent._get_law_tags(interaction._get_declared_laws())
         rows.append([f'`{interaction.__name__}`', cells, _values(tags.laws, empty='from a subclass')])
     intro = """
 An interaction changes the states of the elements bound to its roles. A role is a named slot, such as `target`, and it
@@ -431,7 +435,7 @@ def _laws_page() -> str:
     """
     rows = []
     for law in _public_classes(laws, BaseLaw):
-        tags = BasePart._get_law_tags([law])
+        tags = BaseComponent._get_law_tags([law])
         spaces = {tag for space in law.get_requirements().space for tag in getattr(space, 'space_tags', ())}
         cells = [_values(tags.laws), _values(tags.time, TIMES), _values(spaces, SPACES), f'`{tags.randomness}`']
         rows.append([f'`{law.__name__}`', *cells])

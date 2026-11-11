@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import SR
 from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import ElementKind
-from ..base import BasePart
+from ..base import BaseComponent
 from ..laws import BaseLaw, EquationLaw
 from ..spaces import BaseSpace
 from ._interaction import Interaction
@@ -115,7 +115,7 @@ class ConnectionInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the equality of the potentials of the ports and the balance of flows.
 
         Args:
@@ -131,5 +131,5 @@ class ConnectionInteraction(Interaction):
             connector = member.ports[port]
             potentials.append(getattr(member, f'{port}_{connector.potential}'))
             flows.append(getattr(member, f'{port}_{connector.flow}'))
-        equalities: list[BasePart] = [EquationLaw(potentials[0], other) for other in potentials[1:]]
+        equalities: list[BaseComponent] = [EquationLaw(potentials[0], other) for other in potentials[1:]]
         return [*equalities, EquationLaw(sum(flows, SR(0)), 0)]

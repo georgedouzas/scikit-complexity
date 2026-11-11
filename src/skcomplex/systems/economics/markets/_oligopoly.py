@@ -16,7 +16,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import EquationLaw
 from ....core.components.spaces import DiscreteTime, StaticTime
@@ -93,7 +93,7 @@ class CournotBestResponseElement(Element):
         self.lambda_i = lambda_i
         self.lambda_j = lambda_j
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the two conditions of the best responses.
 
         Args:
@@ -179,7 +179,7 @@ class PricePointElement(Element):
         """
         return member.price * (member.alpha + member.beta * (1 - member.distribution) ** (member.n_firms - 1))
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equation of the distribution.
 
         Args:

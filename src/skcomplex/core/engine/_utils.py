@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression, var
 from sage.all__sagemath_symbolics import vector as sage_vector
 from sage.modules.free_module_element import FreeModuleElement
 
-from ..components.base import BasePart
+from ..components.base import BaseComponent
 from ..components.elements import BaseElement, GroupElement
 from ..components.interactions import BaseInteraction
 from ..errors import SkcomplexError
@@ -21,7 +21,7 @@ from ..specs import DeclaredVariableSpec, EntrySpec, ParameterSpec, RoleSpec, St
 from ..types import VariableKind
 
 INSTANCE_VARIABLES: weakref.WeakKeyDictionary[
-    BasePart,
+    BaseComponent,
     tuple[Mapping[str, DeclaredVariableSpec], dict[str, tuple[VariableSpec, object]]],
 ] = weakref.WeakKeyDictionary()
 
@@ -207,7 +207,7 @@ def _companions(name: str, variable: VariableSpec, default: object) -> dict[str,
     return companions
 
 
-def _instance_variables(part: BasePart) -> dict[str, tuple[VariableSpec, object]]:
+def _instance_variables(part: BaseComponent) -> dict[str, tuple[VariableSpec, object]]:
     """Return the variables of a part instance.
 
     They are those of its class and those it declares, read once per declaration.
@@ -259,14 +259,14 @@ def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
         ['theta', 'theta_d1']
     """
     cls = part if isinstance(part, type) else type(part)
-    if not issubclass(cls, BasePart):
+    if not issubclass(cls, BaseComponent):
         error_msg = f'{cls.__name__} is not a part, so it declares no variables.'
         raise TypeError(error_msg)
-    return dict(_instance_variables(part)) if isinstance(part, BasePart) else dict(_class_variables(cls))
+    return dict(_instance_variables(part)) if isinstance(part, BaseComponent) else dict(_class_variables(cls))
 
 
 @functools.cache
-def _class_variables(cls: type[BasePart]) -> dict[str, tuple[VariableSpec, object]]:
+def _class_variables(cls: type[BaseComponent]) -> dict[str, tuple[VariableSpec, object]]:
     """Return the declaration and the default of every variable of a part class.
 
     They are read once per class. Rules read the declarations of their agents every step, such as the group a reference

@@ -17,7 +17,7 @@ from sklearn.base import BaseEstimator
 from ...base import BaseConfig
 from ...errors import ValidationError
 from ...specs import ObservableSpec, Tags
-from ..base import BasePart
+from ..base import BaseComponent
 from ..spaces import BaseSpace
 
 
@@ -44,7 +44,7 @@ class RunSettings(TypedDict):
     backend: BaseConfig | None
 
 
-class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
+class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespace]):
     """An abstract system that builds its parts from the parameters of its model.
 
     A subclass takes the parameters of its model as arguments of its `__init__`, such as the rates of an epidemic, and
@@ -113,7 +113,7 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
     backend: ClassVar[BaseConfig | None] = None
 
     system_: CompositeT
-    laws_: Sequence[BasePart]
+    laws_: Sequence[BaseComponent]
 
     def __init__(self, label: str = 'system') -> None:
         """Store the label of the system.
@@ -215,7 +215,7 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
         """
         self.laws_ = self._get_laws_of(inputs)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the prepared parts for a namespace of symbols.
 
         Args:

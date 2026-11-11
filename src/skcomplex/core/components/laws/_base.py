@@ -20,10 +20,10 @@ from sage.structure.element import Matrix
 
 from ...errors import ValidationError
 from ...specs import CallSpec, RequirementSpec, Tags
-from ..base import BasePart
+from ..base import BaseComponent
 
 
-class BaseLaw(BasePart[str, object]):
+class BaseLaw(BaseComponent[str, object]):
     """An abstract law, one equation or rule by which states change.
 
     An element, an interaction, or a system returns laws from its `_get_laws`, and the compiler lowers them to a problem
@@ -32,8 +32,9 @@ class BaseLaw(BasePart[str, object]):
     from `_get_targets`, what it needs of a system, such as continuous or discrete time, from `_get_requirements`, and
     its value for given values of the symbols it reads from `_run`, which sets it as `value_`.
 
-    Unlike `BasePart`, it belongs to another part and is not added to a system on its own. Choose it when a new kind of
-    dynamics needs a lowering of its own, and choose an existing law, such as `RateLaw` or `UpdateLaw`, otherwise.
+    Unlike `BaseComponent`, it belongs to another component and is not added to a system on its own. Choose it when a
+    new kind of dynamics needs a lowering of its own, and choose an existing law, such as `RateLaw` or `UpdateLaw`,
+    otherwise.
 
     It appears in every field through its subclasses, such as the rate of an epidemic, the next value of a cellular
     automaton, a chemical reaction as a random jump, and Kirchhoff's laws as equations.

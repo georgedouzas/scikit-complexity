@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import SR, Expression, exp, log
 from ...errors import ValidationError
 from ...specs import RoleSpec, Tags
 from ...types import ElementKind
-from ..base import BasePart
+from ..base import BaseComponent
 from ..laws import BaseLaw, JumpLaw, RuleLaw, TransitionLaw, UpdateLaw
 from ..laws.utils import both, neighbors, residence, uniform, where
 from ..spaces import BaseNeighborhood, BaseSpace
@@ -331,12 +331,12 @@ class TransitionInteraction(Interaction):
         """Return the uniform draw of the transition in a step."""
         return uniform(re.sub(r'\W', '_', f'transition_{self.label}'))
 
-    def _get_chain(self, namespace: SimpleNamespace, value: Expression) -> list[BasePart]:
+    def _get_chain(self, namespace: SimpleNamespace, value: Expression) -> list[BaseComponent]:
         """Return the transition law of the state by its matrix.
 
         It comes with the emission law of the observed state.
         """
-        laws: list[BasePart] = []
+        laws: list[BaseComponent] = []
         if self.matrix is not None:
             laws.append(TransitionLaw(value, self.matrix(namespace), label=self.label))
         if self.emission is not None and self.observed is not None:
@@ -455,7 +455,7 @@ class TransitionInteraction(Interaction):
         for index in order:
             self._move_member(agents[int(index)], system)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the laws of the state, or the rule of the agent form.
 
         The laws are the jump, the update, the transition, or the emission law.

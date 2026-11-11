@@ -10,7 +10,7 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import ClassVar
 
-from .....core.components.base import BasePart
+from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RuleLaw
 from .....core.components.types import SystemViewProtocol
@@ -56,7 +56,7 @@ class PolicyRuleInteraction[SystemT: SystemViewProtocol](Interaction):
         self.rule = rule
         self.phase = phase
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the rule of the feedback in its phase.
 
         Args:

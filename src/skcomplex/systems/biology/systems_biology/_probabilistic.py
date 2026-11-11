@@ -14,7 +14,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN, SR, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import UpdateLaw
@@ -183,7 +183,7 @@ class ProbabilisticFunctionInteraction(MapInteraction):
             value = where(chosen == index, values[index], value)
         return value
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the map of the target by the drawn table.
 
         It also returns the record of the drawn index.
