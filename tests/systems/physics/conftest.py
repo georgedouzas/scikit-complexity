@@ -20,7 +20,7 @@ def _run_default(
     solver: BaseSolver | None = None,
     observables: Sequence[ObservableSpec] = (),
 ) -> Trajectory:
-    """Return the trajectory of the parts of a system under the default solver of their laws, unless one is given."""
+    """Return the trajectory of the components of a system under the default solver of their laws, or a given one."""
     composite = system.prepare().system_
     return simulate(composite, until=until, dt=dt, solver=solver, observables=observables, random_state=0)
 
@@ -34,7 +34,7 @@ def _run(
     observables: Sequence[ObservableSpec] = (),
     schedule: Mapping[str, Callable[[float], float]] | None = None,
 ) -> Trajectory:
-    """Return the trajectory of a system run to a time, or of its parts under a schedule of their parameters."""
+    """Return the trajectory of a system run to a time, or of its components under a schedule of their parameters."""
     if schedule is None:
         return simulate(system, until=until, dt=dt, solver=solver, observables=observables)
     composite = system.prepare().system_

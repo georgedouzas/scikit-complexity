@@ -322,8 +322,8 @@ def test_binding_rejects_unknown_settings_and_objects():
         bind_analysis(3)
 
 
-def test_a_system_class_is_read_as_the_composite_of_its_parts():
-    """Test that a system class that builds its parts is read as its prepared composite, other sources as they are."""
+def test_a_system_class_is_read_as_the_composite_of_its_components():
+    """Test that a system class that builds its components is read as its composite, other sources as they are."""
     composite = _composite(BrusselatorSystem((8,)))
     assert isinstance(composite, CompositeSystem)
     values = np.zeros(3)

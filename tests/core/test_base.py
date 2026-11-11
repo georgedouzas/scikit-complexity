@@ -68,8 +68,8 @@ def test_no_public_check_remains():
     assert not hasattr(errors, 'NotCheckedError')
 
 
-def test_bad_part_fails_before_it_is_prepared():
-    """Test that a part with a bad label raises from `prepare` of its system, before it sets any attribute."""
+def test_bad_component_fails_before_it_is_prepared():
+    """Test that a component with a bad label raises from `prepare` of its system, before it sets any attribute."""
     interaction = RateInteraction(1, target='stock', state='n', rate=1.0)
     system = CompositeSystem(elements=[Element('stock')], interactions=[interaction])
     with pytest.raises(ValidationError, match='label'):

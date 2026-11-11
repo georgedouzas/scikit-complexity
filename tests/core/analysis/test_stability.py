@@ -208,8 +208,8 @@ def test_dispersion_relation_of_finite_differences_and_below_threshold():
     assert _stability(_brusselator(1.7), kind='dispersion').band.size == 0
 
 
-def test_dispersion_relation_rejects_an_interaction_on_another_part():
-    """Test that an interaction binding a part other than the field has no place in the dispersion relation."""
+def test_dispersion_relation_rejects_an_interaction_on_another_component():
+    """Test that an interaction binding a component other than the field has no place in the dispersion relation."""
     system = _brusselator(1.9)
     system.interactions.append(
         RateInteraction('elsewhere', target='other', state='u', rate=lambda s: s.target.Du * laplacian(s.target.u)),

@@ -154,16 +154,16 @@ class TwoLevelElement(Element):
         return [GeneratorLaw(local_operator(s.psi, 'x') / 2)]
 
 
-def test_system_constructor_only_stores_its_parts():
-    """Test that a system stores its parts as given and is labelled `system` by default."""
+def test_system_constructor_only_stores_its_components():
+    """Test that a system stores its components as given and is labelled `system` by default."""
     rabbits = StockElement('rabbits')
     system = CompositeSystem(elements=[rabbits])
     assert (system.label, system.elements, system.interactions, system.systems) == ('system', [rabbits], (), ())
     assert (system.space, system.time) == (None, None)
 
 
-def test_system_checks_every_part():
-    """Test that checking a system checks its parts, which reject their invalid arguments."""
+def test_system_checks_every_component():
+    """Test that checking a system checks its components, which reject their invalid arguments."""
     with pytest.raises(ValidationError, match='label'):
         CompositeSystem(elements=[StockElement(1)]).prepare()
     with pytest.raises(ValidationError, match='Unknown schedule'):
@@ -179,7 +179,7 @@ def test_system_prepares_groups_on_its_space():
     assert nested.elements[0].size_ == 30
 
 
-def test_system_runs_into_the_laws_of_its_parts():
+def test_system_runs_into_the_laws_of_its_components():
     """Test that a prepared system runs into the laws of its elements and its interactions, each for its namespace."""
     system = CompositeSystem(
         elements=[CounterElement('clock'), StockElement('rabbits')],
@@ -204,7 +204,7 @@ def test_system_prints_its_parameters():
     assert repr(system) == "CompositeSystem(elements=[StockElement(label='rabbits')], label='meadow')"
 
 
-def test_four_part_system_runs():
+def test_four_component_system_runs():
     """Test that a system of elements, interactions, no space, and continuous time runs and lists its parameters."""
     system = CompositeSystem(
         'ecology',
@@ -348,7 +348,7 @@ class SwitchElement(Element):
         self.on = on
 
 
-def test_system_is_a_base_system_with_tags_derived_from_its_parts():
+def test_system_is_a_base_system_with_tags_derived_from_its_components():
     """Test that a system of a rate and a noise interaction is stochastic, with both law kinds."""
     noisy = RateInteraction('growth', target='stock', state='n', rate=1.0, noise=0.1)
     system = CompositeSystem(elements=[StockElement('stock')], interactions=[noisy])
@@ -363,7 +363,7 @@ def test_system_is_a_base_system_with_tags_derived_from_its_parts():
     assert tags.domains == {'real'}
 
 
-def test_system_tags_reject_parts_on_spaces_that_nothing_joins():
+def test_system_tags_reject_components_on_spaces_that_nothing_joins():
     """Test that elements on a lattice and on a network, in a system without a space, disagree on the space."""
     on_lattice = GroupElement('cells', element=StockElement, space=LatticeSpace((3,)))
     on_network = GroupElement('nodes', element=StockElement, space=NetworkSpace(nx.cycle_graph(3)))
@@ -373,7 +373,7 @@ def test_system_tags_reject_parts_on_spaces_that_nothing_joins():
     assert joined.space == {'continuous', 'lattice', 'network'}
 
 
-def test_system_tags_reject_parts_of_times_that_nothing_joins():
+def test_system_tags_reject_components_of_times_that_nothing_joins():
     """Test that a rate and a map in one system disagree on the time, unless nested systems of each time join them."""
     rate = RateInteraction('growth', target='stock', state='n', rate=1.0)
     step = MapInteraction('step', target='counter/stock', state='n', function=lambda s: s.target.n)

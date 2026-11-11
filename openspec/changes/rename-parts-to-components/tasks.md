@@ -54,10 +54,10 @@ with the rule and the inventory of the design, and never by a replacement across
 
 ## 4. Tests
 
-- [ ] 4.1 Rename `DoublingPart`, `ExtendedPart`, `InvalidSpecPart`, and `SpecifiedPart` in
+- [x] 4.1 Rename `DoublingPart`, `ExtendedPart`, `InvalidSpecPart`, and `SpecifiedPart` in
   `tests/core/components/test_base.py` to the same names with `Component`, and the helper `_parts` of
   `tests/core/engine/translators/test_system_dynamics.py` to `_composite_of`, verified by those modules passing
-- [ ] 4.2 Rename the test functions and docstrings that say part for a component, such as
+- [x] 4.2 Rename the test functions and docstrings that say part for a component, such as
   `test_system_checks_every_part` and `test_parts_derive_from_the_part_base`, and update the pinned messages, adding no
   test file and no test that checks an old name is gone, verified by the conventions, which confirm the tests still
   mirror the sources, and the tests of `tests/core` in chunks of one package at a time

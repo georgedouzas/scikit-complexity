@@ -13,7 +13,7 @@ from skcomplex.systems.economics.resources import HarvestingSystem
 
 
 def _harvesting() -> CompositeSystem:
-    """Return the parts of the harvesting system, the factory of the scenario experiments."""
+    """Return the components of the harvesting system, the factory of the scenario experiments."""
     return HarvestingSystem().prepare().system_
 
 

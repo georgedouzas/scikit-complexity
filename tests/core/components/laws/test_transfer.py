@@ -290,7 +290,7 @@ def test_flow_takes_one_holder_read_at_a_member_offset():
         TransferLaw(shift_member(x, -1), shift_member(x, 1), 1.0).prepare()
 
 
-def test_flow_owner_reports_the_flow_under_another_part():
+def test_flow_owner_reports_the_flow_under_another_component():
     """Test that an owner reports a flow under its path, and that two flows reported as one path are rejected."""
 
     class ReportedElement(TanksElement):

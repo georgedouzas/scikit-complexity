@@ -74,8 +74,8 @@ class DecaySystem(ReactionNetworkSystem):
         return 'jump' if self.stochastic else 'rate'
 
 
-def test_reaction_network_subclass_gives_its_parts_from_hooks():
-    """Test that a subclass with parameters of its own names builds its parts from the hooks."""
+def test_reaction_network_subclass_gives_its_components_from_hooks():
+    """Test that a subclass with parameters of its own names builds its components from the hooks."""
     system = DecaySystem(rate=0.25, stochastic=True)
     assert system.get_params() == {'amount': 5.0, 'label': 'system', 'rate': 0.25, 'stochastic': True}
     reaction = system.prepare().system_.interactions[0]

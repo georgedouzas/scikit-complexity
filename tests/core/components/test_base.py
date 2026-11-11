@@ -16,8 +16,8 @@ from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
-class DoublingPart(BaseComponent):
-    """Part that doubles its input after counting its preparations."""
+class DoublingComponent(BaseComponent):
+    """Component that doubles its input after counting its preparations."""
 
     def __init__(self, label, factor=2):
         super().__init__(label)
@@ -41,8 +41,8 @@ class DoublingPart(BaseComponent):
         self.doubled_ = self.factor * inputs
 
 
-class SpecifiedPart(BaseComponent):
-    """Part that declares a state, a parameter, and a role, and one plain argument."""
+class SpecifiedComponent(BaseComponent):
+    """Component that declares a state, a parameter, and a role, and one plain argument."""
 
     def __init__(
         self,
@@ -70,16 +70,16 @@ class SpecifiedPart(BaseComponent):
         """Run nothing."""
 
 
-class ExtendedPart(SpecifiedPart):
-    """Part that takes the state of its base again without annotating it, and adds a parameter first."""
+class ExtendedComponent(SpecifiedComponent):
+    """Component that takes the state of its base again without annotating it, and adds a parameter first."""
 
     def __init__(self, label, r: Annotated[float, ParameterSpec()] = 0.5, x=1.0):
         super().__init__(label, x=x)
         self.r = r
 
 
-class InvalidSpecPart(SpecifiedPart):
-    """Part that declares a state of an invalid order."""
+class InvalidSpecComponent(SpecifiedComponent):
+    """Component that declares a state of an invalid order."""
 
     def __init__(self, label, y: Annotated[float, StateSpec(order=0)] = 0.0):
         super().__init__(label)
@@ -87,29 +87,29 @@ class InvalidSpecPart(SpecifiedPart):
 
 
 def test_prepare_and_run():
-    """Test that preparing derives the attributes of the part from a context, and running acts."""
-    part = DoublingPart('doubling').prepare('context')
-    assert (part.prepared_, part.context_) == (1, 'context')
-    assert part.run(3).doubled_ == 6
+    """Test that preparing derives the attributes of the component from a context, and running acts."""
+    component = DoublingComponent('doubling').prepare('context')
+    assert (component.prepared_, component.context_) == (1, 'context')
+    assert component.run(3).doubled_ == 6
 
 
 def test_prepare_checks_the_label_and_the_arguments():
-    """Test that preparing rejects a label that is not a string and an argument the part cannot take."""
-    with pytest.raises(ValidationError, match='label of DoublingPart must be a string'):
-        DoublingPart(1).prepare()
+    """Test that preparing rejects a label that is not a string and an argument the component cannot take."""
+    with pytest.raises(ValidationError, match='label of DoublingComponent must be a string'):
+        DoublingComponent(1).prepare()
     with pytest.raises(ValidationError, match='not a number'):
-        DoublingPart('doubling', factor='two').prepare()
+        DoublingComponent('doubling', factor='two').prepare()
 
 
 def test_prepare_checks_every_declared_spec():
-    """Test that preparing a part checks the spec of every annotated argument."""
+    """Test that preparing a component checks the spec of every annotated argument."""
     with pytest.raises(ValidationError, match='order'):
-        InvalidSpecPart('invalid').prepare()
+        InvalidSpecComponent('invalid').prepare()
 
 
 def test_get_specs_returns_the_annotated_arguments_in_constructor_order():
-    """Test that the specs of a part are the annotated arguments of its constructor, in order, without plain ones."""
-    specs = SpecifiedPart._get_specs()
+    """Test that the specs of a component are the annotated arguments of its constructor, in order, and no others."""
+    specs = SpecifiedComponent._get_specs()
     assert list(specs) == ['x', 'k', 'target']
     assert specs['x'] == StateSpec(order=2)
     assert isinstance(specs['target'], RoleSpec)
@@ -117,18 +117,18 @@ def test_get_specs_returns_the_annotated_arguments_in_constructor_order():
 
 def test_get_specs_keeps_the_specs_of_the_bases():
     """Test that a subclass keeps the spec of an argument of its base that it takes again without annotating it."""
-    specs = ExtendedPart._get_specs()
+    specs = ExtendedComponent._get_specs()
     assert list(specs) == ['r', 'x']
     assert specs['x'] == StateSpec(order=2)
 
 
 def test_constructor_only_stores_its_arguments():
-    """Test that a part stores its arguments as given, so scikit-learn lists and clones them."""
-    part = SpecifiedPart('a', x=[1.0], plain='plain')
-    assert part.get_params() == {'k': 1.0, 'label': 'a', 'plain': 'plain', 'target': 'a', 'x': [1.0]}
-    cloned = clone(part)
-    assert cloned.get_params() == part.get_params()
-    assert cloned is not part
+    """Test that a component stores its arguments as given, so scikit-learn lists and clones them."""
+    component = SpecifiedComponent('a', x=[1.0], plain='plain')
+    assert component.get_params() == {'k': 1.0, 'label': 'a', 'plain': 'plain', 'target': 'a', 'x': [1.0]}
+    cloned = clone(component)
+    assert cloned.get_params() == component.get_params()
+    assert cloned is not component
 
 
 def test_element_runs_into_its_laws():
@@ -141,9 +141,9 @@ def test_element_runs_into_its_laws():
     assert StillElement('a').prepare().run(SimpleNamespace()).laws_ == []
 
 
-def test_parts_derive_from_the_part_base():
-    """Test that every part of a system is a part, and a part cannot be made without its hooks."""
-    parts = (BaseElement, BaseInteraction, BaseLaw, CompositeSystem, BaseSpace, BaseTime, BaseNeighborhood)
-    assert all(issubclass(part, BaseComponent) for part in parts)
+def test_components_derive_from_the_component_base():
+    """Test that every component of a system is a component, and a component cannot be made without its hooks."""
+    components = (BaseElement, BaseInteraction, BaseLaw, CompositeSystem, BaseSpace, BaseTime, BaseNeighborhood)
+    assert all(issubclass(component, BaseComponent) for component in components)
     with pytest.raises(TypeError, match='abstract'):
-        BaseComponent('part')
+        BaseComponent('component')

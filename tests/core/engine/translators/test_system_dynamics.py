@@ -54,7 +54,7 @@ def _create(module, **params):
     return system_class(**params)
 
 
-def _parts(module):
+def _composite_of(module):
     """Return the prepared composite of the system of a translated module."""
     return _create(module).prepare().system_
 
@@ -144,7 +144,7 @@ def test_run_xmile_reads_like_vensim(fixtures_folder, translate):
     vensim = SystemDynamicsTranslator(fixtures_folder / 'sir.mdl').prepare().run().source_
     xmile = SystemDynamicsTranslator(fixtures_folder / 'sir.xmile').prepare().run().source_
     assert vensim == xmile
-    first, second = _parts(translate('sir.mdl')), _parts(translate('sir.xmile'))
+    first, second = _composite_of(translate('sir.mdl')), _composite_of(translate('sir.xmile'))
     assert first.elements[0].get_params().keys() == second.elements[0].get_params().keys()
     assert first.elements[0].get_params() == second.elements[0].get_params()
     assert [type(item) for item in first.interactions] == [type(item) for item in second.interactions]
@@ -223,7 +223,7 @@ def test_run_loops_of_a_translated_system(translate):
 
 def test_run_flows_with_the_environment_use_source_and_sink(translate):
     """Test that a flow of one stock moves from `Source()` when it enters and into `Sink()` when it leaves."""
-    interactions = {item.label: item for item in _parts(translate('population.mdl')).interactions}
+    interactions = {item.label: item for item in _composite_of(translate('population.mdl')).interactions}
     assert type(interactions['births'].state).__name__ == 'Source'
     assert type(interactions['deaths'].into).__name__ == 'Sink'
 
@@ -231,7 +231,7 @@ def test_run_flows_with_the_environment_use_source_and_sink(translate):
 def test_run_goal_seeking_becomes_relaxation(fixtures_folder, translate):
     """Test that a stock changed by the gap to its target over a time relaxes at a rate, and runs like PySD."""
     module = translate('goal_seeking.mdl')
-    system = _parts(module)
+    system = _composite_of(module)
     assert [type(item) for item in system.interactions] == [RateInteraction]
     relaxation = system.interactions[0]
     assert (relaxation.state, relaxation.rate.__name__) == ('stock', '_rate__stock')
@@ -335,7 +335,7 @@ def test_run_random_functions_become_draws_that_rate_laws_reject(tmp_path, monke
 def test_run_regional_populations(fixtures_folder, translate):
     """Test that the trajectory holds one row per region for each stock, equal to PySD's run within the tolerance."""
     module = translate('regions.mdl')
-    assert _parts(module).elements[0].get_params()['size'] == 3
+    assert _composite_of(module).elements[0].get_params()['size'] == 3
     reference = _load_reference(fixtures_folder, 'regions.mdl')
     trajectory = _simulate(module)
     values = _at_saved_times(trajectory, trajectory.get_values('regions.population'), module, reference)
@@ -434,7 +434,7 @@ def test_run_reports_a_file_name_that_is_no_identifier(tmp_path):
 
 
 def test_run_reports_an_element_named_like_a_flow(tmp_path):
-    """Test that a file named like an auxiliary asks for a name, since labels are unique among parts."""
+    """Test that a file named like an auxiliary asks for a name, since labels are unique among components."""
     translator = _translate_text(tmp_path, 'Level = INTEG(Flow, 0) ~ ~ |\nFlow = Level + 1 ~ ~ |\n', 'flow.mdl')
     with pytest.raises(ValidationError, match='Give `name`'):
         translator.run()
