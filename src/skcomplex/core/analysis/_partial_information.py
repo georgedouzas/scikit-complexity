@@ -31,7 +31,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class PartialInformationResult:
-    """A result of `partial_information`, the parts of what two sources tell.
+    """A result of `partial_information`, the parts of the information of two sources.
 
     Args:
         values:

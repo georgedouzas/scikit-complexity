@@ -100,13 +100,13 @@ with the rule and the inventory of the design, and never by a replacement across
 
 ## 8. Convention check
 
-- [ ] 8.1 Add `check_part_names_are_named` to `SELF_CHECKS`, with the planted module and page of the design, verified
+- [x] 8.1 Add `check_part_names_are_named` to `SELF_CHECKS`, with the planted module and page of the design, verified
   by the conventions reporting the self-check as passing and by a deliberate break of the reader making it fail
-- [ ] 8.2 Add `check_components_are_not_called_parts` to `CHECKS` with `KEPT_PART_NAMES` and `KEPT_PART_PHRASES` built
+- [x] 8.2 Add `check_components_are_not_called_parts` to `CHECKS` with `KEPT_PART_NAMES` and `KEPT_PART_PHRASES` built
   from the kept meanings of the design, rename `check_library_generates_no_classes_of_parts` to
   `check_library_generates_no_classes_of_components`, and list the new check in `openspec/scripts/README.md`, verified
   by the conventions reporting no finding on the tree and by ruff and mypy on the script
-- [ ] 8.3 Note in the design of this change any kept name or phrase added to the allow lists while running the check,
+- [x] 8.3 Note in the design of this change any kept name or phrase added to the allow lists while running the check,
   with the meaning of the rule it belongs to, verified by review
 
 ## 9. Integration

@@ -684,7 +684,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         The terms factor into a reader part and an other part. A sum or mean over the other members `j` of `sum_k a_k(i)
         b_k(j)`, weighted by `W_ij` or not, is `sum_k a_k(i)` times the weighted sum or mean of `b_k(j)`, so it runs as
         one reduction per `b_k` over the members, at a cost linear in their number instead of one value per pair. With
-        at least as many parts `b_k` as members, the pairs cost less, and it returns `None`.
+        at least as many factors `b_k` as members, the pairs cost less, and it returns `None`.
         """
         if reduction.kind not in {'sum', 'mean'}:
             return None

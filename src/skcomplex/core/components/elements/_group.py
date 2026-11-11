@@ -310,7 +310,7 @@ class GroupElement(BaseElement):
             raise ValidationError(error_msg)
 
     def _check_on(self) -> None:
-        """Raise an error for a part that is not one of the parts of a space."""
+        """Raise an error for an `on` that names no part of a space."""
         if self.on is not None and self.on not in PARTS:
             error_msg = f'Group {self.label!r} lives on {self.on!r}. Use one of {", ".join(PARTS)}.'
             raise SpaceError(error_msg)
@@ -351,8 +351,8 @@ class GroupElement(BaseElement):
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, `size_`, and `values_`.
 
-        It first raises an error for arguments the group cannot take. They are a part, an element type, a size, a rank,
-        or values.
+        It first raises an error for arguments the group cannot take. They are a part of the space, an element type, a
+        size, a rank, or values.
 
         `default_visual_` is the visual of the group when it sets none. The default visual of a group is the visual of a
         member. When the member sets none, it is the default visual of the space of a group on its sites, and the plain
@@ -365,8 +365,8 @@ class GroupElement(BaseElement):
 
         Raises:
             SpaceError:
-                The group lives on parts but has neither a size nor a space, or the space does not have the part. The
-                part is unknown.
+                The group lives on parts but has neither a size nor a space, the space does not have the part, or the
+                part of the space is unknown.
 
             ValidationError:
                 A per-member value does not have one row per member. The element type is not an element class, the size

@@ -98,7 +98,7 @@ class LowerComplexPass(BasePass):
     def _get_stand_in(part: Expression, stand_ins: dict[Expression, Expression]) -> Expression:
         """Return a real symbol that stands for a real part.
 
-        The symbol stands for the part while Sage splits the function applied to it.
+        The symbol stands for the real part while Sage splits the function applied to it.
         """
         if part.operator() is None:
             return part
@@ -156,7 +156,7 @@ class LowerComplexPass(BasePass):
 
     @staticmethod
     def _split_where(function: Callable[..., Expression], operands: list[Expression], owner: str) -> Parts:
-        """Return the parts of a choice between two values.
+        """Return the real and imaginary parts of a choice between two values.
 
         The condition of the choice takes real values.
         """
@@ -244,7 +244,7 @@ class LowerComplexPass(BasePass):
         Raises:
             ValidationError:
                 The expression orders complex values, gives a complex value to a function that takes real values, or
-                applies a function whose parts Sage cannot write.
+                applies a function whose real and imaginary parts Sage cannot write.
         """
         parsed: Expression = SR(expression)
         if not parsed.has(I):
@@ -425,7 +425,7 @@ class LowerComplexPass(BasePass):
 
         The complex law has complex states and values. A law with no complex value is returned unchanged. A law with a
         complex value becomes one law per real component of its target, two for every complex component, and an equation
-        with complex sides becomes the equations of their parts.
+        with complex sides becomes the equations of their real and imaginary parts.
 
         Args:
             law:

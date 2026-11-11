@@ -16,7 +16,7 @@ from ._lattice_state_spec import LatticeStateSpec
 class LatticeContextSpec(BaseSpec):
     """A spec of what the laws of a lattice are compiled against.
 
-    It holds the lattice of every state and the symbols each part reads.
+    It holds the lattice of every state and the symbols each law reads.
 
     Args:
         owner:

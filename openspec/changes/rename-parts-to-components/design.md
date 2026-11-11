@@ -250,6 +250,38 @@ the docstring, and the page line, as the existing self-checks do. The check `che
 becomes `check_library_generates_no_classes_of_components`. The README of the scripts lists the new check in its
 sentence of examples.
 
+### What the check keeps
+
+Running the check on the finished tree added these entries to the allow lists, each with the meaning of the rule it
+belongs to:
+
+- Names: the test functions that name a kept meaning, such as `test_complex_functions_split_into_parts` and
+  `test_symmetric_and_antisymmetric_parts_split_the_velocity_gradient` for the pieces of a number or a tensor,
+  `test_group_on_parts_without_a_space_raises_error` and `test_space_without_sites_has_no_parts` for the places of a
+  space, `test_simulation_extend_runs_in_two_parts` and `test_prepare_rejects_an_inner_solver_that_lacks_its_part` for
+  the pieces of a run or a problem, and `test_point_fit_searches_the_central_part_of_a_scipy_prior` for ordinary
+  English.
+- Phrases for the pieces of a number, a tensor, the rates, or a term: a qualifier before part, such as real, linear,
+  stiff, random, reversible, gradient, unique, synergistic, training, or proliferating, a count such as "the three
+  parts" or "has two parts", "the part" before a fraction in backticks, "by parts", the header of an argument named
+  part or parts, and a window that names the imaginary part, the modulus, the absolute values of a linear program, or
+  the synergy and redundancy of an information decomposition.
+- Phrases for the places of a space: "parts of" a space, lattice, network, complex, cell, surface, face, or frame,
+  "on parts", "off the parts", "space whose parts", "a part other than the sites", "the part its group lives on", and
+  "the number of parts".
+- Phrases for the pieces of a structure or a value: "parts of" a word, a patch, a structure, a string, a symbol name, a
+  path, a value, a matrix, the rates, the drift, an amplitude, an interval, a program, a problem, a compilation, the
+  engine, a watch, or a technology, the parts or subassemblies of the watchmakers, and a number of parts.
+- Phrases of ordinary English: "in part", "take part", "plays its own part", "is part of", "part of it", "more than
+  its parts", and "one part in".
+
+A few sentences that used part in a kept meaning were reworded so that a general phrase covers them, rather than
+adding a phrase that fits one sentence: the complex pass names the real and imaginary parts in full, the Numba printer
+calls its inputs blocks, a group names "a part of the space", the lattice context names the symbols each law reads,
+the package layout of the guide names its packages and subpackages, the page on kinds of dynamics names classes, the
+example of a machine part on a mesh labels its field `bracket`, and the glossary says that a partition is a group of
+components.
+
 ### Tests
 
 Tests mirror the sources. Renamed test classes and test functions stay in their files, and no test file is added. The

@@ -149,7 +149,7 @@ class StrangSplittingSolver(Solver):
     def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the two inner solvers on the transport and the collision parts.
 
-        The parts are those of the problem.
+        These are the parts of the problem.
 
         Args:
             context:
@@ -157,7 +157,7 @@ class StrangSplittingSolver(Solver):
 
         Raises:
             SolverError:
-                The problem has no flux or no source rates, or an inner solver does not advance its part.
+                The problem has no flux or no source rates, or an inner solver does not advance its part of the problem.
         """
         super()._prepare(context)
         problem = self.problem_

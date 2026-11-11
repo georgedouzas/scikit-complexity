@@ -20,7 +20,7 @@ class EquationLaw(BaseLaw):
     the acceleration. The states are Sage functions of time, such as `function('theta')(t)`, and their derivatives are
     Sage derivatives, such as `theta.diff(t, 2)`. The compiler solves all the equations of a system together for the
     highest derivatives and adds the rate laws on the same states to the solution. The equations of one `target`, from
-    any component, add into one before the solve, so a term may hold no highest derivative, such as the part a coupling
+    any component, add into one before the solve, so a term may hold no highest derivative, such as the term a coupling
     adds to the equation of a coordinate.
 
     Unlike `RateLaw`, which gives a derivative explicitly, it gives a relation that the compiler solves for the

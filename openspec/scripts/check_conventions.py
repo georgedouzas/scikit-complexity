@@ -159,6 +159,101 @@ FIELDS = (
 CONNECTOR_PACKAGES = ('core/components', 'core/engine')
 TYPE_ARGUMENTS = 3
 SERVED_FIELDS = 2
+PART_WORD = re.compile(r'(?<![\w`-])parts?(?![\w`-])', re.IGNORECASE)
+NAME_WORD = re.compile(r'[A-Z]+(?![a-z])|[A-Z]?[a-z]+|[0-9]+')
+PART_CONTEXT = 120
+KEPT_PART_NAMES = frozenset(
+    [
+        'PARTS',
+        'PART_NAMES',
+        'Part',
+        'PartElement',
+        'PartView',
+        'Parts',
+        'PartsElement',
+        'SECOND_PARTS',
+        'TOPOLOGY_PARTS',
+        '_LinearPartsSpec',
+        '_compile_part',
+        '_count_parts',
+        '_get_delay_parts',
+        '_get_dumbbell_parts',
+        '_get_linear_parts',
+        '_get_parts',
+        '_parts',
+        '_split_part',
+        'antisymmetric_part',
+        'delay_parts',
+        'imag_part',
+        'n_parts',
+        'normal_part',
+        'part',
+        'parts',
+        'real_part',
+        'symmetric_part',
+        'test_complex_component_is_located_by_its_part',
+        'test_complex_equation_and_event_split_into_parts',
+        'test_complex_functions_split_into_parts',
+        'test_complex_ginzburg_landau_seeds_both_parts',
+        'test_complex_value_of_real_state_names_its_imaginary_part',
+        'test_group_on_parts_without_a_space_raises_error',
+        'test_group_sizes_itself_from_the_parts_of_its_space',
+        'test_parts_of_a_random_flow_are_orthogonal_and_sum_to_it',
+        'test_point_fit_searches_the_central_part_of_a_scipy_prior',
+        'test_prepare_rejects_an_inner_solver_that_lacks_its_part',
+        'test_real_state_accepts_complex_value_with_zero_imaginary_part',
+        'test_simulation_extend_runs_in_two_parts',
+        'test_space_without_sites_has_no_parts',
+        'test_split_solver_linear_part_matches_linear_rates',
+        'test_symmetric_and_antisymmetric_parts_split_the_velocity_gradient',
+        'test_unknown_part_is_rejected',
+    ],
+)
+PART_QUALIFIERS = (
+    r'(real|imaginary|complex|symmetric|antisymmetric|traceless|normal|linear|nonlinear|stiff|deterministic|random'
+    r'|reversible|irreversible|divergence-free|gradient|curl|cyclic|harmonic|odd|even|positive|negative|integer'
+    r'|fractional|constant|periodic|planetary|reciprocal|nonreciprocal|brownian|angular|exchange|transport|collision'
+    r'|unique|shared|redundant|synergistic|independent|reader|other|training|validation|test|proliferating|irradiated'
+    r'|outer|kept|first|last|adhesion|machine|field|general)'
+)
+KEPT_PART_PHRASES = tuple(
+    re.compile(phrase, re.IGNORECASE)
+    for phrase in (
+        rf'\b{PART_QUALIFIERS}((,|\s)+(and|or|the|its|{PART_QUALIFIERS}))*\s+parts?\b',
+        r'\b(the|has)\s+(two|three|four)\s+parts\b',
+        r'\bthe\s+part\s+code\b',
+        r'\bby\s+parts\b',
+        r'\bin\s+part\b',
+        r'\b(take|takes)\s+(no\s+)?part\b',
+        r'\bplays?\s+(its\s+own\s+|no\s+)part\b',
+        r'\b(is|are|be|not|no|itself|only|one)\s+part\s+(of|in)\b',
+        r'\b(a\s+)?part\s+of\s+(it|them|the\s+(data|resource|gross\s+energy|library|market|swarm))\b',
+        r'\bmore\s+than\s+its\s+parts\b',
+        r'\bparts?:(\s|$)',
+        r'\bspace\s+whose\s+parts\b',
+        (
+            r'\bparts?\s+of\s+(the\s+|a\s+|an\s+|its\s+(own\s+)?|every\s+|each\s+|that\s+|these\s+)?'
+            r'(space|lattice|network|complex|cell|surface|face|frame)\b'
+        ),
+        r'\b(on|off)\s+(the\s+)?parts\b',
+        r'\b(space\s+or|tied\s+to\s+no|have\s+the)\s+part\b',
+        r'\bpart\s+other\s+than\s+the\s+sites\b',
+        r'\bparts?\s+(its|whose)\s+group\b',
+        r'\bnumber\s+of\s+(these\s+)?parts\b',
+        (
+            r'\bparts?\s+of\s+(the\s+|a\s+|an\s+|its\s+|every\s+|each\s+|their\s+)?(word|patch|structure|string|symbol\s+name'
+            r'|identifier|path|dotted\s+label|value|matrix|tensor|vector|price|rates?|drift|amplitude|wave\s+function'
+            r'|cross-diffusion|evolution|weighted\s+terms?|information|series|interval|program|problem|co-simulation'
+            r'|step|trace|convolution|density|initial\s+density|sum|difference|relative\s+displacement|range'
+            r'|compilation|engine|watch|technology)\b'
+        ),
+        r'\bparts\s+or\s+subassemblies\b',
+        r'\bwatches\s+of\s+code\s+parts\b',
+        r'\b[0-9]+\s+parts\b',
+        r'(imaginary|modulus|absolute\s+values?|synerg\w*|redundan\w*)\W(.|\n){0,240}',
+        r'(.|\n){0,240}\W(imaginary|modulus|absolute\s+values?|synerg\w*|redundan\w*)\b',
+    )
+)
 BANNED_PHRASES = (
     'in summary',
     'in conclusion',
@@ -1605,7 +1700,7 @@ def _generated_classes(root: Path) -> dict[str, list[int]]:
     return found
 
 
-def check_library_generates_no_classes_of_parts(root: Path) -> list[str]:
+def check_library_generates_no_classes_of_components(root: Path) -> list[str]:
     """Return every `__signature__` assignment and every class built with `type` but the agents of Mesa."""
     found = _generated_classes(root / SOURCE)
     return [
@@ -1617,6 +1712,121 @@ def check_library_generates_no_classes_of_parts(root: Path) -> list[str]:
         for path, count in GENERATED_CLASSES_ALLOWED.items()
         if path not in found
     ]
+
+
+def _part_words(text: str, first: int) -> Iterator[tuple[int, str]]:
+    """Return the line and the text of every use of part in a text that no kept phrase covers.
+
+    The text starts at the line `first`. A kept phrase may run over the end of a line, since prose wraps.
+    """
+    flat = text.replace('\n', ' ')
+    for match in PART_WORD.finditer(flat):
+        start, end = match.span()
+        window = (max(0, start - PART_CONTEXT), end + PART_CONTEXT)
+        kept = any(
+            found.start() <= start and found.end() >= end
+            for phrase in KEPT_PART_PHRASES
+            for found in phrase.finditer(flat, *window)
+        )
+        if not kept:
+            line = first + text.count('\n', 0, start)
+            yield line, text.splitlines()[line - first].strip()
+
+
+def _part_names(path: Path) -> Iterator[tuple[int, str]]:
+    """Return the line and the name of every class, function, argument, or assigned name with the word part."""
+    for node in ast.walk(_read_tree(path)):
+        if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+            name = node.name
+        elif isinstance(node, ast.arg):
+            name = node.arg
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            name = node.id
+        elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Store):
+            name = node.attr
+        else:
+            continue
+        words = {word.lower() for word in NAME_WORD.findall(name)}
+        if words & {'part', 'parts'} and name not in KEPT_PART_NAMES:
+            yield node.lineno, name
+
+
+def _code_free(line: str) -> str:
+    """Return a line of prose with its inline code replaced by the word `code`."""
+    return INLINE_CODE.sub('code', line)
+
+
+def _docstring_prose(path: Path) -> Iterator[tuple[int, str]]:
+    """Return every docstring of a module with the line of its first line, its doctests and inline code removed."""
+    for node in ast.walk(_read_tree(path)):
+        body = getattr(node, 'body', None)
+        if not isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef) or not body:
+            continue
+        if not _is_docstring(body[0]):
+            continue
+        constant = cast(ast.Constant, cast(ast.Expr, body[0]).value)
+        lines = []
+        in_code = False
+        for line in str(constant.value).splitlines():
+            stripped = line.strip()
+            in_code = stripped.startswith(('>>>', '...')) or (in_code and bool(stripped))
+            lines.append('' if in_code else _code_free(line))
+        yield constant.lineno, '\n'.join(lines)
+
+
+def _comment_prose(path: Path) -> Iterator[tuple[int, str]]:
+    """Return every comment of a module with its line and inline code removed."""
+    with path.open('rb') as file:
+        for token in tokenize.tokenize(file.readline):
+            if token.type == tokenize.COMMENT:
+                yield token.start[0], _code_free(token.string)
+
+
+def _page_prose(path: Path) -> str:
+    """Return the prose of a Markdown page, line for line, with fenced blocks blanked and inline code replaced."""
+    return '\n'.join(_code_free(line) for _, line in _markdown_prose_lines(path.read_text(encoding='utf-8')))
+
+
+def _markdown_prose_lines(text: str) -> list[tuple[int, str]]:
+    """Return every line of a Markdown text with its number, with the lines of fenced blocks blank."""
+    lines = []
+    in_fence = False
+    for number, line in enumerate(text.splitlines(), start=1):
+        if FENCE.match(line):
+            in_fence = not in_fence
+            lines.append((number, ''))
+        else:
+            lines.append((number, '' if in_fence else line))
+    return lines
+
+
+def _parts_of(root: Path, sources: list[Path], tests: list[Path], pages: list[Path]) -> list[str]:
+    """Return every use of part for a component in names, docstrings, comments, and pages, as `file:line: text`."""
+    found = []
+    for path in [*sources, *tests]:
+        named = _part_names(path)
+        found += [f'{path.relative_to(root)}:{line}: part names a component: {item}' for line, item in named]
+    for path in sources:
+        prose = [*_docstring_prose(path), *_comment_prose(path)]
+        found += [
+            f'{path.relative_to(root)}:{line}: part names a component: {text}'
+            for first, block in prose
+            for line, text in _part_words(block, first)
+        ]
+    for path in pages:
+        found += [
+            f'{path.relative_to(root)}:{line}: part names a component: {text}'
+            for line, text in _part_words(_page_prose(path), 1)
+        ]
+    return found
+
+
+def check_components_are_not_called_parts(root: Path) -> list[str]:
+    """Return every name, docstring, comment, or page line that calls a building block of a system a part."""
+    sources = sorted((root / SOURCE).rglob('*.py'))
+    tests = sorted((root / TESTS).rglob('*.py'))
+    pages = [root / README, root / 'CONTRIBUTING.md', *sorted((root / 'docs' / 'overview').rglob('*.md'))]
+    return _parts_of(root, sources, tests, pages)
 
 
 def _relative_imports(path: Path) -> set[Path]:
@@ -1969,6 +2179,31 @@ def check_generated_classes_finds_a_planted_signature(folder: Path) -> list[str]
     return _expected('_generated_classes', _generated_classes(folder), {'planted.py': [1, 2, 3]})
 
 
+def check_part_names_are_named(folder: Path) -> list[str]:
+    """Return a finding unless a class and a docstring that call a component a part are named, and kept meanings not."""
+    path = _write_module(
+        folder,
+        'planted',
+        """
+        class DoublingPart(BaseComponent):
+            def _get_laws(self, namespace):
+                \"\"\"Return the parts of the system.\"\"\"
+                return [real_part(namespace.z)]
+
+            def _run(self, value):
+                \"\"\"Set its real part.\"\"\"
+        """,
+    )
+    page = folder / 'page.md'
+    page.write_text('# Page\n\nThe label of every part of a system is unique.\nAn element takes part in a run.\n')
+    expected = [
+        f'{path.relative_to(folder)}:2: part names a component: DoublingPart',
+        f'{path.relative_to(folder)}:4: part names a component: Return the parts of the system.',
+        'page.md:3: part names a component: The label of every part of a system is unique.',
+    ]
+    return _expected('_parts_of', _parts_of(folder, [path], [], [page]), expected)
+
+
 SELF_CHECKS = (
     check_misplaced_constants_are_named,
     check_constant_gaps_are_named,
@@ -1978,6 +2213,7 @@ SELF_CHECKS = (
     check_unnatural_lines_are_named,
     check_private_names_are_named,
     check_generated_classes_finds_a_planted_signature,
+    check_part_names_are_named,
 )
 CHECKS = (
     check_tests_mirror_the_sources,
@@ -2010,7 +2246,8 @@ CHECKS = (
     check_every_dataclass_is_a_frozen_spec_or_result,
     check_no_module_outside_the_types_defines_a_kind_or_a_protocol,
     check_every_base_derives_from_the_root,
-    check_library_generates_no_classes_of_parts,
+    check_library_generates_no_classes_of_components,
+    check_components_are_not_called_parts,
     check_no_module_serves_one_system,
     check_no_system_module_imports_another,
     check_every_general_module_serves_two_fields,

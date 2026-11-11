@@ -45,9 +45,9 @@ COMPONENT_KINDS = {
 class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, list[LawKernel], bool]]]):
     """A printer that writes the kernels and reductions of a problem as Numba source.
 
-    `prepare(reductions)` starts an empty source and prints the function that fuses the reductions, or none for
-    `None`, and `run(parts)` prints the kernels of every law kind into the source lines of `code_`. A part is the label
-    of the entry function, its mode, `'add'`, `'assign'`, or `'concatenate'`, the kernels, and whether they read the
+    `prepare(reductions)` starts an empty source and prints the function that fuses the reductions, or none for `None`,
+    and `run(blocks)` prints the kernels of every law kind into the source lines of `code_`. A block is the label of the
+    entry function, its mode, `'add'`, `'assign'`, or `'concatenate'`, the kernels, and whether they read the
     reductions. After a run, `functions_` holds the compiled functions the source calls by name, and `layout(entries)`
     returns the array of the starts and rows of the entries it reads.
 
@@ -92,17 +92,17 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             self._reduce_function(context, self.parallel)
 
     def _run(self, inputs: Sequence[tuple[str, str, list[LawKernel], bool]] | None) -> None:
-        """Print the kernels of every part into the source lines.
+        """Print the kernels of every block into the source lines.
 
-        Each part comes with its entry function.
+        Each block comes with its entry function.
 
         Args:
             inputs:
-                The parts: the label of the entry function, its mode, the kernels, and whether they read reductions.
+                The blocks: the label of the entry function, its mode, the kernels, and whether they read reductions.
 
         Raises:
             ValidationError:
-                No parts are passed.
+                No blocks are passed.
         """
         if inputs is None:
             error_msg = 'The Numba printer runs on the parts of a problem. Pass them to `run`.'

@@ -525,7 +525,7 @@ class _Lowering:
         self._offsets.append(float(rest) if rest.is_numeric() else 0.0)
 
     def _get_cost_matrix(self) -> Array:
-        """Return the costs of every objective, with the parts after the variables."""
+        """Return the costs of every objective, absolute values after the variables."""
         size, count = len(self._columns), len(self._parts)
         matrix = np.zeros((len(self._costs), size + 2 * count))
         for row, costs in enumerate(self._costs):

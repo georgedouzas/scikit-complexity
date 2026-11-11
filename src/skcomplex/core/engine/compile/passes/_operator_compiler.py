@@ -825,7 +825,7 @@ class OperatorCompiler(BaseCompiler):
     def _get_name_of(path: str) -> str:
         """Return a path, such as `chain[3]`, as a valid part of a symbol name.
 
-        An example of such a part is `chain_3`.
+        An example is `chain_3`.
         """
         return '_'.join(part for part in re.split(r'\W+', path) if part)
 

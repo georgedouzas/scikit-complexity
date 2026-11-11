@@ -188,7 +188,7 @@ class GroupingInteraction(Interaction):
         self.reduce = reduce
 
     def _check_symbolic(self) -> None:
-        """Raise an error for a symbolic form without its parts or with agent settings.
+        """Raise an error for an incomplete symbolic form or one with agent settings.
 
         Raises:
             ValidationError:
