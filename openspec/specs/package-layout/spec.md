@@ -135,7 +135,7 @@ use.
 
 ### Requirement: A system compiler is not a pass
 `BaseCompiler` of `skcomplex.core.engine.compile` SHALL be the public base of the compilers that compile a whole system
-of one form to a problem, the private compilers of the library's forms included, and SHALL be unrelated to `BasePass`,
+of one form to a problem, the compilers of the library's forms included, and SHALL be unrelated to `BasePass`,
 whose subclasses are steps of one compilation.
 
 #### Scenario: Quantum compiler
@@ -324,13 +324,15 @@ package SHALL NOT hold a component module that serves a single system.
 The public API SHALL hold estimators for the components a modeler defines and for calibration, and public functions
 for simulating, analysing, and running experiments. Every other helper SHALL be a method of the class that reads it,
 with only the module functions that the requirement on classes owning the functions they read lets stay. Compilers and
-problem forms SHALL be private, with one documented hook for a system package that brings its own form.
+problem forms SHALL be private, with one documented hook for a system package that brings its own form, except the
+operator compiler and the operator problem, which SHALL be public so that the quantum analyses of a field package can
+compile an operator system and read its problem.
 
 #### Scenario: Public surface
 - **WHEN** a test lists the public names of `skcomplex.core.engine`
-- **THEN** it finds solvers, backends, observables, `simulate`, and `Trajectory`, no concrete compiler or `Simulation`,
-  and of compilation and problems only the bases a system package's own form builds on, the problem of the shared pass
-  core, and the frames observers read
+- **THEN** it finds solvers, backends, observables, `simulate`, and `Trajectory`, no concrete compiler but
+  `OperatorCompiler` and no `Simulation`, and of compilation and problems only the bases a system package's own form
+  builds on, the problems of the shared pass core and of the operator form, and the frames observers read
 
 #### Scenario: A system package brings its own form
 - **WHEN** a system class tunes the run setting `compiler` with a compiler its package defines on `BaseCompiler`
@@ -412,7 +414,9 @@ its package, and no module SHALL import a private name of another package.
 Every new component SHALL be placed by one ordered test. A structural base SHALL go to the core. A component the
 engine handles by type, or an operator generated from one function, SHALL go to the core under a mathematical name.
 Any other component is a recipe, placed by its users: `skcomplex.systems.general.<concept>` for several fields,
-`systems/<field>/common/<family>` for one field, its system's module for one system. The core SHALL never import
+`systems/<field>/common/<family>` for one field, its system's module for one system. Every analysis SHALL be placed by
+its users too: an analysis that measures what systems of several fields share SHALL go to `skcomplex.core.analysis`,
+and an analysis of one field SHALL go to `systems/<field>/common/<family>`. The core SHALL never import
 `skcomplex.systems`.
 
 #### Scenario: Structural base
@@ -437,6 +441,15 @@ Any other component is a recipe, placed by its users: `skcomplex.systems.general
 - **THEN** `DialectSpec` stays in `core/specs/_dialect_spec.py` as engine support, and `skcomplex.core.specs` does not
   re-export it, since nothing outside the package reads it
 
+#### Scenario: Analysis of several fields
+- **WHEN** a contributor adds an analysis of the winding defects of a field of angles, which liquid crystals, active
+  nematics, and spiral waves of heart tissue share
+- **THEN** it goes to `skcomplex.core.analysis`
+
+#### Scenario: Analysis of one field
+- **WHEN** a contributor adds an analysis of the entanglement of the subsystems of a quantum state
+- **THEN** it goes to `systems/physics/common/quantum`, and it imports only the public modules of the core
+
 #### Scenario: Source tests guard the rule
 - **WHEN** the source tests run
 - **THEN** every public class of `skcomplex.core.components` is a structural base, is named in the code of another core
@@ -446,7 +459,8 @@ Any other component is a recipe, placed by its users: `skcomplex.systems.general
 
 #### Scenario: One text of the rule
 - **WHEN** a reviewer reads `openspec/constitution.md`, `CONTRIBUTING.md`, and the extension page of the user guide
-- **THEN** each states the same ordered test as this requirement, in the word component
+- **THEN** each states the same ordered test as this requirement, in the word component, and each says that analyses
+  follow it by their users
 
 ### Requirement: Module constants lead the module under public names
 Every module constant of a Python file of the sources, the tests, and the documents, without the generated pages,
