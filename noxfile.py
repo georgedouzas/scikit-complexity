@@ -95,9 +95,10 @@ def clean(session: nox.Session) -> None:
         shutil.rmtree(path, ignore_errors=True)
     for cache_path in Path().rglob('__pycache__'):
         shutil.rmtree(cache_path, ignore_errors=True)
-    for file in Path().rglob('*.rej'):
-        if file.exists():
-            file.unlink()
+    for pattern in ('*.rej', '*.rbl', '*.rrd'):
+        for file in Path().rglob(pattern):
+            if file.exists():
+                file.unlink()
     for file in Path().rglob('.coverage*'):
         if file.exists():
             file.unlink()
