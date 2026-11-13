@@ -338,6 +338,9 @@ realizations](core_components/general.md#where-a-component-goes) quotes the rule
    Engine support never lives inside a recipe.
 5. The core never imports `skcomplex.systems`.
 
+Analyses follow the rule by their users too. An analysis that measures what systems of several fields share goes to
+`skcomplex.core.analysis`, and an analysis of one field goes to `systems/<field>/common/<family>`.
+
 One example for each step follows.
 
 1. [`HyperedgeInteraction`](core_components/interactions.md#hyperedgeinteraction) runs its laws once per hyperedge,

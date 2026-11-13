@@ -150,6 +150,9 @@ Every component MUST be placed by one ordered test, the placement rule, which `o
    Engine support never lives inside a recipe.
 5. The core never imports `skcomplex.systems`.
 
+Analyses follow the rule by their users too. An analysis that measures what systems of several fields share goes to
+`skcomplex.core.analysis`, and an analysis of one field goes to `systems/<field>/common/<family>`.
+
 ### Style & Naming
 
 - Every document, docstring, and example MUST follow one style, written for a reader who wants to understand, not to

@@ -1,10 +1,14 @@
-"""Analyse an operator system."""
+"""Measure operator systems.
+
+The measures are spectra, ground states, purity, and entanglement.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence, Set
 from dataclasses import dataclass
 
 import numpy as np
@@ -12,17 +16,14 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from ..components.systems import CompositeSystem
-from ..engine.compile.passes._operator_compiler import DENSE_LIMIT, OperatorCompiler
-from ..engine.problems import BaseProblemSpec
-from ..engine.problems._operator_problem_spec import OperatorProblemSpec
-from ..engine.runtime import Trajectory
-from ..enums import DataKind
-from ..errors import AnalysisError, ParameterError
-from ..specs import AnalysisTags, RunStateSpec, SectorSpec
-from ..types import Array
-from ._base import _check_choice, _check_settings, _composite, _read_system
-from .types import Source
+from .....core.analysis.types import Source
+from .....core.components.systems import BaseSystem, CompositeSystem
+from .....core.engine.compile import OperatorCompiler
+from .....core.engine.problems import BaseProblemSpec, OperatorProblemSpec
+from .....core.engine.runtime import Trajectory
+from .....core.errors import AnalysisError, ParameterError
+from .....core.specs import RunStateSpec, SectorSpec
+from .....core.types import Array
 
 KINDS = ('spectrum', 'ground-state', 'purity', 'entanglement')
 SETTINGS = {
@@ -33,7 +34,7 @@ SETTINGS = {
 }
 DIAGONAL_TOLERANCE = 1e-12
 SECTOR_TOLERANCE = 1e-9
-TAGS = AnalysisTags(DataKind.SYSTEM)
+DENSE_LIMIT = 1024
 
 
 @dataclass(frozen=True)
@@ -141,7 +142,7 @@ def operator_measures(
         >>> from typing import Annotated
         >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import CC, SR
-        >>> from skcomplex.core.analysis import operator_measures
+        >>> from skcomplex.systems.physics.common.quantum import operator_measures
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.laws import GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
@@ -171,9 +172,8 @@ def operator_measures(
         True
     """
     source = _composite(source)
-    _check_choice('operator_measures', 'kind', kind, KINDS)
+    _check_choice('kind', kind, KINDS)
     _check_settings(
-        operator_measures,
         'kind',
         SETTINGS[kind],
         kind=kind,
@@ -209,6 +209,64 @@ def operator_measures(
     basis = None if sector is None else _sector_basis(problem, sector, p)
     energies, states = _lowest_states(problem, p, n_states, basis)
     return OperatorMeasuresResult(problem, energies=energies, states=states)
+
+
+def _check_choice(name: str, value: object, choices: tuple[object, ...]) -> None:
+    """Raise an error for a setting that is not one of its choices."""
+    if value not in choices:
+        error_msg = f'operator_measures has {name}={value!r}. Use one of {", ".join(map(str, choices))}.'
+        raise AnalysisError(error_msg)
+
+
+def _check_settings(name: str, read: Set[str], **settings: object) -> None:
+    """Raise an error for a changed setting that the choice of `name` ignores.
+
+    A changed setting differs from its default, and the choice of `name` does not read it.
+    """
+    defaults = inspect.signature(operator_measures).parameters
+    ignored = [
+        key
+        for key, value in settings.items()
+        if key != name and key not in read and _is_changed(value, defaults[key].default)
+    ]
+    if ignored:
+        error_msg = (
+            f'operator_measures of {name} {settings[name]!r} does not read {", ".join(ignored)}. It reads '
+            f'{", ".join(sorted(read)) or "no other setting"}.'
+        )
+        raise AnalysisError(error_msg)
+
+
+def _is_changed(value: object, default: object) -> bool:
+    """Return whether a setting differs from its default.
+
+    Arrays and sequences are compared by their items.
+    """
+    if value is None or default is None:
+        return value is not default
+    try:
+        return not np.array_equal(np.asarray(value, dtype=object), np.asarray(default, dtype=object))
+    except (TypeError, ValueError):
+        return value is not default
+
+
+def _composite(source: Source) -> Source:
+    """Return the prepared composite of a ready-made system, or another source as it is."""
+    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
+        return source.prepare().system_
+    return source
+
+
+def _read_system(source: object) -> CompositeSystem | BaseProblemSpec:
+    """Return the problem of a trajectory, or a system or a problem as it is."""
+    if isinstance(source, Trajectory):
+        return source.problem
+    if isinstance(source, CompositeSystem | BaseProblemSpec):
+        return source
+    error_msg = (
+        f'The analysis reads a system, a problem, or a trajectory, not {type(source).__name__}. Pass one of them.'
+    )
+    raise AnalysisError(error_msg)
 
 
 def _operator_problem(system: CompositeSystem | BaseProblemSpec) -> OperatorProblemSpec:

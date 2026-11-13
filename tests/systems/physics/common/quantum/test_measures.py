@@ -1,18 +1,18 @@
-"""Test the analysis of operator systems: spectra, ground states, purity, and entanglement."""
+"""Test the measures of operator systems: spectra, ground states, purity, and entanglement."""
 
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import operator_measures
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ParameterError, ValidationError
 from skcomplex.core.specs import SectorSpec
 from skcomplex.systems.biology.common.populations import PopulationElement
+from skcomplex.systems.physics.common.quantum import operator_measures
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem, total_magnetization
 
-from ...conftest import SpinElement
+from .....conftest import SpinElement
 
 
 def _operator(kind, source, **settings):

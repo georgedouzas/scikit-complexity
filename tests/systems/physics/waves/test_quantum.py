@@ -4,13 +4,13 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import operator_measures
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import ValidationError
+from skcomplex.systems.physics.common.quantum import operator_measures
 from skcomplex.systems.physics.waves import SchrodingerSystem
 from skcomplex.systems.physics.waves._quantum import SiteElement
 

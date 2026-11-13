@@ -67,7 +67,7 @@ class OperatorCompiler(BaseCompiler):
 
     Examples:
         >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
+        >>> from skcomplex.core.engine.compile import OperatorCompiler
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> OperatorCompiler().prepare(CompositeSystem(elements=[PopulationElement('rabbits')])).report_.ok
         False

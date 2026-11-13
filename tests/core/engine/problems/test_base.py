@@ -32,13 +32,14 @@ def test_kernel_search_and_printer_bases_are_configurable():
         assert all(callable(getattr(base, method)) for method in ('prepare', 'run'))
 
 
-def test_problems_of_the_forms_are_private():
-    """The bases, the problem of the shared pass core, and the frames are public, and the other problems are not."""
+def test_public_problems_are_the_bases_frames_and_two_forms():
+    """The bases, the problems of the shared pass core and the operator form, and the frames are public."""
     assert set(package.__all__) == {
         'BaseKernel',
         'BasePrinter',
         'BaseProblemSpec',
         'BaseSearch',
         'FrameSpec',
+        'OperatorProblemSpec',
         'ProblemSpec',
     }

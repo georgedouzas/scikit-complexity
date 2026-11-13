@@ -6,10 +6,9 @@ from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine import compile as package
-from skcomplex.core.engine.compile import BaseCompiler, BasePass
+from skcomplex.core.engine.compile import BaseCompiler, BasePass, OperatorCompiler
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
-from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 
 
 def test_base_compiler_resolve_backend():
@@ -29,11 +28,12 @@ def test_public_names_are_classes():
         assert inspect.isclass(getattr(package, name)), name
 
 
-def test_bases_are_public_and_compilers_private():
-    """The bases are public, and the compilers and passes of the library's forms are private."""
-    assert set(package.__all__) == {'BaseCompiler', 'BasePass', 'BaseLowering', 'HilbertSpaceError'}
+def test_bases_and_the_operator_compiler_are_public():
+    """The bases and the operator compiler are public, and the other compilers and the passes are private."""
+    assert set(package.__all__) == {'BaseCompiler', 'BasePass', 'BaseLowering', 'HilbertSpaceError', 'OperatorCompiler'}
     for compiler in (PassCompiler, OperatorCompiler, RewritingCompiler):
         assert issubclass(compiler, package.BaseCompiler)
+    for compiler in (PassCompiler, RewritingCompiler):
         assert not hasattr(package, compiler.__name__)
     for name in ('FlattenPass', 'LayoutPass', 'ProblemPass', 'Compilation', 'ObservableEvaluator'):
         assert not hasattr(package, name)

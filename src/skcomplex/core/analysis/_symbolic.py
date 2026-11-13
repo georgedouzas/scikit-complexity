@@ -44,7 +44,6 @@ from ..specs import AnalysisTags
 from ..specs._unknown_spec import _UnknownSpec
 from ..types import Array, ComplexArray
 from ._base import _check_choice, _check_settings, _composite, _read_system
-from ._operator import _operator_problem
 from ._utils import compile_problem
 from .types import Source
 
@@ -359,6 +358,17 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
     if kind == 'solve':
         return SymbolicResult(problem, solutions=_solve(problem, use_initial_state=use_initial_state))
     return SymbolicResult(problem, inflows=_conservation(problem))
+
+
+def _operator_problem(problem: BaseProblemSpec) -> OperatorProblemSpec:
+    """Return the operator problem of a compiled problem.
+
+    A problem of another form raises an error.
+    """
+    if not isinstance(problem, OperatorProblemSpec):
+        error_msg = f'The system compiles to the {problem.form} form, but the analysis needs operator elements.'
+        raise AnalysisError(error_msg)
+    return problem
 
 
 def _declare_domains(items: Iterable[Expression], values: Mapping[Expression, float] | None = None) -> None:

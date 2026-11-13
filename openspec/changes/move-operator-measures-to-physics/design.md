@@ -56,11 +56,20 @@ same, and a new package needs the maintainer's approval for no gain.
 `OperatorCompiler` joins `__all__` of `skcomplex.core.engine.compile` and `OperatorProblemSpec` joins `__all__` of
 `skcomplex.core.engine.problems`. The moved analysis imports them from these packages, which the import contract
 allows. Both are engine-typed primitives, which the placement rule keeps in the core, so making them public changes
-no placement. Their docstrings get the examples a public class needs.
+no placement. Their docstrings get the examples a public class needs. The requirement that compilers and problem forms
+are private names these two as its exceptions, and the tests of the public surface of both packages list them.
 
 Alternative: compile through `PassCompiler` and check `form == FormKind.OPERATOR`. Rejected, since the analysis needs
 the fields of `OperatorProblemSpec`, such as its generator and its subsystem dimensions, and a public type is what
 mypy and readers need to see them.
+
+### Guide pages may import a field analysis
+
+The documentation rule lets guide pages import only system classes from subfield packages. The quantum guide page
+imports `operator_measures` from the family package `systems/physics/common/quantum`, so the rule and its convention
+check accept an analysis function or its result from a family package of a field, and the prose may name that
+package. Showing the analysis only in the gallery was the alternative, rejected because measuring a quantum system is
+what the page teaches.
 
 ### The analysis keeps its own private checks
 

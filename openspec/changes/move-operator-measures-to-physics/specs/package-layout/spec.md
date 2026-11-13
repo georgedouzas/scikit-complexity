@@ -51,3 +51,31 @@ and an analysis of one field SHALL go to `systems/<field>/common/<family>`. The 
 - **WHEN** a reviewer reads `openspec/constitution.md`, `CONTRIBUTING.md`, and the extension page of the user guide
 - **THEN** each states the same ordered test as this requirement, in the word component, and each says that analyses
   follow it by their users
+
+### Requirement: A system compiler is not a pass
+`BaseCompiler` of `skcomplex.core.engine.compile` SHALL be the public base of the compilers that compile a whole system
+of one form to a problem, the compilers of the library's forms included, and SHALL be unrelated to `BasePass`,
+whose subclasses are steps of one compilation.
+
+#### Scenario: Quantum compiler
+- **WHEN** a test checks the compiler that `simulate` chooses for a quantum system against `BaseCompiler` and `BasePass`
+- **THEN** it derives from the first and not from the second
+
+### Requirement: Estimators for what is defined, functions for what is done
+The public API SHALL hold estimators for the components a modeler defines and for calibration, and public functions
+for simulating, analysing, and running experiments. Every other helper SHALL be a method of the class that reads it,
+with only the module functions that the requirement on classes owning the functions they read lets stay. Compilers and
+problem forms SHALL be private, with one documented hook for a system package that brings its own form, except the
+operator compiler and the operator problem, which SHALL be public so that the quantum analyses of a field package can
+compile an operator system and read its problem.
+
+#### Scenario: Public surface
+- **WHEN** a test lists the public names of `skcomplex.core.engine`
+- **THEN** it finds solvers, backends, observables, `simulate`, and `Trajectory`, no concrete compiler but
+  `OperatorCompiler` and no `Simulation`, and of compilation and problems only the bases a system package's own form
+  builds on, the problems of the shared pass core and of the operator form, and the frames observers read
+
+#### Scenario: A system package brings its own form
+- **WHEN** a system class tunes the run setting `compiler` with a compiler its package defines on `BaseCompiler`
+- **THEN** `simulate` compiles the system with it, while the library's own forms, such as the rewriting and operator
+  forms, are chosen from what the system holds

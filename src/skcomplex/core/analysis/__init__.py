@@ -40,7 +40,6 @@ from ._mode_decomposition import ModeDecompositionResult, mode_decomposition
 from ._motifs import MotifsResult, motifs
 from ._neighbors import NeighborsResult, neighbors
 from ._networks import NetworkMeasuresResult, network_measures
-from ._operator import OperatorMeasuresResult, operator_measures
 from ._partial_information import PartialInformationResult, partial_information
 from ._passage import PassageResult, passage
 from ._recurrence import RecurrenceResult, recurrence
@@ -95,7 +94,6 @@ __all__: list[str] = [
     'MotifsResult',
     'NeighborsResult',
     'NetworkMeasuresResult',
-    'OperatorMeasuresResult',
     'PartialInformationResult',
     'PassageResult',
     'RecurrenceResult',
@@ -148,7 +146,6 @@ __all__: list[str] = [
     'motifs',
     'neighbors',
     'network_measures',
-    'operator_measures',
     'partial_information',
     'passage',
     'recurrence',

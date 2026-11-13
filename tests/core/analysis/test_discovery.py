@@ -2,13 +2,14 @@
 
 import numpy as np
 
+from skcomplex.core import analysis
 from skcomplex.core.analysis import ApplicableAnalysesResult, applicable_analyses, markov
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.collective_behaviour import PheromoneForagingSystem
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.mathematics.stochastic_processes import OnOffIntermittencySystem, PoissonProcessSystem
 from skcomplex.systems.physics.active_matter import VicsekSystem
-from skcomplex.systems.physics.statistical_mechanics import IsingSystem
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem, QuantumHeisenbergSystem
 
 
 def _discover(source: object) -> ApplicableAnalysesResult:
@@ -90,3 +91,14 @@ def test_discovery_leaves_out_analyses_whose_tags_the_system_lacks():
     assert ('lyapunov', 'largest') in _names(deterministic.analyses['series'])
     assert ('lyapunov', 'largest') not in _names(stochastic.analyses['series'])
     assert ('entropy', 'permutation') in _names(stochastic.analyses['series'])
+
+
+def test_discovery_lists_only_core_analyses():
+    """Test that a quantum spin chain lists only public analyses of the core."""
+    discovery = applicable_analyses(simulate(QuantumHeisenbergSystem(n_sites=4), until=1.0, dt=0.1))
+    functions = [item.func for analyses in discovery.analyses.values() for item in analyses]
+    assert functions
+    assert all(
+        function.__name__ in analysis.__all__ and getattr(analysis, function.__name__) is function
+        for function in functions
+    )

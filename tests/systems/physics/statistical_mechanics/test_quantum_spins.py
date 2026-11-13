@@ -5,11 +5,11 @@ import pytest
 import rerun.blueprint as rrb
 from scipy.special import jv
 
-from skcomplex.core.analysis import operator_measures
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import ExpectationVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
+from skcomplex.systems.physics.common.quantum import operator_measures
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement, _get_spin_space
 

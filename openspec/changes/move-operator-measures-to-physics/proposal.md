@@ -42,6 +42,9 @@ None.
 ### Modified Capabilities
 
 - `package-layout`: the placement rule covers analyses as well as components.
+  The operator compiler and the operator problem become public exceptions to the private compilers and problem forms.
+- `user-documentation`: guide pages may import an analysis of one field and its result from the family package of the
+  field.
 - `quantum-systems`: the spectra, ground states, purity, and entanglement come from the quantum package of physics,
   not from the general analysis layer.
 - `analysis-interface`: the core analyses are those that measure what several fields share, and discovery lists only

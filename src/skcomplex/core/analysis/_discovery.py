@@ -58,7 +58,6 @@ from ._mode_decomposition import mode_decomposition
 from ._motifs import motifs
 from ._neighbors import neighbors
 from ._networks import network_measures
-from ._operator import operator_measures
 from ._partial_information import partial_information
 from ._passage import passage
 from ._recurrence import recurrence
@@ -113,7 +112,6 @@ ANALYSES = (
     motifs,
     neighbors,
     network_measures,
-    operator_measures,
     partial_information,
     passage,
     recurrence,

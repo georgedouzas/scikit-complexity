@@ -1752,8 +1752,10 @@ it mechanically. It reads, word for word:
 > Every new component SHALL be placed by one ordered test. A structural base SHALL go to the core. A component the
 > engine handles by type, or an operator generated from one function, SHALL go to the core under a mathematical name.
 > Any other component is a recipe, placed by its users: `skcomplex.systems.general.<concept>` for several fields,
-> `systems/<field>/common/<family>` for one field, its system's module for one system. The core SHALL never import
-> `skcomplex.systems`.
+> `systems/<field>/common/<family>` for one field, its system's module for one system. Every analysis SHALL be placed
+> by its users too: an analysis that measures what systems of several fields share SHALL go to
+> `skcomplex.core.analysis`, and an analysis of one field SHALL go to `systems/<field>/common/<family>`. The core SHALL
+> never import `skcomplex.systems`.
 
 A field with its own term names its recipe, and `general` uses neutral names. One example for each step follows.
 

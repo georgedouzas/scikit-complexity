@@ -34,6 +34,7 @@ SYSTEMS = 'skcomplex.systems'
 CATALOG_FUNCTIONS = ('all_systems',)
 GENERAL = f'{SYSTEMS}.general'
 SUBFIELD_PACKAGE = re.compile(rf'{re.escape(SYSTEMS)}\.[a-z]\w*\.[a-z]\w*')
+FAMILY_PACKAGE = re.compile(rf'{re.escape(SYSTEMS)}\.[a-z]\w*\.common\.[a-z]\w*')
 SYSTEMS_PATH = re.compile(rf'{re.escape(SYSTEMS)}\.[\w<>.]*[\w>]')
 SUBFIELD_PLACEHOLDER = f'{SYSTEMS}.<field>.<subfield>'
 CONCEPT_PLACEHOLDER = f'{GENERAL}.<concept>'
@@ -666,11 +667,16 @@ def _imported_names(code: str) -> list[tuple[int, str, str]]:
 
 
 def _is_allowed_import(module: str, name: str) -> bool:
-    """Return whether an import takes a catalog function, a system class from its subfield, or a general realization."""
+    """Return whether an import takes a catalog function, a system class from its subfield, or a general realization.
+
+    An analysis of one field and its result may also come from the family package of that field.
+    """
     if module == SYSTEMS:
         return name in CATALOG_FUNCTIONS
     if module.startswith(f'{GENERAL}.'):
         return SUBFIELD_PACKAGE.fullmatch(module) is not None
+    if FAMILY_PACKAGE.fullmatch(module) is not None:
+        return name.islower() or name.endswith('Result')
     if module.startswith(f'{SYSTEMS}.'):
         return SUBFIELD_PACKAGE.fullmatch(module) is not None and name.endswith('System')
     return not (module == 'skcomplex' and name == 'systems')
@@ -688,8 +694,10 @@ def check_documents_import_systems_from_their_subfield(root: Path) -> list[str]:
 
 
 def _is_allowed_path(path: str) -> bool:
-    """Return whether a dotted path below the systems names a subfield, the general package, or a concept of it."""
-    return path in (SUBFIELD_PLACEHOLDER, GENERAL, CONCEPT_PLACEHOLDER) or SUBFIELD_PACKAGE.fullmatch(path) is not None
+    """Return whether a dotted path below the systems names a subfield, a family of a field, or the general package."""
+    if path in (SUBFIELD_PLACEHOLDER, GENERAL, CONCEPT_PLACEHOLDER):
+        return True
+    return SUBFIELD_PACKAGE.fullmatch(path) is not None or FAMILY_PACKAGE.fullmatch(path) is not None
 
 
 def check_documents_name_only_subfield_packages(root: Path) -> list[str]:

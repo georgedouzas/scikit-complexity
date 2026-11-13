@@ -6,10 +6,12 @@ compiler on `BaseCompiler`, with passes on `BasePass` and lowerings on `BaseLowe
 
 from ._base import BaseCompiler, BaseLowering, BasePass
 from .passes._hilbert_space_error import HilbertSpaceError
+from .passes._operator_compiler import OperatorCompiler
 
 __all__: list[str] = [
     'BaseCompiler',
     'BaseLowering',
     'BasePass',
     'HilbertSpaceError',
+    'OperatorCompiler',
 ]

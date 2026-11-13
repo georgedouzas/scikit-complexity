@@ -99,6 +99,9 @@ of the user guide gives an example of each step.
    Engine support never lives inside a recipe.
 5. The core never imports `skcomplex.systems`.
 
+Analyses follow the rule by their users too. An analysis that measures what systems of several fields share goes to
+`skcomplex.core.analysis`, and an analysis of one field goes to `systems/<field>/common/<family>`.
+
 ### Module layout
 
 This section gives the order of a Python file. Every file holds the docstring, the licence header, the imports, the

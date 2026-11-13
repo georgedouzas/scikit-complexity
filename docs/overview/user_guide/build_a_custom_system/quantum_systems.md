@@ -8,10 +8,12 @@ vector space whose unit vectors are the possible states.
 
 This section finds the two lowest energies of a chain of four spins, the Heisenberg chain of the catalog. The analysis
 `operator_measures` diagonalises the generator of the system exactly, and `n_states` sets how many of the lowest
-eigenvalues it returns.
+eigenvalues it returns. It measures quantum systems only, so it lives in the quantum package of physics,
+`skcomplex.systems.physics.common.quantum`, beside the qubit and the bosonic mode, rather than in
+`skcomplex.core.analysis`.
 
 ```python
-from skcomplex.core.analysis import operator_measures
+from skcomplex.systems.physics.common.quantum import operator_measures
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 
 spectrum = operator_measures(QuantumHeisenbergSystem(n_sites=4), n_states=2)
