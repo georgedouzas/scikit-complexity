@@ -10,8 +10,9 @@ and `run`, which the system calls. Elements, interactions, spaces, and neighbour
   parameter methods and their hooks
 
 ### Requirement: Extension hooks a user implements are public
-The hooks a user implements to extend the library, `get_laws` on interactions and `build` on ready-made systems, SHALL
-be public. Hooks that only the engine implements SHALL stay private.
+The hook a user implements to give the laws of an interaction, `get_laws`, SHALL be public. A ready-made system SHALL
+implement the private hook `_prepare` of its main public method, as a scikit-learn `fit` calls `_fit`, and hooks that
+only the engine implements SHALL stay private.
 
 #### Scenario: A user interaction
 - **WHEN** a user writes an interaction that defines `get_laws`
@@ -91,7 +92,7 @@ kernels of a Gaussian process are parts of it in scikit-learn. Experiments and c
 
 ### Requirement: Ready-made systems are classes with model parameters
 Every ready-made system SHALL be a class deriving from `BaseSystem`, whose constructor only stores the model's own
-parameters, whose public hook `build` returns the `System` of its parts, and whose `prepare` builds and prepares it.
+parameters, and whose `_prepare` sets `system_`, the `System` of its components, which `prepare` then compiles.
 `get_params`, `set_params`, and `clone` SHALL work on the model parameters.
 
 #### Scenario: Changing a model parameter

@@ -8,10 +8,11 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import ClassVar
+from typing import ClassVar, Self
 
 import numpy as np
 import numpy.typing as npt
+from sklearn.base import clone
 
 from ..components.base import BaseComponent
 from ..components.systems import CompositeSystem
@@ -29,9 +30,9 @@ class BaseSystem(BaseComponent[Sequence[ObservableSpec], SimpleNamespace]):
     `prepare` checks the components of the system and compiles them into a problem once, as `fit` does for a
     scikit-learn estimator. `simulate` then solves that problem from a starting point and returns its trajectory, as
     `predict` does, so one prepared system runs many times. A subclass takes the parameters of its model as arguments
-    of its `__init__` and returns the `System` of its components from the public hook `build`. Class attributes may
-    tune the end time, the time between frames, the observables, the initial state, the invariants, and the schedule
-    that `simulate` uses for the arguments a call leaves out.
+    of its `__init__`, and its `_prepare` sets `system_`, the `System` of its components, as `fit` calls `_fit`. Class
+    attributes may tune the end time, the time between frames, the observables, the initial state, the invariants,
+    and the schedule that `simulate` uses for the arguments a call leaves out.
 
     Read more in the user guide, under Systems.
 
@@ -46,8 +47,9 @@ class BaseSystem(BaseComponent[Sequence[ObservableSpec], SimpleNamespace]):
         >>> from skcomplex.core.systems import BaseSystem, System
         >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
         >>> class EcologySystem(BaseSystem):
-        ...     def build(self):
-        ...         return System(self.label, systems=[LotkaVolterraSystem(label='meadow')])
+        ...     def _prepare(self, context=None):
+        ...         super()._prepare(context)
+        ...         self.system_ = System(self.label, systems=[LotkaVolterraSystem(label='meadow')])
         >>> trajectory = EcologySystem().prepare().simulate(until=5.0)
         >>> float(trajectory.times[-1])
         5.0
@@ -76,8 +78,13 @@ class BaseSystem(BaseComponent[Sequence[ObservableSpec], SimpleNamespace]):
         super().__init__(label)
 
     def _get_composite(self) -> CompositeSystem:
-        """Return the composite of the components that the engine compiles."""
-        return self.build()._get_composite()
+        """Return the composite of the components that the engine compiles.
+
+        A copy of the system builds the components, so reading the tags before `prepare` changes nothing.
+        """
+        built = clone(self)
+        built._prepare(None)
+        return built.system_._get_composite()
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the components for a namespace of symbols.
@@ -119,18 +126,17 @@ class BaseSystem(BaseComponent[Sequence[ObservableSpec], SimpleNamespace]):
             )
             raise NotPreparedError(error_msg)
 
+    @abstractmethod
     def _prepare(self, context: Sequence[ObservableSpec] | None = None) -> None:
-        """Build the components and prepare their system as `system_`.
+        """Check the model parameters and set `system_`, the `System` of the components.
 
-        The system of the components compiles the tuned observables, so a run that records only them compiles nothing.
+        A subclass starts with `super()._prepare(context)`, which checks the label.
 
         Args:
             context:
-                Unused, since a system serves nothing outside itself.
+                The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        self.system_ = self.build().prepare(self.observables)
-        self._prepared_from = self._get_values()
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Set `laws_`, the laws of the system for a namespace of symbols.
@@ -141,14 +147,26 @@ class BaseSystem(BaseComponent[Sequence[ObservableSpec], SimpleNamespace]):
         """
         self.laws_ = self._get_laws_of(inputs)
 
-    @abstractmethod
-    def build(self) -> BaseSystem:
-        """Return the `System` of the components, built from the model parameters.
+    def prepare(self, context: Sequence[ObservableSpec] | None = None) -> Self:
+        """Check the system, build its components, and compile them into a problem.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for the tuned ones.
 
         Returns:
-            system:
-                The system of the elements, interactions, nested systems, and space.
+            self:
+                The prepared system.
+
+        Raises:
+            ValidationError:
+                A model parameter or a component is invalid, named in the message.
         """
+        super().prepare(self.observables if context is None else context)
+        if self.system_ is not self:
+            self.system_.prepare(self.observables)
+        self._prepared_from = self._get_values()
+        return self
 
     def simulate(
         self,

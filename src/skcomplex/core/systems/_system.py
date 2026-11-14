@@ -49,7 +49,7 @@ class System(BaseSystem):
             The backend of the runs, or `None` for the default one.
 
     See Also:
-        BaseSystem: The base of ready-made systems, which build a system from the parameters of their model.
+        BaseSystem: The base of ready-made systems, which prepare a system from the parameters of their model.
 
     Examples:
         >>> from skcomplex.core.systems import System
@@ -167,23 +167,13 @@ class System(BaseSystem):
             context:
                 The observables to compile with the problem, or `None` for none.
         """
-        BaseComponent._prepare(self, context)
+        super()._prepare(context)
         self._check_runners()
         self.composite_ = self._get_composite()
         solver = self.solver if isinstance(self.solver, BaseSolver) else None
         self.problem_, self.solver_ = compile_problem(self.composite_, solver=solver, observables=context or ())
         self.backend_ = self.backend if isinstance(self.backend, BaseBackend) else None
         self.system_ = self
-        self._prepared_from = self._get_values()
-
-    def build(self) -> System:
-        """Return the system itself, whose components are its arguments.
-
-        Returns:
-            system:
-                The system itself.
-        """
-        return self
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
         """Return the parameters of the system and of its components by nested names.

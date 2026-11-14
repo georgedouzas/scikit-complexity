@@ -8,7 +8,7 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 - [x] 1.1 Give `BaseSystem` in `src/skcomplex/core/components/systems/_base.py` the main public method `simulate`, next to `prepare`, taking the run arguments `until`, `dt`, `initial_state`, `random_state`, `observables`, `observers`, `invariants`, `schedule`, `clock`, `checked`, `record_draws`, and `replay`. The parts keep their current `prepare` and `run` for the engine until task 6.4. Verify with tests in `tests/core/components/systems/test_base.py` that `simulate` exists on systems and returns a trajectory.
 - [x] 1.2 Add `System` in `src/skcomplex/core/components/systems` with label, elements, interactions, nested systems, space, solver, and backend, and nested parameters `<label>__<parameter>` for `get_params` and `set_params`. Verify with tests for tuning a part, an unknown nested name, nested systems, and `clone`.
 - [x] 1.3 Implement `System.prepare`, which checks every part, infers the problem from the law kinds, chooses the solver and backend, and sets `problem_`, `solver_`, and `backend_`, and `System.simulate(until, initial_state=None, random_state=None, observables=(), observers=())`, which returns a `Trajectory`. Verify with tests that one preparation simulates twice, that `simulate` before `prepare` and after `set_params` raises `NotPreparedError`.
-- [x] 1.4 Make `BaseSystem` subclasses call the public hook `build` from `prepare` and delegate `simulate` to the built system. Verify with a test of a ready-made system whose `set_params(beta=0.5)` reaches the run.
+- [x] 1.4 Make `BaseSystem` subclasses set `system_` in the hook `_prepare`, which the public `prepare` compiles, and delegate `simulate` to it. Verify with a test of a ready-made system whose `set_params(beta=0.5)` reaches the run.
 
 ## 2. Elements, states, and specs
 
@@ -35,7 +35,7 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 
 ## 5. Systems migrate field by field
 
-Each task rewrites the systems of its fields on the new API: elements as data with declared states, interactions with `get_laws` and their relation parameters, the seven law kinds, `build` instead of `_build_system`, and `prepare` and `simulate` in tests, docstrings, and gallery examples. Each task verifies with the tests of its fields, its doctests, and a gallery sample of its fields.
+Each task rewrites the systems of its fields on the new API: elements as data with declared states, interactions with `get_laws` and their relation parameters, the seven law kinds, `_prepare` setting `system_` instead of `_build_system`, and `prepare` and `simulate` in tests, docstrings, and gallery examples. Each task verifies with the tests of its fields, its doctests, and a gallery sample of its fields.
 
 - [ ] 5.1 Wave 1: `physics`.
 - [ ] 5.2 Wave 1: `chemistry`, `engineering`, and `general`.

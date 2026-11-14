@@ -38,7 +38,7 @@ The design is in `design.md`. In short:
   `prepare` or `run`, like the kernels of scikit-learn. Solvers, backends, and observers keep `prepare` and `run` for
   the engine. Experiments stay functions that clone, set parameters, prepare, and simulate.
 - **BREAKING** Ready-made systems stay classes with model parameters and catalog metadata, and their build step becomes
-  the public hook `build`.
+  the hook `_prepare`, which sets `system_`, as `fit` calls `_fit` in scikit-learn.
 - **BREAKING** The specs shrink to the declarations users write, `StateSpec`, `ParameterSpec`, and `RoleSpec`, with the
   short aliases `State`, `Parameter`, and `Role`, plus the value objects users pass. `StateSpec` keeps its domain, its
   shape, and its rate. Engine records and compile specs become private to the code that uses them.

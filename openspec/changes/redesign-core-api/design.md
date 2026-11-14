@@ -218,8 +218,8 @@ moon = system.set_params(gravity__g=1.62).prepare().simulate(until=1.4)
 ### 6. Ready-made systems
 
 A ready-made system is a class deriving from `BaseSystem` with catalog metadata, `field`, `topics`, `references`, and
-tuned run settings, and a constructor that stores its model parameters. Its public hook `build()` returns the `System`
-of its parts, and `prepare` calls it. A ready-made class earns its place when it reparametrizes, such as
+tuned run settings, and a constructor that stores its model parameters. Its hook `_prepare` sets `system_`, the
+`System` of its components, as `fit` calls `_fit`, and the public `prepare` compiles it. A ready-made class earns its place when it reparametrizes, such as
 `ProjectileSystem(speed, angle)`, which turns an angle into velocity components. A user who only wants to tune the
 parameters of parts builds a `System` and uses nested parameters, with no class.
 

@@ -1,10 +1,13 @@
 """Test the `_base` module of `skcomplex.core.systems`."""
 
+from collections.abc import Sequence
+
 import pytest
 from sklearn.base import clone
 
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.errors import NotPreparedError
+from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.systems import BaseSystem, System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
@@ -18,9 +21,10 @@ class MeadowSystem(BaseSystem):
         super().__init__(label)
         self.r = r
 
-    def build(self) -> System:
-        """Return the system of the meadow."""
-        return System(self.label, systems=[LotkaVolterraSystem(label='meadow', r=self.r)])
+    def _prepare(self, context: Sequence[ObservableSpec] | None = None) -> None:
+        """Set the system of the meadow."""
+        super()._prepare(context)
+        self.system_ = System(self.label, systems=[LotkaVolterraSystem(label='meadow', r=self.r)])
 
 
 def test_simulate_returns_trajectory() -> None:
@@ -57,7 +61,7 @@ def test_simulate_after_set_params_raises() -> None:
         system.simulate(until=1.0)
 
 
-def test_build_reaches_run() -> None:
+def test_prepare_reaches_run() -> None:
     """A model parameter set before prepare reaches the components of the run."""
     slow = MeadowSystem(r=0.1).prepare().simulate(until=2.0).get_values('meadow/prey.x')[-1]
     fast = MeadowSystem().set_params(r=2.0).prepare().simulate(until=2.0).get_values('meadow/prey.x')[-1]
