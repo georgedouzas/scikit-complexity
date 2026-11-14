@@ -204,8 +204,8 @@ moon = system.set_params(gravity__g=1.62).prepare().simulate(until=1.4)
 - Parameter names use `__`, as scikit-learn requires. Paths of values in trajectories and initial states use `.`, such
   as `'ball.x'`.
 - `simulate` on a system that was not prepared, or whose parameters changed since it was prepared, raises
-  `NotPreparedError`. Parameters stay symbolic in the compiled problem, so preparing again after a change of values is
-  a cache hit.
+  `NotPreparedError`. Preparing again compiles again. The experiments keep their own cache of compiled problems by
+  structure within one call.
 - `prepare` returns `self`, and `simulate` returns the trajectory, so one prepared system runs many times without
   overwriting a stored result.
 - The free function `simulate` is removed, so there is one way to simulate. Its other run arguments, `invariants`,
