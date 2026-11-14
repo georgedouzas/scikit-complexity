@@ -11,7 +11,7 @@ from abc import abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
-from typing import ClassVar
+from typing import ClassVar, TypeAliasType, get_origin
 
 import numpy as np
 from sklearn.base import BaseEstimator
@@ -97,6 +97,16 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
             error_msg = f'The label of {type(self).__name__} must be a string, but it is {self.label!r}.'
             raise ValidationError(error_msg)
 
+    @staticmethod
+    def _get_annotated(annotation: object) -> object:
+        """Return the `Annotated` form an annotation stands for.
+
+        A short annotation such as `State[float]` or `Role` stands for the `Annotated` form it aliases, and any other
+        annotation stands for itself.
+        """
+        alias = get_origin(annotation) or annotation
+        return getattr(alias, '__value__', annotation) if isinstance(alias, TypeAliasType) else annotation
+
     @classmethod
     @functools.cache
     def _get_specs(cls) -> dict[str, Spec]:
@@ -116,7 +126,7 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
             if init is None:
                 continue
             for name, argument in inspect.signature(init, eval_str=True).parameters.items():
-                for item in getattr(argument.annotation, '__metadata__', ()):
+                for item in getattr(cls._get_annotated(argument.annotation), '__metadata__', ()):
                     if isinstance(item, StateSpec | ParameterSpec | RoleSpec):
                         specs[name] = item
         return {name: specs[name] for name in inspect.signature(cls).parameters if name in specs}

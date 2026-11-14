@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import itertools
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from types import SimpleNamespace
 
 import numpy as np
@@ -190,12 +190,42 @@ class OrdersPass(BasePass):
         return EquationBlocksLowering._get_structure_issues(relations, unknowns, references, compilation.system.label)
 
     @staticmethod
+    def _check_rate(path: str, variable: str, rate: str, declarations: Mapping[str, object]) -> None:
+        """Raise an error for a state whose rate names no other state of its element.
+
+        Args:
+            path:
+                The path of the element.
+
+            variable:
+                The name of the state.
+
+            rate:
+                The name of the state the state declares as its rate.
+
+            declarations:
+                The declarations of the states of the element, by name.
+
+        Raises:
+            ValidationError:
+                The rate names the state itself or no state of the element, with the element, the state, and the
+                states in the message.
+        """
+        if rate != variable and rate in declarations:
+            return
+        error_msg = (
+            f'The state {variable!r} of the element {path!r} changes at the rate {rate!r}, which must be another of '
+            f'its states: {", ".join(declarations)}.'
+        )
+        raise ValidationError(error_msg)
+
+    @staticmethod
     def _get_orders_of(blocks: list[BlockSpec], programmed: set[str]) -> _OrdersSpec:
-        """Return the orders above 1 and lags of every state, and the solved states.
+        """Return the orders above 1, lags, and rates of the states, and the solved states.
 
         The states are those of the blocks, and the solved states are those equations determine.
         """
-        orders, lags, algebraic = {}, {}, set()
+        orders, lags, rates, algebraic = {}, {}, {}, set()
         for block in blocks:
             if block.node.interaction or block.node.is_agent:
                 continue
@@ -206,9 +236,12 @@ class OrdersPass(BasePass):
                     orders[entry.name] = declaration.derivatives + 1
                 if declaration is not None and declaration.lags:
                     lags[entry.name] = declaration.lags
+                if declaration is not None and declaration.rate is not None:
+                    OrdersPass._check_rate(block.node.path, variable, declaration.rate, declarations)
+                    rates[entry.name] = declaration.rate
                 if declaration is not None and declaration.algebraic and entry.name not in programmed:
                     algebraic.add(entry.name)
-        return _OrdersSpec(orders, lags, frozenset(algebraic))
+        return _OrdersSpec(orders, lags, frozenset(algebraic), rates)
 
     @staticmethod
     def _get_companion_symbol(spec: KernelSpec, item: Expression, suffix: str) -> Expression:
@@ -324,12 +357,16 @@ class OrdersPass(BasePass):
 
     @staticmethod
     def _get_intrinsic_laws(spec: KernelSpec, block: BlockSpec, orders: _OrdersSpec) -> list[BaseLaw]:
-        """Return the chains of higher-order states and the shifts of lagged states.
+        """Return the chains of derivatives and rates, and the shifts of lagged states.
 
-        The chain of every higher-order state is `x' = x_d1, ...`.
+        The chain of every higher-order state is `x' = x_d1, ...`, and a state that declares the rate `v` moves as
+        `x' = v`.
         """
         laws: list[BaseLaw] = []
         for variable, entry in block.entries.items():
+            rate = orders.rates.get(entry.name)
+            if rate is not None:
+                laws.append(RateLaw(getattr(spec.namespace, variable), getattr(spec.namespace, rate)))
             names = [variable, *(f'{variable}_d{index}' for index in range(1, orders.orders.get(entry.name, 1)))]
             laws += [
                 RateLaw(getattr(spec.namespace, lower), getattr(spec.namespace, upper))
@@ -459,7 +496,8 @@ class OrdersPass(BasePass):
         for law in laws:
             if isinstance(law, RateLaw | NoiseLaw):
                 OrdersPass._check_order(law, spec, orders)
-        if not orders.orders and not orders.lags and not any(isinstance(law, EquationLaw) for law in laws):
+        equations = any(isinstance(law, EquationLaw) for law in laws)
+        if not orders.orders and not orders.lags and not orders.rates and not equations:
             return list(laws)
         result: list[BaseLaw | _RelationSpec] = []
         for law in laws:

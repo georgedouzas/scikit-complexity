@@ -99,6 +99,7 @@ from ._visual_spec import VisualSpec
 from ._wiener_block_spec import WienerBlockSpec
 from ._wiener_process_spec import WienerProcessSpec
 from ._word_structure_spec import WordStructureSpec
+from .types import Parameter, Role, State
 
 __all__ = [
     'DEFAULT_PHASE',
@@ -162,6 +163,7 @@ __all__ = [
     'OperatorSpec',
     'OuterTotalisticSpec',
     'PairReadSpec',
+    'Parameter',
     'ParameterSpec',
     'ParametersSpec',
     'PartnerSpec',
@@ -174,6 +176,7 @@ __all__ = [
     'ReductionSpec',
     'RenewalRecordSpec',
     'RequirementSpec',
+    'Role',
     'RoleSpec',
     'RunSettingsSpec',
     'RunStateSpec',
@@ -186,6 +189,7 @@ __all__ = [
     'SignatureSpec',
     'SnapshotsSpec',
     'Spec',
+    'State',
     'StateSpec',
     'StepSpec',
     'StructureStateSpec',

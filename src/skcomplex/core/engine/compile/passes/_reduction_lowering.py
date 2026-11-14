@@ -750,9 +750,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             members_of = readers if readers is not None and not spec.sets else None
             entry = EntrySpec(f'__reduced_{index}', self.extent_, shape, RR, members_of)
             placeholder = symbol(f'_reduced_{index}')
-            reads = {
-                canonical.get(item, item): self._read(item, spec, group) for item in sorted(symbols, key=str)
-            }
+            reads = {canonical.get(item, item): self._read(item, spec, group) for item in sorted(symbols, key=str)}
             compiled = ReductionKernel(
                 placeholder,
                 reduction.kind,
