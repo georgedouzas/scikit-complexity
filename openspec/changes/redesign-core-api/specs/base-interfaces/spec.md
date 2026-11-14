@@ -33,13 +33,12 @@ and `simulate`. `BaseComponent` SHALL give parameters, cloning, and tags without
 
 ### Requirement: Public specs are the declarations and values users handle
 A spec SHALL be public only when users build it or read it from a result, and SHALL then live in the package of the
-types its fields name. The public declarations SHALL be `StateSpec`, `ParameterSpec`, and `RoleSpec`, with the aliases
-`State`, `Parameter`, and `Role`. Engine records SHALL be private dataclasses beside the code that uses them.
+types its fields name. The only declaration SHALL be `RoleSpec`, with the alias `Role`, and no `StateSpec` or
+`ParameterSpec` SHALL exist. Engine records SHALL be private dataclasses beside the code that uses them.
 
 #### Scenario: The declarations
-- **WHEN** a user imports `StateSpec`, `ParameterSpec`, `RoleSpec`, `State`, `Parameter`, and `Role` from
-  `skcomplex.core.specs`
-- **THEN** every import succeeds, and `State[float]` declares a real state
+- **WHEN** a user imports `RoleSpec` and `Role` from `skcomplex.core.specs`
+- **THEN** both imports succeed, and importing `StateSpec` or `ParameterSpec` fails
 
 #### Scenario: No engine record in the public API
 - **WHEN** a test lists the public names of `skcomplex.core.specs`

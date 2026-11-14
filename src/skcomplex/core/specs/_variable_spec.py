@@ -91,9 +91,6 @@ class VariableSpec(BaseSpec):
 
         group:
             The matrix group whose elements a state takes, or `None`.
-
-        rate:
-            The name of the state of the same component that is the time derivative of this state, or `None`.
     """
 
     kind: VariableKind
@@ -120,7 +117,6 @@ class VariableSpec(BaseSpec):
     tensor: str | None = None
     algebraic: bool = False
     group: MatrixGroupSpec | None = None
-    rate: str | None = None
 
     @property
     def is_place(self) -> bool:

@@ -94,11 +94,6 @@ class StateSpec(BaseSpec):
             matrix, or `None` for a state that is no matrix. Laws read it as a vector of the components, and only a
             drive changes it on a lattice or a network.
 
-        rate:
-            The name of the state of the same element that is the time derivative of this one, such as `'v'` for a
-            position `x`, or `None` for none. The state then changes at that rate, `dx/dt = v`, and the laws of
-            interactions add to the rate of change of `v`.
-
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
@@ -115,8 +110,6 @@ class StateSpec(BaseSpec):
         >>> from skcomplex.core.specs import MatrixGroupSpec
         >>> StateSpec(group=MatrixGroupSpec('SU', 3)).group.size
         18
-        >>> StateSpec(rate='v').rate
-        'v'
     """
 
     domain: object = RR
@@ -132,7 +125,6 @@ class StateSpec(BaseSpec):
     tensor: str | None = None
     algebraic: bool = False
     group: MatrixGroupSpec | None = None
-    rate: str | None = None
 
     def _check_group(self) -> None:
         """Raise an error for a matrix group state that is not a plain state.
@@ -146,23 +138,6 @@ class StateSpec(BaseSpec):
             )
             raise ValidationError(error_msg)
 
-    def _check_rate(self) -> None:
-        """Raise an error for a rate that is no name, or on a state of another kind.
-
-        A state with a rate has order 1, no lags, and is not algebraic.
-        """
-        if self.rate is None:
-            return
-        if not isinstance(self.rate, str) or not self.rate.isidentifier():
-            error_msg = f'The rate of a state is the name of another state, but got {self.rate!r}.'
-            raise ValidationError(error_msg)
-        if self.order != 1 or self.lags or self.algebraic:
-            error_msg = (
-                f'A state whose rate is the state {self.rate!r} has order 1, no lags, and is not algebraic. Remove '
-                '`order`, `lags`, and `algebraic`.'
-            )
-            raise ValidationError(error_msg)
-
     def _check(self) -> None:
         """Raise an error for invalid order, lags, or initial values, or a bad reference.
 
@@ -173,11 +148,9 @@ class StateSpec(BaseSpec):
                 The order or the lags are invalid, there are more initial values than derivatives or lags, or a state
                 naming a member of a group is not a scalar of order 1 without lags, or the tensor symmetry is unknown or
                 given together with a vector, or an algebraic state has an order other than 1 or lags, or a matrix
-                group state is also a vector, a tensor, or a state of another order or with lags, or the rate is no
-                name or is given on a state of another order, with lags, or algebraic.
+                group state is also a vector, a tensor, or a state of another order or with lags.
         """
         self._check_group()
-        self._check_rate()
         if self.algebraic and (self.order != 1 or self.lags):
             error_msg = (
                 f'An algebraic state has order 1 and no lags, but got the order {self.order!r} and {self.lags!r} lags. '

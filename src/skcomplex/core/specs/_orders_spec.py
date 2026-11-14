@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ._base_spec import BaseSpec
 
@@ -12,11 +12,9 @@ from ._base_spec import BaseSpec
 class _OrdersSpec(BaseSpec):
     """Orders and lags of the states of a system by entry name.
 
-    It also holds the entry names of its algebraic states, and the state that is the rate of each state that declares
-    one.
+    It also holds the entry names of its algebraic states.
     """
 
     orders: dict[str, int]
     lags: dict[str, int]
     algebraic: frozenset[str] = frozenset()
-    rates: dict[str, str] = field(default_factory=dict)

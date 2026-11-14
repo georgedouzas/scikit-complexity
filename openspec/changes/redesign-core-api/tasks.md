@@ -12,10 +12,11 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 
 ## 2. Elements, states, and specs
 
-- [x] 2.1 Add `rate` to `StateSpec`, add the aliases `State`, `Parameter`, and `Role` in `src/skcomplex/core/specs`, and make the compiler treat `rate='v'` as `dx/dt = v` in the orders pass, with no law created by the element. Verify with tests in `tests/core/specs` for each alias and for a free particle that moves at constant velocity.
-- [ ] 2.2 Give `Element` and `DeclaredElement` the arguments `size=` and `space=`, with reserved names and per-member arrays, and make `DeclaredElement` take `states={...}` and `parameters={...}`. Verify with tests for 1000 members with positions, a wrong number of values, one member per site, and a reserved name.
+- [x] 2.1 Remove `rate` from `StateSpec` and the compiler, and the aliases `State` and `Parameter`, keeping `Role`. Verify that the orders pass and the specs carry no `rate` and that `skcomplex.core.specs` exports no `State` or `Parameter`.
+- [ ] 2.2 Give `Element` and `DeclaredElement` the arguments `size=` and `space=`, with reserved names and per-member arrays, and make `DeclaredElement` take `values={...}`. Verify with tests for 1000 members with positions, a wrong number of values, one member per site, and a reserved name.
 - [ ] 2.3 Reject elements that define `_get_laws`, and remove `visual=` from element constructors, moving the drawing settings to the visualisation observer keyed by path. Verify with tests in `tests/core/components/elements` and `tests/core/engine/viz`.
 - [ ] 2.4 Make the engine records and the eleven specs of `skcomplex.core.components.specs` private dataclasses beside the code that uses them, move field values such as `HilbertSpec` and `PartnerSpec` to their field packages, and keep public only the specs users build or read. Verify with a test that lists the public names of `skcomplex.core.specs` and finds about fifteen.
+- [ ] 2.5 Make elements plain classes: work out states and parameters from the laws in `prepare`, read the kind of a value from its Python type hint or value, and read a constraint from the allowed values in `Annotated`. Verify with tests for a particle at rest, a particle in motion, a categorical state, and a nonnegative value set negative.
 
 ## 3. Interactions and laws
 
@@ -32,6 +33,7 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 - [ ] 4.3 Move `CascadeLaw` and `ExtremalLaw` to the criticality package, `ProductionLaw`, `SubstitutionLaw`, `WordElement`, and `PatchElement` to the package of rewriting systems, and `BilinearLaw` to the package of kinetic models, each with its solver. Verify with the moved tests of each package.
 - [ ] 4.4 Move `MatchLaw` to `skcomplex.systems.general` and `GradientStepLaw` to the learning package, both as `Update` recipes, and the finite-volume scheme of `FluxLaw` to the fluids package as a solver setting. Verify with the moved tests.
 - [ ] 4.5 Move the spaces and neighbourhoods that the audit of 4.1 assigns to fields. Verify with the moved tests and a source test that no module of the core names a moved class.
+- [ ] 4.6 Add the `Motion` interaction, whose law is `Rate(x, v)`, to `skcomplex.systems.physics.common.particles`. Verify with a test of free fall against its exact solution.
 
 ## 5. Systems migrate field by field
 
@@ -48,7 +50,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
 
 ## 6. The old API goes
 
-- [ ] 6.1 Delete the free function `simulate`, `CompositeSystem`, `GroupElement`, `FieldElement`, the times, the wrapper and binding interactions, the old law classes, `order` and the companion states, `divisor`, ports and `ConnectorSpec`, the user-facing `compiler` setting, the fields of `StateSpec` other than `domain`, `shape`, and `rate` with `shape` replacing `vector` and `tensor`, and the engine keys on the old law classes. Verify with the full test suite and with `rg` finding none of these names in `src`, `tests`, and `docs`.
+- [ ] 6.1 Delete the free function `simulate`, `CompositeSystem`, `GroupElement`, `FieldElement`, the times, the wrapper and binding interactions, the old law classes, `order` and the companion states, `divisor`, ports and `ConnectorSpec`, the user-facing `compiler` setting, `StateSpec`, `ParameterSpec`, `VariableSpec`, `DeclaredVariableSpec`, `order` and every other state flag, and the engine keys on the old law classes. Verify with the full test suite and with `rg` finding none of these names in `src`, `tests`, and `docs`.
 - [ ] 6.2 Update `openspec/scripts/check_conventions.py`, the import-linter contracts in `pyproject.toml`, and the source tests to the new placement rule and the new verbs. Verify with `pdm checks conventions` and `lint-imports`.
 - [ ] 6.3 Simplify the code that remains: no hidden conventions, no argument lists longer than the concept needs, no private hook a user implements. Verify with ruff, mypy, and a review of the constructors of every public class of the core.
 - [ ] 6.4 Split the bases in `src/skcomplex/core/base.py` and `src/skcomplex/core/components/base.py`: `BaseComponent` gives label, parameters, cloning, and tags with no `prepare` or `run`, and `BaseConfig` keeps `prepare` and `run` for engine classes only. Verify with tests in `tests/core/test_base.py` and `tests/core/components/test_base.py` that list the methods of each base.

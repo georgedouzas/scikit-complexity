@@ -1,5 +1,17 @@
 ## ADDED Requirements
 
+### Requirement: States and parameters follow from the laws
+A value of an element that some law changes SHALL be a state, and a value that no law changes SHALL be a parameter,
+decided by `prepare` from the laws of the system.
+
+#### Scenario: A particle at rest
+- **WHEN** a system holds a particle with the values `x`, `v`, and `m` and no interaction
+- **THEN** preparing it finds no state, and every value is a parameter that `get_params` lists
+
+#### Scenario: A particle in motion
+- **WHEN** the system adds a `Motion` interaction whose law is `Rate(x, v)`
+- **THEN** `x` is a state, and `v` and `m` stay parameters
+
 ### Requirement: Interactions own the parameters of their relation
 A parameter that describes the relation between elements or between an element and its surroundings SHALL belong to
 the interaction, and an element SHALL hold only the parameters that describe that element alone.
@@ -124,9 +136,9 @@ an ordinary interaction.
 ## MODIFIED Requirements
 
 ### Requirement: Elements declare typed state and parameters
-An element SHALL be data: its states and its own parameters, each declared in its constructor with a `StateSpec` or a
-`ParameterSpec`, or with the aliases `State` and `Parameter`, and stored unmodified. A state SHALL declare its domain,
-its shape, and the state that is its rate of change, if any.
+An element SHALL be a plain class whose constructor stores its values unmodified, with no declaration of states or
+parameters. The kind of a value SHALL come from its Python type hint or its value, and a constraint SHALL be written as
+the allowed values in `Annotated`, only where one is needed.
 
 #### Scenario: Element stores its arguments
 - **WHEN** a user creates a population element with label `rabbits` and initial count 40
@@ -136,17 +148,18 @@ its shape, and the state that is its rate of change, if any.
 - **WHEN** a system contains an element whose positive parameter is set to a negative number and it is prepared
 - **THEN** a named validation error is raised that names the element, the variable, and the domain
 
-#### Scenario: Velocity declared with its position
-- **WHEN** a particle declares `x` with `StateSpec(rate='v')` and a state `v`, and no interaction acts on it
-- **THEN** a run moves `x` at the constant velocity `v`, and the trajectory holds both `particle.x` and `particle.v`
+#### Scenario: Velocity moved by the rule of motion
+- **WHEN** a particle with the values `x`, `v`, and `m` is moved by a `Motion` interaction and a gravity interaction
+- **THEN** a run moves `x` at the rate `v` and `v` at the rate `-g`, and the trajectory holds `particle.x` and
+  `particle.v`
 
 ### Requirement: Components are defined without subclassing
-`DeclaredElement(label, states={...}, parameters={...})` SHALL define an element from data, and
+`DeclaredElement(label, values={...})` SHALL define an element from data, and
 `Interaction(label, roles={...}, laws=callable)` SHALL define an interaction from a function that returns its laws, and
 both SHALL behave like subclassed components in members, cloning, and parameters.
 
 #### Scenario: One-off growth system
-- **WHEN** a user builds a declared element with a state `n` and an interaction with one role and a rate law, without
+- **WHEN** a user builds a declared element with a value `n` and an interaction with one role and a rate law, without
   writing a class
 - **THEN** the system prepares and simulates exactly like the same system written with classes
 
@@ -226,8 +239,8 @@ cascades, and binary encounters move to their fields with their solvers.
 ### Requirement: States declare an order with initial derivatives
 **Reason**: A state declares the state that is its rate of change, so the velocity is a declared state and not a
 hidden companion named by a convention.
-**Migration**: Replace `theta: StateSpec(order=2)` and `theta_d1=...` by `theta: StateSpec(rate='omega')` and a state
-`omega`.
+**Migration**: Replace `theta: StateSpec(order=2)` and `theta_d1=...` by the values `theta` and `omega` and an
+interaction whose laws are `Rate(theta, omega)` and the rate of `omega`.
 
 ### Requirement: Laws of any order superpose on the highest derivative
 **Reason**: With explicit rates there is no highest derivative. Forces add as rates on the velocity state.

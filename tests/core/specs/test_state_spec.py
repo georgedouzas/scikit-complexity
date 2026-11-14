@@ -239,22 +239,3 @@ def test_state_spec_rejects_an_unknown_role():
     """Test that a role is one of the names analyses read."""
     with pytest.raises(ValidationError, match='The role of a state'):
         StateSpec(role='spin')._check()
-
-
-def test_rate_names_a_state():
-    """A state names another state as its rate."""
-    assert StateSpec(rate='v').rate == 'v'
-
-
-@pytest.mark.parametrize('rate', ['', 'not a name', 3])
-def test_rate_rejects_non_names(rate):
-    """A rate that is no name raises an error."""
-    with pytest.raises(ValidationError, match='name of another state'):
-        StateSpec(rate=rate)._check()
-
-
-@pytest.mark.parametrize('spec', [{'order': 2}, {'lags': 1}, {'algebraic': True}])
-def test_rate_rejects_other_kinds(spec):
-    """A rate on a state of another order, with lags, or algebraic raises an error."""
-    with pytest.raises(ValidationError, match='has order 1, no lags'):
-        StateSpec(rate='v', **spec)._check()

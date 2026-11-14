@@ -83,29 +83,27 @@ a charge, or a capacity. It returns no laws.
 
 ```python
 class Particle(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec(rate='v')] = 0.0,
-        v: State[float] = 0.0,
-        m: Parameter[float] = 1.0,
-        size=None,
-        space=None,
-    ): ...
+    def __init__(self, label, x=0.0, v=0.0, m=1.0):
+        super().__init__(label)
+        self.x = x
+        self.v = v
+        self.m = m
 ```
 
-- Every state is declared. `StateSpec(rate='v')` says that `v` is the time derivative of `x`. It replaces `order`, the
-  hidden companion states `x_d1`, and `derivative_of`. A particle with no interactions moves in a straight line.
-- `State[T]`, `Parameter[T]`, and `Role` are the short spellings of `Annotated[T, StateSpec()]`,
-  `Annotated[T, ParameterSpec()]`, and `Annotated[str, RoleSpec()]` for the plain case. Options are written with the
-  spec.
-- `StateSpec` keeps `domain`, `shape`, and `rate`. Delays become a function laws call on a state. Fractional orders,
-  Lie groups, tensors, and agent quantities move to the fields that use them. A state is algebraic when a constraint
-  fixes it, which the compiler infers.
+- An element is a plain Python class with plain arguments, stored unmodified. It declares no states and no
+  parameters.
+- States and parameters follow from the laws: a value that some law changes is a state, and a value that no law
+  changes is a parameter, a state with zero rate. The compiler finds which is which.
+- The kind of a value comes from its Python type hint or its value: `float` is real, `int` integer, `bool` boolean,
+  `str` a category, and a list or an array a vector or a matrix of its shape.
+- A constraint on the values is written only where it is needed, as the allowed values in `Annotated`, such as
+  `n: Annotated[float, RealSet.closed_open(0, oo)] = 40.0` or `status: Annotated[str, {'S', 'I', 'R'}] = 'S'`.
+- The rule of motion `dx/dt = v` is a law, so it is an interaction, such as `Motion` of the physics common package. A
+  particle with no interaction stands still. `order`, the companion states `x_d1`, lags, periods, and the other flags
+  of `StateSpec` go: each becomes a law or a constraint where a system needs it, in the field that uses it.
 - `size=N` makes N members of one element class, and `space=` places one member at every site of a space. Both replace
   `GroupElement` and `FieldElement`. Per-member values are arrays whose first dimension is the number of members.
-- `DeclaredElement(label, states={...}, parameters={...})` covers elements known only as data, such as imported models.
+- `DeclaredElement(label, values={...})` covers elements known only as data, such as imported models.
 - `visual=` leaves every element. How an element is drawn is a setting of the visualisation observer, keyed by path.
 
 ### 3. Interactions are behaviour
@@ -117,7 +115,7 @@ calls the `_run_search` that each search implements in scikit-learn.
 
 ```python
 class Gravity(Interaction):
-    def __init__(self, label, *, target: Role, g: Parameter[float] = 9.81): ...
+    def __init__(self, label, *, target: Role, g=9.81): ...
 
     def _get_laws(self, s):
         return [Rate(s.target.v, -s.g)]
@@ -249,7 +247,9 @@ are the consumers of the core and of their field's common package.
 
 | Kind | Fate |
 | --- | --- |
-| Declarations users write: `StateSpec`, `ParameterSpec`, `RoleSpec` | public, with the aliases `State`, `Parameter`, `Role`. `VisualSpec` moves to the visualisation observer. `ConnectorSpec` goes with ports |
+| `StateSpec`, `ParameterSpec`, `VariableSpec`, `DeclaredVariableSpec` | removed. Elements are plain classes, and the laws decide what is a state |
+| `RoleSpec` | public, with the alias `Role`, since an interaction says which arguments name elements |
+| `VisualSpec`, `ConnectorSpec` | `VisualSpec` moves to the visualisation observer, and `ConnectorSpec` goes with ports |
 | Value objects users pass or read: `ObservableSpec`, `WienerProcessSpec`, `ScheduleSpec`, `Tags`, and a few more | public, kept only if a system or a document uses them |
 | Field values, such as `HilbertSpec` and `PartnerSpec` | move to the field package that uses them |
 | Engine records and compile specs, such as `LoweredFunctionsSpec`, `DrawLogSpec`, `EventRecordSpec`, and the eleven specs of `skcomplex.core.components.specs` | private frozen dataclasses beside the code that uses them |
@@ -275,8 +275,8 @@ against the new API.
   the time, and a system mixing kinds that do not combine raises a named error listing them.
 - [The rewrite touches every system, test, and page] → The new API is built beside the old one inside the core, the
   fields migrate in waves, and the old classes are deleted only when no system uses them.
-- [Two spellings for declarations, `State[float]` and `StateSpec(...)`] → They serve two cases, the plain one and the
-  one with options, and the guide shows both once.
+- [Inferring states from laws needs the laws before the values can be laid out] → `prepare` already collects every
+  law before it compiles, so the split of states and parameters is one more step of that pass.
 - [Systems no longer reject `solver=` as they used to] → The solver and backend are the only execution settings a
   system takes. Observers, observables, and initial states stay arguments of `simulate`.
 

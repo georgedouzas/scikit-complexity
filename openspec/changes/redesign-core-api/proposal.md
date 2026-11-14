@@ -19,8 +19,9 @@ one way to do each thing.
 
 The design is in `design.md`. In short:
 
-- **BREAKING** An element is data: its states and its own parameters. Elements return no laws. Every state is
-  declared, and a state names the state that is its rate of change, such as `x` with `rate='v'`, in place of `order`.
+- **BREAKING** An element is a plain Python class whose arguments are its values. Elements return no laws and declare
+  nothing: a value some law changes is a state, any other value is a parameter, and Python type hints give the kind
+  of a value. The rule of motion `dx/dt = v` is an interaction, so `order` and its companion states go.
   One element class covers one member, many members (`size=`), and one member per site of a space (`space=`), which
   replaces `GroupElement` and `FieldElement`.
 - **BREAKING** An interaction is all behaviour. It binds roles, owns the parameters of the relation, and returns laws
@@ -39,9 +40,9 @@ The design is in `design.md`. In short:
   the engine. Experiments stay functions that clone, set parameters, prepare, and simulate.
 - **BREAKING** Ready-made systems stay classes with model parameters and catalog metadata, and their build step becomes
   the hook `_prepare`, which sets `system_`, as `fit` calls `_fit` in scikit-learn.
-- **BREAKING** The specs shrink to the declarations users write, `StateSpec`, `ParameterSpec`, and `RoleSpec`, with the
-  short aliases `State`, `Parameter`, and `Role`, plus the value objects users pass. `StateSpec` keeps its domain, its
-  shape, and its rate. Engine records and compile specs become private to the code that uses them.
+- **BREAKING** `StateSpec`, `ParameterSpec`, and the declarations built on them are removed. `RoleSpec` stays, with
+  the alias `Role`, and so do the value objects users pass. Engine records and compile specs become private to the
+  code that uses them.
 - **BREAKING** How an element is drawn moves from the element to the visualisation observer, and `visual=` leaves every
   element constructor.
 - **BREAKING** The core keeps only components that general systems of several fields are built from. Every
