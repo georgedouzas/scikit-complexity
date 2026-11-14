@@ -65,11 +65,12 @@ def test_clock_prepare_marks_the_start():
     assert clock.run(1.0) is clock
 
 
-def test_public_names_are_classes_or_simulate():
-    """Every public name is a class, apart from `simulate`, the function that runs a system."""
-    for name in set(package.__all__) - {'simulate'}:
+def test_public_names_are_classes_or_run_functions():
+    """Every public name is a class, apart from the functions that compile and run a system."""
+    functions = {'compile_problem', 'run_problem', 'simulate'}
+    for name in set(package.__all__) - functions:
         assert inspect.isclass(getattr(package, name)), name
-    assert inspect.isfunction(package.simulate)
+    assert all(inspect.isfunction(getattr(package, name)) for name in functions)
 
 
 def test_classes_derive_from_a_base_of_the_package():

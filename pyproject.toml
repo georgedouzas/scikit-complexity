@@ -365,11 +365,12 @@ DEP002 = [
 root_package = "skcomplex"
 
 [[tool.importlinter.contracts]]
-name = "Experiments build on analysis, which builds on the engine, which builds on the core, which builds on the root modules"
+name = "Experiments build on analysis, which builds on systems, which build on the engine, which builds on the components, which build on the root modules"
 type = "layers"
 layers = [
     "skcomplex.core.experiments",
     "skcomplex.core.analysis",
+    "skcomplex.core.systems",
     "skcomplex.core.engine",
     "skcomplex.core.components",
     "skcomplex.core.specs",
@@ -400,6 +401,15 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
+name = "System modules of the core import only the modules listed after them"
+type = "layers"
+containers = ["skcomplex.core.systems"]
+layers = [
+    "_system",
+    "_base",
+]
+
+[[tool.importlinter.contracts]]
 name = "Engine packages import only the packages listed before them"
 type = "layers"
 containers = ["skcomplex.core.engine"]
@@ -420,6 +430,7 @@ type = "forbidden"
 source_modules = [
     "skcomplex.core.analysis",
     "skcomplex.core.components",
+    "skcomplex.core.systems",
     "skcomplex.core.engine",
     "skcomplex.core.experiments",
 ]

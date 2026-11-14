@@ -10,9 +10,7 @@ from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import ClassVar, TypedDict
 
-import numpy as np
 import numpy.typing as npt
-from sklearn.base import BaseEstimator
 
 from ...base import BaseConfig
 from ...errors import ValidationError
@@ -130,43 +128,6 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
 
         The components are built from its model parameters.
         """
-
-    def _is_equal(self, old: object, new: object) -> bool:
-        """Return whether two values of a model parameter are equal by value.
-
-        Estimators are equal when they have the same class and equal parameters, sequences and mappings when their
-        items are equal, and arrays when they have the same shape and entries. A value that cannot be compared is
-        taken as changed.
-
-        Args:
-            old:
-                The value the components were last built from.
-
-            new:
-                The current value.
-
-        Returns:
-            equal:
-                Whether the values are equal.
-        """
-        if old is new:
-            return True
-        if type(old) is not type(new):
-            return False
-        if isinstance(old, BaseEstimator) and isinstance(new, BaseEstimator):
-            old, new = old.get_params(deep=False), new.get_params(deep=False)
-        if isinstance(old, Mapping) and isinstance(new, Mapping):
-            equal = old.keys() == new.keys() and all(self._is_equal(old[key], new[key]) for key in old)
-        elif isinstance(old, list | tuple) and isinstance(new, list | tuple):
-            equal = len(old) == len(new) and all(self._is_equal(*pair) for pair in zip(old, new, strict=True))
-        elif isinstance(old, np.ndarray) and isinstance(new, np.ndarray):
-            equal = old.shape == new.shape and bool(np.array_equal(old, new))
-        else:
-            try:
-                equal = bool(old == new)
-            except (TypeError, ValueError):
-                equal = False
-        return equal
 
     def _get_pass_parameters(self) -> CompositeT:
         """Return the components of the system built from its current model parameters.

@@ -13,6 +13,9 @@ from dataclasses import replace
 from types import SimpleNamespace
 from typing import ClassVar
 
+import numpy as np
+from sklearn.base import BaseEstimator
+
 from ..base import BaseConfig
 from ..errors import ValidationError
 from ..specs import STOCHASTIC_LAWS, DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec, Tags
@@ -167,6 +170,44 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
         drawn = laws & STOCHASTIC_LAWS or any(getattr(law, 'draws', False) for law in classes)
         randomness = 'stochastic' if drawn else 'deterministic'
         return Tags(time=common, laws=laws, randomness=randomness)
+
+    @staticmethod
+    def _is_equal(old: object, new: object) -> bool:
+        """Return whether two values of a model parameter are equal by value.
+
+        Estimators are equal when they have the same class and equal parameters, sequences and mappings when their
+        items are equal, and arrays when they have the same shape and entries. A value that cannot be compared is
+        taken as changed.
+
+        Args:
+            old:
+                The value the components were last built from.
+
+            new:
+                The current value.
+
+        Returns:
+            equal:
+                Whether the values are equal.
+        """
+        if old is new:
+            return True
+        if type(old) is not type(new):
+            return False
+        if isinstance(old, BaseEstimator) and isinstance(new, BaseEstimator):
+            old, new = old.get_params(deep=False), new.get_params(deep=False)
+        if isinstance(old, Mapping) and isinstance(new, Mapping):
+            equal = old.keys() == new.keys() and all(BaseComponent._is_equal(old[key], new[key]) for key in old)
+        elif isinstance(old, list | tuple) and isinstance(new, list | tuple):
+            equal = len(old) == len(new) and all(BaseComponent._is_equal(*pair) for pair in zip(old, new, strict=True))
+        elif isinstance(old, np.ndarray) and isinstance(new, np.ndarray):
+            equal = old.shape == new.shape and bool(np.array_equal(old, new))
+        else:
+            try:
+                equal = bool(old == new)
+            except (TypeError, ValueError):
+                equal = False
+        return equal
 
     def _get_tags(self) -> Tags:
         """Return the tags the declarations of the component show, none by default."""

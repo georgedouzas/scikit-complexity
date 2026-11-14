@@ -19,8 +19,7 @@ from ..components.specs import ScenarioSpec
 from ..components.systems import BaseSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
-from ..engine.runtime import Trajectory
-from ..engine.runtime._simulate import _compile_problem, _simulate
+from ..engine.runtime import Trajectory, compile_problem, run_problem
 from ..engine.solvers import BaseSolver
 from ..enums import ExecutorKind
 from ..errors import ExperimentError, ValidationError
@@ -394,7 +393,7 @@ def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSp
         store = {} if problems is None else problems
         key = _get_structure(task, arguments)
         if key not in store:
-            store[key] = _compile_problem(system, solver=task.solver, observables=task.observables)
+            store[key] = compile_problem(system, solver=task.solver, observables=task.observables)
         compiled = store[key]
     initial_state, schedule = None, None
     if paths or task.scenario.schedule:
@@ -403,7 +402,7 @@ def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSp
         functions = _schedule(problem, task.scenario, parameters)
         initial_state = {**(settings['initial_state'] or {}), **states} if states else None
         schedule = {**(settings['schedule'] or {}), **functions} if functions else None
-    trajectory = _simulate(
+    trajectory = run_problem(
         system,
         compiled,
         until=task.until,
