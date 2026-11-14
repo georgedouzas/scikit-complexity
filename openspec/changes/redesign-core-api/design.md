@@ -111,13 +111,15 @@ class Particle(Element):
 ### 3. Interactions are behaviour
 
 An interaction binds roles to elements, owns the parameters of the relation, such as `g`, `k`, or `beta`, and returns
-laws from the public hook `get_laws(s)`, where `s` gives the bound states and parameters by name.
+laws from the hook `_get_laws(s)`, where `s` gives the bound states and parameters by name. The base defines the
+public `get_laws(s)` once, which checks the namespace and the returned laws and calls the hook, as `BaseSearchCV.fit`
+calls the `_run_search` that each search implements in scikit-learn.
 
 ```python
 class Gravity(Interaction):
     def __init__(self, label, *, target: Role, g: Parameter[float] = 9.81): ...
 
-    def get_laws(self, s):
+    def _get_laws(self, s):
         return [Rate(s.target.v, -s.g)]
 ```
 
@@ -147,7 +149,7 @@ class Gravity(Interaction):
 
 ### 4. Laws are seven kinds of value
 
-`Rate`, `Noise`, `Jump`, `Update`, `Constraint`, `Event`, and `Objective` are frozen values that `get_laws` returns.
+`Rate`, `Noise`, `Jump`, `Update`, `Constraint`, `Event`, and `Objective` are frozen values that `_get_laws` returns.
 They have no parameters of their own and no `prepare` or `run`. Contributions of several laws to one state add up, for
 every kind where adding means something: rates, noises, jump channels, and constraint balances.
 

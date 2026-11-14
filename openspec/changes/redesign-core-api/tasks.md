@@ -14,13 +14,13 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 
 - [ ] 2.1 Reduce `StateSpec` to `domain`, `shape`, and `rate`, add the aliases `State`, `Parameter`, and `Role` in `src/skcomplex/core/specs`, and make the compiler treat `rate='v'` as `dx/dt = v`. Verify with tests in `tests/core/specs` for each alias and for a free particle that moves at constant velocity.
 - [ ] 2.2 Give `Element` and `DeclaredElement` the arguments `size=` and `space=`, with reserved names and per-member arrays, and make `DeclaredElement` take `states={...}` and `parameters={...}`. Verify with tests for 1000 members with positions, a wrong number of values, one member per site, and a reserved name.
-- [ ] 2.3 Reject elements that define `get_laws`, and remove `visual=` from element constructors, moving the drawing settings to the visualisation observer keyed by path. Verify with tests in `tests/core/components/elements` and `tests/core/engine/viz`.
+- [ ] 2.3 Reject elements that define `_get_laws`, and remove `visual=` from element constructors, moving the drawing settings to the visualisation observer keyed by path. Verify with tests in `tests/core/components/elements` and `tests/core/engine/viz`.
 - [ ] 2.4 Make the engine records and the eleven specs of `skcomplex.core.components.specs` private dataclasses beside the code that uses them, move field values such as `HilbertSpec` and `PartnerSpec` to their field packages, and keep public only the specs users build or read. Verify with a test that lists the public names of `skcomplex.core.specs` and finds about fifteen.
 
 ## 3. Interactions and laws
 
 - [ ] 3.1 Add the seven law kinds `Rate`, `Noise`, `Jump`, `Update`, `Constraint`, `Event`, and `Objective` as frozen values in `src/skcomplex/core/components/laws`, each accepting symbols and callables, and lower each onto the existing compilers. Verify with one test per kind in `tests/core/components/laws`, including a `Jump` run as ODEs and as Gillespie draws.
-- [ ] 3.2 Make `get_laws(s)` the public hook of `Interaction`, add `Interaction(label, roles={...}, laws=callable)`, and give the base the bindings of named roles, `among=` with `within=`, and `among=` with `along=`. Verify with tests for pairs within a cutoff, lattice neighbours, network edges, hyperedges on a lattice, and a state declared on an interaction.
+- [ ] 3.2 Give `BaseInteraction` the public method `get_laws(s)`, defined once, which checks the namespace and the laws and calls the abstract hook `_get_laws(s)` that every interaction implements, as `BaseSearchCV.fit` calls `_run_search` in scikit-learn, add `Interaction(label, roles={...}, laws=callable)`, and give the base the bindings of named roles, `among=` with `within=`, and `among=` with `along=`. Verify with tests for pairs within a cutoff, lattice neighbours, network edges, hyperedges on a lattice, and a state declared on an interaction.
 - [ ] 3.3 Port `GradientInteraction`, `HamiltonianInteraction`, and `EulerLagrangeInteraction` to the new base and laws, and add the operators `laplacian`, `divergence`, `gradient`, and the reductions over neighbours as public functions. Verify with tests for a particle in a well, a pendulum from its Lagrangian, and the heat equation on a mesh.
 - [ ] 3.4 Write network rewiring as `Update` laws on the edges of a network space, and circuits as node elements with constraint balances. Verify with tests for rewiring and for Kirchhoff's current law at a node of three resistors.
 - [ ] 3.5 Make the problem of `prepare` follow the table of `design.md`: ODE, SDE, jump process, DAE, map, hybrid, optimisation, sampling, and gradient flow, with the default solver of each and an error naming the supported solvers for an unsuitable one. Verify with tests for each problem and for a map prepared with an ODE solver.
@@ -35,7 +35,7 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 
 ## 5. Systems migrate field by field
 
-Each task rewrites the systems of its fields on the new API: elements as data with declared states, interactions with `get_laws` and their relation parameters, the seven law kinds, `_prepare` setting `system_` instead of `_build_system`, and `prepare` and `simulate` in tests, docstrings, and gallery examples. Each task verifies with the tests of its fields, its doctests, and a gallery sample of its fields.
+Each task rewrites the systems of its fields on the new API: elements as data with declared states, interactions with `_get_laws` and their relation parameters, the seven law kinds, `_prepare` setting `system_` instead of `_build_system`, and `prepare` and `simulate` in tests, docstrings, and gallery examples. Each task verifies with the tests of its fields, its doctests, and a gallery sample of its fields.
 
 - [ ] 5.1 Wave 1: `physics`.
 - [ ] 5.2 Wave 1: `chemistry`, `engineering`, and `general`.

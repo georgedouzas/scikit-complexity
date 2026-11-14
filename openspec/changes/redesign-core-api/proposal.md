@@ -24,7 +24,7 @@ The design is in `design.md`. In short:
   One element class covers one member, many members (`size=`), and one member per site of a space (`space=`), which
   replaces `GroupElement` and `FieldElement`.
 - **BREAKING** An interaction is all behaviour. It binds roles, owns the parameters of the relation, and returns laws
-  from the public hook `get_laws`. Where it applies is a binding argument, not a class: one target, named roles, every
+  from the hook `_get_laws`, which the public `get_laws` of the base calls. Where it applies is a binding argument, not a class: one target, named roles, every
   pair within a neighbourhood, or every edge of a network. `NeighborInteraction`, `PairInteraction`,
   `HyperedgeInteraction`, and `GroupingInteraction` go, and so do the interactions that only wrap one law.
 - **BREAKING** Laws are plain values of seven kinds named by their mathematics: `Rate`, `Noise`, `Jump`, `Update`,

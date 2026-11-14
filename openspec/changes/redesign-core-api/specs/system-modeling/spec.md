@@ -36,7 +36,7 @@ expression or a Python callable for the values the engine evaluates numerically.
 - **THEN** each firing applies the change the callable returns
 
 #### Scenario: Only interactions return laws
-- **WHEN** a user writes an element class that defines `get_laws`
+- **WHEN** a user writes an element class that defines `_get_laws`
 - **THEN** preparing a system with it raises a named error that asks for an interaction with one role
 
 ### Requirement: Contributions of every additive kind add up

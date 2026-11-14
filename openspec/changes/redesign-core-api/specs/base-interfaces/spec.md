@@ -9,14 +9,14 @@ and `run`, which the system calls. Elements, interactions, spaces, and neighbour
 - **THEN** systems have `prepare` and `simulate`, engine classes have `prepare` and `run`, and parts have only the
   parameter methods and their hooks
 
-### Requirement: Extension hooks a user implements are public
-The hook a user implements to give the laws of an interaction, `get_laws`, SHALL be public. A ready-made system SHALL
-implement the private hook `_prepare` of its main public method, as a scikit-learn `fit` calls `_fit`, and hooks that
-only the engine implements SHALL stay private.
+### Requirement: Public methods call the hooks subclasses implement
+A base SHALL define each public method once, and a subclass SHALL implement the private hook the method calls, as
+`BaseSearchCV.fit` calls `_run_search` in scikit-learn. An interaction SHALL implement `_get_laws`, which the public
+`get_laws` of its base calls, and a ready-made system SHALL implement `_prepare`, which the public `prepare` calls.
 
 #### Scenario: A user interaction
-- **WHEN** a user writes an interaction that defines `get_laws`
-- **THEN** the system calls it, and the user writes no method whose name starts with an underscore
+- **WHEN** a user writes an interaction that defines `_get_laws`
+- **THEN** `get_laws` of the interaction returns the laws of the hook, and preparing a system with it compiles them
 
 ### Requirement: Engine bases share prepare and run
 Every base of an engine class SHALL derive from `BaseConfig` in `skcomplex.core.base`, which defines `prepare(context)`
