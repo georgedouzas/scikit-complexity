@@ -90,6 +90,7 @@ def clean(session: nox.Session) -> None:
         '.nox',
         '.ruff_cache',
         'coverage.xml',
+        '.venv',
     ]
     for path in paths:
         shutil.rmtree(path, ignore_errors=True)
