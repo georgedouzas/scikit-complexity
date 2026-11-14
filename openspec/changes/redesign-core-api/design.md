@@ -169,8 +169,8 @@ every kind where adding means something: rates, noises, jump channels, and const
 | `MatchLaw` | `skcomplex.systems.general`, as an `Update` |
 | `GradientStepLaw` | the learning package, as an `Update` |
 
-A field law that needs engine support of its own moves with that support: the field package brings a solver or a
-compiler built on the public engine bases, as the operator form already does. The engine core keys only on the seven
+A field law that needs engine support of its own moves with that support: the field package brings a solver built on
+the public engine bases. `prepare` chooses the compiler by itself, so `compiler` is no longer a setting users give. The engine core keys only on the seven
 kinds and never names a class of the systems packages.
 
 ### 5. The system is the estimator
@@ -208,7 +208,8 @@ moon = system.set_params(gravity__g=1.62).prepare().simulate(until=1.4)
   a cache hit.
 - `prepare` returns `self`, and `simulate` returns the trajectory, so one prepared system runs many times without
   overwriting a stored result.
-- The free function `simulate` is removed, so there is one way to simulate.
+- The free function `simulate` is removed, so there is one way to simulate. Its other run arguments, `invariants`,
+  `schedule`, `clock`, `checked`, `record_draws`, and `replay`, become arguments of `System.simulate`.
 - Elements, interactions, spaces, and neighbourhoods derive from `BaseComponent`, which gives parameters, cloning, and
   tags, and no `prepare` or `run`. Solvers, backends, observers, compilers, and kernels keep `prepare` and `run`, which
   the system calls. Each family has `prepare` and its own verb, as scikit-learn estimators share `fit` and differ in
@@ -279,8 +280,9 @@ against the new API.
 
 ## Migration Plan
 
-1. Build the new bases, elements, interactions, laws, `System`, `prepare`, and `simulate` in the core, beside the old
-   classes, lowering the seven kinds onto the existing compilers.
+1. Build `System`, `prepare`, `simulate`, the new elements, interactions, and laws in the core, beside the old
+   classes, lowering the seven kinds onto the existing compilers. The parts keep their engine-facing `prepare` and
+   `run` until the old classes are deleted, and only then lose them.
 2. Move the field-specific components out of the core into the systems packages, with the solvers they need.
 3. Migrate the systems field by field, in waves of at most four parallel agents, each wave rewriting its systems,
    tests, and gallery examples on the new API.

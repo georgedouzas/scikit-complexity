@@ -63,7 +63,7 @@ method `simulate` of a prepared system, and no free function `simulate` SHALL ex
 - **THEN** it finds solvers, backends, observers, and `Trajectory`, and no `simulate`
 
 #### Scenario: A system package brings its own form
-- **WHEN** a field package defines a solver or a compiler on the public engine bases for a law of its own
+- **WHEN** a field package defines a solver on the public engine bases for a law of its own
 - **THEN** a system of that field prepares with it, and the engine core names no class of the field
 
 ## REMOVED Requirements

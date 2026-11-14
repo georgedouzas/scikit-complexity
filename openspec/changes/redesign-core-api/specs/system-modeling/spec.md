@@ -98,7 +98,7 @@ states, and random states SHALL be arguments of `simulate`.
 
 ### Requirement: The core holds the building blocks of general systems
 Every component of the core SHALL be a building block that general systems of several fields are built from. A law
-that one field needs SHALL live in that field with the solver or compiler that lowers it, built on the public engine
+that one field needs SHALL live in that field with the solver that lowers it, built on the public engine
 bases, and the engine core SHALL key only on the seven law kinds.
 
 #### Scenario: A field law with its solver

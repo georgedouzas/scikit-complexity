@@ -5,7 +5,7 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 
 ## 1. Bases and the system as an estimator
 
-- [ ] 1.1 Split the bases in `src/skcomplex/core/base.py` and `src/skcomplex/core/components/base.py`: `BaseComponent` gives label, parameters, cloning, and tags with no `prepare` or `run`, `BaseConfig` keeps `prepare` and `run` for engine classes, and `BaseSystem` defines `prepare` and `simulate`. Verify with tests in `tests/core/test_base.py` and `tests/core/components/test_base.py` that list the methods of each base.
+- [ ] 1.1 Give `BaseSystem` in `src/skcomplex/core/components/systems/_base.py` the main public method `simulate`, next to `prepare`, taking the run arguments `until`, `dt`, `initial_state`, `random_state`, `observables`, `observers`, `invariants`, `schedule`, `clock`, `checked`, `record_draws`, and `replay`. The parts keep their current `prepare` and `run` for the engine until task 6.4. Verify with tests in `tests/core/components/systems/test_base.py` that `simulate` exists on systems and returns a trajectory.
 - [ ] 1.2 Add `System` in `src/skcomplex/core/components/systems` with label, elements, interactions, nested systems, space, solver, and backend, and nested parameters `<label>__<parameter>` for `get_params` and `set_params`. Verify with tests for tuning a part, an unknown nested name, nested systems, and `clone`.
 - [ ] 1.3 Implement `System.prepare`, which checks every part, infers the problem from the law kinds, chooses the solver and backend, and sets `problem_`, `solver_`, and `backend_`, and `System.simulate(until, initial_state=None, random_state=None, observables=(), observers=())`, which returns a `Trajectory`. Verify with tests that one preparation simulates twice, that `simulate` before `prepare` and after `set_params` raises `NotPreparedError`, and that preparing again after a change of values reuses the compiled problem.
 - [ ] 1.4 Make `BaseSystem` subclasses call the public hook `build` from `prepare` and delegate `simulate` to the built system. Verify with a test of a ready-made system whose `set_params(beta=0.5)` reaches the run.
@@ -28,7 +28,7 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 ## 4. Field-specific components leave the core
 
 - [ ] 4.1 Audit every space and neighbourhood of the core with the placement rule, starting with `CayleySpace`, `PhaseSpace`, `SimplexSpace`, `CofaceNeighborhood`, `MemoryNeighborhood`, and `StateTranslationNeighborhood`, and record the decision for each in this change before moving any. Verify that the record names the fields that use each one.
-- [ ] 4.2 Move `DissipatorLaw` and the quantum generator to `skcomplex.systems.physics.common.quantum` with the solver or compiler that lowers them, built on the public engine bases. Verify with the moved tests under `tests/systems/physics/common/quantum`.
+- [ ] 4.2 Move `DissipatorLaw` and the quantum generator to `skcomplex.systems.physics.common.quantum` with the solver that lowers them, built on the public engine bases. Verify with the moved tests under `tests/systems/physics/common/quantum`.
 - [ ] 4.3 Move `CascadeLaw` and `ExtremalLaw` to the criticality package, `ProductionLaw`, `SubstitutionLaw`, `WordElement`, and `PatchElement` to the package of rewriting systems, and `BilinearLaw` to the package of kinetic models, each with its solver. Verify with the moved tests of each package.
 - [ ] 4.4 Move `MatchLaw` to `skcomplex.systems.general` and `GradientStepLaw` to the learning package, both as `Update` recipes, and the finite-volume scheme of `FluxLaw` to the fluids package as a solver setting. Verify with the moved tests.
 - [ ] 4.5 Move the spaces and neighbourhoods that the audit of 4.1 assigns to fields. Verify with the moved tests and a source test that no module of the core names a moved class.
@@ -48,9 +48,10 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
 
 ## 6. The old API goes
 
-- [ ] 6.1 Delete the free function `simulate`, `CompositeSystem`, `GroupElement`, `FieldElement`, the times, the wrapper and binding interactions, the old law classes, `order` and the companion states, `divisor`, ports and `ConnectorSpec`, and the engine keys on the old law classes. Verify with the full test suite and with `rg` finding none of these names in `src`, `tests`, and `docs`.
+- [ ] 6.1 Delete the free function `simulate`, `CompositeSystem`, `GroupElement`, `FieldElement`, the times, the wrapper and binding interactions, the old law classes, `order` and the companion states, `divisor`, ports and `ConnectorSpec`, the user-facing `compiler` setting, and the engine keys on the old law classes. Verify with the full test suite and with `rg` finding none of these names in `src`, `tests`, and `docs`.
 - [ ] 6.2 Update `openspec/scripts/check_conventions.py`, the import-linter contracts in `pyproject.toml`, and the source tests to the new placement rule and the new verbs. Verify with `pdm checks conventions` and `lint-imports`.
 - [ ] 6.3 Simplify the code that remains: no hidden conventions, no argument lists longer than the concept needs, no private hook a user implements. Verify with ruff, mypy, and a review of the constructors of every public class of the core.
+- [ ] 6.4 Split the bases in `src/skcomplex/core/base.py` and `src/skcomplex/core/components/base.py`: `BaseComponent` gives label, parameters, cloning, and tags with no `prepare` or `run`, and `BaseConfig` keeps `prepare` and `run` for engine classes only. Verify with tests in `tests/core/test_base.py` and `tests/core/components/test_base.py` that list the methods of each base.
 
 ## 7. Documentation
 
