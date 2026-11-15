@@ -26,6 +26,18 @@ from ..common.networks import HostElement, SpreadingInteraction
 FRACTION = RealSet.closed(0, 1)
 
 
+class PersonElement(HostElement):
+    """Person of a partnership network, drawn by whether it is infected."""
+
+    visual = VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1})
+
+
+class PartnershipEdgeElement(Element):
+    """Partnership between two people, hidden from the drawing."""
+
+    visual = VisualSpec('sites', {'states': []})
+
+
 class PartnershipEpidemicElement(Element):
     """Population of Watts and May whose infections pass along lasting partnerships.
 
@@ -42,9 +54,6 @@ class PartnershipEpidemicElement(Element):
     Args:
         label:
             The label of the population.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         S:
             The initial fraction of susceptible people.
@@ -87,7 +96,6 @@ class PartnershipEpidemicElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         S: Annotated[float, StateSpec(domain=FRACTION)] = 0.99,
         E: Annotated[float, StateSpec(domain=FRACTION)] = 0.0,
@@ -100,7 +108,7 @@ class PartnershipEpidemicElement(Element):
         T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.S = S
         self.E = E
         self.I = I
@@ -310,22 +318,20 @@ class PairFormationSISSystem(BaseSystem):
         initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
         people = GroupElement(
             'people',
-            element=HostElement,
+            element=PersonElement,
             space=space,
             on='sites',
             variable=True,
             capacity=self.n,
             values={'i': initial},
-            visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
         )
         partnerships = GroupElement(
             'partnerships',
-            element=Element,
+            element=PartnershipEdgeElement,
             space=space,
             on='edges',
             variable=True,
             capacity=space.graph.number_of_edges(),
-            visual=VisualSpec('sites', {'states': []}),
         )
         return CompositeSystem(
             self.label,

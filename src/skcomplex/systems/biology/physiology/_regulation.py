@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import delayed, hill, pulse
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -38,9 +38,6 @@ class CoagulationElement(Element):
     Args:
         label:
             The label of the blood.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         T:
             The initial thrombin.
@@ -102,7 +99,6 @@ class CoagulationElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         T: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -122,7 +118,7 @@ class CoagulationElement(Element):
         injury_time: float = 1.0,
         duration: float = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.T = T
         self.C = C
         self.F = F
@@ -159,9 +155,6 @@ class GlucoseControlElement(Element):
     Args:
         label:
             The label of the organism.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         G:
             The initial glucose, relative to the norm.
@@ -226,7 +219,6 @@ class GlucoseControlElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         G: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -247,7 +239,7 @@ class GlucoseControlElement(Element):
         exercise_time: float = 12.0,
         duration: float = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.G = G
         self.I = I
         self.N = N

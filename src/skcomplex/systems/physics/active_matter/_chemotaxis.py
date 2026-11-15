@@ -19,7 +19,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import divergence, gradient, laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ChemotaxisElement(Element):
@@ -34,9 +34,6 @@ class ChemotaxisElement(Element):
     Args:
         label:
             The label of the site or the field.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
 
         rho:
             The initial density of cells.
@@ -58,7 +55,7 @@ class ChemotaxisElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import ChemotaxisElement
@@ -71,7 +68,6 @@ class ChemotaxisElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[float, StateSpec()] = 1.0,
         c: Annotated[float, StateSpec()] = 1.0,
@@ -80,7 +76,7 @@ class ChemotaxisElement(Element):
         Dc: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.c = c
         self.D = D

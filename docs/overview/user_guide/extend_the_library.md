@@ -30,8 +30,8 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class StockElement(Element):
-    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
         self.level = level
 
 
@@ -62,8 +62,8 @@ of a group by Monte Carlo moves, to the inverse temperature `beta` of a magnet. 
 
 ```python continuation
 class SpinElement(Element):
-    def __init__(self, label, visual=None, *, s: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, s: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
         self.s = s
 
 
@@ -126,12 +126,11 @@ class EaterElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         level: Annotated[float, StateSpec()] = 0.0,
         sold: Annotated[float, StateSpec()] = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
         self.sold = sold
 
@@ -193,8 +192,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class QueueElement(Element):
-    def __init__(self, label, visual=None, *, orders: Annotated[object, StateSpec(domain=None)] = ()):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, orders: Annotated[object, StateSpec(domain=None)] = ()):
+        super().__init__(label)
         self.orders = orders
 
     def _get_laws(self, s):
@@ -253,8 +252,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class TankElement(Element):
-    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 1.0, capacity=10.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 1.0, capacity=10.0):
+        super().__init__(label)
         self.level = level
         self.capacity = capacity
 

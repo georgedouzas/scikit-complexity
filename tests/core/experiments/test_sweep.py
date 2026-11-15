@@ -8,7 +8,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
@@ -19,12 +19,11 @@ class LogisticMapElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.2,
         r: Annotated[object, ParameterSpec()] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.r = r
 

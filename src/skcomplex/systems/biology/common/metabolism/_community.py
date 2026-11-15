@@ -25,7 +25,7 @@ from .....core.components.systems import BaseSystem, CompositeSystem
 from .....core.engine.problems import ProblemSpec, RunStateSpec
 from .....core.engine.runtime import simulate
 from .....core.errors import AnalysisError
-from .....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from .....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...._extras import import_extra
 from ._analyses import _check_choice, _networks_of
 from ._cobra_io import load_extra, to_cobra
@@ -45,12 +45,11 @@ class _SteadyComElement(DeclaredElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         variables: Mapping[str, DeclaredVariableSpec] | None = None,
         law: Callable[[SimpleNamespace], LinearProgramLaw] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, variables=variables)
+        super().__init__(label, variables=variables)
         self.law = law
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[LinearProgramLaw]:

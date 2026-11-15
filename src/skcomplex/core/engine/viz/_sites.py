@@ -92,7 +92,7 @@ class SiteVisual(BaseVisual):
         layout = self._get_layout(space)
         nodes = [str(node) for node in space.graph.nodes]
         if path not in self.edges_:
-            edges = [(str(source), str(target)) for source, target in space.graph.edges]
+            edges = [(str(source), str(target)) for source, target, *_ in space.graph.edges]
             recording.log(path, rr.GraphEdges(edges), static=True)
             self.edges_.add(path)
         positions = [layout[node] for node in nodes]

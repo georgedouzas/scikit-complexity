@@ -20,7 +20,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import RecoveryInteraction
@@ -44,11 +44,10 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -58,12 +57,11 @@ class RelaxingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=0.6)] = 2.0,
         lam: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.lam = lam
 
@@ -78,11 +76,10 @@ class SaturatingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=0.6)] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
     def _get_laws(self, s):
@@ -235,14 +232,13 @@ class PendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec(order=2)] = 0.1,
         theta_d1: float = 0.0,
         g: Annotated[object, ParameterSpec()] = 9.81,
         l: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
         self.g = g
@@ -259,14 +255,13 @@ class SmallAngleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec(order=2)] = 0.1,
         theta_d1: float = 0.0,
         g: Annotated[object, ParameterSpec()] = 9.81,
         l: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
         self.g = g
@@ -283,13 +278,12 @@ class ThirdOrderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(order=3, initial=(1.0, 0.0))] = 0.0,
         x_d2: float = 0.0,
         x_d1: float = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d2 = x_d2
         self.x_d1 = x_d1
@@ -305,14 +299,13 @@ class FirstOrderPendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec()] = 0.1,
         omega: Annotated[object, StateSpec()] = 0.0,
         g: Annotated[object, ParameterSpec()] = 9.81,
         l: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.omega = omega
         self.g = g
@@ -329,12 +322,11 @@ class FibonacciElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(lags=1, initial=(1.0,))] = 1.0,
         x_lag1: float = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_lag1 = x_lag1
 
@@ -408,13 +400,12 @@ def test_remaining_sign_question_names_parameter():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec(order=2)] = 0.1,
             x_d1: float = 0.0,
             k: Annotated[object, ParameterSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.x_d1 = x_d1
             self.k = k

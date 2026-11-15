@@ -23,7 +23,7 @@ from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 AXES = ('x', 'y', 'z')
 DIRECTIONS = ('ux', 'uy', 'uz')
@@ -44,9 +44,6 @@ class AnisotropicParticleElement(Element):
     Args:
         label:
             The label of the particle or the group.
-
-        visual:
-            How the particle is drawn, or `None` for `default_visual_`.
 
         x:
             The initial first coordinate.
@@ -86,7 +83,7 @@ class AnisotropicParticleElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the particle when it sets none.
+            How the particle is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import AnisotropicParticleElement
@@ -103,7 +100,6 @@ class AnisotropicParticleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -118,7 +114,7 @@ class AnisotropicParticleElement(Element):
         D_spin: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
         D_c: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -179,9 +175,6 @@ class DimerElement(Element):
         label:
             The label of the dimer or the group.
 
-        visual:
-            How the dimer is drawn, or `None` for `default_visual_`.
-
         c:
             The initial centre.
 
@@ -208,7 +201,7 @@ class DimerElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the dimer when it sets none.
+            How the dimer is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import DimerElement
@@ -224,7 +217,6 @@ class DimerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         c: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         phi: Annotated[float, StateSpec(role='direction')] = 0.0,
@@ -235,7 +227,7 @@ class DimerElement(Element):
         D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.c = c
         self.phi = phi
         self.theta1 = theta1

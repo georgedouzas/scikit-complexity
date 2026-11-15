@@ -18,7 +18,7 @@ from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, series, step
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 PRICE_TABLE = ((0.0, 0.5, 1.0, 1.5, 2.0, 3.0), (3.0, 1.8, 1.0, 0.65, 0.5, 0.4))
 INVESTMENT_TABLE = ((0.0, 0.5, 1.0, 1.25, 1.5, 2.0, 3.0), (0.0, 0.1, 1.0, 2.5, 4.0, 5.0, 5.5))
@@ -37,9 +37,6 @@ class CommodityMarketElement(Element):
     Args:
         label:
             The label of the market.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         inventory:
             The initial inventory of the commodity.
@@ -86,7 +83,6 @@ class CommodityMarketElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='commodity')] = 25.0,
         capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capacity')] = 100.0,
@@ -101,7 +97,7 @@ class CommodityMarketElement(Element):
         construction_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
         lifetime: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.inventory = inventory
         self.capacity = capacity
         self.demand = demand

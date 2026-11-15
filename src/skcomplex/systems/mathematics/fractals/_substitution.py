@@ -19,7 +19,7 @@ from ....core.components.laws import AffineSpec, ProductionLaw, SubstitutionLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, VisualSpec
+from ....core.specs import ParameterSpec
 
 SHAPES = ('triangle', 'carpet')
 LARGEST_RATIO = 0.5
@@ -52,9 +52,6 @@ class CantorElement(PatchElement):
         bounds:
             The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
 
-        visual:
-            How the patch is drawn, or `None` for `default_visual_`.
-
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import CantorElement
         >>> CantorElement('cantor', ratio=0.25).ratio
@@ -73,7 +70,6 @@ class CantorElement(PatchElement):
         filled: bool = False,
         max_size: int = 10_000_000,
         bounds: Sequence[float] | None = None,
-        visual: VisualSpec | None = None,
     ) -> None:
         super().__init__(
             label,
@@ -82,7 +78,6 @@ class CantorElement(PatchElement):
             filled=filled,
             max_size=max_size,
             bounds=bounds,
-            visual=visual,
         )
         self.ratio = ratio
 
@@ -167,9 +162,6 @@ class SierpinskiElement(PatchElement):
         bounds:
             The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
 
-        visual:
-            How the patch is drawn, or `None` for `default_visual_`.
-
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import SierpinskiElement
         >>> SierpinskiElement('sierpinski', shape='carpet').shape
@@ -188,7 +180,6 @@ class SierpinskiElement(PatchElement):
         filled: bool = False,
         max_size: int = 10_000_000,
         bounds: Sequence[float] | None = None,
-        visual: VisualSpec | None = None,
     ) -> None:
         super().__init__(
             label,
@@ -197,7 +188,6 @@ class SierpinskiElement(PatchElement):
             filled=filled,
             max_size=max_size,
             bounds=bounds,
-            visual=visual,
         )
         self.shape = shape
 

@@ -14,7 +14,7 @@ from skcomplex.core.components.laws.utils import derivative, step, where
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 from .conftest import PRECISE
 
@@ -27,7 +27,6 @@ class WrittenElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec(order=2)] = 0.3,
         theta_d1: float = 0.0,
@@ -35,7 +34,7 @@ class WrittenElement(Element):
         g: Annotated[object, ParameterSpec()] = 9.81,
         l: Annotated[object, ParameterSpec()] = 1.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
         self.m = m
@@ -53,14 +52,13 @@ class SolvedElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec(order=2)] = 0.3,
         theta_d1: float = 0.0,
         g: Annotated[object, ParameterSpec()] = 9.81,
         l: Annotated[object, ParameterSpec()] = 1.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
         self.g = g
@@ -77,12 +75,11 @@ class SquaredElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(order=2)] = 1.0,
         x_d1: float = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
 
@@ -97,7 +94,6 @@ class OscillatorsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x0: Annotated[object, StateSpec(order=2)] = 1.0,
         x1: Annotated[object, StateSpec(order=2)] = 1.0,
@@ -107,7 +103,7 @@ class OscillatorsElement(Element):
         x5: Annotated[object, StateSpec(order=2)] = 1.0,
         x6: Annotated[object, StateSpec(order=2)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x0 = x0
         self.x1 = x1
         self.x2 = x2
@@ -128,14 +124,13 @@ class SpringElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(order=2)] = 1.0,
         x_d1: float = 0.0,
         m: Annotated[object, ParameterSpec()] = 2.0,
         k: Annotated[object, ParameterSpec()] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.m = m

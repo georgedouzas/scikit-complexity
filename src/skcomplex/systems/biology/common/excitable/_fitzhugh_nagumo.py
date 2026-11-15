@@ -65,10 +65,10 @@ class FitzHughNagumoInteraction(Interaction):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class CellElement(Element):
         ...     def __init__(
-        ...         self, label, visual=None, *, v: Annotated[float, StateSpec()] = -1.2,
+        ...         self, label, *, v: Annotated[float, StateSpec()] = -1.2,
         ...         w: Annotated[float, StateSpec()] = -0.6,
         ...     ):
-        ...         super().__init__(label, visual=visual)
+        ...         super().__init__(label)
         ...         self.v = v
         ...         self.w = w
         >>> kinetics = FitzHughNagumoInteraction('kinetics', target='cell', I=0.5)

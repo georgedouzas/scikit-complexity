@@ -30,9 +30,6 @@ class DipoleChargeElement(Element):
         label:
             The label of the charge.
 
-        visual:
-            How the charge is drawn, or `None` for its class visual.
-
         x:
             The initial first coordinate.
 
@@ -65,7 +62,6 @@ class DipoleChargeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=2)] = 1.0,
         x_d1: float = 0.0,
@@ -75,7 +71,7 @@ class DipoleChargeElement(Element):
         z_d1: float = 0.0,
         alpha: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.y = y

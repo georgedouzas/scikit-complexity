@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.experiments import sensitivity
-from skcomplex.core.specs import ParameterSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 
 
@@ -21,13 +21,12 @@ class PointElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x1: Annotated[object, ParameterSpec()] = 0.0,
         x2: Annotated[object, ParameterSpec()] = 0.0,
         x3: Annotated[object, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x1 = x1
         self.x2 = x2
         self.x3 = x3

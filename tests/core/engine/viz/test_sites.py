@@ -18,7 +18,13 @@ def test_fields_on_networks_are_drawn_as_colored_graphs():
     assert any(type(view).__name__ == 'GraphView' for view in _views(default_blueprint(problem)))
 
 
-def test_fields_keep_a_given_visual():
-    """Test that a field keeps the visual it is given."""
-    field = FieldElement('plate', element=HeatElement, space=LatticeSpace((4, 4)), visual=VisualSpec('sites'))
+def test_fields_keep_the_visual_of_their_member_class():
+    """Test that a field is drawn as its member class says, not as the image of its lattice."""
+
+    class SitedHeatElement(HeatElement):
+        """Heat drawn on sites."""
+
+        visual = VisualSpec('sites')
+
+    field = FieldElement('plate', element=SitedHeatElement, space=LatticeSpace((4, 4)))
     assert PassCompiler().prepare(CompositeSystem(elements=[field])).run().problem_.elements[0].visual.kind == 'sites'

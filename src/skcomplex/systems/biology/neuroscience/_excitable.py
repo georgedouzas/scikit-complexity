@@ -20,7 +20,7 @@ from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import AnyArray
 
 EXCITED = 1
@@ -40,9 +40,6 @@ class ExcitableElement(Element):
         label:
             The label of the element or the site group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         phase:
             The initial state, 0 for quiescent, 1 for excited, and 2 to `n_states - 1` for refractory.
 
@@ -61,13 +58,12 @@ class ExcitableElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         phase: Annotated[float, StateSpec(domain=NN)] = 0,
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         stimulus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phase = phase
         self.p = p
         self.stimulus = stimulus

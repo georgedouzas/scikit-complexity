@@ -46,14 +46,13 @@ class SiteElement(Element):
         hilbert:
             The Hilbert space of the sites, whose basis state `k` is site `k`.
 
-        visual:
-            How the particle is drawn.
-
     Examples:
         >>> from skcomplex.systems.physics.waves._quantum import SiteElement
         >>> SiteElement('particle', 3).psi
         3
     """
+
+    visual = VisualSpec('expectations')
 
     def __init__(
         self,
@@ -61,9 +60,8 @@ class SiteElement(Element):
         psi: Annotated[object, StateSpec(domain=CC)] = 0,
         *,
         hilbert: HilbertSpec | None = None,
-        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.hilbert = hilbert
 
@@ -79,9 +77,6 @@ class WaveFunctionElement(Element):
     Args:
         label:
             The label of the site.
-
-        visual:
-            How the site is drawn, or `None` for none.
 
         u:
             The initial real part.
@@ -106,14 +101,13 @@ class WaveFunctionElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
         w: Annotated[float, StateSpec()] = 0.0,
         D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         V: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.w = w
         self.D = D

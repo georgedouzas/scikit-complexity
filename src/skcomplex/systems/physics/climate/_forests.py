@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import delayed
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ForestCoverElement(Element):
@@ -32,9 +32,6 @@ class ForestCoverElement(Element):
     Args:
         label:
             The label of the forest.
-
-        visual:
-            How the forest is drawn, or `None` for `default_visual_`.
 
         v:
             The initial vegetation cover.
@@ -59,7 +56,7 @@ class ForestCoverElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the forest when it sets none.
+            How the forest is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.climate import ForestCoverElement
@@ -70,7 +67,6 @@ class ForestCoverElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         v: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.8,
         Tv: Annotated[float, ParameterSpec()] = 30.0,
@@ -80,7 +76,7 @@ class ForestCoverElement(Element):
         a: Annotated[float, ParameterSpec()] = 5.0,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.Tv = Tv
         self.g0 = g0
@@ -104,9 +100,6 @@ class MitigatorsElement(Element):
     Args:
         label:
             The label of the population.
-
-        visual:
-            How the population is drawn, or `None` for `default_visual_`.
 
         x:
             The initial share of mitigators.
@@ -134,7 +127,7 @@ class MitigatorsElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the population when it sets none.
+            How the population is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.climate import MitigatorsElement
@@ -145,7 +138,6 @@ class MitigatorsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.5,
         alpha: Annotated[float, ParameterSpec()] = 1.0,
@@ -156,7 +148,7 @@ class MitigatorsElement(Element):
         tp: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
         tf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.alpha = alpha
         self.delta = delta

@@ -13,7 +13,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import lag
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -24,9 +24,6 @@ class EconomyElement(Element):
     Args:
         label:
             The label of the economy.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         k:
             The initial capital per worker.
@@ -40,11 +37,10 @@ class EconomyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         k: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.k = k
 
 

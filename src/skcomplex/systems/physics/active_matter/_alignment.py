@@ -107,6 +107,12 @@ def _get_polarization(s: SimpleNamespace) -> Expression:
     return abs(s.mean_heading)
 
 
+class SwimmerElement(ActiveParticleElement):
+    """Active particle drawn as a point coloured by its heading."""
+
+    visual = HEADINGS
+
+
 class AligningActiveBrownianParticlesSystem(BaseSystem):
     """Active Brownian particles in a periodic box whose headings align.
 
@@ -195,7 +201,7 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         swimmers = GroupElement(
             'swimmers',
-            element=ActiveParticleElement,
+            element=SwimmerElement,
             size=self.n_particles,
             values={
                 'x': rng.uniform(0.0, self.size, (self.n_particles, 2)),
@@ -203,7 +209,6 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
                 'D_t': self.D_t,
                 'D_r': self.D_r,
             },
-            visual=HEADINGS,
         )
         alignment = PolarAlignmentInteraction(
             'align',

@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import CrossingInteraction, RateInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.excitable import FitzHughNagumoInteraction
 from .types import GateRates
 
@@ -26,9 +26,6 @@ class FitzHughNagumoNeuronElement(Element):
     Args:
         label:
             The label of the neuron.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         v:
             The initial potential.
@@ -45,12 +42,11 @@ class FitzHughNagumoNeuronElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         v: Annotated[float, StateSpec()] = -1.2,
         w: Annotated[float, StateSpec()] = -0.6,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.w = w
 
@@ -69,9 +65,6 @@ class HodgkinHuxleyElement(Element):
     Args:
         label:
             The label of the neuron.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         v:
             The initial membrane potential.
@@ -118,7 +111,6 @@ class HodgkinHuxleyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         v: Annotated[float, StateSpec()] = -65.0,
         n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3177,
@@ -133,7 +125,7 @@ class HodgkinHuxleyElement(Element):
         e_l: Annotated[float, ParameterSpec()] = -54.387,
         I: Annotated[float, ParameterSpec()] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.n = n
         self.m = m

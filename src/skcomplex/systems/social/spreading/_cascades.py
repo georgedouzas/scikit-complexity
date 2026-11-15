@@ -81,9 +81,6 @@ class ThresholdNodeElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         active:
             Whether the node starts active.
 
@@ -97,15 +94,16 @@ class ThresholdNodeElement(Element):
         ('nodes', 'ThresholdNodeElement', 10)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'active', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'active', 'color_range': (0.0, 1.0)}),
         *,
         active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         threshold: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.18,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.active = active
         self.threshold = threshold
 

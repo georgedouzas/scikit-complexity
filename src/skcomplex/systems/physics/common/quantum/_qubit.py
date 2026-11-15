@@ -45,14 +45,13 @@ class QubitElement(Element):
         hilbert:
             The Hilbert space of the qubit.
 
-        visual:
-            How the qubit is drawn.
-
     Examples:
         >>> from skcomplex.systems.physics.common.quantum import QubitElement
         >>> sorted(QubitElement('q').hilbert.operators)
         ['minus', 'plus', 'x', 'y', 'z']
     """
+
+    visual = VisualSpec('expectations')
 
     def __init__(
         self,
@@ -60,8 +59,7 @@ class QubitElement(Element):
         psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         *,
         hilbert: HilbertSpec = QUBIT,
-        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.hilbert = hilbert

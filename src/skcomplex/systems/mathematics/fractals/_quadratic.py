@@ -23,7 +23,6 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from .types import Window
 
-ESCAPE_IMAGE = VisualSpec('image', {'states': ('n',), 'low': 0.0})
 MANDELBROT_WINDOW: Window = (-2.2, 0.8, -1.2, 1.2)
 JULIA_WINDOW: Window = (-1.6, 1.6, -1.2, 1.2)
 
@@ -39,9 +38,6 @@ class InverseJuliaPointElement(Element):
     Args:
         label:
             The label of the element or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         z:
             The initial point.
@@ -65,13 +61,12 @@ class InverseJuliaPointElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         z: Annotated[object, StateSpec(domain=CC)] = 0.5,
         omega: Annotated[object, ParameterSpec(domain=CC)] = 0.0,
         p: Annotated[object, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
         self.omega = omega
         self.p = p
@@ -99,9 +94,6 @@ class QuadraticMapElement(Element):
         label:
             The label of the element.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         z:
             The initial point.
 
@@ -120,19 +112,20 @@ class QuadraticMapElement(Element):
         0.25
     """
 
+    visual = VisualSpec('image', {'states': ('n',), 'low': 0.0})
+
     law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         z: Annotated[object, StateSpec(domain=CC)] = 0.0,
         n: Annotated[object, StateSpec(domain=NN)] = 0.0,
         c: Annotated[object, ParameterSpec(domain=CC)] = 0.0,
         radius: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
         self.n = n
         self.c = c
@@ -215,7 +208,7 @@ class MandelbrotSystem(BaseSystem):
         return CompositeSystem(
             label,
             elements=[
-                FieldElement('plane', element=QuadraticMapElement, space=space, values=values, visual=ESCAPE_IMAGE),
+                FieldElement('plane', element=QuadraticMapElement, space=space, values=values),
             ],
         )
 

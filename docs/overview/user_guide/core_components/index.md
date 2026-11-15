@@ -97,12 +97,11 @@ class HabitatElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         prey: Annotated[float, AMOUNT] = 1.0,
         predators: Annotated[float, AMOUNT] = 0.5,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.prey = prey
         self.predators = predators
 

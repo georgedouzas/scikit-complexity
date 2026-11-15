@@ -221,8 +221,8 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class PopulationElement(Element):
-    def __init__(self, label, visual=None, *, n: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
         self.n = n
 
 
@@ -337,8 +337,8 @@ from skcomplex.core.errors import RoleElementError
 
 
 class TankElement(Element):
-    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
         self.level = level
 
 

@@ -29,10 +29,15 @@ TRIMORPHIC_VICTORIES = ('defectors', 'payoff')
 ADDITIVE_VICTORIES = ('punishers', 'payoff')
 SIMPLEX_SAMPLES = 401
 REFERENCES = ('Cooney 2024',)
-SIMPLEX_VISUAL = VisualSpec('image', {'slices': {0: 0}})
 
 
 type Fraction = Expression | npt.NDArray[np.float64]
+
+
+class GroupDensityElement(ActivityDensityElement):
+    """Density of groups over their strategy fractions, drawn as a simplex."""
+
+    visual = VisualSpec('image', {'slices': {0: 0}})
 
 
 class SelectionDriftInteraction(ConservationInteraction):
@@ -626,11 +631,10 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         space = SimplexSpace(LatticeSpace((1,)), axes)
         groups = FieldElement(
             'groups',
-            element=ActivityDensityElement,
+            element=GroupDensityElement,
             space=space,
             values={'x': 2.0 * (space.prepare().volumes_ > 0)},
             discretization='finite-volume',
-            visual=SIMPLEX_VISUAL,
         )
         drift = self._get_simplex_drift(payoffs)
         within = SelectionDriftInteraction('within', target='groups', state='x', drift=lambda _: drift, limiter=None)

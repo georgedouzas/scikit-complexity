@@ -13,7 +13,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.mechanics import SpringDamperInteraction
 
 
@@ -29,7 +29,6 @@ class PiezoHarvesterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y1: Annotated[object, StateSpec(order=2)] = 0.0,
         y1_d1: float = 0.0,
@@ -46,7 +45,7 @@ class PiezoHarvesterElement(Element):
         d: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 4e-10,
         C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1e-08,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y1 = y1
         self.y1_d1 = y1_d1
         self.y2 = y2

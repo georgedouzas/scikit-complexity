@@ -35,9 +35,6 @@ class TrapWalkerElement(Element):
         label:
             The label of the walker or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The place of the trap.
 
@@ -56,19 +53,20 @@ class TrapWalkerElement(Element):
         0.5
     """
 
+    visual = VisualSpec('points', {'position': 'x', 'color_by': 'E', 'color_range': (0.0, 5.0)})
+
     law_classes = (JumpLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('points', {'position': 'x', 'color_by': 'E', 'color_range': (0.0, 5.0)}),
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.5,
         E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.E = E
         self.T = T

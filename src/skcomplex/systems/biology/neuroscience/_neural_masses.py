@@ -18,7 +18,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 FIELDS = ('r', 's')
 SETUPS = ('ping', 'ing')
@@ -38,9 +38,6 @@ class NeuralMassElement(Element):
     Args:
         label:
             The label of the population.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         r:
             The initial firing rate, in spikes per millisecond.
@@ -74,7 +71,6 @@ class NeuralMassElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         r: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         v: Annotated[float, StateSpec()] = -1.0,
@@ -84,7 +80,7 @@ class NeuralMassElement(Element):
         H: Annotated[float, ParameterSpec()] = -5.0,
         tau_d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.r = r
         self.v = v
         self.s = s

@@ -28,6 +28,12 @@ from ..common.oscillators import LinkElement, PhaseOscillatorElement
 MODELS = ('NL', 'NLT')
 
 
+class LinkOscillatorElement(PhaseOscillatorElement):
+    """Phase oscillator on a link, drawn as a cell coloured by its phase."""
+
+    visual = VisualSpec('cell', {'state': 'theta'})
+
+
 class TopologicalKuramotoSystem(BaseSystem):
     """Phases on the nodes and links of a clique complex.
 
@@ -227,11 +233,10 @@ class TopologicalKuramotoSystem(BaseSystem):
         )
         links = GroupElement(
             'links',
-            element=PhaseOscillatorElement,
+            element=LinkOscillatorElement,
             space=space,
             on='edges',
             values={'theta': rng.uniform(-np.pi, np.pi, n_links), 'omega': rng.normal(0.0, self.width, n_links)},
-            visual=VisualSpec('cell', {'state': 'theta'}),
         )
         interactions = [
             RateInteraction(

@@ -13,7 +13,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 
 class CounterElement(Element):
@@ -22,11 +22,10 @@ class CounterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
     def _get_laws(self, s):
@@ -40,11 +39,10 @@ class DecayElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y: Annotated[object, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y = y
 
     def _get_laws(self, s):
@@ -58,12 +56,11 @@ class RenewingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
         waiting: Callable[[SimpleNamespace], object] = lambda s: draw('wait', 'expon'),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.waiting = waiting
 
@@ -78,11 +75,10 @@ class MeanResetElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
     def _get_laws(self, s):
@@ -122,12 +118,11 @@ def test_compiler_keeps_the_form_of_rate_laws_with_renewals():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
             v: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.v = v
 
@@ -182,11 +177,10 @@ def test_compiler_accepts_draws_in_update_laws_from_scipy():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):

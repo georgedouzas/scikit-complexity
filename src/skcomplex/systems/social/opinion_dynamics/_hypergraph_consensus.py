@@ -35,9 +35,6 @@ class OpinionElement(Element):
         label:
             The label of the node or the group.
 
-        visual:
-            How the node is drawn, or `None` for `default_visual_`.
-
         x:
             The initial opinion.
 
@@ -47,14 +44,15 @@ class OpinionElement(Element):
         0.5
     """
 
+    visual = VisualSpec('sites', {'states': ['x'], 'low': -1.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -66,9 +64,6 @@ class ScheduleElement(Element):
     Args:
         label:
             The label of the triangle or the group.
-
-        visual:
-            How the triangle is drawn, or `None` for `default_visual_`.
 
         phase:
             The phase of the schedule, in radians.
@@ -82,11 +77,10 @@ class ScheduleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         phase: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phase = phase
 
 
@@ -234,7 +228,6 @@ class HypergraphConsensusSystem(BaseSystem):
             element=OpinionElement,
             space=space,
             values={'x': rng.uniform(-1.0, 1.0, self.n_nodes)},
-            visual=VisualSpec('sites', {'states': ['x'], 'low': -1.0, 'high': 1.0}),
             on='sites',
         )
         schedules = GroupElement(

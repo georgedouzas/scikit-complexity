@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
 from ._mass_exchange import MassExchangeInteraction
@@ -29,9 +29,6 @@ class CubicAutocatalysisElement(Element):
     Args:
         label:
             The label of the reactor.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         a:
             The initial concentration of the reactant.
@@ -54,14 +51,13 @@ class CubicAutocatalysisElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         b: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         F: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.04,
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.b = b
         self.F = F
@@ -80,9 +76,6 @@ class OregonatorElement(Element):
     Args:
         label:
             The label of the reactor.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial scaled concentration of bromous acid.
@@ -114,7 +107,6 @@ class OregonatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
@@ -124,7 +116,7 @@ class OregonatorElement(Element):
         q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0008,
         f: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z

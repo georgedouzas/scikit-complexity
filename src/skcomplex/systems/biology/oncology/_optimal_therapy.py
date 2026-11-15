@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import PontryaginSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
@@ -40,9 +40,6 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial immune cells.
@@ -119,7 +116,6 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         E: float = 0.15,
         A: float = 0.25,
@@ -146,7 +142,6 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
     ) -> None:
         super().__init__(
             label,
-            visual=visual,
             E=E,
             A=A,
             N=N,
@@ -189,9 +184,6 @@ class OptimalImmunotherapyElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial effector cells.
@@ -256,7 +248,6 @@ class OptimalImmunotherapyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -277,7 +268,7 @@ class OptimalImmunotherapyElement(Element):
         w1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         w2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z

@@ -18,7 +18,7 @@ from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, series, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 ACTORS = ('a', 'b', 'c')
 ALLOCATION_TABLE = ((0.0, 0.2, 0.5, 0.8, 1.0), (0.0, 0.05, 0.5, 0.95, 1.0))
@@ -30,7 +30,6 @@ class ArmsRaceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.0,
         b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.5,
@@ -38,7 +37,7 @@ class ArmsRaceElement(Element):
         adjustment_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         perception_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.b = b
         self.margin = margin
@@ -52,7 +51,6 @@ class BurdenElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         capability: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capability')] = 0.5,
         intervention: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='intervention')] = 0.0,
@@ -62,7 +60,7 @@ class BurdenElement(Element):
         solution_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         erosion: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.capability = capability
         self.intervention = intervention
         self.desired = desired
@@ -78,14 +76,13 @@ class ContestElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 55.0,
         b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 45.0,
         budget: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         lifetime: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.b = b
         self.budget = budget
@@ -98,7 +95,6 @@ class PerformanceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         performance: Annotated[object, StateSpec(quantity='performance')] = 1.0,
         perceived: Annotated[object, StateSpec(quantity='performance')] = 1.0,
@@ -109,7 +105,7 @@ class PerformanceElement(Element):
         goal_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
         erosion: Annotated[object, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.performance = performance
         self.perceived = perceived
         self.desired = desired
@@ -126,7 +122,6 @@ class StandoffElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         stock: Annotated[object, StateSpec(quantity='stock')] = 50.0,
         effort_a: Annotated[object, StateSpec(quantity='effort')] = 0.0,
@@ -140,7 +135,7 @@ class StandoffElement(Element):
         strength_c: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         intensification_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.stock = stock
         self.effort_a = effort_a
         self.effort_b = effort_b

@@ -15,7 +15,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, RoleSpec, StateSpec
 
 from ...conftest import RotorElement
 
@@ -53,11 +53,10 @@ class PersonElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         health: Annotated[object, StateSpec(domain=HEALTH)] = 'susceptible',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.health = health
 
 
@@ -119,8 +118,8 @@ def test_algebraic_state_has_order_one_and_no_lags():
 class _ColorLinkElement(Element):
     """Link with a matrix of SU(3)."""
 
-    def __init__(self, label, visual=None, *, U: Annotated[object, StateSpec(group=COLOR)] = tuple(COLOR.identity)):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, U: Annotated[object, StateSpec(group=COLOR)] = tuple(COLOR.identity)):
+        super().__init__(label)
         self.U = U
 
 

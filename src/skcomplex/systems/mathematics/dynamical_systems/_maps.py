@@ -12,7 +12,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import mod, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -27,9 +27,6 @@ class LogisticMapElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial value, between 0 and 1.
@@ -46,12 +43,11 @@ class LogisticMapElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.2,
         r: Annotated[object, ParameterSpec()] = 3.7,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.r = r
 

@@ -53,7 +53,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 BACKENDS = (NumpyBackend(), NumbaBackend())
 GAMMA = 0.5
@@ -150,14 +150,13 @@ class ReducingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         out: Annotated[object, StateSpec()] = 0.0,
         y: Annotated[object, StateSpec()] = 0.0,
         over: object = None,
         reduce: str = 'sum',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.out = out
         self.y = y
         self.over = over
@@ -174,7 +173,6 @@ class PositionedReducingElement(ReducingElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         out: Annotated[object, StateSpec()] = 0.0,
         y: Annotated[object, StateSpec()] = 0.0,
@@ -182,7 +180,7 @@ class PositionedReducingElement(ReducingElement):
         reduce: str = 'sum',
         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce)
+        super().__init__(label, out=out, y=y, over=over, reduce=reduce)
         self.x = x
 
 
@@ -192,7 +190,6 @@ class HeadedReducingElement(PositionedReducingElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         out: Annotated[object, StateSpec()] = 0.0,
         y: Annotated[object, StateSpec()] = 0.0,
@@ -201,7 +198,7 @@ class HeadedReducingElement(PositionedReducingElement):
         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         phi: Annotated[object, StateSpec(domain=RR)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce, x=x)
+        super().__init__(label, out=out, y=y, over=over, reduce=reduce, x=x)
         self.phi = phi
 
 
@@ -279,12 +276,11 @@ def test_weighted_reduction_reads_the_member_and_its_neighbour(backend):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             out: Annotated[object, StateSpec()] = 0.0,
             y: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.out = out
             self.y = y
 
@@ -411,12 +407,11 @@ def test_neighbour_positions_are_read_by_minimum_image(backend):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             out: Annotated[object, StateSpec()] = 0.0,
             x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.out = out
             self.x = x
 
@@ -443,7 +438,6 @@ def test_neighbourhood_reads_a_place_by_its_role_and_not_a_state_named_x():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             out: Annotated[object, StateSpec()] = 0.0,
             y: Annotated[object, StateSpec()] = 0.0,
@@ -451,7 +445,7 @@ def test_neighbourhood_reads_a_place_by_its_role_and_not_a_state_named_x():
             reduce: str = 'sum',
             x: Annotated[object, StateSpec(vector=True)] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce)
+            super().__init__(label, out=out, y=y, over=over, reduce=reduce)
             self.x = x
 
     group = GroupElement('g', element=UnplacedElement, size=2, values={'over': RadiusNeighborhood(1.0)})
@@ -486,11 +480,10 @@ def test_interaction_reduces_over_the_neighbours_of_its_group():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             y: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.y = y
 
     plain = PlainElement
@@ -512,11 +505,10 @@ def test_neighbour_symbols_outside_a_reduction_are_rejected():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             y: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.y = y
 
         def _get_laws(self, s):
@@ -574,14 +566,13 @@ def test_validate_accepts_a_cone_along_the_velocity():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             out: Annotated[object, StateSpec()] = 0.0,
             y: Annotated[object, StateSpec()] = 0.0,
             x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0,
             x_d1: object = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.out = out
             self.y = y
             self.x = x
@@ -605,13 +596,12 @@ class OscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec()] = 0.0,
         omega: Annotated[object, ParameterSpec()] = 0.0,
         K: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.omega = omega
         self.K = K
@@ -673,14 +663,13 @@ class MoverElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
         v0: Annotated[object, ParameterSpec()] = 0.03,
         eta: Annotated[object, ParameterSpec()] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.v0 = v0
@@ -739,11 +728,10 @@ class PhaseElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -836,13 +824,12 @@ class ImitatingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         out: Annotated[object, StateSpec()] = 0.0,
         strategy: Annotated[object, StateSpec()] = 0.0,
         payoff: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.out = out
         self.strategy = strategy
         self.payoff = payoff
@@ -880,12 +867,11 @@ class KeyedElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
         k: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.k = k
 
@@ -977,12 +963,11 @@ class AroundElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
         term: str = 'triad',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.term = term
 
@@ -1120,14 +1105,13 @@ class NeighbourSetElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         y: Annotated[object, StateSpec()] = 0.0,
         term: str = 'flank',
         radius: float = 1.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.term = term
@@ -1199,13 +1183,12 @@ class DriftingSetElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         y: Annotated[object, StateSpec()] = 0.0,
         speed: Annotated[object, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.speed = speed

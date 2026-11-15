@@ -117,8 +117,8 @@ class GroupingInteraction(Interaction):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import StateSpec
         >>> class VoterElement(Element):
-        ...     def __init__(self, label, visual=None, *, s: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, s: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
         ...         self.s = s
         >>> def adopt_majority(members, system):
         ...     majority = float(2 * sum(member.s for member in members) > len(members))

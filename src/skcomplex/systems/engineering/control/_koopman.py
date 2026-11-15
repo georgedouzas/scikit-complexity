@@ -28,7 +28,7 @@ from ....core.components.spaces import ContinuousTime, DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.runtime import Trajectory, simulate
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 
 DUFFING_A, DUFFING_B, DUFFING_D = 1.0, -1.0, -0.3
@@ -145,9 +145,6 @@ class ControlInputElement(Element):
         label:
             The label of the input.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         u:
             The value of the input.
 
@@ -160,11 +157,10 @@ class ControlInputElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, ParameterSpec(adaptive=True, bounds=(-1.0, 1.0))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
 
 
@@ -174,9 +170,6 @@ class PlantStateElement(Element):
     Args:
         label:
             The label of the plant.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The value of the first variable.
@@ -193,12 +186,11 @@ class PlantStateElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
 

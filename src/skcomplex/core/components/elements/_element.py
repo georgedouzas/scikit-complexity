@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import ClassVar
 
-from ...specs import ConnectorSpec, VisualSpec
+from ...specs import ConnectorSpec
 from ..base import BaseComponent
 from ..spaces import BaseSpace
 from ._base import BaseElement
@@ -52,12 +52,9 @@ class Element(BaseElement):
         space:
             The space of the element, with one member per site, such as a lattice of cells, or `None` for none.
 
-        visual:
-            How the element is drawn, such as `VisualSpec('line')`, or `None` for `default_visual_`.
-
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
     Examples:
         A population and a bank deposit both grow at a rate proportional to their size, so one class serves both.
@@ -97,9 +94,8 @@ class Element(BaseElement):
         values: Mapping[str, object] | None = None,
         size: int | None = None,
         space: BaseSpace | None = None,
-        visual: VisualSpec | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.values = values
         self.size = size
         self.space = space

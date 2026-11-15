@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 from ....core.types import Array
 from ..common.avalanches import TopplingInteraction
 
@@ -33,9 +33,6 @@ class FaultElement(Element):
         label:
             The label of the block or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         force:
             The initial force.
 
@@ -48,11 +45,10 @@ class FaultElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         force: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.force = force
 
 

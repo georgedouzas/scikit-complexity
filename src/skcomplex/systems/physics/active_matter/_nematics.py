@@ -37,7 +37,7 @@ from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import TensorShapeError, ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 GEL_ORDERS = ('nematic', 'polar')
 NEMATIC_BOX = 10.0
@@ -59,9 +59,6 @@ class NematicDensitySiteElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         rho:
             The initial density.
 
@@ -73,7 +70,7 @@ class NematicDensitySiteElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import NematicDensitySiteElement
@@ -86,13 +83,12 @@ class NematicDensitySiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[npt.ArrayLike, StateSpec()] = 1.0,
         Q: Annotated[npt.ArrayLike, StateSpec(tensor='traceless')] = 0.0,
         beta: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.Q = Q
         self.beta = beta
@@ -128,9 +124,6 @@ class PolarGelSiteElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         p:
             The initial polarisation.
 
@@ -157,7 +150,7 @@ class PolarGelSiteElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import PolarGelSiteElement
@@ -168,7 +161,6 @@ class PolarGelSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
         a: Annotated[float, ParameterSpec()] = -1.0,
@@ -179,7 +171,7 @@ class PolarGelSiteElement(Element):
         eta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         zeta: Annotated[float, ParameterSpec()] = -0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.p = p
         self.a = a
         self.c = c
@@ -302,9 +294,6 @@ class NematicGelSiteElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         Q:
             The initial tensor, its independent components `Q_xx` and `Q_xy`.
 
@@ -331,7 +320,7 @@ class NematicGelSiteElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import NematicGelSiteElement
@@ -344,7 +333,6 @@ class NematicGelSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         Q: Annotated[npt.ArrayLike, StateSpec(tensor='traceless')] = 0.0,
         a: Annotated[float, ParameterSpec()] = -1.0,
@@ -355,7 +343,7 @@ class NematicGelSiteElement(Element):
         eta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         zeta: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.Q = Q
         self.a = a
         self.c = c

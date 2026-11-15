@@ -42,9 +42,6 @@ class _CompiledAgentsSpec(BaseSpec):
         rules:
             The rules every agent runs each step, in declaration order.
 
-        visual:
-            The visual that draws the agents.
-
         objects:
             The names of the states that hold hashable objects.
 

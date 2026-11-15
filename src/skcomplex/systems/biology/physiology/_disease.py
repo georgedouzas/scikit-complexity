@@ -20,7 +20,7 @@ from ....core.components.interactions import NeighborInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import LayerSpec, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class CellOscillatorElement(Element):
@@ -34,9 +34,6 @@ class CellOscillatorElement(Element):
     Args:
         label:
             The label of the cell or of the group of cells.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         phi:
             The initial phase.
@@ -55,12 +52,11 @@ class CellOscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         phi: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
         omega: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phi = phi
         self.omega = omega
 
@@ -87,9 +83,6 @@ class CytokineLinkElement(Element):
         label:
             The label of the link or of the group on the edges.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         kappa:
             The initial adaptive coupling, between -1 and 1.
 
@@ -105,12 +98,11 @@ class CytokineLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         kappa: Annotated[float, StateSpec(domain=RealSet.closed(-1, 1))] = 0.0,
         a: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.kappa = kappa
         self.a = a
 

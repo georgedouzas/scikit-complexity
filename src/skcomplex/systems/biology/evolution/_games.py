@@ -18,7 +18,7 @@ from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import total
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 from ....core.types import Array
 from ..common.populations import ReplicatorInteraction
 
@@ -38,9 +38,6 @@ class CyclicSpeciesElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         strategy:
             The initial strategy, 0, 1, or 2.
 
@@ -53,11 +50,10 @@ class CyclicSpeciesElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         strategy: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
 
 
@@ -69,9 +65,6 @@ class StrategyElement(Element):
     Args:
         label:
             The label of the strategy or of the group of strategies.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial share.
@@ -85,11 +78,10 @@ class StrategyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 

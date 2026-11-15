@@ -78,8 +78,8 @@ from sage.sets.real_set import RealSet
 
 
 class CompartmentElement(DeclaredElement):
-    def __init__(self, label, visual=None, *, people=0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, people=0.0):
+        super().__init__(label)
         self.people = people
 
     def _declare_variables(self):
@@ -114,12 +114,11 @@ class GrowthElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         r: Annotated[float, ParameterSpec()] = 0.5,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.r = r
 
@@ -158,8 +157,8 @@ from skcomplex.core.errors import ValidationError
 
 
 class BrokenElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec(order=0)] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec(order=0)] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -181,12 +180,11 @@ class CapacitorElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         v: Annotated[float, StateSpec()] = 0.0,
         C: Annotated[float, ParameterSpec()] = 1e-3,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.C = C
 
@@ -216,12 +214,11 @@ class StockElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         r: Annotated[float, ParameterSpec()] = 0.1,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.r = r
 
@@ -278,8 +275,8 @@ sites of a forest.
 
 ```python continuation
 class ForestElement(GroupElement):
-    def __init__(self, label, visual=None, *, size=100):
-        super().__init__(label, element=StockElement, size=size, visual=visual)
+    def __init__(self, label, *, size=100):
+        super().__init__(label, element=StockElement, size=size)
 
 
 ForestElement('forest', size=4).prepare().size_
@@ -309,12 +306,11 @@ class DiffusionElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
         D: Annotated[float, ParameterSpec()] = 1.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.D = D
 
@@ -368,8 +364,8 @@ The message says that the group has 2 values of `u` for 3 members. The fix is th
 
 ```python continuation
 class RodElement(FieldElement):
-    def __init__(self, label, visual=None, *, sites=50):
-        super().__init__(label, element=DiffusionElement, space=LatticeSpace((sites,)), visual=visual)
+    def __init__(self, label, *, sites=50):
+        super().__init__(label, element=DiffusionElement, space=LatticeSpace((sites,)))
 
 
 RodElement('rod', sites=8).prepare().size_

@@ -17,7 +17,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import LabelError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class TallyElement(Element):
@@ -26,12 +26,11 @@ class TallyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[float, StateSpec()] = 0.0,
         source: str = '',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
         self.source = source
 
@@ -42,12 +41,11 @@ class DecayingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec()] = 1.0,
         k: Annotated[object, ParameterSpec()] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.k = k
 
@@ -62,13 +60,12 @@ class FirmElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         debt: Annotated[float, StateSpec()] = 1.0,
         equity: Annotated[float, StateSpec()] = 2.0,
         r: Annotated[float, ParameterSpec()] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.debt = debt
         self.equity = equity
         self.r = r
@@ -84,12 +81,11 @@ class PendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(order=2)] = 0.0,
         theta_d1: float = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
 
@@ -100,12 +96,11 @@ class CounterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec()] = 0.0,
         k: Annotated[object, ParameterSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.k = k
 
@@ -120,11 +115,10 @@ class MovingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         v: Annotated[object, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
 
     def _get_laws(self, s):
@@ -138,11 +132,10 @@ class NumpyDecayElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
     def _get_laws(self, s):
@@ -164,11 +157,10 @@ class SettlerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         alive: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.alive = alive
 
     def _get_laws(self, s):
@@ -204,9 +196,9 @@ def test_element_runs_into_its_laws():
 
 
 def test_element_parameters_list_settings_and_declared_names():
-    """Test that the parameters are the label, the settings, the visual, and every state with its value."""
+    """Test that the parameters are the label, the settings, and every state with its value."""
     tally = TallyElement('size', source='farmers')
-    assert tally.get_params() == {'label': 'size', 'source': 'farmers', 'value': 0.0, 'visual': None}
+    assert tally.get_params() == {'label': 'size', 'source': 'farmers', 'value': 0.0}
     assert repr(tally) == "TallyElement(label='size', source='farmers')"
 
 

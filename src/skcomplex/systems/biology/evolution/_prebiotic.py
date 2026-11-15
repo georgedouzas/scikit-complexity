@@ -21,7 +21,7 @@ from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import total
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.populations import ReplicatorInteraction
 
 
@@ -31,9 +31,6 @@ class GenotypeClassElement(Element):
     Args:
         label:
             The label of the class.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial share.
@@ -47,11 +44,10 @@ class GenotypeClassElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -67,9 +63,6 @@ class MasterSequenceElement(GenotypeClassElement):
     Args:
         label:
             The label of the class.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial share.
@@ -89,13 +82,12 @@ class MasterSequenceElement(GenotypeClassElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: float = 0.0,
         u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x)
         self.u = u
         self.sigma = sigma
 
@@ -108,9 +100,6 @@ class MoleculeElement(Element):
     Args:
         label:
             The label of the molecule or of the group of molecules.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial concentration.
@@ -127,12 +116,11 @@ class MoleculeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         growth: Annotated[object, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.growth = growth
 

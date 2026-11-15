@@ -16,7 +16,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 BACKENDS = (NumpyBackend(), NumbaBackend())
 GENERATORS = [
@@ -169,13 +169,12 @@ def test_reductions_read_the_edges_of_their_layer(backend):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             y: Annotated[object, StateSpec()] = 0.0,
             contacts: Annotated[object, StateSpec()] = 0.0,
             colleagues: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.y = y
             self.contacts = contacts
             self.colleagues = colleagues

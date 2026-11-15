@@ -35,9 +35,6 @@ class ParticipantElement(Element):
         label:
             The label of the participant or the group.
 
-        visual:
-            How the participant is drawn, or `None` for `default_visual_`.
-
         infected:
             The initial state, 0 or 1.
 
@@ -50,15 +47,16 @@ class ParticipantElement(Element):
         0.05
     """
 
+    visual = VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         recovery: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.infected = infected
         self.recovery = recovery
 
@@ -226,7 +224,6 @@ class HypergraphExposureSisSystem(BaseSystem):
             element=ParticipantElement,
             space=NetworkSpace(xgi.to_graph(hypergraph), hyperedges=hypergraph),
             values={'infected': infected, 'recovery': self.recovery},
-            visual=VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0}),
             on='sites',
         )
         exposure = ExposureInteraction('exposure', target='participants', rate=self.rate, exponent=self.exponent)

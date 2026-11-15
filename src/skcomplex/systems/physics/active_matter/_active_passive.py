@@ -50,9 +50,6 @@ class FlockingAgentElement(PointElement):
         x_d1:
             The initial velocity.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         active:
             The mark, 1 for an active agent or 0 for a passive one.
 
@@ -62,16 +59,20 @@ class FlockingAgentElement(PointElement):
         0.0
     """
 
+    visual = VisualSpec(
+        'points',
+        {'position': 'x', 'radius': 0.025, 'color_by': 'active', 'color_range': (0.0, 1.0)},
+    )
+
     def __init__(
         self,
         label: str,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
-        visual: VisualSpec | None = None,
         *,
         active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([PASSIVE_AGENT, ACTIVE_AGENT]))] = ACTIVE_AGENT,
     ) -> None:
-        super().__init__(label, x=x, x_d1=x_d1, visual=visual)
+        super().__init__(label, x=x, x_d1=x_d1)
         self.active = active
 
 
@@ -332,10 +333,6 @@ class ActivePassiveFlockingSystem(BaseSystem):
                 'x_d1': rng.uniform(-self.initial_speed, self.initial_speed, (self.n_agents, 2)),
                 'active': np.where(np.arange(self.n_agents) < self.n_active, ACTIVE_AGENT, PASSIVE_AGENT),
             },
-            visual=VisualSpec(
-                'points',
-                {'position': 'x', 'radius': self.radius, 'color_by': 'active', 'color_range': (0.0, 1.0)},
-            ),
         )
         energy = functools.partial(
             self._get_repulsion_energy,

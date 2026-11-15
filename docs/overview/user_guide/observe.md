@@ -263,9 +263,11 @@ The default visuals follow the kind of element:
   coloured over the range, and its phase under `<path>/<state>/phase`, coloured by a cyclic palette over `(-π, π]`. A
   complex scalar appears as the series `<path>/<state>/real` and `<path>/<state>/imag`.
 
-An element or a group sets its own visual with its argument `visual`. Below, two atoms joined by a spring move in
-three dimensions, and the second atom asks for points coloured by its velocity `x_d1` with
-`VisualSpec('points', {'position': 'x', 'color_by': 'x_d1'})`.
+An element class gives its default drawing in its class attribute `visual`, such as
+`visual = VisualSpec('points', {'position': 'x'})`. The observer draws chosen elements otherwise with `visuals`, a
+mapping from the path of an element to its drawing. Below, two atoms joined by a spring move in three dimensions, and
+the observer draws the second atom as points coloured by its velocity `x_d1` with
+`visuals={'b': VisualSpec('points', {'position': 'x', 'color_by': 'x_d1'})}`.
 
 ```python continuation
 from typing import Annotated
@@ -281,12 +283,11 @@ class AtomElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: object = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
 
@@ -295,7 +296,7 @@ speed = VisualSpec('points', {'position': 'x', 'color_by': 'x_d1'})
 molecule = CompositeSystem(
     elements=[
         AtomElement('a', x=[0.0, 0.0, 0.0]),
-        AtomElement('b', visual=speed, x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0]),
+        AtomElement('b', x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0]),
     ],
     interactions=[
         RateInteraction('pull', target='a', sources=['b'], rate=lambda s: 4.0 * (s.sources[0].x - s.target.x)),
@@ -303,7 +304,7 @@ molecule = CompositeSystem(
     ],
     space=ContinuousSpace(n_dim=3),
 )
-atoms = RerunObserver('molecule', save_path=folder / 'molecule.rrd')
+atoms = RerunObserver('molecule', save_path=folder / 'molecule.rrd', visuals={'b': speed})
 simulate(molecule, until=5, dt=0.02, observers=[atoms])
 [type(visual).__name__ for visual in atoms.visuals_], type(atoms.views_[0]).__name__
 ```

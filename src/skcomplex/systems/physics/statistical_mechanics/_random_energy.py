@@ -72,6 +72,8 @@ class EnergyLevelElement(Element):
         -1.5
     """
 
+    visual = VisualSpec('histograms', {'color_by': 'energy'})
+
     def __init__(self, label: str, energy: Annotated[float, StateSpec()] = 0.0) -> None:
         super().__init__(label)
         self.energy = energy
@@ -203,13 +205,11 @@ class RandomEnergySystem(BaseSystem):
         """
         size = 2**self.n_spins
         energies = np.random.default_rng(self.random_state).normal(0.0, np.sqrt(self.n_spins / 2), size)
-        visual = VisualSpec('histograms', {'color_by': 'energy'})
         levels = GroupElement(
             'levels',
             element=EnergyLevelElement,
             size=size,
             values={'energy': energies},
-            visual=visual,
         )
         sums = BoltzmannSumInteraction(
             'sums',

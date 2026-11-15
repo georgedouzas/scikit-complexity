@@ -16,7 +16,7 @@ from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class InvestingFirmView(AgentView):
@@ -48,9 +48,6 @@ class InvestingFirmElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial net worth.
@@ -93,7 +90,6 @@ class InvestingFirmElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec()] = 1.0,
         K: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -106,7 +102,7 @@ class InvestingFirmElement(Element):
         r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         pbar: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.K = K
         self.Z = Z

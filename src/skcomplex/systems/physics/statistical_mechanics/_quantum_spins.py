@@ -72,14 +72,13 @@ class SpinElement(Element):
             The Hilbert space of the spin, with the spin components `x`, `y`, `z` and the ladder operators `plus` and
             `minus` as its operators, by default that of a spin one half.
 
-        visual:
-            How the spin is drawn.
-
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement
         >>> SpinElement('s').hilbert.dimension
         2
     """
+
+    visual = VisualSpec('expectations')
 
     def __init__(
         self,
@@ -87,9 +86,8 @@ class SpinElement(Element):
         psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         *,
         hilbert: HilbertSpec = SPIN_HALF,
-        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.hilbert = hilbert
 

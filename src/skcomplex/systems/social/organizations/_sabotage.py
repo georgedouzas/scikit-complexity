@@ -72,9 +72,6 @@ class EmployeeElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         predisposed:
             Whether the employee is predisposed to sabotage, 1, or not, 0.
 
@@ -155,10 +152,11 @@ class EmployeeElement(Element):
         ('employees', 'EmployeeElement', 10)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'risk', 'color_range': (0.0, 5.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'risk', 'color_range': (0.0, 5.0)}),
         *,
         predisposed: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         disgruntlement: Annotated[float, StateSpec()] = 0.0,
@@ -185,7 +183,7 @@ class EmployeeElement(Element):
         skill_growth: Annotated[float, ParameterSpec()] = 0.001,
         skill_variance: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0005,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.predisposed = predisposed
         self.disgruntlement = disgruntlement
         self.stress = stress

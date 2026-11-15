@@ -42,9 +42,6 @@ class PolarFluidElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         rho:
             The initial density.
 
@@ -89,7 +86,6 @@ class PolarFluidElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         vx: Annotated[float, StateSpec()] = 0.0,
@@ -102,7 +98,7 @@ class PolarFluidElement(Element):
         D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.vx = vx
         self.vy = vy
@@ -592,6 +588,12 @@ class LivingCrystalsSystem(BaseSystem):
         return CompositeSystem(self.label, elements=system.elements, interactions=interactions, space=system.space)
 
 
+class BirdElement(PointElement):
+    """Point drawn at its position and coloured by its velocity."""
+
+    visual = VisualSpec('points', {'position': 'x', 'color_by': 'x_d1', 'states': ()})
+
+
 class CuckerSmaleFlockingSystem(BaseSystem):
     """Cucker-Smale flocking.
 
@@ -657,13 +659,12 @@ class CuckerSmaleFlockingSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         birds = GroupElement(
             'birds',
-            element=PointElement,
+            element=BirdElement,
             size=self.n_agents,
             values={
                 'x': rng.uniform(0.0, self.size, (self.n_agents, 2)),
                 'x_d1': rng.normal(0.0, 1.0, (self.n_agents, 2)),
             },
-            visual=VisualSpec('points', {'position': 'x', 'color_by': 'x_d1', 'states': ()}),
         )
         alignment = CuckerSmaleAlignmentInteraction(
             'align',

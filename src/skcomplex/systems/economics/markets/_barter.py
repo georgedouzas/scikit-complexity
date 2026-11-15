@@ -80,9 +80,6 @@ class BartererElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         chocolate:
             The holding of chocolate.
 
@@ -101,19 +98,20 @@ class BartererElement(Element):
         2
     """
 
+    visual = VisualSpec('agents', {'color_by': 'chocolate_weight', 'color_range': (0.0, 1.0)})
+
     law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'chocolate_weight', 'color_range': (0.0, 1.0)}),
         *,
         chocolate: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
         cigarettes: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
         chocolate_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         cigarettes_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.chocolate = chocolate
         self.cigarettes = cigarettes
         self.chocolate_weight = chocolate_weight

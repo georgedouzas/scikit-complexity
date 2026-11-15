@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative, pulse_train, sign
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.mechanics import SpringDamperInteraction
@@ -35,7 +35,6 @@ class RailSegmentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         z: Annotated[object, StateSpec(order=2)] = 0.0,
         z_d1: float = 0.0,
@@ -55,7 +54,7 @@ class RailSegmentElement(Element):
         width: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         spacing: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
         self.z_d1 = z_d1
         self.zs = zs

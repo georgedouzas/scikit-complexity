@@ -14,7 +14,7 @@ from skcomplex.core.components.laws.utils import laplacian, total
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import RoleSpec, StateSpec
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction
@@ -107,11 +107,10 @@ def _hawks_and_doves(V=2.0, C=3.0, size=2):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.5,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
     class ReplicationInteraction(Interaction):
@@ -164,11 +163,10 @@ def test_group_above_limit():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):

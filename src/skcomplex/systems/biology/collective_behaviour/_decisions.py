@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ...general.reactions.types import Stoichiometry
 from ..common.kinetics import CompartmentElement
@@ -28,9 +28,6 @@ class BranchElement(CompartmentElement):
         label:
             The label of the branch.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial number of marks.
 
@@ -43,11 +40,10 @@ class BranchElement(CompartmentElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x)
 
 
 class RatsElement(CompartmentElement):
@@ -56,9 +52,6 @@ class RatsElement(CompartmentElement):
     Args:
         label:
             The label of the state.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial number of rats.
@@ -72,11 +65,10 @@ class RatsElement(CompartmentElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x)
 
 
 class TrailChoiceInteraction(ReactionInteraction):

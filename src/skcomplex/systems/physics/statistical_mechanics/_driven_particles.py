@@ -34,9 +34,6 @@ class ParticleSiteElement(Element):
         label:
             The label of the site or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         n:
             The initial number of particles.
 
@@ -49,11 +46,10 @@ class ParticleSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
 
@@ -65,9 +61,6 @@ class TreeNodeElement(ParticleSiteElement):
     Args:
         label:
             The label of the node or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         n:
             The initial number of quanta.
@@ -81,18 +74,19 @@ class TreeNodeElement(ParticleSiteElement):
         0.0
     """
 
+    visual = VisualSpec(
+        'points',
+        {'position': 'x', 'radius': 0.04, 'color_by': 'n', 'color_range': (0.0, 2.0), 'states': (), 'trail': 0},
+    )
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec(
-            'points',
-            {'position': 'x', 'radius': 0.04, 'color_by': 'n', 'color_range': (0.0, 2.0), 'states': (), 'trail': 0},
-        ),
         *,
         n: float = 0.0,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, n=n)
+        super().__init__(label, n=n)
         self.x = x
 
 

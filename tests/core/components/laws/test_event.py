@@ -12,7 +12,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import BackendWarning, ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 
 class BallElement(Element):
@@ -21,13 +21,12 @@ class BallElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         law: str = 'symbols',
         y: Annotated[object, StateSpec()] = 1.0,
         v: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.law = law
         self.y = y
         self.v = v
@@ -81,11 +80,10 @@ def test_crossing_with_a_function_reads_every_member_of_a_group():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             y: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.y = y
 
         def _get_laws(self, s):

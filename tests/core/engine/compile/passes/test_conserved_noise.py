@@ -15,7 +15,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
 from skcomplex.core.enums import NoiseKind
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class ConservedElement(Element):
@@ -24,12 +24,11 @@ class ConservedElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[object, StateSpec()] = 0.0,
         a: Annotated[object, ParameterSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.a = a
 
@@ -89,11 +88,10 @@ def test_compiler_rejects_conserved_amplitude_of_state():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             rho: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.rho = rho
 
         def _get_laws(self, s):

@@ -29,9 +29,8 @@ class BallElement(Element):
         label: str,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
-        visual: VisualSpec | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
 
@@ -44,14 +43,15 @@ class BallElement(Element):
 class PopulationElement(Element):
     """Population drawn as a line, which grows at a unit rate."""
 
+    visual = VisualSpec('line')
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('line'),
         *,
         n: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
     def _get_laws(self, s):
@@ -65,11 +65,10 @@ class CellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         size: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.size = size
 
 
@@ -229,25 +228,25 @@ class HeightElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         h: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.h = h
 
 
 class ColumnElement(HeightElement):
     """Column drawn by its heights."""
 
+    visual = VisualSpec('heights')
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('heights'),
         *,
         h: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, h=h)
+        super().__init__(label, h=h)
 
 
 def test_group_on_sites_flattens_values_of_the_lattice_shape():

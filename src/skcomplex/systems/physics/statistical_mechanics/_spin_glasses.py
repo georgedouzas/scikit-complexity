@@ -24,7 +24,6 @@ from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.spins import SpinSamplingInteraction
 
-SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
 NEAREST = BallNeighborhood(metric='manhattan')
 
 
@@ -40,9 +39,6 @@ class BondSpinElement(Element):
     Args:
         label:
             The label of the spin or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         spin:
             The initial spin, 1 or -1.
@@ -71,10 +67,11 @@ class BondSpinElement(Element):
         -1.0
     """
 
+    visual = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         J_up: Annotated[float, StateSpec()] = 1.0,
@@ -84,7 +81,7 @@ class BondSpinElement(Element):
         h: Annotated[float, ParameterSpec()] = 0.0,
         temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.spin = spin
         self.J_up = J_up
         self.J_left = J_left
@@ -102,9 +99,6 @@ class MattisSpinElement(BondSpinElement):
     Args:
         label:
             The label of the spin or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         spin:
             The initial spin, 1 or -1.
@@ -136,10 +130,11 @@ class MattisSpinElement(BondSpinElement):
         -1.0
     """
 
+    visual = VisualSpec('image', {'states': ()})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         spin: float = 1.0,
         J_up: float = 1.0,
@@ -152,7 +147,6 @@ class MattisSpinElement(BondSpinElement):
     ) -> None:
         super().__init__(
             label,
-            visual=visual,
             spin=spin,
             J_up=J_up,
             J_left=J_left,
@@ -314,7 +308,6 @@ class EdwardsAndersonSystem(BaseSystem):
                 'temperature': self.temperature,
                 **EdwardsAndersonSystem._get_bond_states(right, down),
             },
-            visual=SPIN_IMAGE,
             on='sites',
         )
         return CompositeSystem(
@@ -413,7 +406,6 @@ class MattisSpinGlassSystem(BaseSystem):
                 'temperature': self.temperature,
                 **EdwardsAndersonSystem._get_bond_states(right, down),
             },
-            visual=VisualSpec('image', {'states': ()}),
             on='sites',
         )
         return CompositeSystem(

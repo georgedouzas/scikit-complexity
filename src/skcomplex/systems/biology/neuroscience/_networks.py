@@ -20,7 +20,7 @@ from ....core.components.laws.utils import delayed, logistic
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 from ..common.excitable import SpikeResetInteraction
 from ._leaky_integration import LeakyIntegrationInteraction
@@ -42,9 +42,6 @@ class InhibitorElement(Element):
         label:
             The label of the inhibitor.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         z:
             The initial activity.
 
@@ -62,12 +59,11 @@ class InhibitorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         phi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
         self.phi = phi
 
@@ -99,9 +95,6 @@ class SpikingNeuronElement(Element):
         label:
             The label of the neuron.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         v:
             The initial potential.
 
@@ -126,7 +119,6 @@ class SpikingNeuronElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         v: Annotated[float, StateSpec()] = 0.0,
         s: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -134,7 +126,7 @@ class SpikingNeuronElement(Element):
         mu: Annotated[float, ParameterSpec()] = 25.0,
         tau_s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.s = s
         self.tau = tau
@@ -156,9 +148,6 @@ class TermanWangElement(Element):
     Args:
         label:
             The label of the oscillator or the lattice field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial fast variable.
@@ -201,7 +190,6 @@ class TermanWangElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = SILENT,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -214,7 +202,7 @@ class TermanWangElement(Element):
         theta_x: Annotated[float, ParameterSpec()] = -0.5,
         kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.I = I

@@ -18,7 +18,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec
 from ...general.elements import NonnegativeElement
 from ...general.reactions import ReactionInteraction
 
@@ -58,9 +58,6 @@ class LogicalVariableElement(Element):
         label:
             The label of the variable.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         level:
             The initial level.
 
@@ -73,11 +70,10 @@ class LogicalVariableElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         level: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
 
 

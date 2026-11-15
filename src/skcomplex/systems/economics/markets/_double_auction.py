@@ -18,7 +18,7 @@ from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.matching import BatchMatchingSpec, ContinuousMatchingSpec, MatchingInteraction, MatchSpec
 from ..common.policy import PolicyRuleInteraction
 
@@ -50,9 +50,6 @@ class ZeroIntelligenceBuyerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         value:
             The value of the unit to the buyer, its redemption value.
 
@@ -81,7 +78,6 @@ class ZeroIntelligenceBuyerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
         bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -90,7 +86,7 @@ class ZeroIntelligenceBuyerElement(Element):
         ceiling: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
         constrained: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
         self.bid = bid
         self.demand = demand
@@ -147,9 +143,6 @@ class ZeroIntelligenceSellerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         value:
             The cost of the unit to the seller.
 
@@ -178,7 +171,6 @@ class ZeroIntelligenceSellerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
         ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 200.0,
@@ -187,7 +179,7 @@ class ZeroIntelligenceSellerElement(Element):
         ceiling: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
         constrained: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
         self.ask = ask
         self.supply = supply

@@ -20,7 +20,7 @@ from ....core.components.laws.utils import inverse_helmholtz, partial
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.fields import AdvectionInteraction, DiffusivityInteraction
 
 
@@ -36,9 +36,6 @@ class QuasiGeostrophicSiteElement(Element):
     Args:
         label:
             The label of the site or the basin.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
 
         zeta:
             The initial relative potential vorticity.
@@ -64,7 +61,6 @@ class QuasiGeostrophicSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         zeta: Annotated[float, StateSpec()] = 0.0,
         beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -72,7 +68,7 @@ class QuasiGeostrophicSiteElement(Element):
         nu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1e-4,
         curl: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.zeta = zeta
         self.beta = beta
         self.Rd = Rd

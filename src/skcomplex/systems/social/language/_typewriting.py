@@ -18,7 +18,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class TypedWordView(AgentView):
@@ -41,9 +41,6 @@ class TypedWordElement(Element):
         label:
             The label of the word or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         count:
             The number of occurrences of the word.
 
@@ -62,13 +59,12 @@ class TypedWordElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         count: Annotated[float, StateSpec(domain=NN)] = 1.0,
         length: Annotated[float, StateSpec(domain=NN)] = 1.0,
         code: Annotated[float, StateSpec(domain=NN)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.count = count
         self.length = length
         self.code = code

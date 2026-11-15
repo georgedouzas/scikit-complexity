@@ -20,7 +20,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleError, ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 RNG = np.random.default_rng(0)
 
@@ -41,11 +41,10 @@ class UnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -55,12 +54,11 @@ class PhaseElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
         omega: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.omega = omega
 
@@ -75,12 +73,11 @@ class InhibitorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         z: Annotated[object, StateSpec()] = 0.0,
         phi: Annotated[object, ParameterSpec()] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
         self.phi = phi
 
@@ -185,11 +182,10 @@ def _group_of(laws, size=10, values=None):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -278,11 +274,10 @@ def test_instantaneous_mean_in_interaction():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.theta = theta
 
     system = CompositeSystem(
@@ -486,12 +481,11 @@ def test_observable_read_in_its_own_partition():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             W: Annotated[object, StateSpec()] = 1.0,
             r: Annotated[object, ParameterSpec()] = 0.1,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.W = W
             self.r = r
 
@@ -661,11 +655,10 @@ def test_element_set_of_mixed_types():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
     class TotalInteraction(Interaction):

@@ -24,8 +24,6 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
-SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
-
 
 class FullyConnectedSpinElement(Element):
     """Ising spin coupled to every other spin.
@@ -39,9 +37,6 @@ class FullyConnectedSpinElement(Element):
     Args:
         label:
             The label of the spin or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         spin:
             The initial spin, 1 or -1.
@@ -64,12 +59,13 @@ class FullyConnectedSpinElement(Element):
         0.5
     """
 
+    visual = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
+
     law_classes = (JumpLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         J: Annotated[float, ParameterSpec()] = 1.0,
@@ -77,7 +73,7 @@ class FullyConnectedSpinElement(Element):
         temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         couplings: npt.ArrayLike | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.spin = spin
         self.J = J
         self.h = h
@@ -189,7 +185,6 @@ class CurieWeissSystem(BaseSystem):
             element=FullyConnectedSpinElement,
             space=LatticeSpace(self.n_spins),
             values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
-            visual=SPIN_IMAGE,
             on='sites',
         )
         return CompositeSystem(self.label, elements=[group])
@@ -272,7 +267,6 @@ class SherringtonKirkpatrickSystem(BaseSystem):
                 'temperature': self.temperature,
                 'couplings': upper + upper.T,
             },
-            visual=SPIN_IMAGE,
             on='sites',
         )
         return CompositeSystem(self.label, elements=[group])

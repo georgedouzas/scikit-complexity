@@ -37,7 +37,7 @@ from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, TagError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.biology.ecology import (
     GeneralizedLotkaVolterraSystem,
     LogisticGrowthSystem,
@@ -75,13 +75,12 @@ class BirthDeathElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec(domain=NN)] = 10.0,
         birth: Annotated[object, ParameterSpec()] = 5.0,
         death: Annotated[object, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.birth = birth
         self.death = death
@@ -97,12 +96,11 @@ class PhasedElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         phase: Annotated[float, StateSpec()] = 3.0,
         bearing: Annotated[float, StateSpec(role='direction')] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phase = phase
         self.bearing = bearing
 

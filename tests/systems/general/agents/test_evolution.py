@@ -14,7 +14,7 @@ from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.general.agents import EvolutionInteraction
 
 NEUTRAL_RUNS = 100
@@ -26,12 +26,11 @@ class TypeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         strategy: Annotated[object, StateSpec()] = 0.0,
         fitness: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
         self.fitness = fitness
 
@@ -49,12 +48,11 @@ class BitStringElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         strategy: Annotated[object, StateSpec()] = 0.0,
         fitness: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
         self.fitness = fitness
 

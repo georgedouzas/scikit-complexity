@@ -17,7 +17,7 @@ from skcomplex.core.engine.problems import HilbertSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import JumpTrajectoriesSolver, UnitarySolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.physics.common.quantum import QUBIT, QubitElement
 
 from ....conftest import SpinElement
@@ -35,10 +35,9 @@ class RabiElement(QubitElement):
         psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         *,
         hilbert: HilbertSpec = QUBIT,
-        visual: VisualSpec | None = None,
         omega: Annotated[float, ParameterSpec()] = OMEGA,
     ) -> None:
-        super().__init__(label, psi, hilbert=hilbert, visual=visual)
+        super().__init__(label, psi, hilbert=hilbert)
         self.omega = omega
 
     def _get_laws(self, s):
@@ -55,10 +54,9 @@ class DecayingElement(QubitElement):
         psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         *,
         hilbert: HilbertSpec = QUBIT,
-        visual: VisualSpec | None = None,
         gamma: Annotated[float, ParameterSpec()] = GAMMA,
     ) -> None:
-        super().__init__(label, psi, hilbert=hilbert, visual=visual)
+        super().__init__(label, psi, hilbert=hilbert)
         self.gamma = gamma
 
     def _get_laws(self, s):

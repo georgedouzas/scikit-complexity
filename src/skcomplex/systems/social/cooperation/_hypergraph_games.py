@@ -33,6 +33,12 @@ CLIQUE = 5
 PHASES = ('play', 'imitate')
 
 
+class PlayerElement(ContributorElement):
+    """Contributor of the hypergraph public goods game, drawn by its strategy."""
+
+    visual = VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0})
+
+
 class DilemmaElement(Element):
     """Player of the social dilemmas on a simplicial complex, with its payoff.
 
@@ -43,9 +49,6 @@ class DilemmaElement(Element):
     Args:
         label:
             The label of the player or the group.
-
-        visual:
-            How the player is drawn, or `None` for `default_visual_`.
 
         strategy:
             The initial strategy, 1 or 0.
@@ -62,16 +65,17 @@ class DilemmaElement(Element):
         1.0
     """
 
+    visual = VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
         payoff: Annotated[float, StateSpec()] = 0.0,
         triangles: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
         self.payoff = payoff
         self.triangles = triangles
@@ -325,10 +329,9 @@ class HypergraphPublicGoodsSystem(BaseSystem):
         strategies = (rng.random(self.n_nodes) < self.share).astype(float)
         players = GroupElement(
             'players',
-            element=ContributorElement,
+            element=PlayerElement,
             space=NetworkSpace(graph, hyperedges=hypergraph),
             values={'strategy': strategies, 'synergy': self.synergy, 'noise': self.noise},
-            visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
             on='sites',
         )
         imitation = ImitationInteraction(
@@ -473,7 +476,6 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
             element=DilemmaElement,
             space=NetworkSpace(graph, hyperedges=hyperedges),
             values={'strategy': (rng.random(self.n_nodes) < self.share).astype(float), 'triangles': held},
-            visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
             on='sites',
         )
         play = SimplicialDilemmaInteraction(

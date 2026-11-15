@@ -18,7 +18,7 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import advection, laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ArbitrageDensityElement(Element):
@@ -29,9 +29,6 @@ class ArbitrageDensityElement(Element):
     Args:
         label:
             The label of the density.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         rho:
             The density of the good.
@@ -57,7 +54,6 @@ class ArbitrageDensityElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         D: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
@@ -65,7 +61,7 @@ class ArbitrageDensityElement(Element):
         E: Annotated[object, ParameterSpec()] = 0.5,
         A_t: Annotated[object, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.D = D
         self.A_x = A_x

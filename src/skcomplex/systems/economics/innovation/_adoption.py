@@ -53,9 +53,6 @@ class HouseholdElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         income:
             The initial income, relative to the mean income at the start.
 
@@ -77,10 +74,11 @@ class HouseholdElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'phone', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'phone', 'color_range': (0.0, 1.0)}),
         *,
         income: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         phone: Annotated[float, StateSpec(domain=NN)] = 0,
@@ -88,7 +86,7 @@ class HouseholdElement(Element):
         growth: Annotated[float, ParameterSpec()] = 0.02,
         threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.income = income
         self.phone = phone
         self.social_class = social_class

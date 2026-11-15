@@ -68,9 +68,6 @@ class CabElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         task:
             0 when idle, 1 on the way to a rider, and 2 on the way to a destination.
 
@@ -108,12 +105,13 @@ class CabElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'task', 'color_range': (0.0, 2.0)})
+
     law_classes = (RuleLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'task', 'color_range': (0.0, 2.0)}),
         *,
         task: Annotated[float, StateSpec(domain=NN)] = IDLE,
         target_x: Annotated[float, StateSpec(domain=NN)] = 0.0,
@@ -126,7 +124,7 @@ class CabElement(Element):
         base_fare: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
         block_fare: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.task = task
         self.target_x = target_x
         self.target_y = target_y
@@ -221,9 +219,6 @@ class RiderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         destination_x:
             The column of the destination.
 
@@ -246,10 +241,11 @@ class RiderElement(Element):
         2
     """
 
+    visual = VisualSpec('agents', {'color_by': 'waited'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'waited'}),
         *,
         destination_x: Annotated[float, StateSpec(domain=NN)] = 0.0,
         destination_y: Annotated[float, StateSpec(domain=NN)] = 0.0,
@@ -257,7 +253,7 @@ class RiderElement(Element):
         seats: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         money: Annotated[float, StateSpec()] = 100.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.destination_x = destination_x
         self.destination_y = destination_y
         self.waited = waited

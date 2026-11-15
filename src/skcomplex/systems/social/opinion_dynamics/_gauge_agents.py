@@ -23,7 +23,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import CellComplexSpace, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 
 
@@ -81,15 +81,12 @@ class PhaseAgentElement(Element):
         label:
             The label of the agent or the group on the nodes.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         theta:
             The initial phase.
 
     Attributes:
         default_visual_:
-            The visual of the agent when it sets none.
+            How the agent is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import PhaseAgentElement
@@ -100,11 +97,10 @@ class PhaseAgentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
 
 
@@ -115,15 +111,12 @@ class ConnectionElement(Element):
         label:
             The label of the edge or the group on the edges.
 
-        visual:
-            How the edge is drawn, or `None` for `default_visual_`.
-
         A:
             The connection along the direction of the edge.
 
     Attributes:
         default_visual_:
-            The visual of the edge when it sets none.
+            How the edge is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import ConnectionElement
@@ -134,11 +127,10 @@ class ConnectionElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
 
 

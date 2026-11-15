@@ -22,7 +22,7 @@ from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.policy import PolicyRuleInteraction
 
 TOLERANCE = 1e-9
@@ -53,9 +53,6 @@ class DepositorElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         bank:
             The id of the customer's bank in the group `banks`, given initially as its position in the group.
 
@@ -81,7 +78,6 @@ class DepositorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         bank: Annotated[float, StateSpec(domain=ZZ, reference='banks')] = -1,
         deposit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
@@ -89,7 +85,7 @@ class DepositorElement(Element):
         spending: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         repayment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.bank = bank
         self.deposit = deposit
         self.loan = loan
@@ -163,9 +159,6 @@ class ReserveBankElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         reserves:
             The reserves of the bank.
 
@@ -193,7 +186,6 @@ class ReserveBankElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         reserves: Annotated[float, StateSpec()] = 0.0,
         deposits: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -201,7 +193,7 @@ class ReserveBankElement(Element):
         reserve_ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         customers: str = 'customers',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.reserves = reserves
         self.deposits = deposits
         self.loans = loans

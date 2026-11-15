@@ -53,9 +53,6 @@ class BelieverElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         belief:
             The initial weights of the four levels.
 
@@ -76,19 +73,20 @@ class BelieverElement(Element):
         ('people', 'BelieverElement', 4)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'caring', 'color_range': (0.0, 3.0)})
+
     draws = True
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'caring', 'color_range': (0.0, 3.0)}),
         *,
         belief: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
         caring: Annotated[float, StateSpec(domain=NN)] = 0.0,
         influence: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
         learning: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.belief = belief
         self.caring = caring
         self.influence = influence
@@ -121,9 +119,6 @@ class AdopterElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         adopted:
             Whether the agent starts as an adopter.
 
@@ -141,16 +136,17 @@ class AdopterElement(Element):
         ('people', 'AdopterElement', 10)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'adopted', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'adopted', 'color_range': (0.0, 1.0)}),
         *,
         adopted: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         threshold: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
         reach: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.adopted = adopted
         self.threshold = threshold
         self.reach = reach

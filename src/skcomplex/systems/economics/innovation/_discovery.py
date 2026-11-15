@@ -19,7 +19,7 @@ from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 DRAW = 'draw'
 GROW = 'grow'
@@ -49,9 +49,6 @@ class BallElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         color:
             The colour, a number shared by the balls of that colour in every urn.
 
@@ -70,13 +67,12 @@ class BallElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         color: Annotated[float, StateSpec(domain=NN)] = 0,
         count: Annotated[float, StateSpec(domain=NN)] = 1,
         drawn: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.color = color
         self.count = count
         self.drawn = drawn
@@ -112,9 +108,6 @@ class UrnElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         novelties:
             The number of distinct colours the node has drawn, `D_i(t)`.
 
@@ -143,7 +136,6 @@ class UrnElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         novelties: Annotated[float, StateSpec(domain=NN)] = 0,
         color: Annotated[float, StateSpec()] = -1,
@@ -151,7 +143,7 @@ class UrnElement(Element):
         rho: Annotated[float, ParameterSpec(domain=NN)] = 4,
         nu: Annotated[float, ParameterSpec(domain=NN)] = 1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.novelties = novelties
         self.color = color
         self.novel = novel

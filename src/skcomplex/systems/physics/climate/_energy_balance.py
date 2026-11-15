@@ -19,7 +19,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import gradient, laplacian, where
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -37,9 +37,6 @@ class LatitudeBandElement(Element):
     Args:
         label:
             The label of the band or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         T:
             The initial temperature in °C.
@@ -91,7 +88,6 @@ class LatitudeBandElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         T: Annotated[float, StateSpec()] = 15.0,
         x: Annotated[float, ParameterSpec()] = 0.5,
@@ -107,7 +103,7 @@ class LatitudeBandElement(Element):
         T_ice: Annotated[float, ParameterSpec()] = -10.0,
         width: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.T = T
         self.x = x
         self.Q = Q

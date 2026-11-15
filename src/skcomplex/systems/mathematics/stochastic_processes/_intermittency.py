@@ -15,7 +15,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import HeunSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class IntermittentVariableElement(Element):
@@ -26,9 +26,6 @@ class IntermittentVariableElement(Element):
     Args:
         label:
             The label of the variable or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial value.
@@ -48,13 +45,12 @@ class IntermittentVariableElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
         epsilon: Annotated[float, ParameterSpec()] = 0.0,
         D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.epsilon = epsilon
         self.D = D

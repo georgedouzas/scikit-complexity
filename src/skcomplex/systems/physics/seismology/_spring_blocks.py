@@ -14,7 +14,7 @@ from ....core.components.laws.utils import both, laplacian, where
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class SpringBlockElement(Element):
@@ -30,9 +30,6 @@ class SpringBlockElement(Element):
     Args:
         label:
             The label of the block or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial displacement.
@@ -69,7 +66,6 @@ class SpringBlockElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         v: Annotated[float, StateSpec()] = 0.0,
@@ -80,7 +76,7 @@ class SpringBlockElement(Element):
         F0: Annotated[float, ParameterSpec()] = 1.0,
         v_c: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.v = v
         self.m = m

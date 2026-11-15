@@ -137,8 +137,8 @@ class BirthDeathInteraction(Interaction):
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class CellElement(Element):
-        ...     def __init__(self, label, visual=None, *, size: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, size: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
         ...         self.size = size
         >>> cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
         >>> division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('size',))

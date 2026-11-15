@@ -111,8 +111,8 @@ class MapInteraction(Interaction):
         'RuleLaw'
         >>> from skcomplex.core.components.elements import GroupElement
         >>> class WeightsElement(Element):
-        ...     def __init__(self, label, visual=None, *, w: Annotated[object, StateSpec(vector=True)] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, w: Annotated[object, StateSpec(vector=True)] = 0.0):
+        ...         super().__init__(label)
         ...         self.w = w
         >>> group = GroupElement('weights', element=WeightsElement, size=1, values={'w': [1.0, 2.0]})
         >>> doubling = MapInteraction(

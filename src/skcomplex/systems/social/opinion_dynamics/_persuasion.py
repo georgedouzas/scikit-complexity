@@ -44,9 +44,6 @@ class PersuaderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, 0 or 1.
 
@@ -58,14 +55,15 @@ class PersuaderElement(Element):
         ('people', 'PersuaderElement', 10)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
         *,
         opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
 
     @classmethod
@@ -93,9 +91,6 @@ class CitizenElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, 0 or 1.
 
@@ -110,11 +105,10 @@ class CitizenElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
 
     @classmethod
@@ -148,9 +142,6 @@ class InfluenceeElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, -1 or 1.
 
@@ -174,10 +165,11 @@ class InfluenceeElement(Element):
         ('people', 'InfluenceeElement', 4)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-1.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-1.0, 1.0)}),
         *,
         opinion: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         persuasiveness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -185,7 +177,7 @@ class InfluenceeElement(Element):
         exponent: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
         self.persuasiveness = persuasiveness
         self.supportiveness = supportiveness

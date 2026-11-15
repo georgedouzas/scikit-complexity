@@ -15,7 +15,7 @@ from ....core.components.interactions import Interaction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import minimum, pulse_train
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.populations import (
     ExponentialGrowthInteraction,
     GrowthInteraction,
@@ -35,9 +35,6 @@ class VasculatureElement(Element):
         label:
             The label of the vasculature.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         K:
             The initial carrying capacity.
 
@@ -50,11 +47,10 @@ class VasculatureElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         K: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.K = K
 
 

@@ -47,9 +47,6 @@ class FlockerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         theta:
             The initial heading.
 
@@ -59,14 +56,15 @@ class FlockerElement(Element):
         1.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'theta', 'color_range': (0.0, 2 * math.pi)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'theta', 'color_range': (0.0, 2 * math.pi)}),
         *,
         theta: Annotated[float, StateSpec(role='direction')] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
 
     @classmethod

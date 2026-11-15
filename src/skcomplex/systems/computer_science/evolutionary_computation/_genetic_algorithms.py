@@ -48,9 +48,6 @@ class StrategyElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         actions:
             The initial action per situation, an array of 243 integers from 0 to 6.
 
@@ -64,15 +61,16 @@ class StrategyElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'score'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'score'}),
         *,
         actions: Annotated[object, StateSpec()] = 0.0,
         score: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.actions = actions
         self.score = score
 
@@ -251,9 +249,6 @@ class AgedStrategyElement(StrategyElement):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         actions:
             The initial action per situation, an array of 243 integers from 0 to 6.
 
@@ -269,16 +264,17 @@ class AgedStrategyElement(StrategyElement):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'score'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'score'}),
         *,
         actions: Annotated[object, StateSpec()] = 0.0,
         score: Annotated[float, StateSpec()] = 0.0,
         age: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual, actions=actions, score=score)
+        super().__init__(label, actions=actions, score=score)
         self.age = age
 
     @classmethod

@@ -19,7 +19,7 @@ from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ActiveFieldElement(Element):
@@ -35,9 +35,6 @@ class ActiveFieldElement(Element):
     Args:
         label:
             The label of the site or the field.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
 
         rho:
             The initial activity.
@@ -68,7 +65,7 @@ class ActiveFieldElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.criticality import ActiveFieldElement
@@ -85,7 +82,6 @@ class ActiveFieldElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[float, StateSpec()] = 0.5,
         nu: Annotated[float, StateSpec()] = 1.0,
@@ -97,7 +93,7 @@ class ActiveFieldElement(Element):
         f: Annotated[float, ParameterSpec()] = 0.0,
         g: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.nu = nu
         self.a = a

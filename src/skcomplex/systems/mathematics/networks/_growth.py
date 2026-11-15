@@ -21,9 +21,8 @@ from ....core.components.laws.utils import logistic, neighbors, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.networks import VertexElement
-from ..common.networks._vertex import DEGREE_VISUAL
 
 SMALLEST_TOTAL = 1e-12
 SMALLEST_DEGREE = 1e-9
@@ -40,9 +39,6 @@ class CopyingVertexElement(VertexElement):
     Args:
         label:
             The label of the node group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         age:
             The number of steps since the node joined.
@@ -62,13 +58,12 @@ class CopyingVertexElement(VertexElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         age: float = 0.0,
         degree: float = 0.0,
         inverse: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual, age=age, degree=degree)
+        super().__init__(label, age=age, degree=degree)
         self.inverse = inverse
 
 
@@ -83,9 +78,6 @@ class FitnessVertexElement(VertexElement):
     Args:
         label:
             The label of the node group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         age:
             The number of steps since the node joined.
@@ -105,13 +97,12 @@ class FitnessVertexElement(VertexElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         age: float = 0.0,
         degree: float = 0.0,
         fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual, age=age, degree=degree)
+        super().__init__(label, age=age, degree=degree)
         self.fitness = fitness
 
 
@@ -123,9 +114,6 @@ class SimilarityVertexElement(VertexElement):
     Args:
         label:
             The label of the node group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         age:
             The number of steps since the node joined.
@@ -145,13 +133,12 @@ class SimilarityVertexElement(VertexElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         age: float = 0.0,
         degree: float = 0.0,
         angle: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, age=age, degree=degree)
+        super().__init__(label, age=age, degree=degree)
         self.angle = angle
 
 
@@ -167,9 +154,6 @@ class TriadVertexElement(VertexElement):
     Args:
         label:
             The label of the node group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         age:
             The number of steps since the node joined.
@@ -195,7 +179,6 @@ class TriadVertexElement(VertexElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         age: float = 0.0,
         degree: float = 0.0,
@@ -203,7 +186,7 @@ class TriadVertexElement(VertexElement):
         triad: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
         extra: Annotated[int, ParameterSpec(domain=NN)] = 1,
     ) -> None:
-        super().__init__(label, visual=visual, age=age, degree=degree)
+        super().__init__(label, age=age, degree=degree)
         self.near = near
         self.triad = triad
         self.extra = extra
@@ -291,7 +274,6 @@ class BarabasiAlbertSystem(BaseSystem):
             variable=True,
             capacity=capacity,
             values={'age': 1.0, **values},
-            visual=DEGREE_VISUAL,
         )
 
     @staticmethod

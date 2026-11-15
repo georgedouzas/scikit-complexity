@@ -23,7 +23,7 @@ from skcomplex.core.engine.solvers import (
     ScipyODESolver,
 )
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.physics.pattern_formation import GinzburgLandauElement
 
 from ..conftest import PhaseElement, QuadraticElement
@@ -37,12 +37,11 @@ class ReadoutElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         z: Annotated[complex, StateSpec(domain=CC)] = 2.0,
         r: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
         self.r = r
 
@@ -57,11 +56,10 @@ class StuartElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         z: Annotated[complex, StateSpec(domain=CC)] = 0.5 + 0.2j,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
 
     def _get_laws(self, s):
@@ -75,12 +73,11 @@ class SplitStuartElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec()] = 0.5,
         v: Annotated[float, StateSpec()] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.v = v
 
@@ -96,13 +93,12 @@ class ComplexGinzburgLandauElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[complex, StateSpec(domain=CC)] = 0.0,
         b: Annotated[float, ParameterSpec()] = 1.0,
         c: Annotated[float, ParameterSpec()] = -1.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.b = b
         self.c = c
@@ -118,11 +114,10 @@ class SchrodingerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         psi: Annotated[complex, StateSpec(domain=CC)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
 
     def _get_laws(self, s):
@@ -196,11 +191,10 @@ def test_complex_value_for_real_state_is_rejected():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[float, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -217,11 +211,10 @@ def test_ordering_complex_value_is_rejected():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             z: Annotated[complex, StateSpec(domain=CC)] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.z = z
 
         def _get_laws(self, s):
@@ -238,12 +231,11 @@ def test_complex_functions_split_into_parts():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             z: Annotated[complex, StateSpec(domain=CC)] = 3 + 4j,
             w: Annotated[complex, StateSpec(domain=CC)] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.z = z
             self.w = w
 
@@ -258,12 +250,11 @@ def test_complex_functions_split_into_parts():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             z: Annotated[complex, StateSpec(domain=CC)] = 0.0,
             m: Annotated[complex, StateSpec(domain=CC)] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.z = z
             self.m = m
 
@@ -370,12 +361,11 @@ def test_complex_equation_and_event_split_into_parts():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             z: Annotated[complex, StateSpec(domain=CC, order=2, initial=(1j,))] = 1.0,
             z_d1: complex = 1j,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.z = z
             self.z_d1 = z_d1
 
@@ -409,11 +399,10 @@ def test_unsupported_complex_laws_are_rejected(law, message):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             z: Annotated[object, StateSpec(domain=CC)] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.z = z
 
         def _get_laws(self, s):

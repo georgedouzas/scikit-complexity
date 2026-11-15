@@ -18,7 +18,7 @@ from ....core.components.interactions import ConnectionInteraction, EulerLagrang
 from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.electrical import GroundElement, InductorElement, ResistorElement, TwoPinElement, VoltageSourceElement
 from ..common.mechanics import SpringDamperInteraction
 
@@ -33,9 +33,6 @@ class ArmatureElement(TwoPinElement):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         p_v:
             The potential of the positive pin.
@@ -58,14 +55,13 @@ class ArmatureElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
         n_v: object = 0.0,
         n_i: object = 0.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
 
 
 class InertiaElement(Element):
@@ -74,9 +70,6 @@ class InertiaElement(Element):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         phi:
             The initial angle.
@@ -99,14 +92,13 @@ class InertiaElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         phi: Annotated[object, StateSpec(order=2)] = 0.0,
         phi_d1: object = 0.0,
         J: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
         b: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phi = phi
         self.phi_d1 = phi_d1
         self.J = J
@@ -122,9 +114,6 @@ class QuarterCarElement(Element):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         y1:
             The initial displacement of the body.
@@ -170,7 +159,6 @@ class QuarterCarElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y1: Annotated[object, StateSpec(order=2)] = 0.0,
         y1_d1: object = 0.0,
@@ -184,7 +172,7 @@ class QuarterCarElement(Element):
         height: Annotated[object, ParameterSpec()] = 0.05,
         at: Annotated[object, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y1 = y1
         self.y1_d1 = y1_d1
         self.y2 = y2

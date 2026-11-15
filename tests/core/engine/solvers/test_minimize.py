@@ -11,15 +11,15 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw
 from skcomplex.core.engine.solvers import MinimizeSolver
-from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import RoleSpec, StateSpec
 from skcomplex.core.systems import System
 
 
 class PointElement(Element):
     """Point on a line."""
 
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 

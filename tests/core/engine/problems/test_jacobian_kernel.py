@@ -33,7 +33,7 @@ from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import IMEXEulerSolver, ScipyODESolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
 from skcomplex.systems.physics.common.oscillators import SitedOscillatorElement
 from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem
@@ -80,12 +80,11 @@ def test_jacobian_against_finite_differences(laws):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
             y: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.y = y
 
@@ -144,11 +143,10 @@ def test_pattern_is_omitted_above_the_limit():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -169,13 +167,12 @@ class FisherKPPElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 0.0,
         D: Annotated[object, ParameterSpec()] = 1.0,
         r: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.D = D
         self.r = r
@@ -191,13 +188,12 @@ class ReactiveHeatElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 0.0,
         D: Annotated[object, ParameterSpec()] = 1.0,
         r: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.D = D
         self.r = r
@@ -328,11 +324,10 @@ def test_exact_jacobian_of_callable_law_raises():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             u: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.u = u
 
         def _get_laws(self, s):
@@ -355,11 +350,10 @@ def _nonlocal_line(law, size=40, **settings):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             u: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.u = u
 
         def _get_laws(self, s):

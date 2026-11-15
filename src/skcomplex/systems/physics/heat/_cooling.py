@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.particles import RelaxationTimeInteraction
 
 
@@ -25,9 +25,6 @@ class CoffeeCupElement(Element):
     Args:
         label:
             The label of the cup.
-
-        visual:
-            How the cup is drawn, or `None` for none.
 
         T:
             The initial temperature of the coffee.
@@ -47,13 +44,12 @@ class CoffeeCupElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         T: Annotated[float, StateSpec()] = 90.0,
         room: Annotated[float, ParameterSpec()] = 20.0,
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.T = T
         self.room = room
         self.k = k

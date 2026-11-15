@@ -20,7 +20,7 @@ from ....core.components.spaces import BaseSpace, DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 MODES = ('undirected', 'directed')
 
@@ -37,9 +37,6 @@ class AssemblyLevelElement(Element):
     Args:
         label:
             The label of the level or of the group of levels.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         N:
             The initial number of objects.
@@ -64,14 +61,13 @@ class AssemblyLevelElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
         N0: float = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.N = N
         self.k = k
         self.alpha = alpha
@@ -109,9 +105,6 @@ class PolymerElement(Element):
         label:
             The label of the polymer or of the group of polymers.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         length:
             The number of monomers.
 
@@ -127,12 +120,11 @@ class PolymerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         length: Annotated[float, StateSpec(domain=NN)] = 1.0,
         born: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.length = length
         self.born = born
 

@@ -504,12 +504,11 @@ class DiffusionElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
         D: Annotated[float, ParameterSpec()] = 1.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.D = D
 
@@ -1638,14 +1637,13 @@ class DuopolyElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         q1: Annotated[float, StateSpec()] = 0.0,
         q2: Annotated[float, StateSpec()] = 0.0,
         a: Annotated[float, ParameterSpec()] = 10.0,
         c: Annotated[float, ParameterSpec()] = 1.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.q1 = q1
         self.q2 = q2
         self.a = a
@@ -1674,14 +1672,13 @@ class DividerElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         v: Annotated[float, StateSpec()] = 0.0,
         source: Annotated[float, ParameterSpec()] = 9.0,
         r1: Annotated[float, ParameterSpec()] = 1000.0,
         r2: Annotated[float, ParameterSpec()] = 2000.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.source = source
         self.r1 = r1

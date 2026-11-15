@@ -22,7 +22,7 @@ from ....core.components.laws.utils import categorical, where
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec
 from .types import Candidates
 
 SHMULEVICH_INPUTS = ('x1', 'x2', 'x3')
@@ -42,9 +42,6 @@ class ProbabilisticNodeElement(Element):
         label:
             The label of the node.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial value, 0 or 1.
 
@@ -60,12 +57,11 @@ class ProbabilisticNodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         function: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.function = function
 

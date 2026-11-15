@@ -43,9 +43,6 @@ class VillageElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         culture:
             The culture code, the traits of the features as the digits of a number in base `q`.
 
@@ -64,16 +61,17 @@ class VillageElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'culture'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'culture'}),
         *,
         culture: Annotated[float, StateSpec(domain=NN)] = 0,
         features: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
         traits: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.culture = culture
         self.features = features
         self.traits = traits

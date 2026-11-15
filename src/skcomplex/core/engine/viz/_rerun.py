@@ -8,7 +8,7 @@ import os
 import re
 import sys
 import warnings
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import Literal
 
@@ -19,6 +19,7 @@ from rerun import bindings
 
 from ...components.spaces import NetworkSpace
 from ...errors import ValidationError
+from ...specs import VisualSpec
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec, RenewalRecordSpec
 from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ..problems._learning_problem_spec import LearningProblemSpec
@@ -117,6 +118,10 @@ class RerunObserver(BaseObserver):
         parameters:
             Whether the default blueprint has a time series view of the parameters.
 
+        visuals:
+            How to draw elements by path, such as `{'oscillators': VisualSpec('phase_ring', {'phase': 'theta'})}`, in
+            place of the drawing each element has by default, or `None` to keep every default.
+
     Attributes:
         recording_:
             The Rerun recording stream.
@@ -173,6 +178,7 @@ class RerunObserver(BaseObserver):
         blueprint: Literal['default'] | rrb.Blueprint | None = None,
         primary: str | None = None,
         parameters: bool = False,
+        visuals: Mapping[str, VisualSpec] | None = None,
     ) -> None:
         self.application_id = application_id
         self.spawn = spawn
@@ -182,6 +188,7 @@ class RerunObserver(BaseObserver):
         self.blueprint = blueprint
         self.primary = primary
         self.parameters = parameters
+        self.visuals = visuals
 
     def _check_settings(self) -> None:
         """Raise an error for an unknown blueprint or an unused setting.
@@ -203,6 +210,17 @@ class RerunObserver(BaseObserver):
             error_msg = f'interval = {self.interval!r} must be a positive integer.'
             raise ValidationError(error_msg)
 
+    def _check_visuals(self, problem: BaseProblemSpec) -> None:
+        """Raise an error for a drawing whose path names no element of the problem."""
+        paths = [element.path for element in problem.elements] + [group.path for group in problem.agents]
+        unknown = sorted(set(self.visuals or {}) - set(paths))
+        if unknown:
+            error_msg = (
+                f'visuals names {", ".join(map(repr, unknown))}, which is not an element of the system. '
+                f'The elements are {", ".join(map(repr, paths))}.'
+            )
+            raise ValidationError(error_msg)
+
     def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Create the recording, build the visuals, and send the recording to its sinks.
 
@@ -222,6 +240,7 @@ class RerunObserver(BaseObserver):
             error_msg = 'A Rerun observer prepares on a compiled problem. Pass the problem to `prepare`.'
             raise ValidationError(error_msg)
         problem = context
+        self._check_visuals(problem)
         # Rerun keeps the threads of a recording until its orphans are cleaned up, so a process running many
         # simulations, such as the docs build, would otherwise run out of threads.
         bindings.flush_and_cleanup_orphaned_recordings()
@@ -272,7 +291,7 @@ class RerunObserver(BaseObserver):
 
         It is built with the options of the spec.
         """
-        spec = element.visual
+        spec = (self.visuals or {}).get(element.path, element.visual)
         visual = VISUALS[spec.kind] if isinstance(spec.kind, str) else spec.kind
         return visual(**dict(spec.options), path=element.path, recording=self.recording_)
 

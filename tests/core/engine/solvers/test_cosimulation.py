@@ -17,7 +17,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CoSimulationSolver, ScipyODESolver
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import IncompatibleLawsError, SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.biology.common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
@@ -49,12 +49,11 @@ class IdleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         wealth: Annotated[float, StateSpec()] = 1.0,
         seen: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.wealth = wealth
         self.seen = seen
 
@@ -151,11 +150,10 @@ class TallyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         k: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.k = k
 
 

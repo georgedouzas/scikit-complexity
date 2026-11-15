@@ -24,7 +24,7 @@ from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CrankNicolsonSolver, RK4Solver, ScipyODESolver, StepSpec, _scipy_ode
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import FisherKPPSystem
 from skcomplex.systems.biology.physiology import FitzhughNagumoSystem
@@ -64,13 +64,12 @@ class FisherKPPElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 0.0,
         D: Annotated[object, ParameterSpec()] = 1.0,
         r: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.D = D
         self.r = r
@@ -134,11 +133,10 @@ def _relaxing_group(size):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -181,11 +179,10 @@ class TubElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         water: Annotated[object, StateSpec()] = 20.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.water = water
 
     def _get_laws(self, s):
@@ -226,12 +223,11 @@ def test_default_solver_starts_from_rest_with_a_vanishing_drift():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
             v: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.v = v
 
@@ -294,11 +290,10 @@ class ChatterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         w: Annotated[object, StateSpec()] = 20.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.w = w
 
     def _get_laws(self, s):
@@ -409,13 +404,12 @@ class DiffusiveHutchinsonElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 0.0,
         D: Annotated[object, ParameterSpec()] = 1.0,
         r: Annotated[object, ParameterSpec()] = 1.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.D = D
         self.r = r
@@ -472,13 +466,12 @@ class UnitRateHutchinsonElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 0.0,
         D: Annotated[object, ParameterSpec()] = 1.0,
         r: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.D = D
         self.r = r
@@ -671,11 +664,10 @@ def test_dense_pattern_is_not_passed():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -721,11 +713,10 @@ def test_exact_option_with_callable_law_raises_on_initialize():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             u: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.u = u
 
         def _get_laws(self, s):

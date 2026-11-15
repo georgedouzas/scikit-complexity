@@ -77,6 +77,12 @@ class SimplexCouplingInteraction(HyperedgeInteraction):
         return [RateLaw(theta, s.K2 * sin(sum(others) - len(others) * theta))]
 
 
+class NodeOscillatorElement(PhaseOscillatorElement):
+    """Phase oscillator on a node, drawn with its phase."""
+
+    visual = VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi})
+
+
 class HypergraphKuramotoSystem(BaseSystem):
     """Kuramoto oscillators coupled in pairs and by three-body interactions.
 
@@ -180,10 +186,9 @@ class HypergraphKuramotoSystem(BaseSystem):
         )
         oscillators = GroupElement(
             'oscillators',
-            element=PhaseOscillatorElement,
+            element=NodeOscillatorElement,
             space=space,
             values={'theta': theta, 'omega': omega},
-            visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
             on='sites',
         )
         coupling = SimplexCouplingInteraction(

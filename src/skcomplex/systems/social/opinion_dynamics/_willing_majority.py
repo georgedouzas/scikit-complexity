@@ -40,9 +40,6 @@ class WillingVoterElement(Element):
         label:
             The label of the voter or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The opinion, 0 for `B` or 1 for `A`.
 
@@ -55,15 +52,16 @@ class WillingVoterElement(Element):
         1.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
         *,
         opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
         willingness: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
         self.willingness = willingness
 

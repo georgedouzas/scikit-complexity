@@ -42,15 +42,12 @@ class GaugeLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         theta:
             The angle of the link.
 
     Attributes:
         default_visual_:
-            The visual of the link when it sets none.
+            How the link is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import GaugeLinkElement
@@ -58,14 +55,15 @@ class GaugeLinkElement(Element):
         0.5
     """
 
+    visual = VisualSpec('cell', {'state': 'theta'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
 
 
@@ -78,9 +76,6 @@ class MaxwellLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         A:
             The initial vector potential.
 
@@ -89,7 +84,7 @@ class MaxwellLinkElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the link when it sets none.
+            How the link is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import MaxwellLinkElement
@@ -97,15 +92,16 @@ class MaxwellLinkElement(Element):
         0.5
     """
 
+    visual = VisualSpec('cell', {'state': 'A'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec(order=2)] = 0.0,
         A_d1: float = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.A_d1 = A_d1
 
@@ -117,15 +113,12 @@ class StaticChargeElement(Element):
         label:
             The label of the site or the group on the sites.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         q:
             The electric charge.
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import StaticChargeElement
@@ -136,11 +129,10 @@ class StaticChargeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         q: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.q = q
 
 
@@ -304,7 +296,6 @@ class LatticeGaugeFieldsSystem(BaseSystem):
             space=space,
             on='edges',
             values={'A': wave, 'A_d1': -LatticeGaugeFieldsSystem._get_electric_field(space, density)},
-            visual=VisualSpec('cell', {'state': 'A'}),
         )
         sites = GroupElement('charges', element=StaticChargeElement, space=space, on='sites', values={'q': density})
         rate = RateInteraction('maxwell', target='links', state='A', rate=LatticeGaugeFieldsSystem._get_curl_of_curl)
@@ -322,7 +313,6 @@ class LatticeGaugeFieldsSystem(BaseSystem):
             space=space,
             on='edges',
             values={'theta': drawn if self.angles is None else np.asarray(self.angles, dtype=float)},
-            visual=VisualSpec('cell', {'state': 'theta'}),
         )
         move = {'move': 'rotate'} if self.n is None else {'move': 'random-value', 'values': values, 'rule': 'heat-bath'}
         sampling = WilsonSamplingInteraction('wilson', target='links', beta=self.beta, **move)

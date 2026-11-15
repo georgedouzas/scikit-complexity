@@ -34,9 +34,6 @@ class HabitatPatchElement(CompartmentElement):
         label:
             The label of the patch or the lattice of patches.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial number of organisms.
 
@@ -49,15 +46,16 @@ class HabitatPatchElement(CompartmentElement):
         1.0
     """
 
+    visual = VisualSpec('image', {'low': 0.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('image', {'low': 0.0}),
         *,
         x: Annotated[float, StateSpec(domain=NN)] = 10.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x)
         self.alpha = alpha
 
 

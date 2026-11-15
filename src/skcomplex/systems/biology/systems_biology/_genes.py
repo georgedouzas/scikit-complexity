@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import RepressionInteraction
 
@@ -25,9 +25,6 @@ class GeneElement(Element):
     Args:
         label:
             The label of the gene.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         m:
             The initial number of mRNA molecules.
@@ -44,12 +41,11 @@ class GeneElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         m: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         p: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.m = m
         self.p = p
 

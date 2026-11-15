@@ -34,9 +34,6 @@ class GoodsTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         sugar:
             The holding of sugar.
 
@@ -62,10 +59,11 @@ class GoodsTraderElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'sugar_weight', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar_weight', 'color_range': (0.0, 1.0)}),
         *,
         sugar: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         spice: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
@@ -74,7 +72,7 @@ class GoodsTraderElement(Element):
         spice_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         salt_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sugar = sugar
         self.spice = spice
         self.salt = salt

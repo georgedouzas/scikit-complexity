@@ -18,7 +18,7 @@ from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import clip, series
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import StockFlowSystem
 from ...general.dynamics.types import FlowTable
 
@@ -41,9 +41,6 @@ class FisheryElement(Element):
     Args:
         label:
             The label of the fishery.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         resource:
             The initial resource stock.
@@ -78,7 +75,6 @@ class FisheryElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         resource: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 1000.0,
         capital: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capital')] = 5.0,
@@ -89,7 +85,7 @@ class FisheryElement(Element):
         regeneration_table: Sequence[float] = REGENERATION,
         price_table: Sequence[float] = PRICE_BY_YIELD,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.resource = resource
         self.capital = capital
         self.cost = cost

@@ -21,7 +21,7 @@ from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import CayleySpace, LatticeNeighborhood, LatticeSpace, StateTranslationNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, PowerSeriesSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, PowerSeriesSpec, StateSpec
 from ....core.types import Array, Indices
 from ._groups import free_group
 from ._pascal_cell import PascalCellElement
@@ -41,9 +41,6 @@ class GroupCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         value:
             The number of the initial group element, 0 for the identity.
 
@@ -56,11 +53,10 @@ class GroupCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[float, StateSpec(domain=ZZ)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
 
 
@@ -73,9 +69,6 @@ class PowerSeriesCellElement(DeclaredElement):
     Args:
         label:
             The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         ring:
             The truncated power series ring of the values.
@@ -93,12 +86,11 @@ class PowerSeriesCellElement(DeclaredElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         ring: PowerSeriesSpec = RATIONAL_SERIES,
         variables: Mapping[str, DeclaredVariableSpec] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, variables=variables)
+        super().__init__(label, variables=variables)
         self.ring = ring
 
     def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
@@ -117,9 +109,6 @@ class RealCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         value:
             The initial value.
 
@@ -132,11 +121,10 @@ class RealCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[float, StateSpec(domain=RR)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
 
 

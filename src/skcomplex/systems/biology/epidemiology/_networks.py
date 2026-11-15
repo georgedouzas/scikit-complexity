@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -34,9 +34,6 @@ class DegreeClassElement(Element):
     Args:
         label:
             The label of the class or the group of classes.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         rho:
             The initial infected density.
@@ -62,14 +59,13 @@ class DegreeClassElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         P: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.lam = lam
         self.k = k

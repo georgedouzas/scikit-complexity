@@ -45,9 +45,6 @@ class DonorElement(Element):
         label:
             The label of the player or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         strategy:
             The strategy, 1 to cooperate and 0 to defect.
 
@@ -60,15 +57,16 @@ class DonorElement(Element):
         1.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'strategy', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'strategy', 'color_range': (0.0, 1.0)}),
         *,
         strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
         payoff: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
         self.payoff = payoff
 

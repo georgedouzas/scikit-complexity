@@ -38,9 +38,6 @@ class PercolatingNodeElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         active:
             1 when the node is in the giant component of the active links, and 0 otherwise.
 
@@ -50,14 +47,15 @@ class PercolatingNodeElement(Element):
         1.0
     """
 
+    visual = ACTIVITY_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = ACTIVITY_VISUAL,
         *,
         active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.active = active
 
 
@@ -69,9 +67,6 @@ class SignedLinkElement(Element):
     Args:
         label:
             The label of the link group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         active:
             1 when the link is active, and 0 otherwise.
@@ -93,13 +88,12 @@ class SignedLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
         negatives: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0,
         positives: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.active = active
         self.negatives = negatives
         self.positives = positives

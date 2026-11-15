@@ -19,7 +19,7 @@ from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 from ...general.agents import ChoiceInteraction
 from ..common.forecasting import heuristics
@@ -70,9 +70,6 @@ class HeuristicTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         predictor:
             The index of the heuristic in use.
 
@@ -92,13 +89,12 @@ class HeuristicTraderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         predictor: Annotated[float, StateSpec(domain=NN)] = 0.0,
         fundamentalist_fitness: Annotated[float, StateSpec()] = 0.0,
         trend_fitness: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.predictor = predictor
         self.fundamentalist_fitness = fundamentalist_fitness
         self.trend_fitness = trend_fitness

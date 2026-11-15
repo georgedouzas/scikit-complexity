@@ -14,7 +14,7 @@ from skcomplex.core.components.types import AgentViewProtocol, SystemViewProtoco
 from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
 from skcomplex.systems.economics.markets import PriceAdjustmentInteraction, ShopsSystem
 
@@ -25,12 +25,11 @@ class ShopElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         price: Annotated[float, StateSpec()] = 1.0,
         drift: Annotated[float, ParameterSpec()] = 0.03,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.price = price
         self.drift = drift
 
@@ -76,12 +75,11 @@ class QuoteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         goal: Annotated[float, StateSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.goal = goal
 

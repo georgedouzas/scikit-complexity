@@ -17,7 +17,7 @@ from ....core.components.interactions import TransferInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class SavingTraderView(AgentView):
@@ -38,9 +38,6 @@ class SavingTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         wealth:
             The initial wealth, negative down to the debt limit.
 
@@ -55,11 +52,10 @@ class SavingTraderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         wealth: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.wealth = wealth
 
     @classmethod

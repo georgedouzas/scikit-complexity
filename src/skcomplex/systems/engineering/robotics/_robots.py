@@ -39,9 +39,6 @@ class LightSensitiveRobotElement(Element):
         label:
             The label of the robot or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial horizontal position.
 
@@ -83,7 +80,6 @@ class LightSensitiveRobotElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(role='position')] = 0.0,
         y: Annotated[float, StateSpec(role='position')] = 0.0,
@@ -96,7 +92,7 @@ class LightSensitiveRobotElement(Element):
         R: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         delay: float = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.phi = phi
@@ -177,9 +173,6 @@ class SwarmRobotElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         heading:
             The direction of motion.
 
@@ -223,6 +216,8 @@ class SwarmRobotElement(Element):
         2
     """
 
+    visual = VisualSpec('agents', {'color_by': 'illuminated', 'color_range': (0.0, 1.0)})
+
     draws = True
 
     law_classes = (RuleLaw,)
@@ -230,7 +225,6 @@ class SwarmRobotElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'illuminated', 'color_range': (0.0, 1.0)}),
         *,
         heading: Annotated[float, StateSpec(role='direction')] = 0.0,
         connections: Annotated[float, StateSpec(domain=NN)] = 0.0,
@@ -245,7 +239,7 @@ class SwarmRobotElement(Element):
         beacon_y: Annotated[float, ParameterSpec()] = 50.0,
         arena: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.heading = heading
         self.connections = connections
         self.illuminated = illuminated

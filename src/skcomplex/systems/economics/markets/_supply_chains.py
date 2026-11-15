@@ -19,7 +19,7 @@ from ....core.components.interactions import RateInteraction, TransferInteractio
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 
@@ -36,9 +36,6 @@ class EchelonElement(Element):
     Args:
         label:
             The label of the echelon.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         inventory:
             The initial inventory, in cases.
@@ -87,7 +84,6 @@ class EchelonElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 12.0,
         in_transit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 8.0,
@@ -102,7 +98,7 @@ class EchelonElement(Element):
         mail_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         shipping_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.inventory = inventory
         self.in_transit = in_transit
         self.backlog = backlog
@@ -158,9 +154,6 @@ class FactoryElement(EchelonElement):
         label:
             The label of the factory.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         inventory:
             The initial inventory, in cases.
 
@@ -209,7 +202,6 @@ class FactoryElement(EchelonElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 12.0,
         in_transit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 8.0,
@@ -227,7 +219,6 @@ class FactoryElement(EchelonElement):
     ) -> None:
         super().__init__(
             label,
-            visual=visual,
             inventory=inventory,
             in_transit=in_transit,
             backlog=backlog,
@@ -252,9 +243,6 @@ class RetailerElement(EchelonElement):
     Args:
         label:
             The label of the retailer.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         inventory:
             The initial inventory, in cases.
@@ -310,7 +298,6 @@ class RetailerElement(EchelonElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 12.0,
         in_transit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 8.0,
@@ -330,7 +317,6 @@ class RetailerElement(EchelonElement):
     ) -> None:
         super().__init__(
             label,
-            visual=visual,
             inventory=inventory,
             in_transit=in_transit,
             backlog=backlog,

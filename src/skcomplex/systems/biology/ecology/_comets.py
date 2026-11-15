@@ -34,6 +34,12 @@ MMOL_PER_MOL = 1000.0
 GLUCOSE_MOLAR_MASS = 180.16
 
 
+class ColonyCellElement(MetabolicNetworkElement):
+    """Cell of a colony, drawn as an image of its growth flux."""
+
+    visual = VisualSpec('image', {'states': [MetabolicNetworkElement.get_flux_name(GROWTH)]})
+
+
 class CometsSystem(BaseSystem):
     """An expanding colony of the E. coli core system on a lattice.
 
@@ -151,7 +157,6 @@ class CometsSystem(BaseSystem):
         initial = np.zeros(self.shape)
         initial[self.shape[0] // 2, self.shape[1] // 2] = self.inoculum / volume
         space = LatticeSpace(self.shape, spacing=self.box)
-        images = VisualSpec('image', {'states': [MetabolicNetworkElement.get_flux_name(GROWTH)]})
         cells = {
             'name': 'ColonyCell',
             'reactions': plain,
@@ -163,11 +168,10 @@ class CometsSystem(BaseSystem):
             elements=[
                 GroupElement(
                     'cells',
-                    element=MetabolicNetworkElement,
+                    element=ColonyCellElement,
                     values=cells,
                     on='sites',
                     space=space,
-                    visual=images,
                 ),
                 FieldElement('biomass', element=BiomassElement, space=space, values={'x': initial}),
                 FieldElement(

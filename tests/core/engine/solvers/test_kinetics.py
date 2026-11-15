@@ -17,7 +17,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import KineticSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.experiments import ensemble
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 CLASSES = 9
 HORIZON = 2.0
@@ -30,11 +30,10 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 

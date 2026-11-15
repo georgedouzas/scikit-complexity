@@ -14,7 +14,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 WASH = 0
 VALET = 1
@@ -40,9 +40,6 @@ class CarElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         stage:
             0 for the wash and 1 for the valet.
 
@@ -64,13 +61,12 @@ class CarElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         stage: Annotated[float, StateSpec(domain=NN)] = WASH,
         work: Annotated[float, StateSpec()] = 525.0,
         crew: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.stage = stage
         self.work = work
         self.crew = crew
@@ -182,9 +178,6 @@ class TillElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         revenue:
             The money taken.
 
@@ -209,14 +202,13 @@ class TillElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         revenue: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         washes: Annotated[float, StateSpec(domain=NN)] = 0,
         valets: Annotated[float, StateSpec(domain=NN)] = 0,
         turned_away: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.revenue = revenue
         self.washes = washes
         self.valets = valets

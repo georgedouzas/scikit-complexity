@@ -20,7 +20,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 UNIT = RealSet.closed(0, 1)
 CLIQUES = ((0, 1), (0, 6), (3, 6), (1, 2, 3), (4, 5, 6), (1, 2, 4, 5))
@@ -37,9 +37,6 @@ class AssociativeSiteElement(Element):
     Args:
         label:
             The label of the site or of the group of sites.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial activity.
@@ -67,7 +64,6 @@ class AssociativeSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=UNIT)] = 0.0,
         phi: Annotated[float, StateSpec(domain=UNIT)] = 1.0,
@@ -75,7 +71,7 @@ class AssociativeSiteElement(Element):
         gamma_plus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
         gamma_minus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.phi = phi
         self.x_c = x_c

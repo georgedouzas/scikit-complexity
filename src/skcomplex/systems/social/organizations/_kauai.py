@@ -99,9 +99,6 @@ class ResidentElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         sentiment:
             The initial sentiment.
 
@@ -154,10 +151,11 @@ class ResidentElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'sentiment', 'color_range': (-1.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sentiment', 'color_range': (-1.0, 1.0)}),
         *,
         sentiment: Annotated[float, StateSpec(domain=RealSet.closed(-1, 1))] = 0.0,
         weights: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
@@ -175,7 +173,7 @@ class ResidentElement(Element):
         cell_size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
         partners: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sentiment = sentiment
         self.weights = weights
         self.home = home

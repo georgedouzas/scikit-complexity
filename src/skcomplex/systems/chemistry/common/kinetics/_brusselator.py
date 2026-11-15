@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.specs import ParameterSpec, StateSpec
 
 
 class BrusselatorReactionElement(Element):
@@ -26,9 +26,6 @@ class BrusselatorReactionElement(Element):
     Args:
         label:
             The label of the reactor.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         u:
             The initial concentration of the autocatalytic intermediate.
@@ -51,14 +48,13 @@ class BrusselatorReactionElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         v: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.v = v
         self.a = a

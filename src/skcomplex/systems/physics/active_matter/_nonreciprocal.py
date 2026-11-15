@@ -42,9 +42,6 @@ class NonreciprocalMoverElement(Element):
         label:
             The label of the mover.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The position.
 
@@ -78,6 +75,8 @@ class NonreciprocalMoverElement(Element):
         -1.0
     """
 
+    visual = SPECIES
+
     draws = True
 
     law_classes = (UpdateLaw,)
@@ -85,7 +84,6 @@ class NonreciprocalMoverElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = SPECIES,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
@@ -97,7 +95,7 @@ class NonreciprocalMoverElement(Element):
         J_bb: Annotated[float, ParameterSpec()] = 1.0,
         radius: float = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.species = species

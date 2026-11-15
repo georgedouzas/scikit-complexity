@@ -17,7 +17,7 @@ from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import clip, derivative, sign, step, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ConnectorSpec, DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ConnectorSpec, DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.electrical import ELECTRICAL, GroundElement, TwoPinElement, VoltageSourceElement
@@ -35,9 +35,6 @@ class HeatCapacityElement(Element):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         a_T:
             The temperature of the port.
@@ -64,14 +61,13 @@ class HeatCapacityElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a_T: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         a_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         T: Annotated[object, StateSpec()] = 20.0,
         C: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a_T = a_T
         self.a_Q = a_Q
         self.T = T
@@ -90,9 +86,6 @@ class ThermalConductorElement(Element):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         a_T:
             The temperature of the first port.
@@ -122,7 +115,6 @@ class ThermalConductorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a_T: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         a_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
@@ -130,7 +122,7 @@ class ThermalConductorElement(Element):
         b_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         G: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a_T = a_T
         self.a_Q = a_Q
         self.b_T = b_T
@@ -150,9 +142,6 @@ class ConvectionElement(Element):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         a_T:
             The temperature of the port.
@@ -179,14 +168,13 @@ class ConvectionElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a_T: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         a_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         h: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
         fluid: Annotated[object, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a_T = a_T
         self.a_Q = a_Q
         self.h = h
@@ -206,9 +194,6 @@ class HeatingResistorElement(TwoPinElement):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         p_v:
             The potential of the positive pin.
@@ -245,7 +230,6 @@ class HeatingResistorElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -256,7 +240,7 @@ class HeatingResistorElement(TwoPinElement):
         on: Annotated[object, StateSpec()] = 1.0,
         R: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.h_T = h_T
         self.h_Q = h_Q
         self.on = on

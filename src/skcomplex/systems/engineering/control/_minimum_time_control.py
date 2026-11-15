@@ -17,7 +17,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import sign, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.signals import PulseInteraction
 
 PLANTS = {'free_particle': 0.0, 'harmonic_oscillator': -1.0, 'saddle': 1.0}
@@ -38,9 +38,6 @@ class BangBangPlantElement(Element):
     Args:
         label:
             The label of the plant.
-
-        visual:
-            How the plant is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.
@@ -65,14 +62,13 @@ class BangBangPlantElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.0,
         u: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([-1, 1]))] = 1.0,
         a: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([-1, 0, 1]))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.u = u

@@ -60,6 +60,8 @@ class WordElement(Element):
         1.0
     """
 
+    visual = VisualSpec('histograms', {'color_by': 'probability'})
+
     def __init__(
         self,
         label: str,
@@ -164,8 +166,7 @@ class MandelbrotLeastEffortSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the components of the system built from its model parameters."""
         costs = np.log(np.arange(1, self.n_words + 1) + 1.0)
-        visual = VisualSpec('histograms', {'color_by': 'probability'})
-        words = GroupElement('words', element=WordElement, size=self.n_words, values={'cost': costs}, visual=visual)
+        words = GroupElement('words', element=WordElement, size=self.n_words, values={'cost': costs})
         effort = LeastEffortInteraction('effort', target='language', words='words')
         return CompositeSystem(
             self.label,

@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class MarketElement(Element):
@@ -21,9 +21,6 @@ class MarketElement(Element):
     Args:
         label:
             The label of the market.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         price:
             The initial price.
@@ -37,11 +34,10 @@ class MarketElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         price: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.price = price
 
 

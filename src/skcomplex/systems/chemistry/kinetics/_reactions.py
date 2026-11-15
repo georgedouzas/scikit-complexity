@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction, ReactionNetworkSystem
 from ...general.reactions.types import ReactionTable
 
@@ -33,9 +33,6 @@ class SchloglElement(Element):
     Args:
         label:
             The label of the reactor.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial number of molecules of `X`.
@@ -67,7 +64,6 @@ class SchloglElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
         c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5e-06,
@@ -77,7 +73,7 @@ class SchloglElement(Element):
         A: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100000.0,
         B: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 200000.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.c1 = c1
         self.c2 = c2

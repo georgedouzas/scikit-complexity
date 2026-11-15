@@ -182,8 +182,8 @@ class TransferInteraction(Interaction):
         >>> from typing import Annotated
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class TankElement(Element):
-        ...     def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, level: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
         ...         self.level = level
         >>> flow = TransferInteraction(
         ...     'flow', source='upper', target='lower', state='level', amount=lambda s: s.source.level / 2

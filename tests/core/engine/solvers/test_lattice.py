@@ -30,7 +30,7 @@ from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem, GameOfLifeSystem
 from skcomplex.systems.physics.criticality import ForestFireSystem
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, XYSystem
@@ -42,11 +42,10 @@ class ShiftElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
 
     def _get_laws(self, s):
@@ -63,11 +62,10 @@ def _shift(schedule):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
@@ -120,11 +118,10 @@ def test_fixed_and_reflecting_edges():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
@@ -200,11 +197,10 @@ def test_table_and_totalistic_rules():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             bit: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.bit = bit
 
         def _get_laws(self, s):
@@ -230,11 +226,10 @@ def test_table_and_totalistic_rules():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             bit: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.bit = bit
 
         def _get_laws(self, s):
@@ -254,11 +249,10 @@ def test_table_and_totalistic_rules():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             bit: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.bit = bit
 
         def _get_laws(self, s):
@@ -308,11 +302,10 @@ def test_checkerboard_needs_bipartite_neighbourhood():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             alive: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.alive = alive
 
         def _get_laws(self, s):
@@ -357,12 +350,11 @@ def test_rule_reads_parameters_by_keyword():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
             rate: Annotated[object, ParameterSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
             self.rate = rate
 
@@ -390,11 +382,10 @@ def test_relaxation_records_avalanches():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             height: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.height = height
 
         def _get_laws(self, s):
@@ -439,11 +430,10 @@ def test_relaxation_without_end_raises():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
@@ -483,13 +473,12 @@ def test_monte_carlo_energy_change_is_symbolic():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             spin: Annotated[object, StateSpec(domain=ZZ)] = 1.0,
             J: Annotated[object, ParameterSpec()] = 1.0,
             intensity: Annotated[object, ParameterSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.spin = spin
             self.J = J
             self.intensity = intensity
@@ -571,11 +560,10 @@ def _pile(activity, evaluated):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             height: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.height = height
 
         def _get_laws(self, s):

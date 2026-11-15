@@ -39,9 +39,6 @@ class HerdedSheepElement(Element):
         label:
             The label of the sheep or of the flock.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         hx:
             The first component of the heading of the last move.
 
@@ -54,15 +51,16 @@ class HerdedSheepElement(Element):
         1.0
     """
 
+    visual = VisualSpec('agents', {})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {}),
         *,
         hx: Annotated[float, StateSpec()] = 0.0,
         hy: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.hx = hx
         self.hy = hy
 
@@ -90,9 +88,6 @@ class ShepherdElement(Element):
         label:
             The label of the shepherd or of the group of shepherds.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         driving:
             1 while the shepherd drives the flock and 0 while it collects a stray sheep.
 
@@ -102,14 +97,15 @@ class ShepherdElement(Element):
         0.0
     """
 
+    visual = VisualSpec('agents', {})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {}),
         *,
         driving: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.driving = driving
 
     @classmethod

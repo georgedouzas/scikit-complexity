@@ -21,7 +21,7 @@ from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import ContinuousTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 FOLD = math.sqrt(4 / 27)
 
@@ -39,9 +39,6 @@ class TippingElementElement(Element):
     Args:
         label:
             The label of the element or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial state, near `-1` for an element in its lower state.
@@ -63,13 +60,12 @@ class TippingElementElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = -1.0,
         c: Annotated[float, ParameterSpec()] = 0.0,
         d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.c = c
         self.d = d

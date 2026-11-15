@@ -18,7 +18,7 @@ from ....core.components.elements import DeclaredElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 
 SECTORS = 3
 A_MATRIX = ((-1.0, 0.3, 0.2), (0.2, -0.8, 0.3), (0.1, 0.4, -0.6))
@@ -42,9 +42,6 @@ class PurchasingPowerElement(DeclaredElement):
     Args:
         label:
             The label of the economy.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         variables:
             Declared states and parameters that replace the derived ones, by name.
@@ -75,7 +72,6 @@ class PurchasingPowerElement(DeclaredElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         variables: Mapping[str, DeclaredVariableSpec] | None = None,
         A: Sequence[Sequence[float]] = A_MATRIX,
@@ -84,7 +80,7 @@ class PurchasingPowerElement(DeclaredElement):
         D: Sequence[Sequence[float]] = D_MATRIX,
         feedback: bool = False,
     ) -> None:
-        super().__init__(label, visual=visual, variables=variables)
+        super().__init__(label, variables=variables)
         self.A = A
         self.B = B
         self.C = C

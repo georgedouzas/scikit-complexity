@@ -18,7 +18,7 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import delayed, pulse
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
@@ -41,9 +41,6 @@ class BoneMarrowBloodElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         NBM:
             The initial normal marrow cells.
@@ -144,7 +141,6 @@ class BoneMarrowBloodElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         NBM: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10000000000000.0,
         NPB: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3500000000.0,
@@ -177,7 +173,7 @@ class BoneMarrowBloodElement(Element):
         r5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
         b4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-06,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.NBM = NBM
         self.NPB = NPB
         self.ABM = ABM
@@ -226,9 +222,6 @@ class LeukaemiaStemCellsElement(Element):
     Args:
         label:
             The label of the niche.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         NS:
             The initial normal stem cells.
@@ -302,7 +295,6 @@ class LeukaemiaStemCellsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         NS: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
         NPr: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -326,7 +318,7 @@ class LeukaemiaStemCellsElement(Element):
         beta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         beta3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.NS = NS
         self.NPr = NPr
         self.ND = ND
@@ -368,9 +360,6 @@ class StemCellDifferentiationElement(Element):
     Args:
         label:
             The label of the tissue.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         NSq:
             The initial normal quiescent stem cells.
@@ -510,7 +499,6 @@ class StemCellDifferentiationElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         NSq: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
         NPr: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
@@ -556,7 +544,7 @@ class StemCellDifferentiationElement(Element):
         start: float = 100.0,
         duration: float = 100.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.NSq = NSq
         self.NPr = NPr
         self.NBs = NBs

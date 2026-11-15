@@ -48,9 +48,6 @@ class PatchElement(Element):
         bounds:
             The box `(xmin, ymin, xmax, ymax)` that the drawing shows, or `None` for the box of the initial tiles.
 
-        visual:
-            How the patch is drawn, such as `VisualSpec('geometry')`, or `None` for `default_visual_`.
-
     Examples:
         Each step keeps the outer thirds of every interval, which builds the Cantor set.
 
@@ -71,6 +68,8 @@ class PatchElement(Element):
         [1.0, 2.0, 4.0, 8.0]
     """
 
+    visual = VisualSpec('geometry')
+
     def __init__(
         self,
         label: str,
@@ -80,9 +79,8 @@ class PatchElement(Element):
         filled: bool = False,
         max_size: int = 10_000_000,
         bounds: Sequence[float] | None = None,
-        visual: VisualSpec | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.tiles = tiles
         self.prototiles = prototiles
         self.filled = filled
@@ -90,7 +88,7 @@ class PatchElement(Element):
         self.bounds = bounds
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `default_visual_`, the geometry of the tiles.
+        """Check the prototiles of the patch.
 
         It first raises an error for no prototiles, an invalid prototile, or an unknown one. An unknown prototile is one
         a tile names.
@@ -109,4 +107,3 @@ class PatchElement(Element):
                 error_msg = f'The patch {self.label} has a tile of the unknown prototile {name!r}.'
                 raise RewritingError(error_msg)
             placement._check()
-        self.default_visual_ = VisualSpec('geometry')

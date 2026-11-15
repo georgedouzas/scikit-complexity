@@ -110,9 +110,6 @@ class EaterElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         home:
             The position of the person's home.
 
@@ -159,12 +156,13 @@ class EaterElement(Element):
         ('people', 'EaterElement', 5)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'bmi', 'color_range': (18.5, 35.0)})
+
     law_classes = (RuleLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'bmi', 'color_range': (18.5, 35.0)}),
         *,
         home: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
         work: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
@@ -179,7 +177,7 @@ class EaterElement(Element):
         reach: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
         activity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.55,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.home = home
         self.work = work
         self.weight = weight
@@ -339,9 +337,6 @@ class RestaurantElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         kind:
             The kind of restaurant.
 
@@ -362,13 +357,12 @@ class RestaurantElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         kind: Annotated[float, StateSpec(domain=NN)] = 0.0,
         sold: Annotated[float, StateSpec(domain=NN)] = 0.0,
         sold_high: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.kind = kind
         self.sold = sold
         self.sold_high = sold_high

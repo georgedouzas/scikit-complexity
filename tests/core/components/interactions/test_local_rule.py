@@ -12,7 +12,7 @@ from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, Lat
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 SIZE = 9
 
@@ -23,12 +23,11 @@ class CellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         c: Annotated[float, StateSpec()] = 0.0,
         m: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.c = c
         self.m = m
 

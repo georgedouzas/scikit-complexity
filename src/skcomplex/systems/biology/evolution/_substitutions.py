@@ -33,9 +33,6 @@ class LocusElement(Element):
         label:
             The label of the locus or the group of loci.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         s:
             The allele, `-1` or `1`.
 
@@ -49,15 +46,16 @@ class LocusElement(Element):
         10
     """
 
+    visual = VisualSpec('image', {'low': -1.0, 'high': 1.0, 'history': 64})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('image', {'low': -1.0, 'high': 1.0, 'history': 64}),
         *,
         s: Annotated[float, StateSpec(domain=ZZ)] = -1.0,
         h: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.s = s
         self.h = h
 

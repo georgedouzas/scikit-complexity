@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.laws.utils import pulse
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import SpeciesElement
 
@@ -37,9 +37,6 @@ class GProteinElement(Element):
     Args:
         label:
             The label of the G protein.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         g:
             The initial active fraction.
@@ -68,7 +65,6 @@ class GProteinElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         g: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         k_on: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -77,7 +73,7 @@ class GProteinElement(Element):
         start: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.g = g
         self.k_on = k_on
         self.k_gtp = k_gtp

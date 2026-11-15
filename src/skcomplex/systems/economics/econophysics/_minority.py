@@ -19,7 +19,7 @@ from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import BaseSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import BaseSpec, RoleSpec, StateSpec
 from ....core.types import IntArray
 from ...general.agents import ChoiceInteraction, EvolutionInteraction
 from ..common.learning import PayoffLearningInteraction
@@ -68,9 +68,6 @@ class MinorityPlayerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         first:
             The code of the first strategy.
 
@@ -102,7 +99,6 @@ class MinorityPlayerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         first: Annotated[float, StateSpec(domain=NN)] = 0,
         second: Annotated[float, StateSpec(domain=NN)] = 1,
@@ -112,7 +108,7 @@ class MinorityPlayerElement(Element):
         action: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
         wealth: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.first = first
         self.second = second
         self.first_score = first_score

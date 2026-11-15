@@ -15,7 +15,7 @@ from ....core.components.laws.utils import derivative, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.signals import PulseInteraction
@@ -31,7 +31,6 @@ class ChuaCircuitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.1,
         y: Annotated[object, StateSpec()] = 0.0,
@@ -41,7 +40,7 @@ class ChuaCircuitElement(Element):
         m0: Annotated[object, ParameterSpec()] = -8 / 7,
         m1: Annotated[object, ParameterSpec()] = -5 / 7,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -67,7 +66,6 @@ class CircuitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         q: Annotated[object, StateSpec(order=2)] = 1.0,
         q_d1: float = 0.0,
@@ -77,7 +75,7 @@ class CircuitElement(Element):
         V: Annotated[object, ParameterSpec()] = 0.0,
         omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.q = q
         self.q_d1 = q_d1
         self.L = L
@@ -104,7 +102,6 @@ class KickedCircuitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
@@ -113,7 +110,7 @@ class KickedCircuitElement(Element):
         C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         A: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.L = L
@@ -134,7 +131,6 @@ class MixedModeChuaCircuitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.01,
         y: Annotated[object, StateSpec()] = 0.0,
@@ -147,7 +143,7 @@ class MixedModeChuaCircuitElement(Element):
         beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.005,
         c: Annotated[object, ParameterSpec()] = 0.00053,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -174,7 +170,6 @@ class MultiscrollChuaCircuitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 1.0,
         y: Annotated[object, StateSpec()] = 1.0,
@@ -185,7 +180,7 @@ class MultiscrollChuaCircuitElement(Element):
         b: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.11,
         c: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z

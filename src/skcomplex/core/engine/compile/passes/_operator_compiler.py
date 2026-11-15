@@ -39,6 +39,7 @@ from .._issue_spec import IssueSpec
 from ._flatten import FlattenPass
 from ._hilbert_space_error import HilbertSpaceError
 from ._layout import LayoutPass
+from ._problem import ProblemPass
 
 DENSE_LIMIT = 1024
 HERMITIAN_TOLERANCE = 1e-10
@@ -692,7 +693,7 @@ class OperatorCompiler(BaseCompiler):
         It has no states in the state vector.
         """
         component = node.as_element
-        visual = component.visual if component.visual is not None else component.default_visual_
+        visual = ProblemPass._get_visual_of(node)
         parameters = {
             name: f'{node.path}.{name}' for name in declarations_of(node.component_type, VariableKind.PARAMETER)
         }

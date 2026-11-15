@@ -260,12 +260,11 @@ class TankElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         level: Annotated[float, StateSpec()] = 1.0,
         rate: Annotated[float, ParameterSpec()] = 0.5,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
         self.rate = rate
 

@@ -24,8 +24,6 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 
-HIDDEN = VisualSpec('sites', {'states': []})
-
 
 class AbundanceElement(Element):
     """Species of an ecosystem with its relative abundance and its age.
@@ -35,9 +33,6 @@ class AbundanceElement(Element):
     Args:
         label:
             The label of the species or of the group of species.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The relative abundance.
@@ -54,19 +49,26 @@ class AbundanceElement(Element):
         0.001
     """
 
+    visual = VisualSpec('sites', {'states': ['x']})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.age = age
         self.threshold = threshold
+
+
+class InfluenceEdgeElement(WeightedEdgeElement):
+    """Influence of one species on another, hidden from the drawing."""
+
+    visual = VisualSpec('sites', {'states': []})
 
 
 class LinearGrowthInteraction(Interaction):
@@ -205,17 +207,15 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
             variable=True,
             capacity=2 * self.n,
             values={'x': np.full(self.n, 1 / self.n), 'threshold': self.threshold},
-            visual=VisualSpec('sites', {'states': ['x']}),
         )
         influences = GroupElement(
             'influences',
-            element=WeightedEdgeElement,
+            element=InfluenceEdgeElement,
             space=space,
             on='edges',
             variable=True,
             capacity=4 * edges,
             values={'w': rng.uniform(-1, 1, edges), 'fresh': 0.0},
-            visual=HIDDEN,
         )
         return CompositeSystem(
             self.label,

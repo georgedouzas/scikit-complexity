@@ -20,7 +20,7 @@ from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 
 DEMANDS = ('cobb-douglas', 'elasticity')
@@ -39,9 +39,6 @@ class BudgetHouseholdElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         demand:
             The demand for the good.
@@ -89,7 +86,6 @@ class BudgetHouseholdElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         expenditure: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -102,7 +98,7 @@ class BudgetHouseholdElement(Element):
         initial_price: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         kind: str = 'cobb-douglas',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.demand = demand
         self.expenditure = expenditure
         self.utility = utility

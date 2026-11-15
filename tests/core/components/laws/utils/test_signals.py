@@ -15,7 +15,7 @@ from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 
 def _driven_by(data):
@@ -27,11 +27,10 @@ def _driven_by(data):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             y: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.y = y
 
         def _get_laws(self, s):
@@ -111,11 +110,10 @@ class FertilityElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         food: Annotated[object, StateSpec()] = -1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.food = food
 
     def _get_laws(self, s):

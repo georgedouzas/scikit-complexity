@@ -19,7 +19,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import total
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.agents import ChoiceInteraction
 
 
@@ -34,9 +34,6 @@ class DilutedNeuronElement(Element):
     Args:
         label:
             The label of the neuron or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         spin:
             The initial value, -1 or 1.
@@ -56,13 +53,12 @@ class DilutedNeuronElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         pattern: Annotated[float, ParameterSpec()] = 1.0,
         beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.spin = spin
         self.pattern = pattern
         self.beta = beta

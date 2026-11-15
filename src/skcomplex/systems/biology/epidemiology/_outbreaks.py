@@ -17,7 +17,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, TransferInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ImmunizingDegreeClassElement(Element):
@@ -35,9 +35,6 @@ class ImmunizingDegreeClassElement(Element):
     Args:
         label:
             The label of the class or the group of classes.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         s:
             The initial susceptible density.
@@ -74,7 +71,6 @@ class ImmunizingDegreeClassElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         s: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.999,
         i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
@@ -84,7 +80,7 @@ class ImmunizingDegreeClassElement(Element):
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         P: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.s = s
         self.i = i
         self.r = r

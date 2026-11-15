@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import EulerLagrangeInteraction, RateInteraction
 from ....core.components.laws.utils import derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class GyroscopeElement(Element):
@@ -31,9 +31,6 @@ class GyroscopeElement(Element):
     Args:
         label:
             The label of the gyroscope.
-
-        visual:
-            How the gyroscope is drawn, or `None` for none.
 
         alpha:
             The initial angle of the outer ring.
@@ -83,7 +80,6 @@ class GyroscopeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         alpha: Annotated[float, StateSpec(period=2 * pi, order=2)] = 0.0,
         alpha_d1: float = 0.0,
@@ -99,7 +95,7 @@ class GyroscopeElement(Element):
         A2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         torque: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.alpha = alpha
         self.alpha_d1 = alpha_d1
         self.beta = beta
@@ -127,9 +123,6 @@ class RotatingBallElement(Element):
         label:
             The label of the ball.
 
-        visual:
-            How the ball is drawn, or `None` for none.
-
         theta:
             The initial angle about the axis.
 
@@ -154,7 +147,6 @@ class RotatingBallElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
         m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -162,7 +154,7 @@ class RotatingBallElement(Element):
         beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = math.pi / 2,
         H: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.m = m
         self.r = r
@@ -181,9 +173,6 @@ class RotatingSwingElement(Element):
     Args:
         label:
             The label of the swing.
-
-        visual:
-            How the swing is drawn, or `None` for none.
 
         phi:
             The initial angle of the stand.
@@ -230,7 +219,6 @@ class RotatingSwingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         phi: Annotated[float, StateSpec(period=2 * pi, order=2)] = 0.0,
         phi_d1: float = 0.0,
@@ -245,7 +233,7 @@ class RotatingSwingElement(Element):
         torque: Annotated[float, ParameterSpec()] = 0.0,
         friction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phi = phi
         self.phi_d1 = phi_d1
         self.theta = theta

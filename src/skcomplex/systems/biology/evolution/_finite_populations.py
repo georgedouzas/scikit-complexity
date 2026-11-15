@@ -55,9 +55,6 @@ class ClimberElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         genome:
             The bits of the genome.
 
@@ -80,6 +77,8 @@ class ClimberElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'fitness', 'color_range': (0.0, 1.0)})
+
     draws = True
 
     law_classes = (RuleLaw,)
@@ -87,7 +86,6 @@ class ClimberElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'fitness', 'color_range': (0.0, 1.0)}),
         *,
         genome: Annotated[float, StateSpec(domain=NN)] = 0.0,
         fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -95,7 +93,7 @@ class ClimberElement(Element):
         k: Annotated[float, ParameterSpec(domain=NN)] = 2.0,
         seed: Annotated[float, ParameterSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.genome = genome
         self.fitness = fitness
         self.n = n
@@ -178,9 +176,6 @@ class IndividualElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         trait:
             The trait, a type index or the bits of a genome.
 
@@ -194,15 +189,16 @@ class IndividualElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'trait'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'trait'}),
         *,
         trait: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
         fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.trait = trait
         self.fitness = fitness
 
@@ -210,6 +206,18 @@ class IndividualElement(Element):
     def _get_view(cls) -> type[IndividualView]:
         """Return the view of an individual, `IndividualView`."""
         return IndividualView
+
+
+class ClimbingIndividualElement(IndividualElement):
+    """Individual of a climbing population, drawn by its fitness."""
+
+    visual = VisualSpec('agents', {'color_by': 'fitness'})
+
+
+class TangledOrganismElement(IndividualElement):
+    """Organism of the Tangled Nature system, drawn by its distinct genomes."""
+
+    visual = VisualSpec('histograms', {'color_by': 'trait', 'shown': ('distinct',)})
 
 
 class AdaptiveClimbingInteraction(EvolutionInteraction):
@@ -689,17 +697,15 @@ class TangledNatureSystem(BaseSystem):
             length=self.length,
             seed=self.seed,
         )
-        visual = VisualSpec('histograms', {'color_by': 'trait', 'shown': ('distinct',)})
         return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
                     ORGANISMS,
-                    element=IndividualElement,
+                    element=TangledOrganismElement,
                     size=self.organisms,
                     values={'trait': genome},
                     variable=True,
-                    visual=visual,
                 ),
             ],
             interactions=[life_cycle],
@@ -768,11 +774,10 @@ class AdaptiveClimbingSystem(BaseSystem):
             elements=[
                 GroupElement(
                     'population',
-                    element=IndividualElement,
+                    element=ClimbingIndividualElement,
                     size=self.size,
                     values={'trait': 0.0, 'fitness': fitness},
                     variable=True,
-                    visual=VisualSpec('agents', {'color_by': 'fitness'}),
                 ),
             ],
             interactions=[

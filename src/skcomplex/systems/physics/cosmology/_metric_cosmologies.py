@@ -31,7 +31,7 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.enums import ElementKind
 from ....core.errors import SpaceError, ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.relativity import SpacetimeSpace
 
 COUPLING = 8 * math.pi
@@ -483,9 +483,6 @@ class HomogeneousUniverseElement(Element):
         label:
             The label of the universe.
 
-        visual:
-            How the universe is drawn, or `None` for none.
-
         a:
             The initial scale factor.
 
@@ -513,7 +510,6 @@ class HomogeneousUniverseElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[float, StateSpec(domain=RealSet.open(0, oo), order=2)] = 1.0,
         a_d1: float = 1.0,
@@ -522,7 +518,7 @@ class HomogeneousUniverseElement(Element):
         omega_radiation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         omega_lambda: Annotated[float, ParameterSpec()] = 0.7,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.a_d1 = a_d1
         self.H0 = H0
@@ -539,9 +535,6 @@ class DustShellElement(Element):
     Args:
         label:
             The label of the shell.
-
-        visual:
-            How the shell is drawn, or `None` for none.
 
         R:
             The initial areal radius.
@@ -561,13 +554,12 @@ class DustShellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         R: Annotated[float, StateSpec(domain=RealSet.open(0, oo), order=2)] = 1.0,
         R_d1: float = 0.0,
         energy: Annotated[float, ParameterSpec(domain=RealSet.open(-0.5, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.R = R
         self.R_d1 = R_d1
         self.energy = energy

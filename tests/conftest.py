@@ -63,11 +63,10 @@ class NodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -77,11 +76,10 @@ class HoldingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
 
@@ -257,15 +255,16 @@ SPIN_HALF = _spin_space()
 class SpinElement(Element):
     """Spin of the Hilbert space it takes, by default a spin one half."""
 
+    visual = VisualSpec('expectations')
+
     def __init__(
         self,
         label: str,
         psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         *,
         hilbert: HilbertSpec = SPIN_HALF,
-        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.hilbert = hilbert
 
@@ -276,12 +275,11 @@ class RotorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
         omega: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.omega = omega
 
@@ -296,12 +294,11 @@ class GrowingPopulationElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec()] = 1.0,
         r: Annotated[object, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.r = r
 
@@ -330,11 +327,10 @@ class QueueElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         orders: Annotated[object, StateSpec(domain=None)] = (),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.orders = orders
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:

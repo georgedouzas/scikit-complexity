@@ -11,7 +11,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN
 
 from .....core.components.elements import Element
-from .....core.specs import StateSpec, VisualSpec
+from .....core.specs import StateSpec
 
 
 class SandpileCellElement(Element):
@@ -25,15 +25,12 @@ class SandpileCellElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         height:
             The initial number of grains.
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.common.avalanches import SandpileCellElement
@@ -44,9 +41,8 @@ class SandpileCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         height: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.height = height

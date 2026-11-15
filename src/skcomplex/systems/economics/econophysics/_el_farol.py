@@ -20,7 +20,7 @@ from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 from ...general.agents import ChoiceInteraction
 from ..common.forecasting import heuristics
@@ -119,9 +119,6 @@ class PredictorPoolElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         forecasts:
             The forecast of next week's attendance by every predictor of the pool.
 
@@ -142,12 +139,11 @@ class PredictorPoolElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         forecasts: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
         errors: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.forecasts = forecasts
         self.errors = errors
 
@@ -226,9 +222,6 @@ class PatronElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         predictors:
             The bit mask of the predictors of the pool that the patron holds.
 
@@ -255,14 +248,13 @@ class PatronElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         predictors: Annotated[float, StateSpec(domain=NN)] = 1,
         forecast: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         attends: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         capacity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 60.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.predictors = predictors
         self.forecast = forecast
         self.attends = attends

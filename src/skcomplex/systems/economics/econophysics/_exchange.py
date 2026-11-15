@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import NN
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 
 
 class TraderElement(Element):
@@ -21,9 +21,6 @@ class TraderElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         wealth:
             The initial wealth.
@@ -38,11 +35,10 @@ class TraderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         wealth: Annotated[float, StateSpec(domain=NN)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.wealth = wealth
 
 

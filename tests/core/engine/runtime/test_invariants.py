@@ -13,7 +13,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import InvariantObserver, simulate
 from skcomplex.core.engine.solvers import AgentView
 from skcomplex.core.errors import ConservationError, ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 TOTAL_WEALTH = Observable('total_wealth', group='traders', variable='wealth', reduce='sum')
 
@@ -24,11 +24,10 @@ class TraderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         wealth: Annotated[float, StateSpec()] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.wealth = wealth
 
     def _get_laws(self, s):
@@ -86,11 +85,10 @@ def test_invariant_observer_checks_continuous_runs():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             a: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.a = a
 
         def _get_laws(self, s):

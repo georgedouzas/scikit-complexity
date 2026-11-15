@@ -37,9 +37,6 @@ class NeuronElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         spin:
             The initial state, -1 or 1.
 
@@ -53,15 +50,16 @@ class NeuronElement(Element):
         ('neurons', 'NeuronElement', 4)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'spin', 'color_range': (-1.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'spin', 'color_range': (-1.0, 1.0)}),
         *,
         spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         weights: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.spin = spin
         self.weights = weights
 

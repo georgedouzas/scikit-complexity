@@ -31,7 +31,6 @@ VELOCITIES = np.column_stack(
 HEAD_ON = (0b001001, 0b010010, 0b100100)
 TRIPLES = (0b010101, 0b101010)
 TURN_PROBABILITY = 0.5
-DENSITY_VISUAL = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
 SQUARE_DIRECTIONS = 4
 SQUARE_CHANNELS = tuple(f'n{direction}' for direction in range(SQUARE_DIRECTIONS))
 SQUARE_STEPS = ((0, 1), (1, 0), (0, -1), (-1, 0))
@@ -52,9 +51,6 @@ class HPPSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         n0:
             The initial occupation of the channel along the columns, towards higher column indices.
 
@@ -72,7 +68,7 @@ class HPPSiteElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.fluids import HPPSiteElement
@@ -80,10 +76,11 @@ class HPPSiteElement(Element):
         0
     """
 
+    visual = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n0: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         n1: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
@@ -91,7 +88,7 @@ class HPPSiteElement(Element):
         n3: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         density: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n0 = n0
         self.n1 = n1
         self.n2 = n2
@@ -139,9 +136,6 @@ class FHPSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         n0:
             The initial occupation of the channel at 0 degrees.
 
@@ -169,10 +163,11 @@ class FHPSiteElement(Element):
         0
     """
 
+    visual = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n0: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         n1: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
@@ -182,7 +177,7 @@ class FHPSiteElement(Element):
         n5: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         density: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n0 = n0
         self.n1 = n1
         self.n2 = n2
@@ -286,7 +281,6 @@ class FHPLatticeGasSystem(BaseSystem):
             element=FHPSiteElement,
             space=space,
             values={'density': occupied.sum(axis=1), **channels},
-            visual=DENSITY_VISUAL,
             on='sites',
         )
         return CompositeSystem(
@@ -429,7 +423,6 @@ class HPPLatticeGasSystem(BaseSystem):
             element=HPPSiteElement,
             space=space,
             values={'density': occupied.sum(axis=1), **channels},
-            visual=DENSITY_VISUAL,
             on='sites',
         )
         return CompositeSystem(

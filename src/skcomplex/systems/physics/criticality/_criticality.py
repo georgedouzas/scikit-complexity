@@ -25,7 +25,7 @@ from ....core.components.spaces import (
     NetworkSpace,
 )
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 from ..common.avalanches import SandpileCellElement, TopplingInteraction
 
@@ -50,9 +50,6 @@ class ForestElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         cover:
             The initial cover, 0, 1, or 2.
 
@@ -71,13 +68,12 @@ class ForestElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         cover: Annotated[float, StateSpec(domain=NN)] = 0,
         growth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
         lightning: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.cover = cover
         self.growth = growth
         self.lightning = lightning

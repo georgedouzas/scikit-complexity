@@ -32,8 +32,8 @@ def drop(values, *, random):
 class SandElement(Element):
     law_classes = (ArrayUpdateLaw,)
 
-    def __init__(self, label, visual=None, *, height: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, height: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.height = height
 
     def _get_laws(self, namespace):
@@ -60,8 +60,8 @@ def mutate(values, *, random):
 class NucleotideElement(Element):
     law_classes = (ArrayUpdateLaw,)
 
-    def __init__(self, label, visual=None, *, base: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, base: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.base = base
 
     def _get_laws(self, namespace):
@@ -121,8 +121,8 @@ class GrainDropInteraction(Interaction):
 
 
 class HeightElement(Element):
-    def __init__(self, label, visual=None, *, height: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, height: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.height = height
 
 
@@ -158,8 +158,8 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class DensityElement(Element):
-    def __init__(self, label, visual=None, *, f: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, f: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.f = f
 
 
@@ -284,12 +284,11 @@ class DriftElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[float, StateSpec()] = 0.2,
         v: Annotated[float, ParameterSpec()] = 0.3,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.v = v
 
@@ -316,12 +315,11 @@ class RotorElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         theta: Annotated[float, StateSpec()] = 0.0,
         omega: Annotated[float, ParameterSpec()] = 2.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.omega = omega
 
@@ -407,8 +405,8 @@ def topple(z, *around):
 class SandpileElement(Element):
     law_classes = (CascadeLaw,)
 
-    def __init__(self, label, visual=None, *, height: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, height: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.height = height
 
     def _get_laws(self, namespace):
@@ -439,8 +437,8 @@ def slip(z, *around):
 class FaultElement(Element):
     law_classes = (CascadeLaw,)
 
-    def __init__(self, label, visual=None, *, stress: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, stress: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.stress = stress
 
     def _get_laws(self, namespace):
@@ -521,12 +519,11 @@ class BallElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         h: Annotated[float, StateSpec(order=2)] = 1.0,
         e: Annotated[float, ParameterSpec()] = 0.8,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.h = h
         self.e = e
 
@@ -552,13 +549,12 @@ class NeuronElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         v: Annotated[float, StateSpec()] = 0.0,
         current: Annotated[float, ParameterSpec()] = 1.5,
         tau: Annotated[float, ParameterSpec()] = 10.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.current = current
         self.tau = tau
@@ -641,13 +637,12 @@ class AtomElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         psi: Annotated[object, StateSpec(domain=CC)] = 'excited',
         gamma: Annotated[float, ParameterSpec()] = 0.5,
         hilbert=QUBIT,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.gamma = gamma
         self.hilbert = hilbert
@@ -685,13 +680,12 @@ class CavityElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         psi: Annotated[object, StateSpec(domain=CC)] = 'two',
         kappa: Annotated[float, ParameterSpec()] = 0.1,
         hilbert=CAVITY,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.kappa = kappa
         self.hilbert = hilbert
@@ -764,13 +758,12 @@ class PendulumElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         theta: Annotated[float, StateSpec(order=2)] = 0.1,
         m: Annotated[float, ParameterSpec()] = 1.0,
         l: Annotated[float, ParameterSpec()] = 1.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.m = m
         self.l = l
@@ -797,14 +790,13 @@ class CircuitElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         q: Annotated[float, StateSpec(order=2)] = 1.0,
         L: Annotated[float, ParameterSpec()] = 1.0,
         R: Annotated[float, ParameterSpec()] = 0.5,
         C: Annotated[float, ParameterSpec()] = 0.25,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.q = q
         self.L = L
         self.R = R
@@ -869,8 +861,8 @@ from skcomplex.core.systems import System
 
 
 class PositionElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -981,8 +973,8 @@ def renew(fitness, random):
 class SpeciesElement(Element):
     law_classes = (ExtremalLaw,)
 
-    def __init__(self, label, visual=None, *, fitness: Annotated[float, StateSpec()] = 0.5):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, fitness: Annotated[float, StateSpec()] = 0.5):
+        super().__init__(label)
         self.fitness = fitness
 
     def _get_laws(self, namespace):
@@ -1014,8 +1006,8 @@ def fail(stress, random):
 class FibreElement(Element):
     law_classes = (ExtremalLaw,)
 
-    def __init__(self, label, visual=None, *, stress: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, stress: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.stress = stress
 
     def _get_laws(self, namespace):
@@ -1084,8 +1076,8 @@ from skcomplex.core.specs import StateSpec
 class TrafficElement(Element):
     law_classes = (FluxLaw,)
 
-    def __init__(self, label, visual=None, *, rho: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, rho: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.rho = rho
 
     def _get_laws(self, namespace):
@@ -1114,8 +1106,8 @@ breaks.
 class BurgersElement(Element):
     law_classes = (FluxLaw,)
 
-    def __init__(self, label, visual=None, *, u: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.u = u
 
     def _get_laws(self, namespace):
@@ -1202,13 +1194,12 @@ class SpinElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         omega: Annotated[float, ParameterSpec()] = 1.0,
         hilbert=SPIN,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.omega = omega
         self.hilbert = hilbert
@@ -1250,13 +1241,12 @@ class WalkerElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         psi: Annotated[object, StateSpec(domain=CC)] = 'start',
         hop: Annotated[float, ParameterSpec()] = 1.0,
         hilbert=PATH,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.hop = hop
         self.hilbert = hilbert
@@ -1336,13 +1326,12 @@ class ScaleElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         a: Annotated[float, ParameterSpec(adaptive=True)] = 0.5,
         observed: Annotated[float, ParameterSpec()] = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.a = a
         self.observed = observed
@@ -1448,13 +1437,12 @@ class ColonyElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         n: Annotated[float, StateSpec()] = 10.0,
         b: Annotated[float, ParameterSpec()] = 0.5,
         d: Annotated[float, ParameterSpec()] = 0.4,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.b = b
         self.d = d
@@ -1483,13 +1471,12 @@ class QueueElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         q: Annotated[float, StateSpec()] = 0.0,
         arrival: Annotated[float, ParameterSpec()] = 2.0,
         service: Annotated[float, ParameterSpec()] = 3.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.q = q
         self.arrival = arrival
         self.service = service
@@ -1562,14 +1549,13 @@ class CellElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         uptake: Annotated[float, StateSpec(algebraic=True)] = 0.0,
         upkeep: Annotated[float, StateSpec(algebraic=True)] = 0.0,
         growth: Annotated[float, StateSpec(algebraic=True)] = 0.0,
         supply: Annotated[float, ParameterSpec()] = 10.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.uptake = uptake
         self.upkeep = upkeep
         self.growth = growth
@@ -1598,13 +1584,12 @@ class GridElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         coal: Annotated[float, StateSpec(algebraic=True)] = 0.0,
         gas: Annotated[float, StateSpec(algebraic=True)] = 0.0,
         demand: Annotated[float, ParameterSpec()] = 120.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.coal = coal
         self.gas = gas
         self.demand = demand
@@ -1678,8 +1663,8 @@ from skcomplex.core.components.laws import LinearRuleSpec
 class CellElement(Element):
     law_classes = (LocalRuleLaw,)
 
-    def __init__(self, label, visual=None, *, cell: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, cell: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.cell = cell
 
     def _get_laws(self, namespace):
@@ -1708,8 +1693,8 @@ life = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 class LifeElement(Element):
     law_classes = (LocalRuleLaw,)
 
-    def __init__(self, label, visual=None, *, alive: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, alive: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.alive = alive
 
     def _get_laws(self, namespace):
@@ -1777,8 +1762,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class TraderElement(Element):
-    def __init__(self, label, visual=None, *, deals: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, deals: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.deals = deals
 
 
@@ -1885,13 +1870,12 @@ class StockElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         price: Annotated[float, StateSpec()] = 100.0,
         mu: Annotated[float, ParameterSpec()] = 0.05,
         sigma: Annotated[float, ParameterSpec()] = 0.2,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.price = price
         self.mu = mu
         self.sigma = sigma
@@ -1919,12 +1903,11 @@ class ParticleElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         D: Annotated[float, ParameterSpec()] = 0.5,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.D = D
 
@@ -2062,12 +2045,11 @@ class ReactantElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         c: Annotated[float, StateSpec()] = 1.0,
         k: Annotated[float, ParameterSpec()] = 0.5,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.c = c
         self.k = k
 
@@ -2091,12 +2073,11 @@ class SpringElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[float, StateSpec(order=2)] = 1.0,
         k: Annotated[float, ParameterSpec()] = 4.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.k = k
 
@@ -2193,8 +2174,8 @@ from skcomplex.core.specs import StateSpec
 class SheepElement(Element):
     law_classes = (RuleLaw,)
 
-    def __init__(self, label, visual=None, *, energy: Annotated[float, StateSpec()] = 3.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, energy: Annotated[float, StateSpec()] = 3.0):
+        super().__init__(label)
         self.energy = energy
 
     def _get_laws(self, namespace):
@@ -2222,8 +2203,8 @@ trader drawn at random.
 class TraderElement(Element):
     law_classes = (RuleLaw,)
 
-    def __init__(self, label, visual=None, *, cash: Annotated[float, StateSpec()] = 10.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, cash: Annotated[float, StateSpec()] = 10.0):
+        super().__init__(label)
         self.cash = cash
 
     def _get_laws(self, namespace):
@@ -2304,12 +2285,11 @@ class SpinElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         temperature: Annotated[float, ParameterSpec()] = 1.5,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.spin = spin
         self.temperature = temperature
 
@@ -2337,8 +2317,8 @@ from skcomplex.core.components.laws.utils import where
 class TissueElement(Element):
     law_classes = (SampleLaw,)
 
-    def __init__(self, label, visual=None, *, kind: Annotated[float, StateSpec(domain=ZZ)] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, kind: Annotated[float, StateSpec(domain=ZZ)] = 0.0):
+        super().__init__(label)
         self.kind = kind
 
     def _get_laws(self, namespace):
@@ -2413,12 +2393,11 @@ class TankElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         water: Annotated[float, StateSpec()] = 100.0,
         k: Annotated[float, ParameterSpec()] = 0.2,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.water = water
         self.k = k
 
@@ -2443,12 +2422,11 @@ class CohortElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         n: Annotated[float, StateSpec()] = 1000.0,
         d: Annotated[float, ParameterSpec()] = 0.05,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.d = d
 
@@ -2511,13 +2489,12 @@ class ReservoirElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         volume: Annotated[float, StateSpec()] = 0.0,
         inflow: Annotated[float, ParameterSpec()] = 3.0,
         k: Annotated[float, ParameterSpec()] = 0.1,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.volume = volume
         self.inflow = inflow
         self.k = k
@@ -2546,8 +2523,8 @@ from skcomplex.core.components.spaces import DiscreteTime
 class LedgerElement(Element):
     law_classes = (TransferLaw,)
 
-    def __init__(self, label, visual=None, *, deposits: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, deposits: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.deposits = deposits
 
     def _get_laws(self, namespace):
@@ -2685,7 +2662,6 @@ class EpidemicElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         s: Annotated[float, StateSpec()] = 990.0,
         i: Annotated[float, StateSpec()] = 10.0,
@@ -2693,7 +2669,7 @@ class EpidemicElement(Element):
         beta: Annotated[float, ParameterSpec()] = 0.0003,
         gamma: Annotated[float, ParameterSpec()] = 0.1,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.s = s
         self.i = i
         self.r = r
@@ -2730,13 +2706,12 @@ class AccountsElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         checking: Annotated[float, StateSpec()] = 1000.0,
         savings: Annotated[float, StateSpec()] = 0.0,
         share: Annotated[float, ParameterSpec()] = 0.1,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.checking = checking
         self.savings = savings
         self.share = share
@@ -2807,12 +2782,11 @@ class WeatherElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         sky: Annotated[str, StateSpec(domain=FiniteEnumeratedSet(['dry', 'wet']))] = 'dry',
         stay: Annotated[float, ParameterSpec()] = 0.8,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sky = sky
         self.stay = stay
 
@@ -2835,8 +2809,8 @@ grades = FiniteEnumeratedSet(['good', 'poor', 'default'])
 class RatingElement(Element):
     law_classes = (TransitionLaw,)
 
-    def __init__(self, label, visual=None, *, grade: Annotated[str, StateSpec(domain=grades)] = 'good'):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, grade: Annotated[str, StateSpec(domain=grades)] = 'good'):
+        super().__init__(label)
         self.grade = grade
 
     def _get_laws(self, namespace):
@@ -2901,12 +2875,11 @@ class LogisticElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[float, StateSpec()] = 0.2,
         r: Annotated[float, ParameterSpec()] = 2.5,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.r = r
 
@@ -2930,12 +2903,11 @@ class AccountElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         balance: Annotated[float, StateSpec()] = 1000.0,
         rate: Annotated[float, ParameterSpec()] = 0.06,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.balance = balance
         self.rate = rate
 

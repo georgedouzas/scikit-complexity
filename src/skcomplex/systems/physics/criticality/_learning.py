@@ -21,7 +21,7 @@ from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import total, uniform, where
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 
 
@@ -36,9 +36,6 @@ class LearningAgentElement(Element):
     Args:
         label:
             The label of the agent or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         sigma:
             The initial action, -1 or 1.
@@ -68,7 +65,6 @@ class LearningAgentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         sigma: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         Q: Annotated[float, StateSpec()] = 0.0,
@@ -76,7 +72,7 @@ class LearningAgentElement(Element):
         temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         couplings: npt.ArrayLike | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sigma = sigma
         self.Q = Q
         self.alpha = alpha

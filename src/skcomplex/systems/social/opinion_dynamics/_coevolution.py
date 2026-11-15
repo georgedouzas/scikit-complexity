@@ -38,9 +38,6 @@ class CoevolvingVoterElement(Element):
         label:
             The label of the voter or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The opinion, 0 or 1.
 
@@ -59,17 +56,18 @@ class CoevolvingVoterElement(Element):
         0.3
     """
 
+    visual = OPINION_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = OPINION_VISUAL,
         *,
         opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         activity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         rewiring: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
         self.degree = degree
         self.activity = activity
@@ -87,9 +85,6 @@ class ClubMemberElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
 
         opinion:
             1 for a member of the club and 0 for an outsider.
@@ -118,10 +113,11 @@ class ClubMemberElement(Element):
         2.0
     """
 
+    visual = OPINION_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = OPINION_VISUAL,
         *,
         opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -131,7 +127,7 @@ class ClubMemberElement(Element):
         activity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         rewiring: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
         self.degree = degree
         self.beta = beta
@@ -273,7 +269,6 @@ class CoevolvingVoterSystem(BaseSystem):
             variable=True,
             capacity=space.prepare().size_,
             values={'opinion': opinions, **values},
-            visual=OPINION_VISUAL,
         )
         ties = GroupElement('ties', element=Element, on='edges', variable=True)
         interactions = [

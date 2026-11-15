@@ -28,7 +28,12 @@ from ..common.particles import RelaxationTimeInteraction
 
 SETUPS = ('landau', 'two-stream')
 VELOCITY_AXES = ('vx', 'vy')
-VLASOV_VISUAL = VisualSpec('image', {'moments': (0,)})
+
+
+class GasDensityElement(PhaseSpaceDensityElement):
+    """Phase space density of a gas, drawn as its density along position."""
+
+    visual = VisualSpec('image', {'moments': (0,)})
 
 
 class BhatnagarGrossKrookInteraction(RelaxationTimeInteraction):
@@ -362,11 +367,10 @@ class BGKEquationSystem(BaseSystem):
         values = self._get_maxwellian(density, np.zeros(self.positions), temperature, space.coordinates_['v'])
         gas = FieldElement(
             'gas',
-            element=PhaseSpaceDensityElement,
+            element=GasDensityElement,
             space=space,
             values={'x': values},
             discretization='finite-volume',
-            visual=VLASOV_VISUAL,
         )
         stream = AdvectionInteraction('stream', target='gas', state='x', drift=self._get_streaming)
         relax = BhatnagarGrossKrookInteraction('relax', target='gas', axes=('v',), time=self.knudsen)
@@ -463,11 +467,10 @@ class VlasovEquationSystem(BaseSystem):
             profile = (np.exp(-2 * (v - 1.5) ** 2) + np.exp(-2 * (v + 1.5) ** 2)) * np.sqrt(2 / np.pi) / 2
         gas = FieldElement(
             'gas',
-            element=PhaseSpaceDensityElement,
+            element=GasDensityElement,
             space=space,
             values={'x': np.outer(1.0 + self.amplitude * np.cos(0.5 * x), profile)},
             discretization='finite-volume',
-            visual=VLASOV_VISUAL,
         )
         return CompositeSystem(
             self.label,

@@ -21,7 +21,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 
 NAND = (2, 0b0111)
@@ -53,9 +53,6 @@ class PartElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         cost:
             The initial unit cost.
 
@@ -71,11 +68,10 @@ class PartElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.cost = cost
 
     @classmethod
@@ -331,9 +327,6 @@ class TechnologyElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         arity:
             The number of inputs.
 
@@ -356,13 +349,12 @@ class TechnologyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         arity: Annotated[float, StateSpec(domain=NN)] = 2,
         table: Annotated[float, StateSpec(domain=NN)] = NAND[1],
         cost: Annotated[float, StateSpec(domain=NN)] = 1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.arity = arity
         self.table = table
         self.cost = cost

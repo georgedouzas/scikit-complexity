@@ -49,9 +49,6 @@ class MotoristElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The position along the road.
 
@@ -80,12 +77,13 @@ class MotoristElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'position': 'x', 'color_by': 'v'})
+
     law_classes = (RuleLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'position': 'x', 'color_by': 'v'}),
         *,
         x: Annotated[float, StateSpec(role='position')] = 0.0,
         v: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), role='velocity')] = 0.0,
@@ -95,7 +93,7 @@ class MotoristElement(Element):
         acceleration: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         speed_limit: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.v = v
         self.rank = rank
@@ -173,9 +171,6 @@ class DriverElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         speed:
             The speed.
 
@@ -204,6 +199,8 @@ class DriverElement(Element):
         2
     """
 
+    visual = VisualSpec('agents', {'color_by': 'speed'})
+
     draws = True
 
     law_classes = (RuleLaw,)
@@ -211,7 +208,6 @@ class DriverElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'speed'}),
         *,
         speed: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         rank: Annotated[float, StateSpec(domain=NN)] = 0.0,
@@ -221,7 +217,7 @@ class DriverElement(Element):
         speed_limit: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 40.0,
         eps: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.speed = speed
         self.rank = rank
         self.acceleration = acceleration

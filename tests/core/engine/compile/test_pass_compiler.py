@@ -120,11 +120,10 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -167,11 +166,10 @@ class StockElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
 
@@ -181,11 +179,10 @@ class WalkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -195,11 +192,10 @@ class CounterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         k: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.k = k
 
     def _get_laws(self, s):
@@ -232,11 +228,10 @@ class AntElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         steps: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.steps = steps
 
     def _get_laws(self, s):
@@ -271,12 +266,11 @@ class PlantElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         u: Annotated[float, ParameterSpec(adaptive=True, bounds=(0, 1))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.u = u
 
@@ -299,11 +293,10 @@ class GroupSpinElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         spin: Annotated[float, StateSpec(domain=ZZ)] = 1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.spin = spin
 
     def _get_laws(self, s):
@@ -538,12 +531,11 @@ def _nonlocal_field(label, law, space, **settings):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             u: Annotated[object, StateSpec()] = 0.0,
             k: Annotated[object, ParameterSpec()] = -1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.u = u
             self.k = k
 
@@ -732,24 +724,24 @@ def test_prepare_reports_the_tensor_divergence_of_a_scalar():
 class _CellSiteElement(Element):
     """Site with a value `u`."""
 
-    def __init__(self, label, visual=None, *, u: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.u = u
 
 
 class _CellLinkElement(Element):
     """Link with a value `a`."""
 
-    def __init__(self, label, visual=None, *, a: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, a: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.a = a
 
 
 class _CellFaceElement(Element):
     """Face with a value `f`."""
 
-    def __init__(self, label, visual=None, *, f: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, f: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.f = f
 
 
@@ -946,11 +938,10 @@ class HubElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y = y
 
 
@@ -1535,8 +1526,8 @@ def test_compile_periodic_box_wraps_places_by_their_role(role, wrapped):
     class PlacedElement(Element):
         """Element with a vector state of the role under test."""
 
-        def __init__(self, label, visual=None, *, x: Annotated[object, StateSpec(vector=True, role=role)] = 0.0):
-            super().__init__(label, visual=visual)
+        def __init__(self, label, *, x: Annotated[object, StateSpec(vector=True, role=role)] = 0.0):
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -1664,11 +1655,10 @@ def test_compiler_without_processes_keeps_identity_columns():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -1727,11 +1717,10 @@ def test_stratonovich_correction_of_several_laws_adds_up():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -2003,8 +1992,14 @@ def test_group_space_reports_the_checkerboard_schedule():
 
 def test_group_space_reports_an_image_visual():
     """Test that an image visual on a group space is reported with the Cayley visual as its fix."""
+
+    class ImageSpinElement(GroupSpinElement):
+        """Spin drawn as an image."""
+
+        visual = VisualSpec('image')
+
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
-    group = GroupElement('spins', element=GroupSpinElement, space=space, visual=VisualSpec('image'), on='sites')
+    group = GroupElement('spins', element=ImageSpinElement, space=space, on='sites')
     system = CompositeSystem(elements=[group])
     report = PassCompiler().prepare(system).report_
     issue = next(issue for issue in report.issues if issue.code == 'visual-unsupported')
@@ -2119,11 +2114,10 @@ def test_validate_reports_wiener_under_discrete_time():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             n: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.n = n
 
         def _get_laws(self, s):
@@ -2174,11 +2168,10 @@ def test_observable_among_the_laws_is_rejected():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             a: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.a = a
 
         def _get_laws(self, s):

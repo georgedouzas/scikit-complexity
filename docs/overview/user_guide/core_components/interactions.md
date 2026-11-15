@@ -25,8 +25,8 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class AmountElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -161,8 +161,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class AmountElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -256,8 +256,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class AccountElement(Element):
-    def __init__(self, label, visual=None, *, cash: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, cash: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.cash = cash
 
 
@@ -273,8 +273,8 @@ The same class lets water flow from an upper reservoir into a lower one, at a ra
 
 ```python continuation
 class ReservoirElement(Element):
-    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.level = level
 
 
@@ -355,8 +355,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class AmountElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -448,8 +448,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class AmountElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -547,8 +547,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class HolderElement(Element):
-    def __init__(self, label, visual=None, *, state: Annotated[int, StateSpec(domain=NN)] = 0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, state: Annotated[int, StateSpec(domain=NN)] = 0):
+        super().__init__(label)
         self.state = state
 
 
@@ -649,8 +649,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class BodyElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec(order=2)] = 0.0, x_d1: float = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec(order=2)] = 0.0, x_d1: float = 0.0):
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
 
@@ -671,8 +671,8 @@ and resets to 0, as in the leaky integrate-and-fire model of neuroscience.
 
 ```python continuation
 class AmountElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -754,8 +754,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class AmountElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -771,9 +771,9 @@ The same class fits the two weights of a model by descending its loss, the squar
 ```python continuation
 class ModelElement(Element):
     def __init__(
-        self, label, visual=None, *, a: Annotated[float, StateSpec()] = 0.0, b: Annotated[float, StateSpec()] = 0.0
+        self, label, *, a: Annotated[float, StateSpec()] = 0.0, b: Annotated[float, StateSpec()] = 0.0
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.b = b
 
@@ -860,8 +860,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class CoordinateElement(Element):
-    def __init__(self, label, visual=None, *, q: Annotated[float, StateSpec(order=2)] = 0.1, q_d1: float = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, q: Annotated[float, StateSpec(order=2)] = 0.1, q_d1: float = 0.0):
+        super().__init__(label)
         self.q = q
         self.q_d1 = q_d1
 
@@ -967,9 +967,9 @@ from skcomplex.core.specs import StateSpec
 
 class PhaseElement(Element):
     def __init__(
-        self, label, visual=None, *, q: Annotated[float, StateSpec()] = 1.0, p: Annotated[float, StateSpec()] = 0.0
+        self, label, *, q: Annotated[float, StateSpec()] = 1.0, p: Annotated[float, StateSpec()] = 0.0
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.q = q
         self.p = p
 
@@ -995,12 +995,11 @@ class PlanetElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         q: Annotated[object, StateSpec(vector=True)] = (1.0, 0.0),
         p: Annotated[object, StateSpec(vector=True)] = (0.0, 1.0),
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.q = q
         self.p = p
 
@@ -1090,8 +1089,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class CellElement(Element):
-    def __init__(self, label, visual=None, *, u: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.u = u
 
 
@@ -1192,8 +1191,8 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class CellElement(Element):
-    def __init__(self, label, visual=None, *, u: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.u = u
 
 
@@ -1393,12 +1392,11 @@ class AtomElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: object = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
 
@@ -1421,8 +1419,8 @@ from sage.all__sagemath_symbolics import exp
 
 
 class WalkerElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -1522,8 +1520,8 @@ from skcomplex.core.specs import RoleSpec, StateSpec
 
 
 class NodeElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -1624,8 +1622,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class TraderElement(Element):
-    def __init__(self, label, visual=None, *, w: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, w: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.w = w
 
 
@@ -1741,8 +1739,8 @@ from skcomplex.core.components.laws import OuterTotalisticSpec
 
 
 class CellElement(Element):
-    def __init__(self, label, visual=None, *, c: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, c: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.c = c
 
 
@@ -1848,8 +1846,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class SpinElement(Element):
-    def __init__(self, label, visual=None, *, s: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, s: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
         self.s = s
 
 
@@ -2061,14 +2059,13 @@ class BranchElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         a_v: Annotated[float, StateSpec(algebraic=True)] = 0.0,
         a_i: Annotated[float, StateSpec(algebraic=True)] = 0.0,
         g: Annotated[float, ParameterSpec()] = 1.0,
         e: Annotated[float, ParameterSpec()] = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a_v = a_v
         self.a_i = a_i
         self.g = g
@@ -2177,13 +2174,12 @@ class FactorElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         a: Annotated[float, ParameterSpec(adaptive=True)] = 0.5,
         observed: Annotated[float, ParameterSpec()] = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.a = a
         self.observed = observed

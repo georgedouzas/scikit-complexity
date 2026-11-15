@@ -38,7 +38,7 @@ from skcomplex.core.engine.solvers import (
 )
 from skcomplex.core.enums import FormKind, OrderKind
 from skcomplex.core.errors import BackendWarning, SolverError
-from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction
 from skcomplex.systems.physics.common.particles import HarmonicPotentialInteraction, MassPointElement
@@ -53,11 +53,10 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -346,12 +345,11 @@ def test_numpy_backend_calls_vector_call_once_per_step():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 1.0,
             y: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.y = y
 

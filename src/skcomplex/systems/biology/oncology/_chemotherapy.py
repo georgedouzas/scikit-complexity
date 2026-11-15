@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, RateInteraction
 from ....core.components.laws.utils import clip, delayed
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -55,9 +55,6 @@ class MetastasisChemotherapyElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         Np:
             The initial normal cells at the primary site.
@@ -167,7 +164,6 @@ class MetastasisChemotherapyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         Np: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1460.0,
         Ap: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 165.0,
@@ -203,7 +199,7 @@ class MetastasisChemotherapyElement(Element):
         up: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         us: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.Np = Np
         self.Ap = Ap
         self.Up = Up
@@ -256,9 +252,6 @@ class MultidrugResistanceElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         S:
             The initial sensitive cells.
@@ -362,7 +355,6 @@ class MultidrugResistanceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         S: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 460500000000.0,
         R1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -396,7 +388,7 @@ class MultidrugResistanceElement(Element):
         u2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         u3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.S = S
         self.R1 = R1
         self.R2 = R2
@@ -447,9 +439,6 @@ class RestingHuntingChemotherapyElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial hunting cells.
@@ -514,7 +503,6 @@ class RestingHuntingChemotherapyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         Q: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.48,
@@ -535,7 +523,7 @@ class RestingHuntingChemotherapyElement(Element):
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 45.6,
         u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.Q = Q
         self.A = A

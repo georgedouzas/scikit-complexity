@@ -16,7 +16,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 def _get_gross_energy(s: SimpleNamespace) -> Expression:
@@ -51,9 +51,6 @@ class EnergySectorElement(Element):
     Args:
         label:
             The label of the sector.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         reserve:
             The initial energy reserve.
@@ -99,7 +96,6 @@ class EnergySectorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         reserve: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='energy')] = 1000.0,
         capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
@@ -112,7 +108,7 @@ class EnergySectorElement(Element):
         birth_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
         death_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.015,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.reserve = reserve
         self.capacity = capacity
         self.population = population

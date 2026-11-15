@@ -188,7 +188,6 @@ def _replicate(
             element=type(element),
             size=size,
             values={**_member_settings(element), **by_label[element.label]},
-            visual=element.visual,
         )
         for element in system.elements
     ]

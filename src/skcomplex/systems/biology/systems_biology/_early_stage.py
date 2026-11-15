@@ -75,6 +75,8 @@ class PathCellElement(Element):
         0.0
     """
 
+    visual = VisualSpec('image', {'states': ('cell',), 'low': 0.0, 'high': float(CELLS - 1)})
+
     def __init__(
         self,
         label: str,
@@ -362,7 +364,6 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
                     element=PathCellElement,
                     space=LatticeSpace((1, len(names)), boundary='fixed'),
                     values={'amino': amino[None]},
-                    visual=VisualSpec('image', {'states': ('cell',), 'low': 0.0, 'high': float(self.cells - 1)}),
                     on='sites',
                 ),
             ],

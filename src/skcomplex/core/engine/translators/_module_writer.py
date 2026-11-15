@@ -38,21 +38,17 @@ ELEMENT_CLASS = '''class {name}(Element):
         label:
             The label of the element.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
 {arguments}
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
 {declarations}
     ) -> None:
         """Store the label, the visual, the stocks, and the constants."""
-        super().__init__(label, visual=visual)
+        super().__init__(label)
 {assignments}'''
 TRANSFER = """                TransferInteraction(
                     {name!r},

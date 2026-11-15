@@ -14,7 +14,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 from ..conftest import PhaseElement, QuadraticElement
 
@@ -25,13 +25,12 @@ class CountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         amount: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         events: Annotated[float, StateSpec(domain=NN)] = 0,
         level: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.amount = amount
         self.events = events
         self.level = level

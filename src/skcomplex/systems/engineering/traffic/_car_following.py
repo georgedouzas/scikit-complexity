@@ -15,7 +15,7 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, shift_member
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.traffic import CarElement, OptimalVelocityInteraction
 
 
@@ -30,7 +30,6 @@ class LeadCarElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(role='position')] = 0.0,
         v: Annotated[object, StateSpec(role='velocity')] = 1.0,
@@ -38,7 +37,7 @@ class LeadCarElement(Element):
         amplitude: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.v = v
         self.u = u

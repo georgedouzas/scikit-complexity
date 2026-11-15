@@ -26,7 +26,7 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.problems import ProblemSpec, RunStateSpec
 from ....core.engine.runtime import simulate
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import BaseSpec, DeclaredVariableSpec, VisualSpec
+from ....core.specs import BaseSpec, DeclaredVariableSpec
 from ....core.types import Array
 from ..common.metabolism import MetabolicNetworkElement, ReactionSpec
 
@@ -81,9 +81,6 @@ class TcaNetworkElement(MetabolicNetworkElement):
         label:
             The label of the element.
 
-        visual:
-            How the element is drawn, or `None` for the bars of its program.
-
         objective:
             The coefficient of every reaction in the objective, or `None` for `default_objective`.
 
@@ -114,7 +111,6 @@ class TcaNetworkElement(MetabolicNetworkElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         objective: Mapping[str, float] | None = None,
         parsimonious: bool = False,
@@ -126,7 +122,6 @@ class TcaNetworkElement(MetabolicNetworkElement):
     ) -> None:
         super().__init__(
             label,
-            visual,
             objective=objective,
             parsimonious=parsimonious,
             infeasible=infeasible,

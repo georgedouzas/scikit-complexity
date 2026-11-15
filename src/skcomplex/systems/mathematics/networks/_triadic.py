@@ -22,7 +22,7 @@ from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.networks import RegulatedNodeElement
 
 
@@ -34,9 +34,6 @@ class RegulatedLinkElement(Element):
     Args:
         label:
             The label of the link group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         active:
             1 when the link is active, and 0 otherwise.
@@ -54,12 +51,11 @@ class RegulatedLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
         sign: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([-1, 1]))] = 1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.active = active
         self.sign = sign
 

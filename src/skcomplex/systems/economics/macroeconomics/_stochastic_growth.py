@@ -16,7 +16,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, TransitionInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class StochasticGrowthElement(Element):
@@ -30,9 +30,6 @@ class StochasticGrowthElement(Element):
     Args:
         label:
             The label of the economy.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         K:
             The capital.
@@ -61,7 +58,6 @@ class StochasticGrowthElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         K: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 0.2,
         regime: Annotated[float, StateSpec(domain=NN)] = 0,
@@ -70,7 +66,7 @@ class StochasticGrowthElement(Element):
         z_low: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.9,
         z_high: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.K = K
         self.regime = regime
         self.alpha = alpha

@@ -56,9 +56,6 @@ class ToyTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The horizontal place of the trader.
 
@@ -99,12 +96,13 @@ class ToyTraderElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'money'})
+
     law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'money'}),
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -118,7 +116,7 @@ class ToyTraderElement(Element):
         price_up: Annotated[float, StateSpec(domain=RealSet.closed_open(1, oo))] = PRICE_UP,
         price_down: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = PRICE_DOWN,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.money = money

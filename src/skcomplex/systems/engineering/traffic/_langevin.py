@@ -19,7 +19,7 @@ from ....core.components.laws.utils import divergence, laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.traffic import CarElement, OptimalVelocityInteraction, SpeedAdaptationInteraction
 
 
@@ -34,7 +34,6 @@ class TrafficMomentsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         w: Annotated[object, StateSpec()] = 0.25,
@@ -43,7 +42,7 @@ class TrafficMomentsElement(Element):
         rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         D1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.w = w
         self.gamma = gamma

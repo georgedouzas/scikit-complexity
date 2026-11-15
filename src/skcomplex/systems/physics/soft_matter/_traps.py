@@ -39,9 +39,6 @@ class TrapSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         occupied:
             Whether a walker is on the site.
 
@@ -60,17 +57,18 @@ class TrapSiteElement(Element):
         3.0
     """
 
+    visual = VISITED
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         occupied: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         visited: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         clock: Annotated[float, StateSpec(domain=NN)] = 0.0,
         tau: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.occupied = occupied
         self.visited = visited
         self.clock = clock
@@ -171,7 +169,6 @@ class BiasedTrapWalkSystem(BaseSystem):
             element=TrapSiteElement,
             space=LatticeSpace(shape, boundary='fixed', fill=-1.0),
             values={'occupied': start, 'visited': start, 'tau': tau},
-            visual=VISITED,
             on='sites',
         )
         hops = LocalRuleInteraction(

@@ -18,7 +18,7 @@ from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class RiceBalanceElement(Element):
@@ -31,9 +31,6 @@ class RiceBalanceElement(Element):
     Args:
         label:
             The label of the region.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         area_cultivated:
             The area under rice, in hectares.
@@ -71,7 +68,6 @@ class RiceBalanceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         area_cultivated: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 68000.0,
         population: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 2800000.0,
@@ -83,7 +79,7 @@ class RiceBalanceElement(Element):
         life_expectancy: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 65.0,
         food_per_capita: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.18,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.area_cultivated = area_cultivated
         self.population = population
         self.total_land_available = total_land_available

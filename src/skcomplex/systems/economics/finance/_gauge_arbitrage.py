@@ -38,15 +38,12 @@ class GoodSiteElement(Element):
         label:
             The label of the site or the group on the sites.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         rho:
             The initial density of the good.
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.economics.finance import GoodSiteElement
@@ -57,11 +54,10 @@ class GoodSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
 
 
@@ -74,9 +70,6 @@ class ExchangeLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         A:
             The initial exchange-rate potential.
 
@@ -85,7 +78,7 @@ class ExchangeLinkElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the link when it sets none.
+            How the link is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.economics.finance import ExchangeLinkElement
@@ -93,15 +86,16 @@ class ExchangeLinkElement(Element):
         0.5
     """
 
+    visual = VisualSpec('cell', {'state': 'A'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec()] = 0.0,
         E: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.E = E
 
@@ -307,7 +301,6 @@ class GaugeArbitrageMarketSystem(BaseSystem):
             space=space,
             on='sites',
             values={'rho': density},
-            visual=VisualSpec(),
         )
         links = GroupElement(
             'links',
@@ -315,7 +308,6 @@ class GaugeArbitrageMarketSystem(BaseSystem):
             space=space,
             on='edges',
             values={'E': field},
-            visual=VisualSpec('cell', {'state': 'A'}),
         )
         interactions = [
             RateInteraction('potential', target='links', state='A', rate=self._get_potential_rate),

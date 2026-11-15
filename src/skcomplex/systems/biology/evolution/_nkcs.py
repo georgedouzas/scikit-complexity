@@ -17,7 +17,7 @@ from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec
 from ....core.types import Array
 
 
@@ -44,9 +44,6 @@ class CoevolvingSpeciesElement(Element):
         label:
             The label of the species or of the group of species.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         genome:
             The bits of the genome, as an integer.
 
@@ -65,13 +62,12 @@ class CoevolvingSpeciesElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         genome: Annotated[float, StateSpec(domain=NN)] = 0.0,
         fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         moves: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.genome = genome
         self.fitness = fitness
         self.moves = moves

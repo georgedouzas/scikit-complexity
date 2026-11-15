@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import normal
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 
 
@@ -30,9 +30,6 @@ class HerdingAgentElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         c:
             The choice of the agent, such as its consumption.
@@ -56,14 +53,13 @@ class HerdingAgentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         c: Annotated[float, StateSpec()] = 0.0,
         x: Annotated[float, StateSpec()] = 1.0,
         gamma: Annotated[float, ParameterSpec()] = 1.0,
         sigma: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.c = c
         self.x = x
         self.gamma = gamma

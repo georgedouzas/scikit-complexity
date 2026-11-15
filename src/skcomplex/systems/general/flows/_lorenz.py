@@ -8,7 +8,7 @@ from typing import Annotated
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class LorenzElement(Element):
@@ -28,9 +28,6 @@ class LorenzElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial convection intensity.
@@ -65,7 +62,6 @@ class LorenzElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         y: Annotated[float, StateSpec()] = 1.0,
@@ -74,7 +70,7 @@ class LorenzElement(Element):
         rho: Annotated[float, ParameterSpec()] = 28.0,
         beta: Annotated[float, ParameterSpec()] = 8 / 3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z

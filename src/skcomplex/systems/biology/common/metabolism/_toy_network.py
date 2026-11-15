@@ -10,7 +10,7 @@ It grows on A alone.
 
 from collections.abc import Mapping
 
-from .....core.specs import DeclaredVariableSpec, VisualSpec
+from .....core.specs import DeclaredVariableSpec
 from ._metabolic_network import MetabolicNetworkElement
 from ._reaction_spec import ReactionSpec
 
@@ -37,9 +37,6 @@ class ToyNetworkElement(MetabolicNetworkElement):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for the bars of its program.
 
         objective:
             The coefficient of every reaction in the objective, or `None` for `default_objective`.
@@ -71,7 +68,6 @@ class ToyNetworkElement(MetabolicNetworkElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         objective: Mapping[str, float] | None = None,
         parsimonious: bool = False,
@@ -83,7 +79,6 @@ class ToyNetworkElement(MetabolicNetworkElement):
     ) -> None:
         super().__init__(
             label,
-            visual,
             objective=objective,
             parsimonious=parsimonious,
             infeasible=infeasible,

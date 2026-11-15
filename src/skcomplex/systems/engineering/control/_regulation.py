@@ -23,7 +23,7 @@ from ....core.components.laws.utils import clip, derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 GRAVITY = 9.81
 FORCE_LIMIT = 50.0
@@ -41,9 +41,6 @@ class CartPendulumElement(Element):
     Args:
         label:
             The label of the cart.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position of the cart.
@@ -83,7 +80,6 @@ class CartPendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
@@ -95,7 +91,7 @@ class CartPendulumElement(Element):
         l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = GRAVITY,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.theta = theta
@@ -139,9 +135,6 @@ class DrivenOscillatorElement(Element):
         label:
             The label of the oscillator.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial displacement.
 
@@ -168,7 +161,6 @@ class DrivenOscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
@@ -176,7 +168,7 @@ class DrivenOscillatorElement(Element):
         omega: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         zeta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.force = force
@@ -204,9 +196,6 @@ class IntegratorElement(Element):
         label:
             The label of the integrator.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         value:
             The initial value of the integral.
 
@@ -219,11 +208,10 @@ class IntegratorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
 
 

@@ -81,8 +81,8 @@ class GradientInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.specs import StateSpec
         >>> class AmountElement(Element):
-        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
         ...         self.x = x
         >>> from skcomplex.core.components.interactions import GradientInteraction
         >>> from skcomplex.core.components.systems import CompositeSystem

@@ -33,9 +33,6 @@ class SwarmalatorElement(SitedOscillatorElement):
         label:
             The label of the swarmalator or the group.
 
-        visual:
-            How the swarmalator is drawn, or `None` for `default_visual_`.
-
         theta:
             The initial phase.
 
@@ -51,16 +48,17 @@ class SwarmalatorElement(SitedOscillatorElement):
         [0.0, 1.0]
     """
 
+    visual = VisualSpec('points', {'position': 'x', 'color_by': 'theta', 'radius': 0.03})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: float = 0.0,
         omega: float = 1.0,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, theta=theta, omega=omega, x=x)
+        super().__init__(label, theta=theta, omega=omega, x=x)
 
 
 class SwarmalatorCouplingInteraction(PairInteraction):
@@ -230,7 +228,6 @@ class SwarmalatorsSystem(BaseSystem):
                 'theta': rng.uniform(-np.pi, np.pi, self.n_units),
                 'omega': 0.0,
             },
-            visual=VisualSpec('points', {'position': 'x', 'color_by': 'theta', 'radius': 0.03}),
         )
         coupling = SwarmalatorCouplingInteraction(
             'coupling',

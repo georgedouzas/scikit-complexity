@@ -16,7 +16,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ExperimentError, ValidationError
 from skcomplex.core.experiments import calibrate, ensemble, orbit_diagram, sweep
 from skcomplex.core.experiments._runs import _map_calls
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
@@ -28,12 +28,11 @@ class LogisticMapElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.2,
         r: Annotated[object, ParameterSpec()] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.r = r
 

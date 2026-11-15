@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from .....core.components.elements import Element
 from .....core.components.laws import BaseLaw, ConstraintLaw
 from .....core.components.laws.utils import derivative
-from .....core.specs import ConnectorSpec, ParameterSpec, StateSpec, VisualSpec
+from .....core.specs import ConnectorSpec, ParameterSpec, StateSpec
 
 ELECTRICAL = ConnectorSpec('electrical', potential='v', flow='i')
 POSITIVE = RealSet.open(0, oo)
@@ -31,9 +31,6 @@ class TwoPinElement(Element):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         p_v:
             The potential of the positive pin.
@@ -55,14 +52,13 @@ class TwoPinElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         p_i: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         n_v: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         n_i: Annotated[object, StateSpec(algebraic=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.p_v = p_v
         self.p_i = p_i
         self.n_v = n_v
@@ -96,9 +92,6 @@ class ResistorElement(TwoPinElement):
         label:
             The label of the element, unique among the components of its system.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         p_v:
             The potential of the positive pin.
 
@@ -123,7 +116,6 @@ class ResistorElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -131,7 +123,7 @@ class ResistorElement(TwoPinElement):
         n_i: object = 0.0,
         R: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.R = R
 
     def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -154,9 +146,6 @@ class CapacitorElement(TwoPinElement):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         p_v:
             The potential of the positive pin.
@@ -185,7 +174,6 @@ class CapacitorElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -194,7 +182,7 @@ class CapacitorElement(TwoPinElement):
         u: Annotated[object, StateSpec()] = 0.0,
         C: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.u = u
         self.C = C
 
@@ -218,9 +206,6 @@ class InductorElement(TwoPinElement):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         p_v:
             The potential of the positive pin.
@@ -249,7 +234,6 @@ class InductorElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -258,7 +242,7 @@ class InductorElement(TwoPinElement):
         i: Annotated[object, StateSpec()] = 0.0,
         L: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.i = i
         self.L = L
 
@@ -282,9 +266,6 @@ class VoltageSourceElement(TwoPinElement):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         p_v:
             The potential of the positive pin.
@@ -310,7 +291,6 @@ class VoltageSourceElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -318,7 +298,7 @@ class VoltageSourceElement(TwoPinElement):
         n_i: object = 0.0,
         V: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.V = V
 
     def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -344,9 +324,6 @@ class CurrentSourceElement(TwoPinElement):
         label:
             The label of the element, unique among the components of its system.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         p_v:
             The potential of the positive pin.
 
@@ -371,7 +348,6 @@ class CurrentSourceElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -379,7 +355,7 @@ class CurrentSourceElement(TwoPinElement):
         n_i: object = 0.0,
         current: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.current = current
 
     def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -403,9 +379,6 @@ class GroundElement(Element):
         label:
             The label of the element, unique among the components of its system.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         p_v:
             The potential of the pin.
 
@@ -425,12 +398,11 @@ class GroundElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         p_i: Annotated[object, StateSpec(algebraic=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.p_v = p_v
         self.p_i = p_i
 
@@ -445,9 +417,6 @@ class DiodeElement(TwoPinElement):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         p_v:
             The potential of the positive pin.
@@ -476,7 +445,6 @@ class DiodeElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -485,7 +453,7 @@ class DiodeElement(TwoPinElement):
         Is: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1e-6,
         Vt: Annotated[object, ParameterSpec(domain=POSITIVE)] = 0.025,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.Is = Is
         self.Vt = Vt
 
@@ -511,9 +479,6 @@ class ChuaDiodeElement(TwoPinElement):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         p_v:
             The potential of the positive pin.
@@ -542,7 +507,6 @@ class ChuaDiodeElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -551,7 +515,7 @@ class ChuaDiodeElement(TwoPinElement):
         m0: Annotated[object, ParameterSpec()] = -8 / 7,
         m1: Annotated[object, ParameterSpec()] = -5 / 7,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.m0 = m0
         self.m1 = m1
 
@@ -579,9 +543,6 @@ class OperationalAmplifierElement(Element):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         p_v:
             The potential of the noninverting input.
@@ -612,7 +573,6 @@ class OperationalAmplifierElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         p_i: Annotated[object, StateSpec(algebraic=True)] = 0.0,
@@ -621,7 +581,7 @@ class OperationalAmplifierElement(Element):
         out_v: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         out_i: Annotated[object, StateSpec(algebraic=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.p_v = p_v
         self.p_i = p_i
         self.n_v = n_v

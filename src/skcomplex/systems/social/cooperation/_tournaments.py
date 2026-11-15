@@ -46,9 +46,6 @@ class StrategistElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         genome:
             The seven moves, 1 to cooperate and 0 to defect, for the opponent's last two moves: none, C, D, CC, CD,
             DC, and DD.
@@ -64,15 +61,16 @@ class StrategistElement(Element):
         ('agents', 'StrategistElement', 10)
     """
 
+    visual = VisualSpec('histograms', {'color_by': 'fitness'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         genome: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 1.0,
         fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.genome = genome
         self.fitness = fitness
 
@@ -253,13 +251,11 @@ class PrisonersDilemmaTournamentSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the components of the system built from its model parameters."""
         genomes = np.random.default_rng(self.random_state).integers(0, 2, (self.n_agents, GENES)).astype(float)
-        visual = VisualSpec('histograms', {'color_by': 'fitness'})
         agents = GroupElement(
             'agents',
             element=StrategistElement,
             size=self.n_agents,
             values={'genome': genomes},
-            visual=visual,
         )
         return CompositeSystem(
             self.label,

@@ -17,7 +17,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec
 from ....core.types import Array
 
 UNDISTRESSED = 0
@@ -45,9 +45,6 @@ class InterbankElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         h:
             The level of distress, between 0 and 1, where 1 is default.
 
@@ -69,13 +66,12 @@ class InterbankElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         h: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         status: Annotated[float, StateSpec(domain=NN)] = UNDISTRESSED,
         value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.h = h
         self.status = status
         self.value = value

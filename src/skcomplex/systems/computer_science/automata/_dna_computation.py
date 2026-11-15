@@ -22,7 +22,7 @@ from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ParameterError
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec
 from ....core.types import AnyArray, IntArray
 
 ADLEMAN_EDGES = (
@@ -59,9 +59,6 @@ class StrandElement(Element):
         label:
             The label of the strand or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         path:
             The initial nodes of the path, padded with -1 to the longest path the tube holds.
 
@@ -74,11 +71,10 @@ class StrandElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         path: Annotated[object, StateSpec()] = EMPTY,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.path = path
 
     @classmethod

@@ -21,7 +21,7 @@ from ....core.components.laws.utils import ramp
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations, Noises
 
@@ -47,9 +47,6 @@ class FoldFollowerElement(Element):
         label:
             The label of the follower.
 
-        visual:
-            How the follower is drawn, or `None` for `default_visual_`.
-
         y:
             The initial state.
 
@@ -61,7 +58,7 @@ class FoldFollowerElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the follower when it sets none.
+            How the follower is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.climate import FoldFollowerElement
@@ -77,13 +74,12 @@ class FoldFollowerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y: Annotated[float, StateSpec()] = -1.0,
         c: Annotated[float, ParameterSpec()] = 0.0,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y = y
         self.c = c
         self.sigma = sigma
@@ -114,9 +110,6 @@ class HopfFollowerElement(Element):
         label:
             The label of the follower.
 
-        visual:
-            How the follower is drawn, or `None` for `default_visual_`.
-
         y:
             The initial real part of the amplitude.
 
@@ -134,7 +127,7 @@ class HopfFollowerElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the follower when it sets none.
+            How the follower is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.climate import HopfFollowerElement
@@ -145,7 +138,6 @@ class HopfFollowerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y: Annotated[float, StateSpec()] = 0.1,
         z: Annotated[float, StateSpec()] = 0.0,
@@ -153,7 +145,7 @@ class HopfFollowerElement(Element):
         omega: Annotated[float, ParameterSpec()] = 1.0,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y = y
         self.z = z
         self.mu = mu
@@ -192,9 +184,6 @@ class RampedFoldElement(Element):
         label:
             The label of the system.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial state.
 
@@ -230,7 +219,6 @@ class RampedFoldElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = -1.3247,
         a: Annotated[float, ParameterSpec()] = -1.0,
@@ -240,7 +228,7 @@ class RampedFoldElement(Element):
         phi1: float = 1.0,
         rate: float = 0.004,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.a = a
         self.b = b

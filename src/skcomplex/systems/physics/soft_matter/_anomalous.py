@@ -36,9 +36,6 @@ class ContinuousTimeWalkerElement(Element):
         label:
             The label of the walker or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -57,17 +54,18 @@ class ContinuousTimeWalkerElement(Element):
         0.7
     """
 
+    visual = POINTS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.alpha = alpha
         self.tau0 = tau0
@@ -82,9 +80,6 @@ class FractionalWalkerElement(Element):
     Args:
         label:
             The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.
@@ -101,16 +96,17 @@ class FractionalWalkerElement(Element):
         0.3
     """
 
+    visual = POINTS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         H: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 0.3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.D = D
         self.H = H
@@ -124,9 +120,6 @@ class LevyFlierElement(Element):
     Args:
         label:
             The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.
@@ -143,16 +136,17 @@ class LevyFlierElement(Element):
         1.2
     """
 
+    visual = POINTS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
         l0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.mu = mu
         self.l0 = l0
@@ -169,9 +163,6 @@ class LevyWalkerElement(Element):
     Args:
         label:
             The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.
@@ -194,10 +185,11 @@ class LevyWalkerElement(Element):
         2.0
     """
 
+    visual = POINTS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         v: Annotated[npt.ArrayLike, StateSpec(vector=True, role='velocity')] = 0.0,
@@ -205,7 +197,7 @@ class LevyWalkerElement(Element):
         tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.v = v
         self.sigma = sigma
@@ -225,9 +217,6 @@ class TransientWalkerElement(Element):
         label:
             The label of the walker or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -246,17 +235,18 @@ class TransientWalkerElement(Element):
         2.0
     """
 
+    visual = VisualSpec('points', {'position': 'x', 'color_by': 'D', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('points', {'position': 'x', 'color_by': 'D', 'color_range': (0.0, 1.0)}),
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         D: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 0.5,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.D = D
         self.sigma = sigma

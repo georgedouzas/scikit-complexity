@@ -21,7 +21,7 @@ from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSp
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.runtime import Trajectory
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import MatrixGroupSpec, StateSpec, VisualSpec
+from ....core.specs import MatrixGroupSpec, StateSpec
 from ....core.types import Array, Indices
 from ..common.fields import WilsonSamplingInteraction
 
@@ -42,15 +42,12 @@ class ColorLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         U:
             The real components of the matrix of the link, the identity by default.
 
     Attributes:
         default_visual_:
-            The visual of the link when it sets none.
+            How the link is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import ColorLinkElement
@@ -61,11 +58,10 @@ class ColorLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         U: Annotated[object, StateSpec(group=COLOR)] = tuple(COLOR.identity),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.U = U
 
 
@@ -78,15 +74,12 @@ class IsospinLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         U:
             The real components of the matrix of the link, the identity by default.
 
     Attributes:
         default_visual_:
-            The visual of the link when it sets none.
+            How the link is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import IsospinLinkElement
@@ -97,11 +90,10 @@ class IsospinLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         U: Annotated[object, StateSpec(group=ISOSPIN)] = tuple(ISOSPIN.identity),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.U = U
 
 

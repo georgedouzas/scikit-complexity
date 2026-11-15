@@ -67,14 +67,13 @@ class ModeElement(Element):
         hilbert:
             The Hilbert space, `mode_space(quanta)`.
 
-        visual:
-            How the mode is drawn.
-
     Examples:
         >>> from skcomplex.systems.physics.common.quantum import ModeElement, mode_space
         >>> ModeElement('cavity', hilbert=mode_space(4)).hilbert.dimension
         5
     """
+
+    visual = VisualSpec('expectations')
 
     def __init__(
         self,
@@ -82,8 +81,7 @@ class ModeElement(Element):
         psi: Annotated[object, StateSpec(domain=CC)] = 0,
         *,
         hilbert: HilbertSpec | None = None,
-        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.hilbert = hilbert

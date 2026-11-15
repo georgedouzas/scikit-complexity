@@ -13,7 +13,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
@@ -35,9 +35,6 @@ class OncolyticVirusElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         AU:
             The initial uninfected tumour cells.
@@ -63,7 +60,6 @@ class OncolyticVirusElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         AU: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         AV: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
@@ -71,7 +67,7 @@ class OncolyticVirusElement(Element):
         r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AU = AU
         self.AV = AV
         self.alpha = alpha
@@ -95,9 +91,6 @@ class OncolyticVirusDendriticElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         AU:
             The initial uninfected tumour volume.
@@ -174,7 +167,6 @@ class OncolyticVirusDendriticElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         AU: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 60.0,
         AV: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -199,7 +191,7 @@ class OncolyticVirusDendriticElement(Element):
         uv: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2500000000.0,
         ud: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1000000.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AU = AU
         self.AV = AV
         self.V = V
@@ -239,9 +231,6 @@ class SirnaTgfBetaElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial number of effector cells.
@@ -339,7 +328,6 @@ class SirnaTgfBetaElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
         A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
@@ -371,7 +359,7 @@ class SirnaTgfBetaElement(Element):
         u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.66,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.A = A
         self.C1 = C1
@@ -418,9 +406,6 @@ class TcrGeneTherapyElement(Element):
         label:
             The label of the tumour site.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         E:
             The initial number of effector cells.
 
@@ -463,7 +448,6 @@ class TcrGeneTherapyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
         A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
@@ -477,7 +461,7 @@ class TcrGeneTherapyElement(Element):
         a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         g2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100000.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.A = A
         self.s = s

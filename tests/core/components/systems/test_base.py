@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 
 class StockElement(Element):
@@ -21,11 +21,10 @@ class StockElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
 

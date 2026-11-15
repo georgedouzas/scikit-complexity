@@ -40,7 +40,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver, SiteVisual
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.physics.criticality import HexagonalForestFireSystem
 from skcomplex.systems.physics.statistical_mechanics import GraphIsingSystem
 
@@ -51,11 +51,10 @@ class BurnElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         fire: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.fire = fire
 
     def _get_laws(self, s):
@@ -75,11 +74,10 @@ class LifeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         alive: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.alive = alive
 
     def _get_laws(self, s):
@@ -106,11 +104,10 @@ class FitnessElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
 
     def _get_laws(self, s):
@@ -235,11 +232,10 @@ def test_totalistic_rule_counts_real_neighbours_on_star():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
@@ -270,11 +266,10 @@ def test_function_rule_reads_degrees_on_star():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
@@ -296,11 +291,10 @@ def test_lattice_groups_on_networks_reject_tables_and_capacities():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
@@ -335,13 +329,12 @@ def test_neighbor_sum_ignores_padding():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             theta: Annotated[object, StateSpec()] = 0.0,
             J: Annotated[object, ParameterSpec()] = 1.3,
             temperature: Annotated[object, ParameterSpec()] = 0.5,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.theta = theta
             self.J = J
             self.temperature = temperature
@@ -407,12 +400,11 @@ def test_colored_schedule_partitions_triangular_lattice():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             spin: Annotated[object, StateSpec()] = 1.0,
             temperature: Annotated[object, ParameterSpec()] = 2.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.spin = spin
             self.temperature = temperature
 
@@ -454,11 +446,10 @@ def test_checkerboard_rejected_where_it_does_not_apply(space):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             spin: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.spin = spin
 
         def _get_laws(self, s):
@@ -480,11 +471,10 @@ def test_extremal_changes_only_the_neighbourhood():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
@@ -523,11 +513,10 @@ def test_extremal_maximum_and_ties():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):

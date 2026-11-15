@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, normal, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class MeasuredFisheryElement(Element):
@@ -33,9 +33,6 @@ class MeasuredFisheryElement(Element):
     Args:
         label:
             The label of the fishery.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The fish stock.
@@ -74,7 +71,6 @@ class MeasuredFisheryElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         catch: Annotated[float, StateSpec()] = 0.0,
@@ -85,7 +81,7 @@ class MeasuredFisheryElement(Element):
         step: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
         restocking: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.catch = catch
         self.r0 = r0

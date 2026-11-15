@@ -30,6 +30,8 @@ class DiskElement(Element):
         (1.0, 2.0)
     """
 
+    visual = VisualSpec('points', {'position': 'x', 'states': ()})
+
     def __init__(
         self,
         label: str,
@@ -93,8 +95,7 @@ class ContinuumPercolationSystem(BaseSystem):
         """Return the components of the system, built from its model parameters."""
         size = round(self.filling * self.side**2 / (np.pi * self.radius**2))
         positions = np.random.default_rng(self.random_state).uniform(0.0, self.side, (size, 2))
-        visual = VisualSpec('points', {'position': 'x', 'radius': self.radius, 'states': ()})
-        disks = GroupElement('disks', element=DiskElement, size=size, values={'x': positions}, visual=visual)
+        disks = GroupElement('disks', element=DiskElement, size=size, values={'x': positions})
         return CompositeSystem(
             self.label,
             elements=[disks],

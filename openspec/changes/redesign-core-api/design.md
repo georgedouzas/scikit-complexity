@@ -107,10 +107,13 @@ class Particle(Element):
   and the other flags of `StateSpec` go.
 - `size=N` makes N members of one element class, and `space=` places one member at every site of a space. Both replace
   `GroupElement` and `FieldElement`. Per-member values are arrays whose first dimension is the number of members.
-- `Element(label, values={...})` covers elements whose value names are known only as data, such as imported models,
-  so `DeclaredElement` goes. A subclass adds named values as constructor arguments, and both kinds of value are
+- `Element(label, values={...})` covers elements without a class of their own, such as
+  `Element('ball', values={'x': 10.0, 'm': 1.0})` or a model whose names come from a file, so `DeclaredElement` goes. A subclass adds named values as constructor arguments, and both kinds of value are
   inferred alike.
-- `visual=` leaves every element. How an element is drawn is a setting of the visualisation observer, keyed by path.
+- `visual=` leaves every element. An element class gives its default drawing in its class attribute, such as
+  `visual = VisualSpec('phase_ring', {'phase': 'theta'})`, and a group or field draws like its member class. The
+  visualisation observer draws chosen elements otherwise by path, such as
+  `RerunObserver(visuals={'oscillators': VisualSpec('sites', {'states': ['theta']})})`.
 
 ### 3. Interactions are behaviour
 

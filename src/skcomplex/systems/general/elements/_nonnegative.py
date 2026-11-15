@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 
 
 class NonnegativeElement(Element):
@@ -29,15 +29,12 @@ class NonnegativeElement(Element):
         label:
             The label of the element, unique among the components of its system.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial value, a nonnegative number.
 
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.general.elements import NonnegativeElement
@@ -51,9 +48,8 @@ class NonnegativeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x

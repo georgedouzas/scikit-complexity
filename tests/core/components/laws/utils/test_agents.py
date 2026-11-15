@@ -13,7 +13,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView
 from skcomplex.core.errors import ConservationError, ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 def _balance(agent):
@@ -27,13 +27,12 @@ class BankElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         assets: Annotated[float, StateSpec()] = 10.0,
         liabilities: Annotated[float, StateSpec()] = 8.0,
         equity: Annotated[float, StateSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.assets = assets
         self.liabilities = liabilities
         self.equity = equity
@@ -53,12 +52,11 @@ class LenderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         loans: Annotated[float, StateSpec(quantity='loans')] = 0.0,
         money: Annotated[float, StateSpec(quantity='money')] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.loans = loans
         self.money = money
 
@@ -69,13 +67,12 @@ class BorrowerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         loans: Annotated[float, StateSpec(quantity='loans')] = 0.0,
         money: Annotated[float, StateSpec(quantity='money')] = 0.0,
         settles: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.loans = loans
         self.money = money
         self.settles = settles

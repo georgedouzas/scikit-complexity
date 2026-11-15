@@ -10,7 +10,7 @@ from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import BackendError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 
 def test_mesa_backend_rejects_complex_agent_state():
@@ -20,11 +20,10 @@ def test_mesa_backend_rejects_complex_agent_state():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             z: Annotated[complex, StateSpec(domain=CC)] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.z = z
 
         def _get_laws(self, s):

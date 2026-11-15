@@ -24,7 +24,7 @@ from ....core.components.spaces import (
     MemoryNeighborhood,
 )
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, SubshiftSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, SubshiftSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 from ._generator_neighborhood import GeneratorNeighborhood
@@ -45,9 +45,6 @@ class GoldenCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         alive:
             The initial value, 0 or 1.
 
@@ -60,11 +57,10 @@ class GoldenCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         alive: Annotated[float, StateSpec(domain=GOLDEN_MEAN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.alive = alive
 
 
@@ -76,9 +72,6 @@ class LaplacianCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         value:
             The initial value, an integer from 0 to `modulus - 1`.
@@ -95,12 +88,11 @@ class LaplacianCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[float, StateSpec(domain=ZZ)] = 0,
         modulus: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
         self.modulus = modulus
 

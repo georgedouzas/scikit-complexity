@@ -12,7 +12,7 @@ from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, Latti
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.general.agents import ImitationInteraction
 
 SIZE = 50
@@ -29,12 +29,11 @@ class PlayerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         state: Annotated[object, StateSpec()] = 0.0,
         payoff: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.state = state
         self.payoff = payoff
 

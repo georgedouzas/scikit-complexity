@@ -21,7 +21,7 @@ from ..components.systems import CompositeSystem
 from ..engine.runtime import simulate
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ..specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _read_samples
@@ -40,12 +40,11 @@ class _SurrogateElement(DeclaredElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         variables: Mapping[str, DeclaredVariableSpec] | None = None,
         laws: Callable[[SimpleNamespace], list[BaseLaw]] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, variables=variables)
+        super().__init__(label, variables=variables)
         self.laws = laws
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:

@@ -53,9 +53,6 @@ class GroupElement(BaseElement):
             `{'x': [40.0, 25.0, 60.0]}`. On sites, a value may also be an array of the lattice shape, or a mapping from
             each node of a network to its value.
 
-        visual:
-            How the group is drawn, such as `VisualSpec('sites')`, or `None` for `default_visual_`.
-
         space:
             The space whose parts the members occupy, such as a lattice with one member per site or a network with one
             member per node in the order of `graph.nodes`, or `None` for the space of the enclosing system.
@@ -90,7 +87,7 @@ class GroupElement(BaseElement):
 
     Attributes:
         default_visual_:
-            The visual of a member, which the group takes when it sets none. When the member sets none, it is the
+            How the group is drawn by default, the `visual` of its member class. When that class sets none, it is the
             default visual of the space of a group on sites, and the plain visual otherwise.
 
         size_:
@@ -144,7 +141,6 @@ class GroupElement(BaseElement):
         element: type[BaseElement],
         size: int | None = None,
         values: Mapping[str, object] | None = None,
-        visual: VisualSpec | None = None,
         space: BaseSpace | None = None,
         variable: bool = False,
         on: str | None = None,
@@ -153,7 +149,7 @@ class GroupElement(BaseElement):
         capacity: int | None = None,
         rank: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.element = element
         self.size = size
         self.values = values
@@ -355,10 +351,10 @@ class GroupElement(BaseElement):
         It first raises an error for arguments the group cannot take. They are a part of the space, an element type, a
         size, a rank, or values.
 
-        `default_visual_` is the visual of the group when it sets none. The default visual of a group is the visual of a
-        member. When the member sets none, it is the default visual of the space of a group on its sites, and the plain
-        visual otherwise. The size of a group on parts of a space without a size of its own is the number of parts of
-        its space, or else of the space it inherits. The values of a group on sites take the shape of that space.
+        `default_visual_` is the `visual` of the member class. When that class sets none, it is the default visual of
+        the space of a group on its sites, and the plain visual otherwise. The size of a group on parts of a space
+        without a size of its own is the number of parts of its space, or else of the space it inherits. The values of a
+        group on sites take the shape of that space.
 
         Args:
             context:
@@ -381,9 +377,7 @@ class GroupElement(BaseElement):
         self._check_element()
         self._check_size()
         self._check_rank()
-        member = self._get_member()
-        if member.visual is not None:
-            self.default_visual_ = member.visual
+        self.default_visual_ = self._get_member().visual
         self.size_ = self._get_size_of(context)
         space = self._get_site_space(context)
         self.values_ = self._flatten_values(space)

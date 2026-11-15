@@ -42,9 +42,6 @@ class ContenderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         strength:
             The initial strength `h`.
 
@@ -61,6 +58,8 @@ class ContenderElement(Element):
         ('contenders', 'ContenderElement', 10)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'strength'})
+
     draws = True
 
     law_classes = (RuleLaw,)
@@ -68,13 +67,12 @@ class ContenderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'strength'}),
         *,
         strength: Annotated[float, StateSpec()] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         relaxation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strength = strength
         self.eta = eta
         self.relaxation = relaxation

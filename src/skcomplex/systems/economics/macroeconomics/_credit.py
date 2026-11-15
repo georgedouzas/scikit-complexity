@@ -21,7 +21,7 @@ from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerSwitchSpec
 
 
@@ -57,9 +57,6 @@ class FirmElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         net_worth:
             The initial net worth.
@@ -110,7 +107,6 @@ class FirmElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         net_worth: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -126,7 +122,7 @@ class FirmElement(Element):
         volatility: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         entry: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.net_worth = net_worth
         self.demand = demand
         self.bid = bid
@@ -246,9 +242,6 @@ class LenderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         equity:
             The initial equity.
 
@@ -280,7 +273,6 @@ class LenderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         equity: Annotated[float, StateSpec()] = 100.0,
         ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -290,7 +282,7 @@ class LenderElement(Element):
         alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         capital_ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.equity = equity
         self.ask = ask
         self.supply = supply

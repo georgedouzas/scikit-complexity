@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, GradientInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, BoundaryLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.particles import DoubleWellElement
 
 
@@ -29,9 +29,6 @@ class WallParticleElement(Element):
     Args:
         label:
             The label of the particle.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         z:
             The distance from the wall.
@@ -56,14 +53,13 @@ class WallParticleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         D0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         drift: Annotated[float, ParameterSpec()] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
         self.D0 = D0
         self.a = a

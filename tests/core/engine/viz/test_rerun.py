@@ -249,20 +249,37 @@ def test_rerun_observer_waits_for_a_file_without_limit(monkeypatch, tmp_path):
     assert calls == [{}]
 
 
-def _gas(visual):
-    """Return a compiled gas of two particles drawn with a visual spec."""
-    gas = GroupElement('gas', element=MassPointElement, size=2, visual=visual)
+def _gas():
+    """Return a compiled gas of two particles."""
+    gas = GroupElement('gas', element=MassPointElement, size=2)
     return simulate(CompositeSystem(elements=[gas], space=ContinuousSpace(n_dim=2)), until=0).problem
 
 
 def test_rerun_observer_builds_the_visuals_the_specs_name():
     """Test that the observer builds the visual a spec names with its options, its path, and its recording."""
-    observer = RerunObserver().prepare(_gas(VisualSpec('points', {'position': 'x', 'radius': 0.2})))
+    visuals = {'gas': VisualSpec('points', {'position': 'x', 'radius': 0.2})}
+    observer = RerunObserver(visuals=visuals).prepare(_gas())
     visual = observer.visuals_[0]
     assert isinstance(visual, PointsVisual)
     assert (visual.radius, visual.path, visual.recording_) == (0.2, 'gas', observer.recording_)
     with pytest.raises(KeyError, match='unknown'):
-        RerunObserver().prepare(_gas(VisualSpec('unknown')))
+        RerunObserver(visuals={'gas': VisualSpec('unknown')}).prepare(_gas())
+
+
+def test_rerun_observer_draws_an_element_as_its_visuals_say():
+    """Test that a drawing given to the observer by path replaces the drawing of the element."""
+    visuals = {'gas': VisualSpec('points', {'position': 'x', 'radius': 0.5})}
+    observer = RerunObserver(visuals=visuals).prepare(_gas())
+    visual = observer.visuals_[0]
+    assert isinstance(visual, PointsVisual)
+    assert visual.radius == pytest.approx(0.5)
+
+
+def test_rerun_observer_rejects_visuals_of_an_unknown_path():
+    """Test that a drawing given for a path that is not an element raises an error listing the elements."""
+    observer = RerunObserver(visuals={'liquid': VisualSpec('points', {'position': 'x'})})
+    with pytest.raises(ValidationError, match=r"visuals names 'liquid'.*The elements are 'gas'"):
+        observer.prepare(_gas())
 
 
 def test_visual_base_log_is_abstract():
@@ -401,11 +418,10 @@ class TurningElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         z: Annotated[complex, StateSpec(domain=CC)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
 
     def _get_laws(self, s):
@@ -508,11 +524,10 @@ def test_changing_network_logs_present_nodes_and_changed_edges(on_system):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             age: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.age = age
 
         def _get_laws(self, s):
@@ -571,15 +586,16 @@ def test_default_blueprint_shows_other_states_of_points_over_whole_run():
     class WalkerElement(Element):
         """Walker element."""
 
+        visual = VisualSpec('points', {'position': 'x'})
+
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = VisualSpec('points', {'position': 'x'}),
             *,
             x: Annotated[object, StateSpec(vector=True)] = 0.0,
             energy: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.energy = energy
 

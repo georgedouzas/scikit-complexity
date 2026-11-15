@@ -57,9 +57,6 @@ class ForagerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         sugar:
             The wealth of the forager.
 
@@ -76,16 +73,17 @@ class ForagerElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'sugar'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar'}),
         *,
         sugar: Annotated[float, StateSpec()] = 10.0,
         vision: Annotated[float, StateSpec(domain=NN)] = 1.0,
         metabolism: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sugar = sugar
         self.vision = vision
         self.metabolism = metabolism
@@ -127,9 +125,6 @@ class SugarPatchElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         sugar:
             The sugar on the patch.
 
@@ -146,16 +141,17 @@ class SugarPatchElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'sugar', 'color_range': (0.0, 4.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar', 'color_range': (0.0, 4.0)}),
         *,
         sugar: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         growback: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sugar = sugar
         self.capacity = capacity
         self.growback = growback

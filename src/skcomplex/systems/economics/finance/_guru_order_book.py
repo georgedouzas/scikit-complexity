@@ -55,9 +55,6 @@ class GuruTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         cash:
             The cash of the trader, including the cash held by its limit orders.
 
@@ -86,12 +83,13 @@ class GuruTraderElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'followers'})
+
     law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'followers'}),
         *,
         cash: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
         stocks: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
@@ -101,7 +99,7 @@ class GuruTraderElement(Element):
         sigma: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         followers: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.cash = cash
         self.stocks = stocks
         self.wealth = wealth

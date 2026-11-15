@@ -19,7 +19,7 @@ from ....core.components.laws import DatasetSpec
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 
 TRAINED = ('input.D', 'recurrence.A', 'readout.W', 'hidden.b', 'outputs.c')
@@ -36,9 +36,6 @@ class HiddenUnitElement(Element):
     Args:
         label:
             The label of the element or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         s:
             The activity in `(0, 1)`.
@@ -58,13 +55,12 @@ class HiddenUnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         s: Annotated[float, StateSpec()] = 0.5,
         u: Annotated[float, StateSpec()] = 0.0,
         b: Annotated[float, ParameterSpec(adaptive=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.s = s
         self.u = u
         self.b = b
@@ -79,9 +75,6 @@ class InputUnitElement(Element):
         label:
             The label of the element or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The input.
 
@@ -94,11 +87,10 @@ class InputUnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -110,9 +102,6 @@ class OutputUnitElement(Element):
     Args:
         label:
             The label of the element or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         y:
             The prediction in `(0, 1)`.
@@ -132,13 +121,12 @@ class OutputUnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y: Annotated[float, StateSpec()] = 0.5,
         c: Annotated[float, ParameterSpec(adaptive=True)] = 0.0,
         target: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y = y
         self.c = c
         self.target = target

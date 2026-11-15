@@ -40,9 +40,6 @@ class OrganismElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         species:
             The label of the species.
 
@@ -53,16 +50,17 @@ class OrganismElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'species'})
+
     law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'species'}),
         *,
         species: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.species = species
 
     @classmethod

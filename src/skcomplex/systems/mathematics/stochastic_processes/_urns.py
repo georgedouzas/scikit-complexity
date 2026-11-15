@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import NN
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import JumpInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 
 
 class PolyaUrnElement(Element):
@@ -25,9 +25,6 @@ class PolyaUrnElement(Element):
     Args:
         label:
             The label of the urn or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         red:
             The initial number of red balls.
@@ -47,13 +44,12 @@ class PolyaUrnElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         red: Annotated[float, StateSpec(domain=NN)] = 1.0,
         blue: Annotated[float, StateSpec(domain=NN)] = 1.0,
         added: int = 1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.red = red
         self.blue = blue
         self.added = added

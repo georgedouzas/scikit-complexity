@@ -50,9 +50,6 @@ class ChaosPointElement(Element):
         label:
             The label of the point or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         p:
             The initial position.
 
@@ -62,14 +59,15 @@ class ChaosPointElement(Element):
         (0.5, 0.5)
     """
 
+    visual = VisualSpec('points', {'position': 'p', 'radius': 0.004, 'states': ()})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('points', {'position': 'p', 'radius': 0.004, 'states': ()}),
         *,
         p: Annotated[object, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.p = p
 
 

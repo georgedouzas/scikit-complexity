@@ -66,9 +66,6 @@ class StockTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         strategy:
             0 for a fundamentalist, 1 for a chartist.
 
@@ -115,12 +112,13 @@ class StockTraderElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'strategy', 'color_range': (0.0, 1.0)})
+
     law_classes = (RuleLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'strategy', 'color_range': (0.0, 1.0)}),
         *,
         strategy: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         money: Annotated[float, StateSpec()] = 1000.0,
@@ -136,7 +134,7 @@ class StockTraderElement(Element):
         extrapolation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
         self.money = money
         self.shares = shares

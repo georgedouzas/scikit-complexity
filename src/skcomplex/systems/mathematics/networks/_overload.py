@@ -20,7 +20,7 @@ from ....core.components.laws.utils import components, shortest_paths
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 
 ATTACKS = ('load', 'degree', 'random')
 
@@ -33,9 +33,6 @@ class LoadedNodeElement(Element):
     Args:
         label:
             The label of the node group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         load:
             The betweenness of the node on the network present, read at the start of every step.
@@ -55,13 +52,12 @@ class LoadedNodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         load: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         capacity: Annotated[float, StateSpec()] = 0.0,
         giant: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.load = load
         self.capacity = capacity
         self.giant = giant

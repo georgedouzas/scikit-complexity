@@ -18,7 +18,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, CallSpec, RateLaw
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class VesselSegmentElement(Element):
@@ -29,9 +29,6 @@ class VesselSegmentElement(Element):
     Args:
         label:
             The label of the segment or of the group on the edges.
-
-        visual:
-            How the segment is drawn, or `None` for `default_visual_`.
 
         C:
             The initial conductance.
@@ -45,11 +42,10 @@ class VesselSegmentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.C = C
 
 

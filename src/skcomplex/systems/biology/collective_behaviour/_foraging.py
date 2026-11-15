@@ -38,9 +38,6 @@ class PheromoneElement(Element):
         label:
             The label of the element or the lattice field.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         level:
             The initial level of pheromone.
 
@@ -59,13 +56,12 @@ class PheromoneElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         level: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
         evaporation: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
         self.D = D
         self.evaporation = evaporation
@@ -104,9 +100,6 @@ class AntElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         carrying:
             Whether the ant carries food.
 
@@ -144,10 +137,11 @@ class AntElement(Element):
         5
     """
 
+    visual = VisualSpec('agents', {'color_by': 'carrying', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'carrying', 'color_range': (0.0, 1.0)}),
         *,
         carrying: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         arrived: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
@@ -160,7 +154,7 @@ class AntElement(Element):
         outward: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         deposit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.carrying = carrying
         self.arrived = arrived
         self.nest_x = nest_x

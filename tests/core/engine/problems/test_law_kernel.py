@@ -17,7 +17,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import BackendWarning, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 STEPS = 2000
 MATRIX = [[0.9, 0.1], [0.4, 0.6]]
@@ -29,12 +29,11 @@ class BaseCountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec()] = 1.0,
         r: Annotated[object, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.r = r
 
@@ -159,13 +158,12 @@ class ChangeElement(BaseCountElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         change: object = 1.0,
         n: Annotated[object, StateSpec()] = 1.0,
         r: Annotated[object, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual, n=n, r=r)
+        super().__init__(label, n=n, r=r)
         self.change = change
 
     def _get_laws(self, s):
@@ -216,12 +214,11 @@ class ChainElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         matrix: object = None,
         x: Annotated[object, StateSpec(domain=ZZ)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.matrix = matrix
         self.x = x
 
@@ -265,13 +262,12 @@ class WaitingElement(BaseCountElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         waiting: object = None,
         n: Annotated[object, StateSpec()] = 0.0,
         r: Annotated[object, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual, n=n, r=r)
+        super().__init__(label, n=n, r=r)
         self.waiting = waiting
 
     def _get_laws(self, s):
@@ -362,11 +358,10 @@ class BurgersElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
 
     def _get_laws(self, s):

@@ -47,6 +47,8 @@ class NucleotideElement(Element):
         'A'
     """
 
+    visual = VisualSpec('image', {'low': 0.0, 'high': float(LAST_BASE)})
+
     def __init__(
         self,
         label: str,
@@ -289,7 +291,6 @@ class RNANeutralNetworksSystem(BaseSystem):
                     element=NucleotideElement,
                     space=LatticeSpace((self.walkers, self.length), boundary='fixed'),
                     values={'base': bases},
-                    visual=VisualSpec('image', {'low': 0.0, 'high': float(LAST_BASE)}),
                     on='sites',
                 ),
             ],

@@ -39,9 +39,6 @@ class LogisticNodeElement(Element):
         label:
             The label of the node or the group on the nodes.
 
-        visual:
-            How the node is drawn, or `None` for `default_visual_`.
-
         x:
             The initial value.
 
@@ -53,7 +50,7 @@ class LogisticNodeElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the node when it sets none.
+            How the node is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import LogisticNodeElement
@@ -61,16 +58,17 @@ class LogisticNodeElement(Element):
         0.5
     """
 
+    visual = VisualSpec('sites', {'states': ['x'], 'low': 0.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.5,
         r: Annotated[float, ParameterSpec()] = 4.0,
         epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.r = r
         self.epsilon = epsilon
@@ -187,6 +185,12 @@ class LogisticCouplingInteraction(CouplingInteraction):
         return (1 - member.epsilon) * own + member.epsilon * reduction
 
 
+class NodeOscillatorElement(PhaseOscillatorElement):
+    """Phase oscillator on a node, drawn with its phase."""
+
+    visual = VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi})
+
+
 class KuramotoOnNetworksSystem(BaseSystem):
     """Kuramoto oscillators coupled along the edges of a network.
 
@@ -289,13 +293,12 @@ class KuramotoOnNetworksSystem(BaseSystem):
         mean_degree = 2 * space.graph.number_of_edges() / self.n_oscillators
         oscillators = GroupElement(
             'oscillators',
-            element=PhaseOscillatorElement,
+            element=NodeOscillatorElement,
             space=space,
             values={
                 'theta': rng.uniform(0, 2 * math.pi, self.n_oscillators),
                 'omega': rng.normal(0.0, self.sigma, self.n_oscillators),
             },
-            visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
             on='sites',
         )
         links = GroupElement('links', element=LinkElement, space=space, on='edges')
@@ -389,7 +392,6 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
             element=LogisticNodeElement,
             space=space,
             values={'x': rng.uniform(0.0, 1.0, self.n_nodes), 'r': self.r, 'epsilon': self.epsilon},
-            visual=VisualSpec('sites', {'states': ['x'], 'low': 0.0, 'high': 1.0}),
             on='sites',
         )
         coupling = LogisticCouplingInteraction('coupling', target='maps')

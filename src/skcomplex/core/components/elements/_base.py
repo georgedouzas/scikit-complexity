@@ -6,7 +6,9 @@
 from collections.abc import Sequence
 from dataclasses import replace
 from types import SimpleNamespace
+from typing import ClassVar, Self
 
+from ...errors import ValidationError
 from ...specs import StateSpec, VisualSpec
 from .._tags import Tags
 from ..base import BaseComponent
@@ -17,7 +19,8 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
     """An abstract element, the component of a system that holds its states.
 
     A state is a value that changes as the system runs, such as the size of a population or the position of a particle.
-    An element names its states and parameters, may give laws of its own, and is drawn with a visual. A subclass takes
+    An element names its states and parameters, may give laws of its own, and is drawn as its class attribute `visual`
+    says, such as `VisualSpec('line')`, unless a visualisation observer draws it otherwise. A subclass takes
     each state and parameter as an argument of its `__init__`, annotated with `StateSpec` or `ParameterSpec` inside
     `Annotated`, and stores it under the same name, as a scikit-learn estimator does. It returns its laws from
     `_get_laws`, or an empty list when it has none.
@@ -33,12 +36,9 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
         label:
             The name of the element, unique among the components of its system, such as `'rabbits'`.
 
-        visual:
-            How the element is drawn, such as `VisualSpec('line')`, or `None` for `default_visual_`.
-
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
         laws_:
             The laws of the element for the namespace of its last run.
@@ -50,23 +50,22 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
         >>> from skcomplex.core.components.elements import BaseElement
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
         >>> class PopulationElement(BaseElement):
+        ...     visual = VisualSpec('line')
+        ...
         ...     def __init__(
-        ...         self,
-        ...         label,
-        ...         n: Annotated[float, StateSpec()] = 1.0,
-        ...         r: Annotated[float, ParameterSpec()] = 0.5,
-        ...         visual=VisualSpec('line'),
+        ...         self, label, n: Annotated[float, StateSpec()] = 1.0, r: Annotated[float, ParameterSpec()] = 0.5
         ...     ):
-        ...         super().__init__(label, visual=visual)
+        ...         super().__init__(label)
         ...         self.n = n
         ...         self.r = r
         ...
         ...     def _get_laws(self, namespace):
         ...         return []
         >>> PopulationElement('rabbits', n=40).get_params(deep=False)
-        {'label': 'rabbits', 'n': 40, 'r': 0.5, 'visual': VisualSpec(kind='line', options={})}
+        {'label': 'rabbits', 'n': 40, 'r': 0.5}
     """
 
+    visual: ClassVar[VisualSpec] = VisualSpec()
     laws_: Sequence[BaseComponent]
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
@@ -78,19 +77,45 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
         """
         self.laws_ = self._get_laws_of(inputs)
 
-    def __init__(self, label: str, visual: VisualSpec | None = None) -> None:
-        super().__init__(label)
-        self.visual = visual
-
     def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `default_visual_`, the plain visual of an element.
+        """Set `default_visual_`, the drawing of the element its class gives.
 
         Args:
             context:
                 The space the element inherits from its system, which an element does not read.
         """
         super()._prepare(context)
-        self.default_visual_ = VisualSpec()
+        self.default_visual_ = self.visual
+
+    def prepare(self, context: BaseSpace | None = None) -> Self:
+        """Prepare the element on its space, checking that it holds values and no laws.
+
+        Laws come from interactions, so an element whose `_prepare` sets `laws_` is rejected. Gravity on a ball, for
+        example, is an interaction whose `_prepare` sets `self.laws_ = [RateLaw(s.target.x.diff(s.t, 2), -s.g)]`.
+
+        Args:
+            context:
+                The space the element inherits from its system, or `None`.
+
+        Returns:
+            self:
+                The prepared element.
+
+        Raises:
+            ValidationError:
+                The `_prepare` of the element sets `laws_`.
+        """
+        if hasattr(self, 'laws_'):
+            del self.laws_
+        super().prepare(context)
+        if hasattr(self, 'laws_'):
+            error_msg = (
+                f'Element {self.label!r} sets laws_ in _prepare, but an element holds values only. Write the law in '
+                f'an interaction instead, such as a Gravity interaction whose _prepare sets '
+                f'self.laws_ = [RateLaw(s.target.x.diff(s.t, 2), -s.g)].'
+            )
+            raise ValidationError(error_msg)
+        return self
 
     def _get_domain_tags(self) -> frozenset[str]:
         """Return the domain tags of the states of the element."""

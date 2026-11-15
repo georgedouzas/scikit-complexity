@@ -21,7 +21,7 @@ from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import draw, either, where
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, RoleSpec, StateSpec
 from ....core.types import Array
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -41,15 +41,12 @@ class EnergySiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         energy:
             The initial energy.
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.criticality import EnergySiteElement
@@ -60,11 +57,10 @@ class EnergySiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         energy: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.energy = energy
 
 

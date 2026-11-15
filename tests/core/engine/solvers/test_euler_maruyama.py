@@ -14,7 +14,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver, StepSpec
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.economics.finance import (
     AssetElement,
     GeometricBrownianMotionInteraction,
@@ -74,12 +74,11 @@ class PairElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 1.0,
         y: Annotated[object, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
 
@@ -130,12 +129,11 @@ def test_shared_stratonovich_process_has_exact_mean():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 1.0,
             y: Annotated[object, StateSpec()] = 0.5,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.y = y
 

@@ -25,9 +25,6 @@ class PoissonCounterElement(Element):
         label:
             The label of the counter or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         count:
             The initial number of events.
 
@@ -43,12 +40,11 @@ class PoissonCounterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         count: Annotated[float, StateSpec(domain=NN)] = 0.0,
         rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.count = count
         self.rate = rate
 
@@ -70,9 +66,6 @@ class BernoulliTrialElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         outcome:
             The initial outcome, 1 for a success and 0 for a failure.
 
@@ -90,16 +83,17 @@ class BernoulliTrialElement(Element):
         ('trials', 'BernoulliTrialElement', 4)
     """
 
+    visual = VisualSpec('histograms', {'color_by': 'successes'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('histograms', {'color_by': 'successes'}),
         *,
         outcome: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         successes: Annotated[float, StateSpec(domain=NN)] = 0.0,
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.outcome = outcome
         self.successes = successes
         self.p = p

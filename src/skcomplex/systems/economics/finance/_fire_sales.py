@@ -19,7 +19,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.banking import BalanceSheetElement
 from ..common.banking._balance_sheet import DEFAULTED, SOLVENT, BalanceSheetView
 from ..common.policy import PolicyRuleInteraction
@@ -43,9 +43,6 @@ class MarketAssetElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         price:
             The price of the asset, 1 before any sale.
 
@@ -64,12 +61,11 @@ class MarketAssetElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         price: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         liquidated: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.price = price
         self.liquidated = liquidated
 

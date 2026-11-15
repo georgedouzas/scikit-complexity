@@ -59,9 +59,6 @@ class FieldElement(GroupElement):
             The initial value of each state or parameter by name, as an array of the lattice shape, one value per node
             of a network in node order, or one value for all sites, such as `{'u': [9.0, 0.0, 0.0]}`.
 
-        visual:
-            How the field is drawn, such as `VisualSpec('image')`, or `None` for `default_visual_`.
-
         discretization:
             How the operators of space become numbers.
 
@@ -79,8 +76,8 @@ class FieldElement(GroupElement):
 
     Attributes:
         default_visual_:
-            An image on a lattice and a coloured mesh on a mesh. On a network it is the visual of a member, or the sites
-            of the network when the member sets none.
+            The `visual` of the member class, or else an image on a lattice, a coloured mesh on a mesh, and the sites
+            of a network.
 
         size_:
             The number of sites of the space.
@@ -132,11 +129,10 @@ class FieldElement(GroupElement):
         space: LatticeSpace | NetworkSpace | MeshSpace,
         boundary: Mapping[str, object] | None = None,
         values: Mapping[str, object] | None = None,
-        visual: VisualSpec | None = None,
         discretization: str = 'finite-difference',
         symmetry: Mapping[str, Sequence[object]] | None = None,
     ) -> None:
-        super().__init__(label, element=element, values=values, visual=visual, space=space, on='sites')
+        super().__init__(label, element=element, values=values, space=space, on='sites')
         self.boundary = boundary
         self.discretization = discretization
         self.symmetry = symmetry
@@ -190,7 +186,8 @@ class FieldElement(GroupElement):
 
         It first raises an error for an unknown discretization or boundary condition.
 
-        The default visual is an image on a lattice and a colored mesh on a mesh.
+        The default visual is the `visual` of the member class, or else an image on a lattice and a colored mesh on a
+        mesh.
 
         Args:
             context:
@@ -217,6 +214,8 @@ class FieldElement(GroupElement):
                     "('fixed', value)."
                 )
                 raise ValidationError(error_msg)
+        if self.element.visual != VisualSpec():
+            return
         if isinstance(self.space, LatticeSpace):
             self.default_visual_ = VisualSpec('image')
         elif isinstance(self.space, MeshSpace):

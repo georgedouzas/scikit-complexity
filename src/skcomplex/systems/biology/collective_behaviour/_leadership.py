@@ -61,9 +61,6 @@ class ShoalMemberElement(Element):
         label:
             The label of the fish or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         vx:
             The horizontal component of the unit heading.
 
@@ -103,10 +100,11 @@ class ShoalMemberElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'omega'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'omega'}),
         *,
         vx: Annotated[float, StateSpec(role='velocity')] = 1.0,
         vy: Annotated[float, StateSpec(role='velocity')] = 0.0,
@@ -120,7 +118,7 @@ class ShoalMemberElement(Element):
         noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
         side: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.vx = vx
         self.vy = vy
         self.omega = omega

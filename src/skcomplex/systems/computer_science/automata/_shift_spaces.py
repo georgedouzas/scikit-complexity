@@ -26,7 +26,7 @@ from ....core.components.laws import ProductionLaw
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 
@@ -47,9 +47,6 @@ class DigitCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         digit:
             The initial digit.
 
@@ -65,12 +62,11 @@ class DigitCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         digit: Annotated[float, StateSpec(domain=ZZ)] = 0,
         base: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.digit = digit
         self.base = base
 
@@ -120,9 +116,6 @@ class TernaryCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         symbol:
             The initial symbol, 0, 1, or 2.
 
@@ -135,11 +128,10 @@ class TernaryCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         symbol: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1, 2]))] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.symbol = symbol
 
 

@@ -9,7 +9,7 @@ from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.experiments._replicate import _replicate
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
@@ -35,8 +35,8 @@ def test_member_keeps_the_parameters_of_interactions():
 class FallingElement(Element):
     """Element whose height is of order two."""
 
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, h: Annotated[float, StateSpec(order=2)] = 1.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, h: Annotated[float, StateSpec(order=2)] = 1.0):
+        super().__init__(label)
         self.h = h
 
 

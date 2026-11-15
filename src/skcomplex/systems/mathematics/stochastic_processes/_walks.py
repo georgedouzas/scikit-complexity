@@ -29,9 +29,6 @@ class MemoryWalkerElement(Element):
         label:
             The label of the walker or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -53,14 +50,13 @@ class MemoryWalkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(role='position')] = 0.0,
         v: Annotated[float, StateSpec(role='velocity')] = 0.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.v = v
         self.alpha = alpha
@@ -75,9 +71,6 @@ class PersistentWalkerElement(Element):
     Args:
         label:
             The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         d:
             The initial direction, 1 or -1.
@@ -97,13 +90,12 @@ class PersistentWalkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         d: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         x: Annotated[float, StateSpec(domain=ZZ, role='position')] = 0.0,
         persistence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.d = d
         self.x = x
         self.persistence = persistence
@@ -117,9 +109,6 @@ class RandomWalkerElement(Element):
     Args:
         label:
             The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.
@@ -139,13 +128,12 @@ class RandomWalkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=ZZ, role='position')] = 0.0,
         rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         bias: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.rate = rate
         self.bias = bias
@@ -159,9 +147,6 @@ class WeakeningParticleElement(Element):
     Args:
         label:
             The label of the particle or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.
@@ -184,14 +169,13 @@ class WeakeningParticleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(role='position')] = 0.0,
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         ell: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.k = k
         self.ell = ell
@@ -217,9 +201,6 @@ class AgeingWalkerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -240,17 +221,18 @@ class AgeingWalkerElement(Element):
         ('walkers', 'AgeingWalkerElement', 10)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'x'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'x'}),
         *,
         x: Annotated[float, StateSpec(domain=ZZ, role='position')] = 0.0,
         ups: Annotated[float, StateSpec(domain=NN, lags=1)] = 0.0,
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.ups = ups
         self.p = p

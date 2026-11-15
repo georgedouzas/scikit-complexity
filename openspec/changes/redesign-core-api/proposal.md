@@ -44,8 +44,8 @@ The design is in `design.md`. In short:
 - **BREAKING** The packages `skcomplex.core.specs` and `skcomplex.core.components.specs` are removed. `StateSpec`,
   `ParameterSpec`, and the declarations built on them go. `RoleSpec` and `Role` move to the interactions, and every other
   value moves beside the class that uses it. Engine records become private to the code that uses them.
-- **BREAKING** How an element is drawn moves from the element to the visualisation observer, and `visual=` leaves every
-  element constructor.
+- **BREAKING** `visual=` leaves every element constructor. An element class gives its default drawing in its class
+  attribute `visual`, and the visualisation observer draws chosen elements otherwise with `visuals={path: VisualSpec}`.
 - **BREAKING** The core keeps only components that general systems of several fields are built from: 2 element classes,
   2 interaction classes, 7 law kinds as values, 5 spaces, and 6 neighbourhoods, 25 public classes down from 79. Every
   field-specific element, interaction, law, space, and neighbourhood moves to `skcomplex.systems.<field>.common` or to

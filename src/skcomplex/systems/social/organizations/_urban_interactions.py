@@ -37,9 +37,6 @@ class CityDwellerElement(Element):
         label:
             The label of the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         angle:
             The angle of the resident on the circle, its similarity coordinate.
 
@@ -58,17 +55,18 @@ class CityDwellerElement(Element):
         1.5
     """
 
+    visual = MEETINGS_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = MEETINGS_VISUAL,
         *,
         angle: Annotated[float, StateSpec()] = 0.0,
         age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         meetings: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.angle = angle
         self.age = age
         self.degree = degree

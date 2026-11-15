@@ -88,8 +88,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class CompartmentElement(NonnegativeElement):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0):
-        super().__init__(label, visual=visual, x=x)
+    def __init__(self, label, *, x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0):
+        super().__init__(label, x=x)
 
 
 CompartmentElement('susceptible', x=990.0).get_params()
@@ -155,8 +155,8 @@ The message says that `p.x` is a vector, so the system that holds it must have a
 
 ```python continuation
 class AtomElement(PointElement):
-    def __init__(self, label, x=0.0, visual=None):
-        super().__init__(label, x=x, x_d1=0.0, visual=visual)
+    def __init__(self, label, x=0.0):
+        super().__init__(label, x=x, x_d1=0.0)
 
 
 AtomElement('argon', x=[1.0, 2.0]).get_params()

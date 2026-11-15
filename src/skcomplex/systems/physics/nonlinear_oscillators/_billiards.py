@@ -41,9 +41,6 @@ class MushroomBilliardElement(Element):
         label:
             The label of the particle.
 
-        visual:
-            How the particle is drawn, or `None` for `default_visual_`.
-
         x:
             The initial first coordinate.
 
@@ -67,7 +64,7 @@ class MushroomBilliardElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the particle when it sets none.
+            How the particle is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import MushroomBilliardElement
@@ -78,7 +75,6 @@ class MushroomBilliardElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.1,
         y: Annotated[float, StateSpec()] = 0.6,
@@ -88,7 +84,7 @@ class MushroomBilliardElement(Element):
         width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
         height: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.vx = vx
@@ -124,9 +120,6 @@ class SinaiBilliardElement(Element):
         label:
             The label of the particle.
 
-        visual:
-            How the particle is drawn.
-
         x:
             The initial first coordinate.
 
@@ -147,7 +140,7 @@ class SinaiBilliardElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the particle when it sets none.
+            How the particle is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import SinaiBilliardElement
@@ -162,15 +155,16 @@ class SinaiBilliardElement(Element):
         angles = np.linspace(0.0, 2 * np.pi, 100)
         return [square, radius * np.column_stack([np.cos(angles), np.sin(angles)])]
 
+    visual = VisualSpec(
+        'bodies',
+        {'positions': ('x', 'y'), 'trail': None, 'outline': _get_sinai_walls},
+    )
+
     law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec(
-            'bodies',
-            {'positions': ('x', 'y'), 'trail': None, 'outline': _get_sinai_walls},
-        ),
         *,
         x: Annotated[float, StateSpec()] = 0.1,
         y: Annotated[float, StateSpec()] = 0.6,
@@ -179,7 +173,7 @@ class SinaiBilliardElement(Element):
         half_side: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.vx = vx
@@ -216,9 +210,6 @@ class ThreeDiskBilliardElement(Element):
         label:
             The label of the particle.
 
-        visual:
-            How the particle is drawn.
-
         x:
             The initial first coordinate.
 
@@ -251,13 +242,14 @@ class ThreeDiskBilliardElement(Element):
         distance = spacing / math.sqrt(3)
         return [circle + distance * np.array([math.cos(angle), math.sin(angle)]) for angle in ANGLES]
 
+    visual = VisualSpec(
+        'bodies',
+        {'positions': ('x', 'y'), 'trail': None, 'outline': _get_three_disk_walls},
+    )
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec(
-            'bodies',
-            {'positions': ('x', 'y'), 'trail': None, 'outline': _get_three_disk_walls},
-        ),
         *,
         x: Annotated[float, StateSpec()] = 0.1,
         y: Annotated[float, StateSpec()] = 0.6,
@@ -266,7 +258,7 @@ class ThreeDiskBilliardElement(Element):
         spacing: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.4,
         radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.vx = vx

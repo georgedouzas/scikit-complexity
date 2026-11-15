@@ -32,15 +32,12 @@ class SimplexElement(Element):
         label:
             The label of the triangle or the group on the triangles.
 
-        visual:
-            How the triangle is drawn, or `None` for `default_visual_`.
-
         age:
             The number of steps since the triangle joined.
 
     Attributes:
         default_visual_:
-            The visual of the triangle when it sets none.
+            How the triangle is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import SimplexElement
@@ -51,11 +48,10 @@ class SimplexElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.age = age
 
 
@@ -68,9 +64,6 @@ class WalkerDensityElement(Element):
         label:
             The label of the node or the group on the nodes.
 
-        visual:
-            How the node is drawn, or `None` for `default_visual_`.
-
         p:
             The probability of the walker at the node.
 
@@ -79,7 +72,7 @@ class WalkerDensityElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the node when it sets none.
+            How the node is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import WalkerDensityElement
@@ -87,15 +80,16 @@ class WalkerDensityElement(Element):
         4.0
     """
 
+    visual = VisualSpec('sites', {'states': ['p'], 'low': 0.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
         D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.p = p
         self.D = D
 
@@ -244,7 +238,6 @@ class HypergraphRandomWalkSystem(BaseSystem):
             element=WalkerDensityElement,
             space=space,
             values={'p': probabilities, 'D': np.maximum(weights, 1.0)},
-            visual=VisualSpec('sites', {'states': ['p'], 'low': 0.0, 'high': 1.0}),
             on='sites',
         )
         return CompositeSystem(

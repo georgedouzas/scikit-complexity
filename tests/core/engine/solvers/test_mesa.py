@@ -36,7 +36,7 @@ from skcomplex.core.errors import (
     SpaceError,
     ValidationError,
 )
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.general.agents import MovementInteraction
@@ -67,11 +67,10 @@ class WalkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         moves: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.moves = moves
 
     def _get_laws(self, s):
@@ -91,12 +90,11 @@ class ProbeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         cells: Annotated[float, StateSpec()] = 0.0,
         near: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.cells = cells
         self.near = near
 
@@ -116,12 +114,11 @@ class DrifterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         near: Annotated[float, StateSpec()] = 0.0,
         radius: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.near = near
         self.radius = radius
 
@@ -163,12 +160,11 @@ class MoneyAgentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         wealth: Annotated[float, StateSpec()] = 1.0,
         transfer: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.wealth = wealth
         self.transfer = transfer
 
@@ -199,8 +195,8 @@ class NeighbourProbeElement(Element):
 
     seen: list[object]
 
-    def __init__(self, label, visual=None, *, near: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, near: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.near = near
 
     def _get_laws(self, namespace):
@@ -247,11 +243,10 @@ class EmployerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         offer: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.offer = offer
 
     def _get_laws(self, s):
@@ -269,12 +264,11 @@ class WorkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         accepted: Annotated[float, StateSpec()] = -1.0,
         stale: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.accepted = accepted
         self.stale = stale
 
@@ -298,11 +292,10 @@ def test_rule_laws_make_elements_agents():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
     plain = PlainElement
@@ -319,11 +312,10 @@ class StallElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         stock: Annotated[float, StateSpec()] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.stock = stock
 
 
@@ -676,11 +668,10 @@ def test_agent_state_with_reserved_name_raises_error():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             alive: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.alive = alive
 
         def _get_laws(self, s):
@@ -700,11 +691,10 @@ def test_non_agent_state_may_take_agent_view_name():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             alive: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.alive = alive
 
     system = CompositeSystem(elements=[GroupElement('cells', element=CellElement, size=2)])
@@ -719,12 +709,11 @@ class ClockedElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         seen: Annotated[float, StateSpec()] = -1.0,
         n: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.seen = seen
         self.n = n
 
@@ -777,11 +766,10 @@ class ForagerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         food: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.food = food
 
     def _get_laws(self, s):
@@ -813,12 +801,11 @@ class SaverElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         money: Annotated[float, StateSpec(lags=3)] = 0.0,
         seen: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.money = money
         self.seen = seen
 
@@ -848,12 +835,11 @@ class AccountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         stall: Annotated[float, StateSpec(reference='stalls')] = -1.0,
         seen: Annotated[float, StateSpec()] = -1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.stall = stall
         self.seen = seen
 
@@ -906,11 +892,10 @@ def test_memory_of_unremembered_state_raises():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             money: Annotated[float, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.money = money
 
         def _get_laws(self, s):
@@ -984,13 +969,12 @@ class VisitedElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         visits: Annotated[float, StateSpec()] = 0.0,
         trait: Annotated[float, StateSpec()] = 0.0,
         weight: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.visits = visits
         self.trait = trait
         self.weight = weight
@@ -1138,12 +1122,11 @@ class HolderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         around: Annotated[float, StateSpec()] = 0.0,
         every: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.around = around
         self.every = every
 
@@ -1178,12 +1161,11 @@ class CoinElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         drawn: Annotated[float, StateSpec()] = 0.0,
         expected: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.drawn = drawn
         self.expected = expected
 
@@ -1592,11 +1574,10 @@ def test_phases_keep_unphased_systems():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             count: Annotated[float, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.count = count
 
         def _get_laws(self, s):

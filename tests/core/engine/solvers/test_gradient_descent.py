@@ -33,7 +33,6 @@ class PairElement(Element):
     def __init__(
         self,
         label: str,
-        visual: object = None,
         *,
         prey: Annotated[float, StateSpec()] = 10.0,
         predator: Annotated[float, StateSpec()] = 5.0,
@@ -44,7 +43,7 @@ class PairElement(Element):
         observed_prey: Annotated[float, ParameterSpec()] = 0.0,
         observed_predator: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.prey = prey
         self.predator = predator
         self.alpha = alpha
@@ -282,12 +281,11 @@ class TargetNodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: object = None,
         *,
         x: Annotated[float, StateSpec()] = 0.5,
         target: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.target = target
 

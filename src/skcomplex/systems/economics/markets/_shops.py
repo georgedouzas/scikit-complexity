@@ -249,9 +249,6 @@ class ResidentElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         bid:
             The highest price the shopper pays.
 
@@ -277,10 +274,11 @@ class ResidentElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'travel', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'travel', 'color_range': (0.0, 1.0)}),
         *,
         bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
         demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -289,7 +287,7 @@ class ResidentElement(Element):
         distance_cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         online: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.bid = bid
         self.demand = demand
         self.money = money
@@ -356,9 +354,6 @@ class StoreElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         price:
             The price of a unit.
 
@@ -399,10 +394,11 @@ class StoreElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'price'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'price'}),
         *,
         price: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
@@ -416,7 +412,7 @@ class StoreElement(Element):
         fixed_cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
         adjustment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.price = price
         self.ask = ask
         self.supply = supply

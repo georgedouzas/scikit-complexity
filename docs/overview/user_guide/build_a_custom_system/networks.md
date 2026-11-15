@@ -878,8 +878,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class PlacedElement(Element):
-    def __init__(self, label, visual=None, *, angle: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, angle: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.angle = angle
 
 
@@ -1024,8 +1024,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class ClusteredElement(Element):
-    def __init__(self, label, visual=None, *, cluster_size: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, cluster_size: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
         self.cluster_size = cluster_size
 
 

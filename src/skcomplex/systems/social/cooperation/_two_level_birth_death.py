@@ -18,7 +18,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 
 PAIR = 2
@@ -42,9 +42,6 @@ class PunisherGroupElement(Element):
         label:
             The label of the group or the population of groups.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         punishers:
             The number of altruistic punishers of the group.
 
@@ -57,11 +54,10 @@ class PunisherGroupElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         punishers: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.punishers = punishers
 
     @classmethod

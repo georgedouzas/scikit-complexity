@@ -233,7 +233,7 @@ class _StateInference:
             member = self._get_member_value(element, name, value, count)
             variables[name] = self._get_spec(element, name, member, order(name), lags(name))
         if count is None:
-            return DeclaredElement(element.label, visual=element.visual, variables=variables)
+            return DeclaredElement(element.label, variables=variables)
         arrays = {name: value for name, value in values.items() if np.ndim(np.asarray(value, dtype=object)) > 0}
         return GroupElement(
             element.label,
@@ -241,6 +241,5 @@ class _StateInference:
             size=element.size,
             space=element.space,
             on=None if element.space is None else 'sites',
-            visual=element.visual,
             values={'variables': variables, **arrays},
         )

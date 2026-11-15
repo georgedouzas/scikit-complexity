@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import AnalysisError
-from ....core.specs import ParameterSpec, VisualSpec
+from ....core.specs import ParameterSpec
 from ..common.networks import NetworkNodeElement
 
 BLOCKS = 4
@@ -35,9 +35,6 @@ class NetworkMeasuresElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         path_length:
             The mean shortest path length of the largest component.
@@ -63,7 +60,6 @@ class NetworkMeasuresElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         path_length: Annotated[float, ParameterSpec()] = 0.0,
         assortativity: Annotated[float, ParameterSpec()] = 0.0,
@@ -71,7 +67,7 @@ class NetworkMeasuresElement(Element):
         agreement: Annotated[float, ParameterSpec()] = 0.0,
         triangle_zscore: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.path_length = path_length
         self.assortativity = assortativity
         self.modularity = modularity

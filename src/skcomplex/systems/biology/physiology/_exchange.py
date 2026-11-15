@@ -22,7 +22,7 @@ from ....core.components.laws.utils import hill
 from ....core.components.spaces import ContinuousTime, DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class ContourCellElement(Element):
@@ -37,9 +37,6 @@ class ContourCellElement(Element):
     Args:
         label:
             The label of the group of cells.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial concentration of signalling molecules in the cell, between 0 and 1.
@@ -62,14 +59,13 @@ class ContourCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.5,
         c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.r = r
         self.c = c
@@ -89,9 +85,6 @@ class ExchangingCellElement(Element):
     Args:
         label:
             The label of the field of cells.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial concentration of the substance.
@@ -119,7 +112,6 @@ class ExchangingCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -127,7 +119,7 @@ class ExchangingCellElement(Element):
         g: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         xi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.alpha = alpha
         self.beta = beta

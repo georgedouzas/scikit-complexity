@@ -22,8 +22,6 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
-TEMPERATURE_VISUAL = VisualSpec('histograms', {'color_by': 'temperature', 'histogram_first': True})
-
 
 class LearnerElement(Element):
     """Agent of the evolutionary Sherrington-Kirkpatrick game.
@@ -39,9 +37,6 @@ class LearnerElement(Element):
     Args:
         label:
             The label of the agent or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         incentive:
             The initial incentive `Q`.
@@ -80,6 +75,8 @@ class LearnerElement(Element):
         0.75
     """
 
+    visual = VisualSpec('histograms', {'color_by': 'temperature', 'histogram_first': True})
+
     draws = True
 
     law_classes = (UpdateLaw,)
@@ -95,7 +92,6 @@ class LearnerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         incentive: Annotated[float, StateSpec()] = 0.0,
         spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
@@ -108,7 +104,7 @@ class LearnerElement(Element):
         evolving: bool = True,
         settling: int = 2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.incentive = incentive
         self.spin = spin
         self.temperature = temperature
@@ -249,6 +245,5 @@ class EvolutionarySKGameSystem(BaseSystem):
                 'couplings': couplings,
                 'evolving': evolving,
             },
-            visual=TEMPERATURE_VISUAL,
         )
         return CompositeSystem(self.label, elements=[agents])

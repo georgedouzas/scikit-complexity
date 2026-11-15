@@ -60,9 +60,6 @@ class CohesiveParticleElement(Element):
         label:
             The label of the particle or the group.
 
-        visual:
-            How the particle is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -89,13 +86,15 @@ class CohesiveParticleElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the particle when it sets none.
+            How the particle is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import CohesiveParticleElement
         >>> CohesiveParticleElement('bird').r_e
         0.5
     """
+
+    visual = HEADINGS
 
     draws = True
 
@@ -104,7 +103,6 @@ class CohesiveParticleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
@@ -115,7 +113,7 @@ class CohesiveParticleElement(Element):
         r_e: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         r_a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.8,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.eta = eta
@@ -173,9 +171,6 @@ class DelayedVicsekParticleElement(Element):
         label:
             The label of the particle or the group.
 
-        visual:
-            How the particle is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -187,7 +182,7 @@ class DelayedVicsekParticleElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the particle when it sets none.
+            How the particle is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import DelayedVicsekParticleElement
@@ -195,16 +190,17 @@ class DelayedVicsekParticleElement(Element):
         0.1
     """
 
+    visual = HEADINGS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi, role='direction', lags=MEMORY)] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.eta = eta
@@ -223,9 +219,6 @@ class NematicParticleElement(Element):
         label:
             The label of the particle or the group.
 
-        visual:
-            How the particle is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -237,7 +230,7 @@ class NematicParticleElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the particle when it sets none.
+            How the particle is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import NematicParticleElement
@@ -245,16 +238,17 @@ class NematicParticleElement(Element):
         0.2
     """
 
+    visual = HEADINGS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.eta = eta
@@ -273,9 +267,6 @@ class VicsekParticleElement(Element):
         label:
             The label of the particle or the group.
 
-        visual:
-            How the particle is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -287,7 +278,7 @@ class VicsekParticleElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the particle when it sets none.
+            How the particle is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import VicsekParticleElement
@@ -295,16 +286,17 @@ class VicsekParticleElement(Element):
         0.1
     """
 
+    visual = HEADINGS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.eta = eta
@@ -552,7 +544,7 @@ class VicsekSystem(BaseSystem):
             'theta': rng.uniform(-math.pi, math.pi, n_particles),
             **values,
         }
-        flock = GroupElement('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
+        flock = GroupElement('flock', element=element, size=n_particles, values=initial)
         return CompositeSystem(
             label,
             elements=[flock],

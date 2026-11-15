@@ -19,7 +19,7 @@ from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class NetworkSaverElement(Element):
@@ -30,9 +30,6 @@ class NetworkSaverElement(Element):
     Args:
         label:
             The label of the saver.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         W:
             The wealth.
@@ -56,14 +53,13 @@ class NetworkSaverElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         W: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
         J: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         sigma: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         degree: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.W = W
         self.J = J
         self.sigma = sigma

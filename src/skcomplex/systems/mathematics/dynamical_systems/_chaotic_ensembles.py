@@ -32,9 +32,6 @@ class CubicWalkElement(Element):
         label:
             The label of the element.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial value of the map, between 0 and 1.
 
@@ -57,13 +54,12 @@ class CubicWalkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.3,
         y: Annotated[object, StateSpec(role='position')] = 0.0,
         lam: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.lam = lam
@@ -92,9 +88,6 @@ class DoublingMapElement(Element):
         label:
             The label of the element.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial value, between 0 and 1.
 
@@ -112,12 +105,11 @@ class DoublingMapElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.4,
         q: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = DOUBLING_DENOMINATOR,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.q = q
 
@@ -142,9 +134,6 @@ class SkewTentMapElement(Element):
         label:
             The label of the element.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial value, between 0 and 1.
 
@@ -162,12 +151,11 @@ class SkewTentMapElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.4,
         a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.a = a
 

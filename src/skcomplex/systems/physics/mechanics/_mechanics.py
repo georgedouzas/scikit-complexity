@@ -44,9 +44,6 @@ class BouncingBallElement(Element):
         label:
             The label of the ball.
 
-        visual:
-            How the ball is drawn, or `None` for none.
-
         h:
             The initial height.
 
@@ -65,13 +62,12 @@ class BouncingBallElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         h: Annotated[float, StateSpec(order=2)] = 1.0,
         h_d1: float = 0.0,
         g: Annotated[float, ParameterSpec()] = 9.81,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.h = h
         self.h_d1 = h_d1
         self.g = g
@@ -93,9 +89,6 @@ class DiscBilliardElement(Element):
     Args:
         label:
             The label of the particle.
-
-        visual:
-            How the particle is drawn, or `None` for its class visual.
 
         x:
             The initial horizontal position.
@@ -125,7 +118,6 @@ class DiscBilliardElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.3,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -133,7 +125,7 @@ class DiscBilliardElement(Element):
         vy: Annotated[float, StateSpec()] = 1.0,
         radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.vx = vx
@@ -166,9 +158,6 @@ class HangingBallElement(Element):
         label:
             The label of the ball.
 
-        visual:
-            How the ball is drawn, or `None` for none.
-
         x:
             The initial horizontal position.
 
@@ -193,7 +182,6 @@ class HangingBallElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
@@ -201,7 +189,7 @@ class HangingBallElement(Element):
         g: Annotated[float, ParameterSpec()] = 9.81,
         length: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.rest = rest

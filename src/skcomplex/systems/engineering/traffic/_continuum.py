@@ -19,7 +19,7 @@ from ....core.components.laws.utils import laplacian, shifted
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import SSPRKSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.traffic import SpeedAdaptationInteraction
 
 KERNER_KONHAUSER_OFFSET = 3.72e-6
@@ -36,9 +36,6 @@ class GasKineticTrafficElement(Element):
     Args:
         label:
             The label of the cell or the road.
-
-        visual:
-            How the cell is drawn, or `None` for `default_visual_`.
 
         rho:
             The initial density in vehicles per kilometre.
@@ -82,7 +79,6 @@ class GasKineticTrafficElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 20.0,
         Q: Annotated[float, StateSpec()] = 1800.0,
@@ -96,7 +92,7 @@ class GasKineticTrafficElement(Element):
         rho_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.27 * 160,
         d_rho: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05 * 160,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.Q = Q
         self.V0 = V0
@@ -121,7 +117,6 @@ class KernerKonhauserElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         q: Annotated[object, StateSpec()] = 0.21,
@@ -131,7 +126,7 @@ class KernerKonhauserElement(Element):
         c0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
         mu: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.q = q
         self.V0 = V0
@@ -150,13 +145,12 @@ class LighthillWhithamRichardsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         vmax: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.vmax = vmax
         self.rho_max = rho_max
@@ -172,7 +166,6 @@ class PayneElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         q: Annotated[object, StateSpec()] = 0.21,
@@ -180,7 +173,7 @@ class PayneElement(Element):
         rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.q = q
         self.vmax = vmax

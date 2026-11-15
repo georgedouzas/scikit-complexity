@@ -21,7 +21,7 @@ from ....core.components.interactions import BaseInteraction
 from ....core.components.laws.utils import moment, total
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.elements import NonnegativeElement
 from ...general.kinetics import EncounterInteraction
 
@@ -37,9 +37,6 @@ class WealthDensityElement(NonnegativeElement):
     Args:
         label:
             The label of the element, unique among the components of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial density, a nonnegative number.
@@ -58,11 +55,10 @@ class WealthDensityElement(NonnegativeElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x)
 
 
 def exchange_table(classes: int, cooperation: object, competition: object) -> npt.NDArray[np.object_]:

@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class AdjacentPossibleElement(Element):
@@ -28,9 +28,6 @@ class AdjacentPossibleElement(Element):
     Args:
         label:
             The label of the system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The share of existing entities, the diversity.
@@ -50,13 +47,12 @@ class AdjacentPossibleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         d: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         r: Annotated[object, ParameterSpec()] = 5.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.d = d
         self.r = r

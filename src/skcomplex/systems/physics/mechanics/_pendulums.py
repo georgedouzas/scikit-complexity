@@ -45,9 +45,6 @@ class BallisticPendulumElement(Element):
         label:
             The label of the bullet and pendulum.
 
-        visual:
-            How the bullet and pendulum are drawn, or `None` for none.
-
         x:
             The initial position of the bullet, negative before the block.
 
@@ -81,7 +78,6 @@ class BallisticPendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=2)] = -1.0,
         x_d1: float = 0.0,
@@ -92,7 +88,7 @@ class BallisticPendulumElement(Element):
         l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.theta = theta
@@ -118,9 +114,6 @@ class CartPendulumElement(Element):
     Args:
         label:
             The label of the cart and pendulum.
-
-        visual:
-            How the cart and pendulum are drawn, or `None` for its class visual.
 
         y:
             The initial position of the cart.
@@ -160,7 +153,6 @@ class CartPendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y: Annotated[float, StateSpec(order=2)] = 0.0,
         y_d1: float = 0.0,
@@ -172,7 +164,7 @@ class CartPendulumElement(Element):
         g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
         F: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y = y
         self.y_d1 = y_d1
         self.theta = theta
@@ -194,9 +186,6 @@ class ClockPendulumElement(Element):
     Args:
         label:
             The label of the clock.
-
-        visual:
-            How the clock is drawn, or `None` for none.
 
         theta:
             The initial angle of the pendulum.
@@ -240,7 +229,6 @@ class ClockPendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(order=2)] = 0.2,
         theta_d1: float = 0.0,
@@ -254,7 +242,7 @@ class ClockPendulumElement(Element):
         lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         theta_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
         self.x = x
@@ -288,9 +276,6 @@ class DoublePendulumElement(Element):
     Args:
         label:
             The label of the double pendulum.
-
-        visual:
-            How the double pendulum is drawn, or `None` for its class visual.
 
         theta1:
             The initial angle of the upper rod.
@@ -333,7 +318,6 @@ class DoublePendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta1: Annotated[float, StateSpec(period=2 * pi, order=2)] = math.pi / 2,
         theta1_d1: float = 0.0,
@@ -345,7 +329,7 @@ class DoublePendulumElement(Element):
         l2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta1 = theta1
         self.theta1_d1 = theta1_d1
         self.theta2 = theta2
@@ -367,9 +351,6 @@ class ParametricPendulumElement(Element):
     Args:
         label:
             The label of the pendulum.
-
-        visual:
-            How the pendulum is drawn, or `None` for none.
 
         theta:
             The initial angle.
@@ -401,7 +382,6 @@ class ParametricPendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(period=2 * pi, order=2)] = 0.1,
         theta_d1: float = 0.0,
@@ -411,7 +391,7 @@ class ParametricPendulumElement(Element):
         Omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2 * math.sqrt(9.81),
         c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
         self.g = g

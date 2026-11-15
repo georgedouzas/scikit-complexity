@@ -36,9 +36,6 @@ class MajorityVoterElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, 0 or 1.
 
@@ -51,11 +48,10 @@ class MajorityVoterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         opinion: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
 
 
@@ -82,9 +78,6 @@ class VariantVoterElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, 0 or 1.
 
@@ -103,16 +96,17 @@ class VariantVoterElement(Element):
         ('voters', 'VariantVoterElement', 10)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
         *,
         opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
         contrarian: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
         self.contrarian = contrarian
         self.threshold = threshold
@@ -144,9 +138,6 @@ class VoterElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, 0 or 1.
 
@@ -158,14 +149,15 @@ class VoterElement(Element):
         ('voters', 'VoterElement', 20)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
         *,
         opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
 
     @classmethod

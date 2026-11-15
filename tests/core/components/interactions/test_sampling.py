@@ -23,7 +23,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, StateSpec
 from skcomplex.systems.physics.common.fields import HolonomyScoreSpec, WilsonSamplingInteraction
 
 SIDE = 16
@@ -37,11 +37,10 @@ class SiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         s: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.s = s
 
 
@@ -51,12 +50,11 @@ class AngleLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
         beta: Annotated[float, ParameterSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.beta = beta
 
@@ -379,12 +377,11 @@ class IsospinLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         U: Annotated[object, StateSpec(group=ISOSPIN)] = tuple(ISOSPIN.identity),
         beta: Annotated[float, ParameterSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.U = U
         self.beta = beta
 
@@ -395,12 +392,11 @@ class ColorLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         U: Annotated[object, StateSpec(group=COLOR)] = tuple(COLOR.identity),
         beta: Annotated[float, ParameterSpec()] = 4.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.U = U
         self.beta = beta
 

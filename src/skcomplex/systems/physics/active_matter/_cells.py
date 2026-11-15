@@ -43,9 +43,6 @@ class MotileCellElement(Element):
         label:
             The label of the cell or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -82,10 +79,11 @@ class MotileCellElement(Element):
         30.0
     """
 
+    visual = VisualSpec('points', {'position': 'x', 'radius': 0.5, 'color_by': 'theta'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
@@ -98,7 +96,7 @@ class MotileCellElement(Element):
         F_rep: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
         F_adh: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.v0 = v0
@@ -277,7 +275,6 @@ class SzaboCellsSystem(BaseSystem):
                 'F_rep': self.F_rep,
                 'F_adh': self.F_adh,
             },
-            visual=VisualSpec('points', {'position': 'x', 'radius': self.R_0 / 2, 'color_by': 'theta'}),
         )
         motion = RateInteraction(
             'motion',

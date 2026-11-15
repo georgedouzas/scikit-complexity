@@ -21,7 +21,7 @@ from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ETDRK4Solver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 
 
@@ -38,9 +38,6 @@ class GinzburgLandauElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         u:
             The initial real part of the amplitude.
 
@@ -55,7 +52,7 @@ class GinzburgLandauElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.pattern_formation import GinzburgLandauElement
@@ -68,14 +65,13 @@ class GinzburgLandauElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
         v: Annotated[float, StateSpec()] = 0.0,
         b: Annotated[float, ParameterSpec()] = 1.0,
         c: Annotated[float, ParameterSpec()] = -1.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.v = v
         self.b = b
@@ -107,15 +103,12 @@ class PatternFieldElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         u:
             The initial value of the field.
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.pattern_formation import PatternFieldElement
@@ -123,8 +116,8 @@ class PatternFieldElement(Element):
         0.1
     """
 
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, u: Annotated[float, StateSpec()] = 0.0) -> None:
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, u: Annotated[float, StateSpec()] = 0.0) -> None:
+        super().__init__(label)
         self.u = u
 
 

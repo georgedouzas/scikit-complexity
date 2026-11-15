@@ -22,7 +22,7 @@ from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeNeighborh
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array, Pair
 from ...general.agents import ImitationInteraction
 from ._contributor import ContributorElement
@@ -50,9 +50,6 @@ class IteratedPrisonerElement(Element):
     Args:
         label:
             The label of the player or the lattice group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
 
         strategy:
             The number `n` of intended cooperation rounds, from 0, always defect, to `rounds`, always cooperate.
@@ -87,7 +84,6 @@ class IteratedPrisonerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         strategy: Annotated[float, StateSpec(domain=NN)] = 0.0,
         rounds: Annotated[int, ParameterSpec(domain=NN)] = 7,
@@ -98,7 +94,7 @@ class IteratedPrisonerElement(Element):
         mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.01,
         extremes: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
         self.rounds = rounds
         self.reward = reward
@@ -119,9 +115,6 @@ class PrisonerElement(Element):
         label:
             The label of the player or the lattice group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         strategy:
             The initial strategy, 1 or 0.
 
@@ -140,13 +133,12 @@ class PrisonerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
         temptation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.85,
         noise: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
         self.temptation = temptation
         self.noise = noise

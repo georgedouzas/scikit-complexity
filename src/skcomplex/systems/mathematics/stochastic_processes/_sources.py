@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import NN
 from ....core.components.elements import Element
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 from .types import Matrix
 
 CHAIN = ((0.9, 0.1), (0.4, 0.6))
@@ -25,9 +25,6 @@ class HiddenMarkovSourceElement(Element):
     Args:
         label:
             The label of the source.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         hidden:
             The initial hidden state.
@@ -44,12 +41,11 @@ class HiddenMarkovSourceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         hidden: Annotated[float, StateSpec(domain=NN)] = 0,
         symbol: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.hidden = hidden
         self.symbol = symbol
 
@@ -63,9 +59,6 @@ class MarkovSourceElement(Element):
         label:
             The label of the source.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         symbol:
             The initial symbol.
 
@@ -78,11 +71,10 @@ class MarkovSourceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         symbol: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.symbol = symbol
 
 

@@ -51,9 +51,6 @@ class WordElement(Element):
         bounds:
             The box `(xmin, ymin, xmax, ymax)` that the drawing shows, or `None` to fit the data.
 
-        visual:
-            How the word is drawn, such as `VisualSpec('geometry')`, or `None` for `default_visual_`.
-
     Examples:
         In Lindenmayer's algae `A` becomes `AB` and `B` becomes `A`, so the length of the word runs through the
         Fibonacci numbers.
@@ -72,6 +69,8 @@ class WordElement(Element):
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """
 
+    visual = VisualSpec('geometry')
+
     def __init__(
         self,
         label: str,
@@ -82,9 +81,8 @@ class WordElement(Element):
         geometry: GeometrySpec | None = None,
         max_size: int = 10_000_000,
         bounds: Sequence[float] | None = None,
-        visual: VisualSpec | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.axiom = axiom
         self.alphabet = alphabet
         self.ignore = ignore
@@ -93,7 +91,7 @@ class WordElement(Element):
         self.bounds = bounds
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `default_visual_`, the geometry of the word.
+        """Check the geometry and the maximum size of the word.
 
         It first raises an error for an invalid geometry or a maximum size that is not positive. The maximum size must
         be a positive integer.
@@ -108,4 +106,3 @@ class WordElement(Element):
         if isinstance(self.max_size, bool) or not isinstance(self.max_size, int) or self.max_size < 1:
             error_msg = f'The maximum size of {self.label} must be a positive integer, but it is {self.max_size!r}.'
             raise RewritingError(error_msg)
-        self.default_visual_ = VisualSpec('geometry')

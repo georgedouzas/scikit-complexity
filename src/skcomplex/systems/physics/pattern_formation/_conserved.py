@@ -17,7 +17,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class NonreciprocalMixtureElement(Element):
@@ -32,9 +32,6 @@ class NonreciprocalMixtureElement(Element):
     Args:
         label:
             The label of the site or the field.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
 
         phi:
             The initial demixing field.
@@ -56,7 +53,7 @@ class NonreciprocalMixtureElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.pattern_formation import NonreciprocalMixtureElement
@@ -69,7 +66,6 @@ class NonreciprocalMixtureElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         phi: Annotated[float, StateSpec()] = 0.0,
         psi: Annotated[float, StateSpec()] = 0.0,
@@ -78,7 +74,7 @@ class NonreciprocalMixtureElement(Element):
         D: Annotated[float, ParameterSpec()] = 0.1,
         kappa: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phi = phi
         self.psi = psi
         self.chi = chi

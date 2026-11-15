@@ -87,16 +87,17 @@ class ClassicalElement(QubitElement):
 class DecayingElement(QubitElement):
     """Qubit that decays at a rate."""
 
+    visual = VisualSpec('expectations')
+
     def __init__(
         self,
         label: str,
         psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         *,
         hilbert: HilbertSpec = QUBIT,
-        visual: VisualSpec | None = VisualSpec('expectations'),
         gamma: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, psi, hilbert=hilbert, visual=visual)
+        super().__init__(label, psi, hilbert=hilbert)
         self.gamma = gamma
 
     def _get_laws(self, s):

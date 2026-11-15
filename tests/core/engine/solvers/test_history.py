@@ -25,7 +25,7 @@ from skcomplex.core.engine.solvers import (
     VelocityVerletSolver,
 )
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.biology.ecology import HutchinsonSystem
 from skcomplex.systems.biology.physiology import MackeyGlassSystem
 from skcomplex.systems.engineering.processes import BathtubSystem
@@ -38,11 +38,10 @@ class ClockElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
     def _get_laws(self, s):
@@ -56,12 +55,11 @@ class FirstOrderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y: Annotated[object, StateSpec()] = 0.0,
         k: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y = y
         self.k = k
 
@@ -76,14 +74,13 @@ class GeometricElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         convention: str = 'ito',
         x: Annotated[object, StateSpec()] = 1.0,
         mu: Annotated[object, ParameterSpec()] = 0.5,
         sigma: Annotated[object, ParameterSpec()] = 0.8,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.convention = convention
         self.x = x
         self.mu = mu
@@ -100,11 +97,10 @@ class DelayedElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
     def _get_laws(self, s):
@@ -193,11 +189,10 @@ def test_declared_history_is_read_before_the_start():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec(history=lambda t: 1 + t)] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -217,11 +212,10 @@ def test_history_is_keyed_by_state():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec(history=2.0)] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -262,11 +256,10 @@ def test_event_without_reset_fires_once():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -288,11 +281,10 @@ def test_chattering_event_raises(solver):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -321,11 +313,10 @@ def test_pulse_train_and_series_breakpoints():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             y: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.y = y
 
         def _get_laws(self, s):
@@ -400,11 +391,10 @@ def test_milstein_and_heun_converge_on_additive_noise():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -465,12 +455,11 @@ def test_very_short_delay_with_scipy(tau):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec(history=1.0)] = 1.0,
             tau: Annotated[object, ParameterSpec()] = tau,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.tau = tau
 
@@ -497,12 +486,11 @@ def test_periodic_breakpoints_over_unbounded_runs():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             c: Annotated[object, StateSpec()] = 0.0,
             k: Annotated[object, ParameterSpec()] = 0.1,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.c = c
             self.k = k
 
@@ -532,12 +520,11 @@ def test_delay_of_parameter_expression():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 1.0,
             tau: Annotated[object, ParameterSpec()] = 0.5,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.tau = tau
 

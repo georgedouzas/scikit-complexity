@@ -21,7 +21,7 @@ from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
@@ -40,9 +40,6 @@ class DiffusionCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         level:
             The initial content.
 
@@ -58,12 +55,11 @@ class DiffusionCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         level: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
         self.r = r
 
@@ -74,9 +70,6 @@ class NoisyElementaryCellElement(BinaryCellElement):
     Args:
         label:
             The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         alive:
             The initial value, 0 or 1.
@@ -93,12 +86,11 @@ class NoisyElementaryCellElement(BinaryCellElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         alive: float = 0,
         noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
     ) -> None:
-        super().__init__(label, visual=visual, alive=alive)
+        super().__init__(label, alive=alive)
         self.noise = noise
 
 

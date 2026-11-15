@@ -14,7 +14,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
 COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.0))
@@ -28,9 +28,6 @@ class MicrobeElement(Element):
     Args:
         label:
             The label of the species or of the group of species.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial abundance.
@@ -47,12 +44,11 @@ class MicrobeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         b: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.b = b
 

@@ -26,8 +26,6 @@ SPECIES_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = 
     'ring': LatticeNeighborhood(((-1,), (1,))),
     'graph': AdjacencyNeighborhood(),
 }
-FITNESS_VISUAL = VisualSpec('image', {'states': ('fitness',), 'low': 0.0, 'high': 1.0, 'history': 256})
-FITNESS_SITES = VisualSpec('sites', {'states': ('fitness',), 'low': 0.0, 'high': 1.0})
 
 
 class SpeciesElement(Element):
@@ -41,9 +39,6 @@ class SpeciesElement(Element):
     Args:
         label:
             The label of the species or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         fitness:
             The initial fitness.
@@ -60,6 +55,7 @@ class SpeciesElement(Element):
         200
     """
 
+    visual = VisualSpec('image', {'states': ('fitness',), 'low': 0.0, 'high': 1.0, 'history': 256})
     law_classes = (ExtremalLaw,)
 
     @staticmethod
@@ -73,13 +69,12 @@ class SpeciesElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         updates: int = 200,
         neighbors: str = 'ring',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.fitness = fitness
         self.updates = updates
         self.neighbors = neighbors
@@ -165,7 +160,6 @@ class BakSneppenSystem(BaseSystem):
                 'updates': count if self.updates is None else self.updates,
                 'neighbors': 'ring' if self.graph is None else 'graph',
             },
-            visual=FITNESS_VISUAL if self.graph is None else FITNESS_SITES,
             on='sites',
         )
         return CompositeSystem(self.label, elements=[species])

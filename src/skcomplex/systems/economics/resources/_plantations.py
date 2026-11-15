@@ -18,7 +18,7 @@ from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink
 from ....core.components.laws.utils import clip, series
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 PROFITABILITY_EFFECT = (
     (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
@@ -55,9 +55,6 @@ class PlantationElement(Element):
     Args:
         label:
             The label of the plantation.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         forest:
             The initial forest land.
@@ -134,7 +131,6 @@ class PlantationElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         forest: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 490.0,
         area: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 10.0,
@@ -154,7 +150,7 @@ class PlantationElement(Element):
         insect_control: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         subsidy: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.forest = forest
         self.area = area
         self.abandoned = abandoned

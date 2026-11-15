@@ -41,9 +41,6 @@ class LightEmittingRobotElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         phi:
             The initial direction of motion.
 
@@ -59,16 +56,17 @@ class LightEmittingRobotElement(Element):
         1.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'light'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'light'}),
         *,
         phi: Annotated[float, StateSpec(role='direction')] = 0.0,
         light: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         speed: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phi = phi
         self.light = light
         self.speed = speed

@@ -27,8 +27,6 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 
-HIDDEN = VisualSpec('sites', {'states': []})
-
 
 class ChemicalElement(Element):
     """Molecular species of a pool whose population grows with its catalysts.
@@ -43,9 +41,6 @@ class ChemicalElement(Element):
     Args:
         label:
             The label of the species or of the group of species.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The relative population.
@@ -74,6 +69,7 @@ class ChemicalElement(Element):
         10.0
     """
 
+    visual = VisualSpec('sites', {'states': ['x']})
     draws = True
 
     law_classes = (UpdateLaw,)
@@ -81,7 +77,6 @@ class ChemicalElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         tie: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
@@ -91,7 +86,7 @@ class ChemicalElement(Element):
         period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
         k: int = 1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.tie = tie
         self.fresh = fresh
@@ -147,9 +142,6 @@ class TaxonElement(Element):
         label:
             The label of the species or of the group of species.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         h:
             The field, the sum of the couplings of its dependencies.
 
@@ -162,17 +154,30 @@ class TaxonElement(Element):
         1.0
     """
 
+    visual = VisualSpec('sites', {'states': ['age']})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         h: Annotated[float, StateSpec()] = 1.0,
         age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.h = h
         self.age = age
+
+
+class CouplingEdgeElement(WeightedEdgeElement):
+    """Coupling of one species to another, hidden from the drawing."""
+
+    visual = VisualSpec('sites', {'states': []})
+
+
+class CatalyticLinkElement(Element):
+    """Catalytic link from one species to another, hidden from the drawing."""
+
+    visual = VisualSpec('sites', {'states': []})
 
 
 class CompetingSpeciesView(AgentView):
@@ -197,9 +202,6 @@ class CompetingSpeciesElement(Element):
         label:
             The label of the species or of the group of species.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The relative population.
 
@@ -215,12 +217,11 @@ class CompetingSpeciesElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         links: Annotated[object, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.links = links
 
@@ -458,17 +459,15 @@ class SoleManrubiaSystem(BaseSystem):
             variable=True,
             capacity=2 * self.n,
             values={'h': fields},
-            visual=VisualSpec('sites', {'states': ['age']}),
         )
         edge_group = GroupElement(
             'couplings',
-            element=WeightedEdgeElement,
+            element=CouplingEdgeElement,
             space=space,
             on='edges',
             variable=True,
             capacity=4 * edges,
             values={'w': couplings, 'fresh': 0.0},
-            visual=HIDDEN,
         )
         return CompositeSystem(
             self.label,
@@ -570,16 +569,14 @@ class JainKrishnaSystem(BaseSystem):
                 'period': float(self.period),
                 'k': max(1, round(self.p * self.n)),
             },
-            visual=VisualSpec('sites', {'states': ['x']}),
         )
         links = GroupElement(
             'links',
-            element=Element,
+            element=CatalyticLinkElement,
             space=space,
             on='edges',
             variable=True,
             capacity=self.n * self.n,
-            visual=HIDDEN,
         )
         return CompositeSystem(self.label, elements=[species, links], time=DiscreteTime())
 

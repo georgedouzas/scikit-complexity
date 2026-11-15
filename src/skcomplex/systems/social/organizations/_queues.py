@@ -39,9 +39,6 @@ class TaskElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         priority:
             The priority, uniform on 0 to 1 for a new task.
 
@@ -62,17 +59,18 @@ class TaskElement(Element):
         ('tasks', 'TaskElement', 2)
     """
 
+    visual = VisualSpec('histograms', {'color_by': 'age', 'shown': ('agents',)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('histograms', {'color_by': 'age', 'shown': ('agents',)}),
         *,
         priority: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         age: Annotated[float, StateSpec(domain=NN)] = 0.0,
         wait: Annotated[float, StateSpec(domain=NN)] = 0.0,
         greed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.99999,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.priority = priority
         self.age = age
         self.wait = wait

@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.flows import LorenzElement
@@ -34,9 +34,6 @@ class LangfordElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial first coordinate.
@@ -76,7 +73,6 @@ class LangfordElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.1,
         y: Annotated[object, StateSpec()] = 0.0,
@@ -88,7 +84,7 @@ class LangfordElement(Element):
         e: Annotated[object, ParameterSpec()] = 0.25,
         f: Annotated[object, ParameterSpec()] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -127,9 +123,6 @@ class MixedFlowElement(Element):
         label:
             The label of the element.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial first coordinate.
 
@@ -150,13 +143,12 @@ class MixedFlowElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 1.0,
         y: Annotated[object, StateSpec()] = 0.0,
         z: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -188,9 +180,6 @@ class NoseHooverElement(Element):
         label:
             The label of the element.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -211,13 +200,12 @@ class NoseHooverElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
         y: Annotated[object, StateSpec()] = 0.1,
         z: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z

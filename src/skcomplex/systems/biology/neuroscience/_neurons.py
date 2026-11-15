@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.excitable import SpikeResetInteraction
 
 PEAK = 30.0
@@ -28,9 +28,6 @@ class IzhikevichElement(Element):
     Args:
         label:
             The label of the neuron.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         v:
             The initial potential.
@@ -58,7 +55,6 @@ class IzhikevichElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         v: Annotated[float, StateSpec()] = -65.0,
         u: Annotated[float, StateSpec()] = -13.0,
@@ -66,7 +62,7 @@ class IzhikevichElement(Element):
         b: Annotated[float, ParameterSpec()] = 0.2,
         I: Annotated[float, ParameterSpec()] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.u = u
         self.a = a
@@ -99,9 +95,6 @@ class LeakyIntegrateAndFireElement(Element):
         label:
             The label of the neuron.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         v:
             The initial potential.
 
@@ -128,7 +121,6 @@ class LeakyIntegrateAndFireElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         v: Annotated[float, StateSpec()] = -65.0,
         rest: Annotated[float, ParameterSpec()] = -65.0,
@@ -136,7 +128,7 @@ class LeakyIntegrateAndFireElement(Element):
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
         I: Annotated[float, ParameterSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.rest = rest
         self.resistance = resistance

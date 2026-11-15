@@ -57,9 +57,6 @@ class PremisesElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         brothel:
             Whether the premises are a brothel, 1, or a house, 0.
 
@@ -83,10 +80,11 @@ class PremisesElement(Element):
         ('premises', 'PremisesElement', 3)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'brothel', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'brothel', 'color_range': (0.0, 1.0)}),
         *,
         brothel: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         bills: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -94,7 +92,7 @@ class PremisesElement(Element):
         efficiency: Annotated[float, StateSpec()] = 1.0,
         day: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.brothel = brothel
         self.bills = bills
         self.last_bills = last_bills
@@ -129,9 +127,6 @@ class TravellerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         victim:
             Whether the woman is a trafficking victim, 1, or not, 0.
 
@@ -146,15 +141,16 @@ class TravellerElement(Element):
         ('women', 'TravellerElement', 4)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'victim', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'victim', 'color_range': (0.0, 1.0)}),
         *,
         victim: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         trips: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.victim = victim
         self.trips = trips
 

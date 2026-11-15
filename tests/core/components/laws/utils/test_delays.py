@@ -13,7 +13,7 @@ from skcomplex.core.components.laws.utils import distributed_delay, step
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 STEP_RESPONSES = {
     'material1': (lambda value, time: distributed_delay(value, time, 1), lambda t: 1 - np.exp(-t / 2)),
@@ -31,13 +31,12 @@ class DelayedElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         kind: str = 'material_delay3',
         out: Annotated[object, StateSpec()] = 0.0,
         T: Annotated[object, ParameterSpec()] = 6.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.kind = kind
         self.out = out
         self.T = T
@@ -73,12 +72,11 @@ class StepResponseElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         delay: object = None,
         out: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.delay = delay
         self.out = out
 

@@ -48,8 +48,8 @@ class MinimizeSolver(Solver):
         >>> from skcomplex.core.specs import RoleSpec, StateSpec
         >>> from skcomplex.core.systems import System
         >>> class PointElement(Element):
-        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
         ...         self.x = x
         >>> class WellInteraction(Interaction):
         ...     def __init__(self, label, *, target: Annotated[str, RoleSpec()] = 'point'):

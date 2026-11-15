@@ -26,7 +26,7 @@ from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 from ..common.resources import RegrowthInteraction
@@ -79,9 +79,6 @@ class CentralBankElement(Element):
         label:
             The label of the bank or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         money:
             The money of the bank, the negative of the money it issued plus its income of the step.
 
@@ -98,12 +95,11 @@ class CentralBankElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         money: Annotated[float, StateSpec(quantity='money')] = 0.0,
         loans: Annotated[float, StateSpec(quantity='credit')] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.money = money
         self.loans = loans
 
@@ -154,9 +150,6 @@ class PlotElement(Element):
         label:
             The label of the patch or the site group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         food:
             The food on the patch.
 
@@ -178,14 +171,13 @@ class PlotElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         food: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         resistance: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         regrowth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.food = food
         self.capacity = capacity
         self.resistance = resistance
@@ -282,9 +274,6 @@ class SettlerElement(Element):
         label:
             The label of the person or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         food:
             The food the person holds.
 
@@ -368,7 +357,6 @@ class SettlerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         food: Annotated[float, StateSpec()] = 10.0,
         money: Annotated[float, StateSpec(quantity='money')] = 0.0,
@@ -394,7 +382,7 @@ class SettlerElement(Element):
         reserve: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
         monetary: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.food = food
         self.money = money
         self.loans = loans
@@ -552,9 +540,6 @@ class BusinessElement(Element):
         label:
             The label of the firm or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         money:
             The money the firm holds.
 
@@ -604,7 +589,6 @@ class BusinessElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         money: Annotated[float, StateSpec(quantity='money')] = 0.0,
         loans: Annotated[float, StateSpec(quantity='credit')] = 0.0,
@@ -620,7 +604,7 @@ class BusinessElement(Element):
         adjustment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
         stock_limit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.money = money
         self.loans = loans
         self.stock = stock

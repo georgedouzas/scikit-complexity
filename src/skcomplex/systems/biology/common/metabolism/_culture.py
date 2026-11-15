@@ -17,7 +17,7 @@ from .....core.components.elements import DeclaredElement, Element
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, LinearObjectiveSpec, LinearProgramLaw, RateLaw, UpdateLaw
 from .....core.components.laws.utils import either, where
-from .....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from .....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from ._metabolic_network import MetabolicNetworkElement
 
 POSITIVE = RealSet.open(0, oo)
@@ -29,9 +29,6 @@ class BiomassElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The biomass in gDW per L.
@@ -45,11 +42,10 @@ class BiomassElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.01,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -59,9 +55,6 @@ class SubstrateElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         c:
             The concentration in mM.
@@ -75,11 +68,10 @@ class SubstrateElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         c: Annotated[float, StateSpec()] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.c = c
 
 
@@ -241,9 +233,6 @@ class CommunityMediumElement(DeclaredElement):
         label:
             The label of the element.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         exchanges:
             The names of the reactions.
 
@@ -259,12 +248,11 @@ class CommunityMediumElement(DeclaredElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         exchanges: Sequence[str] = (),
         variables: Mapping[str, DeclaredVariableSpec] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, variables=variables)
+        super().__init__(label, variables=variables)
         self.exchanges = exchanges
 
     def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
@@ -404,8 +392,8 @@ def community_medium_type(exchanges: Sequence[str]) -> Callable[..., CommunityMe
         0.0
     """
 
-    def create_medium(label: str, visual: VisualSpec | None = None, **values: float) -> CommunityMediumElement:
-        medium = CommunityMediumElement(label, visual, exchanges=tuple(exchanges))
+    def create_medium(label: str, **values: float) -> CommunityMediumElement:
+        medium = CommunityMediumElement(label, exchanges=tuple(exchanges))
         return medium.set_params(**values)
 
     return create_medium

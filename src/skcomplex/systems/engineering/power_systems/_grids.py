@@ -19,7 +19,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class GridNodeElement(Element):
@@ -33,14 +33,13 @@ class GridNodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         phi: Annotated[object, StateSpec(order=2)] = 0.0,
         phi_d1: float = 0.0,
         P: Annotated[object, ParameterSpec()] = 1.0,
         gamma: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phi = phi
         self.phi_d1 = phi_d1
         self.P = P

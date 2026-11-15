@@ -16,7 +16,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import (
     SSPRKSolver,
 )
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 @pytest.mark.parametrize('riemann', ['rusanov', 'godunov'])
@@ -29,11 +29,10 @@ def test_numerical_fluxes_conserve(riemann):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             u: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.u = u
 
         def _get_laws(self, s):
@@ -70,12 +69,11 @@ def test_viscous_burgers_respects_diffusive_limit():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             u: Annotated[object, StateSpec()] = 0.0,
             nu: Annotated[object, ParameterSpec()] = 0.5,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.u = u
             self.nu = nu
 

@@ -39,9 +39,6 @@ class GroundElement(Element):
         label:
             The label of the ground or the lattice field.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         G:
             The initial ground structure.
 
@@ -66,7 +63,6 @@ class GroundElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         G: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         V: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -74,7 +70,7 @@ class GroundElement(Element):
         D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.G = G
         self.V = V
         self.T = T
@@ -115,9 +111,6 @@ class WalkerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         goal_x:
             The column of the goal.
 
@@ -152,10 +145,11 @@ class WalkerElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'goal_x'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'goal_x'}),
         *,
         goal_x: Annotated[float, StateSpec()] = 0.0,
         goal_y: Annotated[float, StateSpec()] = 0.0,
@@ -167,7 +161,7 @@ class WalkerElement(Element):
         width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
         height: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.goal_x = goal_x
         self.goal_y = goal_y
         self.arrived = arrived

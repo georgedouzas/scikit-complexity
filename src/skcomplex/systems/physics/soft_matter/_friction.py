@@ -19,7 +19,7 @@ from ....core.components.laws.utils import both, laplacian, pulse_train, where
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class FrictionalBlockElement(Element):
@@ -34,9 +34,6 @@ class FrictionalBlockElement(Element):
     Args:
         label:
             The label of the block.
-
-        visual:
-            How the block is drawn, or `None` for none.
 
         x:
             The initial position.
@@ -85,7 +82,6 @@ class FrictionalBlockElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         v: Annotated[float, StateSpec()] = 0.0,
@@ -99,7 +95,7 @@ class FrictionalBlockElement(Element):
         relax_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
         v_stick: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.v = v
         self.m = m

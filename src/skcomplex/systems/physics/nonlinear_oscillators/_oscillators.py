@@ -88,9 +88,6 @@ class HenonHeilesElement(Element):
         label:
             The label of the star.
 
-        visual:
-            How the star is drawn.
-
         x:
             The initial first coordinate.
 
@@ -109,17 +106,18 @@ class HenonHeilesElement(Element):
         0.35
     """
 
+    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None}),
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.1,
         px: Annotated[float, StateSpec()] = 0.35,
         py: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.px = px
@@ -138,9 +136,6 @@ class ImpulsiveOscillatorElement(Element):
         label:
             The label of the oscillator.
 
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
-
         x:
             The initial displacement.
 
@@ -156,7 +151,7 @@ class ImpulsiveOscillatorElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the oscillator when it sets none.
+            How the oscillator is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import ImpulsiveOscillatorElement
@@ -167,14 +162,13 @@ class ImpulsiveOscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
         H: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
         omega0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.H = H
@@ -194,9 +188,6 @@ class QuadrupoleElement(Element):
     Args:
         label:
             The label of the nucleus.
-
-        visual:
-            How the nucleus is drawn.
 
         q1:
             The initial first coordinate.
@@ -219,10 +210,11 @@ class QuadrupoleElement(Element):
         0.5
     """
 
+    visual = VisualSpec('bodies', {'positions': ('q1', 'q2'), 'trail': None})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('bodies', {'positions': ('q1', 'q2'), 'trail': None}),
         *,
         q1: Annotated[float, StateSpec()] = 0.0,
         q2: Annotated[float, StateSpec()] = 1.0,
@@ -230,7 +222,7 @@ class QuadrupoleElement(Element):
         p2: Annotated[float, StateSpec()] = 0.0,
         B: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.q1 = q1
         self.q2 = q2
         self.p1 = p1
@@ -251,9 +243,6 @@ class VanDerPolElement(Element):
         label:
             The label of the oscillator.
 
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
-
         x:
             The initial displacement.
 
@@ -271,7 +260,7 @@ class VanDerPolElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the oscillator when it sets none.
+            How the oscillator is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.core.components.systems import CompositeSystem
@@ -288,7 +277,6 @@ class VanDerPolElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=2)] = 2.0,
         x_d1: float = 0.0,
@@ -296,7 +284,7 @@ class VanDerPolElement(Element):
         A: Annotated[float, ParameterSpec()] = 0.0,
         omega: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.mu = mu

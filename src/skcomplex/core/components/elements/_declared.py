@@ -9,7 +9,7 @@ from dataclasses import replace
 from typing import Self
 
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, StateSpec, VisualSpec
+from ...specs import DeclaredVariableSpec, StateSpec
 from ..spaces import BaseSpace
 from ._element import Element
 
@@ -33,9 +33,6 @@ class DeclaredElement(Element):
         label:
             The name of the element, unique among the components of its system, such as `'infected'` or `'account'`.
 
-        visual:
-            How the element is drawn, such as `VisualSpec('line')`, or `None` for `default_visual_`.
-
         variables:
             The initial value and the spec of each state and parameter, by name, or `None` for none. For example,
             `{'x': DeclaredVariableSpec(100.0, StateSpec())}` declares a state `x` that starts at 100, in the units of
@@ -43,7 +40,7 @@ class DeclaredElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
     Raises:
         ValidationError:
@@ -82,11 +79,10 @@ class DeclaredElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         variables: Mapping[str, DeclaredVariableSpec] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.variables = variables
 
     def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:

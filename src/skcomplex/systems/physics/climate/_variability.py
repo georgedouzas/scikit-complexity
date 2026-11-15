@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.laws.utils import delayed
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.particles import RelaxationTimeInteraction
@@ -33,9 +33,6 @@ class ClimateAnomalyElement(Element):
     Args:
         label:
             The label of the anomaly.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         T:
             The initial temperature anomaly.
@@ -55,13 +52,12 @@ class ClimateAnomalyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         T: Annotated[float, StateSpec()] = 0.0,
         lam: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.T = T
         self.lam = lam
         self.sigma = sigma

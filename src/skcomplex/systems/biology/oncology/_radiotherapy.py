@@ -15,7 +15,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import CrossingInteraction, RateInteraction
 from ....core.components.laws.utils import periodic_guard, pulse_train
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
@@ -37,9 +37,6 @@ class IrradiatedTumourElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A1:
             The initial volume of proliferating cells.
@@ -86,7 +83,6 @@ class IrradiatedTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 27.0,
         A2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -101,7 +97,7 @@ class IrradiatedTumourElement(Element):
         a_gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.004,
         du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.544,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A1 = A1
         self.A2 = A2
         self.A3 = A3
@@ -131,9 +127,6 @@ class RadiationCompetitionElement(Element):
     Args:
         label:
             The label of the tissue.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         N:
             The initial concentration of normal cells.
@@ -180,7 +173,6 @@ class RadiationCompetitionElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
@@ -195,7 +187,7 @@ class RadiationCompetitionElement(Element):
         period: float = 7.0,
         width: float = 5.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.N = N
         self.A = A
         self.r1 = r1

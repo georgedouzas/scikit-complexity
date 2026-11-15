@@ -20,7 +20,7 @@ from ....core.components.laws.utils import total, uniform, where
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 from .types import Rule
 
@@ -75,9 +75,6 @@ class MajorityNodeElement(Element):
         label:
             The label of the node or of the group of nodes.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         sigma:
             The state, -1 or 1.
 
@@ -93,12 +90,11 @@ class MajorityNodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         sigma: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([-1, 1]))] = 1.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sigma = sigma
         self.eta = eta
 

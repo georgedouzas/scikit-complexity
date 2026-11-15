@@ -18,7 +18,7 @@ from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.components.laws.utils import clip, distributed_delay, minimum, series, step
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 MONTHS_PER_YEAR = 12.0
 HUSK_SHARE = 0.2
@@ -40,7 +40,6 @@ class ReliefPipelineElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         in_transit: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='food')] = 0.0,
         warehouse: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='food')] = 0.0,
@@ -53,7 +52,7 @@ class ReliefPipelineElement(Element):
         pipeline_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 14.0,
         distribution_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.in_transit = in_transit
         self.warehouse = warehouse
         self.affected = affected
@@ -118,7 +117,6 @@ class RiceMillElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         paddy: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='grain')] = 2000.0,
         rice: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='grain')] = 1300.0,
@@ -137,7 +135,7 @@ class RiceMillElement(Element):
         perception_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 6.0,
         expansion_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.paddy = paddy
         self.rice = rice
         self.husk = husk
@@ -222,7 +220,6 @@ class IrrigationSchemeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         reservoir: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')] = 50.0,
         soil: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')] = 12.0,
@@ -243,7 +240,7 @@ class IrrigationSchemeElement(Element):
         pump_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
         baseflow_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 500.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.reservoir = reservoir
         self.soil = soil
         self.groundwater = groundwater
@@ -332,7 +329,6 @@ class WasteSystemElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         population: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 1000000.0,
         uncollected: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='waste')] = 0.0,
@@ -351,7 +347,7 @@ class WasteSystemElement(Element):
         composting_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         capacity_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.population = population
         self.uncollected = uncollected
         self.recycled = recycled

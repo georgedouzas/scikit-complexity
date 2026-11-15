@@ -16,7 +16,7 @@ from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.general.agents import ChoiceInteraction
 
 GLAUBER_ROOT = 0.9575040240772687
@@ -34,11 +34,10 @@ class ChooserElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         option: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.option = option
 
     @classmethod

@@ -14,7 +14,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 
 
@@ -29,9 +29,6 @@ class HodgepodgeCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         level:
             The initial level of infection from 0 to `n`.
@@ -57,7 +54,6 @@ class HodgepodgeCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         level: Annotated[float, StateSpec(domain=NN)] = 0,
         n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
@@ -65,7 +61,7 @@ class HodgepodgeCellElement(Element):
         k2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
         g: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 34.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
         self.n = n
         self.k1 = k1

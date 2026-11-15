@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class MemristiveCircuitElement(Element):
@@ -29,9 +29,6 @@ class MemristiveCircuitElement(Element):
     Args:
         label:
             The label of the circuit.
-
-        visual:
-            How the circuit is drawn, or `None` for `default_visual_`.
 
         x:
             The initial voltage of the memristor.
@@ -77,7 +74,6 @@ class MemristiveCircuitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -91,7 +87,7 @@ class MemristiveCircuitElement(Element):
         a: Annotated[float, ParameterSpec()] = -0.34,
         b: Annotated[float, ParameterSpec()] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z

@@ -868,11 +868,9 @@ class ProblemPass(BasePass):
     def _get_visual_of(node: _NodeSpec) -> VisualSpec:
         """Return the visual of an element or a group.
 
-        It is its own visual when it sets one, and its default otherwise.
+        It is the drawing its class gives, or that a group or a field works out from its member class and space.
         """
         element = node.as_element
-        if element.visual is not None:
-            return element.visual
         prepared = 'default_visual_' in vars(element)
         default: VisualSpec = (element if prepared else element.prepare(node.space)).default_visual_
         return default

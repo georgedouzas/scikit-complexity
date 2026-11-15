@@ -37,7 +37,7 @@ from ....core.components.spaces import (
 )
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array, Indices
 
 MATRIX_AXES = 2
@@ -196,15 +196,12 @@ class TissueSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         cell:
             The initial label of the cell that covers the site, from 0.
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.biology.physiology import TissueSiteElement
@@ -215,11 +212,10 @@ class TissueSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         cell: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.cell = cell
 
 

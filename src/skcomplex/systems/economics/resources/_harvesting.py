@@ -17,7 +17,7 @@ from ....core.components.laws.utils import count
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class StockElement(Element):
@@ -26,9 +26,6 @@ class StockElement(Element):
     Args:
         label:
             The label of the stock.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         n:
             The initial stock.
@@ -50,13 +47,12 @@ class StockElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
         r: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         K: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.r = r
         self.K = K
@@ -90,9 +86,6 @@ class FarmerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         wealth:
             The initial wealth.
 
@@ -114,13 +107,12 @@ class FarmerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         wealth: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         resource: str = 'land/stock.n',
         effort: str = 'harvest.effort',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.wealth = wealth
         self.resource = resource
         self.effort = effort

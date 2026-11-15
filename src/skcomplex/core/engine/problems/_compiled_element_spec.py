@@ -31,9 +31,6 @@ class CompiledElementSpec(BaseSpec):
         parameters:
             A mapping from parameter name to dotted name.
 
-        visual:
-            The visual that draws the element or group.
-
         members:
             The size of a group, or `None` for a single element.
 

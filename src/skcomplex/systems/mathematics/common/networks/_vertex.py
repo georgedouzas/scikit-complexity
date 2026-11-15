@@ -24,9 +24,6 @@ class VertexElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         age:
             The number of steps since the node joined.
 
@@ -39,14 +36,15 @@ class VertexElement(Element):
         0.0
     """
 
+    visual = DEGREE_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = DEGREE_VISUAL,
         *,
         age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.age = age
         self.degree = degree

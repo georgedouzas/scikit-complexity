@@ -7,7 +7,7 @@ from sage.all__sagemath_symbolics import CC, I
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class PairElement(Element):
@@ -16,7 +16,6 @@ class PairElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         y: Annotated[float, StateSpec()] = 1.0,
@@ -24,7 +23,7 @@ class PairElement(Element):
         process: str = 'common',
         conventions: tuple[str, str] = ('ito', 'ito'),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.sigma = sigma
@@ -46,12 +45,11 @@ class PhaseElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         z: Annotated[complex, StateSpec(domain=CC)] = 1.0,
         omega: Annotated[float, ParameterSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
         self.omega = omega
 
@@ -66,12 +64,11 @@ class QuadraticElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         z: Annotated[complex, StateSpec(domain=CC)] = 0.0,
         c: Annotated[complex, ParameterSpec(domain=CC)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
         self.c = c
 

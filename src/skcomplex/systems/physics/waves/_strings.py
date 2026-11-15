@@ -21,7 +21,7 @@ from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import VelocityVerletSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.particles import HarmonicPotentialInteraction, MassPointElement, SpringInteraction
 
 
@@ -33,9 +33,6 @@ class WaveStringElement(Element):
     Args:
         label:
             The label of the site.
-
-        visual:
-            How the site is drawn, or `None` for none.
 
         u:
             The initial displacement.
@@ -55,13 +52,12 @@ class WaveStringElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec(order=2)] = 0.0,
         u_d1: float = 0.0,
         c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.u_d1 = u_d1
         self.c = c

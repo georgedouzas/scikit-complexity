@@ -18,7 +18,7 @@ from ....core.components.laws.utils import step
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 NODES = ('A', 'B', 'C')
 NEGATIVE_FEEDBACK_BUFFER = ((0, -1, 0), (0, 0, 1), (1, 0, 0))
@@ -37,9 +37,6 @@ class EnzymeNodeElement(Element):
         label:
             The label of the enzyme.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         X:
             The initial active fraction.
 
@@ -52,11 +49,10 @@ class EnzymeNodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         X: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.X = X
 
 

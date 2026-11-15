@@ -15,7 +15,7 @@ from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
 
 CLASSES = np.arange(9.0)
@@ -27,19 +27,18 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
 class TraderElement(Element):
     """Agent with a wealth."""
 
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, wealth: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, wealth: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.wealth = wealth
 
 

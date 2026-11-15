@@ -18,7 +18,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction, RepressionInteraction, SpeciesElement
 
@@ -97,9 +97,6 @@ class GlycolysisElement(DeclaredElement):
     Args:
         label:
             The label of the cell extract.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         variables:
             The declared states and parameters that replace those of the source, by name, or `None` for none.
@@ -193,9 +190,6 @@ class PhosphorylationLoopElement(Element):
         label:
             The label of the loop.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         A:
             The initial amount of unphosphorylated A.
 
@@ -250,7 +244,6 @@ class PhosphorylationLoopElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         B: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -268,7 +261,7 @@ class PhosphorylationLoopElement(Element):
         B_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         C_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.B = B
         self.C = C

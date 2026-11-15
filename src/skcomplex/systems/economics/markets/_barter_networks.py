@@ -22,7 +22,7 @@ from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
 from ...general.matching.types import MatchingRule
 
@@ -53,9 +53,6 @@ class BarterTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         good1:
             The holding of the first good.
 
@@ -81,7 +78,6 @@ class BarterTraderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         good1: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
         good2: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
@@ -89,7 +85,7 @@ class BarterTraderElement(Element):
         links: Annotated[float, StateSpec(domain=NN)] = 0.0,
         partners: Annotated[float, StateSpec()] = math.inf,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.good1 = good1
         self.good2 = good2
         self.mrs = mrs

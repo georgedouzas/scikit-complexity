@@ -22,7 +22,7 @@ from skcomplex.core.engine.solvers import (
 )
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.physics.fluids import (
     BurgersSystem,
@@ -41,11 +41,10 @@ class HeatElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
 
     def _get_laws(self, s):
@@ -160,11 +159,10 @@ def test_fluxes_need_finite_volume_field():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             u: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.u = u
 
         def _get_laws(self, s):

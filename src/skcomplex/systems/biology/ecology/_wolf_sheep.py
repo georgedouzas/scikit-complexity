@@ -42,9 +42,6 @@ class GrassElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         grown:
             Whether the grass is grown, 1 or 0.
 
@@ -61,21 +58,22 @@ class GrassElement(Element):
         4
     """
 
+    visual = VisualSpec(
+        'agents',
+        {'color_by': 'grown', 'color_range': (0.0, 1.0), 'radius': 0.5},
+    )
+
     law_classes = (RuleLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec(
-            'agents',
-            {'color_by': 'grown', 'color_range': (0.0, 1.0), 'radius': 0.5},
-        ),
         *,
         grown: Annotated[float, StateSpec(domain=NN)] = 1.0,
         countdown: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         regrowth: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.grown = grown
         self.countdown = countdown
         self.regrowth = regrowth
@@ -139,9 +137,6 @@ class SheepElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         energy:
             The initial energy.
 
@@ -158,16 +153,17 @@ class SheepElement(Element):
         100
     """
 
+    visual = VisualSpec('agents', {'radius': 0.3})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.3}),
         *,
         energy: Annotated[float, StateSpec()] = 8.0,
         gain: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
         reproduction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.04,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.energy = energy
         self.gain = gain
         self.reproduction = reproduction
@@ -200,9 +196,6 @@ class WolfElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         energy:
             The initial energy.
 
@@ -219,16 +212,17 @@ class WolfElement(Element):
         25
     """
 
+    visual = VisualSpec('agents', {'radius': 0.35})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.35}),
         *,
         energy: Annotated[float, StateSpec()] = 20.0,
         gain: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
         reproduction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.energy = energy
         self.gain = gain
         self.reproduction = reproduction

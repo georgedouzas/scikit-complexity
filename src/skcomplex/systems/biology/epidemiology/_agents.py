@@ -65,9 +65,6 @@ class PersonElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         health:
             The health state.
 
@@ -102,10 +99,11 @@ class PersonElement(Element):
         100
     """
 
+    visual = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 4.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 4.0)}),
         *,
         health: Annotated[float, StateSpec(domain=NN)] = SUSCEPTIBLE,
         d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
@@ -117,7 +115,7 @@ class PersonElement(Element):
         lockdown_length: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         lockdown_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.health = health
         self.d = d
         self.beta = beta
@@ -159,9 +157,6 @@ class TravellerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         health:
             The health state.
 
@@ -178,16 +173,17 @@ class TravellerElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 3.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 3.0)}),
         *,
         health: Annotated[float, StateSpec(domain=NN)] = SUSCEPTIBLE,
         tau: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
         m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.health = health
         self.tau = tau
         self.m = m
@@ -221,9 +217,6 @@ class WalkerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         health:
             The health state.
 
@@ -240,16 +233,17 @@ class WalkerElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 2.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 2.0)}),
         *,
         health: Annotated[float, StateSpec(domain=NN)] = HEALTHY,
         infection: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         travel: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.health = health
         self.infection = infection
         self.travel = travel

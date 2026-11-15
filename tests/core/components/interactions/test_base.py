@@ -42,7 +42,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.enums import ElementKind
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import (
     BirthDeathInteraction,
@@ -646,8 +646,8 @@ def test_interaction_that_writes_unlisted_laws_has_unknown_law_kinds():
 class FallElement(Element):
     """Element of a falling body with a position of order two."""
 
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, x: Annotated[float, StateSpec(order=2)] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, x: Annotated[float, StateSpec(order=2)] = 0.0):
+        super().__init__(label)
         self.x = x
 
 

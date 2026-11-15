@@ -30,15 +30,16 @@ from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ForagerElement(Element):
+    visual = VisualSpec('agents', {'color_by': 'food'})
+
     def __init__(
         self,
         label,
-        visual=VisualSpec('agents', {'color_by': 'food'}),
         *,
         food: Annotated[float, StateSpec()] = 5.0,
         hunger: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.food = food
         self.hunger = hunger
 

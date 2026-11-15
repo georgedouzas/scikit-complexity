@@ -34,9 +34,6 @@ class ClusterNodeElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         cluster_size:
             The number of nodes of the connected component of the node.
 
@@ -46,14 +43,15 @@ class ClusterNodeElement(Element):
         1.0
     """
 
+    visual = SIZE_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = SIZE_VISUAL,
         *,
         cluster_size: Annotated[float, StateSpec(domain=RealSet.closed_open(1, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.cluster_size = cluster_size
 
 

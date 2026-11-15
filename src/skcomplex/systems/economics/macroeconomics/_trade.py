@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class TradingEconomyElement(Element):
@@ -30,9 +30,6 @@ class TradingEconomyElement(Element):
     Args:
         label:
             The label of the economy.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The exchange rate.
@@ -94,7 +91,6 @@ class TradingEconomyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         E: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 0.885,
         X: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 32.0,
@@ -114,7 +110,7 @@ class TradingEconomyElement(Element):
         demand: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 52.0,
         government: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.X = X
         self.M = M

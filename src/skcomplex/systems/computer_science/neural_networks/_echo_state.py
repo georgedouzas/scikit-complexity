@@ -20,7 +20,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import total
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ReservoirUnitElement(Element):
@@ -34,9 +34,6 @@ class ReservoirUnitElement(Element):
     Args:
         label:
             The label of the unit or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         r:
             The initial activity.
@@ -62,7 +59,6 @@ class ReservoirUnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         r: Annotated[float, StateSpec()] = 0.0,
         w_in: Annotated[float, ParameterSpec()] = 1.0,
@@ -70,7 +66,7 @@ class ReservoirUnitElement(Element):
         amplitude: Annotated[float, ParameterSpec()] = 1.0,
         frequency: Annotated[float, ParameterSpec()] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.r = r
         self.w_in = w_in
         self.leak = leak

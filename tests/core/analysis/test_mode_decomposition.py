@@ -18,7 +18,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 from .conftest import _damped_rotation, _last_values
 
@@ -35,13 +35,12 @@ class LinearElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 1.0,
         y: Annotated[object, StateSpec()] = 0.5,
         z: Annotated[object, StateSpec()] = -1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -61,13 +60,12 @@ class DrivenElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 1.0,
         y: Annotated[object, StateSpec()] = 0.0,
         u: Annotated[object, ParameterSpec(adaptive=True, bounds=(-1.0, 1.0))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.u = u

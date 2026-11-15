@@ -33,9 +33,6 @@ class PendulumElement(Element):
         label:
             The label of the pendulum.
 
-        visual:
-            How the pendulum is drawn, or `None` for its class visual.
-
         theta:
             The initial angle from the vertical, in radians.
 
@@ -62,7 +59,6 @@ class PendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(period=2 * pi, order=2)] = 0.5,
         theta_d1: float = 0.0,
@@ -70,7 +66,7 @@ class PendulumElement(Element):
         g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
         l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
         self.m = m

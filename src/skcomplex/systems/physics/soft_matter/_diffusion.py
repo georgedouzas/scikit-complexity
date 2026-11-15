@@ -23,7 +23,7 @@ from ....core.components.laws.utils import pulse_train, where
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.particles import (
     POINTS,
     BrownianParticleElement,
@@ -43,9 +43,6 @@ class ModulatedParticleElement(Element):
     Args:
         label:
             The label of the particle or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.
@@ -70,14 +67,13 @@ class ModulatedParticleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(role='position')] = 50.0,
         s0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         ds: Annotated[float, ParameterSpec()] = 1.8,
         L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.s0 = s0
         self.ds = ds
@@ -106,9 +102,6 @@ class ScaledWalkerElement(Element):
         label:
             The label of the walker or the group.
 
-        visual:
-            How the walker is drawn, or `None` for none.
-
         x:
             The initial position.
 
@@ -130,14 +123,13 @@ class ScaledWalkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(role='position')] = 0.0,
         K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         t0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.K = K
         self.alpha = alpha
@@ -293,6 +285,12 @@ class SpeckleFieldInteraction(GradientInteraction):
         return -namespace.strength * intensity
 
 
+class BeadElement(MassPointElement):
+    """Point mass drawn as a point at its position."""
+
+    visual = POINTS
+
+
 class BrownianMotionSystem(BaseSystem):
     """Free Brownian particles with or without inertia.
 
@@ -387,10 +385,9 @@ class BrownianMotionSystem(BaseSystem):
         )
         beads = GroupElement(
             'beads',
-            element=MassPointElement,
+            element=BeadElement,
             size=self.n_particles,
             values={'x': np.zeros((self.n_particles, self.n_dim)), 'x_d1': velocities, 'm': self.m},
-            visual=POINTS,
         )
         bath = LangevinThermostatInteraction('bath', target='beads', temperature=self.kT, gamma=self.gamma)
         return CompositeSystem(self.label, elements=[beads], interactions=[bath], space=space)

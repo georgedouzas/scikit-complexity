@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.biology.common.kinetics import MichaelisMentenInteraction
 
 
@@ -19,13 +19,12 @@ class CellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         S: Annotated[float, StateSpec()] = 1.0,
         E: Annotated[float, StateSpec()] = 1.0,
         T: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.S = S
         self.E = E
         self.T = T

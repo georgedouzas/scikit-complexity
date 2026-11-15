@@ -39,9 +39,6 @@ class InfectiveElement(Element):
         label:
             The label of the node or the group.
 
-        visual:
-            How the node is drawn, or `None` for `default_visual_`.
-
         infected:
             The initial state, 0 or 1.
 
@@ -54,17 +51,18 @@ class InfectiveElement(Element):
         1.0
     """
 
+    visual = VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0})
+
     law_classes = (JumpLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         recovery: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.infected = infected
         self.recovery = recovery
 
@@ -240,7 +238,6 @@ class SimplicialContagionSystem(BaseSystem):
             element=InfectiveElement,
             space=NetworkSpace(graph, hyperedges=hyperedges),
             values={'infected': infected, 'recovery': self.recovery},
-            visual=VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0}),
             on='sites',
         )
         infection = SimplicialInfectionInteraction(
