@@ -284,6 +284,12 @@ The core holds only the components that general systems of several fields are bu
   `BallNeighborhood` merges as a distance in the metric of the space, `NearestNeighborhood`, `DelaunayNeighborhood`,
   and `CofaceNeighborhood`.
 
+  A mesh is `CellComplexSpace(points=p, cells=t)`, beside `CellComplexSpace(LatticeSpace(...))` and
+  `CellComplexSpace(NetworkSpace(...))`, with exactly one source given. `RadiusNeighborhood(radius, metric=...)` takes
+  the offsets within the radius under the metric on a lattice, such as `metric='chebyshev'` for the Moore neighbourhood
+  and `metric='manhattan'` for von Neumann, and the members within the distance in a continuous space. Its dimension
+  comes from the space, and `center` is a boolean.
+
 `SimplexSpace` moves to `skcomplex.systems.social.common`, and `CayleySpace`, `MemoryNeighborhood`, and
 `StateTranslationNeighborhood` move to `skcomplex.systems.computer_science.common.automata` with their engine support.
 `BaseTime`, `ContinuousTime`, `DiscreteTime`, and `StaticTime` leave the public API. The laws of single fields move as the
