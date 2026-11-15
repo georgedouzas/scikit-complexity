@@ -2,26 +2,27 @@
 
 ### Requirement: Each family has prepare and its own verb
 Systems SHALL have `prepare` and `simulate`. Solvers, backends, observers, compilers, and kernels SHALL have `prepare`
-and `run`, which the system calls. Elements, interactions, spaces, and neighbourhoods SHALL have neither.
+and `run`, which the system calls. Elements, interactions, spaces, and neighbourhoods SHALL have `prepare` alone.
 
 #### Scenario: Listing the verbs
 - **WHEN** a test lists the public methods of the public classes of `skcomplex.core`
-- **THEN** systems have `prepare` and `simulate`, engine classes have `prepare` and `run`, and parts have only the
-  parameter methods and their hooks
+- **THEN** systems have `prepare` and `simulate`, engine classes have `prepare` and `run`, and the other components
+  have `prepare` and the parameter methods
 
 ### Requirement: Public methods call the hooks subclasses implement
 A base SHALL define each public method once, and a subclass SHALL implement the private hook the method calls, as
-`BaseSearchCV.fit` calls `_run_search` in scikit-learn. An interaction SHALL implement `_get_laws`, which the public
-`get_laws` of its base calls, and a ready-made system SHALL implement `_prepare`, which the public `prepare` calls.
+`BaseSearchCV.fit` calls `_run_search` in scikit-learn. An interaction SHALL implement `_prepare`, which sets `laws_`,
+and a ready-made system SHALL implement `_prepare`, which sets `system_`.
 
 #### Scenario: A user interaction
-- **WHEN** a user writes an interaction that defines `_get_laws`
-- **THEN** `get_laws` of the interaction returns the laws of the hook, and preparing a system with it compiles them
+- **WHEN** a user writes an interaction whose `_prepare` sets `laws_`
+- **THEN** preparing the interaction against a namespace sets `laws_`, and preparing a system with it compiles them
 
 ### Requirement: Engine bases share prepare and run
 Every base of an engine class SHALL derive from `BaseConfig` in `skcomplex.core.base`, which defines `prepare(context)`
 and `run(input, final=False)` and calls the abstract hooks `_prepare` and `_run`. `BaseSystem` SHALL define `prepare`
-and `simulate`. `BaseComponent` SHALL give parameters, cloning, and tags without either. No public `check` SHALL exist.
+and `simulate`. `BaseComponent` SHALL give parameters, cloning, tags, and `prepare`, and no `run`. No public `check`
+SHALL exist.
 
 #### Scenario: One vocabulary in the engine
 - **WHEN** a user calls `prepare(...)` and `run(...)` on a solver, a backend, and an observer
@@ -46,13 +47,14 @@ only declaration SHALL be `RoleSpec` with the alias `Role`, in the interactions 
   that ends with `Spec` is a value that a system, a test, or a document builds or reads
 
 ### Requirement: Prepare keeps what it derives and simulate returns its trajectory
-`prepare` SHALL return the object and keep what it derives in attributes ending in `_`, such as `problem_`,
-`solver_`, and `backend_` on a system. `simulate` and the experiment and analysis functions SHALL return their results.
+`prepare` SHALL return the object and keep what it derives in attributes ending in `_`, such as `states_`,
+`equations_`, `form_`, `solver_`, and `backend_` on a system, and `laws_` on an interaction. `simulate` and the
+experiment and analysis functions SHALL return their results.
 Engine classes SHALL keep the results of `run` in the attributes their family documents.
 
 #### Scenario: A system's problem
 - **WHEN** a user prepares a system of rate laws
-- **THEN** `prepare()` returns the system, and `problem_` is an ODE problem
+- **THEN** `prepare()` returns the system, and `form_` is the ordinary differential equations
 
 #### Scenario: A simulation returns its trajectory
 - **WHEN** a user calls `system.simulate(until=20)` twice with different initial states
@@ -83,11 +85,11 @@ object on its own.
 
 ### Requirement: Estimators are the components and the engine
 The estimators of the library SHALL be the systems, which are prepared and simulated, and the engine classes, which
-are prepared and run. Elements, interactions, spaces, and neighbourhoods SHALL be configurable parts of a system, as the
-kernels of a Gaussian process are parts of it in scikit-learn. Experiments and calibration SHALL be functions.
+are prepared and run. Elements, interactions, spaces, and neighbourhoods SHALL be components that a system prepares,
+with no `run` and no `simulate`. Experiments and calibration SHALL be functions.
 
 #### Scenario: Listing estimators
-- **WHEN** a test lists the public classes of `skcomplex.core` that have `prepare`
+- **WHEN** a test lists the public classes of `skcomplex.core` that have `simulate` or `run`
 - **THEN** every one is a system or an engine class, and none is an element, an interaction, or an experiment
 
 ### Requirement: Ready-made systems are classes with model parameters
@@ -115,4 +117,4 @@ package of the class that uses them. Engine records are no longer importable.
 ### Requirement: Runs keep their results as attributes
 **Reason**: Replaced by "Prepare keeps what it derives and simulate returns its trajectory". Laws and parts no longer
 run.
-**Migration**: Read `problem_` after `prepare`, and use the trajectory `simulate` returns.
+**Migration**: Read `states_`, `equations_`, and `form_` after `prepare`, and use the trajectory `simulate` returns.

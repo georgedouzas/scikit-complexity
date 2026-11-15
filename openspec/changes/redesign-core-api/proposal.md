@@ -21,11 +21,12 @@ The design is in `design.md`. In short:
 
 - **BREAKING** An element is a plain Python class whose arguments are its values. Elements return no laws and declare
   nothing: a value some law changes is a state, any other value is a parameter, and Python type hints give the kind
-  of a value. The rule of motion `dx/dt = v` is an interaction, so `order` and its companion states go.
+  of a value. Derivatives and lags are mathematics in the laws, `derivative(x, 2)` and `lag(y, 1)`, the compiler reads
+  the order of every state from them, and `order` and its declarations go.
   One element class covers one member, many members (`size=`), and one member per site of a space (`space=`), which
   replaces `GroupElement` and `FieldElement`.
 - **BREAKING** An interaction is all behaviour. It binds roles, owns the parameters of the relation, and returns laws
-  from the hook `_get_laws`, which the public `get_laws` of the base calls. Where it applies is a binding argument, not a class: one target, named roles, every
+  in `laws_` from the hook `_prepare`, which the public `prepare` of every component calls, as `fit` calls `_fit`. Where it applies is a binding argument, not a class: one target, named roles, every
   pair within a neighbourhood, or every edge of a network. `NeighborInteraction`, `PairInteraction`,
   `HyperedgeInteraction`, and `GroupingInteraction` go, and so do the interactions that only wrap one law.
 - **BREAKING** Laws are plain values of seven kinds named by their mathematics: `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`,
@@ -62,7 +63,8 @@ None. The redesign changes the requirements of existing capabilities.
 
 ### Modified Capabilities
 
-- `system-modeling`: elements as data, interactions as behaviour, the seven law kinds, explicit states with rates,
+- `system-modeling`: elements as data, interactions as behaviour, the seven law kinds, derivatives in laws, learned
+  attributes,
   bindings, nested parameters, the `System` class, and what the core holds.
 - `base-interfaces`: which classes have `prepare` and `run`, what `prepare` and `simulate` return, the reduced specs,
   and ready-made systems with a public `build`.

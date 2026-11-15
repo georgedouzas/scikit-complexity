@@ -83,10 +83,9 @@ a charge, or a capacity. It returns no laws.
 
 ```python
 class Particle(Element):
-    def __init__(self, label, x=0.0, v=0.0, m=1.0):
+    def __init__(self, label, x=0.0, m=1.0):
         super().__init__(label)
         self.x = x
-        self.v = v
         self.m = m
 ```
 
@@ -98,9 +97,12 @@ class Particle(Element):
   `str` a category, and a list or an array a vector or a matrix of its shape.
 - A constraint on the values is written only where it is needed, as the allowed values in `Annotated`, such as
   `n: Annotated[float, RealSet.closed_open(0, oo)] = 40.0` or `status: Annotated[str, {'S', 'I', 'R'}] = 'S'`.
-- The rule of motion `dx/dt = v` is a law, so it is an interaction, such as `Motion` of the physics common package. A
-  particle with no interaction stands still. `order`, the companion states `x_d1`, lags, periods, and the other flags
-  of `StateSpec` go: each becomes a law or a constraint where a system needs it, in the field that uses it.
+- Derivatives and lags are mathematics in the laws, not declarations: `derivative(x, 2)` and `lag(y, 1)`. The order of
+  a state is the highest derivative or lag its laws use, and the compiler reduces every state to first order, as the
+  orders pass already does. A velocity is the derivative `x'`, never a declared state, so no element and no interaction
+  states the rule of motion. Derivatives are named with a prime and past values with an index, such as `"ball.x'"` and
+  `"economy.y[-1]"`, in initial states and trajectories, and they default to zero. `order`, `lags`, `initial`, periods,
+  and the other flags of `StateSpec` go.
 - `size=N` makes N members of one element class, and `space=` places one member at every site of a space. Both replace
   `GroupElement` and `FieldElement`. Per-member values are arrays whose first dimension is the number of members.
 - `DeclaredElement(label, values={...})` covers elements known only as data, such as imported models.
@@ -108,17 +110,24 @@ class Particle(Element):
 
 ### 3. Interactions are behaviour
 
-An interaction binds roles to elements, owns the parameters of the relation, such as `g`, `k`, or `beta`, and returns
-laws from the hook `_get_laws(s)`, where `s` gives the bound states and parameters by name. The base defines the
-public `get_laws(s)` once, which checks the namespace and the returned laws and calls the hook, as `BaseSearchCV.fit`
-calls the `_run_search` that each search implements in scikit-learn.
+An interaction binds roles to elements, owns the parameters of the relation, such as `g`, `k`, or `beta`, and learns
+its laws when it is prepared. Every component has the one public method `prepare(context)`, which calls the hook
+`_prepare` that a subclass implements, as `fit` calls `_fit`. An interaction is prepared against the namespace of the
+elements its roles bind and sets `laws_`, an element is prepared against its space and checks its values, and a system
+nested in another is prepared like any component. The engine prepares a clone of an interaction for every binding, as
+`cross_val_score` fits clones, so the user's object is unchanged and compiling in parallel is safe. Influences from
+outside the system, such as gravity, are interactions too.
 
 ```python
 class Gravity(Interaction):
-    def __init__(self, label, *, target: Role, g=9.81): ...
+    def __init__(self, label, *, target: Role, g=9.81):
+        super().__init__(label)
+        self.target = target
+        self.g = g
 
-    def _get_laws(self, s):
-        return [RateLaw(s.target.v, -s.g)]
+    def _prepare(self, context):
+        super()._prepare(context)
+        self.laws_ = [RateLaw(derivative(context.target.x, 2), -self.g)]
 ```
 
 - A process of one element is an interaction with one role: growth, decay, recovery, the membrane dynamics of a neuron.
@@ -131,7 +140,7 @@ class Gravity(Interaction):
   | every pair within a neighbourhood | `LennardJones('lj', among='gas', within=RadiusNeighborhood(2.5))` |
   | every edge or hyperedge of a network | `Infection('infect', among='people', along='contacts', beta=0.3)` |
 
-- A one-off rule needs no class: `Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.v, -9.81)])`.
+- A one-off rule needs no class: `Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(derivative(s.target.x, 2), -9.81)])`.
 - The core keeps the interactions the engine generates from one function: `GradientInteraction` from a potential,
   `HamiltonianInteraction` from a Hamiltonian, and `EulerLagrangeInteraction` from a Lagrangian.
 - The interactions that only wrap one law go, since `Interaction` with a law does the same: `RateInteraction`,
@@ -147,7 +156,7 @@ class Gravity(Interaction):
 
 ### 4. Laws are seven kinds of value
 
-`RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`, `ConstraintLaw`, `EventLaw`, and `ObjectiveLaw` are frozen values that `_get_laws` returns.
+`RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`, `ConstraintLaw`, `EventLaw`, and `ObjectiveLaw` are frozen values that interactions set in `laws_`.
 They have no parameters of their own and no `prepare` or `run`. Contributions of several laws to one state add up, for
 every kind where adding means something: rates, noises, jump channels, and constraint balances.
 
@@ -183,19 +192,36 @@ system = System(
     backend='auto',
 ).prepare()
 
+system.states_        # ("ball.x", "ball.x'")
+system.parameters_    # ('ball.m', 'gravity.g')
+system.equations_     # {"ball.x": "ball.x'", "ball.x'": "-g"}
+system.form_          # 'ordinary differential equations'
+system.solver_        # ScipyODESolver(...)
+
 earth = system.simulate(until=1.4)
-higher = system.simulate(until=2.0, initial_state={'ball.x': 20.0})
+pushed = system.simulate(until=2.0, initial_state={"ball.x'": 3.0})
 moon = system.set_params(gravity__g=1.62).prepare().simulate(until=1.4)
 ```
+
+| Learned attribute | What it is |
+| --- | --- |
+| `states_` | the names of the values the laws change, with their derivatives and lags |
+| `parameters_` | the names of the values no law changes |
+| `equations_` | one readable equation per state, summed over the laws and reduced to first order |
+| `form_` | the kind of problem: ODE, SDE, jump process, map, DAE, static, and the others |
+| `solver_`, `backend_` | the resolved runners |
+
+The compiled problem, the vector function `f(t, y, p)` and its layout that the solver calls thousands of times, is
+private. Compiling it is the expensive step, so `prepare` does it once and every `simulate` reuses it.
 
 | scikit-learn | scikit-complexity |
 | --- | --- |
 | `LogisticRegression(C=1.0, solver='lbfgs')` | `System(elements=..., interactions=..., solver=..., backend=...)` |
-| `fit(X, y)` returns `self` | `prepare()` checks every part, compiles the problem, picks the solver and backend, sets `problem_`, `solver_`, `backend_`, and returns `self` |
+| `fit(X, y)` returns `self` | `prepare()` checks every component, compiles the problem, picks the solver and backend, sets the learned attributes, and returns `self` |
 | `predict(X)` returns the predictions | `simulate(until, initial_state=None, random_state=None, observables=(), observers=())` returns the `Trajectory` |
 | nested parameters of a `Pipeline` | `get_params` and `set_params` with `<label>__<parameter>`, and `<system>__<label>__<parameter>` for nested systems |
 | `cross_val_score`, `GridSearchCV` | `ensemble`, `sweep`, `calibrate`, `sensitivity`, `basin_stability`, as functions |
-| kernels of a Gaussian process | elements, interactions, spaces: parameters, no `fit` |
+| `fit` calling `_fit` | every component's `prepare` calling its `_prepare`, which sets `laws_` on an interaction and `system_` on a ready-made system |
 
 - `CompositeSystem` becomes `System`. A system holds a label, elements, interactions, nested systems, a space, a
   solver, and a backend, and nothing else. Time is inferred from the law kinds: rates flow in continuous time, updates
@@ -210,10 +236,10 @@ moon = system.set_params(gravity__g=1.62).prepare().simulate(until=1.4)
   overwriting a stored result.
 - The free function `simulate` is removed, so there is one way to simulate. Its other run arguments, `invariants`,
   `schedule`, `clock`, `checked`, `record_draws`, and `replay`, become arguments of `System.simulate`.
-- Elements, interactions, spaces, and neighbourhoods derive from `BaseComponent`, which gives parameters, cloning, and
-  tags, and no `prepare` or `run`. Solvers, backends, observers, compilers, and kernels keep `prepare` and `run`, which
-  the system calls. Each family has `prepare` and its own verb, as scikit-learn estimators share `fit` and differ in
-  `predict` or `transform`.
+- Elements, interactions, spaces, and neighbourhoods derive from `BaseComponent`, which gives parameters, cloning,
+  tags, and `prepare`, and no `run`. Solvers, backends, observers, compilers, and kernels keep `prepare` and `run`,
+  which the system calls. Every family has `prepare` and its own verb, if any, as scikit-learn estimators share `fit`
+  and differ in `predict` or `transform`.
 
 ### 6. Ready-made systems
 
@@ -274,7 +300,7 @@ against the new API.
   such a law brings its own solver on the public engine bases, so its kernel survives the move.
 - [An agent's behaviour as an interaction reads less like Mesa, where behaviour is a method of the agent] → One place
   for every rule is worth it, and the agent guide shows the pattern once.
-- [Inferring time from law kinds hides a choice] → `prepare` records the inferred problem in `problem_`, the tags show
+- [Inferring time from law kinds hides a choice] → `prepare` records the inferred problem in `form_`, the tags show
   the time, and a system mixing kinds that do not combine raises a named error listing them.
 - [The rewrite touches every system, test, and page] → The new API is built beside the old one inside the core, the
   fields migrate in waves, and the old classes are deleted only when no system uses them.

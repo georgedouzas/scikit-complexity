@@ -5,12 +5,38 @@ A value of an element that some law changes SHALL be a state, and a value that n
 decided by `prepare` from the laws of the system.
 
 #### Scenario: A particle at rest
-- **WHEN** a system holds a particle with the values `x`, `v`, and `m` and no interaction
-- **THEN** preparing it finds no state, and every value is a parameter that `get_params` lists
+- **WHEN** a system holds a particle with the values `x` and `m` and no interaction
+- **THEN** preparing it finds no state, and `parameters_` lists `ball.x` and `ball.m`
 
-#### Scenario: A particle in motion
-- **WHEN** the system adds a `Motion` interaction whose law is `RateLaw(x, v)`
-- **THEN** `x` is a state, and `v` and `m` stay parameters
+#### Scenario: A particle under gravity
+- **WHEN** the system adds a gravity interaction whose law is `RateLaw(derivative(x, 2), -g)`
+- **THEN** `states_` lists `ball.x` and `ball.x'`, and `parameters_` lists `ball.m` and `gravity.g`
+
+### Requirement: Derivatives and lags are mathematics in the laws
+A law SHALL read and give derivatives of states with `derivative(x, k)` and past values with `lag(x, k)`, the order of
+a state SHALL be the highest derivative or lag its laws use, and the compiler SHALL reduce every state to first order.
+Derivatives SHALL be named with a prime in initial states and trajectories, such as `"ball.x'"`, and past values with
+an index, such as `"economy.y[-1]"`, and they SHALL default to zero.
+
+#### Scenario: A pushed particle
+- **WHEN** a user simulates a particle under gravity with `initial_state={"ball.x'": 1.5}`
+- **THEN** the run starts with the velocity 1.5, and `trajectory.get_values("ball.x'")` returns the velocity
+
+#### Scenario: A difference equation with two lags
+- **WHEN** an interaction returns `UpdateLaw(s.y, a * lag(s.y, 1) + b * lag(s.y, 2))`
+- **THEN** the compiled map keeps two past values of `y`, and `states_` lists `economy.y`, `economy.y[-1]`, and
+  `economy.y[-2]`
+
+### Requirement: Prepared systems expose what they learned
+After `prepare`, a system SHALL expose `states_`, the names of the values its laws change with their derivatives and
+lags, `parameters_`, the names of the values no law changes, `equations_`, one readable equation per state, `form_`,
+the kind of problem the laws make, and `solver_` and `backend_`, the resolved runners. The compiled problem SHALL be
+private.
+
+#### Scenario: A damped spring
+- **WHEN** a user prepares a particle under gravity and a damped spring
+- **THEN** `form_` is the ordinary differential equations, `equations_` maps `ball.x` to `ball.x'` and `ball.x'` to
+  the sum of the forces over the mass, and `solver_` is the default ODE solver
 
 ### Requirement: Interactions own the parameters of their relation
 A parameter that describes the relation between elements or between an element and its surroundings SHALL belong to
@@ -48,8 +74,8 @@ expression or a Python callable for the values the engine evaluates numerically.
 - **THEN** each firing applies the change the callable returns
 
 #### Scenario: Only interactions return laws
-- **WHEN** a user writes an element class that defines `_get_laws`
-- **THEN** preparing a system with it raises a named error that asks for an interaction with one role
+- **WHEN** a user writes an element class whose `_prepare` sets `laws_`
+- **THEN** preparing a system with it raises a named error that asks for an interaction
 
 ### Requirement: Contributions of every additive kind add up
 Rates, noises, jump channels, and constraint balances that several laws give to one state SHALL add up, so adding an
@@ -81,14 +107,19 @@ members SHALL reject at once a size below one, an unknown value name, and an arr
 - **WHEN** an element class declares a state named `size`
 - **THEN** defining the class raises a named error that names `size` and the reserved names
 
-### Requirement: Parts have parameters and systems are prepared and simulated
-Elements, interactions, spaces, and neighbourhoods SHALL derive from `BaseComponent`, which gives `label`, parameters,
-cloning, and tags, and SHALL have no `prepare` and no `run`. Laws SHALL be frozen values. Systems SHALL have the main
-public methods `prepare` and `simulate`.
+### Requirement: Components are prepared against their context
+Elements, interactions, spaces, neighbourhoods, and systems SHALL derive from `BaseComponent`, which gives `label`,
+parameters, cloning, tags, and `prepare(context)`, and no `run`. An interaction SHALL implement `_prepare` against the
+namespace of the elements its roles bind and set `laws_`, and the engine SHALL prepare a clone of it for every binding.
+Laws SHALL be frozen values, and systems SHALL also have `simulate`.
 
-#### Scenario: A part has parameters only
-- **WHEN** a user looks for `prepare` or `run` on an element, an interaction, or a space
-- **THEN** neither exists, and `get_params`, `set_params`, and `clone` work
+#### Scenario: An interaction learns its laws
+- **WHEN** a user prepares a gravity interaction against a namespace with the symbol `x` of its target
+- **THEN** `laws_` holds `RateLaw(derivative(x, 2), -g)`, and the interaction has no `run`
+
+#### Scenario: The user's interaction stays unchanged
+- **WHEN** a user prepares a system that binds one interaction object to two groups
+- **THEN** the engine prepares a clone per binding, and the user's interaction has no `laws_`
 
 #### Scenario: A system is prepared and simulated
 - **WHEN** a user calls `system.prepare().simulate(until=10)`
@@ -148,10 +179,9 @@ the allowed values in `Annotated`, only where one is needed.
 - **WHEN** a system contains an element whose positive parameter is set to a negative number and it is prepared
 - **THEN** a named validation error is raised that names the element, the variable, and the domain
 
-#### Scenario: Velocity moved by the rule of motion
-- **WHEN** a particle with the values `x`, `v`, and `m` is moved by a `Motion` interaction and a gravity interaction
-- **THEN** a run moves `x` at the rate `v` and `v` at the rate `-g`, and the trajectory holds `particle.x` and
-  `particle.v`
+#### Scenario: Velocity as a derivative
+- **WHEN** a particle with the values `x` and `m` falls under a gravity interaction whose law gives `derivative(x, 2)`
+- **THEN** a run moves `x` with the acceleration `-g`, and the trajectory holds `ball.x` and `ball.x'`
 
 ### Requirement: Components are defined without subclassing
 `DeclaredElement(label, values={...})` SHALL define an element from data, and
@@ -204,12 +234,44 @@ function: `GradientInteraction` from a potential, `HamiltonianInteraction` from 
 - **THEN** it writes an `Interaction` whose law is `RateLaw` with `(goal - x) / time` or `D laplacian(u)`, with no class
   of its own
 
+### Requirement: States declare an order with initial derivatives
+The order of a state SHALL be the highest derivative its laws give or read, and the compiler SHALL add the derivatives
+of orders 1 to `k - 1` as states named with primes. Their initial values SHALL come from the initial state and default
+to zero, and they SHALL appear in trajectories by name and be readable in laws with `derivative`.
+
+#### Scenario: Initial angular velocity
+- **WHEN** a pendulum interaction gives `derivative(theta, 2)` and a run starts with `initial_state={"bob.theta'": 0.5}`
+  and `theta=0.1`
+- **THEN** the run starts with angle 0.1 and angular velocity 0.5, and the trajectory returns both `bob.theta` and
+  `bob.theta'`
+
+#### Scenario: First order unchanged
+- **WHEN** the laws of a state give only its first derivative
+- **THEN** the system compiles with no derived states
+
+### Requirement: Laws of any order superpose on the highest derivative
+Rate and noise laws on a derivative of order `k` of a state SHALL contribute to it, and the contributions of different
+laws SHALL add up. Laws that give different orders of one state SHALL raise a named error.
+
+#### Scenario: Newton's second law from separate forces
+- **WHEN** a mass on a spring receives a restoring law on `derivative(x, 2)` from one interaction and a damping law
+  that reads `derivative(x)` from another
+- **THEN** the run matches the damped oscillator `m x'' = -k x - c x'` within the solver tolerance
+
+#### Scenario: Third order
+- **WHEN** Sprott's jerk equation `x''' = -A x'' - x' + |x| - 1` is written as one rate law on `derivative(x, 3)`
+- **THEN** it compiles to three first-order equations, and with A = 0.6 its trajectory is bounded and chaotic
+
+#### Scenario: Order mismatch
+- **WHEN** one law gives `derivative(x, 1)` and another gives `derivative(x, 2)`
+- **THEN** compiling raises a named error that names both laws, the state, and both orders
+
 ## REMOVED Requirements
 
 ### Requirement: Laws describe how state changes
 **Reason**: Replaced by "Interactions return laws of seven kinds", which names the kinds, makes interactions the only
 source of laws, and lets every kind take callables.
-**Migration**: Return `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`, `ConstraintLaw`, `EventLaw`, or `ObjectiveLaw` from `get_laws`.
+**Migration**: Set `laws_` in `_prepare` to `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`, `ConstraintLaw`, `EventLaw`, or `ObjectiveLaw`.
 
 ### Requirement: Rate and noise contributions add up
 **Reason**: Replaced by "Contributions of every additive kind add up", which also covers jump channels and constraint
@@ -224,7 +286,7 @@ balances.
 ### Requirement: Components share two main public methods
 **Reason**: Replaced by "Parts have parameters and systems are prepared and simulated". Parts are descriptions, and
 only systems and engine classes are prepared.
-**Migration**: Prepare and simulate the system. Read the laws of an interaction through its public `get_laws`.
+**Migration**: Prepare and simulate the system. Read the laws of a prepared interaction in `laws_`.
 
 ### Requirement: A system is elements, interactions, space, and time
 **Reason**: Replaced by "A system is parts, a space, a solver, and a backend". Time follows from the law kinds, and the
@@ -235,13 +297,3 @@ solver and backend are settings of the system.
 **Reason**: Replaced by "The core holds the building blocks of general systems". Field laws such as matchings,
 cascades, and binary encounters move to their fields with their solvers.
 **Migration**: Import such laws from their field package.
-
-### Requirement: States declare an order with initial derivatives
-**Reason**: A state declares the state that is its rate of change, so the velocity is a declared state and not a
-hidden companion named by a convention.
-**Migration**: Replace `theta: StateSpec(order=2)` and `theta_d1=...` by the values `theta` and `omega` and an
-interaction whose laws are `RateLaw(theta, omega)` and the rate of `omega`.
-
-### Requirement: Laws of any order superpose on the highest derivative
-**Reason**: With explicit rates there is no highest derivative. Forces add as rates on the velocity state.
-**Migration**: Write each force as `RateLaw(s.target.v, force / s.target.m)`, and higher orders as a chain of states.
