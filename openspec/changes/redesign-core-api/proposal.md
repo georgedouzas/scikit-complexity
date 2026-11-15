@@ -46,7 +46,8 @@ The design is in `design.md`. In short:
   value moves beside the class that uses it. Engine records become private to the code that uses them.
 - **BREAKING** How an element is drawn moves from the element to the visualisation observer, and `visual=` leaves every
   element constructor.
-- **BREAKING** The core keeps only components that general systems of several fields are built from. Every
+- **BREAKING** The core keeps only components that general systems of several fields are built from: 2 element classes,
+  2 interaction classes, 7 law kinds as values, 5 spaces, and 6 neighbourhoods, 25 public classes down from 79. Every
   field-specific element, interaction, law, space, and neighbourhood moves to `skcomplex.systems.<field>.common` or to
   `skcomplex.systems.general`, and the concrete systems of each field are the consumers of the core.
 - The code is simplified along the way: fewer classes, short constructors, no hidden conventions, no private hooks for

@@ -107,7 +107,9 @@ class Particle(Element):
   and the other flags of `StateSpec` go.
 - `size=N` makes N members of one element class, and `space=` places one member at every site of a space. Both replace
   `GroupElement` and `FieldElement`. Per-member values are arrays whose first dimension is the number of members.
-- `DeclaredElement(label, values={...})` covers elements known only as data, such as imported models.
+- `Element(label, values={...})` covers elements whose value names are known only as data, such as imported models,
+  so `DeclaredElement` goes. A subclass adds named values as constructor arguments, and both kinds of value are
+  inferred alike.
 - `visual=` leaves every element. How an element is drawn is a setting of the visualisation observer, keyed by path.
 
 ### 3. Interactions are behaviour
@@ -144,8 +146,11 @@ class Gravity(Interaction):
   | every edge or hyperedge of a network | `Infection('infect', among='people', along='contacts', beta=0.3)` |
 
 - A one-off rule needs no class: `Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -9.81)])`.
-- The core keeps the interactions the engine generates from one function: `GradientInteraction` from a potential,
-  `HamiltonianInteraction` from a Hamiltonian, and `EulerLagrangeInteraction` from a Lagrangian.
+- The core keeps only `BaseInteraction` and `Interaction`. The engine names no other interaction, and laws written in
+  Sage make the generated ones one line each: a gradient flow is `RateLaw(x, -U.diff(x))`, Hamilton's equations are
+  `RateLaw(q, H.diff(p))` and `RateLaw(p, -H.diff(q))`. `HamiltonianInteraction` and `EulerLagrangeInteraction` move to
+  `skcomplex.systems.physics.common.mechanics`, with the parts of the invariants analysis that read their energies, and
+  `GradientInteraction` moves to `skcomplex.systems.general.gradients`, since physics, social, and engineering use it.
 - The interactions that only wrap one law go, since `Interaction` with a law does the same: `RateInteraction`,
   `JumpInteraction`, `MapInteraction`, `CrossingInteraction`, `TransitionInteraction`, `LocalRuleInteraction`,
   `TransferInteraction`, and `SamplingInteraction`. So do the classes that only fix a binding: `NeighborInteraction`,
@@ -160,7 +165,10 @@ class Gravity(Interaction):
 ### 4. Laws are seven kinds of value
 
 `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`, `ConstraintLaw`, `EventLaw`, and `ObjectiveLaw` are frozen values that interactions set in `laws_`.
-They have no parameters of their own and no `prepare` or `run`. Contributions of several laws to one state add up, for
+A law is not a component: it has no label, no parameters of its own, and no `prepare` or `run`. It is the mathematics an
+interaction states, so the components are elements, interactions, spaces, and systems. The kinds stay as values rather
+than bare Sage equations, since several laws add into one derivative where two equations would read as a contradiction,
+and Sage has no form for noise, jumps, events, or objectives. Contributions of several laws to one state add up, for
 every kind where adding means something: rates, noises, jump channels, and constraint balances.
 
 | Current law | New form |
@@ -169,7 +177,7 @@ every kind where adding means something: rates, noises, jump channels, and const
 | `NoiseLaw` | `NoiseLaw` |
 | `JumpLaw`, `TransferLaw`, `Source`, `Sink` | `JumpLaw` with a change mapping, where an empty side is a source or a sink |
 | `UpdateLaw`, `ArrayUpdateLaw`, `RuleLaw`, `LocalRuleLaw`, `TransitionLaw` | `UpdateLaw`, with a random draw for transitions and a neighbourhood binding for local rules |
-| `EquationLaw`, `BoundaryLaw` | `ConstraintLaw` |
+| `EquationLaw`, `BoundaryLaw` | `ConstraintLaw`, a boundary being a constraint applied after each step |
 | `CrossingLaw` | `EventLaw` |
 | `LinearProgramLaw` | `ObjectiveLaw` with `ConstraintLaw`, solved as a linear program when both are linear |
 | `SampleLaw` | `ObjectiveLaw` with a sampling solver |
@@ -256,16 +264,24 @@ parameters of parts builds a `System` and uses nested parameters, with no class.
 
 The core holds only the components that general systems of several fields are built from:
 
-- elements: `BaseElement`, `Element`, `DeclaredElement`,
-- interactions: `BaseInteraction`, `Interaction`, `GradientInteraction`, `HamiltonianInteraction`,
-  `EulerLagrangeInteraction`,
+- elements: `BaseElement`, `Element`,
+- interactions: `BaseInteraction`, `Interaction`,
 - laws: `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`, `ConstraintLaw`, `EventLaw`, `ObjectiveLaw`,
 - operators: `laplacian`, `divergence`, `gradient`, and the reductions over neighbours,
 - systems: `BaseSystem`, `System`,
-- spaces and neighbourhoods that systems of two or more fields use, decided by the audit task with the placement rule.
-  The candidates to leave are `CayleySpace`, `PhaseSpace`, `SimplexSpace`, `CofaceNeighborhood`,
-  `MemoryNeighborhood`, and `StateTranslationNeighborhood`. `BaseTime`, `ContinuousTime`, `DiscreteTime`, and
-  `StaticTime` leave the public API.
+- spaces: `BaseSpace`, `LatticeSpace`, `NetworkSpace`, `ContinuousSpace`, `PhaseSpace`, and `CellComplexSpace`, into which
+  `MeshSpace` merges since a mesh is a 2-complex,
+- neighbourhoods: `BaseNeighborhood`, `LatticeNeighborhood`, `AdjacencyNeighborhood`, `RadiusNeighborhood`, into which
+  `BallNeighborhood` merges as a distance in the metric of the space, `NearestNeighborhood`, `DelaunayNeighborhood`,
+  and `CofaceNeighborhood`.
+
+`SimplexSpace` moves to `skcomplex.systems.social.common`, and `CayleySpace`, `MemoryNeighborhood`, and
+`StateTranslationNeighborhood` move to `skcomplex.systems.computer_science.common.automata` with their engine support.
+`BaseTime`, `ContinuousTime`, `DiscreteTime`, and `StaticTime` leave the public API. The laws of single fields move as the
+table of section 4 says: `DissipatorLaw` to the quantum package, `CascadeLaw` to criticality, `ExtremalLaw` to the
+evolution package of biology, `BilinearLaw` to `skcomplex.systems.general.kinetics`, `MatchLaw` to
+`skcomplex.systems.general.matching`, and `ProductionLaw` and `SubstitutionLaw` to `skcomplex.systems.general.rewriting`.
+The core keeps 25 public classes in these families, down from 79.
 
 Everything else that is field-specific moves to `skcomplex.systems.<field>.common.<family>` when one field uses it, or
 to `skcomplex.systems.general.<concept>` when several fields share it as a recipe. Moving code never deletes meaningful

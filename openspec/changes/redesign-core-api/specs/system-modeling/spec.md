@@ -107,7 +107,7 @@ members SHALL reject at once a size below one, an unknown value name, and an arr
 - **THEN** creating it raises a named error that names the element, the variable, and both sizes
 
 #### Scenario: One member per site
-- **WHEN** a user creates `Temperature('T', space=MeshSpace(...))`
+- **WHEN** a user creates `Temperature('T', space=CellComplexSpace(...))`
 - **THEN** the element has one member at every site of the mesh
 
 #### Scenario: A reserved name
@@ -171,6 +171,23 @@ an ordinary interaction.
 - **WHEN** an interaction returns updates that remove an edge between disagreeing nodes and add a random one
 - **THEN** the network of the trajectory changes at every step, and no dedicated topology class is used
 
+### Requirement: Laws are values that interactions state
+A law SHALL be a frozen value with no label, no parameters of its own, and no `prepare` or `run`, and the components
+SHALL be elements, interactions, spaces, and systems.
+
+#### Scenario: A law is no component
+- **WHEN** a test lists the public classes of `skcomplex.core.components` that derive from `BaseComponent`
+- **THEN** none is a law
+
+### Requirement: The core holds general spaces and neighbourhoods
+The spaces of the core SHALL be the lattice, network, continuous, phase, and cell complex spaces, a mesh being a cell
+complex, and the neighbourhoods SHALL be the lattice, adjacency, radius, nearest, Delaunay, and coface neighbourhoods, a
+radius measured in the metric of its space. Spaces and neighbourhoods of one field SHALL live in that field.
+
+#### Scenario: A Cayley graph
+- **WHEN** a reviewer looks for `CayleySpace`
+- **THEN** it lives in `skcomplex.systems.computer_science.common.automata`, and no module of the core names it
+
 ## MODIFIED Requirements
 
 ### Requirement: Elements declare typed state and parameters
@@ -191,17 +208,17 @@ the allowed values in `Annotated`, only where one is needed.
 - **THEN** a run moves `x` with the acceleration `-g`, and the trajectory holds `ball.x` and `ball.x'`
 
 ### Requirement: Components are defined without subclassing
-`DeclaredElement(label, values={...})` SHALL define an element from data, and
+`Element(label, values={...})` SHALL define an element from data, and
 `Interaction(label, roles={...}, laws=callable)` SHALL define an interaction from a function that returns its laws, and
 both SHALL behave like subclassed components in members, cloning, and parameters.
 
 #### Scenario: One-off growth system
-- **WHEN** a user builds a declared element with a value `n` and an interaction with one role and a rate law, without
+- **WHEN** a user builds an element from data with a value `n` and an interaction with one role and a rate law, without
   writing a class
 - **THEN** the system prepares and simulates exactly like the same system written with classes
 
 #### Scenario: Defined types form groups
-- **WHEN** a user creates a declared element with `size=100`
+- **WHEN** a user creates an element from data with `size=100`
 - **THEN** it prepares once for its 100 members, and its parameters appear in the nested parameters of the system
 
 ### Requirement: Interactions bind roles with an arity and a binding
@@ -226,9 +243,10 @@ network. No interaction class SHALL exist only to fix a binding. Interactions SH
 - **THEN** defining the type raises a named error that suggests an element on the edges of the space
 
 ### Requirement: Core interactions are distinct operations
-The interactions of the core SHALL be the base `Interaction` and the interactions the engine generates from one
-function: `GradientInteraction` from a potential, `HamiltonianInteraction` from a Hamiltonian, and
-`EulerLagrangeInteraction` from a Lagrangian. No core interaction SHALL only wrap one law or fix one binding.
+The interactions of the core SHALL be `BaseInteraction` and `Interaction` alone. Interactions that generate laws from
+one function, such as gradient flows and Hamiltonian or Lagrangian mechanics, SHALL live in the systems packages that
+use them, since a law written in Sage gives them in one line. No core interaction SHALL only wrap one law or fix one
+binding.
 
 #### Scenario: No parametrised copy
 - **WHEN** the classes of `skcomplex.core.components.interactions` are listed

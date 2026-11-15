@@ -5,10 +5,10 @@ Every docstring of a public class or function of the core SHALL hold, in order, 
 words with the formula when there is one, a line that links its section of the user guide, the arguments, a See Also
 section, and an Examples section.
 
-#### Scenario: The gradient interaction
-- **WHEN** a reader reads the docstring of `GradientInteraction`
-- **THEN** its body is one paragraph that gives `dx/dt = -dU/dx` and uses from several fields, and its See Also names
-  `Interaction` and `HamiltonianInteraction`
+#### Scenario: The objective law
+- **WHEN** a reader reads the docstring of `ObjectiveLaw`
+- **THEN** its body is one paragraph that says the system minimises a scalar of its states and names uses from several
+  fields, and its See Also names `ConstraintLaw`
 
 ### Requirement: Docstring examples are short and use real parts
 The Examples section of a docstring of the core SHALL hold three to six lines of code and SHALL define no class only to
@@ -26,7 +26,7 @@ and the experiment functions SHALL say in plain words what the thing does, and S
 fields of science in one sentence.
 
 #### Scenario: The declared element
-- **WHEN** a reader reads the docstring of `DeclaredElement`
+- **WHEN** a reader reads the docstring of `Element`
 - **THEN** one sentence names uses such as people infected in an epidemic and moles of a chemical species
 
 #### Scenario: An analysis function
