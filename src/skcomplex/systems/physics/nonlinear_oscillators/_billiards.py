@@ -115,7 +115,7 @@ class MushroomBilliardElement(Element):
 class SinaiBilliardElement(Element):
     """Free particle in the Sinai billiard.
 
-    The table is a square of half side `size` with a central disc of radius `radius`.
+    The table is a square of half side `half_side` with a central disc of radius `radius`.
 
     The particle flies straight, and its specular reflections off the four walls and the disc make its motion ergodic
     and chaotic.
@@ -139,7 +139,7 @@ class SinaiBilliardElement(Element):
         vy:
             The initial second velocity.
 
-        size:
+        half_side:
             The half side of the square.
 
         radius:
@@ -156,9 +156,9 @@ class SinaiBilliardElement(Element):
     """
 
     @staticmethod
-    def _get_sinai_walls(size: float, radius: float, **_: float) -> list[np.ndarray]:
+    def _get_sinai_walls(half_side: float, radius: float, **_: float) -> list[np.ndarray]:
         """Return the square wall and central disc of a Sinai table as closed polylines."""
-        square = size * np.array([[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0], [-1.0, -1.0]])
+        square = half_side * np.array([[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0], [-1.0, -1.0]])
         angles = np.linspace(0.0, 2 * np.pi, 100)
         return [square, radius * np.column_stack([np.cos(angles), np.sin(angles)])]
 
@@ -176,7 +176,7 @@ class SinaiBilliardElement(Element):
         y: Annotated[float, StateSpec()] = 0.6,
         vx: Annotated[float, StateSpec()] = 0.6,
         vy: Annotated[float, StateSpec()] = 0.8,
-        size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        half_side: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
     ) -> None:
         super().__init__(label, visual=visual)
@@ -184,7 +184,7 @@ class SinaiBilliardElement(Element):
         self.y = y
         self.vx = vx
         self.vy = vy
-        self.size = size
+        self.half_side = half_side
         self.radius = radius
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
@@ -294,14 +294,14 @@ class BilliardsSystem(BaseSystem):
 
     The particle reflects specularly off the walls of the table.
 
-    The Sinai table is the square `[-size, size]²` with a disc of radius `disc_radius` at its center, and its motion is
-    chaotic. The mushroom table is the upper half of a disc of radius `cap_radius` on a stem of half width `width` and
-    height `height`, and its phase space mixes regular orbits that stay in the cap with chaotic orbits that enter the
-    stem. The three-disk table is open: three discs of radius `disc_radius` sit at the corners of an equilateral
-    triangle of side `spacing` centered at the origin, with one disc below the origin. A particle that comes from far
-    away is scattered chaotically between the discs and leaves again, and the number of its collisions and its outgoing
-    angle depend on its incoming direction through a fractal scattering function. Every bounce is an event, and the
-    speed is conserved. The system has the position `particle.x`, `particle.y` and the velocity `particle.vx`,
+    The Sinai table is the square `[-half_side, half_side]²` with a disc of radius `disc_radius` at its center, and its
+    motion is chaotic. The mushroom table is the upper half of a disc of radius `cap_radius` on a stem of half width
+    `width` and height `height`, and its phase space mixes regular orbits that stay in the cap with chaotic orbits that
+    enter the stem. The three-disk table is open: three discs of radius `disc_radius` sit at the corners of an
+    equilateral triangle of side `spacing` centered at the origin, with one disc below the origin. A particle that comes
+    from far away is scattered chaotically between the discs and leaves again, and the number of its collisions and its
+    outgoing angle depend on its incoming direction through a fractal scattering function. Every bounce is an event, and
+    the speed is conserved. The system has the position `particle.x`, `particle.y` and the velocity `particle.vx`,
     `particle.vy`.
 
     Args:
@@ -320,7 +320,7 @@ class BilliardsSystem(BaseSystem):
         vy:
             The initial vertical velocity.
 
-        size:
+        half_side:
             The half side of the Sinai table.
 
         disc_radius:
@@ -383,7 +383,7 @@ class BilliardsSystem(BaseSystem):
         vx: float = 0.6,
         vy: float = 0.8,
         *,
-        size: float = 1.0,
+        half_side: float = 1.0,
         disc_radius: float = 0.4,
         cap_radius: float = 1.0,
         width: float = 0.4,
@@ -397,7 +397,7 @@ class BilliardsSystem(BaseSystem):
         self.y = y
         self.vx = vx
         self.vy = vy
-        self.size = size
+        self.half_side = half_side
         self.disc_radius = disc_radius
         self.cap_radius = cap_radius
         self.width = width
@@ -430,14 +430,14 @@ class BilliardsSystem(BaseSystem):
                 y=self.y,
                 vx=self.vx,
                 vy=self.vy,
-                size=self.size,
+                half_side=self.half_side,
                 radius=self.disc_radius,
             )
             walls = [
-                BilliardsSystem._get_wall('right_wall', lambda s: s.target.x - s.target.size, 1),
-                BilliardsSystem._get_wall('left_wall', lambda s: s.target.x + s.target.size, -1),
-                BilliardsSystem._get_wall('top_wall', lambda s: s.target.y - s.target.size, 1),
-                BilliardsSystem._get_wall('bottom_wall', lambda s: s.target.y + s.target.size, -1),
+                BilliardsSystem._get_wall('right_wall', lambda s: s.target.x - s.target.half_side, 1),
+                BilliardsSystem._get_wall('left_wall', lambda s: s.target.x + s.target.half_side, -1),
+                BilliardsSystem._get_wall('top_wall', lambda s: s.target.y - s.target.half_side, 1),
+                BilliardsSystem._get_wall('bottom_wall', lambda s: s.target.y + s.target.half_side, -1),
                 BilliardsSystem._get_wall('disc', lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2, -1),
             ]
             return CompositeSystem(self.label, elements=[table], interactions=walls)

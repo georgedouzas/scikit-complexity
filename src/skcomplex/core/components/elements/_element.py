@@ -9,8 +9,9 @@ from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import ClassVar
 
-from ...specs import ConnectorSpec
+from ...specs import ConnectorSpec, VisualSpec
 from ..base import BaseComponent
+from ..spaces import BaseSpace
 from ._base import BaseElement
 
 
@@ -41,6 +42,15 @@ class Element(BaseElement):
     Args:
         label:
             The name of the element, unique among the components of its system, such as `'rabbits'`.
+
+        values:
+            Values by name, such as `{'x': 10.0, 'm': 1.0}`, in place of a subclass that takes them as arguments.
+
+        size:
+            The number of members, each with its own values, such as `1000` molecules of a gas, or `None` for one.
+
+        space:
+            The space of the element, with one member per site, such as a lattice of cells, or `None` for none.
 
         visual:
             How the element is drawn, such as `VisualSpec('line')`, or `None` for `default_visual_`.
@@ -79,6 +89,20 @@ class Element(BaseElement):
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {}
     law_classes: ClassVar[tuple[type, ...]] = ()
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.values = values
+        self.size = size
+        self.space = space
 
     @classmethod
     def _get_view(cls) -> type | None:

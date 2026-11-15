@@ -12,6 +12,7 @@ from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
@@ -187,3 +188,46 @@ def test_get_declared_reads_a_delay():
     assert system.equations_ == {'ball.x': '-ball.x(t - feedback.tau)'}
     values = system.simulate(until=2.0, dt=1.0).get_values('ball.x')
     assert values == pytest.approx([1.0, 0.0, -0.5], abs=1e-6)
+
+
+def test_get_declared_moves_many_members():
+    """Test that 1000 members, each with its own height, fall under gravity with one shared mass."""
+    heights = np.linspace(1.0, 10.0, 1000)
+    gas = Element('gas', values={'x': heights, 'm': 1.0}, size=1000)
+    system = System(elements=[gas], interactions=[Gravity('gravity', target='gas')]).prepare()
+    assert system.states_ == ('gas.x[i]', "gas.x'[i]")
+    last = system.simulate(until=1.0, dt=0.01).get_values('gas.x')[-1]
+    assert last == pytest.approx(heights - 9.81 / 2, rel=1e-6)
+
+
+def test_get_declared_reads_values_of_an_element_without_a_subclass():
+    """Test that values given by name act like the arguments of a subclass."""
+    ball = Element('ball', values={'x': 10.0, 'm': 1.0})
+    system = System(elements=[ball], interactions=[Gravity('gravity')]).prepare()
+    assert system.states_ == ('ball.x', "ball.x'")
+    assert system.parameters_ == ('ball.m', 'gravity.g')
+    assert system.simulate(until=1.0, dt=0.01).get_values('ball.x')[-1] == pytest.approx(10.0 - 9.81 / 2)
+
+
+def test_get_declared_rejects_a_wrong_number_of_values():
+    """Test that an array whose length differs from the number of members raises an error naming both."""
+    gas = Element('gas', values={'x': [1.0, 2.0, 3.0]}, size=4)
+    with pytest.raises(ValidationError, match=r"'gas' has 4 members but its value 'x' has 3 entries"):
+        System(elements=[gas], interactions=[Gravity('gravity', target='gas')]).prepare()
+
+
+def test_get_declared_places_one_member_per_site():
+    """Test that an element on a lattice has one member on each site, each with its own height."""
+    heights = np.array([1.0, 2.0, 3.0, 4.0])
+    cells = Element('cells', values={'x': heights}, space=LatticeSpace((4,)))
+    system = System(elements=[cells], interactions=[Gravity('gravity', target='cells')]).prepare()
+    last = system.simulate(until=1.0, dt=0.01).get_values('cells.x')[-1]
+    assert np.ravel(last) == pytest.approx(heights - 9.81 / 2, rel=1e-6)
+
+
+@pytest.mark.parametrize('name', ['size', 'label', 'not a name'])
+def test_get_declared_rejects_a_reserved_name(name):
+    """Test that a value named like a setting of the element, or not a Python name, raises an error."""
+    ball = Element('ball', values={name: 1.0})
+    with pytest.raises(ValidationError, match=f"'ball' cannot take a value named '{name}'"):
+        System(elements=[ball]).prepare()

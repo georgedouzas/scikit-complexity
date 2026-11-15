@@ -14,9 +14,9 @@ from ...types import AnyArray
 from ..problems import AgentSnapshotSpec, BaseProblemSpec, BaseRecordSpec, NetworkSnapshotSpec
 from ..problems._draw_log_spec import _DrawLogSpec
 
-DERIVATIVE = re.compile(r"^(?P<base>.*?)(?P<primes>'+)(?P<index>\[\d+\])?$")
-LAG = re.compile(r'^(?P<base>.*?)\[-(?P<steps>\d+)\](?P<index>\[\d+\])?$')
-COMPANION = re.compile(r'_(?P<kind>d|lag)(?P<count>\d+)(?P<index>\[\d+\])?$')
+DERIVATIVE = re.compile(r"^(?P<base>.*?)(?P<primes>'+)(?P<index>\[\w+\])?$")
+LAG = re.compile(r'^(?P<base>.*?)\[-(?P<steps>\d+)\](?P<index>\[\w+\])?$')
+COMPANION = re.compile(r'_(?P<kind>d|lag)(?P<count>\d+)(?P<index>\[\w+\])?$')
 
 
 class Trajectory:
