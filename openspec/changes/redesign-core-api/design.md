@@ -248,14 +248,17 @@ are the consumers of the core and of their field's common package.
 | Kind | Fate |
 | --- | --- |
 | `StateSpec`, `ParameterSpec`, `VariableSpec`, `DeclaredVariableSpec` | removed. Elements are plain classes, and the laws decide what is a state |
-| `RoleSpec` | public, with the alias `Role`, since an interaction says which arguments name elements |
+| `RoleSpec` | public in `skcomplex.core.components.interactions`, with the alias `Role`, since an interaction says which arguments name elements |
 | `VisualSpec`, `ConnectorSpec` | `VisualSpec` moves to the visualisation observer, and `ConnectorSpec` goes with ports |
-| Value objects users pass or read: `ObservableSpec`, `WienerProcessSpec`, `ScheduleSpec`, `Tags`, and a few more | public, kept only if a system or a document uses them |
+| Value objects users pass or read: `ObservableSpec`, `WienerProcessSpec`, `ScheduleSpec`, `Tags`, and a few more | public, beside the class that uses each, and kept only if a system or a document uses them. `ObservableSpec` becomes `Observable` |
 | Field values, such as `HilbertSpec` and `PartnerSpec` | move to the field package that uses them |
 | Engine records and compile specs, such as `LoweredFunctionsSpec`, `DrawLogSpec`, `EventRecordSpec`, and the eleven specs of `skcomplex.core.components.specs` | private frozen dataclasses beside the code that uses them |
 
-The rule that every dataclass is a public `BaseSpec` in a specs package goes. A spec is public only when users build
-it or read it from a result. The target is about fifteen public specs.
+Both specs packages, `skcomplex.core.specs` and `skcomplex.core.components.specs`, are removed. Every value lives
+beside the class that uses it: `RoleSpec` and `Role` with the interactions, `Tags` with the components, `Observable`
+with the runtime, the noise values with the noise law, schedules with the solvers that read them, and field values in
+their fields. Engine records become private frozen dataclasses beside the code that uses them, and only they keep the
+`Spec` suffix.
 
 ### 9. Docstrings
 

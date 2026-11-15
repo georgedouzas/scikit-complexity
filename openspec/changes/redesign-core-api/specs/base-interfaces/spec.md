@@ -31,18 +31,19 @@ and `simulate`. `BaseComponent` SHALL give parameters, cloning, and tags without
 - **WHEN** a user writes an engine class that implements `_prepare` but not `_run`, and creates it
 - **THEN** creating it raises a `TypeError` that names `_run`
 
-### Requirement: Public specs are the declarations and values users handle
-A spec SHALL be public only when users build it or read it from a result, and SHALL then live in the package of the
-types its fields name. The only declaration SHALL be `RoleSpec`, with the alias `Role`, and no `StateSpec` or
+### Requirement: Values live beside the classes that use them
+No specs package SHALL exist. A value that users build or read SHALL live in the package of the class that uses it, the
+only declaration SHALL be `RoleSpec` with the alias `Role`, in the interactions package, and no `StateSpec` or
 `ParameterSpec` SHALL exist. Engine records SHALL be private dataclasses beside the code that uses them.
 
 #### Scenario: The declarations
-- **WHEN** a user imports `RoleSpec` and `Role` from `skcomplex.core.specs`
-- **THEN** both imports succeed, and importing `StateSpec` or `ParameterSpec` fails
+- **WHEN** a user imports `RoleSpec` and `Role` from `skcomplex.core.components.interactions`
+- **THEN** both imports succeed, and importing `skcomplex.core.specs` fails
 
 #### Scenario: No engine record in the public API
-- **WHEN** a test lists the public names of `skcomplex.core.specs`
-- **THEN** none of `LoweredFunctionsSpec`, `DrawLogSpec`, or `EventRecordSpec` is among them
+- **WHEN** a test lists the public classes of `skcomplex.core`
+- **THEN** none of `LoweredFunctionsSpec`, `DrawLogSpec`, or `EventRecordSpec` is among them, and no public class ends
+  with `Spec` but `RoleSpec`
 
 ### Requirement: Prepare keeps what it derives and simulate returns its trajectory
 `prepare` SHALL return the object and keep what it derives in attributes ending in `_`, such as `problem_`,
@@ -106,9 +107,10 @@ no longer prepared or run.
 **Migration**: Call `prepare` and `simulate` on systems only.
 
 ### Requirement: Specs live in one package
-**Reason**: Replaced by "Public specs are the declarations and values users handle". Most specs were engine records
-that no user reads.
-**Migration**: Import the declarations from `skcomplex.core.specs`. Engine records are no longer importable.
+**Reason**: Replaced by "Values live beside the classes that use them". Most specs were engine records that no user
+reads, and the others belong beside the classes that use them.
+**Migration**: Import `RoleSpec` and `Role` from `skcomplex.core.components.interactions`, and other values from the
+package of the class that uses them. Engine records are no longer importable.
 
 ### Requirement: Runs keep their results as attributes
 **Reason**: Replaced by "Prepare keeps what it derives and simulate returns its trajectory". Laws and parts no longer

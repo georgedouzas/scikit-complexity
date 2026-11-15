@@ -40,9 +40,9 @@ The design is in `design.md`. In short:
   the engine. Experiments stay functions that clone, set parameters, prepare, and simulate.
 - **BREAKING** Ready-made systems stay classes with model parameters and catalog metadata, and their build step becomes
   the hook `_prepare`, which sets `system_`, as `fit` calls `_fit` in scikit-learn.
-- **BREAKING** `StateSpec`, `ParameterSpec`, and the declarations built on them are removed. `RoleSpec` stays, with
-  the alias `Role`, and so do the value objects users pass. Engine records and compile specs become private to the
-  code that uses them.
+- **BREAKING** The packages `skcomplex.core.specs` and `skcomplex.core.components.specs` are removed. `StateSpec`,
+  `ParameterSpec`, and the declarations built on them go. `RoleSpec` and `Role` move to the interactions, and every other
+  value moves beside the class that uses it. Engine records become private to the code that uses them.
 - **BREAKING** How an element is drawn moves from the element to the visualisation observer, and `visual=` leaves every
   element constructor.
 - **BREAKING** The core keeps only components that general systems of several fields are built from. Every
