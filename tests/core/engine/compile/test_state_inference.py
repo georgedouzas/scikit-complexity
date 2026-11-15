@@ -12,7 +12,6 @@ from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
-from skcomplex.core.components.laws.utils import derivative, lag
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
@@ -61,7 +60,8 @@ class Gravity(Interaction):
         """Set the acceleration as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [RateLaw(derivative(context.target.x, 2), -context.g)]
+            x, t = context.target.x, context.t
+            self.laws_: list[BaseComponent] = [RateLaw(x.diff(t, 2), -context.g)]
 
 
 class Jerk(Interaction):
@@ -76,9 +76,9 @@ class Jerk(Interaction):
         """Set the third derivative as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            jerk = -context.A * derivative(x, 2) - derivative(x, 1) + abs_symbolic(x) - 1
-            self.laws_ = [RateLaw(derivative(x, 3), jerk)]
+            x, t = context.target.x, context.t
+            jerk = -context.A * x.diff(t, 2) - x.diff(t) + abs_symbolic(x) - 1
+            self.laws_ = [RateLaw(x.diff(t, 3), jerk)]
 
 
 class Mixed(Interaction):
@@ -92,8 +92,8 @@ class Mixed(Interaction):
         """Set laws of two orders."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_ = [RateLaw(x, 1.0), RateLaw(derivative(x, 2), 1.0)]
+            x, t = context.target.x, context.t
+            self.laws_ = [RateLaw(x, 1.0), RateLaw(x.diff(t, 2), 1.0)]
 
 
 class Accelerator(Interaction):
@@ -109,8 +109,24 @@ class Accelerator(Interaction):
         """Set the next income as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            y = context.target.y
-            self.laws_ = [UpdateLaw(y, 1 + context.a * lag(y, 1) + context.b * lag(y, 2))]
+            y, t = context.target.y, context.t
+            self.laws_ = [UpdateLaw(y, 1 + context.a * y(t=t - 1) + context.b * y(t=t - 2))]
+
+
+class Feedback(Interaction):
+    """Interaction of a delayed negative feedback."""
+
+    def __init__(self, label: str, *, target: Role = 'ball', tau: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.tau = tau
+
+    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+        """Set the delayed decay as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.target.x, context.t
+            self.laws_ = [RateLaw(x, -x(t=t - context.tau))]
 
 
 def test_get_declared_makes_untouched_values_parameters():
@@ -163,3 +179,11 @@ def test_get_declared_checks_allowed_values(values, message):
     """A value outside the values its annotation allows raises an error that names it."""
     with pytest.raises(ValidationError, match=message):
         System(elements=[Herd('herd', **values)]).prepare()
+
+
+def test_get_declared_reads_a_delay():
+    """A state read a delay before the current time follows the delay equation."""
+    system = System(elements=[Particle('ball', x=1.0)], interactions=[Feedback('feedback')]).prepare()
+    assert system.equations_ == {'ball.x': '-ball.x(t - feedback.tau)'}
+    values = system.simulate(until=2.0, dt=1.0).get_values('ball.x')
+    assert values == pytest.approx([1.0, 0.0, -0.5], abs=1e-6)

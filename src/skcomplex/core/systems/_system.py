@@ -204,6 +204,9 @@ class System(BaseSystem):
                 strict=False,
             )
         }
+        for delay in getattr(problem, 'delays', ()):
+            state = self._get_readable(delay.state, readable)
+            readable[str(delay.symbol)] = f'{state}(t - {self._get_readable(delay.delay, readable)})'
         equations: Mapping[str, object] = getattr(problem, 'equations', {})
         self.equations_ = {display(name): self._get_readable(value, readable) for name, value in equations.items()}
         self.form_ = str(problem.form)

@@ -10,7 +10,9 @@ from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import RR, ZZ, Expression
+from sage.all__sagemath_symbolics import RR, SR, ZZ, Expression, function, vector
+from sage.modules.free_module_element import FreeModuleElement
+from sage.symbolic.operators import FDerivativeOperator
 from sklearn.base import clone
 
 from ...enums import DomainKind
@@ -18,8 +20,8 @@ from ...errors import SpaceError, ValidationError
 from ...specs import BaseSpec, DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from .._tags import Tags
 from ..base import BaseComponent
-from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw
-from ..laws.utils import derivative
+from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw, UpdateLaw
+from ..laws.utils import delayed, derivative, lag
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._interaction_requirement_spec import _InteractionRequirementSpec
@@ -190,6 +192,66 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
         return []
 
     @staticmethod
+    def _get_functional(value: object, time: Expression, functions: dict[str, Expression]) -> object:
+        """Return the symbols of states in a value of a role as functions of time."""
+        if isinstance(value, SimpleNamespace):
+            return SimpleNamespace(
+                **{name: BaseInteraction._get_functional(item, time, functions) for name, item in vars(value).items()},
+            )
+        if isinstance(value, tuple):
+            return tuple(BaseInteraction._get_functional(item, time, functions) for item in value)
+        if isinstance(value, FreeModuleElement):
+            return vector(SR, [BaseInteraction._get_functional(item, time, functions) for item in value])
+        if isinstance(value, Expression) and value.is_symbol() and value is not time:
+            functions[str(value)] = value
+            return function(str(value))(time)
+        return value
+
+    @staticmethod
+    def _get_state_of(value: Expression, time: Expression, symbols: Mapping[str, Expression], discrete: bool) -> object:
+        """Return the state, derivative, lag, or delay a function of time stands for."""
+        operator = value.operator()
+        if isinstance(operator, FDerivativeOperator) and operator.function().name() in symbols:
+            return derivative(symbols[operator.function().name()], len(operator.parameter_set()))
+        name = str(getattr(operator, 'name', lambda: '')())
+        if name not in symbols or len(value.operands()) != 1:
+            return None
+        shift = SR(time - value.operands()[0]).simplify_full()
+        if shift.is_zero():
+            return symbols[name]
+        return (lag if discrete else delayed)(symbols[name], shift)
+
+    @staticmethod
+    def _get_translated(value: object, time: Expression, symbols: Mapping[str, Expression], discrete: bool) -> object:
+        """Return a value with derivatives and shifts in time of states translated."""
+        if isinstance(value, list | tuple):
+            return type(value)(BaseInteraction._get_translated(item, time, symbols, discrete) for item in value)
+        if isinstance(value, FreeModuleElement):
+            return vector(SR, [BaseInteraction._get_translated(item, time, symbols, discrete) for item in value])
+        if not isinstance(value, Expression) or value.operator() is None:
+            return value
+        state = BaseInteraction._get_state_of(value, time, symbols, discrete)
+        if state is not None:
+            return state
+        operands = [BaseInteraction._get_translated(item, time, symbols, discrete) for item in value.operands()]
+        return value.operator()(*operands)
+
+    @staticmethod
+    def _get_law_in_states(law: BaseComponent, time: Expression, symbols: Mapping[str, Expression]) -> BaseComponent:
+        """Return a law written with functions of time as a law of the states."""
+        if not symbols:
+            return law
+        discrete = isinstance(law, UpdateLaw)
+        params = law.get_params(deep=False)
+        translated = {
+            name: BaseInteraction._get_translated(item, time, symbols, discrete)
+            for name, item in params.items()
+            if name != 'label'
+        }
+        changed = {name: item for name, item in translated.items() if item is not params[name]}
+        return clone(law).set_params(**changed) if changed else law
+
+    @staticmethod
     def _get_normalized(law: BaseComponent) -> BaseComponent:
         """Return a law on a derivative of order `k` as a law on the state of order `k`."""
         if not isinstance(law, RateLaw | NoiseLaw) or not isinstance(law.target, Expression):
@@ -206,9 +268,16 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
         if not isinstance(inputs, SimpleNamespace):
             error_msg = f'{type(self).__name__} learns its laws from a namespace of symbols, but got {inputs!r}.'
             raise ValidationError(error_msg)
+        time = getattr(inputs, 't', SR.var('t'))
+        functions: dict[str, Expression] = {}
+        roles = {
+            name: self._get_functional(item, time, functions) if isinstance(item, SimpleNamespace | tuple) else item
+            for name, item in vars(inputs).items()
+        }
+        functional = SimpleNamespace(**roles)
         prepared = clone(self)
-        prepared.prepare(inputs)
-        return [self._get_normalized(law) for law in prepared.laws_]
+        prepared.prepare(functional)
+        return [self._get_normalized(self._get_law_in_states(law, time, functions)) for law in prepared.laws_]
 
     def _prepare_on(self, space: BaseSpace | None) -> None:
         """Check the interaction on the space of its system, learning no laws."""

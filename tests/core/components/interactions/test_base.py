@@ -6,7 +6,7 @@ from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import var
+from sage.all__sagemath_symbolics import function, var
 
 from skcomplex.core.components import interactions
 from skcomplex.core.components.elements import Element, GroupElement
@@ -30,7 +30,7 @@ from skcomplex.core.components.interactions import (
     TransitionInteraction,
 )
 from skcomplex.core.components.laws import PartnerSpec, RateLaw, TopologyRequestSpec
-from skcomplex.core.components.laws.utils import derivative, neighbors
+from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     BallNeighborhood,
     ContinuousSpace,
@@ -669,14 +669,16 @@ class PullInteraction(Interaction):
         """Set the pull as the law of the interaction."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(derivative(context.target.x, 2), -context.g)]
+            x, t = context.target.x, context.t
+            self.laws_ = [RateLaw(x.diff(t, 2), -context.g)]
 
 
-def test_prepare_is_preparing_laws_from_a_namespace():
-    """Preparing an interaction on a namespace of symbols sets its laws."""
-    x, g = var('x g')
-    pull = PullInteraction('pull').prepare(SimpleNamespace(target=SimpleNamespace(x=x), g=g))
-    assert [law.value for law in pull.laws_] == [-g]
+def test_prepare_sets_laws_from_a_namespace():
+    """Preparing an interaction on a namespace of states as functions of time sets its laws."""
+    t, g = var('t g')
+    x = function('x')(t)
+    pull = PullInteraction('pull').prepare(SimpleNamespace(target=SimpleNamespace(x=x), g=g, t=t))
+    assert [(law.target, law.value) for law in pull.laws_] == [(x.diff(t, 2), -g)]
 
 
 def test_prepare_keeps_parameters_symbolic_in_a_system():
