@@ -65,6 +65,14 @@ class NeighborInteraction(BaseInteraction):
         super().__init__(label)
         self.layer = layer
 
+    def _runs_on_edges(self) -> bool:
+        """Return that the laws run once for every edge."""
+        return True
+
+    def _get_layer(self) -> str | None:
+        """Return the layer the interaction names."""
+        return self.layer
+
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the interaction for one edge, none by default.
 

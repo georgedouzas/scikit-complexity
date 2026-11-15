@@ -547,7 +547,7 @@ class LayoutPass(BasePass):
         space = getattr(component, 'space', None)
         if isinstance(space, LatticeSpace) and shape == space.shape_:
             return np.ravel(np.asarray(value))
-        if node.active is not None and shape and shape[0] == node.active:
+        if node.active is not None and shape and shape[0] == node.active and (node.members or 0) > node.active:
             rows = (node.members or 0) - node.active
             padding = np.broadcast_to(np.asarray(default, dtype=float), (rows, *shape[1:]))
             return np.concatenate([np.asarray(value, dtype=float), padding])

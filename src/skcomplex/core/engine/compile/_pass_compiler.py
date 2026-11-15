@@ -23,7 +23,6 @@ from ...components.interactions import (
     BaseInteraction,
     ConnectionInteraction,
     HyperedgeInteraction,
-    NeighborInteraction,
     WienerProcessSpec,
 )
 from ...components.laws import (
@@ -872,7 +871,7 @@ class PassCompiler(BaseCompiler):
 
         The network of the interaction does not have the layer it names.
         """
-        layer = getattr(node.component, 'layer', None)
+        layer = node.component._get_layer() if isinstance(node.component, BaseInteraction) else None
         labels = tuple(getattr(space, 'graphs_', (None,)))
         if layer is None or layer in labels:
             return []
@@ -947,7 +946,7 @@ class PassCompiler(BaseCompiler):
         issues = []
         for node in nodes:
             interaction = node.component
-            if isinstance(interaction, NeighborInteraction):
+            if isinstance(interaction, BaseInteraction) and interaction._runs_on_edges():
                 over = 'neighbors'
             elif isinstance(interaction, HyperedgeInteraction):
                 over = 'hyperedges'

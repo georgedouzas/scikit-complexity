@@ -625,6 +625,14 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
                 found += [item for item in value if isinstance(item, str)]
         return tuple(dict.fromkeys(found))
 
+    def _runs_on_edges(self) -> bool:
+        """Return whether the laws run once per edge of a network, false by default."""
+        return False
+
+    def _get_layer(self) -> str | None:
+        """Return the layer of the network the laws run along, or `None` for its graph."""
+        return None
+
     def _check_space(self, space: BaseSpace | None) -> None:
         """Raise an error for a variant the space of the system cannot run.
 

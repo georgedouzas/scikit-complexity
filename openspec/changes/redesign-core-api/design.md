@@ -148,6 +148,12 @@ class Gravity(Interaction):
   | every pair within a neighbourhood | `LennardJones('lj', among='gas', within=RadiusNeighborhood(2.5))` |
   | every edge or hyperedge of a network | `Infection('infect', among='people', along='contacts', beta=0.3)` |
 
+  `among` names the group at the ends of the edges, and `along` is `True` for the edges of the network the group lives
+  on or the name of a layer of a network with several, such as `'contacts'`. Laws read the two ends as `s.source` and
+  `s.target`. A subclass lists `among` and `along` in its own `__init__` and passes them on. When the laws request
+  changes of the network, such as `UpdateLaw(TopologyRequestSpec('rewire'), p)`, the members on the network and its
+  edges become variable without any setting.
+
 - A one-off rule needs no class: `Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -9.81)])`.
 - The core keeps only `BaseInteraction` and `Interaction`. The engine names no other interaction, and laws written in
   Sage make the generated ones one line each: a gradient flow is `RateLaw(x, -U.diff(x))`, Hamilton's equations are

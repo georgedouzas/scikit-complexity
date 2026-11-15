@@ -16,7 +16,7 @@ from sage.modules.free_module import FreeModule_generic
 
 from ....components import Observable
 from ....components.elements import BaseElement, Element, GroupElement
-from ....components.interactions import BaseInteraction, NeighborInteraction
+from ....components.interactions import BaseInteraction
 from ....components.laws import DissipatorLaw, GeneratorLaw
 from ....components.systems import CompositeSystem
 from ....enums import FormKind, VariableKind
@@ -439,7 +439,7 @@ class OperatorCompiler(BaseCompiler):
         A neighbour interaction adds them once per pair of neighbours of its group.
         """
         parameters = {**OperatorCompiler._get_parameter_symbols(node, symbols, None), 't': symbol('t')}
-        if isinstance(interaction, NeighborInteraction):
+        if interaction._runs_on_edges():
             role_names = list(declarations_of(interaction, VariableKind.ROLE))
             if len(role_names) != 1:
                 error_msg = (
@@ -455,7 +455,7 @@ class OperatorCompiler(BaseCompiler):
             if space is None:
                 error_msg = f'Neighbour interaction {node.path} binds {path}, which lives in no space.'
                 raise ValidationError(error_msg)
-            for source, target in space.prepare()._get_neighbor_pairs(interaction.layer):
+            for source, target in space.prepare()._get_neighbor_pairs(interaction._get_layer()):
                 namespace = SimpleNamespace(source=members[path][source], target=members[path][target], **parameters)
                 OperatorCompiler._collect_laws(
                     generators,

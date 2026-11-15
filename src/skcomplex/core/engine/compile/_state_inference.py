@@ -15,7 +15,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...components.base import BaseComponent
 from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement
-from ...components.laws import BaseLaw, ConstraintLaw, NoiseLaw, RateLaw
+from ...components.laws import BaseLaw, ConstraintLaw, JumpLaw, NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
 from ...components.laws.utils import derivative, lag
 from ...components.spaces import LatticeSpace, MeshSpace, NetworkSpace
 from ...components.systems import CompositeSystem
@@ -130,13 +130,14 @@ class _StateInference:
     def _replace(
         self,
         system: CompositeSystem,
-        declare: Callable[[Element, str], BaseElement],
+        declare: Callable[[Element, str], list[BaseElement]],
         scope: str = '',
     ) -> CompositeSystem:
         """Return a copy of a system tree whose plain elements are declared elements."""
         elements = [
-            declare(element, f'{scope}{element.label}') if self._is_plain(element) else element
+            declared
             for element in system.elements
+            for declared in (declare(element, f'{scope}{element.label}') if self._is_plain(element) else [element])
         ]
         systems = [
             self._replace(nested, declare, f'{scope}{nested.label}/') if isinstance(nested, CompositeSystem) else nested
@@ -221,27 +222,47 @@ class _StateInference:
         if not self._has_plain(system):
             return system
 
-        def probe(element: Element, path: str) -> BaseElement:
-            return self._get_declared_element(element, lambda name: 1, lambda name: 0)
+        def probe(element: Element, path: str) -> list[BaseElement]:
+            return self._get_declared_elements(element, lambda name: 1, lambda name: 0)
 
-        orders, lags = self._get_orders(self.census(self._replace(system, probe)))
+        compilation = self.census(self._replace(system, probe))
+        orders, lags = self._get_orders(compilation)
+        rewired = self._has_topology_requests(compilation)
 
-        def declare(element: Element, path: str) -> BaseElement:
-            return self._get_declared_element(
+        def declare(element: Element, path: str) -> list[BaseElement]:
+            return self._get_declared_elements(
                 element,
                 lambda name: orders.get(f'{path}.{name}'),
                 lambda name: lags.get(f'{path}.{name}', 0),
+                rewired,
             )
 
         return self._replace(system, declare)
 
-    def _get_declared_element(
+    @staticmethod
+    def _has_topology_requests(compilation: Compilation) -> bool:
+        """Return whether a law of the system changes the edges or nodes of a network."""
+        census = Compilation._get_required(compilation.census, 'census')
+        for record in census.records:
+            law = record.law
+            if isinstance(law, UpdateLaw) and isinstance(law.target, TopologyRequestSpec):
+                return True
+            if isinstance(law, JumpLaw) and any(isinstance(item, TopologyRequestSpec) for item in law.changes or {}):
+                return True
+        return False
+
+    def _get_declared_elements(
         self,
         element: Element,
         order: Callable[[str], int | None],
         lags: Callable[[str], int],
-    ) -> BaseElement:
-        """Return the declared element of a plain element, or a group of declared members."""
+        rewired: bool = False,
+    ) -> list[BaseElement]:
+        """Return the declared element of a plain element, or a group of declared members.
+
+        On a network whose edges the laws change, the members are a variable group of nodes, with a variable group on
+        the edges named after the element, such as `voters_edges`.
+        """
         values = self._get_values(element)
         count = self._get_count(element)
         variables = {}
@@ -249,19 +270,34 @@ class _StateInference:
             member = self._get_member_value(element, name, value, count)
             variables[name] = self._get_spec(element, name, member, order(name), lags(name))
         if count is None:
-            return DeclaredElement(element.label, variables=variables)
+            return [DeclaredElement(element.label, variables=variables)]
         arrays = {name: value for name, value in values.items() if np.ndim(np.asarray(value, dtype=object)) > 0}
         values = {'variables': variables, **arrays}
+        if rewired and isinstance(element.space, NetworkSpace):
+            nodes = GroupElement(
+                element.label,
+                element=DeclaredElement,
+                space=element.space,
+                on='sites',
+                variable=True,
+                capacity=count,
+                values=values,
+            )
+            edges = GroupElement(
+                f'{element.label}_edges', element=Element, space=element.space, on='edges', variable=True,
+            )
+            return [nodes, edges]
         if isinstance(element.space, LatticeSpace | NetworkSpace | MeshSpace):
             discretization = 'finite-element' if isinstance(element.space, MeshSpace) else 'finite-difference'
-            return FieldElement(
+            field = FieldElement(
                 element.label,
                 element=DeclaredElement,
                 space=element.space,
                 values=values,
                 discretization=discretization,
             )
-        return GroupElement(
+            return [field]
+        group = GroupElement(
             element.label,
             element=DeclaredElement,
             size=element.size,
@@ -269,3 +305,4 @@ class _StateInference:
             on=None if element.space is None else 'sites',
             values=values,
         )
+        return [group]

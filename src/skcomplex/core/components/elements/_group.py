@@ -175,8 +175,17 @@ class GroupElement(BaseElement):
         return place.prepare()._count_parts(self.on or 'sites', self.layer)
 
     def _get_member(self) -> BaseElement:
-        """Return a member of the group, with the values the group gives."""
-        return self.element(self.label).set_params(**(self.values or {}))
+        """Return a member of the group, with the values the group gives.
+
+        A member that declares its variables as data takes only its settings, such as `variables`, since the values of
+        every member stay with the group.
+        """
+        member = self.element(self.label)
+        values = self.values or {}
+        if isinstance(member, DeclaredElement):
+            settings = member.get_params(deep=False)
+            values = {name: value for name, value in values.items() if name in settings}
+        return member.set_params(**values)
 
     def _get_member_specs(self) -> dict[str, Spec]:
         """Return the specs of a member.

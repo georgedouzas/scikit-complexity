@@ -14,9 +14,9 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.elements import FieldElement
 from ....components.interactions import (
+    BaseInteraction,
     GroupingInteraction,
     HyperedgeInteraction,
-    NeighborInteraction,
     PairInteraction,
     TopologyInteraction,
     WienerProcessSpec,
@@ -537,7 +537,7 @@ class SpecsPass(BasePass):
 
         It is checked against the layer of its edge group.
         """
-        declared = getattr(node.component, 'layer', None)
+        declared = node.component._get_layer() if isinstance(node.component, BaseInteraction) else None
         if edges is None:
             return declared
         space, edge_space = SpecsPass._get_group_space(nodes), SpecsPass._get_group_space(edges)
@@ -882,7 +882,7 @@ class SpecsPass(BasePass):
         spread = (
             place is not None
             and isinstance(place.space, LatticeSpace | MeshSpace)
-            and getattr(node.component, 'layer', None) is None
+            and not (isinstance(node.component, BaseInteraction) and node.component._get_layer() is not None)
         )
         if (
             others is not None
@@ -1426,9 +1426,10 @@ class SpecsPass(BasePass):
             return [SpecsPass._get_member_spec(block, time)], declarations
         component = block.node.component
         bound = [role for role in declarations_of(component, VariableKind.ROLE) if getattr(component, role) is not None]
-        if isinstance(component, NeighborInteraction) and SpecsPass._binds_separate(block, bound, elements):
+        edges = isinstance(component, BaseInteraction) and component._runs_on_edges()
+        if edges and SpecsPass._binds_separate(block, bound, elements):
             return SpecsPass._separate_specs(block, bound, elements, time, observer), declarations
-        if isinstance(component, NeighborInteraction) and bound:
+        if edges and bound:
             return SpecsPass._get_edge_specs(block, elements, declarations)
         grouped = isinstance(component, GroupingInteraction) and component.form == 'symbolic'
         if (isinstance(component, HyperedgeInteraction) and bound) or (
