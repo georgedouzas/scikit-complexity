@@ -3,16 +3,21 @@
 from types import SimpleNamespace
 from typing import Annotated
 
+import networkx as nx
 import numpy as np
 import pytest
+import skfem
 from sage.all__sagemath_symbolics import abs_symbolic, oo
 from sage.sets.real_set import RealSet
+from scipy.linalg import expm
+from scipy.special import ive
 
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
-from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.components.laws.utils import laplacian, neighbors
+from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
@@ -231,3 +236,74 @@ def test_get_declared_rejects_a_reserved_name(name):
     ball = Element('ball', values={name: 1.0})
     with pytest.raises(ValidationError, match=f"'ball' cannot take a value named '{name}'"):
         System(elements=[ball]).prepare()
+
+
+class Diffusion(Interaction):
+    """Interaction that spreads a value over the sites of its target."""
+
+    def __init__(self, label: str, *, target: Role = 'plate', D: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.D = D
+
+    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+        """Set the heat equation as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            u = context.target.u
+            self.laws_: list[BaseComponent] = [RateLaw(u.diff(context.t), context.D * laplacian(u))]
+
+
+class Consensus(Interaction):
+    """Interaction that moves every node toward its neighbours on a network."""
+
+    def __init__(self, label: str, *, target: Role = 'nodes', k: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.k = k
+
+    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+        """Set the sum of the differences to the neighbours as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            self.laws_: list[BaseComponent] = [
+                RateLaw(x.diff(context.t), context.k * neighbors(context.target.other.x - x)),
+            ]
+
+
+def test_get_declared_spreads_heat_on_a_lattice():
+    """Test that heat from one hot site spreads as the exact solution of the discrete heat equation."""
+    heat = np.zeros(32)
+    heat[16] = 1.0
+    plate = Element('plate', values={'u': heat}, space=LatticeSpace((32,)))
+    system = System(elements=[plate], interactions=[Diffusion('heat')]).prepare()
+    assert system.equations_ == {'plate.u[i]': 'heat.D*laplacian(plate.u[i])'}
+    last = system.simulate(until=0.5, dt=0.01).get_values('plate.u')[-1]
+    exact = ive(np.abs(np.arange(32) - 16), 2 * 0.5)
+    assert last == pytest.approx(exact, abs=1e-6)
+
+
+def test_get_declared_spreads_heat_on_a_mesh():
+    """Test that the slowest mode of a square plate with insulated edges decays at its rate, at second order."""
+    errors = []
+    for n in (9, 17):
+        grid = skfem.MeshTri.init_tensor(np.linspace(0, 1, n), np.linspace(0, 1, n))
+        heat = np.cos(np.pi * grid.p[0]) * np.cos(np.pi * grid.p[1])
+        plate = Element('plate', values={'u': heat}, space=MeshSpace(grid.p, grid.t))
+        system = System(elements=[plate], interactions=[Diffusion('heat', D=0.1)]).prepare()
+        last = system.simulate(until=0.5, dt=0.005).get_values('plate.u')[-1]
+        errors.append(np.abs(last - heat * np.exp(-2 * np.pi**2 * 0.1 * 0.5)).max())
+    assert errors[1] < 0.01
+    assert errors[0] / errors[1] > 3.0
+
+
+def test_get_declared_sums_over_network_neighbours():
+    """Test that a sum over the neighbours of a path of four nodes follows the exact consensus `exp(-L t) x`."""
+    graph = nx.path_graph(4)
+    start = np.array([1.0, 0.0, 0.0, 0.0])
+    nodes = Element('nodes', values={'x': start}, space=NetworkSpace(graph))
+    system = System(elements=[nodes], interactions=[Consensus('consensus')]).prepare()
+    last = system.simulate(until=0.5, dt=0.01).get_values('nodes.x')[-1]
+    exact = expm(-nx.laplacian_matrix(graph).toarray() * 0.5) @ start
+    assert last == pytest.approx(exact, abs=1e-6)

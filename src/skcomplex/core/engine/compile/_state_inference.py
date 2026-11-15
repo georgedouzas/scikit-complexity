@@ -14,9 +14,10 @@ from sage.all__sagemath_symbolics import RR, SR, ZZ, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...components.base import BaseComponent
-from ...components.elements import BaseElement, DeclaredElement, Element, GroupElement
+from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement
 from ...components.laws import BaseLaw, ConstraintLaw, NoiseLaw, RateLaw
 from ...components.laws.utils import lag
+from ...components.spaces import LatticeSpace, MeshSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...errors import ValidationError
 from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec
@@ -32,7 +33,9 @@ class _StateInference:
     A value of such an element that some law changes is a state, of the order of the highest derivative its laws give,
     and any other value is a parameter. The kind of a value comes from its Python type hint, and a constraint from the
     allowed values in `Annotated`. An element with `size` or `space` is a group of members, and a value given as an
-    array holds one value per member, such as the heights of `1000` molecules, while a single value is shared.
+    array holds one value per member, such as the heights of `1000` molecules, while a single value is shared. On a
+    lattice, a network, or a mesh, the members are the sites of a field, so laws can read `laplacian(u)` or a sum over
+    neighbours.
     """
 
     def __init__(self, census: Callable[[CompositeSystem], Compilation]) -> None:
@@ -235,11 +238,21 @@ class _StateInference:
         if count is None:
             return DeclaredElement(element.label, variables=variables)
         arrays = {name: value for name, value in values.items() if np.ndim(np.asarray(value, dtype=object)) > 0}
+        values = {'variables': variables, **arrays}
+        if isinstance(element.space, LatticeSpace | NetworkSpace | MeshSpace):
+            discretization = 'finite-element' if isinstance(element.space, MeshSpace) else 'finite-difference'
+            return FieldElement(
+                element.label,
+                element=DeclaredElement,
+                space=element.space,
+                values=values,
+                discretization=discretization,
+            )
         return GroupElement(
             element.label,
             element=DeclaredElement,
             size=element.size,
             space=element.space,
             on=None if element.space is None else 'sites',
-            values={'variables': variables, **arrays},
+            values=values,
         )
