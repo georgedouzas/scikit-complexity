@@ -9,23 +9,30 @@ decided by `prepare` from the laws of the system.
 - **THEN** preparing it finds no state, and `parameters_` lists `ball.x` and `ball.m`
 
 #### Scenario: A particle under gravity
-- **WHEN** the system adds a gravity interaction whose law is `RateLaw(derivative(x, 2), -g)`
+- **WHEN** the system adds a gravity interaction whose law is `RateLaw(x.diff(t, 2), -g)`
 - **THEN** `states_` lists `ball.x` and `ball.x'`, and `parameters_` lists `ball.m` and `gravity.g`
 
-### Requirement: Derivatives and lags are mathematics in the laws
-A law SHALL read and give derivatives of states with `derivative(x, k)` and past values with `lag(x, k)`, the order of
-a state SHALL be the highest derivative or lag its laws use, and the compiler SHALL reduce every state to first order.
-Derivatives SHALL be named with a prime in initial states and trajectories, such as `"ball.x'"`, and past values with
-an index, such as `"economy.y[-1]"`, and they SHALL default to zero.
+### Requirement: Derivatives, lags, and delays are written in Sage
+A law SHALL be written in Sage, with every state a function of the time `t`: derivatives as `x.diff(t, k)`, past values
+as `x(t=t - k)`, and delays as `x(t=t - tau)`. The library SHALL define no functions of its own for them, and the order
+of a state SHALL be the highest derivative or lag its laws use.
 
 #### Scenario: A pushed particle
 - **WHEN** a user simulates a particle under gravity with `initial_state={"ball.x'": 1.5}`
 - **THEN** the run starts with the velocity 1.5, and `trajectory.get_values("ball.x'")` returns the velocity
 
 #### Scenario: A difference equation with two lags
-- **WHEN** an interaction returns `UpdateLaw(s.y, a * lag(s.y, 1) + b * lag(s.y, 2))`
+- **WHEN** an interaction returns `UpdateLaw(y, a * y(t=t - 1) + b * y(t=t - 2))`
 - **THEN** the compiled map keeps two past values of `y`, and `states_` lists `economy.y`, `economy.y[-1]`, and
   `economy.y[-2]`
+
+### Requirement: Derivatives and past values are named with primes and indices
+Derivatives SHALL be named with a prime in initial states and trajectories, such as `"ball.x'"`, and past values with
+an index, such as `"economy.y[-1]"`, and they SHALL default to zero.
+
+#### Scenario: A named derivative
+- **WHEN** a user reads `trajectory.get_values("ball.x'")` of a falling particle
+- **THEN** it returns the velocity, which starts at zero unless the initial state gives it
 
 ### Requirement: Prepared systems expose what they learned
 After `prepare`, a system SHALL expose `states_`, the names of the values its laws change with their derivatives and
@@ -115,7 +122,7 @@ Laws SHALL be frozen values, and systems SHALL also have `simulate`.
 
 #### Scenario: An interaction learns its laws
 - **WHEN** a user prepares a gravity interaction against a namespace with the symbol `x` of its target
-- **THEN** `laws_` holds `RateLaw(derivative(x, 2), -g)`, and the interaction has no `run`
+- **THEN** `laws_` holds `RateLaw(x.diff(t, 2), -g)`, and the interaction has no `run`
 
 #### Scenario: The user's interaction stays unchanged
 - **WHEN** a user prepares a system that binds one interaction object to two groups
@@ -180,7 +187,7 @@ the allowed values in `Annotated`, only where one is needed.
 - **THEN** a named validation error is raised that names the element, the variable, and the domain
 
 #### Scenario: Velocity as a derivative
-- **WHEN** a particle with the values `x` and `m` falls under a gravity interaction whose law gives `derivative(x, 2)`
+- **WHEN** a particle with the values `x` and `m` falls under a gravity interaction whose law gives `x.diff(t, 2)`
 - **THEN** a run moves `x` with the acceleration `-g`, and the trajectory holds `ball.x` and `ball.x'`
 
 ### Requirement: Components are defined without subclassing
@@ -240,7 +247,7 @@ of orders 1 to `k - 1` as states named with primes. Their initial values SHALL c
 to zero, and they SHALL appear in trajectories by name and be readable in laws with `derivative`.
 
 #### Scenario: Initial angular velocity
-- **WHEN** a pendulum interaction gives `derivative(theta, 2)` and a run starts with `initial_state={"bob.theta'": 0.5}`
+- **WHEN** a pendulum interaction gives `theta.diff(t, 2)` and a run starts with `initial_state={"bob.theta'": 0.5}`
   and `theta=0.1`
 - **THEN** the run starts with angle 0.1 and angular velocity 0.5, and the trajectory returns both `bob.theta` and
   `bob.theta'`
@@ -254,16 +261,16 @@ Rate and noise laws on a derivative of order `k` of a state SHALL contribute to 
 laws SHALL add up. Laws that give different orders of one state SHALL raise a named error.
 
 #### Scenario: Newton's second law from separate forces
-- **WHEN** a mass on a spring receives a restoring law on `derivative(x, 2)` from one interaction and a damping law
-  that reads `derivative(x)` from another
+- **WHEN** a mass on a spring receives a restoring law on `x.diff(t, 2)` from one interaction and a damping law
+  that reads `x.diff(t)` from another
 - **THEN** the run matches the damped oscillator `m x'' = -k x - c x'` within the solver tolerance
 
 #### Scenario: Third order
-- **WHEN** Sprott's jerk equation `x''' = -A x'' - x' + |x| - 1` is written as one rate law on `derivative(x, 3)`
+- **WHEN** Sprott's jerk equation `x''' = -A x'' - x' + |x| - 1` is written as one rate law on `x.diff(t, 3)`
 - **THEN** it compiles to three first-order equations, and with A = 0.6 its trajectory is bounded and chaotic
 
 #### Scenario: Order mismatch
-- **WHEN** one law gives `derivative(x, 1)` and another gives `derivative(x, 2)`
+- **WHEN** one law gives `x.diff(t, 1)` and another gives `x.diff(t, 2)`
 - **THEN** compiling raises a named error that names both laws, the state, and both orders
 
 ## REMOVED Requirements

@@ -97,8 +97,10 @@ class Particle(Element):
   `str` a category, and a list or an array a vector or a matrix of its shape.
 - A constraint on the values is written only where it is needed, as the allowed values in `Annotated`, such as
   `n: Annotated[float, RealSet.closed_open(0, oo)] = 40.0` or `status: Annotated[str, {'S', 'I', 'R'}] = 'S'`.
-- Derivatives and lags are mathematics in the laws, not declarations: `derivative(x, 2)` and `lag(y, 1)`. The order of
-  a state is the highest derivative or lag its laws use, and the compiler reduces every state to first order, as the
+- Derivatives, lags, and delays are written in Sage, not declared: an interaction receives every state as a function of
+  the time `t`, and writes `x.diff(t, 2)`, `y(t=t - 1)`, and `x(t=t - tau)`. The library defines no functions of its own
+  for them, and the normalisation of laws translates these Sage forms into the internal markers of the engine. The
+  order of a state is the highest derivative or lag its laws use, and the compiler reduces every state to first order, as the
   orders pass already does. A velocity is the derivative `x'`, never a declared state, so no element and no interaction
   states the rule of motion. Derivatives are named with a prime and past values with an index, such as `"ball.x'"` and
   `"economy.y[-1]"`, in initial states and trajectories, and they default to zero. `order`, `lags`, `initial`, periods,
@@ -127,7 +129,8 @@ class Gravity(Interaction):
 
     def _prepare(self, context):
         super()._prepare(context)
-        self.laws_ = [RateLaw(derivative(context.target.x, 2), -self.g)]
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x.diff(t, 2), -context.g)]
 ```
 
 - A process of one element is an interaction with one role: growth, decay, recovery, the membrane dynamics of a neuron.
@@ -140,7 +143,7 @@ class Gravity(Interaction):
   | every pair within a neighbourhood | `LennardJones('lj', among='gas', within=RadiusNeighborhood(2.5))` |
   | every edge or hyperedge of a network | `Infection('infect', among='people', along='contacts', beta=0.3)` |
 
-- A one-off rule needs no class: `Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(derivative(s.target.x, 2), -9.81)])`.
+- A one-off rule needs no class: `Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -9.81)])`.
 - The core keeps the interactions the engine generates from one function: `GradientInteraction` from a potential,
   `HamiltonianInteraction` from a Hamiltonian, and `EulerLagrangeInteraction` from a Lagrangian.
 - The interactions that only wrap one law go, since `Interaction` with a law does the same: `RateInteraction`,

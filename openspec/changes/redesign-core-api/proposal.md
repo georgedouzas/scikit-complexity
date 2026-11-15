@@ -21,7 +21,7 @@ The design is in `design.md`. In short:
 
 - **BREAKING** An element is a plain Python class whose arguments are its values. Elements return no laws and declare
   nothing: a value some law changes is a state, any other value is a parameter, and Python type hints give the kind
-  of a value. Derivatives and lags are mathematics in the laws, `derivative(x, 2)` and `lag(y, 1)`, the compiler reads
+  of a value. Derivatives, lags, and delays are written in Sage, `x.diff(t, 2)` and `y(t=t - 1)`, the compiler reads
   the order of every state from them, and `order` and its declarations go.
   One element class covers one member, many members (`size=`), and one member per site of a space (`space=`), which
   replaces `GroupElement` and `FieldElement`.
