@@ -27,7 +27,7 @@ from skcomplex.core.engine.viz import (
     SiteVisual,
 )
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem, LotkaVolterraSystem, WolfSheepSystem
@@ -736,3 +736,27 @@ def test_primary_view_of_agents_without_space_is_a_trait_series():
     assert AgentsVisual(path=problem.agents[0].path).prepare(problem).views_ == []
     view = primary_view(problem)
     assert (type(view).__name__, str(view.name)) == ('TimeSeriesView', 'population trait')
+
+
+def test_rerun_observer_reads_a_radius_from_the_parameters_of_an_element():
+    """Test that a radius written as an expression of a parameter takes its value at the start of the run."""
+
+    class CellElement(Element):
+        """Cell drawn with half its diameter as radius."""
+
+        visual = VisualSpec('points', {'position': 'x', 'radius': 'R_0 / 2'})
+
+        def __init__(
+            self,
+            label: str,
+            x: Annotated[object, StateSpec(vector=True)] = 0.0,
+            R_0: Annotated[float, ParameterSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label)
+            self.x = x
+            self.R_0 = R_0
+
+    cells = GroupElement('cells', element=CellElement, size=2, values={'x': np.zeros((2, 2)), 'R_0': 3.0})
+    problem = simulate(CompositeSystem(elements=[cells], space=ContinuousSpace(n_dim=2)), until=0).problem
+    visual = RerunObserver().prepare(problem).visuals_[0]
+    assert visual.radius == pytest.approx(1.5)

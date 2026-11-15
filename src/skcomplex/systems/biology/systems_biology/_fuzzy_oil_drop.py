@@ -164,6 +164,10 @@ class DihedralAngleElement(Element):
         angle:
             The angle in degrees.
 
+        structure:
+            The structure whose chain the angles rebuild, which the element is drawn as, or `None` for an image of the
+            angles.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import DihedralAngleElement
         >>> DihedralAngleElement('site').angle
@@ -172,9 +176,21 @@ class DihedralAngleElement(Element):
 
     visual = VisualSpec('image', {'states': ('angle',), 'low': -180.0, 'high': 180.0})
 
-    def __init__(self, label: str, angle: Annotated[float, StateSpec()] = 0.0) -> None:
+    def __init__(
+        self,
+        label: str,
+        angle: Annotated[float, StateSpec()] = 0.0,
+        structure: StructureSpec | None = None,
+    ) -> None:
         super().__init__(label)
         self.angle = angle
+        self.structure = structure
+
+    def _get_visual(self) -> VisualSpec:
+        """Return the backbone the angles rebuild with a structure, or else the image of the angles."""
+        if self.structure is None:
+            return self.visual
+        return VisualSpec(BackboneVisual, {'position': 'angle', 'structure': self.structure})
 
 
 class EnsembleReplayInteraction(Interaction):
@@ -648,7 +664,7 @@ class FuzzyOilDropSystem(BaseSystem):
                     'chain',
                     element=DihedralAngleElement,
                     space=LatticeSpace((1, angles.size), boundary='fixed'),
-                    values={'angle': angles[None]},
+                    values={'angle': angles[None], 'structure': structure},
                     on='sites',
                 ),
             ],

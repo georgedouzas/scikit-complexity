@@ -18,7 +18,7 @@ from sklearn.base import clone
 
 from ...base import BaseConfig
 from ...components import Observable
-from ...components.elements import BaseElement, FieldElement, GroupElement
+from ...components.elements import FieldElement, GroupElement
 from ...components.interactions import (
     BaseInteraction,
     ConnectionInteraction,
@@ -110,7 +110,6 @@ from .passes._linear_programs import LinearProgramsPass
 from .passes._noise import NoisePass
 from .passes._operator_compiler import OperatorCompiler
 from .passes._orders import OrdersPass
-from .passes._problem import ProblemPass
 from .passes._reduction_lowering import ReductionLowering
 
 COVARIANCE_TOLERANCE = 1e-12
@@ -1096,24 +1095,13 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_space_issues(system: CompositeSystem, nodes: list[_NodeSpec]) -> list[IssueSpec]:
-        """Return the visuals that need options their space lacks and failing spaces.
-
-        A space fails when its own check fails.
-        """
+        """Return the issues of the spaces that fail their own check."""
         issues = []
         spaces: dict[int, tuple[str, BaseSpace]] = {}
         for node in nodes:
             space = getattr(node.component, 'space', None) or node.space
-            visual = ProblemPass._get_visual_of(node) if isinstance(node.component, BaseElement) else None
             if space is not None:
                 spaces.setdefault(id(space), (node.path, space))
-            if space is not None and 'image' in space._get_lacks() and getattr(visual, 'kind', None) == 'image':
-                message = (
-                    f'The image visual of {node.path} needs a regular lattice, but its space is {type(space).__name__}.'
-                )
-                default = getattr(space, 'default_visual_', None)
-                fix = f'Use the {default!r} visual.' if default is not None else 'Use another visual.'
-                issues.append(IssueSpec('visual-unsupported', node.path, message, fix))
         if system.space is not None:
             spaces.setdefault(id(system.space), (system.label, system.space))
         for path, space in spaces.values():

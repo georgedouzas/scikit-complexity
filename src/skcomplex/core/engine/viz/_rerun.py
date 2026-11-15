@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 import math
 import os
 import re
@@ -16,6 +17,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 from rerun import bindings
+from sage.all__sagemath_symbolics import SR
 
 from ...components.spaces import NetworkSpace
 from ...errors import ValidationError
@@ -247,7 +249,7 @@ class RerunObserver(BaseObserver):
         self.recording_ = rr.RecordingStream(self.application_id, batcher_config=self._get_batcher_config())
         agents = problem.agents
         self.visuals_: list[BaseVisual] = [
-            *(self._get_visual_of(element).prepare(problem) for element in problem.elements),
+            *(self._get_visual_of(element, problem).prepare(problem) for element in problem.elements),
             *(self._get_agents_visual_of(group, problem).prepare(problem) for group in agents),
             *self._get_matrix_visuals(problem),
         ]
@@ -286,21 +288,60 @@ class RerunObserver(BaseObserver):
         names = ('DISPLAY', 'WAYLAND_DISPLAY', 'WAYLAND_SOCKET')
         return sys.platform == 'linux' and not any(os.environ.get(name) for name in names)
 
-    def _get_visual_of(self, element: CompiledElementSpec | _CompiledAgentsSpec) -> BaseVisual:
+    def _get_visual_of(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> BaseVisual:
         """Return the visual the spec of an element names.
 
-        It is built with the options of the spec.
+        It is built with the options of the spec. A numeric option given as an expression of the parameters of the
+        element, such as `'R_0 / 2'`, takes its value at the start of the run.
         """
         spec = (self.visuals or {}).get(element.path, element.visual)
         visual = VISUALS[spec.kind] if isinstance(spec.kind, str) else spec.kind
-        return visual(**dict(spec.options), path=element.path, recording=self.recording_)
+        accepted = inspect.signature(visual).parameters
+        options = {
+            name: self._get_option_value(value, element, problem) if self._is_numeric(accepted.get(name)) else value
+            for name, value in spec.options.items()
+        }
+        return visual(**options, path=element.path, recording=self.recording_)
+
+    @staticmethod
+    def _is_numeric(parameter: inspect.Parameter | None) -> bool:
+        """Return whether an option of a visual takes a number."""
+        annotation = str(parameter.annotation) if parameter is not None else ''
+        return ('float' in annotation or 'int' in annotation) and 'str' not in annotation
+
+    @staticmethod
+    def _get_option_value(
+        value: object,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> object:
+        """Return an option, with an expression of parameters replaced by its value."""
+        names: Mapping[str, str] = getattr(element, 'parameters', {})
+        if not isinstance(value, str) or not names:
+            return value
+        try:
+            expression = SR(value)
+        except (TypeError, ValueError, SyntaxError):
+            return value
+        symbols = [str(symbol) for symbol in expression.variables()]
+        if not symbols or not all(symbol in names for symbol in symbols):
+            return value
+        values = {
+            SR.var(symbol): float(np.ravel(problem.parameters.read(problem.initial_parameters, names[symbol]))[0])
+            for symbol in symbols
+        }
+        return float(expression.subs(values))
 
     def _get_agents_visual_of(self, agents: _CompiledAgentsSpec, problem: BaseProblemSpec) -> AgentsVisual:
         """Return the visual of an agent group.
 
         It is its declared agents visual, or the histogram visual without a space.
         """
-        visual = self._get_visual_of(agents)
+        visual = self._get_visual_of(agents, problem)
         if not isinstance(visual, AgentsVisual):
             visual = AgentsVisual(path=agents.path, recording=self.recording_)
         if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:

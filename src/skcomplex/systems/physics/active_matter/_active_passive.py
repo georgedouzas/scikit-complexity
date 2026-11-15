@@ -14,9 +14,10 @@ from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression, sqrt
+from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import GroupElement
@@ -27,7 +28,7 @@ from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.elements import PointElement
 
@@ -53,6 +54,9 @@ class FlockingAgentElement(PointElement):
         active:
             The mark, 1 for an active agent or 0 for a passive one.
 
+        radius:
+            The radius `r_0` of the agent, which it is drawn with.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import FlockingAgentElement
         >>> FlockingAgentElement('agent', active=0.0).active
@@ -61,7 +65,7 @@ class FlockingAgentElement(PointElement):
 
     visual = VisualSpec(
         'points',
-        {'position': 'x', 'radius': 0.025, 'color_by': 'active', 'color_range': (0.0, 1.0)},
+        {'position': 'x', 'radius': 'radius', 'color_by': 'active', 'color_range': (0.0, 1.0)},
     )
 
     def __init__(
@@ -71,9 +75,11 @@ class FlockingAgentElement(PointElement):
         x_d1: npt.ArrayLike = 0.0,
         *,
         active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([PASSIVE_AGENT, ACTIVE_AGENT]))] = ACTIVE_AGENT,
+        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, x=x, x_d1=x_d1)
         self.active = active
+        self.radius = radius
 
 
 class ActivePassiveFlockingSystem(BaseSystem):
@@ -332,6 +338,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
                 'x': rng.uniform(0.0, self.size, (self.n_agents, 2)),
                 'x_d1': rng.uniform(-self.initial_speed, self.initial_speed, (self.n_agents, 2)),
                 'active': np.where(np.arange(self.n_agents) < self.n_active, ACTIVE_AGENT, PASSIVE_AGENT),
+                'radius': self.radius,
             },
         )
         energy = functools.partial(

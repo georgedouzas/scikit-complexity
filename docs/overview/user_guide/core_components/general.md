@@ -1315,7 +1315,7 @@ See its [API entry][skcomplex.systems.general.agents].
 
 A `BirthDeathInteraction` creates and removes the agents of a group. At every step an agent dies with the probability
 `death`, and an agent that survives gives birth with the probability `birth` or at a Poisson `rate`. Here a cell of
-size 8 divides twice, and each division splits the size between the parent and its offspring.
+mass 8 divides twice, and each division splits the mass between the parent and its offspring.
 
 ```python
 from typing import Annotated
@@ -1329,18 +1329,18 @@ from skcomplex.systems.general.agents import BirthDeathInteraction
 
 
 class CellElement(Element):
-    def __init__(self, label, *, size: Annotated[float, StateSpec()] = 0.0):
+    def __init__(self, label, *, mass: Annotated[float, StateSpec()] = 0.0):
         super().__init__(label)
-        self.size = size
+        self.mass = mass
 
 
-cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
-division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('size',))
+cells = GroupElement('cells', element=CellElement, size=1, values={'mass': 8.0}, variable=True)
+division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('mass',))
 system = CompositeSystem(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
-simulate(system, until=2, random_state=0).get_agents('cells', 2).values['size'].tolist()
+simulate(system, until=2, random_state=0).get_agents('cells', 2).values['mass'].tolist()
 ```
 
-After two steps four cells of size 2.0 share the size 8 of the first.
+After two steps four cells of mass 2.0 share the mass 8 of the first.
 
 Rabbits in a warren breed with the probability 0.3 and die with the probability 0.1 each step. The interaction reports
 the births and deaths of every step.
@@ -1379,12 +1379,12 @@ message
 
 The message reads "'breeding' gives births by a probability and by a rate. Give one of them."
 
-**A field realization.** Biology writes cell division as a birth that halves the size.
+**A field realization.** Biology writes cell division as a birth that halves the mass.
 
 ```python continuation
 class DivisionInteraction(BirthDeathInteraction):
     def __init__(self, label, *, target, probability=1.0):
-        super().__init__(label, target=target, birth=probability, split=('size',))
+        super().__init__(label, target=target, birth=probability, split=('mass',))
 
 
 DivisionInteraction('division', target='cells').split

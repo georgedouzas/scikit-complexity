@@ -300,3 +300,21 @@ def test_lattice_group_keeps_the_expectation_visual():
     """Test that a lattice of operator elements is drawn by its expectations."""
     chain = GroupElement('chain', element=SpinElement, space=LatticeSpace(3), on='sites').prepare()
     assert chain.default_visual_.kind == 'expectations'
+
+
+def test_group_on_a_graph_draws_an_image_member_as_sites():
+    """Test that a member drawn as an image is drawn as sites on a graph, keeping the states and the colour range."""
+
+    class FitnessElement(Element):
+        """Species drawn as an image of its fitness."""
+
+        visual = VisualSpec('image', {'states': ('fitness',), 'low': 0.0, 'high': 1.0, 'history': 256})
+
+        def __init__(self, label: str, fitness: Annotated[float, StateSpec()] = 0.0) -> None:
+            super().__init__(label)
+            self.fitness = fitness
+
+    species = GroupElement('species', element=FitnessElement, space=NetworkSpace(nx.path_graph(4)), on='sites')
+    assert species.prepare().default_visual_ == VisualSpec('sites', {'states': ('fitness',), 'low': 0.0, 'high': 1.0})
+    lattice = GroupElement('species', element=FitnessElement, space=LatticeSpace((4,)), on='sites')
+    assert lattice.prepare().default_visual_ == FitnessElement.visual

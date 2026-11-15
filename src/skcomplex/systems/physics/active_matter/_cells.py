@@ -79,7 +79,7 @@ class MotileCellElement(Element):
         30.0
     """
 
-    visual = VisualSpec('points', {'position': 'x', 'radius': 0.5, 'color_by': 'theta'})
+    visual = VisualSpec('points', {'position': 'x', 'radius': 'R_0 / 2', 'color_by': 'theta'})
 
     def __init__(
         self,

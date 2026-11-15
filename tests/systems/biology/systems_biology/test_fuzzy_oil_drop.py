@@ -11,12 +11,10 @@ from skcomplex.core.analysis import chain_shape
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import VisualSpec
 from skcomplex.systems.biology.evolution import RNANeutralNetworksSystem
 from skcomplex.systems.biology.systems_biology import (
     AMINO_ACIDS,
     BackboneGeometry,
-    BackboneVisual,
     EarlyStageFoldingIntermediateSystem,
     EllipsePath,
     FuzzyOilDropSystem,
@@ -154,8 +152,7 @@ def test_folding_chain_streams_rebuilt_points(tmp_path):
     """Test that the folding draws 20 points of the chain rebuilt from its angles."""
     path = tmp_path / 'run.rrd'
     system = FuzzyOilDropSystem(dynamics='folding').prepare().system_
-    backbone = VisualSpec(BackboneVisual, {'position': 'angle', 'structure': read_structure('1L2Y')})
-    observer = RerunObserver('fuzzy_oil_drop', save_path=path, visuals={'chain': backbone})
+    observer = RerunObserver('fuzzy_oil_drop', save_path=path)
     simulate(system, until=2, observers=[observer], random_state=0)
     points = _column_of(path, '/chain', ':positions')
     assert len(points) == 3

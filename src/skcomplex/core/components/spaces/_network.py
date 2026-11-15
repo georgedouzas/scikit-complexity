@@ -166,6 +166,10 @@ class NetworkSpace(BaseSpace):
             if len(hyperedge) >= MIN_HYPEREDGE_NODES
         ]
 
+    def _get_lacks(self) -> frozenset[str]:
+        """Return that a network shows no image, having no grid of sites."""
+        return frozenset({'image'})
+
     def _count_parts(self, on: str, layer: str | None = None) -> int:
         """Return the number of nodes, of edges of a layer, or of hyperedges.
 

@@ -7,11 +7,13 @@ from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import ContinuousSpace, StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class DiskElement(Element):
@@ -24,21 +26,26 @@ class DiskElement(Element):
         x:
             The position of its centre.
 
+        radius:
+            The radius of the disk, which it is drawn with.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import DiskElement
         >>> DiskElement('disk', x=(1.0, 2.0)).x
         (1.0, 2.0)
     """
 
-    visual = VisualSpec('points', {'position': 'x', 'states': ()})
+    visual = VisualSpec('points', {'position': 'x', 'radius': 'radius', 'states': ()})
 
     def __init__(
         self,
         label: str,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
+        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label)
         self.x = x
+        self.radius = radius
 
 
 class ContinuumPercolationSystem(BaseSystem):
@@ -95,7 +102,7 @@ class ContinuumPercolationSystem(BaseSystem):
         """Return the components of the system, built from its model parameters."""
         size = round(self.filling * self.side**2 / (np.pi * self.radius**2))
         positions = np.random.default_rng(self.random_state).uniform(0.0, self.side, (size, 2))
-        disks = GroupElement('disks', element=DiskElement, size=size, values={'x': positions})
+        disks = GroupElement('disks', element=DiskElement, size=size, values={'x': positions, 'radius': self.radius})
         return CompositeSystem(
             self.label,
             elements=[disks],

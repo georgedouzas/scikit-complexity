@@ -358,8 +358,8 @@ exceeds `max_sites`, 100,000 by default, raises `SpaceTooLargeError` before GAP 
 the issue `space-too-large`, which names the largest radius that fits.
 
 A group space lacks the regular geometry of a square lattice and an image layout. So validation reports a checkerboard
-schedule as `schedule-unsupported` and an image visual as `visual-unsupported`. Groups on group spaces stream to Rerun
-with `CayleyVisual`, which places the nodes on rings by word length, colours them by state, and logs the edges of the
+schedule as `schedule-unsupported`, and a member drawn as an image is drawn as the group space instead. Groups on group
+spaces stream to Rerun with `CayleyVisual`, which places the nodes on rings by word length, colours them by state, and logs the edges of the
 generators once.
 
 The core names no specific group, so a named group is written in one of the forms above. The Grigorchuk group acts on

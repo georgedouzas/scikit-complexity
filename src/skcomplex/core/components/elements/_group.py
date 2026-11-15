@@ -20,6 +20,7 @@ from ._declared import DeclaredElement
 
 PARTS = ('sites', 'edges', 'hyperedges')
 MIN_RANK = 2
+SHARED_OPTIONS = ('states', 'low', 'high')
 
 
 class GroupElement(BaseElement):
@@ -360,10 +361,10 @@ class GroupElement(BaseElement):
         It first raises an error for arguments the group cannot take. They are a part of the space, an element type, a
         size, a rank, or values.
 
-        `default_visual_` is the `visual` of the member class. When that class sets none, it is the default visual of
-        the space of a group on its sites, and the plain visual otherwise. The size of a group on parts of a space
-        without a size of its own is the number of parts of its space, or else of the space it inherits. The values of a
-        group on sites take the shape of that space.
+        `default_visual_` is the drawing of a member. When it is the plain one or one the space of a group on its sites
+        cannot show, such as an image on a graph, it is the default visual of that space, with the options both share.
+        The size of a group on parts of a space without a size of its own is the number of parts of its space, or else
+        of the space it inherits. The values of a group on sites take the shape of that space.
 
         Args:
             context:
@@ -386,13 +387,16 @@ class GroupElement(BaseElement):
         self._check_element()
         self._check_size()
         self._check_rank()
-        self.default_visual_ = self._get_member().visual
+        self.default_visual_ = self._get_member()._get_visual()
         self.size_ = self._get_size_of(context)
         space = self._get_site_space(context)
         self.values_ = self._flatten_values(space)
         self._check_value_rows()
-        if space is not None and self.default_visual_ == VisualSpec():
-            self.default_visual_ = VisualSpec(space.default_visual_ or 'sites')
+        if space is not None and (
+            self.default_visual_ == VisualSpec() or self.default_visual_.kind in space._get_lacks()
+        ):
+            options = {name: value for name, value in self.default_visual_.options.items() if name in SHARED_OPTIONS}
+            self.default_visual_ = VisualSpec(space.default_visual_ or 'sites', options)
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the element type for a namespace of symbols.

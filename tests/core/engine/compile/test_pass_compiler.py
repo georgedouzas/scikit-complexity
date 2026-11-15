@@ -1990,8 +1990,8 @@ def test_group_space_reports_the_checkerboard_schedule():
     assert "'random-sequential'" in issue.fix
 
 
-def test_group_space_reports_an_image_visual():
-    """Test that an image visual on a group space is reported with the Cayley visual as its fix."""
+def test_group_space_draws_an_image_member_as_the_group_space():
+    """Test that a member drawn as an image is drawn as the Cayley graph of a group space, with no visual issue."""
 
     class ImageSpinElement(GroupSpinElement):
         """Spin drawn as an image."""
@@ -2000,10 +2000,9 @@ def test_group_space_reports_an_image_visual():
 
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
     group = GroupElement('spins', element=ImageSpinElement, space=space, on='sites')
-    system = CompositeSystem(elements=[group])
-    report = PassCompiler().prepare(system).report_
-    issue = next(issue for issue in report.issues if issue.code == 'visual-unsupported')
-    assert "'cayley'" in issue.fix
+    report = PassCompiler().prepare(CompositeSystem(elements=[group])).report_
+    assert not [issue for issue in report.issues if 'visual' in issue.code]
+    assert group.prepare().default_visual_.kind == 'cayley'
 
 
 def test_group_space_reports_a_ball_above_the_site_limit():

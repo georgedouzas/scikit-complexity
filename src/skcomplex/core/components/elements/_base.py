@@ -85,7 +85,11 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
                 The space the element inherits from its system, which an element does not read.
         """
         super()._prepare(context)
-        self.default_visual_ = self.visual
+        self.default_visual_ = self._get_visual()
+
+    def _get_visual(self) -> VisualSpec:
+        """Return how the element is drawn, the `visual` of its class by default."""
+        return self.visual
 
     def prepare(self, context: BaseSpace | None = None) -> Self:
         """Prepare the element on its space, checking that it holds values and no laws.
