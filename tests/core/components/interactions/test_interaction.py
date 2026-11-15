@@ -16,7 +16,7 @@ from skcomplex.core.components.elements import BaseElement, Element, GroupElemen
 from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
 from skcomplex.core.components.laws import NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.components.spaces import BaseSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -298,7 +298,7 @@ class _ExchangeInteraction(Interaction):
         super().__init__(label, among=among, along=along)
         self.k = k
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the flow from the source to the target of an edge."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
@@ -316,7 +316,7 @@ class _RewiringInteraction(Interaction):
         super().__init__(label, among=among, along=along)
         self.p = p
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the rewiring of an edge with the probability that its ends disagree."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):

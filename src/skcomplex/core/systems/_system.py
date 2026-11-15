@@ -16,6 +16,8 @@ from ..components.spaces import BaseSpace
 from ..components.systems import CompositeSystem
 from ..engine.backends import BaseBackend, JaxBackend, NumbaBackend, NumpyBackend
 from ..engine.problems import BaseProblemSpec, ProblemSpec
+from ..engine.problems._neighborhood_kernel import NeighborhoodKernel
+from ..engine.problems._reduction_kernel import ReductionKernel
 from ..engine.runtime import Trajectory, compile_problem
 from ..engine.solvers import BaseSolver
 from ..errors import ValidationError
@@ -184,6 +186,30 @@ class System(BaseSystem):
             text = re.sub(rf'(?<![\w.]){re.escape(symbol)}(?![\w])', names[symbol], text)
         return text
 
+    def _get_readable_reduction(self, reduction: ReductionKernel, readable: Mapping[str, str]) -> str:
+        """Return a reduction over the members of a group as text, such as `mean(crowd.x)`."""
+        argument = self._get_readable(reduction.argument, readable).replace('[i]', '')
+        weighted = '' if reduction.weights is None else ', weighted'
+        condition = (
+            '' if reduction.condition is None else f', where={self._get_readable(reduction.condition, readable)}'
+        )
+        return f'{reduction.kind}({argument}{condition}{weighted})'
+
+    def _get_readable_neighbours(self, kernel: NeighborhoodKernel, readable: Mapping[str, str]) -> str:
+        """Return a reduction over neighbours as text, such as `neighbors(x[j] - x[i])`.
+
+        `[i]` marks the member that reads the reduction and `[j]` a neighbour.
+        """
+        indices = {'reader': '[i]', 'other': '[j]', 'edge': '[ij]'}
+        names = dict(readable)
+        for symbol, read in kernel.reads.items():
+            entry = read.read.entry
+            if entry is not None:
+                names[str(symbol)] = f'{Trajectory._get_display_name(entry.name)}{indices.get(read.side, "")}'
+        argument = self._get_readable(kernel.argument, names)
+        weight = '' if str(kernel.weight) == '1' else f', weight={self._get_readable(kernel.weight, names)}'
+        return f"neighbors({argument}{weight}, reduce='{kernel.kind}')"
+
     def _set_learned(self, problem: BaseProblemSpec) -> None:
         """Set the names, the readable equations, and the form of a compiled problem."""
         states = getattr(problem, 'states', None)
@@ -207,6 +233,10 @@ class System(BaseSystem):
         for delay in getattr(problem, 'delays', ()):
             state = self._get_readable(delay.state, readable)
             readable[str(delay.symbol)] = f'{state}(t - {self._get_readable(delay.delay, readable)})'
+        for reduction in getattr(problem, 'reductions', ()):
+            readable[str(reduction.symbol)] = self._get_readable_reduction(reduction, readable)
+        for kernel in getattr(problem, 'neighbourhoods', ()):
+            readable[str(kernel.symbol)] = self._get_readable_neighbours(kernel, readable)
         equations: Mapping[str, object] = getattr(problem, 'equations', {})
         self.equations_ = {display(name): self._get_readable(value, readable) for name, value in equations.items()}
         self.form_ = str(problem.form)

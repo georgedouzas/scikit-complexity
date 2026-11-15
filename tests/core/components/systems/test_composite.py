@@ -116,10 +116,10 @@ class CellElement(Element):
         self,
         label: str,
         *,
-        size: Annotated[float, StateSpec()] = 1.0,
+        volume: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
         super().__init__(label)
-        self.size = size
+        self.volume = volume
 
     def _get_laws(self, s):
         """Return the rule of division."""

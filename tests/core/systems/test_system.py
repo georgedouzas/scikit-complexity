@@ -1,10 +1,21 @@
 """Test the `_system` module of `skcomplex.core.systems`."""
 
+import re
+from types import SimpleNamespace
+
+import networkx as nx
 import pytest
 from sklearn.base import clone
 
+from skcomplex.core.components.base import BaseComponent
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import mean, neighbors
+from skcomplex.core.components.spaces import BaseSpace, NetworkSpace
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
@@ -97,3 +108,33 @@ def test_nested_system_runs_in_parent() -> None:
     """A system nested in another one runs inside it."""
     parent = System('world', systems=[meadow_system()]).prepare()
     assert 'ecology/meadow/prey.x' in parent.simulate(until=1.0).names
+
+
+class _Consensus(Interaction):
+    """Interaction that moves every member toward its neighbours, or toward the mean of its group."""
+
+    def __init__(self, label: str, *, target: Role = 'nodes', over: str = 'neighbours') -> None:
+        super().__init__(label)
+        self.target = target
+        self.over = over
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the pull toward the neighbours or toward the mean."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            pull = neighbors(context.target.other.x - x) if self.over == 'neighbours' else mean(x) - x
+            self.laws_: list[BaseComponent] = [RateLaw(x.diff(context.t), pull)]
+
+
+def test_prepare_writes_reductions_readably():
+    """Test that sums over neighbours and means over a group appear in the equations by the states they read."""
+    nodes = Element('nodes', values={'x': [1.0, 0.0, 0.0]}, space=NetworkSpace(nx.path_graph(3)))
+    crowd = Element('crowd', values={'x': [1.0, 2.0, 6.0]}, size=3)
+    system = System(
+        elements=[nodes, crowd],
+        interactions=[_Consensus('consensus'), _Consensus('pull', target='crowd', over='group')],
+    ).prepare()
+    assert system.equations_['nodes.x[i]'] == "neighbors(-nodes.x[i] + nodes.x[j], reduce='sum')"
+    assert system.equations_['crowd.x[i]'] == 'mean(crowd.x) - crowd.x[i]'
+    assert not any(re.search(r'(?<![\w.])_\w', equation) for equation in system.equations_.values())

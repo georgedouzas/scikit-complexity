@@ -219,7 +219,7 @@ class GroupingInteraction(Interaction):
             self._check_grid('groups', self.groups, space, "groups='pairs', 'partition', 'state', or a radius")
         self._check_partners(self.groups, space)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown kind, a small size, no state, or a small capacity.
 
         Args:

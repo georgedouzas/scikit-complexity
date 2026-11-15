@@ -365,7 +365,7 @@ class StokesianMobilityInteraction(Interaction):
         self.temperature = temperature
         self.dt = dt
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown variant, a bad function, or continuous noise.
 
         The noise may not run in continuous time.

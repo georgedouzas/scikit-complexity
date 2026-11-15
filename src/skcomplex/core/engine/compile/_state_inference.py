@@ -284,7 +284,11 @@ class _StateInference:
                 values=values,
             )
             edges = GroupElement(
-                f'{element.label}_edges', element=Element, space=element.space, on='edges', variable=True,
+                f'{element.label}_edges',
+                element=Element,
+                space=element.space,
+                on='edges',
+                variable=True,
             )
             return [nodes, edges]
         if isinstance(element.space, LatticeSpace | NetworkSpace | MeshSpace):

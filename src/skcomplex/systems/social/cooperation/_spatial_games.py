@@ -311,7 +311,7 @@ class PrisonersDilemmaInteraction(LocalRuleInteraction):
         super().__init__(label, target=target, state='strategy', rule=self._play, neighborhood=SQUARE, stochastic=True)
         self.imitation = imitation
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown imitation.
 
         Args:

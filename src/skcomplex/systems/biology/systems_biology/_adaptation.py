@@ -112,7 +112,7 @@ class EnzymeRegulationInteraction(Interaction):
         self.k = k
         self.K = K
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Check the sign.
 
         Args:

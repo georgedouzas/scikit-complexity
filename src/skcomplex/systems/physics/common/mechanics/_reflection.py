@@ -108,7 +108,7 @@ class ReflectionInteraction(CrossingInteraction):
             components += list(value) if isinstance(value, FreeModuleElement) else [SR(value)]
         return components
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for invalid positions, velocities, or functions.
 
         The error is raised for positions and velocities of different numbers of names, or a function not callable.

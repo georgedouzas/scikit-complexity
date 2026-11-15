@@ -75,7 +75,7 @@ class SpringDamperInteraction(GradientInteraction):
         self.stiffness = stiffness
         self.damping = damping
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for invalid states, stiffness, or damping.
 
         The states must be two names, and the stiffness and the damping names.

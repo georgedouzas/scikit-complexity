@@ -80,7 +80,7 @@ class PulseInteraction(CrossingInteraction):
         self.start = start
         self.count = count
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for pulses without states or times, or a bad period or count.
 
         Args:

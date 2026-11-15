@@ -356,7 +356,7 @@ class GeodesicInteraction(Interaction):
         self.state = state
         self.space = space
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set `space_`, the prepared pseudo-Riemannian space.
 
         It first raises an error for a state that is not a name.

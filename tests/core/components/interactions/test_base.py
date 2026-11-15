@@ -33,6 +33,7 @@ from skcomplex.core.components.laws import PartnerSpec, RateLaw, TopologyRequest
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     BallNeighborhood,
+    BaseSpace,
     ContinuousSpace,
     ContinuousTime,
     DiscreteTime,
@@ -665,7 +666,7 @@ class PullInteraction(Interaction):
         self.target = target
         self.g = g
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the pull as the law of the interaction."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):

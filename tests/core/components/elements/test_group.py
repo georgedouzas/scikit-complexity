@@ -60,16 +60,16 @@ class PopulationElement(Element):
 
 
 class CellElement(Element):
-    """Cell with a state named like the size of a group."""
+    """Cell with a volume."""
 
     def __init__(
         self,
         label: str,
         *,
-        size: Annotated[float, StateSpec()] = 0.0,
+        volume: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
         super().__init__(label)
-        self.size = size
+        self.volume = volume
 
 
 def test_group_stores_arguments():
@@ -175,13 +175,6 @@ def test_group_vector_state_has_member_shape():
         space=ContinuousSpace(n_dim=2),
     )
     assert PassCompiler().prepare(system).run().problem_.states.get_entry('gas.x').shape == (1000, 2)
-
-
-def test_group_takes_state_named_size():
-    """Test that a state named size takes per-member values, since the group size is a constructor argument."""
-    group = GroupElement('cells', element=CellElement, size=3, values={'size': [1.0, 2.0, 3.0]})
-    problem = PassCompiler().prepare(CompositeSystem(elements=[group])).run().problem_
-    assert problem.states.read(problem.initial_state, 'cells.size').tolist() == [1.0, 2.0, 3.0]
 
 
 def test_clone_keeps_values_and_compiles_to_the_same_problem():

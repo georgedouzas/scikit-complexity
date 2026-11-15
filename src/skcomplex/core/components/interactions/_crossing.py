@@ -100,7 +100,7 @@ class CrossingInteraction(Interaction):
         self.direction = direction
         self.terminal = terminal
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an invalid direction, guard, or new value.
 
         Args:

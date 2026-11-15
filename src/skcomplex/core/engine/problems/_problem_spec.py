@@ -33,6 +33,7 @@ from ._law_kernel import LawKernel
 from ._layout_spec import LayoutSpec
 from ._linear_program_kernel import LinearProgramKernel
 from ._linear_term_spec import LinearTermSpec
+from ._neighborhood_kernel import NeighborhoodKernel
 from ._partition_spec import PartitionSpec
 from ._random_stream import RandomStream
 from ._reduction_kernel import ReductionKernel
@@ -144,6 +145,9 @@ class ProblemSpec(BaseProblemSpec):
 
         reductions:
             The reductions that laws read, in the order they are evaluated before the kernels.
+
+        neighbourhoods:
+            The reductions over neighbours that laws read, each with the symbol that stands for it in the equations.
 
         unknowns:
             The positions in the state vector that the equations of a static problem solve for numerically.
@@ -259,6 +263,7 @@ class ProblemSpec(BaseProblemSpec):
     volumes: tuple[FiniteVolumeKernel, ...] = field(default=(), repr=False)
     constrained: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     reductions: tuple[ReductionKernel, ...] = field(default=(), repr=False)
+    neighbourhoods: tuple[NeighborhoodKernel, ...] = field(default=(), repr=False)
     jacobian: JacobianKernel | None = field(default=None, repr=False)
     unknowns: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     objective: Expression | None = field(default=None, repr=False)

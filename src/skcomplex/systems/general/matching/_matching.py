@@ -769,7 +769,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         """
         self._check_partners(self.rule, space)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a bad declaration, an unsigned transfer, or a bad rule.
 
         A bad declaration is one the matching cannot take.

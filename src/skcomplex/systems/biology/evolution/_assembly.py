@@ -172,7 +172,7 @@ class PolymerJoiningInteraction(Interaction):
         self.polymers = polymers
         self.mode = mode
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Check the mode.
 
         Args:

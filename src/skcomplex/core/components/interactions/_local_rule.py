@@ -113,7 +113,7 @@ class LocalRuleInteraction(Interaction):
         """Return the names of the states the rule sets."""
         return (self.state,) if isinstance(self.state, str) else tuple(self.state)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for states that are not names, or a bad neighbourhood.
 
         Args:

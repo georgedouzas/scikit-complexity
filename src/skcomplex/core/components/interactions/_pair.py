@@ -118,7 +118,7 @@ class PairInteraction(BaseInteraction):
         self.divisor = divisor
         self.period = period
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error unless at most one of the function and the potential is given.
 
         The one given must be a callable.

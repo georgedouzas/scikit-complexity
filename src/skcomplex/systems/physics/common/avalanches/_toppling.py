@@ -132,7 +132,7 @@ class TopplingInteraction(NeighborInteraction):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a mode, drive, neighbourhood, or parcels it cannot take.
 
         Args:

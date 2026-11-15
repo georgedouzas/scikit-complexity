@@ -214,7 +214,7 @@ class SamplingInteraction(Interaction):
             error_msg = f'The objective of sampling {self.label!r} must be a function of the namespace.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown move, rule, or schedule, or a bad objective.
 
         Args:

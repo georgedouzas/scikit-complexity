@@ -164,7 +164,7 @@ class GrowthInteraction(RateInteraction):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown form or a state that is no name.
 
         It also raises for a delay or exponent the form cannot take.

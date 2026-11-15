@@ -1434,6 +1434,28 @@ def _library_modules(packages: tuple[str, ...]) -> Iterator[ModuleType]:
             yield importlib.import_module(info.name)
 
 
+def _reserved_values(module: ModuleType) -> list[str]:
+    """Return the element classes of a module whose constructors take a reserved name as a value of their own."""
+    element = importlib.import_module('skcomplex.core.components.elements').Element
+    found = []
+    for klass in vars(module).values():
+        if not (isinstance(klass, type) and issubclass(klass, element) and klass.__module__ == module.__name__):
+            continue
+        if '__init__' not in vars(klass):
+            continue
+        parameters = inspect.signature(klass).parameters
+        for name in ('size', 'space', 'values'):
+            if name in parameters and parameters[name].default is not None:
+                found.append(f'{module.__name__}.{klass.__name__} takes {name} as a value of its own')
+    return found
+
+
+def check_elements_keep_reserved_names_for_settings(root: Path) -> list[str]:
+    """Return every element class of the systems whose constructor takes `size`, `space`, or `values` as a value."""
+    del root
+    return [line for module in _library_modules(('skcomplex.systems',)) for line in _reserved_values(module)]
+
+
 def _importable_modules(package: str, skipped: Callable[[str], bool]) -> Iterator[ModuleType]:
     """Return every module of a package that imports, leaving out the names the predicate skips."""
     loaded = importlib.import_module(package)
@@ -2267,6 +2289,7 @@ CHECKS = (
     check_no_system_module_imports_another,
     check_every_general_module_serves_two_fields,
     check_connectors_live_in_the_library,
+    check_elements_keep_reserved_names_for_settings,
 )
 
 

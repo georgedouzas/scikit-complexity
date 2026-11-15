@@ -177,7 +177,7 @@ class ConsumptionInteraction(Interaction):
         self.kind = kind
         self.n = n
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Check the kind and the exponent.
 
         Args:
@@ -320,7 +320,7 @@ class ResourceTurnoverInteraction(ConsumptionInteraction):
         self.supply = supply
         self.v = v
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Check the supply, the kind, and the exponent.
 
         Args:

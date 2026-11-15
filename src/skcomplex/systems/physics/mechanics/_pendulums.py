@@ -630,7 +630,7 @@ class ParametricPendulumInteraction(EulerLagrangeInteraction):
         super().__init__(label, target=target, states='theta', dissipation=self._get_friction)
         self.direction = direction
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown direction of the suspension point.
 
         Args:

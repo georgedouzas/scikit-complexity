@@ -228,6 +228,7 @@ class ProblemPass(BasePass):
                 *(ProblemPass._get_hidden_events(reduced, time, reductions) if form == FormKind.ODE else ()),
             ),
             reductions=reductions.reductions,
+            neighbourhoods=reductions.neighbourhoods,
             jacobian=compilation.jacobian,
             unknowns=ProblemPass._get_unknowns_of(compilation, form),
             objective=ProblemPass._get_objective_of(compilation),

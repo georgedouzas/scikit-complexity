@@ -138,7 +138,7 @@ class PayoffLearningInteraction(MapInteraction):
         self.rule = rule
         self.chosen = chosen
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown variant, no scores, or an uncallable payoff.
 
         Args:

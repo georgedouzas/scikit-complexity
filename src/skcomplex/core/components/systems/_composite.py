@@ -336,7 +336,9 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
             TagError:
                 Two components disagree on the time or the space, and the system has none of its own that joins them.
         """
-        components = {component.label: component.get_tags() for component in (*self.elements, *self.interactions)}
+        components = {element.label: element.get_tags() for element in self.elements} | {
+            interaction.label: interaction.get_tags() for interaction in self.interactions
+        }
         nested = []
         for system in self.systems:
             tags = system._get_pass_parameters()._get_joined_tags()

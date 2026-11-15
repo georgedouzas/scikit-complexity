@@ -101,7 +101,7 @@ class FitzHughNagumoInteraction(Interaction):
         self.epsilon = epsilon
         self.I = I
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for state names that are not names or that coincide.
 
         Args:

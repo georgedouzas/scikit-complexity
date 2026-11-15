@@ -148,7 +148,7 @@ class JumpInteraction(Interaction):
             error_msg = f'The reset of the jump {self.label!r} maps states to {self.reset!r}. Give functions.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an event without one clock, changes, or a reset's wait.
 
         Args:

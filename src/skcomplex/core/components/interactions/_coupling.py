@@ -352,7 +352,7 @@ class CouplingInteraction(NeighborInteraction):
             error_msg = f'The coupling {self.label!r} takes a phase in the map form, but its form is {self.form!r}.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for unknown variants, bad functions, or unsuitable weights.
 
         Args:

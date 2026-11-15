@@ -82,7 +82,7 @@ class ReplicatorInteraction(RateInteraction):
             error_msg = f'The fitness of {self.label!r} is {self.fitness!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a state, functions, or a fitness the interaction cannot take.
 
         Args:

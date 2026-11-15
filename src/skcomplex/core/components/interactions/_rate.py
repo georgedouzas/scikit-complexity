@@ -202,7 +202,7 @@ class RateInteraction(Interaction):
             error_msg = f'The noise of {self.label!r} takes {" and ".join(options)}. Give at most one of them.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a state, functions, or noise options it cannot take.
 
         Args:

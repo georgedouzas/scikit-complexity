@@ -134,7 +134,7 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         """Return the value of one truth table of the inputs."""
         return sum((self._get_pattern(inputs, index) for index, entry in enumerate(table) if entry), start=SR(0))
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for invalid tables and probabilities.
 
         They are invalid when they differ in number, or a table has the wrong size.

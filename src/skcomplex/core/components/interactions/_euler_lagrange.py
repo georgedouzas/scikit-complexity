@@ -112,7 +112,7 @@ class EulerLagrangeInteraction(Interaction):
         """Return the names of the states that are coordinates."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a state that is not a name, or an uncallable function.
 
         Args:

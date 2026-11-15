@@ -280,3 +280,26 @@ def test_jump_increment_symbol_is_rejected():
     """Test that a jump whose increment is a parameter raises a named error naming the state and the increment."""
     with pytest.raises(ValidationError, match=r'jump of n_c has the increment k_c.*number'):
         PassCompiler().prepare(CompositeSystem(elements=[CounterElement('c')])).run()
+
+
+class _TableElement(Element):
+    """Billiard table that wrongly stores its half side under the reserved name `size`."""
+
+    def __init__(self, label: str, size: float = 1.5) -> None:
+        super().__init__(label)
+        self.size = size
+
+
+@pytest.mark.parametrize(
+    ('element', 'name'),
+    [
+        (_TableElement('table'), 'size'),
+        (Element('gas', values={'x': 1.0}, size=0), 'size'),
+        (Element('ball', values=[('x', 1.0)]), 'values'),
+        (Element('plate', values={'u': 0.0}, space='lattice'), 'space'),
+    ],
+)
+def test_prepare_rejects_a_reserved_name_used_for_a_value(element, name):
+    """Test that a reserved name holding something else than its setting raises an error naming the reserved names."""
+    with pytest.raises(ValidationError, match=rf"has {name} = .*label, size, space, values are reserved"):
+        element.prepare()

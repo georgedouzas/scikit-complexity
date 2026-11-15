@@ -561,7 +561,7 @@ class CellAdhesionInteraction(RegionSamplingInteraction):
         del labels
         return perimeter_strength, target_perimeter
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an invalid adhesion or kind.
 
         The adhesion must be a symmetric square matrix, and every kind one of its rows.

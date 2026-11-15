@@ -264,7 +264,7 @@ class AggregateAveragingInteraction(MapInteraction):
         self.kind = kind
         self.delay = delay
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown map or a delay that is not a nonnegative integer.
 
         Args:

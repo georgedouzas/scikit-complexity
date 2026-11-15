@@ -88,7 +88,7 @@ class DosingInteraction(RateInteraction):
         self.start = start
         self.count = count
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a state, a dose, or a schedule the input cannot take.
 
         Args:

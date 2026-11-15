@@ -123,7 +123,7 @@ class GradientInteraction(Interaction):
         """Return the names of the states the interaction moves."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a state or divisor that is not a name, or a bad potential.
 
         Args:

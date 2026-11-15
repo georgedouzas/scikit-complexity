@@ -245,7 +245,7 @@ class BirthDeathInteraction(Interaction):
         if self.placement == 'neighbor':
             self._check_grid('placement', self.placement, space, "placement='here', or a placement function")
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown placement, a doubled birth, or a bad function.
 
         Args:

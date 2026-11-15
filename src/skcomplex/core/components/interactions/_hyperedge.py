@@ -85,7 +85,7 @@ class HyperedgeInteraction(BaseInteraction):
         """
         return []
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for declared states or a size below two.
 
         Args:

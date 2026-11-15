@@ -279,7 +279,7 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         self.offset = offset
         self.credit = credit
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown credit policy.
 
         Args:

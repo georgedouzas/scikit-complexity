@@ -106,7 +106,7 @@ class AdvectionInteraction(ConservationInteraction):
         )
         self.drift = drift
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an invalid state, drift, or scheme.
 
         It raises it for a state that is not a name, a drift that is not callable, or an unknown scheme.

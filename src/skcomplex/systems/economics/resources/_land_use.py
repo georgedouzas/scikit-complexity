@@ -106,7 +106,7 @@ class BidRentInteraction(Interaction):
         self.costs = costs
         self.rates = rates
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for sequences without one value per crop.
 
         Args:

@@ -179,7 +179,7 @@ class SatisfiabilityInteraction(Interaction):
         self.solver = solver
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a constraint not a spec, or a bad number revealed per step.
 
         Args:

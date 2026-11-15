@@ -158,7 +158,7 @@ class SynapticDriveInteraction(Interaction):
         self.J = J
         self.field = field
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Check the field.
 
         Args:

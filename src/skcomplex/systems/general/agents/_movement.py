@@ -196,7 +196,7 @@ class MovementInteraction(Interaction):
         if isinstance(self.step, str) and self.step in GRID_STEPS:
             self._check_grid('step', self.step, space, "step='gaussian' or step='levy', or a step function")
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown step, a rate not positive, or a bad function.
 
         Args:

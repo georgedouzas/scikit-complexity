@@ -96,7 +96,7 @@ class MichaelisMentenInteraction(ReactionInteraction):
         self.vmax = vmax
         self.km = km
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a substrate or rates the reaction cannot take.
 
         Args:

@@ -205,7 +205,7 @@ class OptimizationInteraction(Interaction):
         self.algorithm = algorithm
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an algorithm that is not a spec, or an uncallable objective.
 
         Args:

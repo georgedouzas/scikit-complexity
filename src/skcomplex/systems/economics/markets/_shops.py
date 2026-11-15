@@ -136,7 +136,7 @@ class PriceAdjustmentInteraction(MapInteraction):
         self.lower = lower
         self.upper = upper
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown stepping, a symbolic form that is not synchronous, or an uncallable signal.
 
         Args:

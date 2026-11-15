@@ -373,7 +373,7 @@ class GeneralizedMassActionInteraction(Interaction):
         """
         return self.stoichiometry
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for matrices that do not match the species and the fluxes.
 
         Args:

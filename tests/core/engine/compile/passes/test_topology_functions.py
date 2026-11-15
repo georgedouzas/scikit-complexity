@@ -344,10 +344,10 @@ def test_reductions_over_capacity_groups_count_present_members():
             self,
             label: str,
             *,
-            size: Annotated[object, StateSpec()] = 0.0,
+            count: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
             super().__init__(label)
-            self.size = size
+            self.count = count
 
     class CountingInteraction(Interaction):
         """Counting interaction."""
@@ -365,7 +365,7 @@ def test_reductions_over_capacity_groups_count_present_members():
 
         def _get_laws(self, s):
             """Return the laws of the counting interaction."""
-            return [UpdateLaw(s.counter.size, total(s.nodes.x))]
+            return [UpdateLaw(s.counter.count, total(s.nodes.x))]
 
     space = NetworkSpace(nx.complete_graph(3))
     system = CompositeSystem(
@@ -379,7 +379,7 @@ def test_reductions_over_capacity_groups_count_present_members():
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=4, dt=1.0, random_state=0)
-    assert trajectory.get_values('counter.size').tolist() == [0.0, 3.0, 4.0, 5.0, 6.0]
+    assert trajectory.get_values('counter.count').tolist() == [0.0, 3.0, 4.0, 5.0, 6.0]
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.topology is not None
 

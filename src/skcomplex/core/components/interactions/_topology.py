@@ -231,7 +231,7 @@ class TopologyInteraction(NeighborInteraction):
         self.inherit = inherit
         self.parent = parent
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for unknown options, a rate with a probability, or bad edges.
 
         Args:

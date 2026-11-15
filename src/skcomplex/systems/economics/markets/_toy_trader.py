@@ -234,7 +234,7 @@ class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
         self.n_goods = n_goods
         self.fitness = fitness
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown fitness test or number of goods.
 
         Args:

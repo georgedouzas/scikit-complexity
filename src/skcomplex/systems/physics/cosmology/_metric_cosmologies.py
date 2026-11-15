@@ -166,7 +166,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
         """Return the names of the states the equations determine."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the prepared space and the mixed Einstein tensor of its metric.
 
         It first raises an error for states not names, mismatched components, or a source.

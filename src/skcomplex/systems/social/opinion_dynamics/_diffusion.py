@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -205,7 +206,7 @@ class AdoptionInteraction(TransitionInteraction):
         )
         self.mode = mode
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown mode.
 
         Args:

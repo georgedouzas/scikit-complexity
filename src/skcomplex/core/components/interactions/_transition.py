@@ -269,7 +269,7 @@ class TransitionInteraction(Interaction):
         """Raise an error for arguments the transition cannot take."""
         self._check_form()
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a transition without one kind, or with ignored arguments.
 
         Args:

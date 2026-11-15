@@ -223,7 +223,7 @@ class EvolutionInteraction(Interaction):
                 error_msg = f'The {name} probability of {self.label!r} is {value!r}. Give a value in [0, 1].'
                 raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown variant, a bad probability, or an invalid count.
 
         Args:

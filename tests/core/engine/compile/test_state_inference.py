@@ -17,7 +17,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import laplacian, neighbors
-from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace
+from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, MeshSpace, NetworkSpace
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
@@ -62,7 +62,7 @@ class Gravity(Interaction):
         self.target = target
         self.g = g
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the acceleration as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
@@ -78,7 +78,7 @@ class Jerk(Interaction):
         self.target = target
         self.A = A
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the third derivative as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
@@ -94,7 +94,7 @@ class Mixed(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set laws of two orders."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
@@ -111,7 +111,7 @@ class Accelerator(Interaction):
         self.a = a
         self.b = b
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the next income as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
@@ -127,7 +127,7 @@ class Feedback(Interaction):
         self.target = target
         self.tau = tau
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the delayed decay as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
@@ -246,7 +246,7 @@ class Diffusion(Interaction):
         self.target = target
         self.D = D
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the heat equation as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
@@ -262,7 +262,7 @@ class Consensus(Interaction):
         self.target = target
         self.k = k
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the sum of the differences to the neighbours as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
@@ -318,7 +318,7 @@ class Resistor(Interaction):
         self.b = b
         self.R = R
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the current out of `a` and into `b` as terms of their balances."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
@@ -349,7 +349,7 @@ class VoltageSource(Interaction):
         self.E = E
         self.w = w
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the voltage as the equation of the current, and the current as terms of both balances."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
@@ -370,7 +370,7 @@ class Ground(Interaction):
         self.branch = branch
         self.node = node
 
-    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set zero potential as the equation of the current, and the current as a term of the balance."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):

@@ -30,7 +30,7 @@ GRID_CANDIDATES = ('neighbors', 'cell', 'local')
 RATE_DOMAINS = (DomainKind.REAL, DomainKind.INTEGER, DomainKind.COMPLEX, DomainKind.VECTOR)
 
 
-class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
+class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace]):
     """An abstract interaction, the component that changes the states of elements.
 
     An interaction binds elements through roles, such as `'source'` and `'target'`, reads their states, and returns laws
@@ -279,7 +279,7 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
         prepared.prepare(functional)
         return [self._get_normalized(self._get_law_in_states(law, time, functions)) for law in prepared.laws_]
 
-    def _prepare_on(self, space: BaseSpace | None) -> None:
+    def _prepare_on(self, space: BaseSpace | SimpleNamespace | None) -> None:
         """Check the interaction on the space of its system, learning no laws."""
         if not self._is_preparing_laws():
             super()._prepare_on(space)
@@ -643,14 +643,15 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
                 The space of the system, or `None`.
         """
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for a variant the space of the system cannot run.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Check the interaction on its space, or start the laws of a binding.
 
         It first raises an error for declarations the interaction cannot take.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of the elements it binds, whose
+                laws a subclass then sets in `laws_`.
 
         Raises:
             SpaceError:
@@ -658,13 +659,11 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
             ValidationError:
                 The type declares states.
         """
-        if isinstance(context, SimpleNamespace):
-            BaseComponent._prepare(self, context)
-            self._check_states()
-            self.laws_: Sequence[BaseComponent] = []
-            return
         super()._prepare(context)
         self._check_states()
+        if isinstance(context, SimpleNamespace):
+            self.laws_: Sequence[BaseComponent] = []
+            return
         self._check_space(context)
 
     def get_requirements(self) -> _InteractionRequirementSpec:

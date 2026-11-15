@@ -96,7 +96,7 @@ class ConnectionInteraction(Interaction):
         self.members = members
         self.ports = ports
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for members and ports that are empty or differ in length.
 
         Args:

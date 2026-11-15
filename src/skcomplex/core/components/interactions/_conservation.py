@@ -129,7 +129,7 @@ class ConservationInteraction(Interaction):
         self.riemann = riemann
         self.sources = sources
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an invalid state, function, or scheme.
 
         It raises it for a state that is not a name, a function that is not callable, or an unknown scheme.

@@ -99,7 +99,7 @@ class HamiltonianInteraction(Interaction):
         """Return the names of the states of one side of the canonical pairs."""
         return (names,) if isinstance(names, str) else tuple(names)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a state not a name, an unpaired state, or a bad Hamiltonian.
 
         Args:
