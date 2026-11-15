@@ -42,8 +42,8 @@ only declaration SHALL be `RoleSpec` with the alias `Role`, in the interactions 
 
 #### Scenario: No engine record in the public API
 - **WHEN** a test lists the public classes of `skcomplex.core`
-- **THEN** none of `LoweredFunctionsSpec`, `DrawLogSpec`, or `EventRecordSpec` is among them, and no public class ends
-  with `Spec` but `RoleSpec`
+- **THEN** none of `LoweredFunctionsSpec`, `DrawLogSpec`, or `EventRecordSpec` is among them, and every public class
+  that ends with `Spec` is a value that a system, a test, or a document builds or reads
 
 ### Requirement: Prepare keeps what it derives and simulate returns its trajectory
 `prepare` SHALL return the object and keep what it derives in attributes ending in `_`, such as `problem_`,
