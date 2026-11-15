@@ -9,7 +9,7 @@ decided by `prepare` from the laws of the system.
 - **THEN** preparing it finds no state, and every value is a parameter that `get_params` lists
 
 #### Scenario: A particle in motion
-- **WHEN** the system adds a `Motion` interaction whose law is `Rate(x, v)`
+- **WHEN** the system adds a `Motion` interaction whose law is `RateLaw(x, v)`
 - **THEN** `x` is a state, and `v` and `m` stay parameters
 
 ### Requirement: Interactions own the parameters of their relation
@@ -35,12 +35,12 @@ scikit-learn `Pipeline` does.
 - **THEN** a `ValidationError` names `gravity`, `mass`, and the parameters the interaction has
 
 ### Requirement: Interactions return laws of seven kinds
-Interactions SHALL describe every change of state as a list of laws of seven kinds, `Rate`, `Noise`, `Jump`, `Update`,
-`Constraint`, `Event`, and `Objective`, each a frozen value that targets states. Every kind SHALL accept a symbolic
+Interactions SHALL describe every change of state as a list of laws of seven kinds, `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`,
+`ConstraintLaw`, `EventLaw`, and `ObjectiveLaw`, each a frozen value that targets states. Every kind SHALL accept a symbolic
 expression or a Python callable for the values the engine evaluates numerically. Elements SHALL return no laws.
 
 #### Scenario: Symbolic rate law
-- **WHEN** an interaction returns `Rate(s.prey.n, -s.a * s.predator.n * s.prey.n)`
+- **WHEN** an interaction returns `RateLaw(s.prey.n, -s.a * s.predator.n * s.prey.n)`
 - **THEN** the compiled system includes that term in the time derivative of the prey count
 
 #### Scenario: Callable jump change
@@ -122,11 +122,11 @@ Spatial operators, such as `laplacian`, `divergence`, and `gradient`, and the re
 SHALL be public functions that laws call on states, and SHALL NOT be interactions.
 
 #### Scenario: Heat equation
-- **WHEN** an interaction returns `Rate(s.target.T, s.D * laplacian(s.target.T))` for an element placed on a mesh
+- **WHEN** an interaction returns `RateLaw(s.target.T, s.D * laplacian(s.target.T))` for an element placed on a mesh
 - **THEN** the system compiles to the discretised heat equation of that mesh
 
 ### Requirement: The network changes by updates on its edges
-A change of the structure of a network space SHALL be written as `Update` laws on the edges of the space, returned by
+A change of the structure of a network space SHALL be written as `UpdateLaw` laws on the edges of the space, returned by
 an ordinary interaction.
 
 #### Scenario: Rewiring
@@ -201,7 +201,7 @@ function: `GradientInteraction` from a potential, `HamiltonianInteraction` from 
 
 #### Scenario: Specific form without a realization
 - **WHEN** a mathematics system needs an Ornstein-Uhlenbeck control or a graph diffusion
-- **THEN** it writes an `Interaction` whose law is `Rate` with `(goal - x) / time` or `D laplacian(u)`, with no class
+- **THEN** it writes an `Interaction` whose law is `RateLaw` with `(goal - x) / time` or `D laplacian(u)`, with no class
   of its own
 
 ## REMOVED Requirements
@@ -209,7 +209,7 @@ function: `GradientInteraction` from a potential, `HamiltonianInteraction` from 
 ### Requirement: Laws describe how state changes
 **Reason**: Replaced by "Interactions return laws of seven kinds", which names the kinds, makes interactions the only
 source of laws, and lets every kind take callables.
-**Migration**: Return `Rate`, `Noise`, `Jump`, `Update`, `Constraint`, `Event`, or `Objective` from `get_laws`.
+**Migration**: Return `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`, `ConstraintLaw`, `EventLaw`, or `ObjectiveLaw` from `get_laws`.
 
 ### Requirement: Rate and noise contributions add up
 **Reason**: Replaced by "Contributions of every additive kind add up", which also covers jump channels and constraint
@@ -240,8 +240,8 @@ cascades, and binary encounters move to their fields with their solvers.
 **Reason**: A state declares the state that is its rate of change, so the velocity is a declared state and not a
 hidden companion named by a convention.
 **Migration**: Replace `theta: StateSpec(order=2)` and `theta_d1=...` by the values `theta` and `omega` and an
-interaction whose laws are `Rate(theta, omega)` and the rate of `omega`.
+interaction whose laws are `RateLaw(theta, omega)` and the rate of `omega`.
 
 ### Requirement: Laws of any order superpose on the highest derivative
 **Reason**: With explicit rates there is no highest derivative. Forces add as rates on the velocity state.
-**Migration**: Write each force as `Rate(s.target.v, force / s.target.m)`, and higher orders as a chain of states.
+**Migration**: Write each force as `RateLaw(s.target.v, force / s.target.m)`, and higher orders as a chain of states.

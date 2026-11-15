@@ -72,7 +72,7 @@ The parts never name a solver. The system holds the solver and the backend as se
 | Rate and Constraint | DAE | IDA | |
 | Update | map | iteration | Mesa for agents |
 | Event with any of the above | hybrid | the same solver with root finding | |
-| Objective | optimisation | an LP or NLP solver | |
+| Objective | optimisation | `MinimizeSolver` on `scipy.optimize.minimize` | an LP solver for linear objectives |
 | Objective with a temperature | sampling | Metropolis | Wolff, heat bath |
 | Objective with a gradient solver | gradient flow | gradient descent | |
 
@@ -118,7 +118,7 @@ class Gravity(Interaction):
     def __init__(self, label, *, target: Role, g=9.81): ...
 
     def _get_laws(self, s):
-        return [Rate(s.target.v, -s.g)]
+        return [RateLaw(s.target.v, -s.g)]
 ```
 
 - A process of one element is an interaction with one role: growth, decay, recovery, the membrane dynamics of a neuron.
@@ -131,7 +131,7 @@ class Gravity(Interaction):
   | every pair within a neighbourhood | `LennardJones('lj', among='gas', within=RadiusNeighborhood(2.5))` |
   | every edge or hyperedge of a network | `Infection('infect', among='people', along='contacts', beta=0.3)` |
 
-- A one-off rule needs no class: `Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [Rate(s.target.v, -9.81)])`.
+- A one-off rule needs no class: `Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.v, -9.81)])`.
 - The core keeps the interactions the engine generates from one function: `GradientInteraction` from a potential,
   `HamiltonianInteraction` from a Hamiltonian, and `EulerLagrangeInteraction` from a Lagrangian.
 - The interactions that only wrap one law go, since `Interaction` with a law does the same: `RateInteraction`,
@@ -140,34 +140,34 @@ class Gravity(Interaction):
   `PairInteraction`, `HyperedgeInteraction`, `GroupingInteraction`, and `CouplingInteraction`.
 - Spatial operators, such as `laplacian`, `divergence`, `gradient`, and reductions over neighbours, are functions laws
   call, not interactions. `ConservationInteraction` becomes a rate with `divergence`.
-- A change of the network itself is an `Update` on the edges of the space, so `TopologyInteraction` becomes an
+- A change of the network itself is an `UpdateLaw` on the edges of the space, so `TopologyInteraction` becomes an
   `Interaction` with such laws.
 - Ports go. A circuit is node elements with potentials and component interactions whose constraints add into the
   balance of each node, so `ConnectionInteraction` and `ConnectorSpec` go.
 
 ### 4. Laws are seven kinds of value
 
-`Rate`, `Noise`, `Jump`, `Update`, `Constraint`, `Event`, and `Objective` are frozen values that `_get_laws` returns.
+`RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`, `ConstraintLaw`, `EventLaw`, and `ObjectiveLaw` are frozen values that `_get_laws` returns.
 They have no parameters of their own and no `prepare` or `run`. Contributions of several laws to one state add up, for
 every kind where adding means something: rates, noises, jump channels, and constraint balances.
 
 | Current law | New form |
 | --- | --- |
-| `RateLaw`, `GeneratorLaw` | `Rate`. The linear generator of quantum evolution is a `Rate` written with operators in the quantum package |
-| `NoiseLaw` | `Noise` |
-| `JumpLaw`, `TransferLaw`, `Source`, `Sink` | `Jump` with a change mapping, where an empty side is a source or a sink |
-| `UpdateLaw`, `ArrayUpdateLaw`, `RuleLaw`, `LocalRuleLaw`, `TransitionLaw` | `Update`, with a random draw for transitions and a neighbourhood binding for local rules |
-| `EquationLaw`, `BoundaryLaw` | `Constraint` |
-| `CrossingLaw` | `Event` |
-| `LinearProgramLaw` | `Objective` with `Constraint` |
-| `SampleLaw` | `Objective` with a sampling solver |
-| `FluxLaw` | `Rate` with `divergence`, and the finite-volume scheme as a solver setting of the fluids package |
+| `RateLaw`, `GeneratorLaw` | `RateLaw`. The linear generator of quantum evolution is a `RateLaw` written with operators in the quantum package |
+| `NoiseLaw` | `NoiseLaw` |
+| `JumpLaw`, `TransferLaw`, `Source`, `Sink` | `JumpLaw` with a change mapping, where an empty side is a source or a sink |
+| `UpdateLaw`, `ArrayUpdateLaw`, `RuleLaw`, `LocalRuleLaw`, `TransitionLaw` | `UpdateLaw`, with a random draw for transitions and a neighbourhood binding for local rules |
+| `EquationLaw`, `BoundaryLaw` | `ConstraintLaw` |
+| `CrossingLaw` | `EventLaw` |
+| `LinearProgramLaw` | `ObjectiveLaw` with `ConstraintLaw`, solved as a linear program when both are linear |
+| `SampleLaw` | `ObjectiveLaw` with a sampling solver |
+| `FluxLaw` | `RateLaw` with `divergence`, and the finite-volume scheme as a solver setting of the fluids package |
 | `DissipatorLaw` | the quantum package, with its solver |
 | `CascadeLaw`, `ExtremalLaw` | the criticality package, with its solvers |
 | `ProductionLaw`, `SubstitutionLaw` | the package of rewriting systems, with its solvers |
 | `BilinearLaw` | the package of kinetic models, with its solver |
-| `MatchLaw` | `skcomplex.systems.general`, as an `Update` |
-| `GradientStepLaw` | the learning package, as an `Update` |
+| `MatchLaw` | `skcomplex.systems.general`, as an `UpdateLaw` |
+| `GradientStepLaw` | the learning package, as an `UpdateLaw` |
 
 A field law that needs engine support of its own moves with that support: the field package brings a solver built on
 the public engine bases. `prepare` chooses the compiler by itself, so `compiler` is no longer a setting users give. The engine core keys only on the seven
@@ -230,7 +230,7 @@ The core holds only the components that general systems of several fields are bu
 - elements: `BaseElement`, `Element`, `DeclaredElement`,
 - interactions: `BaseInteraction`, `Interaction`, `GradientInteraction`, `HamiltonianInteraction`,
   `EulerLagrangeInteraction`,
-- laws: `Rate`, `Noise`, `Jump`, `Update`, `Constraint`, `Event`, `Objective`,
+- laws: `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`, `ConstraintLaw`, `EventLaw`, `ObjectiveLaw`,
 - operators: `laplacian`, `divergence`, `gradient`, and the reductions over neighbours,
 - systems: `BaseSystem`, `System`,
 - spaces and neighbourhoods that systems of two or more fields use, decided by the audit task with the placement rule.
@@ -267,7 +267,7 @@ against the new API.
 
 ## Risks / Trade-offs
 
-- [A generic `Update` is slower than the specialised kernels of sandpiles or rewriting] → The field package that owns
+- [A generic `UpdateLaw` is slower than the specialised kernels of sandpiles or rewriting] → The field package that owns
   such a law brings its own solver on the public engine bases, so its kernel survives the move.
 - [An agent's behaviour as an interaction reads less like Mesa, where behaviour is a method of the agent] → One place
   for every rule is worth it, and the agent guide shows the pattern once.

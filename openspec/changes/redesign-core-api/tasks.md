@@ -20,20 +20,21 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 
 ## 3. Interactions and laws
 
-- [ ] 3.1 Add the seven law kinds `Rate`, `Noise`, `Jump`, `Update`, `Constraint`, `Event`, and `Objective` as frozen values in `src/skcomplex/core/components/laws`, each accepting symbols and callables, and lower each onto the existing compilers. Verify with one test per kind in `tests/core/components/laws`, including a `Jump` run as ODEs and as Gillespie draws.
+- [ ] 3.1 Name the law kinds `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`, `ConstraintLaw`, `EventLaw`, and `ObjectiveLaw`, renaming `EquationLaw` to `ConstraintLaw` and `CrossingLaw` to `EventLaw` everywhere. Verify with the full test suite and `rg` finding neither old name.
 - [ ] 3.2 Give `BaseInteraction` the public method `get_laws(s)`, defined once, which checks the namespace and the laws and calls the abstract hook `_get_laws(s)` that every interaction implements, as `BaseSearchCV.fit` calls `_run_search` in scikit-learn, add `Interaction(label, roles={...}, laws=callable)`, and give the base the bindings of named roles, `among=` with `within=`, and `among=` with `along=`. Verify with tests for pairs within a cutoff, lattice neighbours, network edges, hyperedges on a lattice, and a state declared on an interaction.
 - [ ] 3.3 Port `GradientInteraction`, `HamiltonianInteraction`, and `EulerLagrangeInteraction` to the new base and laws, and add the operators `laplacian`, `divergence`, `gradient`, and the reductions over neighbours as public functions. Verify with tests for a particle in a well, a pendulum from its Lagrangian, and the heat equation on a mesh.
-- [ ] 3.4 Write network rewiring as `Update` laws on the edges of a network space, and circuits as node elements with constraint balances. Verify with tests for rewiring and for Kirchhoff's current law at a node of three resistors.
+- [ ] 3.4 Write network rewiring as `UpdateLaw` laws on the edges of a network space, and circuits as node elements with constraint balances. Verify with tests for rewiring and for Kirchhoff's current law at a node of three resistors.
 - [ ] 3.5 Make the problem of `prepare` follow the table of `design.md`: ODE, SDE, jump process, DAE, map, hybrid, optimisation, sampling, and gradient flow, with the default solver of each and an error naming the supported solvers for an unsuitable one. Verify with tests for each problem and for a map prepared with an ODE solver.
+- [ ] 3.6 Add `ObjectiveLaw`, a scalar function of states that a static system minimises, compiled into a static problem and solved by a `MinimizeSolver` built on `scipy.optimize.minimize`, with constraint laws as equality constraints. Verify with tests for an unconstrained minimum, a minimum on a constraint, and an objective of several elements.
 
 ## 4. Field-specific components leave the core
 
 - [ ] 4.1 Audit every space and neighbourhood of the core with the placement rule, starting with `CayleySpace`, `PhaseSpace`, `SimplexSpace`, `CofaceNeighborhood`, `MemoryNeighborhood`, and `StateTranslationNeighborhood`, and record the decision for each in this change before moving any. Verify that the record names the fields that use each one.
 - [ ] 4.2 Move `DissipatorLaw` and the quantum generator to `skcomplex.systems.physics.common.quantum` with the solver that lowers them, built on the public engine bases. Verify with the moved tests under `tests/systems/physics/common/quantum`.
 - [ ] 4.3 Move `CascadeLaw` and `ExtremalLaw` to the criticality package, `ProductionLaw`, `SubstitutionLaw`, `WordElement`, and `PatchElement` to the package of rewriting systems, and `BilinearLaw` to the package of kinetic models, each with its solver. Verify with the moved tests of each package.
-- [ ] 4.4 Move `MatchLaw` to `skcomplex.systems.general` and `GradientStepLaw` to the learning package, both as `Update` recipes, and the finite-volume scheme of `FluxLaw` to the fluids package as a solver setting. Verify with the moved tests.
+- [ ] 4.4 Move `MatchLaw` to `skcomplex.systems.general` and `GradientStepLaw` to the learning package, both as `UpdateLaw` recipes, and the finite-volume scheme of `FluxLaw` to the fluids package as a solver setting. Verify with the moved tests.
 - [ ] 4.5 Move the spaces and neighbourhoods that the audit of 4.1 assigns to fields. Verify with the moved tests and a source test that no module of the core names a moved class.
-- [ ] 4.6 Add the `Motion` interaction, whose law is `Rate(x, v)`, to `skcomplex.systems.physics.common.particles`. Verify with a test of free fall against its exact solution.
+- [ ] 4.6 Add the `Motion` interaction, whose law is `RateLaw(x, v)`, to `skcomplex.systems.physics.common.particles`. Verify with a test of free fall against its exact solution.
 
 ## 5. Systems migrate field by field
 

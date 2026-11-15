@@ -28,8 +28,8 @@ The design is in `design.md`. In short:
   from the hook `_get_laws`, which the public `get_laws` of the base calls. Where it applies is a binding argument, not a class: one target, named roles, every
   pair within a neighbourhood, or every edge of a network. `NeighborInteraction`, `PairInteraction`,
   `HyperedgeInteraction`, and `GroupingInteraction` go, and so do the interactions that only wrap one law.
-- **BREAKING** Laws are plain values of seven kinds named by their mathematics: `Rate`, `Noise`, `Jump`, `Update`,
-  `Constraint`, `Event`, and `Objective`. Contributions to one state add up. The other law classes become one of these
+- **BREAKING** Laws are plain values of seven kinds named by their mathematics: `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`,
+  `ConstraintLaw`, `EventLaw`, and `ObjectiveLaw`. Contributions to one state add up. The other law classes become one of these
   kinds or move to the field that uses them.
 - **BREAKING** `CompositeSystem` becomes `System`. A system exposes the parameters of its parts by nested names, such
   as `gravity__g`, as a scikit-learn `Pipeline` does, and holds its `solver` and `backend` as settings. A system is

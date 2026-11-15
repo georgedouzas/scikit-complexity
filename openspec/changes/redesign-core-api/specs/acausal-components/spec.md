@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Connections balance flows
-A connected network SHALL be written as node elements holding potentials and component interactions whose `Constraint`
+A connected network SHALL be written as node elements holding potentials and component interactions whose `ConstraintLaw`
 laws add their flows into the balance of each node they join, so the flows into every node sum to zero. No connection
 class and no port SHALL be needed.
 

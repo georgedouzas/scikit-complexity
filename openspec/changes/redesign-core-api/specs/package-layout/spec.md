@@ -34,12 +34,12 @@ for several fields, to `systems/<field>/common/<family>` for one field, or to it
 Analyses follow the same test by their users. The core SHALL never import `skcomplex.systems`.
 
 #### Scenario: A law kind
-- **WHEN** a contributor asks where `Jump` lives
+- **WHEN** a contributor asks where `JumpLaw` lives
 - **THEN** it lives in the core, since reactions, epidemics, and births and deaths of several fields use it
 
 #### Scenario: A recipe of several fields
 - **WHEN** a contributor adds an agent rule that systems of economics and social use
-- **THEN** it goes to a concept subpackage of `skcomplex.systems.general`, built on `Interaction` and `Update`
+- **THEN** it goes to a concept subpackage of `skcomplex.systems.general`, built on `Interaction` and `UpdateLaw`
 
 #### Scenario: Source tests guard the rule
 - **WHEN** the source tests run
