@@ -27,7 +27,6 @@ from ....components.laws import (
     UpdateLaw,
 )
 from ....components.laws.utils._reductions import reductions_in
-from ....components.spaces import StaticTime
 from ....enums import VariableKind
 from ....errors import ValidationError
 from ....types import Array
@@ -67,7 +66,7 @@ class OrdersPass(BasePass):
         blocks = list(Compilation._get_required(compilation.layout, 'layout').blocks.values())
         orders = self._get_orders_of(blocks, self._get_program_variables(compilation))
         specs = self._get_specs_of(compilation, orders)
-        if isinstance(compilation.system.time, StaticTime):
+        if compilation.is_static():
             compilation.ordered = self._solve_static(specs)
         elif orders.algebraic:
             relations, unknowns = self._get_unknowns_of(specs, blocks, orders)

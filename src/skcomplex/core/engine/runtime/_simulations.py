@@ -28,7 +28,7 @@ from ..compile._rewriting_compiler import RewritingCompiler
 from ..compile.passes._operator_compiler import OperatorCompiler
 from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec, RunStateSpec
 from ..problems._draw_recorder import DrawRecorder
-from ..solvers import BaseSolver, CoSimulationSolver, FractionalEulerMaruyamaSolver, StepSpec
+from ..solvers import BaseSolver, CoSimulationSolver, FractionalEulerMaruyamaSolver, MinimizeSolver, StepSpec
 from ..solvers._agent_state_spec import _AgentStateSpec
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ..solvers._structure_state_spec import _StructureStateSpec
@@ -547,6 +547,8 @@ class Simulation(BaseConfig[None, float]):
             return CoSimulationSolver()
         if form == FormKind.SDE and isinstance(problem, ProblemSpec) and problem.fractional:
             return FractionalEulerMaruyamaSolver()
+        if form == FormKind.STATIC and isinstance(problem, ProblemSpec) and problem.objective is not None:
+            return MinimizeSolver()
         return DEFAULT_SOLVERS[form]()
 
     def prepare(self, context: None = None) -> Self:

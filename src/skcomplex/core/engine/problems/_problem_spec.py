@@ -148,6 +148,12 @@ class ProblemSpec(BaseProblemSpec):
         unknowns:
             The positions in the state vector that the equations of a static problem solve for numerically.
 
+        objective:
+            The sum of the objective laws of a static problem, the scalar its solver minimises, or `None` for none.
+
+        objective_targets:
+            The positions in the state vector that the objective is minimised over.
+
         jacobian:
             The Jacobian of the drift of an ODE problem, derived from its laws: its sparsity pattern and, for laws with
             a symbolic form, its exact value. `None` for other forms.
@@ -255,6 +261,8 @@ class ProblemSpec(BaseProblemSpec):
     reductions: tuple[ReductionKernel, ...] = field(default=(), repr=False)
     jacobian: JacobianKernel | None = field(default=None, repr=False)
     unknowns: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
+    objective: Expression | None = field(default=None, repr=False)
+    objective_targets: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     drift: VectorFunction | None = field(default=None, repr=False)
     sources: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)

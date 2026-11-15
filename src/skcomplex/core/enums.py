@@ -344,6 +344,7 @@ class LawTag(StrEnum):
     JUMP = 'jump'
     UPDATE = 'update'
     EQUATION = 'equation'
+    OBJECTIVE = 'objective'
     SAMPLING = 'sampling'
 
 

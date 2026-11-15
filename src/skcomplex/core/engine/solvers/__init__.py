@@ -28,6 +28,7 @@ from ._lindblad import LindbladSolver
 from ._maps import IterationSolver
 from ._mesa import AgentView, MesaSolver, SystemView
 from ._milstein import MilsteinSolver
+from ._minimize import MinimizeSolver
 from ._monte_carlo import MonteCarloSolver
 from ._operator import OperatorSolver
 from ._optimal_control import OptimalControlSolver
@@ -78,6 +79,7 @@ __all__: list[str] = [
     'LindbladSolver',
     'MesaSolver',
     'MilsteinSolver',
+    'MinimizeSolver',
     'MonteCarloSolver',
     'OperatorSolver',
     'OptimalControlSolver',

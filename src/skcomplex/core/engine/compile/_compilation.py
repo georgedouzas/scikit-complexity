@@ -10,7 +10,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.laws import BaseLaw, EventLaw, RuleLaw, TopologyRequestSpec
+from ...components.laws import BaseLaw, EventLaw, ObjectiveLaw, RuleLaw, TopologyRequestSpec
+from ...components.spaces import StaticTime
 from ...components.systems import CompositeSystem
 from ...enums import FormKind
 from ...errors import PipelineError
@@ -356,3 +357,15 @@ class Compilation:
             error_msg = f'No pass has set the field {name!r} of the compilation yet. Run the pass that writes it first.'
             raise PipelineError(error_msg)
         return value
+
+    def is_static(self) -> bool:
+        """Return whether the system is static, by its time or an objective law.
+
+        Returns:
+            static:
+                Whether the system has static time or an objective law.
+        """
+        if isinstance(self.system.time, StaticTime):
+            return True
+        census = self.census
+        return census is not None and any(isinstance(record.law, ObjectiveLaw) for record in census.records)

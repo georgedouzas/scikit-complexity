@@ -20,6 +20,7 @@ from skcomplex.core.components.laws import (
     TotalisticSpec,
 )
 from skcomplex.core.components.spaces import BallNeighborhood
+from skcomplex.core.enums import LawTag
 from skcomplex.core.errors import ValidationError
 
 
@@ -119,4 +120,4 @@ def test_every_core_law_names_a_known_kind():
     """Test that every law of the core names one of the law kinds of the tags."""
     for law in [item for item in vars(laws).values() if inspect.isclass(item) and issubclass(item, BaseLaw)]:
         if law is not BaseLaw:
-            assert law.law_tag in {'rate', 'noise', 'jump', 'update', 'equation', 'sampling'}, law.__name__
+            assert law.law_tag in set(LawTag), law.__name__

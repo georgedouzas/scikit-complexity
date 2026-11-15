@@ -25,7 +25,7 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 - [ ] 3.3 Port `GradientInteraction`, `HamiltonianInteraction`, and `EulerLagrangeInteraction` to the new base and laws, and add the operators `laplacian`, `divergence`, `gradient`, and the reductions over neighbours as public functions. Verify with tests for a particle in a well, a pendulum from its Lagrangian, and the heat equation on a mesh.
 - [ ] 3.4 Write network rewiring as `UpdateLaw` laws on the edges of a network space, and circuits as node elements with constraint balances. Verify with tests for rewiring and for Kirchhoff's current law at a node of three resistors.
 - [ ] 3.5 Make the problem of `prepare` follow the table of `design.md`: ODE, SDE, jump process, DAE, map, hybrid, optimisation, sampling, and gradient flow, with the default solver of each and an error naming the supported solvers for an unsuitable one. Verify with tests for each problem and for a map prepared with an ODE solver.
-- [ ] 3.6 Add `ObjectiveLaw`, a scalar function of states that a static system minimises, compiled into a static problem and solved by a `MinimizeSolver` built on `scipy.optimize.minimize`, with constraint laws as equality constraints. Verify with tests for an unconstrained minimum, a minimum on a constraint, and an objective of several elements.
+- [x] 3.6 Add `ObjectiveLaw`, a scalar function of states that a static system minimises, compiled into a static problem and solved by a `MinimizeSolver` built on `scipy.optimize.minimize`, with constraint laws as equality constraints. Verify with tests for an unconstrained minimum, a minimum on a constraint, and an objective of several elements.
 
 ## 4. Field-specific components leave the core
 

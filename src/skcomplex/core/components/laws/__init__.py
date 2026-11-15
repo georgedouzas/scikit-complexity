@@ -32,6 +32,7 @@ from ._match import MatchLaw
 from ._module_spec import Letters, ModuleSpec
 from ._move_spec import MoveSpec
 from ._noise import NoiseLaw
+from ._objective import ObjectiveLaw
 from ._objective_spec import ObjectiveSpec
 from ._outer_totalistic_spec import OuterTotalisticSpec
 from ._partner_spec import PartnerSpec
@@ -77,6 +78,7 @@ __all__: list[str] = [
     'ModuleSpec',
     'MoveSpec',
     'NoiseLaw',
+    'ObjectiveLaw',
     'ObjectiveSpec',
     'OuterTotalisticSpec',
     'PartnerSpec',

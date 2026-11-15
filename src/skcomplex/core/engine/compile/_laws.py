@@ -14,12 +14,13 @@ from ...components.laws import (
     FluxLaw,
     LinearProgramLaw,
     LocalRuleLaw,
+    ObjectiveLaw,
     RuleLaw,
     SampleLaw,
     TransferLaw,
 )
 
-FORMLESS_LAWS = (BoundaryLaw, EventLaw, BilinearLaw, FluxLaw, LinearProgramLaw)
+FORMLESS_LAWS = (BoundaryLaw, EventLaw, BilinearLaw, FluxLaw, LinearProgramLaw, ObjectiveLaw)
 KERNEL_FREE_LAWS = (
     TransferLaw,
     BilinearLaw,
@@ -30,6 +31,7 @@ KERNEL_FREE_LAWS = (
     SampleLaw,
     FluxLaw,
     LinearProgramLaw,
+    ObjectiveLaw,
 )
 LATTICE_LAWS = (LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, ExtremalLaw, SampleLaw)
 AGENT_LAWS = (RuleLaw,)

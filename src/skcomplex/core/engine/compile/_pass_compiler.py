@@ -32,6 +32,7 @@ from ...components.laws import (
     JumpLaw,
     LinearProgramLaw,
     NoiseLaw,
+    ObjectiveLaw,
     RateLaw,
     SampleLaw,
     TopologyRequestSpec,
@@ -664,7 +665,7 @@ class PassCompiler(BaseCompiler):
         algebraic = PassCompiler._get_algebraic_names(compilation)
         issues = []
         for record in Compilation._get_required(compilation.census, 'census').records:
-            determined = isinstance(record.law, ConstraintLaw | LinearProgramLaw)
+            determined = isinstance(record.law, ConstraintLaw | LinearProgramLaw | ObjectiveLaw)
             names = [] if determined else [item.name for item in record.targets]
             for name in names:
                 if name in algebraic:
@@ -1172,7 +1173,7 @@ class PassCompiler(BaseCompiler):
     @staticmethod
     def _get_equation_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the equations under static time with no target or a non-state target."""
-        if not isinstance(compilation.system.time, StaticTime):
+        if not compilation.is_static():
             return []
         issues = []
         for record in Compilation._get_required(compilation.census, 'census').records:

@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, CallSpec, EventLaw, JumpLaw, RateLaw
+from ....components.laws import BaseLaw, CallSpec, EventLaw, JumpLaw, ObjectiveLaw, RateLaw
 from ....components.spaces import LatticeSpace
 from ....enums import FormKind, VariableKind
 from ....errors import PipelineError, ValidationError
@@ -171,6 +171,25 @@ class ProblemPass(BasePass):
         return np.unique(np.concatenate([np.zeros(0, dtype=np.intp), *targets]))
 
     @staticmethod
+    def _get_objective_of(compilation: Compilation) -> Expression | None:
+        """Return the sum of the objective laws of a compilation, or `None`."""
+        records = Compilation._get_required(compilation.census, 'census').records
+        values = [SR(record.law.value) for record in records if isinstance(record.law, ObjectiveLaw)]
+        return sum(values[1:], values[0]) if values else None
+
+    @staticmethod
+    def _get_objective_targets_of(compilation: Compilation) -> Indices:
+        """Return the positions of the states the objectives are minimised over."""
+        records = Compilation._get_required(compilation.census, 'census').records
+        positions = [
+            np.arange(entry.indices.start, entry.indices.stop, dtype=np.intp)
+            for record in records
+            if isinstance(record.law, ObjectiveLaw)
+            for entry in record.targets
+        ]
+        return np.unique(np.concatenate([np.zeros(0, dtype=np.intp), *positions]))
+
+    @staticmethod
     def _get_problem_of(compilation: Compilation) -> ProblemSpec:
         """Return the problem of the general parts of a compilation.
 
@@ -211,6 +230,8 @@ class ProblemPass(BasePass):
             reductions=reductions.reductions,
             jacobian=compilation.jacobian,
             unknowns=ProblemPass._get_unknowns_of(compilation, form),
+            objective=ProblemPass._get_objective_of(compilation),
+            objective_targets=ProblemPass._get_objective_targets_of(compilation),
             stream=ProblemPass._get_stream_of(compilation),
             breakpoints=ProblemPass._get_breakpoints_in(reduced, events, time),
             history=ProblemPass._get_history(blocks),

@@ -852,6 +852,107 @@ mechanics. A robot arm writes one equation per joint in the same way.
 See its [fact sheet](../../../components/laws.md#equationlaw)
 and its [API entry][skcomplex.core.components.laws.ConstraintLaw].
 
+## ObjectiveLaw
+
+An `ObjectiveLaw` gives a scalar function of states, `U(x)`, that a static system minimises over its target states. A
+mass hung on a spring of stiffness `k` comes to rest where its potential energy `k x² / 2 - m g x` is least, at
+`x = m g / k`.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw
+from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.systems import System
+
+
+class PositionElement(Element):
+    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label, visual=visual)
+        self.x = x
+
+
+class HangingInteraction(Interaction):
+    def __init__(self, label, *, target: Annotated[str, RoleSpec()] = 'mass', k=50.0, m=2.0):
+        super().__init__(label)
+        self.target = target
+        self.k = k
+        self.m = m
+
+    def _get_laws(self, s):
+        return [ObjectiveLaw(self.k * s.target.x**2 / 2 - self.m * 9.81 * s.target.x, s.target.x)]
+
+
+hanging = System(elements=[PositionElement('mass')], interactions=[HangingInteraction('spring')]).prepare()
+round(float(hanging.simulate(until=1.0).get_values('mass.x')[0]), 4)
+```
+
+The mass rests 0.3924 below the hook, which is `2 * 9.81 / 50`.
+
+The same law allocates a budget. A household splits one unit of money between two goods to maximise the utility
+`log(a) + 2 log(b)`, which is the same as minimising its negative under the budget `a + b = 1`.
+
+```python continuation
+from sage.all__sagemath_symbolics import log
+
+
+class SpendingInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        a: Annotated[str, RoleSpec()] = 'a',
+        b: Annotated[str, RoleSpec()] = 'b',
+    ):
+        super().__init__(label)
+        self.a = a
+        self.b = b
+
+    def _get_laws(self, s):
+        utility = log(s.a.x) + 2 * log(s.b.x)
+        return [ObjectiveLaw(-utility, [s.a.x, s.b.x]), ConstraintLaw(s.a.x + s.b.x == 1, target=s.b.x)]
+
+
+goods = [PositionElement('a', x=0.5), PositionElement('b', x=0.5)]
+budget = System(elements=goods, interactions=[SpendingInteraction('spending')]).prepare().simulate(until=1.0)
+round(float(budget.get_values('a.x')[0]), 4), round(float(budget.get_values('b.x')[0]), 4)
+```
+
+The household spends a third on the first good and two thirds on the second, in the ratio of the weights.
+
+**How the engine runs it.** An objective makes its system static, so the system needs no time of its own. The
+compiler adds the objectives of every component into one, and `MinimizeSolver`, the default solver of such a system,
+minimises it with `scipy.optimize.minimize` and the exact gradient. A constraint the compiler solves explicitly fixes
+its state from the others, and a constraint it cannot solve holds as an equality constraint of the minimisation.
+
+**How it combines.** Objectives add up, so several interactions can each add a cost to the same states. Constraint
+laws hold at the minimum.
+
+**Limits and errors.** The objective is minimised with its exact gradient, so it must be a symbolic expression, and
+it must name the states it varies.
+
+```python continuation
+from sage.all__sagemath_symbolics import var
+
+from skcomplex.core.errors import ValidationError
+
+try:
+    ObjectiveLaw(lambda s: 0.0, var('x')).prepare()
+except ValidationError as error:
+    message = str(error)
+message
+```
+
+The message says that an objective is minimised with its exact gradient, so its value is a symbolic expression.
+
+**A field realization.** The hanging mass is a realization of mechanics and the household one of economics. The loss of
+a statistical model, minimised over its weights, is another.
+
+See its [fact sheet](../../../components/laws.md#objectivelaw)
+and its [API entry][skcomplex.core.components.laws.ObjectiveLaw].
+
 ## ExtremalLaw
 
 An `ExtremalLaw` updates the site where a state is smallest or largest, together with its neighbours. In the evolution
