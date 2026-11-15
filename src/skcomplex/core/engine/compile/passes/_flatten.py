@@ -337,7 +337,7 @@ class FlattenPass(BasePass):
                 scope,
                 interaction,
                 space,
-                type(interaction),
+                interaction if interaction._get_declared() else type(interaction),
                 interaction=True,
             )
             for interaction in system.interactions

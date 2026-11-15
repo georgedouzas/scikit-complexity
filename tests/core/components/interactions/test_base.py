@@ -30,7 +30,7 @@ from skcomplex.core.components.interactions import (
     TransitionInteraction,
 )
 from skcomplex.core.components.laws import PartnerSpec, RateLaw, TopologyRequestSpec
-from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.laws.utils import derivative, neighbors
 from skcomplex.core.components.spaces import (
     BallNeighborhood,
     ContinuousSpace,
@@ -669,7 +669,7 @@ class PullInteraction(Interaction):
         """Set the pull as the law of the interaction."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.x, -context.g)]
+            self.laws_ = [RateLaw(derivative(context.target.x, 2), -context.g)]
 
 
 def test_prepare_is_preparing_laws_from_a_namespace():
@@ -682,7 +682,7 @@ def test_prepare_is_preparing_laws_from_a_namespace():
 def test_prepare_keeps_parameters_symbolic_in_a_system():
     """The laws a system learns from an interaction read its parameters as symbols."""
     system = System(elements=[FallElement('ball', x=10.0)], interactions=[PullInteraction('pull')]).prepare()
-    assert system.equations_['ball.x_d1'] == '-pull.g'
+    assert system.equations_["ball.x'"] == '-pull.g'
 
 
 def test_prepare_leaves_the_user_interaction_unchanged():

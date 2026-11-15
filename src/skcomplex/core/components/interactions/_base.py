@@ -10,14 +10,16 @@ from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import RR, ZZ, Expression
 from sklearn.base import clone
 
 from ...enums import DomainKind
 from ...errors import SpaceError, ValidationError
-from ...specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
+from ...specs import BaseSpec, DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from .._tags import Tags
 from ..base import BaseComponent
-from ..laws import BaseLaw, PartnerSpec
+from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw
+from ..laws.utils import derivative
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._interaction_requirement_spec import _InteractionRequirementSpec
@@ -147,6 +149,20 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
         owner = next(klass for klass in cls.__mro__ if '_get_laws' in vars(klass))
         return owner is BaseInteraction
 
+    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
+        """Return the numeric arguments of an interaction as parameters, by name.
+
+        An argument annotated with a spec keeps its spec, and a role or a setting that is no number declares nothing.
+        """
+        if not self._is_preparing_laws():
+            return {}
+        specs = self._get_specs()
+        return {
+            name: DeclaredVariableSpec(value, ParameterSpec(domain=ZZ if isinstance(value, int) else RR))
+            for name, value in self.get_params(deep=False).items()
+            if name not in specs and name != 'label' and isinstance(value, int | float) and not isinstance(value, bool)
+        }
+
     @classmethod
     def _get_declared_laws(cls) -> tuple[type, ...] | None:
         """Return the law classes a class lists, or `None` when they are unknown."""
@@ -173,6 +189,16 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
         """
         return []
 
+    @staticmethod
+    def _get_normalized(law: BaseComponent) -> BaseComponent:
+        """Return a law on a derivative of order `k` as a law on the state of order `k`."""
+        if not isinstance(law, RateLaw | NoiseLaw) or not isinstance(law.target, Expression):
+            return law
+        if law.target.operator() is not derivative:
+            return law if law.order is not None else clone(law).set_params(order=1)
+        state, order = law.target.operands()
+        return clone(law).set_params(target=state, order=int(order))
+
     def _get_laws_of(self, inputs: object) -> Sequence[BaseComponent]:
         """Return the laws for a namespace, from a clone prepared on it if needed."""
         if not self._is_preparing_laws():
@@ -182,7 +208,7 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
             raise ValidationError(error_msg)
         prepared = clone(self)
         prepared.prepare(inputs)
-        return list(prepared.laws_)
+        return [self._get_normalized(law) for law in prepared.laws_]
 
     def _prepare_on(self, space: BaseSpace | None) -> None:
         """Check the interaction on the space of its system, learning no laws."""

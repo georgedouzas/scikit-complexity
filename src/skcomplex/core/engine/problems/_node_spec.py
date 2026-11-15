@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ...components.elements import BaseElement, Element, GroupElement
+from ...components.base import BaseComponent
+from ...components.elements import Element, GroupElement
 from ...components.interactions import BaseInteraction, WienerProcessSpec
 from ...components.spaces import BaseSpace
 from ...specs._base_spec import BaseSpec
@@ -53,7 +54,7 @@ class _NodeSpec(BaseSpec):
     scope: str
     component: Element | GroupElement | BaseInteraction | WienerProcessSpec
     space: BaseSpace | None
-    component_type: type | BaseElement
+    component_type: type | BaseComponent
     members: int | None = None
     interaction: bool = False
     agent: bool = False

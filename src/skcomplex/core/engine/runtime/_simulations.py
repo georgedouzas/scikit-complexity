@@ -256,7 +256,7 @@ class Simulation(BaseConfig[None, float]):
             raise ValidationError(error_msg)
         if not isinstance(self.system, BaseProblemSpec):
             self._get_compiler().prepare(self.system).report_._check()
-        initial = dict(self.initial_state or {})
+        initial = {Trajectory._get_internal_name(name): value for name, value in (self.initial_state or {}).items()}
         named: object = None
         if isinstance(self.system, BaseProblemSpec):
             self.problem_ = PassCompiler._copy_with_initial_state(self.system, initial)

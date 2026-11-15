@@ -16,7 +16,7 @@ from ..components.spaces import BaseSpace
 from ..components.systems import CompositeSystem
 from ..engine.backends import BaseBackend, JaxBackend, NumbaBackend, NumpyBackend
 from ..engine.problems import BaseProblemSpec, ProblemSpec
-from ..engine.runtime import compile_problem
+from ..engine.runtime import Trajectory, compile_problem
 from ..engine.solvers import BaseSolver
 from ..errors import ValidationError
 from ._base import BaseSystem
@@ -190,11 +190,12 @@ class System(BaseSystem):
         parameters = getattr(problem, 'parameters', None)
         state_entries = list(states.entries) if states is not None else []
         parameter_entries = list(parameters.entries) if parameters is not None else []
-        self.states_ = tuple(name for entry in state_entries for name in entry.generic_names)
-        self.parameters_ = tuple(name for entry in parameter_entries for name in entry.generic_names)
+        display = Trajectory._get_display_name
+        self.states_ = tuple(display(name) for entry in state_entries for name in entry.generic_names)
+        self.parameters_ = tuple(display(name) for entry in parameter_entries for name in entry.generic_names)
         symbols: Mapping[str, object] = getattr(problem, 'symbols', {})
         readable = {
-            str(item): name
+            str(item): display(name)
             for entry in [*state_entries, *parameter_entries]
             if entry.name in symbols
             for item, name in zip(
@@ -204,7 +205,7 @@ class System(BaseSystem):
             )
         }
         equations: Mapping[str, object] = getattr(problem, 'equations', {})
-        self.equations_ = {name: self._get_readable(value, readable) for name, value in equations.items()}
+        self.equations_ = {display(name): self._get_readable(value, readable) for name, value in equations.items()}
         self.form_ = str(problem.form)
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:

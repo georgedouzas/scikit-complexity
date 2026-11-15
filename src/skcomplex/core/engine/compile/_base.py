@@ -129,6 +129,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
             error_msg = f'A compiler prepares on a system, not on a {type(context).__name__}.'
             raise ValidationError(error_msg)
         system = context.prepare().system_ if context._nests_classes() else context
+        system = self._get_declared_system(system)
         try:
             self.system_ = self._copy_with_observables(system, self.observables)
         except ValidationError as error:
@@ -138,6 +139,10 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
             )
             return
         self.report_ = ValidationReportSpec(tuple(self._get_issues(self.system_)))
+
+    def _get_declared_system(self, system: CompositeSystem) -> CompositeSystem:
+        """Return the system with declarations for its plain elements."""
+        return system
 
     def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
         """Return the issues of a system that the compiler finds before compiling it.

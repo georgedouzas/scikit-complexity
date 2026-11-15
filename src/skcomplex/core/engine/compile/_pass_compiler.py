@@ -97,6 +97,7 @@ from ._held_reduction_spec import _HeldReductionSpec
 from ._issue_spec import IssueSpec
 from ._learning_compiler import _LearningCompiler
 from ._observables import ObservableEvaluator
+from ._state_inference import _StateInference
 from .passes._cells import DEGREES
 from .passes._census import CensusPass
 from .passes._check_fractional_noise import BROWNIAN_HURST
@@ -241,6 +242,21 @@ class PassCompiler(BaseCompiler):
             raise ValidationError(error_msg)
         super()._prepare(context)
 
+    def _set_passes(self) -> None:
+        """Set `passes_`, copies of the passes of the compiler or of the default ones."""
+        passes = self.passes if self.passes is not None else [item() for item in PASSES]
+        self.passes_ = tuple(clone(item) for item in passes)
+
+    def _get_census_of(self, system: CompositeSystem) -> Compilation:
+        """Return a compilation of a system run up to its census of laws and its layout."""
+        self._set_passes()
+        compilation = self._run_passes(self._get_new_compilation(system), until='census')
+        return self._run_passes(compilation, until='layout')
+
+    def _get_declared_system(self, system: CompositeSystem) -> CompositeSystem:
+        """Return the system with the declarations of its plain elements inferred."""
+        return _StateInference(self._get_census_of).get_declared(system)
+
     def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
         """Return every issue of a system, of its solver, and of its backend.
 
@@ -254,8 +270,7 @@ class PassCompiler(BaseCompiler):
             issues:
                 The issues, in the order they were found.
         """
-        passes = self.passes if self.passes is not None else [item() for item in PASSES]
-        self.passes_ = tuple(clone(item) for item in passes)
+        self._set_passes()
         self.learning_ = None
         if _LearningCompiler._find_training(system) is not None:
             inner = PassCompiler(passes=self.passes)
