@@ -5,7 +5,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import re
+from collections.abc import Mapping, Sequence
 
 from ..components import Observable
 from ..components.base import BaseComponent
@@ -13,7 +14,8 @@ from ..components.elements import BaseElement
 from ..components.interactions import BaseInteraction
 from ..components.spaces import BaseSpace
 from ..components.systems import CompositeSystem
-from ..engine.backends import BaseBackend
+from ..engine.backends import BaseBackend, JaxBackend, NumbaBackend, NumpyBackend
+from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.runtime import compile_problem
 from ..engine.solvers import BaseSolver
 from ..errors import ValidationError
@@ -21,6 +23,7 @@ from ._base import BaseSystem
 
 AUTO = 'auto'
 SETTINGS = ('space', 'solver', 'backend')
+BACKENDS = (NumpyBackend, NumbaBackend, JaxBackend)
 
 
 class System(BaseSystem):
@@ -36,17 +39,23 @@ class System(BaseSystem):
     Read more in the user guide, under Systems.
 
     Attributes:
-        composite_:
-            The composite of the components that the engine compiles.
+        states_:
+            The names of the values the laws change, with the derivatives and lags they need.
 
-        problem_:
-            The compiled problem.
+        parameters_:
+            The names of the values no law changes.
+
+        equations_:
+            One readable equation per state, summed over the laws and reduced to first order.
+
+        form_:
+            The kind of problem the laws make, such as the ordinary differential equations.
 
         solver_:
             The solver that every run copies.
 
         backend_:
-            The backend of the runs, or `None` for the default one.
+            The backend that evaluates the compiled functions.
 
     See Also:
         BaseSystem: The base of ready-made systems, which prepare a system from the parameters of their model.
@@ -160,6 +169,44 @@ class System(BaseSystem):
             raise ValidationError(error_msg)
         return target
 
+    @staticmethod
+    def _get_backend_of(problem: BaseProblemSpec) -> BaseBackend:
+        """Return the backend whose name the compiled problem records, NumPy by default."""
+        name = getattr(problem, 'backend', 'numpy')
+        kind = next((item for item in BACKENDS if item._get_name() == name), NumpyBackend)
+        return kind()
+
+    @staticmethod
+    def _get_readable(expression: object, names: Mapping[str, str]) -> str:
+        """Return an expression as text, with every symbol named by its dotted path."""
+        text = str(expression)
+        for symbol in sorted(names, key=len, reverse=True):
+            text = re.sub(rf'(?<![\w.]){re.escape(symbol)}(?![\w])', names[symbol], text)
+        return text
+
+    def _set_learned(self, problem: BaseProblemSpec) -> None:
+        """Set the names, the readable equations, and the form of a compiled problem."""
+        states = getattr(problem, 'states', None)
+        parameters = getattr(problem, 'parameters', None)
+        state_entries = list(states.entries) if states is not None else []
+        parameter_entries = list(parameters.entries) if parameters is not None else []
+        self.states_ = tuple(name for entry in state_entries for name in entry.generic_names)
+        self.parameters_ = tuple(name for entry in parameter_entries for name in entry.generic_names)
+        symbols: Mapping[str, object] = getattr(problem, 'symbols', {})
+        readable = {
+            str(item): name
+            for entry in [*state_entries, *parameter_entries]
+            if entry.name in symbols
+            for item, name in zip(
+                ProblemSpec._get_real_components_of(symbols[entry.name]),
+                entry.generic_names,
+                strict=False,
+            )
+        }
+        equations: Mapping[str, object] = getattr(problem, 'equations', {})
+        self.equations_ = {name: self._get_readable(value, readable) for name, value in equations.items()}
+        self.form_ = str(problem.form)
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Check the components, compile the problem, and choose the solver and backend.
 
@@ -169,10 +216,12 @@ class System(BaseSystem):
         """
         super()._prepare(context)
         self._check_runners()
-        self.composite_ = self._get_composite()
+        self._composite = self._get_composite()
         solver = self.solver if isinstance(self.solver, BaseSolver) else None
-        self.problem_, self.solver_ = compile_problem(self.composite_, solver=solver, observables=context or ())
-        self.backend_ = self.backend if isinstance(self.backend, BaseBackend) else None
+        self._problem, self.solver_ = compile_problem(self._composite, solver=solver, observables=context or ())
+        self._backend = self.backend if isinstance(self.backend, BaseBackend) else None
+        self.backend_ = self._backend or self._get_backend_of(self._problem)
+        self._set_learned(self._problem)
         self.system_ = self
 
     def get_params(self, deep: bool = True) -> dict[str, object]:

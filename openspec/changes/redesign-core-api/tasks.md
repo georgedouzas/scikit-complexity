@@ -9,7 +9,7 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 - [x] 1.2 Add `System` in `src/skcomplex/core/components/systems` with label, elements, interactions, nested systems, space, solver, and backend, and nested parameters `<label>__<parameter>` for `get_params` and `set_params`. Verify with tests for tuning a part, an unknown nested name, nested systems, and `clone`.
 - [x] 1.3 Implement `System.prepare`, which checks every part, infers the problem from the law kinds, chooses the solver and backend, and sets `problem_`, `solver_`, and `backend_`, and `System.simulate(until, initial_state=None, random_state=None, observables=(), observers=())`, which returns a `Trajectory`. Verify with tests that one preparation simulates twice, that `simulate` before `prepare` and after `set_params` raises `NotPreparedError`.
 - [x] 1.4 Make `BaseSystem` subclasses set `system_` in the hook `_prepare`, which the public `prepare` compiles, and delegate `simulate` to it. Verify with a test of a ready-made system whose `set_params(beta=0.5)` reaches the run.
-- [ ] 1.5 Expose `states_`, `parameters_`, `equations_`, and `form_` on prepared systems, and make the compiled problem private as `_problem`. Verify with tests for a damped spring and a static system.
+- [x] 1.5 Expose `states_`, `parameters_`, `equations_`, and `form_` on prepared systems, and make the compiled problem private as `_problem`. Verify with tests for a damped spring and a static system.
 
 ## 2. Elements, states, and specs
 

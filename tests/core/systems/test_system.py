@@ -55,12 +55,29 @@ def test_clone_keeps_components() -> None:
 
 
 def test_prepare_compiles_once_for_many_runs() -> None:
-    """Two runs of one prepared system share the problem compiled by prepare."""
+    """Two runs of one prepared system keep what prepare learned."""
     system = meadow_system().prepare()
-    problem = system.problem_
+    equations = system.equations_
     system.simulate(until=1.0)
     system.simulate(until=2.0)
-    assert system.problem_ is problem
+    assert system.equations_ is equations
+
+
+def test_prepare_sets_learned_attributes() -> None:
+    """A prepared system names its states and parameters and shows its equations and form."""
+    system = meadow_system().prepare()
+    assert system.states_ == ('meadow/prey.x', 'meadow/predators.x')
+    assert 'meadow/growth.r' in system.parameters_
+    predators = 'meadow/predation.b*meadow/predators.x*meadow/prey.x - meadow/death.d*meadow/predators.x'
+    assert system.equations_['meadow/predators.x'] == predators
+    assert system.form_ == 'ordinary differential equations'
+    assert type(system.backend_).__name__ == 'NumpyBackend'
+
+
+def test_prepare_names_nested_states_by_path() -> None:
+    """The states of a nested system are named by their path from the system that holds it."""
+    parent = System('world', systems=[meadow_system()]).prepare()
+    assert parent.states_ == ('ecology/meadow/prey.x', 'ecology/meadow/predators.x')
 
 
 def test_prepare_uses_named_solver() -> None:

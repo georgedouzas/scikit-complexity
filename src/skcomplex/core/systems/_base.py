@@ -23,6 +23,8 @@ from ..engine.runtime import BaseClock, BaseObserver, Trajectory, run_problem
 from ..engine.solvers import BaseSolver
 from ..errors import NotPreparedError
 
+LEARNED = ('states_', 'parameters_', 'equations_', 'form_', 'solver_', 'backend_')
+
 
 class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     """An abstract system, which is prepared once and simulated many times.
@@ -63,10 +65,15 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     schedule: ClassVar[Mapping[str, Callable[[float], float | npt.ArrayLike]] | None] = None
 
     system_: BaseSystem
-    composite_: CompositeSystem
-    problem_: BaseProblemSpec
+    states_: tuple[str, ...]
+    parameters_: tuple[str, ...]
+    equations_: dict[str, str]
+    form_: str
     solver_: BaseSolver
-    backend_: BaseBackend | None
+    backend_: BaseBackend
+    _composite: CompositeSystem
+    _problem: BaseProblemSpec
+    _backend: BaseBackend | None
 
     def __init__(self, label: str = 'system') -> None:
         """Store the label of the system.
@@ -165,6 +172,8 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         super().prepare(self.observables if context is None else context)
         if self.system_ is not self:
             self.system_.prepare(self.observables)
+            for name in LEARNED:
+                setattr(self, name, getattr(self.system_, name))
         self._prepared_from = self._get_values()
         return self
 
@@ -245,15 +254,15 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         """
         self._check_prepared()
         prepared = self.system_
-        compiled = None if observables else (prepared.problem_, prepared.solver_)
+        compiled = None if observables else (prepared._problem, prepared.solver_)
         return run_problem(
-            prepared.composite_,
+            prepared._composite,
             compiled,
             until=self.until if until is None else until,
             dt=self.dt if dt is None else dt,
             initial_state=self.initial_state if initial_state is None else initial_state,
             solver=prepared.solver_ if observables else None,
-            backend=prepared.backend_,
+            backend=prepared._backend,
             observables=observables,
             observers=observers,
             invariants=self.invariants if invariants is None else invariants,

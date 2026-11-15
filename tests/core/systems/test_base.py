@@ -71,3 +71,12 @@ def test_prepare_reaches_run() -> None:
 def test_clone_keeps_model_parameters() -> None:
     """Cloning a system keeps its model parameters."""
     assert clone(MeadowSystem(r=0.7)).get_params() == {'label': 'system', 'r': 0.7}
+
+
+def test_prepare_exposes_what_the_built_system_learned() -> None:
+    """A ready-made system exposes the states, equations, form, and solver of the system it builds."""
+    system = MeadowSystem().prepare()
+    assert system.states_ == ('meadow/prey.x', 'meadow/predators.x')
+    assert system.form_ == 'ordinary differential equations'
+    assert system.equations_ == system.system_.equations_
+    assert system.solver_ is system.system_.solver_
