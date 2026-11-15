@@ -14,7 +14,7 @@ from scipy.integrate import solve_ivp
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import CrossingLaw, RateLaw
+from skcomplex.core.components.laws import EventLaw, RateLaw
 from skcomplex.core.components.laws.utils import delayed, laplacian, mean, step, total, where
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -378,7 +378,7 @@ class StiffThresholdInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the laws of the stiff threshold interaction."""
-        return [CrossingLaw(total(s.line.u) - s.level, terminal=True)]
+        return [EventLaw(total(s.line.u) - s.level, terminal=True)]
 
 
 def _event_run(jacobian):
@@ -462,7 +462,7 @@ class LevelInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the laws of the threshold interaction."""
-        return [CrossingLaw(total(s.line.u) - s.level, terminal=True)]
+        return [EventLaw(total(s.line.u) - s.level, terminal=True)]
 
 
 class UnitRateHutchinsonElement(Element):

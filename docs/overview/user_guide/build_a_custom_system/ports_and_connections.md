@@ -6,7 +6,7 @@ states equations and leaves open which variable each equation determines, so one
 voltage source and a voltage under a current source.
 
 Here two reservoirs of a chemical share one node. Each is an [`Element`](../core_components/elements.md#element) whose
-[`EquationLaw`](../core_components/laws.md#equationlaw) ties its flow to the gap between its potential and its level,
+[`ConstraintLaw`](../core_components/laws.md#equationlaw) ties its flow to the gap between its potential and its level,
 and a [`ConnectionInteraction`](../core_components/interactions.md#connectioninteraction) joins them in a
 [`CompositeSystem`](../core_components/systems.md#compositesystem).
 
@@ -15,7 +15,7 @@ from typing import Annotated, ClassVar
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import ConnectionInteraction
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
@@ -40,7 +40,7 @@ class ReservoirElement(Element):
         self.level = level
 
     def _get_laws(self, s):
-        return [EquationLaw(s.a_n, s.a_mu - s.level)]
+        return [ConstraintLaw(s.a_n, s.a_mu - s.level)]
 
 
 system = CompositeSystem(
@@ -64,7 +64,7 @@ it. `StateSpec(algebraic=True)` declares such an algebraic state, as the potenti
 
 - An algebraic state has order 1 and no lags.
 - Its initial value is the starting guess of a nonlinear solve.
-- A law other than an `EquationLaw` that targets it raises `AlgebraicStateError`.
+- A law other than an `ConstraintLaw` that targets it raises `AlgebraicStateError`.
 - The trajectory records it at every frame, so observables and visuals read it like any other state.
 - The solvers integrate only the other states, so the state vector they advance keeps it at its initial value.
 - A law given as a function that reads values by name sees that initial value. A symbolic law reads the solved value.
@@ -94,7 +94,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import ConnectionInteraction
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -122,7 +122,7 @@ class TwoPinElement(Element):
         self.n_i = n_i
 
     def _get_laws(self, s):
-        return [EquationLaw(s.p_i + s.n_i, 0)]
+        return [ConstraintLaw(s.p_i + s.n_i, 0)]
 
 
 class ResistorElement(TwoPinElement):
@@ -140,7 +140,7 @@ class ResistorElement(TwoPinElement):
         self.R = R
 
     def _get_laws(self, s):
-        return [*super()._get_laws(s), EquationLaw(s.p_v - s.n_v, s.R * s.p_i)]
+        return [*super()._get_laws(s), ConstraintLaw(s.p_v - s.n_v, s.R * s.p_i)]
 
 
 class CapacitorElement(TwoPinElement):
@@ -160,7 +160,7 @@ class CapacitorElement(TwoPinElement):
         self.C = C
 
     def _get_laws(self, s):
-        return [*super()._get_laws(s), EquationLaw(s.C * derivative(s.u, 1), s.p_i), EquationLaw(s.u, s.p_v - s.n_v)]
+        return [*super()._get_laws(s), ConstraintLaw(s.C * derivative(s.u, 1), s.p_i), ConstraintLaw(s.u, s.p_v - s.n_v)]
 
 
 class GroundElement(Element):
@@ -178,7 +178,7 @@ class GroundElement(Element):
         self.p_i = p_i
 
     def _get_laws(self, s):
-        return [EquationLaw(s.p_v, 0)]
+        return [ConstraintLaw(s.p_v, 0)]
 
 
 circuit = CompositeSystem(
@@ -197,7 +197,7 @@ trajectory.get_values('tank.u')[-1].round(4)
 The voltage of the capacitor is 0.3679 after one second. It decays as `exp(-t / RC)` with `RC = 1`, and the current
 through the load is that voltage over `R`. The ready-made systems of `skcomplex.systems.engineering.circuits` build
 their electrical and thermal components in the same way. A port component also drives a mechanism. Its
-`EquationLaw` then targets a coordinate of an
+`ConstraintLaw` then targets a coordinate of an
 [`EulerLagrangeInteraction`](../core_components/interactions.md#eulerlagrangeinteraction) and adds to the equation of
 that coordinate, as `DcMotorSystem` of `skcomplex.systems.engineering.mechatronics` shows.
 
@@ -230,7 +230,7 @@ issues of a system, before it compiles anything.
   `<port>_<variable>` with `StateSpec(algebraic=True)`.
 - `structural-singularity`: the matching leaves equations or unknowns unmatched, as for two capacitors in parallel. The
   issue names the constrained states. Add a compliant element, such as a resistance, between them.
-- `algebraic-law`: a law other than an `EquationLaw` targets an algebraic state. State its value with an `EquationLaw`.
+- `algebraic-law`: a law other than an `ConstraintLaw` targets an algebraic state. State its value with an `ConstraintLaw`.
 
-A connection under discrete time gives the `law-time` issue of every `EquationLaw`, because an equation law requires
+A connection under discrete time gives the `law-time` issue of every `ConstraintLaw`, because an equation law requires
 continuous or static time.

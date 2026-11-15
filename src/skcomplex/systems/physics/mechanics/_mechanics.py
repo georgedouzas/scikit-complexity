@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, GradientInteraction, Interaction, RateInteraction
-from ....core.components.laws import BaseLaw, CrossingLaw, RateLaw
+from ....core.components.laws import BaseLaw, EventLaw, RateLaw
 from ....core.components.laws.utils import derivative
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -236,7 +236,7 @@ class ElasticCollisionInteraction(Interaction):
         0.2
     """
 
-    law_classes = (CrossingLaw,)
+    law_classes = (EventLaw,)
 
     def __init__(
         self,
@@ -265,7 +265,7 @@ class ElasticCollisionInteraction(Interaction):
                 The crossing law.
         """
         return [
-            CrossingLaw(
+            EventLaw(
                 s.right.x - s.left.x - s.diameter,
                 {
                     derivative(s.left.x, 1): derivative(s.right.x, 1),

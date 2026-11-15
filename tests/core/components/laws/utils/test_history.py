@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import abs_symbolic, cos, sin
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import EquationLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative, lag, residence, where
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -42,11 +42,11 @@ class DoublePendulumElement(Element):
     def _get_laws(self, s):
         """Return the laws of the double pendulum element."""
         return [
-            EquationLaw(
+            ConstraintLaw(
                 2 * derivative(s.a, 2) + cos(s.a - s.b) * derivative(s.b, 2)
                 == -(derivative(s.b, 1) ** 2) * sin(s.a - s.b) - 2 * s.g * sin(s.a),
             ),
-            EquationLaw(
+            ConstraintLaw(
                 derivative(s.b, 2) + cos(s.a - s.b) * derivative(s.a, 2)
                 == derivative(s.a, 1) ** 2 * sin(s.a - s.b) - s.g * sin(s.b),
             ),

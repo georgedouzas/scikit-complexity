@@ -65,14 +65,14 @@ start.
 ## Events
 
 Here a law changes states at the moment a condition is met, such as a ball that bounces off the floor. A
-[`CrossingLaw`](../core_components/laws.md#crossinglaw), `CrossingLaw(guard, reset, direction, terminal, label='')`, fires when the
+[`EventLaw`](../core_components/laws.md#crossinglaw), `EventLaw(guard, reset, direction, terminal, label='')`, fires when the
 guard crosses zero. The ball falls from the height 1 and keeps 0.8 of its speed at each impact.
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import CrossingLaw, RateLaw
+from skcomplex.core.components.laws import EventLaw, RateLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -95,7 +95,7 @@ class BallElement(Element):
 
     def _get_laws(self, s):
         bounce = {derivative(s.h, 1): -s.e * derivative(s.h, 1)}
-        return [RateLaw(s.h, -s.g), CrossingLaw(s.h, bounce, direction=-1, label='impact')]
+        return [RateLaw(s.h, -s.g), EventLaw(s.h, bounce, direction=-1, label='impact')]
 
 
 trajectory = simulate(CompositeSystem(elements=[BallElement('ball')]), until=3, dt=0.01)

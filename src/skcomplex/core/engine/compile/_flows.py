@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import RR, SR, Expression
 from ...components.laws import (
     BaseLaw,
     BoundaryLaw,
-    CrossingLaw,
+    EventLaw,
     JumpLaw,
     NoiseLaw,
     RateLaw,
@@ -594,7 +594,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             return BasePass._get_replaced(law, value=TransferLowering._get_substituted(law.value, mapping))
         if isinstance(law, JumpLaw):
             return JumpLaw(TransferLowering._get_substituted(law.rate, mapping), law.changes)
-        if isinstance(law, CrossingLaw):
+        if isinstance(law, EventLaw):
             reset = (
                 None
                 if law.reset is None

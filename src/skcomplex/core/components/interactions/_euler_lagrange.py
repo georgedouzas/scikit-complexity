@@ -14,7 +14,7 @@ from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec
 from ..base import BaseComponent
-from ..laws import BaseLaw, EquationLaw
+from ..laws import BaseLaw, ConstraintLaw
 from ..laws.utils import derivative
 from ..spaces import BaseSpace
 from ._interaction import Interaction
@@ -89,7 +89,7 @@ class EulerLagrangeInteraction(Interaction):
         -0.1
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (EquationLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -197,5 +197,5 @@ class EulerLagrangeInteraction(Interaction):
             )
             lhs = (change - lagrangian.diff(q)).subs(back)
             rhs = (force - dissipation.diff(slot)).subs(back)
-            laws.append(EquationLaw(lhs == rhs, target=q))
+            laws.append(ConstraintLaw(lhs == rhs, target=q))
         return laws

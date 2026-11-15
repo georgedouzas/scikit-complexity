@@ -344,7 +344,7 @@ the end of the step, not at the time of contact.
 requires no kind of time. A system of particles in a box with reflecting walls uses one boundary law for the position
 and one for the velocity.
 
-**Limits and errors.** The law corrects a state once per step, so a time of contact needs a `CrossingLaw`. Its value is
+**Limits and errors.** The law corrects a state once per step, so a time of contact needs a `EventLaw`. Its value is
 deterministic, and a random draw in it raises an `IncompatibleLawsError` when the system compiles.
 
 ```python continuation
@@ -499,16 +499,16 @@ the drive and the relaxation in one interaction, with the threshold and the shar
 See its [fact sheet](../../../components/laws.md#cascadelaw)
 and its [API entry][skcomplex.core.components.laws.CascadeLaw].
 
-## CrossingLaw
+## EventLaw
 
-A `CrossingLaw` resets states, or ends the run, when an expression of the states, its guard, crosses zero. A ball
+A `EventLaw` resets states, or ends the run, when an expression of the states, its guard, crosses zero. A ball
 dropped from a height of 1 metre bounces off the floor and keeps 80 percent of its speed.
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import CrossingLaw, RateLaw
+from skcomplex.core.components.laws import EventLaw, RateLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -516,7 +516,7 @@ from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class BallElement(Element):
-    law_classes = (RateLaw, CrossingLaw)
+    law_classes = (RateLaw, EventLaw)
 
     def __init__(
         self,
@@ -532,7 +532,7 @@ class BallElement(Element):
 
     def _get_laws(self, namespace):
         speed = derivative(namespace.h, 1)
-        return [RateLaw(namespace.h, -9.81), CrossingLaw(namespace.h, {speed: -namespace.e * speed}, direction=-1)]
+        return [RateLaw(namespace.h, -9.81), EventLaw(namespace.h, {speed: -namespace.e * speed}, direction=-1)]
 
 
 trajectory = simulate(CompositeSystem(elements=[BallElement('ball')]), until=2, dt=0.01)
@@ -547,7 +547,7 @@ when it reaches the threshold 1 it resets to 0.
 
 ```python continuation
 class NeuronElement(Element):
-    law_classes = (RateLaw, CrossingLaw)
+    law_classes = (RateLaw, EventLaw)
 
     def __init__(
         self,
@@ -565,7 +565,7 @@ class NeuronElement(Element):
 
     def _get_laws(self, namespace):
         v = namespace.v
-        return [RateLaw(v, (namespace.current - v) / namespace.tau), CrossingLaw(v - 1, {v: 0}, direction=1)]
+        return [RateLaw(v, (namespace.current - v) / namespace.tau), EventLaw(v - 1, {v: 0}, direction=1)]
 
 
 spikes = simulate(CompositeSystem(elements=[NeuronElement('neuron')]), until=50, dt=0.1).events
@@ -592,7 +592,7 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.errors import ValidationError
 
 try:
-    CrossingLaw(var('h'), direction=2).prepare()
+    EventLaw(var('h'), direction=2).prepare()
 except ValidationError as error:
     message = str(error)
 message
@@ -604,7 +604,7 @@ The message reads "The direction of a crossing is -1, 0, or 1, but got 2." The f
 heater with the same law when the temperature crosses a set point.
 
 See its [fact sheet](../../../components/laws.md#crossinglaw)
-and its [API entry][skcomplex.core.components.laws.CrossingLaw].
+and its [API entry][skcomplex.core.components.laws.EventLaw].
 
 ## DissipatorLaw
 
@@ -738,9 +738,9 @@ computing loses its phase through a dissipator whose operator is the Pauli matri
 See its [fact sheet](../../../components/laws.md#dissipatorlaw)
 and its [API entry][skcomplex.core.components.laws.DissipatorLaw].
 
-## EquationLaw
+## ConstraintLaw
 
-An `EquationLaw` states a relation that holds the highest time derivatives of its states linearly, as Newton's second
+An `ConstraintLaw` states a relation that holds the highest time derivatives of its states linearly, as Newton's second
 law holds an acceleration. The pendulum `m l θ'' = -m g sin θ` is one such relation, written as it reads.
 
 ```python
@@ -749,7 +749,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -757,7 +757,7 @@ from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class PendulumElement(Element):
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -775,7 +775,7 @@ class PendulumElement(Element):
 
     def _get_laws(self, namespace):
         theta, m, l = namespace.theta, namespace.m, namespace.l
-        return [EquationLaw(m * l * derivative(theta, 2) == -m * 9.81 * sin(theta))]
+        return [ConstraintLaw(m * l * derivative(theta, 2) == -m * 9.81 * sin(theta))]
 
 
 bob = PendulumElement('bob')
@@ -790,7 +790,7 @@ The same law gives the charge `q` of a series circuit of an inductor, a resistor
 
 ```python continuation
 class CircuitElement(Element):
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -810,7 +810,7 @@ class CircuitElement(Element):
 
     def _get_laws(self, namespace):
         q, L, R, C = namespace.q, namespace.L, namespace.R, namespace.C
-        return [EquationLaw(L * derivative(q, 2) + R * derivative(q, 1) + q / C == 0)]
+        return [ConstraintLaw(L * derivative(q, 2) + R * derivative(q, 1) + q / C == 0)]
 
 
 circuit = CircuitElement('rlc')
@@ -835,7 +835,7 @@ side can be a function.
 from skcomplex.core.errors import ValidationError
 
 try:
-    EquationLaw(lambda t, values: 0.0, 0.0).prepare()
+    ConstraintLaw(lambda t, values: 0.0, 0.0).prepare()
 except ValidationError as error:
     message = str(error)
 message
@@ -848,7 +848,7 @@ the highest derivative with the function as its value.
 mechanics. A robot arm writes one equation per joint in the same way.
 
 See its [fact sheet](../../../components/laws.md#equationlaw)
-and its [API entry][skcomplex.core.components.laws.EquationLaw].
+and its [API entry][skcomplex.core.components.laws.ConstraintLaw].
 
 ## ExtremalLaw
 

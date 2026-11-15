@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.analysis import linearization
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, BoundaryLaw, EquationLaw, RateLaw
+from ....core.components.laws import BaseLaw, BoundaryLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import clip, derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
@@ -77,7 +77,7 @@ class CartPendulumElement(Element):
         0.1
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -119,13 +119,13 @@ class CartPendulumElement(Element):
         x_acceleration, theta_acceleration = derivative(s.x, 2), derivative(s.theta, 2)
         spin = derivative(s.theta, 1)
         return [
-            EquationLaw(
+            ConstraintLaw(
                 (s.M + s.m) * x_acceleration
                 - s.m * s.l * theta_acceleration * cos(s.theta)
                 + s.m * s.l * spin**2 * sin(s.theta)
                 == s.force,
             ),
-            EquationLaw(s.l * theta_acceleration - x_acceleration * cos(s.theta) == s.g * sin(s.theta)),
+            ConstraintLaw(s.l * theta_acceleration - x_acceleration * cos(s.theta) == s.g * sin(s.theta)),
         ]
 
 

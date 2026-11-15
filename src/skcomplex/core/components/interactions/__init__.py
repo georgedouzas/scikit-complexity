@@ -11,8 +11,8 @@ from ._base import BaseInteraction
 from ._connection import ConnectionInteraction
 from ._conservation import ConservationInteraction
 from ._coupling import CouplingInteraction
-from ._crossing import CrossingInteraction
 from ._euler_lagrange import EulerLagrangeInteraction
+from ._crossing import CrossingInteraction
 from ._gradient import GradientInteraction
 from ._grouping import GroupingInteraction
 from ._hamiltonian import HamiltonianInteraction

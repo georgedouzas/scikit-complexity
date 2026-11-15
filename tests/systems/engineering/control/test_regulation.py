@@ -1,6 +1,5 @@
 """Test the `_regulation` module of `skcomplex.systems.engineering.control`."""
 
-
 import numpy as np
 import pytest
 

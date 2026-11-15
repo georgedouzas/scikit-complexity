@@ -26,7 +26,7 @@ class LinearProgramLaw(BaseLaw):
     one program: their variables unite, their constraints add, and at most one of them holds objectives. The objectives
     are solved in order, and each optimum is kept within a relative tolerance of `1e-9` while the next one is solved.
 
-    Unlike `EquationLaw`, which fixes states by equations, it fixes them by an optimum under inequalities. Choose it
+    Unlike `ConstraintLaw`, which fixes states by equations, it fixes them by an optimum under inequalities. Choose it
     when a quantity at each time is the best choice under constraints.
 
     It appears in many fields. Flux balance analysis finds the fluxes of a metabolic network, an economy dispatches

@@ -10,7 +10,7 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import SR, Expression
 
 from .....core.components.interactions import CrossingInteraction
-from .....core.components.laws import BaseLaw, CrossingLaw
+from .....core.components.laws import BaseLaw, EventLaw
 from .....core.components.laws.utils import periodic_guard
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
@@ -61,7 +61,7 @@ class PulseInteraction(CrossingInteraction):
         0.0
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CrossingLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (EventLaw,)
 
     def __init__(
         self,
@@ -127,7 +127,7 @@ class PulseInteraction(CrossingInteraction):
         """
         member = self._get_member(namespace, 'target')
         reset = {getattr(member, name): SR(f(namespace)) for name, f in (self.reset or {}).items()}
-        laws: list[BaseLaw] = [CrossingLaw(namespace.t - time, reset, 1, label=self.label) for time in self.times]
+        laws: list[BaseLaw] = [EventLaw(namespace.t - time, reset, 1, label=self.label) for time in self.times]
         if self.period is not None:
             laws.extend(super()._get_laws(namespace))
         return laws

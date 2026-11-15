@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import oo, pi
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, EquationLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace, StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -69,7 +69,7 @@ class BranchingVesselElement(Element):
         3.0
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -112,10 +112,10 @@ class BranchingVesselElement(Element):
         """
         height = s.depth - s.level
         return [
-            EquationLaw(s.r == s.r_c * s.n ** (height / 2), target=s.r),
-            EquationLaw(s.l == s.l_c * s.n ** (height / 3), target=s.l),
-            EquationLaw(s.volume == pi * s.r**2 * s.l, target=s.volume),
-            EquationLaw(s.terminal == where(s.level > s.depth - 1 / 2, 1, 0), target=s.terminal),
+            ConstraintLaw(s.r == s.r_c * s.n ** (height / 2), target=s.r),
+            ConstraintLaw(s.l == s.l_c * s.n ** (height / 3), target=s.l),
+            ConstraintLaw(s.volume == pi * s.r**2 * s.l, target=s.volume),
+            ConstraintLaw(s.terminal == where(s.level > s.depth - 1 / 2, 1, 0), target=s.terminal),
         ]
 
 

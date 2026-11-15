@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import var, vector
 
 from skcomplex.core.components import laws
-from skcomplex.core.components.laws import BaseLaw, CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, NoiseLaw, RateLaw
+from skcomplex.core.components.laws import BaseLaw, ConstraintLaw, EventLaw, JumpLaw, LocalRuleLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.spaces import BallNeighborhood
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import CallSpec, RequirementSpec, TotalisticSpec
@@ -50,7 +50,7 @@ def test_targets_are_a_tuple_once_prepared():
     assert LocalRuleLaw(y, BallNeighborhood(n_dim=1, center='inline'), TotalisticSpec({2: 1})).prepare().targets_ == (
         y,
     )
-    assert CrossingLaw(x - 1).prepare().targets_ == ()
+    assert EventLaw(x - 1).prepare().targets_ == ()
 
 
 def test_law_reads_the_symbols_of_its_nested_arguments():
@@ -102,7 +102,7 @@ def test_laws_give_their_kind_times_and_randomness():
     rate = RateLaw(x, -x).get_tags()
     assert (rate.laws, rate.time, rate.randomness) == ({'rate'}, {'continuous'}, 'deterministic')
     assert NoiseLaw(x, 1.0).get_tags().randomness == 'stochastic'
-    assert EquationLaw(x).get_tags().time == {'continuous', 'static'}
+    assert ConstraintLaw(x).get_tags().time == {'continuous', 'static'}
 
 
 def test_every_core_law_names_a_known_kind():

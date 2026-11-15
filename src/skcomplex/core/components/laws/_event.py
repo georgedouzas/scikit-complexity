@@ -14,7 +14,7 @@ from ..spaces import ContinuousTime
 from ._base import BaseLaw
 
 
-class CrossingLaw(BaseLaw):
+class EventLaw(BaseLaw):
     """A law that resets states or ends the run when a guard crosses zero.
 
     The guard is an expression of the states whose sign change marks an event. At the event the states in `reset` take
@@ -50,9 +50,9 @@ class CrossingLaw(BaseLaw):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import CrossingLaw
+        >>> from skcomplex.core.components.laws import EventLaw
         >>> y, z = var('y'), var('z')
-        >>> law = CrossingLaw(y, {z: -0.8 * z}, direction=-1).prepare()
+        >>> law = EventLaw(y, {z: -0.8 * z}, direction=-1).prepare()
         >>> law.run({'z': -2.0}).value_
         {z: 1.6}
     """

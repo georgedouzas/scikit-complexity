@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import ConstraintLaw
 from ....core.components.spaces import DiscreteTime, StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import AgentView, SystemView
@@ -70,7 +70,7 @@ class CournotBestResponseElement(Element):
         8.0
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -105,8 +105,8 @@ class CournotBestResponseElement(Element):
                 The equations of the two quantities.
         """
         return [
-            EquationLaw(s.demand - 2 * s.q_i - s.q_j == s.c_i / (1 + s.lambda_i), target=s.q_i),
-            EquationLaw(s.demand - 2 * s.q_j - s.q_i == s.c_j / (1 + s.lambda_j), target=s.q_j),
+            ConstraintLaw(s.demand - 2 * s.q_i - s.q_j == s.c_i / (1 + s.lambda_i), target=s.q_i),
+            ConstraintLaw(s.demand - 2 * s.q_j - s.q_i == s.c_j / (1 + s.lambda_j), target=s.q_j),
         ]
 
 
@@ -144,7 +144,7 @@ class PricePointElement(Element):
         0.5
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -191,7 +191,7 @@ class PricePointElement(Element):
                 The equation of the distribution.
         """
         distribution = 1 - (s.alpha * (1 - s.price) / (s.beta * s.price)) ** (1 / (s.n_firms - 1))
-        return [EquationLaw(s.distribution == distribution, target=s.distribution)]
+        return [ConstraintLaw(s.distribution == distribution, target=s.distribution)]
 
 
 class PricingFirmView(AgentView):

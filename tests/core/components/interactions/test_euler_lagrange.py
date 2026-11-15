@@ -10,7 +10,7 @@ from scipy.linalg import expm
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import EulerLagrangeInteraction
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -35,7 +35,11 @@ class PendulumElement(AngleElement):
 
     def _get_laws(self, s):
         """Return the equation of the pendulum."""
-        return [EquationLaw(derivative(s.q, 2) == -sin(s.q) - DAMPING * derivative(s.q, 1) + FORCE * cos(OMEGA * s.t))]
+        return [
+            ConstraintLaw(
+                derivative(s.q, 2) == -sin(s.q) - DAMPING * derivative(s.q, 1) + FORCE * cos(OMEGA * s.t),
+            ),
+        ]
 
 
 class PairElement(Element):

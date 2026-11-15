@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import SR
 from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec
-from ..laws import BaseLaw, CrossingLaw
+from ..laws import BaseLaw, EventLaw
 from ..spaces import BaseSpace
 from ._interaction import Interaction
 
@@ -81,7 +81,7 @@ class CrossingInteraction(Interaction):
         [1.0, 2.0]
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CrossingLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (EventLaw,)
 
     def __init__(
         self,
@@ -143,7 +143,7 @@ class CrossingInteraction(Interaction):
             for name, f in (self.reset or {}).items()
         }
         return [
-            CrossingLaw(
+            EventLaw(
                 self._get_law_value(self.guard(namespace)),
                 reset or None,
                 self.direction,

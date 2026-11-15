@@ -6,7 +6,7 @@
 import numpy as np
 from scipy.optimize import root
 
-from ...components.laws import EquationLaw, LinearProgramLaw
+from ...components.laws import ConstraintLaw, LinearProgramLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace, StaticTime
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
@@ -45,7 +45,7 @@ class RootSolver(Solver):
         >>> from sage.all__sagemath_symbolics import cos
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws import EquationLaw
+        >>> from skcomplex.core.components.laws import ConstraintLaw
         >>> from skcomplex.core.components.spaces import StaticTime
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
@@ -56,7 +56,7 @@ class RootSolver(Solver):
         ...         self.x = x
         ...
         ...     def _get_laws(self, s):
-        ...         return [EquationLaw(s.x == cos(s.x), target=s.x)]
+        ...         return [ConstraintLaw(s.x == cos(s.x), target=s.x)]
         >>> system = CompositeSystem(elements=[FixedPointElement('a')], time=StaticTime())
         >>> trajectory = simulate(system, until=1.0)
         >>> round(float(trajectory.get_values('a.x')[0]), 7)
@@ -81,7 +81,7 @@ class RootSolver(Solver):
         return SupportSpec(
             time={StaticTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={LinearProgramLaw, EquationLaw},
+            laws={LinearProgramLaw, ConstraintLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

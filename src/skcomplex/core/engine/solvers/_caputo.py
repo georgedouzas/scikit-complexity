@@ -8,7 +8,7 @@ from abc import abstractmethod
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw, TransferLaw
+from ...components.laws import BoundaryLaw, ConstraintLaw, FluxLaw, RateLaw, TransferLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
@@ -36,7 +36,7 @@ class CaputoSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw, TransferLaw},
+            laws={RateLaw, FluxLaw, ConstraintLaw, BoundaryLaw, TransferLaw},
             orders=frozenset(OrderKind),
         )
 

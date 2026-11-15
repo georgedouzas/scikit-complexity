@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...components.laws import BoundaryLaw, EquationLaw, RateLaw
+from ...components.laws import BoundaryLaw, ConstraintLaw, RateLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
@@ -90,7 +90,7 @@ class Yoshida4Solver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, EquationLaw, BoundaryLaw},
+            laws={RateLaw, ConstraintLaw, BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

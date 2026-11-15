@@ -26,7 +26,7 @@ from ...components.interactions import (
 )
 from ...components.laws import (
     BilinearLaw,
-    EquationLaw,
+    ConstraintLaw,
     JumpLaw,
     LinearProgramLaw,
     NoiseLaw,
@@ -664,7 +664,7 @@ class PassCompiler(BaseCompiler):
         algebraic = PassCompiler._get_algebraic_names(compilation)
         issues = []
         for record in Compilation._get_required(compilation.census, 'census').records:
-            determined = isinstance(record.law, EquationLaw | LinearProgramLaw)
+            determined = isinstance(record.law, ConstraintLaw | LinearProgramLaw)
             names = [] if determined else [item.name for item in record.targets]
             for name in names:
                 if name in algebraic:
@@ -673,7 +673,7 @@ class PassCompiler(BaseCompiler):
                         f'The {law} of {record.path} targets the algebraic state {name}, but the equations of the '
                         'system determine this state.'
                     )
-                    fix = f'State the value of {name} with an `EquationLaw`, or declare it as a state of order 1.'
+                    fix = f'State the value of {name} with an `ConstraintLaw`, or declare it as a state of order 1.'
                     issues.append(IssueSpec('algebraic-law', record.path, message, fix, error=AlgebraicStateError))
         return issues
 
@@ -1173,10 +1173,10 @@ class PassCompiler(BaseCompiler):
         issues = []
         for record in Compilation._get_required(compilation.census, 'census').records:
             law = record.law
-            if not isinstance(law, EquationLaw) or record.targets:
+            if not isinstance(law, ConstraintLaw) or record.targets:
                 continue
             problem = 'names no target' if law.target is None else f'names the target {law.target}, which is no state'
-            message = f'The EquationLaw of {record.path} {problem}. An equation under static time solves for one state.'
+            message = f'The ConstraintLaw of {record.path} {problem}. Under static time it solves for one state.'
             fix = 'Pass the symbol of a state of the system as `target`.'
             issues.append(IssueSpec('equation-target', record.path, message, fix))
         return issues

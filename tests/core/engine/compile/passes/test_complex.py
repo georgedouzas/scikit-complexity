@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import CC, I, arg, conjugate, exp, gamma, imag_part, real_part
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.laws import CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import ConstraintLaw, EventLaw, JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative, laplacian, mod, total, where
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -380,7 +380,7 @@ def test_complex_equation_and_event_split_into_parts():
             self.z_d1 = z_d1
 
         def _get_laws(self, s):
-            return [EquationLaw(derivative(s.z, 2) == -s.z), CrossingLaw(real_part(s.z) - 2, {s.z: 0}, terminal=True)]
+            return [ConstraintLaw(derivative(s.z, 2) == -s.z), EventLaw(real_part(s.z) - 2, {s.z: 0}, terminal=True)]
 
     solver = ScipyODESolver(rtol=1e-10, atol=1e-10)
     trajectory = simulate(CompositeSystem(elements=[OscillatorElement('o')]), until=3, solver=solver, dt=0.5)

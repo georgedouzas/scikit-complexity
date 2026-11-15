@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sklearn.base import clone
 
 from ...components.interactions import TrainingInteraction
-from ...components.laws import EquationLaw, GradientStepLaw, RateLaw, UpdateLaw
+from ...components.laws import ConstraintLaw, GradientStepLaw, RateLaw, UpdateLaw
 from ...components.spaces import DiscreteTime
 from ...components.systems import CompositeSystem
 from ...enums import FormKind
@@ -31,7 +31,7 @@ from ._compilation import Compilation
 from ._observables import ObservableEvaluator
 from .passes._functions import FunctionsPass
 
-DIFFERENTIABLE = (EquationLaw, RateLaw, UpdateLaw)
+DIFFERENTIABLE = (ConstraintLaw, RateLaw, UpdateLaw)
 INNER_FORMS = (FormKind.DISCRETE, FormKind.ODE)
 REDUCTIONS = ('sum', 'mean', 'max', 'min', 'var', 'count')
 

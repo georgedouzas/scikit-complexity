@@ -13,7 +13,7 @@ from ..spaces import ContinuousTime, StaticTime
 from ._base import BaseLaw
 
 
-class EquationLaw(BaseLaw):
+class ConstraintLaw(BaseLaw):
     """A law that states an implicit relation between the derivatives of states.
 
     The relation `lhs == rhs` holds the highest time derivatives of its states linearly, as Newton's second law holds
@@ -52,10 +52,10 @@ class EquationLaw(BaseLaw):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import function, sin, var
-        >>> from skcomplex.core.components.laws import EquationLaw
+        >>> from skcomplex.core.components.laws import ConstraintLaw
         >>> t, g, l = var('t g l')
         >>> theta = function('theta')(t)
-        >>> EquationLaw(l * theta.diff(t, 2) == -g * sin(theta)).prepare().rhs_
+        >>> ConstraintLaw(l * theta.diff(t, 2) == -g * sin(theta)).prepare().rhs_
         -g*sin(theta(t))
     """
 

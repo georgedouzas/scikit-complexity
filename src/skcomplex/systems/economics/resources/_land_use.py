@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import SR
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import Interaction
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, LatticeSpace, StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -87,7 +87,7 @@ class BidRentInteraction(Interaction):
         (0.1,)
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -142,7 +142,7 @@ class BidRentInteraction(Interaction):
         for index, (yield_, price, cost, rate) in enumerate(crops, start=1):
             bid = yield_ * (price - cost) - yield_ * rate * s.target.distance
             crop, best = where(bid > best, index, crop), where(bid > best, bid, best)
-        return [EquationLaw(s.target.crop == crop, target=s.target.crop)]
+        return [ConstraintLaw(s.target.crop == crop, target=s.target.crop)]
 
 
 class VonThunenSystem(BaseSystem):

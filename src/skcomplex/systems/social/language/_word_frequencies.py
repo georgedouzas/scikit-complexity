@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import exp
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import log_sum_exp
 from ....core.components.spaces import StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -94,7 +94,7 @@ class LeastEffortInteraction(Interaction):
         'words'
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -121,8 +121,8 @@ class LeastEffortInteraction(Interaction):
         weight = -s.target.exponent * s.words.cost
         log_partition = log_sum_exp(weight, over=s.words)
         return [
-            EquationLaw(log_partition == 0, target=s.target.exponent),
-            EquationLaw(s.words.probability == exp(weight - log_partition), target=s.words.probability),
+            ConstraintLaw(log_partition == 0, target=s.target.exponent),
+            ConstraintLaw(s.words.probability == exp(weight - log_partition), target=s.words.probability),
         ]
 
 

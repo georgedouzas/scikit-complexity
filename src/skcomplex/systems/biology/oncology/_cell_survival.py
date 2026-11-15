@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import ConstraintLaw
 from ....core.components.spaces import StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec
@@ -65,7 +65,7 @@ class LinearQuadraticSurvivalElement(Element):
         30.0
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -108,12 +108,12 @@ class LinearQuadraticSurvivalElement(Element):
         repaired = s.repair_rate * s.delivery_time
         protraction = 2 * (repaired - 1 + exp(-repaired)) / (s.fractions * repaired**2)
         return [
-            EquationLaw(s.protraction == protraction, target=s.protraction),
-            EquationLaw(
+            ConstraintLaw(s.protraction == protraction, target=s.protraction),
+            ConstraintLaw(
                 s.survival == exp(-s.alpha * s.dose - s.beta * protraction * s.dose**2),
                 target=s.survival,
             ),
-            EquationLaw(
+            ConstraintLaw(
                 s.effective_dose == s.dose * (1 + protraction * s.dose * s.beta / s.alpha),
                 target=s.effective_dose,
             ),

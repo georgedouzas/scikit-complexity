@@ -1,4 +1,4 @@
-"""Test the `_crossing` module of `skcomplex.core.components.laws`."""
+"""Test the `_event` module of `skcomplex.core.components.laws`."""
 
 import warnings
 from typing import Annotated
@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import CrossingLaw, RateLaw
+from skcomplex.core.components.laws import EventLaw, RateLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
@@ -37,15 +37,15 @@ class BallElement(Element):
         name = 'ball.y' if self.label == 'ball' else f'{self.label}.y'
         speed = name.replace('.y', '.v')
         crossings = {
-            'symbols': CrossingLaw(s.y, {s.v: -0.5 * s.v}, direction=-1),
-            'functions': CrossingLaw(lambda t, values: values[name], {s.v: lambda t, values: -0.5 * values[speed]}, -1),
-            'relative': CrossingLaw(
+            'symbols': EventLaw(s.y, {s.v: -0.5 * s.v}, direction=-1),
+            'functions': EventLaw(lambda t, values: values[name], {s.v: lambda t, values: -0.5 * values[speed]}, -1),
+            'relative': EventLaw(
                 CallSpec(lambda t, values: values['y'], relative=True),
                 {s.v: CallSpec(lambda t, values: -0.5 * values['v'], relative=True)},
                 -1,
             ),
-            'mixed': CrossingLaw(lambda t, values: values[name], {s.v: -0.5 * s.v}, -1),
-            'arguments': CrossingLaw(CallSpec(lambda t, y: y, (s.y,)), direction=-1),
+            'mixed': EventLaw(lambda t, values: values[name], {s.v: -0.5 * s.v}, -1),
+            'arguments': EventLaw(CallSpec(lambda t, y: y, (s.y,)), direction=-1),
         }
         return [RateLaw(s.y, s.v), RateLaw(s.v, -9.81), crossings[self.law]]
 
@@ -91,7 +91,7 @@ def test_crossing_with_a_function_reads_every_member_of_a_group():
         def _get_laws(self, s):
             """Return the fall and the reset of one member."""
             guard = CallSpec(lambda t, values: values['y'], relative=True)
-            return [RateLaw(s.y, -1.0), CrossingLaw(guard, {s.y: lambda t, values: 5.0}, -1)]
+            return [RateLaw(s.y, -1.0), EventLaw(guard, {s.y: lambda t, values: 5.0}, -1)]
 
     group = GroupElement('herd', element=FallingElement, size=2, values={'y': [1.0, 2.0]})
     trajectory = simulate(CompositeSystem(elements=[group]), until=1.5, dt=0.01)

@@ -1,4 +1,4 @@
-"""Test the `_equation` module of `skcomplex.core.components.laws`."""
+"""Test the `_constraint` module of `skcomplex.core.components.laws`."""
 
 from typing import Annotated
 
@@ -9,7 +9,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import EquationLaw, RateLaw
+from skcomplex.core.components.laws import ConstraintLaw, RateLaw
 from skcomplex.core.components.laws.utils import derivative, step, where
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -44,7 +44,7 @@ class WrittenElement(Element):
 
     def _get_laws(self, s):
         """Return the equation of motion."""
-        return [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
+        return [ConstraintLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
 
 
 class SolvedElement(Element):
@@ -88,7 +88,7 @@ class SquaredElement(Element):
 
     def _get_laws(self, s):
         """Return the nonlinear equation."""
-        return [EquationLaw(derivative(s.x, 2) ** 2, s.x)]
+        return [ConstraintLaw(derivative(s.x, 2) ** 2, s.x)]
 
 
 class OscillatorsElement(Element):
@@ -119,7 +119,7 @@ class OscillatorsElement(Element):
     def _get_laws(self, s):
         """Return one equation per oscillator."""
         states = (s.x0, s.x1, s.x2, s.x3, s.x4, s.x5, s.x6)
-        return [EquationLaw(2 * derivative(x, 2), -x) for x in states]
+        return [ConstraintLaw(2 * derivative(x, 2), -x) for x in states]
 
 
 class SpringElement(Element):
@@ -147,7 +147,7 @@ class DrivenEquationElement(SpringElement):
 
     def _get_laws(self, s):
         """Return the equation of motion."""
-        return [EquationLaw(s.m * derivative(s.x, 2) == -s.k * s.x + step(s.t, 1))]
+        return [ConstraintLaw(s.m * derivative(s.x, 2) == -s.k * s.x + step(s.t, 1))]
 
 
 class DrivenRateElement(SpringElement):
@@ -163,7 +163,7 @@ class SwitchedEquationElement(SpringElement):
 
     def _get_laws(self, s):
         """Return the equation of motion."""
-        return [EquationLaw(s.m * derivative(s.x, 2) == where(s.x < 0, -s.k * s.x, -2 * s.k * s.x))]
+        return [ConstraintLaw(s.m * derivative(s.x, 2) == where(s.x < 0, -s.k * s.x, -2 * s.k * s.x))]
 
 
 class SwitchedRateElement(SpringElement):
@@ -196,11 +196,11 @@ class PushInteraction(Interaction):
 def test_equation_takes_two_sides_or_a_relation():
     """Test that an equation takes either a relation or two sides, and prepares both sides."""
     x, h = var('x h')
-    law = EquationLaw(x == h).prepare()
+    law = ConstraintLaw(x == h).prepare()
     assert (law.lhs_, law.rhs_) == (x, h)
-    assert EquationLaw(1, 2).rhs == 2
+    assert ConstraintLaw(1, 2).rhs == 2
     with pytest.raises(ValidationError, match='left and a right side'):
-        EquationLaw(1).prepare()
+        ConstraintLaw(1).prepare()
 
 
 def test_pendulum_as_written_matches_solved_form():
@@ -249,4 +249,4 @@ def test_equation_with_driver_or_condition_matches_rate(equation, rate):
 def test_check_names_equations_as_symbolic_only():
     """Test that a function as a side of an equation raises an error pointing to a rate law."""
     with pytest.raises(ValidationError, match=r'solved symbolically.*`RateLaw`'):
-        EquationLaw(var('x'), print).prepare()
+        ConstraintLaw(var('x'), print).prepare()

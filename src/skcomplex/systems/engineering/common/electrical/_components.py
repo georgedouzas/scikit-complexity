@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.components.laws import BaseLaw, EquationLaw
+from .....core.components.laws import BaseLaw, ConstraintLaw
 from .....core.components.laws.utils import derivative
 from .....core.specs import ConnectorSpec, ParameterSpec, StateSpec, VisualSpec
 
@@ -48,7 +48,7 @@ class TwoPinElement(Element):
             The current into the negative pin.
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'p': ELECTRICAL, 'n': ELECTRICAL}
 
@@ -86,7 +86,7 @@ class TwoPinElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the balance of the currents of the pins and the equations of the branch."""
-        return [EquationLaw(s.p_i + s.n_i, 0), *self._get_branch_laws(s)]
+        return [ConstraintLaw(s.p_i + s.n_i, 0), *self._get_branch_laws(s)]
 
 
 class ResistorElement(TwoPinElement):
@@ -145,7 +145,7 @@ class ResistorElement(TwoPinElement):
             laws:
                 The equation law of the branch.
         """
-        return [EquationLaw(s.p_v - s.n_v, s.R * s.p_i)]
+        return [ConstraintLaw(s.p_v - s.n_v, s.R * s.p_i)]
 
 
 class CapacitorElement(TwoPinElement):
@@ -209,7 +209,7 @@ class CapacitorElement(TwoPinElement):
             laws:
                 The equation laws of the branch.
         """
-        return [EquationLaw(s.C * derivative(s.u, 1), s.p_i), EquationLaw(s.u, s.p_v - s.n_v)]
+        return [ConstraintLaw(s.C * derivative(s.u, 1), s.p_i), ConstraintLaw(s.u, s.p_v - s.n_v)]
 
 
 class InductorElement(TwoPinElement):
@@ -273,7 +273,7 @@ class InductorElement(TwoPinElement):
             laws:
                 The equation laws of the branch.
         """
-        return [EquationLaw(s.L * derivative(s.i, 1), s.p_v - s.n_v), EquationLaw(s.i, s.p_i)]
+        return [ConstraintLaw(s.L * derivative(s.i, 1), s.p_v - s.n_v), ConstraintLaw(s.i, s.p_i)]
 
 
 class VoltageSourceElement(TwoPinElement):
@@ -332,7 +332,7 @@ class VoltageSourceElement(TwoPinElement):
             laws:
                 The equation law of the branch.
         """
-        return [EquationLaw(s.p_v - s.n_v, s.V)]
+        return [ConstraintLaw(s.p_v - s.n_v, s.V)]
 
 
 class CurrentSourceElement(TwoPinElement):
@@ -393,7 +393,7 @@ class CurrentSourceElement(TwoPinElement):
             laws:
                 The equation law of the branch.
         """
-        return [EquationLaw(s.p_i, -s.current)]
+        return [ConstraintLaw(s.p_i, -s.current)]
 
 
 class GroundElement(Element):
@@ -418,7 +418,7 @@ class GroundElement(Element):
         ['p']
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'p': ELECTRICAL}
 
@@ -436,7 +436,7 @@ class GroundElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the zero potential of the pin."""
-        return [EquationLaw(s.p_v, 0)]
+        return [ConstraintLaw(s.p_v, 0)]
 
 
 class DiodeElement(TwoPinElement):
@@ -500,7 +500,7 @@ class DiodeElement(TwoPinElement):
             laws:
                 The equation law of the branch.
         """
-        return [EquationLaw(s.p_i, s.Is * (exp((s.p_v - s.n_v) / s.Vt) - 1))]
+        return [ConstraintLaw(s.p_i, s.Is * (exp((s.p_v - s.n_v) / s.Vt) - 1))]
 
 
 class ChuaDiodeElement(TwoPinElement):
@@ -567,7 +567,7 @@ class ChuaDiodeElement(TwoPinElement):
                 The equation law of the branch.
         """
         voltage = s.p_v - s.n_v
-        return [EquationLaw(s.p_i, s.m1 * voltage + (s.m0 - s.m1) * (abs(voltage + 1) - abs(voltage - 1)) / 2)]
+        return [ConstraintLaw(s.p_i, s.m1 * voltage + (s.m0 - s.m1) * (abs(voltage + 1) - abs(voltage - 1)) / 2)]
 
 
 class OperationalAmplifierElement(Element):
@@ -631,4 +631,4 @@ class OperationalAmplifierElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the currents of the inputs and the equal potentials of the inputs."""
-        return [EquationLaw(s.p_i, 0), EquationLaw(s.n_i, 0), EquationLaw(s.p_v, s.n_v)]
+        return [ConstraintLaw(s.p_i, 0), ConstraintLaw(s.n_i, 0), ConstraintLaw(s.p_v, s.n_v)]

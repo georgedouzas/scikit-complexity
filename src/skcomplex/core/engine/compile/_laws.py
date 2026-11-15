@@ -9,7 +9,7 @@ from ...components.laws import (
     BilinearLaw,
     BoundaryLaw,
     CascadeLaw,
-    CrossingLaw,
+    EventLaw,
     ExtremalLaw,
     FluxLaw,
     LinearProgramLaw,
@@ -19,7 +19,7 @@ from ...components.laws import (
     TransferLaw,
 )
 
-FORMLESS_LAWS = (BoundaryLaw, CrossingLaw, BilinearLaw, FluxLaw, LinearProgramLaw)
+FORMLESS_LAWS = (BoundaryLaw, EventLaw, BilinearLaw, FluxLaw, LinearProgramLaw)
 KERNEL_FREE_LAWS = (
     TransferLaw,
     BilinearLaw,

@@ -135,15 +135,15 @@ message.splitlines()[-1]
 ```
 
 The code is `algebraic-law`. The message says that the `RateLaw` of `level` targets the algebraic state `level.x`, and
-suggests an `EquationLaw` for its value or a state of order 1. The fix below states the value with an equation.
+suggests an `ConstraintLaw` for its value or a state of order 1. The fix below states the value with an equation.
 
 ```python continuation
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 
 
 class FixedLevelElement(LevelElement):
     def _get_laws(self, namespace):
-        return [EquationLaw(namespace.x, 2.0)]
+        return [ConstraintLaw(namespace.x, 2.0)]
 
 
 simulate(CompositeSystem(elements=[FixedLevelElement('level')]), until=1, dt=1.0).get_values('level.x').tolist()

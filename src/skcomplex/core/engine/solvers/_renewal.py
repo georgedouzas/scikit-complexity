@@ -4,7 +4,7 @@
 # License: MIT
 
 
-from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw
+from ...components.laws import BoundaryLaw, ConstraintLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import FormKind, NoiseKind, OrderKind
 from ...specs import SupportSpec
@@ -51,7 +51,7 @@ class RenewalSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={JumpLaw, RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
+            laws={JumpLaw, RateLaw, FluxLaw, NoiseLaw, ConstraintLaw, BoundaryLaw},
             noise=frozenset({NoiseKind.DIAGONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )

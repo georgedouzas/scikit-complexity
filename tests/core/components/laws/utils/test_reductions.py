@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import RR, SR, atan2, cos, exp, pi, sin, sqrt,
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import EquationLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import (
     circular_mean,
     count,
@@ -1285,7 +1285,7 @@ class LogPartitionInteraction(Interaction):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
         """Return the equation of the reduction."""
-        return [EquationLaw(s.target.value == log_sum_exp(s.energies.energy, over=s.energies), target=s.target.value)]
+        return [ConstraintLaw(s.target.value == log_sum_exp(s.energies.energy, over=s.energies), target=s.target.value)]
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -1343,9 +1343,9 @@ class BoltzmannInteraction(Interaction):
         energy = total(s.levels.energy * exp(weight - log_partition), over=s.levels)
         entropy = (s.target.log_partition + s.target.energy / s.temperature) / s.n_spins
         return [
-            EquationLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
-            EquationLaw(s.target.energy == energy, target=s.target.energy),
-            EquationLaw(s.target.entropy == entropy, target=s.target.entropy),
+            ConstraintLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
+            ConstraintLaw(s.target.energy == energy, target=s.target.energy),
+            ConstraintLaw(s.target.entropy == entropy, target=s.target.entropy),
         ]
 
 

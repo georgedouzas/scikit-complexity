@@ -12,9 +12,9 @@ from ._base import BaseLaw
 from ._bilinear import BilinearLaw
 from ._boundary import BoundaryLaw
 from ._cascade import CascadeLaw
-from ._crossing import CrossingLaw
+from ._constraint import ConstraintLaw
 from ._dissipator import DissipatorLaw
-from ._equation import EquationLaw
+from ._event import EventLaw
 from ._extremal import ExtremalLaw
 from ._flux import FluxLaw
 from ._generator import GeneratorLaw
@@ -39,9 +39,9 @@ __all__: list[str] = [
     'BilinearLaw',
     'BoundaryLaw',
     'CascadeLaw',
-    'CrossingLaw',
+    'ConstraintLaw',
     'DissipatorLaw',
-    'EquationLaw',
+    'EventLaw',
     'ExtremalLaw',
     'FluxLaw',
     'GeneratorLaw',

@@ -7,7 +7,7 @@ import math
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw, TransferLaw
+from ...components.laws import BoundaryLaw, ConstraintLaw, EventLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw, TransferLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import NoiseKind, OrderKind
 from ...errors import SolverError
@@ -57,8 +57,8 @@ class EulerMaruyamaSolver(SDESolver):
                 JumpLaw,
                 RateLaw,
                 FluxLaw,
-                EquationLaw,
-                CrossingLaw,
+                ConstraintLaw,
+                EventLaw,
                 BoundaryLaw,
                 TransferLaw,
                 NoiseLaw,

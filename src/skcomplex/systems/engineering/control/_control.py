@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, CrossingInteraction
-from ....core.components.laws import BaseLaw, EquationLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import clip, derivative, sign, step, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
@@ -56,7 +56,7 @@ class HeatCapacityElement(Element):
         15.0
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'a': THERMAL}
 
@@ -78,7 +78,7 @@ class HeatCapacityElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the heat balance of the body and the temperature of its port."""
-        return [EquationLaw(s.C * derivative(s.T, 1), s.a_Q), EquationLaw(s.T, s.a_T)]
+        return [ConstraintLaw(s.C * derivative(s.T, 1), s.a_Q), ConstraintLaw(s.T, s.a_T)]
 
 
 class ThermalConductorElement(Element):
@@ -114,7 +114,7 @@ class ThermalConductorElement(Element):
         2.0
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'a': THERMAL, 'b': THERMAL}
 
@@ -138,7 +138,7 @@ class ThermalConductorElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the heat flow through the conductor and its balance."""
-        return [EquationLaw(s.a_Q, s.G * (s.a_T - s.b_T)), EquationLaw(s.a_Q + s.b_Q, 0)]
+        return [ConstraintLaw(s.a_Q, s.G * (s.a_T - s.b_T)), ConstraintLaw(s.a_Q + s.b_Q, 0)]
 
 
 class ConvectionElement(Element):
@@ -171,7 +171,7 @@ class ConvectionElement(Element):
         5.0
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'a': THERMAL}
 
@@ -193,7 +193,7 @@ class ConvectionElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the heat flow into the fluid."""
-        return [EquationLaw(s.a_Q, s.h * (s.a_T - s.fluid))]
+        return [ConstraintLaw(s.a_Q, s.h * (s.a_T - s.fluid))]
 
 
 class HeatingResistorElement(TwoPinElement):
@@ -273,7 +273,7 @@ class HeatingResistorElement(TwoPinElement):
                 The equation laws of the branch.
         """
         voltage = s.p_v - s.n_v
-        return [EquationLaw(s.R * s.p_i, s.on * voltage), EquationLaw(s.h_Q, -voltage * s.p_i)]
+        return [ConstraintLaw(s.R * s.p_i, s.on * voltage), ConstraintLaw(s.h_Q, -voltage * s.p_i)]
 
 
 class ThermostatSystem(DynamicalSystem):

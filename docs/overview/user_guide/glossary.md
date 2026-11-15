@@ -12,7 +12,7 @@ member at a time. Agents move, choose, trade, and die, which equations of averag
 ## Algebraic state
 
 An algebraic state has no derivative of its own, because the equations of its system fix its value at every time. It
-takes an equation or a linear program, never a rate. See [EquationLaw](core_components/laws.md#equationlaw).
+takes an equation or a linear program, never a rate. See [ConstraintLaw](core_components/laws.md#equationlaw).
 
 ## Approximate Bayesian computation
 

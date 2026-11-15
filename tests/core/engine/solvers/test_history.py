@@ -9,7 +9,7 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import CrossingLaw, NoiseLaw, RateLaw
+from skcomplex.core.components.laws import EventLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import delayed, pulse_train, series, step
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -46,7 +46,7 @@ class ClockElement(Element):
 
     def _get_laws(self, s):
         """Return the laws of the clock element."""
-        return [RateLaw(s.x, 1), CrossingLaw(s.x - 3.2, terminal=True)]
+        return [RateLaw(s.x, 1), EventLaw(s.x - 3.2, terminal=True)]
 
 
 class FirstOrderElement(Element):
@@ -270,7 +270,7 @@ def test_event_without_reset_fires_once():
 
         def _get_laws(self, s):
             """Return the laws of the marker element."""
-            return [RateLaw(s.x, -1), CrossingLaw(s.x, direction=-1)]
+            return [RateLaw(s.x, -1), EventLaw(s.x, direction=-1)]
 
     trajectory = simulate(CompositeSystem(elements=[MarkerElement('m')]), until=2, dt=0.5)
     assert [event.time for event in trajectory.events] == pytest.approx([1.0])
@@ -296,7 +296,7 @@ def test_chattering_event_raises(solver):
 
         def _get_laws(self, s):
             """Return the laws of the sticky element."""
-            return [RateLaw(s.x, -1), CrossingLaw(s.x, {s.x: 1e-12}, direction=-1)]
+            return [RateLaw(s.x, -1), EventLaw(s.x, {s.x: 1e-12}, direction=-1)]
 
     with pytest.raises(SolverError, match='chattering'):
         simulate(CompositeSystem(elements=[StickyElement('c')]), until=2, dt=0.5, solver=solver())

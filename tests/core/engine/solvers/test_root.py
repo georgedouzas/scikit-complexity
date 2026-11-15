@@ -15,7 +15,7 @@ from scipy.special import logsumexp
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import EquationLaw, RateLaw
+from skcomplex.core.components.laws import ConstraintLaw, RateLaw
 from skcomplex.core.components.laws.utils import log_sum_exp, total
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.systems import CompositeSystem
@@ -45,7 +45,7 @@ class SurvivalElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the survival equation."""
-        return [EquationLaw(exp(-s.alpha * s.D - s.beta * s.D**2) == s.S, target=s.S)]
+        return [ConstraintLaw(exp(-s.alpha * s.D - s.beta * s.D**2) == s.S, target=s.S)]
 
 
 class ValueElement(Element):
@@ -67,7 +67,7 @@ class FixedPointElement(ValueElement):
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the fixed point equation."""
-        return [EquationLaw(s.x == cos(s.x), target=s.x)]
+        return [ConstraintLaw(s.x == cos(s.x), target=s.x)]
 
 
 class NoSolutionElement(ValueElement):
@@ -75,7 +75,7 @@ class NoSolutionElement(ValueElement):
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equation."""
-        return [EquationLaw(s.x**2 == -1, target=s.x)]
+        return [ConstraintLaw(s.x**2 == -1, target=s.x)]
 
 
 class MeanFieldElement(ValueElement):
@@ -83,7 +83,7 @@ class MeanFieldElement(ValueElement):
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the coupled equation of one member."""
-        return [EquationLaw(s.x == s.b + total(s.x) / 10, target=s.x)]
+        return [ConstraintLaw(s.x == s.b + total(s.x) / 10, target=s.x)]
 
 
 class SoftmaxFieldElement(ValueElement):
@@ -91,7 +91,7 @@ class SoftmaxFieldElement(ValueElement):
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the coupled equation of one member."""
-        return [EquationLaw(s.x == s.b - log_sum_exp(s.x), target=s.x)]
+        return [ConstraintLaw(s.x == s.b - log_sum_exp(s.x), target=s.x)]
 
 
 class TermElement(ValueElement):
@@ -99,7 +99,7 @@ class TermElement(ValueElement):
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the first term of the equation."""
-        return [EquationLaw(s.x, 3.0, target=s.x)]
+        return [ConstraintLaw(s.x, 3.0, target=s.x)]
 
 
 class StrayTargetElement(ValueElement):
@@ -107,7 +107,7 @@ class StrayTargetElement(ValueElement):
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equation."""
-        return [EquationLaw(s.x == 1, target=var('z'))]
+        return [ConstraintLaw(s.x == 1, target=var('z'))]
 
 
 class NoTargetElement(ValueElement):
@@ -115,7 +115,7 @@ class NoTargetElement(ValueElement):
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equation."""
-        return [EquationLaw(s.x == 1)]
+        return [ConstraintLaw(s.x == 1)]
 
 
 class RateElement(ValueElement):
@@ -141,7 +141,7 @@ class CyclicElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the two equations."""
-        return [EquationLaw(s.x == s.y / 2 + 1, target=s.x), EquationLaw(s.y == s.x / 2 + 1, target=s.y)]
+        return [ConstraintLaw(s.x == s.y / 2 + 1, target=s.x), ConstraintLaw(s.y == s.x / 2 + 1, target=s.y)]
 
 
 class CournotElement(Element):
@@ -171,8 +171,8 @@ class CournotElement(Element):
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the conditions of Forrest (2018, equation 21.5)."""
         return [
-            EquationLaw(s.alpha - 2 * s.q_i - s.q_j == s.c_i / (1 + s.lambda_i), target=s.q_i),
-            EquationLaw(s.alpha - 2 * s.q_j - s.q_i == s.c_j / (1 + s.lambda_j), target=s.q_j),
+            ConstraintLaw(s.alpha - 2 * s.q_i - s.q_j == s.c_i / (1 + s.lambda_i), target=s.q_i),
+            ConstraintLaw(s.alpha - 2 * s.q_j - s.q_i == s.c_j / (1 + s.lambda_j), target=s.q_j),
         ]
 
 
@@ -192,7 +192,7 @@ class TermInteraction(Interaction):
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the term of the equation."""
-        return [EquationLaw(0, s.gain, target=s.target.x)]
+        return [ConstraintLaw(0, s.gain, target=s.target.x)]
 
 
 def _simulated(system: CompositeSystem, **settings: object) -> Trajectory:

@@ -8,8 +8,8 @@ import numpy as np
 
 from ...components.laws import (
     BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
+    ConstraintLaw,
+    EventLaw,
     FluxLaw,
     LinearProgramLaw,
     NoiseLaw,
@@ -55,7 +55,7 @@ class HeunSolver(SDESolver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={LinearProgramLaw, RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            laws={LinearProgramLaw, RateLaw, FluxLaw, ConstraintLaw, EventLaw, BoundaryLaw, TransferLaw, NoiseLaw},
             noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},
             orders=frozenset({OrderKind.INTEGER}),
         )

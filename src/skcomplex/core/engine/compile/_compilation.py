@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.laws import BaseLaw, CrossingLaw, RuleLaw
+from ...components.laws import BaseLaw, EventLaw, RuleLaw
 from ...components.specs import CensusSpec, NodeSpec
 from ...components.systems import CompositeSystem
 from ...enums import FormKind
@@ -240,7 +240,7 @@ class Compilation:
     problem: ProblemSpec | None = None
     delays: list[_DelayedStateSpec] | None = None
     placeholders: dict[tuple[str, int, str, int, str, ReadKind], Expression] | None = None
-    events: list[tuple[KernelSpec, CrossingLaw]] | None = None
+    events: list[tuple[KernelSpec, EventLaw]] | None = None
     renewals: list[BoundRenewalSpec] | None = None
     outputs: dict[int, list[OutputSpec]] | None = None
     written: dict[tuple[str, int], list[tuple[Expression, Expression]]] | None = None

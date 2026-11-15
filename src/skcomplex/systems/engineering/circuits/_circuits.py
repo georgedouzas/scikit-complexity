@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
@@ -62,7 +62,7 @@ class ChuaCircuitElement(Element):
 class CircuitElement(Element):
     """RLC circuit whose charge follows `L q'' + R q' + q / C = V cos(ω t)`."""
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -89,7 +89,7 @@ class CircuitElement(Element):
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the equation of the charge."""
         return [
-            EquationLaw(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
+            ConstraintLaw(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
         ]
 
 
@@ -99,7 +99,7 @@ class KickedCircuitElement(Element):
     The impulses of strength `A` kick its rate.
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -123,7 +123,7 @@ class KickedCircuitElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the free equation of the circuit between impulses."""
-        return [EquationLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0)]
+        return [ConstraintLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0)]
 
 
 class MixedModeChuaCircuitElement(Element):

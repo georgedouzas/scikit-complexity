@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood, StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -76,7 +76,7 @@ class GravityContactInteraction(Interaction):
         1.5
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -104,7 +104,7 @@ class GravityContactInteraction(Interaction):
         """
         dx, dy = s.target.other.x[0] - s.target.x[0], s.target.other.x[1] - s.target.x[1]
         contacts = neighbors((dx**2 + dy**2) ** (-s.gamma / 2), over=RadiusNeighborhood(self.reach))
-        return [EquationLaw(s.target.contacts == contacts, target=s.target.contacts)]
+        return [ConstraintLaw(s.target.contacts == contacts, target=s.target.contacts)]
 
 
 class GravityUrbanScalingSystem(BaseSystem):

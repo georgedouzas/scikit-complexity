@@ -20,8 +20,8 @@ from ....components.laws import (
     BaseLaw,
     BoundaryLaw,
     CascadeLaw,
-    CrossingLaw,
-    EquationLaw,
+    ConstraintLaw,
+    EventLaw,
     ExtremalLaw,
     JumpLaw,
     LocalRuleLaw,
@@ -164,7 +164,7 @@ class CensusPass(BasePass):
 
         It is none for any other law or target.
         """
-        target = law.target if isinstance(law, EquationLaw) else None
+        target = law.target if isinstance(law, ConstraintLaw) else None
         reference = spec.references.get(target) if isinstance(target, Expression) else None
         return (reference.entry,) if reference is not None and reference.is_state else ()
 
@@ -336,7 +336,7 @@ class CensusPass(BasePass):
         owner = CensusPass._get_special_owner(spec, law, agents)
         if owner is not None:
             return owner
-        if isinstance(law, TransferLaw | EquationLaw | CrossingLaw) or (
+        if isinstance(law, TransferLaw | ConstraintLaw | EventLaw) or (
             isinstance(law, CascadeLaw) and not law._get_targets()
         ):
             return spec.owner

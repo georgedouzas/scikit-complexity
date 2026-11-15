@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import log_sum_exp, total
 from ....core.components.spaces import StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -108,7 +108,7 @@ class BoltzmannSumInteraction(Interaction):
         0.5
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -141,9 +141,9 @@ class BoltzmannSumInteraction(Interaction):
         energy = total(s.levels.energy * exp(weight - log_partition), over=s.levels)
         entropy = (s.target.log_partition + s.target.energy / s.temperature) / s.n_spins
         return [
-            EquationLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
-            EquationLaw(s.target.energy == energy, target=s.target.energy),
-            EquationLaw(s.target.entropy == entropy, target=s.target.entropy),
+            ConstraintLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
+            ConstraintLaw(s.target.energy == energy, target=s.target.energy),
+            ConstraintLaw(s.target.entropy == entropy, target=s.target.entropy),
         ]
 
 

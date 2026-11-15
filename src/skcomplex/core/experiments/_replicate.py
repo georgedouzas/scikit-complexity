@@ -12,8 +12,8 @@ import numpy.typing as npt
 from ..components.elements import DeclaredElement, Element, GroupElement
 from ..components.laws import (
     BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
+    ConstraintLaw,
+    EventLaw,
     JumpLaw,
     NoiseLaw,
     RateLaw,
@@ -37,10 +37,10 @@ PLAIN_LAWS = (
     JumpLaw,
     UpdateLaw,
     BoundaryLaw,
-    CrossingLaw,
+    EventLaw,
     TransitionLaw,
     TransferLaw,
-    EquationLaw,
+    ConstraintLaw,
 )
 
 

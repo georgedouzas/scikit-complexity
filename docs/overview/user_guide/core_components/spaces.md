@@ -1625,7 +1625,7 @@ quantity, and the equilibrium solves both conditions together.
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -1633,7 +1633,7 @@ from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class DuopolyElement(Element):
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -1653,8 +1653,8 @@ class DuopolyElement(Element):
 
     def _get_laws(self, namespace):
         return [
-            EquationLaw(namespace.a - 2 * namespace.q1 - namespace.q2 == namespace.c, target=namespace.q1),
-            EquationLaw(namespace.a - 2 * namespace.q2 - namespace.q1 == namespace.c, target=namespace.q2),
+            ConstraintLaw(namespace.a - 2 * namespace.q1 - namespace.q2 == namespace.c, target=namespace.q1),
+            ConstraintLaw(namespace.a - 2 * namespace.q2 - namespace.q1 == namespace.c, target=namespace.q2),
         ]
 
 
@@ -1669,7 +1669,7 @@ series, and the voltage between them balances the currents through both.
 
 ```python continuation
 class DividerElement(Element):
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -1689,7 +1689,7 @@ class DividerElement(Element):
 
     def _get_laws(self, namespace):
         current = (namespace.source - namespace.v) / namespace.r1
-        return [EquationLaw(current == namespace.v / namespace.r2, target=namespace.v)]
+        return [ConstraintLaw(current == namespace.v / namespace.r2, target=namespace.v)]
 
 
 simulate(CompositeSystem(elements=[DividerElement('node')], time=StaticTime()), until=1).get_values('node.v').tolist()
@@ -1700,7 +1700,7 @@ The node sits at 6 volts, two thirds of the source.
 **How the engine runs it.** The time has one frame, at time 0. The compiler gathers the equations of every target
 into one problem, solves a linear problem in closed form where it can, and passes the others to a root solver.
 
-**How it combines.** Its laws are `EquationLaw` and the constraints and objectives of linear programs, as in flux
+**How it combines.** Its laws are `ConstraintLaw` and the constraints and objectives of linear programs, as in flux
 balance analysis of a metabolic network.
 
 **Limits and errors.** It accepts no rates or updates, since nothing changes in it. A `RateInteraction` makes the run

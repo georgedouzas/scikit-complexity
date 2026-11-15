@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, EulerLagrangeInteraction, Interaction
-from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -226,7 +226,7 @@ class MotorCouplingInteraction(Interaction):
         0.5
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -253,8 +253,8 @@ class MotorCouplingInteraction(Interaction):
                 The equation laws of the coupling.
         """
         return [
-            EquationLaw(s.armature.p_v - s.armature.n_v, s.k * derivative(s.inertia.phi, 1)),
-            EquationLaw(-s.k * s.armature.p_i, 0, target=s.inertia.phi),
+            ConstraintLaw(s.armature.p_v - s.armature.n_v, s.k * derivative(s.inertia.phi, 1)),
+            ConstraintLaw(-s.k * s.armature.p_i, 0, target=s.inertia.phi),
         ]
 
 

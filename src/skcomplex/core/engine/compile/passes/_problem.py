@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, CrossingLaw, JumpLaw, RateLaw
+from ....components.laws import BaseLaw, EventLaw, JumpLaw, RateLaw
 from ....components.spaces import LatticeSpace
 from ....components.specs import CompiledElementSpec, CompiledInteractionSpec, NodeSpec
 from ....enums import FormKind, VariableKind
@@ -370,7 +370,7 @@ class ProblemPass(BasePass):
     @staticmethod
     def _reset_function(
         spec: KernelSpec,
-        event: CrossingLaw,
+        event: EventLaw,
         time: Expression,
         reductions: ReductionScheduleSpec,
         *,
@@ -542,7 +542,7 @@ class ProblemPass(BasePass):
     @staticmethod
     def _get_breakpoints_in(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        events: list[tuple[KernelSpec, CrossingLaw]],
+        events: list[tuple[KernelSpec, EventLaw]],
         time: Expression,
     ) -> _BreakpointsSpec:
         """Return the breakpoints of time-dependent inputs in every law and event guard.
@@ -675,7 +675,7 @@ class ProblemPass(BasePass):
     @staticmethod
     def _get_function_event(
         spec: KernelSpec,
-        event: CrossingLaw,
+        event: EventLaw,
         label: str,
         reductions: ReductionScheduleSpec,
         declarations: DeclarationsSpec,
@@ -716,7 +716,7 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _compile_events(
-        events: list[tuple[KernelSpec, CrossingLaw]],
+        events: list[tuple[KernelSpec, EventLaw]],
         time: Expression,
         reductions: ReductionScheduleSpec,
         declarations: DeclarationsSpec,

@@ -2045,7 +2045,7 @@ from typing import Annotated, ClassVar
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import ConnectionInteraction
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
@@ -2055,7 +2055,7 @@ PIN = ConnectorSpec('pin', potential='v', flow='i')
 
 class BranchElement(Element):
     ports: ClassVar = {'a': PIN}
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -2074,7 +2074,7 @@ class BranchElement(Element):
         self.e = e
 
     def _get_laws(self, namespace):
-        return [EquationLaw(namespace.a_i, namespace.g * (namespace.a_v - namespace.e))]
+        return [ConstraintLaw(namespace.a_i, namespace.g * (namespace.a_v - namespace.e))]
 
 
 node = ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])

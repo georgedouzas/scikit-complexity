@@ -12,8 +12,8 @@ import scipy.linalg
 
 from ...components.laws import (
     BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
+    ConstraintLaw,
+    EventLaw,
     FluxLaw,
     NoiseLaw,
     RateLaw,
@@ -98,7 +98,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            laws={RateLaw, FluxLaw, ConstraintLaw, EventLaw, BoundaryLaw, TransferLaw, NoiseLaw},
             noise=frozenset({NoiseKind.DIAGONAL, NoiseKind.FRACTIONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )

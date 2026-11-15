@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import RR, SR, Expression, I
 from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.operators import add_vararg, mul_vararg
 
-from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import BaseLaw, BoundaryLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.laws.utils import both, maximum
 from ....components.laws.utils._cells import cell_operations_in
 from ....components.laws.utils._contractions import contractions_in
@@ -169,7 +169,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
         The reductions are those in its values, its guard, and its reset.
         """
-        if isinstance(law, CrossingLaw):
+        if isinstance(law, EventLaw):
             reset = {
                 target: value if BaseLaw._is_function(value) else self._lower(SR(value), spec)
                 for target, value in (law.reset or {}).items()
@@ -750,9 +750,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             members_of = readers if readers is not None and not spec.sets else None
             entry = EntrySpec(f'__reduced_{index}', self.extent_, shape, RR, members_of)
             placeholder = symbol(f'_reduced_{index}')
-            reads = {
-                canonical.get(item, item): self._read(item, spec, group) for item in sorted(symbols, key=str)
-            }
+            reads = {canonical.get(item, item): self._read(item, spec, group) for item in sorted(symbols, key=str)}
             compiled = ReductionKernel(
                 placeholder,
                 reduction.kind,
