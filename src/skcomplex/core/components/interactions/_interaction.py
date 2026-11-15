@@ -5,10 +5,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from types import SimpleNamespace
-
-from ..base import BaseComponent
 from ._base import BaseInteraction
 
 
@@ -51,16 +47,3 @@ class Interaction(BaseInteraction):
         >>> PredationInteraction('predation', predator='foxes', prey='rabbits')
         PredationInteraction(label='predation', predator='foxes', prey='rabbits')
     """
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the laws of the interaction for a namespace of symbols, none by default.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the interaction.
-        """
-        return []

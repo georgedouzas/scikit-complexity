@@ -560,7 +560,7 @@ def _linearised_rates(
             name: SimpleNamespace(**names, **parameters)
             for name in declarations_of(type(interaction), VariableKind.ROLE)
         }
-        for law in interaction.prepare().run(SimpleNamespace(**roles, **own, t=time)).laws_:
+        for law in interaction._get_prepared_laws(SimpleNamespace(**roles, **own, t=time)):
             _add_rate(rates, names, law, field.label)
     return {name: rates[name] for name in states if name in rates}, names, values
 

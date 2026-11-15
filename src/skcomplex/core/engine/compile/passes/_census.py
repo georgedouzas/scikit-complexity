@@ -842,7 +842,7 @@ class CensusPass(BasePass):
                 An interaction reads a name that the element bound to a role does not have.
         """
         try:
-            return component.prepare().run(spec.namespace).laws_
+            return component._get_prepared_laws(spec.namespace)
         except AttributeError as error:
             holder = error.obj
             if not isinstance(component, BaseInteraction) or not isinstance(holder, SimpleNamespace):

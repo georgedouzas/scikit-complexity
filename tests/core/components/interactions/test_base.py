@@ -6,9 +6,10 @@ from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components import interactions
-from skcomplex.core.components.elements import GroupElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import (
     BaseInteraction,
     CouplingInteraction,
@@ -41,7 +42,8 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.enums import ElementKind
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import (
     BirthDeathInteraction,
     ChoiceInteraction,
@@ -639,3 +641,53 @@ def test_interaction_that_writes_unlisted_laws_has_unknown_law_kinds():
     tags = CustomRateInteraction('growth', target='a', rate=1.0).get_tags()
     assert (tags.laws, tags.randomness) == (None, None)
     assert Interaction('free').get_tags().laws is None
+
+
+class FallElement(Element):
+    """Element of a falling body with a position of order two."""
+
+    def __init__(self, label: str, visual: VisualSpec | None = None, *, x: Annotated[float, StateSpec(order=2)] = 0.0):
+        super().__init__(label, visual=visual)
+        self.x = x
+
+
+class PullInteraction(Interaction):
+    """Interaction that learns a constant pull on its target when it is prepared."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()] = 'ball',
+        g: Annotated[float, ParameterSpec()] = 9.81,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.g = g
+
+    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+        """Set the pull as the law of the interaction."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.target.x, -context.g)]
+
+
+def test_prepare_is_preparing_laws_from_a_namespace():
+    """Preparing an interaction on a namespace of symbols sets its laws."""
+    x, g = var('x g')
+    pull = PullInteraction('pull').prepare(SimpleNamespace(target=SimpleNamespace(x=x), g=g))
+    assert [law.value for law in pull.laws_] == [-g]
+
+
+def test_prepare_keeps_parameters_symbolic_in_a_system():
+    """The laws a system learns from an interaction read its parameters as symbols."""
+    system = System(elements=[FallElement('ball', x=10.0)], interactions=[PullInteraction('pull')]).prepare()
+    assert system.equations_['ball.x_d1'] == '-pull.g'
+
+
+def test_prepare_leaves_the_user_interaction_unchanged():
+    """The engine prepares a clone of an interaction for every binding, so the object the user gave has no laws."""
+    pull = PullInteraction('pull', target='bodies')
+    bodies = GroupElement('bodies', element=FallElement, size=2, values={'x': [1.0, 2.0]})
+    System(elements=[bodies], interactions=[pull]).prepare().simulate(until=1.0, dt=0.5)
+    assert not hasattr(pull, 'laws_')

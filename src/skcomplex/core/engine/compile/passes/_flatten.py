@@ -126,7 +126,7 @@ class FlattenPass(BasePass):
         Its error is raised with the path of the component.
         """
         try:
-            component.prepare(place)
+            component._prepare_on(place)
         except SkcomplexError as error:
             error_msg = f'{scope}{component.label}: {error}'
             raise type(error)(error_msg) from error

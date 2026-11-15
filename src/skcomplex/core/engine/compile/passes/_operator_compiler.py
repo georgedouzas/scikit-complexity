@@ -460,7 +460,7 @@ class OperatorCompiler(BaseCompiler):
                     generators,
                     dissipators,
                     f'{node.path} on the pair ({source}, {target})',
-                    interaction.run(namespace).laws_,
+                    interaction._get_prepared_laws(namespace),
                 )
             return
         roles = {
@@ -471,7 +471,7 @@ class OperatorCompiler(BaseCompiler):
             generators,
             dissipators,
             node.path,
-            interaction.run(SimpleNamespace(**roles, **parameters)).laws_,
+            interaction._get_prepared_laws(SimpleNamespace(**roles, **parameters)),
         )
 
     @staticmethod

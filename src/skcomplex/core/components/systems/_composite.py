@@ -148,7 +148,7 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
         for component in (*self.elements, *self.systems):
             component.prepare(space)
         for component in self.interactions:
-            component.prepare(space)
+            component._prepare_on(space)
         self._check_roles()
         self.system_ = self._get_composite()
 

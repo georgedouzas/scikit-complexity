@@ -38,8 +38,8 @@ class Tags(BaseSpec):
             `'phase space'`, and `'curved spacetime'`.
 
         laws:
-            The kinds of the laws, among `'rate'`, `'noise'`, `'jump'`, `'update'`, `'equation'`, `'objective'`, and `'sampling'`, or
-            `None` when the declarations do not show them.
+            The kinds of the laws, among `'rate'`, `'noise'`, `'jump'`, `'update'`, `'equation'`, `'objective'`, and
+            `'sampling'`, or `None` when the declarations do not show them.
 
         randomness:
             `'deterministic'`, `'stochastic'`, or `None` when the declarations do not show it.

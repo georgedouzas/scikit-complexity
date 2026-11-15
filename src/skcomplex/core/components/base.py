@@ -292,6 +292,15 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
         for spec in [*self._get_specs().values(), *self._get_declared().values()]:
             spec._check()
 
+    def _prepare_on(self, space: ContextT | None) -> None:
+        """Prepare the component on the space of its system, checking its arguments."""
+        self.prepare(space)
+
+    def _get_prepared_laws(self, namespace: InputT) -> Sequence[BaseComponent]:
+        """Return the laws of the component for a namespace, preparing it first if needed."""
+        prepared = self if getattr(self, '_prepared', False) else self.prepare()
+        return prepared.run(namespace).laws_
+
     @abstractmethod
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws the component contributes for a namespace of symbols.

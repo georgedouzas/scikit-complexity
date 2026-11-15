@@ -10,6 +10,7 @@ from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
+from sklearn.base import clone
 
 from ...enums import DomainKind
 from ...errors import SpaceError, ValidationError
@@ -139,6 +140,63 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
             or self._get_argument('schedule') in ('random-sequential', 'member')
             or 'random' in (self._get_argument('ties'), self._get_argument('pick'))
         )
+
+    @classmethod
+    def _is_preparing_laws(cls) -> bool:
+        """Return whether the class sets its laws in `_prepare`, not in `_get_laws`."""
+        owner = next(klass for klass in cls.__mro__ if '_get_laws' in vars(klass))
+        return owner is BaseInteraction
+
+    @classmethod
+    def _get_declared_laws(cls) -> tuple[type, ...] | None:
+        """Return the law classes a class lists, or `None` when they are unknown."""
+        if not cls._is_preparing_laws():
+            return super()._get_declared_laws()
+        for klass in cls.__mro__:
+            if klass is BaseInteraction:
+                return None
+            if 'law_classes' in vars(klass):
+                classes: tuple[type, ...] = vars(klass)['law_classes']
+                return classes
+        return None
+
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
+        """Return no laws, since an interaction sets its laws in `_prepare`.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                No laws.
+        """
+        return []
+
+    def _get_laws_of(self, inputs: object) -> Sequence[BaseComponent]:
+        """Return the laws for a namespace, from a clone prepared on it if needed."""
+        if not self._is_preparing_laws():
+            return super()._get_laws_of(inputs)
+        if not isinstance(inputs, SimpleNamespace):
+            error_msg = f'{type(self).__name__} learns its laws from a namespace of symbols, but got {inputs!r}.'
+            raise ValidationError(error_msg)
+        prepared = clone(self)
+        prepared.prepare(inputs)
+        return list(prepared.laws_)
+
+    def _prepare_on(self, space: BaseSpace | None) -> None:
+        """Check the interaction on the space of its system, learning no laws."""
+        if not self._is_preparing_laws():
+            super()._prepare_on(space)
+            return
+        BaseInteraction._prepare(self, space if isinstance(space, BaseSpace) else None)
+        self._prepared = True
+
+    def _get_prepared_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
+        """Return the laws of the interaction for a namespace of symbols."""
+        if self._is_preparing_laws():
+            return self._get_laws_of(namespace)
+        return super()._get_prepared_laws(namespace)
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Set `laws_`, the laws of the interaction for a namespace of symbols.
@@ -497,6 +555,11 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
             ValidationError:
                 The type declares states.
         """
+        if isinstance(context, SimpleNamespace):
+            BaseComponent._prepare(self, context)
+            self._check_states()
+            self.laws_: Sequence[BaseComponent] = []
+            return
         super()._prepare(context)
         self._check_states()
         self._check_space(context)
