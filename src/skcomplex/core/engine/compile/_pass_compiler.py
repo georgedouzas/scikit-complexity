@@ -1705,18 +1705,23 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
+    def _get_needs(census: _CensusSpec, system: CompositeSystem) -> dict[str, Iterable[object]]:
+        """Return the times, law classes, and spaces a solver must support to run a system."""
+        records = census.records
+        return {
+            'time': {kind for kind in FractionalFormPass._get_declared_times(system).values() if kind is not None},
+            'laws': {type(record.law) for record in records},
+            'space': {None if record.space is None else type(record.space) for record in records},
+        }
+
+    @staticmethod
     def _get_solver_issues(solver: object, census: _CensusSpec, system: CompositeSystem) -> list[IssueSpec]:
         """Return the solver arguments rejected and the requirements it does not support.
 
         They are the arguments the solver passed rejects and the requirements of a system it does not support.
         """
-        records = census.records
         stepper = type(solver)
-        needs: dict[str, Iterable[object]] = {
-            'time': {kind for kind in FractionalFormPass._get_declared_times(system).values() if kind is not None},
-            'laws': {type(record.law) for record in records},
-            'space': {None if record.space is None else type(record.space) for record in records},
-        }
+        needs = PassCompiler._get_needs(census, system)
         issues = []
         try:
             if isinstance(solver, BaseConfig):

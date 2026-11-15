@@ -68,13 +68,13 @@ The parts never name a solver. The system holds the solver and the backend as se
 | --- | --- | --- | --- |
 | Rate | ODE | adaptive Runge-Kutta | Verlet, implicit for stiff problems |
 | Rate and Noise | SDE | Euler-Maruyama | Milstein |
-| Jump | jump process | Gillespie | tau-leaping, the ODE limit of many units |
-| Rate and Constraint | DAE | IDA | |
+| Jump | jump process | Gillespie | tau-leaping, the ODE limit of many units with an ODE solver |
+| Rate and Constraint | DAE | the ODE solver, with the algebraic states solved at every step | |
 | Update | map | iteration | Mesa for agents |
 | Event with any of the above | hybrid | the same solver with root finding | |
 | Objective | optimisation | `MinimizeSolver` on `scipy.optimize.minimize` | an LP solver for linear objectives |
-| Objective with a temperature | sampling | Metropolis | Wolff, heat bath |
-| Objective with a gradient solver | gradient flow | gradient descent | |
+| Objective with `MetropolisSolver(temperature=T)` | sampling | Metropolis | Wolff, heat bath |
+| Objective with `GradientFlowSolver(dt=h)` | gradient flow | gradient descent | |
 
 ### 2. Elements are data
 

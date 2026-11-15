@@ -226,6 +226,16 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         """Return a value with derivatives and shifts in time of states translated."""
         if isinstance(value, list | tuple):
             return type(value)(BaseInteraction._get_translated(item, time, symbols, discrete) for item in value)
+        if isinstance(value, Mapping):
+            return {
+                BaseInteraction._get_translated(key, time, symbols, discrete): BaseInteraction._get_translated(
+                    item,
+                    time,
+                    symbols,
+                    discrete,
+                )
+                for key, item in value.items()
+            }
         if isinstance(value, FreeModuleElement):
             return vector(SR, [BaseInteraction._get_translated(item, time, symbols, discrete) for item in value])
         if not isinstance(value, Expression) or value.operator() is None:

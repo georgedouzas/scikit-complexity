@@ -27,7 +27,7 @@ from ...components.laws.utils import shift_member
 from ...components.laws.utils._delays import delay_parts
 from ...components.laws.utils._draws import draws_in
 from ...components.spaces import DiscreteTime
-from ...enums import VariableKind
+from ...enums import FormKind, VariableKind
 from ...errors import ConservationError, LabelError, ValidationError
 from ...specs import EntrySpec
 from ...types import Array
@@ -262,6 +262,12 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         state, step, boundary, _ = offset
         return RateLaw(state, shift_member(change, -step, boundary=boundary))
 
+    def _is_ode_limit(self) -> bool:
+        """Return whether the solver solves ODEs, so flows at a rate move their mean."""
+        solver = self.compilation_.solver
+        get_form = getattr(type(solver), '_get_form', None)
+        return callable(get_form) and get_form() == FormKind.ODE
+
     def _expand_flow(
         self,
         spec: KernelSpec,
@@ -288,14 +294,15 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         compiled = _CompiledFlowSpec(path, source, sink, source_label, sink_label, next(iter(tags)))
         holders = [(item, sign) for item, sign in ((flow.source, -1), (flow.sink, 1)) if isinstance(item, Expression)]
         presence = self._get_presence(next(filter(None, map(self._get_offset_of, (flow.source, flow.sink))), None))
-        if flow.rate is not None:
+        if flow.rate is not None and not self._is_ode_limit():
             amount = SR(flow.amount)
             laws: list[BaseLaw] = [
                 JumpLaw(SR(flow.rate) * presence, {item: sign * amount for item, sign in holders}),
             ]
         else:
-            laws = [self._get_rate_law(item, sign * SR(flow.amount), presence) for item, sign in holders]
-            amount = SR(flow.amount) * presence
+            flux = SR(flow.amount) if flow.rate is None else SR(flow.amount) * SR(flow.rate)
+            laws = [self._get_rate_law(item, sign * flux, presence) for item, sign in holders]
+            amount = flux * presence
         sign = 1 if source is None else -1 if sink is None else 0
         born = _BornSpec(spec, compiled, amount, sign)
         self.flows_.append(born)

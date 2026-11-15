@@ -15,12 +15,14 @@ when the system's `solver` is `'auto'`. A solver or backend that does not suppor
 preparing, with an error that names the problem and the solvers that support it.
 
 #### Scenario: Same reactions, two solvers
-- **WHEN** a reaction network is prepared once with `solver='auto'` and once with `GillespieSolver()`
-- **THEN** the first runs as ODEs, the second as a jump process, and the model is the same object
+- **WHEN** a conversion of units at a rate is prepared once with `solver='auto'` and once with `ScipyODESolver()`
+- **THEN** the first runs as a jump process with the Gillespie solver, the second as its mean, and the model is the
+  same object
 
 #### Scenario: An unsuitable solver
 - **WHEN** a system of update laws is prepared with an ODE solver
-- **THEN** preparing raises `ValidationError`, which names the map problem and the solvers that support it
+- **THEN** preparing raises `SolverError`, which names the discrete map and the solvers that support it, such as
+  `IterationSolver`
 
 ## REMOVED Requirements
 

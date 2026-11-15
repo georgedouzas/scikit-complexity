@@ -4,17 +4,36 @@ import re
 from types import SimpleNamespace
 
 import networkx as nx
+import numpy as np
 import pytest
 from sklearn.base import clone
 
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws import (
+    ConstraintLaw,
+    EventLaw,
+    JumpLaw,
+    NoiseLaw,
+    ObjectiveLaw,
+    RateLaw,
+    TransferLaw,
+    UpdateLaw,
+)
 from skcomplex.core.components.laws.utils import mean, neighbors
 from skcomplex.core.components.spaces import BaseSpace, NetworkSpace
-from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.engine.solvers import (
+    EulerMaruyamaSolver,
+    GillespieSolver,
+    GradientFlowSolver,
+    IterationSolver,
+    MetropolisSolver,
+    MinimizeSolver,
+    RK4Solver,
+    ScipyODESolver,
+)
+from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
@@ -138,3 +157,96 @@ def test_prepare_writes_reductions_readably():
     assert system.equations_['nodes.x[i]'] == "neighbors(-nodes.x[i] + nodes.x[j], reduce='sum')"
     assert system.equations_['crowd.x[i]'] == 'mean(crowd.x) - crowd.x[i]'
     assert not any(re.search(r'(?<![\w.])_\w', equation) for equation in system.equations_.values())
+
+
+class _Process(Interaction):
+    """Interaction whose laws make one kind of problem."""
+
+    def __init__(self, label: str, *, target: Role = 'p', kind: str = 'ode') -> None:
+        super().__init__(label)
+        self.target = target
+        self.kind = kind
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the laws of the kind."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.target.x, context.t
+            if self.kind == 'dae':
+                y = context.target.y
+                self.laws_: list[BaseComponent] = [RateLaw(x.diff(t), -x + y), ConstraintLaw(y - 2 * x, 0, target=y)]
+                return
+            laws: dict[str, list[BaseComponent]] = {
+                'ode': [RateLaw(x.diff(t), -x)],
+                'sde': [RateLaw(x.diff(t), -x), NoiseLaw(x, 0.1)],
+                'jump': [JumpLaw(x, {x: -1})],
+                'map': [UpdateLaw(x, x / 2)],
+                'hybrid': [RateLaw(x.diff(t), -1), EventLaw(x, {x: 1})],
+                'objective': [ObjectiveLaw((x - 3) ** 2, x)],
+            }
+            self.laws_ = laws[self.kind]
+
+
+def _process(kind: str, solver: object = 'auto') -> System:
+    """Return a system of one element whose laws make one kind of problem."""
+    values = {'x': 1.0, 'y': 0.0} if kind == 'dae' else {'x': 10.0 if kind == 'jump' else 1.0}
+    return System(elements=[Element('p', values=values)], interactions=[_Process('law', kind=kind)], solver=solver)
+
+
+@pytest.mark.parametrize(
+    ('kind', 'solver', 'form', 'default'),
+    [
+        ('ode', 'auto', 'ordinary differential equations', ScipyODESolver),
+        ('sde', 'auto', 'stochastic differential equations', EulerMaruyamaSolver),
+        ('jump', 'auto', 'jump process', GillespieSolver),
+        ('dae', 'auto', 'differential-algebraic equations', ScipyODESolver),
+        ('map', 'auto', 'discrete map', IterationSolver),
+        ('hybrid', 'auto', 'ordinary differential equations with events', ScipyODESolver),
+        ('objective', 'auto', 'static solution', MinimizeSolver),
+        ('objective', MetropolisSolver(), 'static solution', MetropolisSolver),
+        ('objective', GradientFlowSolver(), 'static solution', GradientFlowSolver),
+    ],
+)
+def test_prepare_infers_the_problem_and_its_solver(kind, solver, form, default):
+    """Test that the laws decide the problem, its default solver, and the solvers a user may name instead."""
+    system = _process(kind, solver).prepare()
+    assert system.form_ == form
+    assert isinstance(system.solver_, default)
+    step = 1.0 if kind == 'map' else 0.5
+    end = system.simulate(until=1.0, dt=step, random_state=0).times[-1]
+    assert end == pytest.approx(0.0 if default is MinimizeSolver else 1.0)
+
+
+def test_prepare_names_the_solvers_of_a_map_given_an_ode_solver():
+    """Test that a map prepared with an ODE solver raises an error naming the map and the solvers that run it."""
+    with pytest.raises(
+        SolverError,
+        match=r'does not support the laws UpdateLaw.*a discrete map, which .*IterationSolver',
+    ):
+        _process('map', RK4Solver()).prepare()
+
+
+class _Conversion(Interaction):
+    """Interaction that converts units of `a` into `b` one at a time at a rate."""
+
+    def __init__(self, label: str, *, a: Role = 'A', b: Role = 'B', k: float = 1.0) -> None:
+        super().__init__(label)
+        self.a = a
+        self.b = b
+        self.k = k
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the transfer of one unit at the rate `k a`."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [TransferLaw(context.a.n, context.b.n, 1, context.k * context.a.n)]
+
+
+def test_one_reaction_runs_as_jumps_or_as_its_mean_with_two_solvers():
+    """Test that one conversion runs as a jump process by default and as its mean `100 exp(-t)` with an ODE solver."""
+    elements = [Element('A', values={'n': 100.0}), Element('B', values={'n': 0.0})]
+    jumps = System(elements=elements, interactions=[_Conversion('convert')]).prepare()
+    mean = clone(jumps).set_params(solver=ScipyODESolver()).prepare()
+    assert (jumps.form_, mean.form_) == ('jump process', 'ordinary differential equations')
+    assert float(jumps.simulate(until=1.0, random_state=0).get_values('A.n')[-1]).is_integer()
+    assert mean.simulate(until=1.0).get_values('A.n')[-1] == pytest.approx(100 * np.exp(-1), rel=1e-4)

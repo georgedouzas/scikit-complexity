@@ -13,6 +13,7 @@ from ._fractional_abm import FractionalABMSolver
 from ._fractional_euler_maruyama import FractionalEulerMaruyamaSolver
 from ._gillespie import GillespieSolver
 from ._gradient_descent import GradientDescentSolver
+from ._gradient_flow import GradientFlowSolver
 from ._grunwald_letnikov import GrunwaldLetnikovSolver
 from ._heun import HeunSolver
 from ._horizon_error import HorizonError
@@ -27,6 +28,7 @@ from ._lattice import LatticeSolver
 from ._lindblad import LindbladSolver
 from ._maps import IterationSolver
 from ._mesa import AgentView, MesaSolver, SystemView
+from ._metropolis import MetropolisSolver
 from ._milstein import MilsteinSolver
 from ._minimize import MinimizeSolver
 from ._monte_carlo import MonteCarloSolver
@@ -64,6 +66,7 @@ __all__: list[str] = [
     'FractionalEulerMaruyamaSolver',
     'GillespieSolver',
     'GradientDescentSolver',
+    'GradientFlowSolver',
     'GrunwaldLetnikovSolver',
     'HeunSolver',
     'HorizonError',
@@ -78,6 +81,7 @@ __all__: list[str] = [
     'LatticeSolver',
     'LindbladSolver',
     'MesaSolver',
+    'MetropolisSolver',
     'MilsteinSolver',
     'MinimizeSolver',
     'MonteCarloSolver',

@@ -20,6 +20,7 @@ from ..engine.problems._neighborhood_kernel import NeighborhoodKernel
 from ..engine.problems._reduction_kernel import ReductionKernel
 from ..engine.runtime import Trajectory, compile_problem
 from ..engine.solvers import BaseSolver
+from ..enums import FormKind
 from ..errors import ValidationError
 from ._base import BaseSystem
 
@@ -239,7 +240,10 @@ class System(BaseSystem):
             readable[str(kernel.symbol)] = self._get_readable_neighbours(kernel, readable)
         equations: Mapping[str, object] = getattr(problem, 'equations', {})
         self.equations_ = {display(name): self._get_readable(value, readable) for name, value in equations.items()}
-        self.form_ = str(problem.form)
+        form = str(problem.form)
+        if problem.form == FormKind.ODE and getattr(problem, 'algebraic', None) is not None:
+            form = 'differential-algebraic equations'
+        self.form_ = f'{form} with events' if getattr(problem, 'events', ()) else form
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Check the components, compile the problem, and choose the solver and backend.
