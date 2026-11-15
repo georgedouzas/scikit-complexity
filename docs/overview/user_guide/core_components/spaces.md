@@ -37,7 +37,7 @@ live when exactly one of its two neighbours is live, and a single live cell grow
 ```python continuation
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime
-from skcomplex.core.specs import TotalisticSpec
+from skcomplex.core.components.laws import TotalisticSpec
 
 start = {'variables': {'c': DeclaredVariableSpec(0.0, StateSpec())}, 'c': [0, 0, 0, 1, 0, 0, 0]}
 cells = GroupElement('cells', element=DeclaredElement, space=LatticeSpace(7), on='sites', values=start)
@@ -160,7 +160,7 @@ nodes.
 
 ```python continuation
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import LayerSpec
+from skcomplex.core.components.spaces import LayerSpec
 
 try:
     NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.path_graph(4))]).prepare()
@@ -350,7 +350,7 @@ position and the velocity of the molecules.
 
 ```python
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.specs import AxisSpec
+from skcomplex.core.components.spaces import AxisSpec
 
 gas = PhaseSpace(LatticeSpace((16,), spacing=0.5), [AxisSpec('v', 32, -4.0, 4.0)]).prepare()
 gas.size_, gas.shape_, gas.coordinates_['v'][:2].round(3).tolist()
@@ -419,7 +419,7 @@ population is spread over the shares of three strategies.
 
 ```python
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
-from skcomplex.core.specs import AxisSpec
+from skcomplex.core.components.spaces import AxisSpec
 
 shares = [AxisSpec('rock', 4, 0.0, 1.0), AxisSpec('paper', 4, 0.0, 1.0)]
 strategies = SimplexSpace(LatticeSpace((1,)), shares).prepare()
@@ -879,7 +879,7 @@ At work the same people have other contacts. A `LayerSpec` adds the network of c
 the neighbourhood reads it by its label.
 
 ```python continuation
-from skcomplex.core.specs import LayerSpec
+from skcomplex.core.components.spaces import LayerSpec
 
 office = nx.empty_graph(5)
 office.add_edges_from([(0, 4), (4, 3)])
@@ -1313,7 +1313,7 @@ through a network without loops.
 ```python continuation
 from sage.all__sagemath_gap import libgap
 
-from skcomplex.core.specs import TotalisticSpec
+from skcomplex.core.components.laws import TotalisticSpec
 
 tree = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
 seed = {'variables': {'c': DeclaredVariableSpec(0.0, StateSpec())}, 'c': [1] + [0] * 16}

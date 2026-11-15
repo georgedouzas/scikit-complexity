@@ -14,12 +14,13 @@ from typing import Annotated, ClassVar, cast
 import numpy as np
 import numpy.typing as npt
 
+from ....core.components import Tags
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, RoleSpec, Tags
+from ....core.specs import BaseSpec, RoleSpec
 from ....core.types import Array
 
 REDUCTIONS = ('sum', 'mean')

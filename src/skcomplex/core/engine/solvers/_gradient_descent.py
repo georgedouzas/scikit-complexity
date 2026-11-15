@@ -15,12 +15,12 @@ from ...components.laws import GradientStepLaw
 from ...components.spaces import DiscreteTime
 from ...enums import FormKind, OptimizerKind, OrderKind
 from ...errors import SolverError, ValidationError
-from ...specs import StructureStateSpec, SupportSpec
 from ...types import Array
-from ..backends import JaxBackend
+from ..backends import JaxBackend, SupportSpec
 from ..problems._learning_problem_spec import LearningProblemSpec
 from ..types import TracedArray
 from ._base import BaseSolver
+from ._structure_state_spec import _StructureStateSpec
 
 PRECISIONS = ('float64', 'float32')
 
@@ -260,7 +260,7 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         self._update = jax.jit(update)
         self._measures = jax.jit(unroll)
 
-    def _get_reporters(self, theta: TracedArray, loss: float | None) -> StructureStateSpec:
+    def _get_reporters(self, theta: TracedArray, loss: float | None) -> _StructureStateSpec:
         """Return the loss and the metrics over the whole dataset.
 
         When given, the loss of the epoch is used.
@@ -275,7 +275,7 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         }
         if loss is not None:
             means['loss'] = loss
-        return StructureStateSpec(reporters={f'{path}/{label}': value for label, value in means.items()})
+        return _StructureStateSpec(reporters={f'{path}/{label}': value for label, value in means.items()})
 
     def _prepare(self, context: LearningProblemSpec | None) -> None:
         """Prepare the solver for a learning problem.

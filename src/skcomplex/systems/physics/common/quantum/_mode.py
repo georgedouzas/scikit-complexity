@@ -13,8 +13,9 @@ import qutip
 from sage.all__sagemath_symbolics import CC
 
 from .....core.components.elements import Element
+from .....core.engine.problems import HilbertSpec
 from .....core.errors import ValidationError
-from .....core.specs import HilbertSpec, StateSpec, VisualSpec
+from .....core.specs import StateSpec, VisualSpec
 
 
 def mode_space(quanta: int = 4) -> HilbertSpec:

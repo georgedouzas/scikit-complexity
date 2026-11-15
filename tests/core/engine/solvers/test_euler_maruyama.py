@@ -12,9 +12,9 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver, StepSpec
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.economics.finance import (
     AssetElement,
     GeometricBrownianMotionInteraction,

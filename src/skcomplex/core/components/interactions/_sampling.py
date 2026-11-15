@@ -12,21 +12,10 @@ from sage.all__sagemath_symbolics import RR, SR, ConditionSet, Expression
 
 from ...enums import ElementKind, MoveKind
 from ...errors import ValidationError
-from ...specs import (
-    BaseSpec,
-    MoveSpec,
-    ObjectiveSpec,
-    ParameterSpec,
-    RoleSpec,
-    SamplerSpec,
-    Tags,
-)
-from ..laws import ArrayUpdateLaw, BaseLaw, SampleLaw
-from ..spaces import (
-    BallNeighborhood,
-    BaseNeighborhood,
-    BaseSpace,
-)
+from ...specs import BaseSpec, ParameterSpec, RoleSpec
+from .._tags import Tags
+from ..laws import ArrayUpdateLaw, BaseLaw, MoveSpec, ObjectiveSpec, SampleLaw, SamplerSpec
+from ..spaces import BallNeighborhood, BaseNeighborhood, BaseSpace
 from ._interaction import Interaction
 
 MOVES = (MoveKind.FLIP, MoveKind.RANDOM_VALUE, MoveKind.ROTATE, MoveKind.GAUSSIAN, MoveKind.CLUSTER)

@@ -7,57 +7,91 @@ algebraic equation. Elements, interactions, and systems return laws, and the com
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from ._affine_spec import AffineSpec
 from ._array_update import ArrayUpdateLaw
 from ._base import BaseLaw
 from ._bilinear import BilinearLaw
 from ._boundary import BoundaryLaw
+from ._call_spec import CallSpec
 from ._cascade import CascadeLaw
 from ._constraint import ConstraintLaw
+from ._dataset_spec import DatasetSpec
 from ._dissipator import DissipatorLaw
+from ._draw_spec import DrawSpec
 from ._event import EventLaw
 from ._extremal import ExtremalLaw
 from ._flux import FluxLaw
 from ._generator import GeneratorLaw
 from ._gradient_step import GradientStepLaw
 from ._jump import JumpLaw
+from ._linear_objective_spec import LinearObjectiveSpec
 from ._linear_program import LinearProgramLaw
+from ._linear_rule_spec import LinearRuleSpec
 from ._local_rule import LocalRuleLaw
 from ._match import MatchLaw
+from ._module_spec import Letters, ModuleSpec
+from ._move_spec import MoveSpec
 from ._noise import NoiseLaw
+from ._objective_spec import ObjectiveSpec
+from ._outer_totalistic_spec import OuterTotalisticSpec
+from ._partner_spec import PartnerSpec
 from ._production import ProductionLaw
 from ._rate import RateLaw
+from ._requirement_spec import RequirementSpec
 from ._rule import RuleLaw
 from ._sample import SampleLaw
+from ._sampler_spec import SamplerSpec
 from ._substitution import SubstitutionLaw
+from ._table_spec import TableSpec
+from ._topology_request_spec import EDGE_KINDS, TopologyRequestSpec
+from ._totalistic_spec import TotalisticSpec
 from ._transfer import Sink, Source, TransferLaw
 from ._transition import TransitionLaw
 from ._update import UpdateLaw
 
 __all__: list[str] = [
+    'EDGE_KINDS',
+    'AffineSpec',
     'ArrayUpdateLaw',
     'BaseLaw',
     'BilinearLaw',
     'BoundaryLaw',
+    'CallSpec',
     'CascadeLaw',
     'ConstraintLaw',
+    'DatasetSpec',
     'DissipatorLaw',
+    'DrawSpec',
     'EventLaw',
     'ExtremalLaw',
     'FluxLaw',
     'GeneratorLaw',
     'GradientStepLaw',
     'JumpLaw',
+    'Letters',
+    'LinearObjectiveSpec',
     'LinearProgramLaw',
+    'LinearRuleSpec',
     'LocalRuleLaw',
     'MatchLaw',
+    'ModuleSpec',
+    'MoveSpec',
     'NoiseLaw',
+    'ObjectiveSpec',
+    'OuterTotalisticSpec',
+    'PartnerSpec',
     'ProductionLaw',
     'RateLaw',
+    'RequirementSpec',
     'RuleLaw',
     'SampleLaw',
+    'SamplerSpec',
     'Sink',
     'Source',
     'SubstitutionLaw',
+    'TableSpec',
+    'TopologyRequestSpec',
+    'TotalisticSpec',
     'TransferLaw',
     'TransitionLaw',
     'UpdateLaw',

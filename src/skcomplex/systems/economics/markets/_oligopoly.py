@@ -16,14 +16,16 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import ConstraintLaw
 from ....core.components.spaces import DiscreteTime, StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
+from ....core.specs import BaseSpec, ParameterSpec, StateSpec
 from ....core.types import Array
 from ...general.agents import ChoiceInteraction
 from ..common.learning import PayoffLearningInteraction
@@ -377,7 +379,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
     references = ('Forrest 2018', 'Brown 1951')
 
     @staticmethod
-    def _get_price_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_price_observables(system: CompositeSystem) -> list[Observable]:
         """Return the lowest and the highest expected profit over the prices.
 
         Under learning, it returns the prices charged.
@@ -385,12 +387,12 @@ class OligopolyEquilibriaSystem(BaseSystem):
         if isinstance(system.time, StaticTime):
             profit = PricePointElement.get_profit
             return [
-                ObservableSpec('lowest_profit', profit, group='prices', reduce='min'),
-                ObservableSpec('highest_profit', profit, group='prices', reduce='max'),
+                Observable('lowest_profit', profit, group='prices', reduce='min'),
+                Observable('highest_profit', profit, group='prices', reduce='max'),
             ]
         return [
-            ObservableSpec('lower_price', group='firms', variable='price', reduce='min'),
-            ObservableSpec('higher_price', group='firms', variable='price', reduce='max'),
+            Observable('lower_price', group='firms', variable='price', reduce='min'),
+            Observable('higher_price', group='firms', variable='price', reduce='max'),
         ]
 
     def __init__(

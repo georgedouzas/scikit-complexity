@@ -15,12 +15,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.oscillators import KuramotoCouplingInteraction, LinkElement, PhaseOscillatorElement, order_parameter
 
 NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
@@ -353,7 +354,7 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
     references = ('Arenas et al. 2008', 'Kaneko 1989')
     until = 100.0
     dt = 1.0
-    observables = (ObservableSpec('spread', group='maps', variable='x', reduce='var'),)
+    observables = (Observable('spread', group='maps', variable='x', reduce='var'),)
 
     def __init__(
         self,

@@ -61,7 +61,8 @@ from skcomplex.core.components.elements import WordElement
 from skcomplex.core.components.laws import ProductionLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ModuleSpec, ParameterSpec
+from skcomplex.core.specs import ParameterSpec
+from skcomplex.core.components.laws import ModuleSpec
 
 x = var('x')
 
@@ -110,7 +111,8 @@ from skcomplex.core.components.elements import PatchElement, WordElement
 from skcomplex.core.components.laws import ProductionLaw, SubstitutionLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import AffineSpec, GeometrySpec, PrototileSpec
+from skcomplex.core.components.laws import AffineSpec
+from skcomplex.core.components.elements import GeometrySpec, PrototileSpec
 
 
 class KochElement(WordElement):

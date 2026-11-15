@@ -13,7 +13,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import SpaceError
-from ...specs import Tags
+from .._tags import Tags
 from ..base import BaseComponent
 
 

@@ -8,8 +8,10 @@ import math
 from ...components.laws import ArrayUpdateLaw, BoundaryLaw, CascadeLaw, ExtremalLaw, LocalRuleLaw, UpdateLaw
 from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
-from ...specs import CascadeRecordSpec, RunStateSpec, SupportSpec
 from ...types import Array
+from ..backends import SupportSpec
+from ..problems import RunStateSpec
+from ..problems._cascade_record_spec import _CascadeRecordSpec
 from ._solver import Solver
 
 
@@ -25,7 +27,7 @@ class LatticeSolver(Solver):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
         >>> from skcomplex.core.engine.solvers import LatticeSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> problem = simulate(ElementaryAutomatonSystem(30, size=11), until=0).problem
         >>> stepper = LatticeSolver(random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
@@ -73,7 +75,7 @@ class LatticeSolver(Solver):
             current = RunStateSpec(float(step + 1), state, p, self.rng_)
             for item in self.problem_.lattice:
                 result = item.run(current).values_
-                if isinstance(result, CascadeRecordSpec):
+                if isinstance(result, _CascadeRecordSpec):
                     self.locator_.records.append(result)
                 elif isinstance(result, list):
                     self.locator_.records.extend(result)

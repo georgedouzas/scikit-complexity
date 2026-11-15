@@ -5,10 +5,10 @@ from collections.abc import Callable, Mapping, Sequence
 import numpy as np
 import numpy.typing as npt
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import BaseSolver, ScipyODESolver
-from skcomplex.core.specs import ObservableSpec
 
 ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
@@ -18,7 +18,7 @@ def _run_default(
     until: float,
     dt: float,
     solver: BaseSolver | None = None,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
 ) -> Trajectory:
     """Return the trajectory of the components of a system under the default solver of their laws, or a given one."""
     composite = system.prepare().system_
@@ -31,7 +31,7 @@ def _run(
     dt: float,
     solver: BaseSolver = ACCURATE,
     *,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
     schedule: Mapping[str, Callable[[float], float]] | None = None,
 ) -> Trajectory:
     """Return the trajectory of a system run to a time, or of its components under a schedule of their parameters."""

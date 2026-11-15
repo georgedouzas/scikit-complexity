@@ -29,10 +29,11 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._field_lowering import FieldLowering
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import IMEXEulerSolver, ScipyODESolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RunStateSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
 from skcomplex.systems.physics.common.oscillators import SitedOscillatorElement
 from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem

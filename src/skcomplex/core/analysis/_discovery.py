@@ -12,20 +12,13 @@ import networkx as nx
 import numpy as np
 
 from ..components.systems import CompositeSystem
+from ..engine.problems import NetworkSnapshotSpec
 from ..engine.runtime import Trajectory
 from ..enums import DataKind
-from ..specs import NetworkSnapshotSpec
 from ._alignment import alignment
 from ._autocatalytic import autocatalytic_sets
 from ._automata import automaton
-from ._base import (
-    SERIES_DIMENSIONS,
-    _composite,
-    _get_analysis_tags,
-    _get_data_kinds,
-    _get_source_tags,
-    bind_analysis,
-)
+from ._base import SERIES_DIMENSIONS, _composite, _get_analysis_tags, _get_data_kinds, _get_source_tags, bind_analysis
 from ._cell_complex import cell_complex
 from ._clusters import clusters
 from ._coarse_grain import coarse_grain

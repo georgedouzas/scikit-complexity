@@ -13,7 +13,8 @@ import mkdocs_gen_files
 from gallery_tools import library_systems
 
 from skcomplex.core import analysis, experiments
-from skcomplex.core.components import elements, interactions, laws, spaces, systems
+from skcomplex.core.analysis import AnalysisTags
+from skcomplex.core.components import Tags, elements, interactions, laws, spaces, systems
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
@@ -24,7 +25,7 @@ from skcomplex.core.engine import backends, solvers
 from skcomplex.core.engine.backends import BaseBackend
 from skcomplex.core.engine.solvers import BaseSolver
 from skcomplex.core.enums import LawTag, SpaceTag, TimeTag
-from skcomplex.core.specs import AnalysisTags, ParameterSpec, RoleSpec, StateSpec, Tags
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems import all_systems
 from skcomplex.systems.general import dynamics
 from skcomplex.systems.general.reactions import ReactionNetworkSystem

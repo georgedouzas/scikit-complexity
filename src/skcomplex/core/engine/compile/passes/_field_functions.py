@@ -18,10 +18,10 @@ from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import LatticeSpace, MeshSpace, PhaseSpace, SimplexSpace
 from ....enums import VariableKind
 from ....errors import PipelineError, ValidationError
-from ....specs import LayoutSpec, RunStateSpec
 from ....types import Array, VectorFunction
 from ..._utils import declarations_of
 from ...enums import ReadKind
+from ...problems import LayoutSpec, RunStateSpec
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._expression_printer import ExpressionPrinter

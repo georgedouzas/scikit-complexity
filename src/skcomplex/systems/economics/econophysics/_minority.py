@@ -17,8 +17,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import BaseSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import BaseSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import IntArray
 from ...general.agents import ChoiceInteraction, EvolutionInteraction
 from ..common.learning import PayoffLearningInteraction

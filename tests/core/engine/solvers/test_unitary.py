@@ -6,16 +6,18 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import CC
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.problems import HilbertSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import JumpTrajectoriesSolver, UnitarySolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.physics.common.quantum import QUBIT, QubitElement
 
 from ....conftest import SpinElement
@@ -103,7 +105,7 @@ def qubit_z(s):
     return local_operator(s.q.psi, 'z')
 
 
-Z = [ObservableSpec('z', qubit_z)]
+Z = [Observable('z', qubit_z)]
 
 
 def total_z(s):
@@ -111,7 +113,7 @@ def total_z(s):
     return sum(local_operator(member.psi, 'z') for member in s.chain)
 
 
-MAGNETIZATION = [ObservableSpec('magnetization', total_z)]
+MAGNETIZATION = [Observable('magnetization', total_z)]
 
 
 def _chain(n_sites, **values):

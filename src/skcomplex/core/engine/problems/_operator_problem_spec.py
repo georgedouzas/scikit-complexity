@@ -15,11 +15,11 @@ import numpy.typing as npt
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ...specs._run_state_spec import RunStateSpec
 from ...types import Array
 from ._base_problem_spec import BaseProblemSpec
 from ._operator_kernel import OperatorKernel
 from ._operator_lowering import OperatorLowering
+from ._run_state_spec import RunStateSpec
 
 REAL_TOLERANCE = 1e-10
 

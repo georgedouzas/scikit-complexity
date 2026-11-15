@@ -11,25 +11,17 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ...components.elements import WordElement
-from ...components.laws import ProductionLaw
+from ...components.elements import TURTLE_SYMBOLS, GeometrySpec, WordElement
+from ...components.laws import Letters, ModuleSpec, ProductionLaw
 from ...errors import RewritingError
-from ...specs import (
-    TURTLE_SYMBOLS,
-    BaseStructureSpec,
-    GeometrySpec,
-    Letters,
-    ModuleSpec,
-    ParametersSpec,
-    RunStateSpec,
-    WordStructureSpec,
-)
 from .._utils import symbols_of
 from ..types import Arrays
 from ._base import BaseKernel
 from ._base_problem_spec import BaseProblemSpec
+from ._base_structure_spec import BaseStructureSpec
 from ._expression_printer import ExpressionPrinter
 from ._group_spec import _GroupSpec
+from ._parameters_spec import _ParametersSpec
 from ._rewriting_loops import (
     ACTION_CODES,
     DRAW,
@@ -46,7 +38,9 @@ from ._rewriting_loops import (
     _neighbors,
     _walk_word,
 )
+from ._run_state_spec import RunStateSpec
 from ._successor_spec import _SuccessorSpec
+from ._word_structure_spec import WordStructureSpec
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 PROBABILITY_TOLERANCE = 1e-9
@@ -90,7 +84,7 @@ class WordKernel(BaseKernel):
         path: str,
         word: WordElement,
         productions: Sequence[ProductionLaw],
-        parameters: ParametersSpec,
+        parameters: _ParametersSpec,
         values: npt.NDArray[np.float64],
     ) -> None:
         self.path = path

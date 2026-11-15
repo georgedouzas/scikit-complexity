@@ -9,21 +9,15 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import GroupingInteraction
+from skcomplex.core.components.laws import PartnerSpec
 from skcomplex.core.components.laws.utils import count, mean, total, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import BaseBackend, NumbaBackend, NumpyBackend
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import (
-    ParameterSpec,
-    PartnerSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.general.agents import ImitationInteraction
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])

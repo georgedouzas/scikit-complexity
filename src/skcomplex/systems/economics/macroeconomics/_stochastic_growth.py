@@ -12,10 +12,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, TransitionInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class StochasticGrowthElement(Element):
@@ -172,7 +173,7 @@ class BrockMirmanGrowthSystem(BaseSystem):
     until = 200
     observables = tuple(
         [
-            ObservableSpec(name, function, element='economy')
+            Observable(name, function, element='economy')
             for name, function in (
                 ('productivity', StochasticGrowthElement.get_productivity),
                 ('output', StochasticGrowthElement.get_output),

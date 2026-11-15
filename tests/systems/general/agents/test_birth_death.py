@@ -8,12 +8,13 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TransferInteraction
-from skcomplex.core.components.laws import Sink, Source
+from skcomplex.core.components.laws import PartnerSpec, Sink, Source
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import PartnerSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.general.agents import BirthDeathInteraction
 
 

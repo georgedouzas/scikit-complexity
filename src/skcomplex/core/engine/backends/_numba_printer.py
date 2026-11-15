@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...components.spaces import DelaunayNeighborhood, NearestNeighborhood, RadiusNeighborhood
 from ...errors import BackendError, ValidationError
-from ...specs import EntrySpec, ReadSpec
+from ...specs import EntrySpec
 from .._utils import symbols_of
 from ..enums import ReadKind
 from ..problems import BasePrinter
@@ -26,6 +26,7 @@ from ..problems._metric_search import MetricSearch
 from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ..problems._output_spec import OutputSpec
 from ..problems._pair_search import PairSearch
+from ..problems._read_spec import _ReadSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
@@ -772,7 +773,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         lines.append(f'{INDENT}return out')
         self.code_ += ['', '', *lines]
 
-    def _get_reduction_read(self, name: str, read: ReadSpec, index: int) -> str:
+    def _get_reduction_read(self, name: str, read: _ReadSpec, index: int) -> str:
         """Return the line that reads one symbol of a reduction.
 
         It reads it for the member `_m_`, or once for a shared value.
@@ -823,7 +824,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
     def _get_shaped_weights_lines(
         self,
         reduction: ReductionKernel,
-        weights: ReadSpec,
+        weights: _ReadSpec,
         index: int,
         count: str,
     ) -> list[str]:
@@ -881,7 +882,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         lines += [f'{INDENT}{acc} = 0.0', f'{INDENT}{cnt} = 0.0']
         sums = [f'{acc} += _a_ if _c_ else 0.0', f'{cnt} += 1.0 if _c_ else 0.0']
         mean = f'({acc} / {cnt} if {cnt} > 0.0 else 0.0)'
-        if isinstance(reduction.weights, ReadSpec):
+        if isinstance(reduction.weights, _ReadSpec):
             return lines + self._get_shaped_weights_lines(reduction, reduction.weights, index, sums[1])
         if reduction.weights is not None:
             weights = scipy.sparse.csr_array(reduction.weights)

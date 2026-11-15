@@ -7,9 +7,9 @@ from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression, pi
 
+from ....core.components import Observable
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ObservableSpec
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import CompartmentElement
 from ..common.pharmacokinetics import DosingInteraction
@@ -139,8 +139,8 @@ class ImmunoOncologyQspSystem(BaseSystem):
     dt = 1.0
     solver = QSP_SOLVER
     observables = (
-        ObservableSpec('diameter', _get_diameter),
-        ObservableSpec('effector_treg_ratio', _get_effector_treg_ratio),
+        Observable('diameter', _get_diameter),
+        Observable('effector_treg_ratio', _get_effector_treg_ratio),
     )
 
     def __init__(

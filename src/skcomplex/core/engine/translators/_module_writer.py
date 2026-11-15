@@ -9,8 +9,8 @@ from collections.abc import Mapping, Sequence
 
 from pysd.translators.structures.abstract_expressions import ArithmeticStructure
 
-from ...specs import RunSettingsSpec
 from ._expressions import SAGE_MODULE, UTILITIES_MODULE, _ExpressionWriter
+from ._run_settings_spec import RunSettingsSpec
 from ._system_variables_spec import _GoalSeekingSpec, _SystemVariablesSpec
 
 LINE_LENGTH = 120
@@ -19,13 +19,14 @@ ELEMENTS_MODULE = 'skcomplex.core.components.elements'
 INTERACTIONS_MODULE = 'skcomplex.core.components.interactions'
 LAWS_MODULE = 'skcomplex.core.components.laws'
 SPECS_MODULE = 'skcomplex.core.specs'
+COMPONENTS_MODULE = 'skcomplex.core.components'
 BASE_IMPORTS = frozenset(
     {
         (SAGE_MODULE, 'Expression'),
         (ELEMENTS_MODULE, 'Element'),
         ('skcomplex.core.components.systems', 'BaseSystem'),
         ('skcomplex.core.components.systems', 'CompositeSystem'),
-        (SPECS_MODULE, 'ObservableSpec'),
+        (COMPONENTS_MODULE, 'Observable'),
         (SPECS_MODULE, 'StateSpec'),
         (SPECS_MODULE, 'VisualSpec'),
     },
@@ -386,9 +387,9 @@ class _ModuleWriter:
         The observable is of the element or reduced over the group.
         """
         if not self.variables.members:
-            return f'{INDENT * 2}ObservableSpec({name!r}, _observed__{name}, element={self.label!r}),'
+            return f'{INDENT * 2}Observable({name!r}, _observed__{name}, element={self.label!r}),'
         reduction = '_member_values' if self.variables.is_per_member(name) else "'mean'"
-        return f'{INDENT * 2}ObservableSpec({name!r}, _observed__{name}, group={self.label!r}, reduce={reduction}),'
+        return f'{INDENT * 2}Observable({name!r}, _observed__{name}, group={self.label!r}, reduce={reduction}),'
 
     def _write_observables(self, flows: Mapping[str, object], relaxations: Sequence[str]) -> tuple[list[str], str]:
         """Return the functions of the observables, and the source of their tuple items."""
@@ -549,7 +550,7 @@ class _ModuleWriter:
         observed, observables = self._write_observables(flows, relaxations)
         if flows and not rates and not variables.members:
             imports = self.expressions.imports
-            imports -= BASE_IMPORTS - {(SAGE_MODULE, 'Expression'), (SPECS_MODULE, 'ObservableSpec')}
+            imports -= BASE_IMPORTS - {(SAGE_MODULE, 'Expression'), (COMPONENTS_MODULE, 'Observable')}
             imports -= {(INTERACTIONS_MODULE, 'TransferInteraction'), (LAWS_MODULE, 'Source'), (LAWS_MODULE, 'Sink')}
             imports |= {(STOCK_FLOW_MODULE, 'StockFlowSystem'), (f'{STOCK_FLOW_MODULE}.types', 'FlowTable')}
             blocks = [*helpers, *amounts, *observed, self._write_stock_flow_system(flows, observables)]

@@ -23,7 +23,8 @@ from skcomplex.core.components.laws import Sink, Source, TransferLaw
 from skcomplex.core.components.laws.utils import series
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components import Observable
 
 
 def birth_rate(s):
@@ -52,7 +53,7 @@ class PeopleElement(Element):
 
 
 crowd = CompositeSystem(elements=[PeopleElement('crowd')])
-observed = [ObservableSpec('birth_rate', birth_rate, element='crowd')]
+observed = [Observable('birth_rate', birth_rate, element='crowd')]
 trajectory = simulate(crowd, until=10, dt=1.0, observables=observed)
 round(float(trajectory.get_values('crowd.births')[-1]), 3), round(float(trajectory.get_values('crowd.deaths')[-1]), 3)
 ```
@@ -66,7 +67,7 @@ it.
 - With `rate=...` it is the size of a jump with that propensity.
 
 An intermediate expression, such as the birth rate, is a function of the namespace that the laws call.
-`ObservableSpec(label, function, element=element)` records the same function as the observable `<element>.<label>`,
+`Observable(label, function, element=element)` records the same function as the observable `<element>.<label>`,
 which Rerun logs under the element.
 
 ```python continuation
@@ -167,7 +168,8 @@ from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.laws.utils import transfer
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ObservableSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components import Observable
 
 
 def net_worth(agent):
@@ -199,7 +201,7 @@ class TraderElement(Element):
         return [RuleLaw(lend)]
 
 
-balance = ObservableSpec('net_worth', net_worth, group='traders', reduce='sum')
+balance = Observable('net_worth', net_worth, group='traders', reduce='sum')
 market = CompositeSystem(elements=[GroupElement('traders', element=TraderElement, size=3)])
 traders = simulate(market, until=3, observables=[balance], invariants={'net_worth': 1e-9})
 float(traders.get_agents('traders', 3).values['cash'].sum())
@@ -297,7 +299,7 @@ Time in the module runs from zero, and `Time` in the file becomes `t + START`. T
 - The rest of the net rate of a stock is a [`RateInteraction`](../core_components/interactions.md#rateinteraction).
   When it has the form `(goal - stock) / time` or `(goal - stock) * rate`, its rate is `(goal - stock) / time` of a
   goal function and a time function.
-- An auxiliary is a private function `_name(s, t)` of the module that the laws call, and an `ObservableSpec` under its
+- An auxiliary is a private function `_name(s, t)` of the module that the laws call, and an `Observable` under its
   snake-case name.
 - A lookup is a `series` of its input through its points. The built-in functions are `where`, `step`, `ramp`, `pulse`,
   `pulse_train`, `distributed_delay` for the delays and smoothings, `delayed`, `minimum`, `maximum`, `clip`, and the

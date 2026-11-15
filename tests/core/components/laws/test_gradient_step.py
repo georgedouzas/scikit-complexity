@@ -2,14 +2,14 @@
 
 import numpy as np
 
-from skcomplex.core.components.laws import GradientStepLaw
-from skcomplex.core.specs import DatasetSpec, ObservableSpec
+from skcomplex.core.components import Observable
+from skcomplex.core.components.laws import DatasetSpec, GradientStepLaw
 
 
 def _law():
     """Return a gradient-step law of the readout weights."""
     data = DatasetSpec({'inputs.x': np.zeros((4, 3, 1))})
-    return GradientStepLaw(['readout.W'], ObservableSpec('error', 0.0), data, 'adam', 2)
+    return GradientStepLaw(['readout.W'], Observable('error', 0.0), data, 'adam', 2)
 
 
 def test_gradient_step_law_changes_no_state():

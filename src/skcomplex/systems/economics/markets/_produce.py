@@ -11,11 +11,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
+from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 
 WHOLESALE_PRICES = (0.6, 0.5, 0.7, 0.9, 1.2, 1.5, 0.8, 0.4, 0.5, 0.3, 0.6, 1.0)
@@ -250,8 +251,8 @@ class ProduceMarketSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016',)
     until = 10
     observables = (
-        ObservableSpec('items_left', group='shoppers', variable='wanted', reduce=_get_items_left),
-        ObservableSpec('spent', group='shoppers', variable='spent'),
+        Observable('items_left', group='shoppers', variable='wanted', reduce=_get_items_left),
+        Observable('spent', group='shoppers', variable='spent'),
     )
 
     def __init__(

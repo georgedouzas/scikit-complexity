@@ -19,20 +19,13 @@ from sage.all__sagemath_symbolics import Expression
 
 from .....core.analysis.types import Source
 from .....core.components.elements import DeclaredElement
-from .....core.components.laws import LinearProgramLaw
+from .....core.components.laws import LinearObjectiveSpec, LinearProgramLaw
 from .....core.components.spaces import StaticTime
 from .....core.components.systems import BaseSystem, CompositeSystem
-from .....core.engine.problems import ProblemSpec
+from .....core.engine.problems import ProblemSpec, RunStateSpec
 from .....core.engine.runtime import simulate
 from .....core.errors import AnalysisError
-from .....core.specs import (
-    DeclaredVariableSpec,
-    LinearObjectiveSpec,
-    ParameterSpec,
-    RunStateSpec,
-    StateSpec,
-    VisualSpec,
-)
+from .....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...._extras import import_extra
 from ._analyses import _check_choice, _networks_of
 from ._cobra_io import load_extra, to_cobra

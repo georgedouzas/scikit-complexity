@@ -1,0 +1,52 @@
+"""Define the draw log spec."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Mapping
+from dataclasses import dataclass
+
+import numpy as np
+
+from ...errors import ValidationError
+from ...specs._base_spec import BaseSpec
+from ...types import Array
+from ._draw_record_spec import _DrawRecordSpec
+
+
+@dataclass(frozen=True)
+class _DrawLogSpec(BaseSpec):
+    """A spec of the named draws and jumps of one run, with their log-probability.
+
+    A run records it with `simulate(record_draws=True)` and replays it with `simulate(replay=trajectory)`.
+
+    Args:
+        draws:
+            The values of every named draw of the run, by the path of its owner and its name, such as
+            `walker.kick`.
+
+        firing_times:
+            The time of every firing of a jump law, in order.
+
+        firing_laws:
+            The index of the jump law of every firing, in the order of the propensities of the problem.
+
+        log_probability:
+            The total log-probability of the draws and the firings under the parameters of the run.
+    """
+
+    draws: Mapping[str, _DrawRecordSpec]
+    firing_times: Array
+    firing_laws: Array
+    log_probability: float
+
+    def _check(self) -> None:
+        """Raise an error when firing times and laws differ in length or times decrease."""
+        if len(self.firing_times) != len(self.firing_laws):
+            error_msg = 'The firings hold times and laws of different lengths.'
+            raise ValidationError(error_msg)
+        if np.any(np.diff(self.firing_times) < 0):
+            error_msg = 'The firing times must not decrease.'
+            raise ValidationError(error_msg)
+        for record in self.draws.values():
+            record._check()

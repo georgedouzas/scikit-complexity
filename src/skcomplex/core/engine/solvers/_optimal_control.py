@@ -15,15 +15,15 @@ from sage.sets.real_set import RealSet
 
 from ...enums import FormKind
 from ...errors import SolverError, ValidationError
-from ...specs import ControlSolutionSpec
-from ...specs._control_spec import _ControlSpec
 from ...types import Array
 from .._utils import symbols_of
 from ..compile._observables import ObservableEvaluator
 from ..problems import ProblemSpec
 from ..problems._control_problem_spec import _ControlProblemSpec
+from ..problems._control_spec import _ControlSpec
 from ..problems._expression_printer import ExpressionPrinter
 from ..types import Cost, GridFunction
+from ._control_solution_spec import _ControlSolutionSpec
 from ._solver import Solver
 
 TIME_TOLERANCE = 1e-9
@@ -107,14 +107,14 @@ class OptimalControlSolver(Solver):
         *,
         iterations: int,
         costates: Mapping[str, Array] | None = None,
-    ) -> ControlSolutionSpec:
+    ) -> _ControlSolutionSpec:
         """Return the solution of steered states and controls on a grid, with its cost."""
         control_problem = self.control_problem_
         full = np.tile(x0, (times.size, 1))
         full[:, control_problem.indices] = states
         full[:, control_problem.control_indices] = controls
         cost = self._get_cost(times, states, controls, p)
-        return ControlSolutionSpec(times, full, dict(costates or {}), cost, iterations)
+        return _ControlSolutionSpec(times, full, dict(costates or {}), cost, iterations)
 
     def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the solver for a problem and read its optimal control problem.
@@ -370,7 +370,7 @@ class OptimalControlSolver(Solver):
         return tuple(controls)
 
     @abstractmethod
-    def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolutionSpec:
+    def _solve(self, x0: Array, p: Array, horizon: float) -> _ControlSolutionSpec:
         """Return the optimal solution from an initial state over a horizon.
 
         Args:

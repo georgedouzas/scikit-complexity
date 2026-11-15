@@ -5,13 +5,14 @@ from typing import Annotated
 import pytest
 from sage.all__sagemath_symbolics import SR, sqrt
 
-from skcomplex.core.analysis import invariants
+from skcomplex.core.analysis import SymmetrySpec, invariants
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import EulerLagrangeInteraction
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import ObservableSpec, StateSpec, SymmetrySpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.physics.celestial_mechanics import SitnikovSystem, TwoBodyOrbitSystem
 from skcomplex.systems.physics.nonlinear_oscillators import HenonHeilesSystem
 
@@ -64,10 +65,10 @@ def _lagrangian_three_body() -> CompositeSystem:
     return CompositeSystem(elements=[LagrangianBodyElement('body')], interactions=[motion])
 
 
-def _kepler_expressions() -> list[ObservableSpec]:
+def _kepler_expressions() -> list[Observable]:
     """Return the energy, the angular momentum, and the first momentum of the Kepler problem."""
     return [
-        ObservableSpec(
+        Observable(
             'energy',
             lambda s: (s.planet.px**2 + s.planet.py**2) / 2
             - s.planet.G
@@ -76,8 +77,8 @@ def _kepler_expressions() -> list[ObservableSpec]:
                 s.planet.x**2 + s.planet.y**2,
             ),
         ),
-        ObservableSpec('angular_momentum', lambda s: s.planet.x * s.planet.py - s.planet.y * s.planet.px),
-        ObservableSpec('px', lambda s: s.planet.px),
+        Observable('angular_momentum', lambda s: s.planet.x * s.planet.py - s.planet.y * s.planet.px),
+        Observable('px', lambda s: s.planet.px),
     ]
 
 
@@ -93,7 +94,7 @@ def test_run_reports_the_energy_and_angular_momentum_of_kepler_conserved():
 
 def test_run_reports_the_jacobi_integral_of_a_lagrangian_system_conserved():
     """Test that the Jacobi integral of the Euler-Lagrange restricted three-body problem has a zero Lie derivative."""
-    expressions = [ObservableSpec('jacobi', _jacobi), ObservableSpec('x', lambda s: s.body.x)]
+    expressions = [Observable('jacobi', _jacobi), Observable('x', lambda s: s.body.x)]
     analysis = invariants(_lagrangian_three_body(), expressions=expressions, random_state=0)
     assert analysis.conserved == {'jacobi': True, 'x': False}
 
@@ -101,9 +102,9 @@ def test_run_reports_the_jacobi_integral_of_a_lagrangian_system_conserved():
 def test_run_brackets_the_components_of_the_angular_momentum():
     """Test that the bracket of the coordinates with their momenta is one and of the momentum with x is y-free."""
     expressions = [
-        ObservableSpec('x', lambda s: s.planet.x),
-        ObservableSpec('px', lambda s: s.planet.px),
-        ObservableSpec('angular_momentum', lambda s: s.planet.x * s.planet.py - s.planet.y * s.planet.px),
+        Observable('x', lambda s: s.planet.x),
+        Observable('px', lambda s: s.planet.px),
+        Observable('angular_momentum', lambda s: s.planet.x * s.planet.py - s.planet.y * s.planet.px),
     ]
     analysis = invariants(TwoBodyOrbitSystem().prepare().system_, kind='brackets', expressions=expressions)
     namespace = analysis.namespace.planet
@@ -117,7 +118,7 @@ def test_run_rejects_brackets_without_canonical_pairs():
         invariants(
             SitnikovSystem().prepare().system_,
             kind='brackets',
-            expressions=[ObservableSpec('z', lambda s: s.body.z)],
+            expressions=[Observable('z', lambda s: s.body.z)],
         )
 
 

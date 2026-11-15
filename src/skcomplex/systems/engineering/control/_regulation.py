@@ -15,6 +15,7 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.analysis import linearization
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, BoundaryLaw, ConstraintLaw, RateLaw
@@ -22,7 +23,7 @@ from ....core.components.laws.utils import clip, derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 GRAVITY = 9.81
 FORCE_LIMIT = 50.0
@@ -444,7 +445,7 @@ class PidInvertedPendulumSystem(BaseSystem):
     until = 5.0
     dt = 0.05
     solver = RK4Solver(dt=0.001)
-    observables = (ObservableSpec('tilt', _get_tilt),)
+    observables = (Observable('tilt', _get_tilt),)
 
     def __init__(
         self,
@@ -530,7 +531,7 @@ class LqrOscillatorSystem(BaseSystem):
     until = 10.0
     dt = 0.05
     solver = RK4Solver(dt=0.001)
-    observables = (ObservableSpec('energy', _get_oscillator_energy),)
+    observables = (Observable('energy', _get_oscillator_energy),)
 
     def __init__(
         self,

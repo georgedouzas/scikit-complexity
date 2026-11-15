@@ -15,11 +15,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
+from ....core.specs import ParameterSpec, RoleSpec
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
 
@@ -189,7 +190,7 @@ class OpinionEncountersInteraction(EncounterInteraction):
         return persuasion_table(int(self.levels), int(self.confidence), s.persuasion, s.repulsion)
 
 
-def opinion_observables(levels: int) -> list[ObservableSpec]:
+def opinion_observables(levels: int) -> list[Observable]:
     """Return the mean opinion and the variance of the opinions of a distribution.
 
     The distribution is `opinions`.
@@ -209,8 +210,8 @@ def opinion_observables(levels: int) -> list[ObservableSpec]:
     """
     opinions = opinion_grid(levels)
     return [
-        ObservableSpec('mean_opinion', partial(mean_opinion, opinions=opinions), group='opinions'),
-        ObservableSpec('opinion_variance', partial(opinion_variance, opinions=opinions), group='opinions'),
+        Observable('mean_opinion', partial(mean_opinion, opinions=opinions), group='opinions'),
+        Observable('opinion_variance', partial(opinion_variance, opinions=opinions), group='opinions'),
     ]
 
 

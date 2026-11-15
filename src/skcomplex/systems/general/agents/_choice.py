@@ -13,6 +13,7 @@ from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 from scipy.special import expit, softmax
 
+from ....core.components import Tags
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
@@ -21,7 +22,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ElementKind, ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, Tags
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec
 
 RULES = ('logit', 'metropolis', 'fermi', 'best')
 FORMS = ('symbolic', 'agent')

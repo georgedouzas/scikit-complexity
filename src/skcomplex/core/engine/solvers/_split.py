@@ -24,9 +24,9 @@ from ...components.spaces import (
 )
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
 from ...types import Array, ComplexArray
 from .._utils import symbol
+from ..backends import SupportSpec
 from ..compile._field_lowering import FieldLowering
 from ..problems import ProblemSpec
 from ..problems._expression_printer import ExpressionPrinter

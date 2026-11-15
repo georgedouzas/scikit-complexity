@@ -15,11 +15,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.policy import PolicyRuleInteraction
 
@@ -424,7 +425,7 @@ class GuruOrderBookSystem(BaseSystem):
     until = 300
     invariants: ClassVar[Mapping[str, float]] = {f'total_{name}': 1e-6 for name in HOLDINGS}
     observables = tuple(
-        [ObservableSpec(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS],
+        [Observable(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS],
     )
 
     def __init__(

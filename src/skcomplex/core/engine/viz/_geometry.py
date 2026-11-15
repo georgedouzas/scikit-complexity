@@ -9,9 +9,15 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
-from ...specs import BaseStructureSpec, PatchStructureSpec, WordStructureSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import (
+    BaseProblemSpec,
+    BaseStructureSpec,
+    CompiledElementSpec,
+    FrameSpec,
+    PatchStructureSpec,
+    WordStructureSpec,
+)
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import BaseVisual
 
 MARGIN = 0.03
@@ -93,7 +99,11 @@ class GeometryVisual(BaseVisual):
         archetype = rr.LineStrips3D if dimension == SPACE_DIMENSION else rr.LineStrips2D
         recording.log(element.path, archetype(strips, colors=colors))
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return the view of the geometry and a time series view of the counts.
 
         The view of the geometry has the bounds of the element.
@@ -114,7 +124,7 @@ class GeometryVisual(BaseVisual):
             >>> from skcomplex.core.components.elements import WordElement
             >>> from skcomplex.core.components.laws import ProductionLaw
             >>> from skcomplex.core.components.spaces import DiscreteTime
-            >>> from skcomplex.core.specs import GeometrySpec
+            >>> from skcomplex.core.components.elements import GeometrySpec
             >>> from skcomplex.core.components.systems import CompositeSystem
             >>> from skcomplex.core.engine.viz import GeometryVisual
             >>> class KochElement(WordElement):

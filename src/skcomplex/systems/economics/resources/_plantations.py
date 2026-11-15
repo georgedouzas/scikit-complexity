@@ -12,12 +12,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink
 from ....core.components.laws.utils import clip, series
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 PROFITABILITY_EFFECT = (
     (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
@@ -254,9 +255,9 @@ class CocoaSystem(BaseSystem):
     until = 50.0
     dt = 0.25
     observables = (
-        ObservableSpec('cocoa_yield', _get_cocoa_yield, element='cocoa'),
-        ObservableSpec('profit_per_area', _get_profit_per_area, element='cocoa'),
-        ObservableSpec('profitability', _get_profitability, element='cocoa'),
+        Observable('cocoa_yield', _get_cocoa_yield, element='cocoa'),
+        Observable('profit_per_area', _get_profit_per_area, element='cocoa'),
+        Observable('profitability', _get_profitability, element='cocoa'),
     )
 
     @staticmethod

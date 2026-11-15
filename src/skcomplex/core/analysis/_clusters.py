@@ -17,8 +17,8 @@ from ..components.spaces import ContinuousSpace
 from ..engine.runtime import Trajectory
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
 from ..types import IntArray
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _get_missing_error, _read_fields
 from .types import Source
 

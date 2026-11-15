@@ -17,23 +17,16 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.analysis import distribution
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, Interaction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import (
-    BaseSpec,
-    ObservableSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 from ..common.resources import RegrowthInteraction
@@ -901,7 +894,7 @@ class FoodMarketInteraction(MatchingInteraction[SystemView]):
     lowest price. Besides the reporters of a matching, the reporter `gdp` sums the value of the sales of a step.
 
     Examples:
-        >>> from skcomplex.core.specs import PartnerSpec
+        >>> from skcomplex.core.components.laws import PartnerSpec
         >>> from skcomplex.systems.economics.macroeconomics import FoodMarketInteraction
         >>> rule = PartnerMatchingSpec(5.0, 'score', score=FoodMarketInteraction.score, value='provider')
         >>> FoodMarketInteraction('shops', requesters='people', providers='businesses', rule=rule).reports[-1]
@@ -971,7 +964,7 @@ class LabourMarketInteraction(MatchingInteraction[SystemView]):
     `PartnerMatchingSpec(sight, 'score', score=LabourMarketInteraction.score, value='provider')`.
 
     Examples:
-        >>> from skcomplex.core.specs import PartnerSpec
+        >>> from skcomplex.core.components.laws import PartnerSpec
         >>> from skcomplex.systems.economics.macroeconomics import LabourMarketInteraction
         >>> LabourMarketInteraction(
         ...     'jobs',
@@ -1113,18 +1106,18 @@ class MetaphoriaSystem(BaseSystem):
         return 0.0 if gini is None else gini
 
     @staticmethod
-    def _get_metaphoria_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_metaphoria_observables(system: CompositeSystem) -> list[Observable]:
         """Return the population, the Gini coefficient of money, and the bank balance.
 
         The population is the living one, of a monetary economy.
         """
         observables = [
-            ObservableSpec('population', group='people', variable='fate', reduce=MetaphoriaSystem._get_living),
-            ObservableSpec('money_gini', group='people', variable='money', reduce=MetaphoriaSystem._get_money_gini),
+            Observable('population', group='people', variable='fate', reduce=MetaphoriaSystem._get_living),
+            Observable('money_gini', group='people', variable='money', reduce=MetaphoriaSystem._get_money_gini),
         ]
         if any(element.label == 'bank' for element in system.elements):
             observables.append(
-                ObservableSpec('bank_balance', MetaphoriaSystem._get_bank_balance, group='bank', reduce='sum'),
+                Observable('bank_balance', MetaphoriaSystem._get_bank_balance, group='bank', reduce='sum'),
             )
         return observables
 

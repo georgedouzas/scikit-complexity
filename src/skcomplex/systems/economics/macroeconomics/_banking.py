@@ -14,13 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, Sink
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.policy import PolicyRuleInteraction
 
 TOLERANCE = 1e-9
@@ -373,9 +375,9 @@ class FractionalReserveBankingSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 ch. 9',)
     until = 300
     observables = (
-        ObservableSpec('broad_money', group='banks', variable='deposits', reduce='sum'),
-        ObservableSpec('reserves', group='banks', variable='reserves', reduce='sum'),
-        ObservableSpec('loans', group='banks', variable='loans', reduce='sum'),
+        Observable('broad_money', group='banks', variable='deposits', reduce='sum'),
+        Observable('reserves', group='banks', variable='reserves', reduce='sum'),
+        Observable('loans', group='banks', variable='loans', reduce='sum'),
     )
 
     def __init__(

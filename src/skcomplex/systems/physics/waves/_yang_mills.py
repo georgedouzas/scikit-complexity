@@ -15,12 +15,13 @@ from typing import Annotated
 import numpy as np
 import numpy.typing as npt
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.runtime import Trajectory
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import MatrixGroupSpec, ObservableSpec, StateSpec, VisualSpec
+from ....core.specs import MatrixGroupSpec, StateSpec, VisualSpec
 from ....core.types import Array, Indices
 from ..common.fields import WilsonSamplingInteraction
 
@@ -454,17 +455,17 @@ class LatticeYangMillsSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _get_yang_mills_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_yang_mills_observables(system: CompositeSystem) -> list[Observable]:
         """Return the mean plaquette and the Polyakov loop of the links."""
         links = next(element for element in system.elements if element.label == 'links')
         space = links.space.prepare()
         group = next(group for element, group in LINKS.values() if links.element is element)
         return [
-            ObservableSpec(
+            Observable(
                 'mean_plaquette',
                 function=partial(LatticeYangMillsSystem._get_mean_plaquette, space, group),
             ),
-            ObservableSpec('polyakov_loop', function=partial(LatticeYangMillsSystem._get_polyakov_loop, space, group)),
+            Observable('polyakov_loop', function=partial(LatticeYangMillsSystem._get_polyakov_loop, space, group)),
         ]
 
     def get_run_settings(self) -> RunSettings:

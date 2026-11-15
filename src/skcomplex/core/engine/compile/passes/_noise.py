@@ -13,10 +13,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....components.interactions import WienerProcessSpec
 from ....components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....components.laws._noise import NOISE_CONVENTIONS
 from ....errors import ValidationError
-from ....specs import WienerProcessSpec
 from ....types import ProcessKey
 from ..._utils import components_of
 from ...problems._declarations_spec import DeclarationsSpec

@@ -17,12 +17,14 @@ from shapely import Polygon
 from sklearn.base import clone
 
 from ...base import BaseConfig
+from ...components import Observable
 from ...components.elements import FieldElement, GroupElement
 from ...components.interactions import (
     BaseInteraction,
     ConnectionInteraction,
     HyperedgeInteraction,
     NeighborInteraction,
+    WienerProcessSpec,
 )
 from ...components.laws import (
     BilinearLaw,
@@ -32,8 +34,12 @@ from ...components.laws import (
     NoiseLaw,
     RateLaw,
     SampleLaw,
+    TopologyRequestSpec,
     UpdateLaw,
 )
+from ...components.laws._draw_spec import RELAXED_KINDS
+from ...components.laws._neighbor_reduction_spec import _NeighborReductionSpec
+from ...components.laws._reduction_spec import _ReductionSpec
 from ...components.laws.utils._cells import cell_operations_in
 from ...components.laws.utils._draws import draws_in
 from ...components.laws.utils._phase import COORDINATE_PREFIX
@@ -56,7 +62,6 @@ from ...components.spaces import (
     SimplexSpace,
     StaticTime,
 )
-from ...components.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ...components.systems import CompositeSystem
 from ...enums import DomainKind, ElementKind, FormKind, NoiseKind, SeverityKind, VariableKind
 from ...errors import (
@@ -73,27 +78,22 @@ from ...errors import (
     SpaceTooLargeError,
     ValidationError,
 )
-from ...specs import (
-    IssueSpec,
-    NeighborReductionSpec,
-    ObservableSpec,
-    ReductionSpec,
-    RoleSpec,
-    TopologyRequestSpec,
-    WienerProcessSpec,
-)
-from ...specs._draw_spec import RELAXED_KINDS
-from ...specs._held_reduction_spec import _HeldReductionSpec
+from ...specs import RoleSpec
 from ...types import Array, ProcessKey, VectorFunction
 from .._utils import bound_labels, declarations_of, default_of, symbol
 from ..backends import BaseBackend
 from ..problems import BaseProblemSpec, ProblemSpec
 from ..problems._neighborhood_kernel import NeighborhoodKernel
+from ..problems._node_spec import _NodeSpec
 from ..problems._partition_spec import PartitionSpec
 from ..problems._topology_kernel import TopologyKernel
 from ._base import FIXES, BaseCompiler, BasePass
+from ._census_record_spec import _CensusRecordSpec
+from ._census_spec import _CensusSpec
 from ._compilation import Compilation
 from ._field_lowering import FieldLowering
+from ._held_reduction_spec import _HeldReductionSpec
+from ._issue_spec import IssueSpec
 from ._learning_compiler import _LearningCompiler
 from ._observables import ObservableEvaluator
 from .passes._cells import DEGREES
@@ -212,7 +212,7 @@ class PassCompiler(BaseCompiler):
         passes: Sequence[BasePass] | None = None,
         backend: BaseBackend | None = None,
         solver: object = None,
-        observables: Sequence[ObservableSpec] = (),
+        observables: Sequence[Observable] = (),
         partition: str = 'plan',
     ) -> None:
         super().__init__(backend, solver, observables)
@@ -580,7 +580,7 @@ class PassCompiler(BaseCompiler):
         }
 
     @staticmethod
-    def _get_port_state_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_port_state_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the variables of declared ports that have no algebraic state."""
         issues = []
         for node in nodes:
@@ -601,7 +601,7 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_connector_issue(
-        node: NodeSpec,
+        node: _NodeSpec,
         connector_names: Mapping[str, str | None],
     ) -> IssueSpec | None:
         """Return the issue of a connection whose ports are not all of one connector.
@@ -622,7 +622,7 @@ class PassCompiler(BaseCompiler):
         return IssueSpec('port-connector', node.path, message, 'Connect ports of one connector.')
 
     @staticmethod
-    def _get_port_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_port_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the issues of declared ports and of the connections between them.
 
         Args:
@@ -850,7 +850,7 @@ class PassCompiler(BaseCompiler):
         return ' or '.join('no space' if item is None else item.__name__ for item in classes)
 
     @staticmethod
-    def _get_layer_issues(node: NodeSpec, space: BaseSpace | None) -> list[IssueSpec]:
+    def _get_layer_issues(node: _NodeSpec, space: BaseSpace | None) -> list[IssueSpec]:
         """Return the issue of an interaction over neighbours with an unknown layer.
 
         The network of the interaction does not have the layer it names.
@@ -870,7 +870,7 @@ class PassCompiler(BaseCompiler):
         return [IssueSpec('binding', node.path, message, fix)]
 
     @staticmethod
-    def _get_hyperedge_issues(node: NodeSpec, space: NetworkSpace, edges: NodeSpec | None) -> list[IssueSpec]:
+    def _get_hyperedge_issues(node: _NodeSpec, space: NetworkSpace, edges: _NodeSpec | None) -> list[IssueSpec]:
         """Return the issues of a hyperedge interaction its hyperedges do not fit.
 
         The hyperedges do not fit its size or its edge group.
@@ -920,7 +920,7 @@ class PassCompiler(BaseCompiler):
         return [IssueSpec('binding', node.path, message, fix)]
 
     @staticmethod
-    def _get_binding_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_binding_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the interactions over hyperedges or edge groups a space lacks.
 
         They are interactions over hyperedges, or over neighbours with an edge group, on a space without them. An
@@ -967,7 +967,11 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_bound_nodes(node: NodeSpec, role: str, by_path: dict[str, NodeSpec]) -> list[tuple[ElementKind, NodeSpec]]:
+    def _get_bound_nodes(
+        node: _NodeSpec,
+        role: str,
+        by_path: dict[str, _NodeSpec],
+    ) -> list[tuple[ElementKind, _NodeSpec]]:
         """Return the kind and node of every element or group a role binds.
 
         A member of a group counts as an element.
@@ -982,7 +986,7 @@ class PassCompiler(BaseCompiler):
         return found
 
     @staticmethod
-    def _get_carried_issues(node: NodeSpec, role: str, needs: RoleSpec, bound: NodeSpec) -> list[IssueSpec]:
+    def _get_carried_issues(node: _NodeSpec, role: str, needs: RoleSpec, bound: _NodeSpec) -> list[IssueSpec]:
         """Return the states a role reads that its bound element or group lacks.
 
         The element or group it binds does not carry these states.
@@ -1002,7 +1006,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_role_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_role_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the roles bound to a wrong kind of element or one without a read state.
 
         A role is wrong when it does not accept the kind of the element, or the element lacks a state it reads.
@@ -1034,7 +1038,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_shape_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_shape_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the shaped parameters whose roles are not bound to groups."""
         groups = LayoutPass._get_group_sizes(nodes)
         issues = []
@@ -1055,7 +1059,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_bound_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_bound_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the adaptive parameters whose initial values lie outside their bounds."""
         issues = []
         for node in nodes:
@@ -1075,7 +1079,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_space_issues(system: CompositeSystem, nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_space_issues(system: CompositeSystem, nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the visuals that need options their space lacks and failing spaces.
 
         A space fails when its own check fails.
@@ -1126,7 +1130,7 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _get_location_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_location_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the groups whose initial locations do not fit their space.
 
         Each location must have one coordinate per dimension of the space.
@@ -1142,7 +1146,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_law_issues(records: list[CensusRecordSpec], times: dict[str, type | None]) -> list[IssueSpec]:
+    def _get_law_issues(records: list[_CensusRecordSpec], times: dict[str, type | None]) -> list[IssueSpec]:
         """Return the laws whose space or time their requirements do not accept."""
         issues = []
         for record in records:
@@ -1182,7 +1186,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_reductions_of(value: object) -> list[NeighborReductionSpec]:
+    def _get_reductions_of(value: object) -> list[_NeighborReductionSpec]:
         """Return every neighbourhood reduction of a law value, nested ones included."""
         found = []
         stack = neighborhoods_in(value)
@@ -1221,7 +1225,10 @@ class PassCompiler(BaseCompiler):
         """
         expression = SR(value)
         reached: set[int] = set()
-        found: list[NeighborReductionSpec | ReductionSpec] = [*neighborhoods_in(expression), *reductions_in(expression)]
+        found: list[_NeighborReductionSpec | _ReductionSpec] = [
+            *neighborhoods_in(expression),
+            *reductions_in(expression),
+        ]
         for reduction in found:
             problem = PassCompiler._get_degree_of(reduction.argument, degrees, top)[1]
             if problem is not None:
@@ -1242,7 +1249,7 @@ class PassCompiler(BaseCompiler):
         return reached, None
 
     @staticmethod
-    def _sample_issue(record: CensusRecordSpec, name: str) -> IssueSpec | None:
+    def _sample_issue(record: _CensusRecordSpec, name: str) -> IssueSpec | None:
         """Return the issue of a hyperedge group sampling or a misplaced coface reduction.
 
         A coface reduction is misplaced outside a cell complex.
@@ -1264,7 +1271,7 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _get_degree_issues(records: list[CensusRecordSpec]) -> list[IssueSpec]:
+    def _get_degree_issues(records: list[_CensusRecordSpec]) -> list[IssueSpec]:
         """Return the exterior operations and samplings of the wrong degree or place.
 
         They act on a state of the wrong degree, or outside a cell complex.
@@ -1309,7 +1316,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _draw_issues(records: list[CensusRecordSpec], backend: BaseBackend | None) -> list[IssueSpec]:
+    def _draw_issues(records: list[_CensusRecordSpec], backend: BaseBackend | None) -> list[IssueSpec]:
         """Return a warning per Bernoulli or categorical draw without temperature on JAX.
 
         The JAX backend runs such a draw exactly, so runs have no gradient through it, and differentiable runs stop at
@@ -1335,7 +1342,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_around_issues(records: list[CensusRecordSpec], backend: BaseBackend | None) -> list[IssueSpec]:
+    def _get_around_issues(records: list[_CensusRecordSpec], backend: BaseBackend | None) -> list[IssueSpec]:
         """Return the hyperedge reductions of a component outside a fitting space.
 
         A fitting space comes with a fitting backend.
@@ -1377,7 +1384,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_field_symbols(nodes: list[NodeSpec]) -> tuple[dict[str, FieldElement], dict[str, float]]:
+    def _get_field_symbols(nodes: list[_NodeSpec]) -> tuple[dict[str, FieldElement], dict[str, float]]:
         """Return the field of every state symbol of a field and the parameter numbers.
 
         Every parameter symbol that has a number is included.
@@ -1411,7 +1418,7 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_operator_issue(
-        record: CensusRecordSpec,
+        record: _CensusRecordSpec,
         call: Expression,
         fields: Mapping[str, FieldElement],
         numbers: Mapping[str, float],
@@ -1443,7 +1450,7 @@ class PassCompiler(BaseCompiler):
         return PassCompiler._place_issue(record, name, next(iter(places.values()))) if places else None
 
     @staticmethod
-    def _place_issue(record: CensusRecordSpec, name: str, place: FieldElement) -> IssueSpec | None:
+    def _place_issue(record: _CensusRecordSpec, name: str, place: FieldElement) -> IssueSpec | None:
         """Return the issue of a nonlocal operator that its field cannot run.
 
         The space or discretization of its field lacks it, and the issue is `None` otherwise.
@@ -1474,7 +1481,7 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _get_nonlocal_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_nonlocal_issues(records: list[_CensusRecordSpec], nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the nonlocal operators of laws with a wrong space, kernel, or screening.
 
         They are convolutions, shifted reads, and inversions.
@@ -1496,7 +1503,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_held_axes(record: CensusRecordSpec, nodes: Mapping[str, NodeSpec]) -> list[str]:
+    def _get_held_axes(record: _CensusRecordSpec, nodes: Mapping[str, _NodeSpec]) -> list[str]:
         """Return the class axes of the space of the group of a law and of its fields.
 
         The fields are those its interaction reads.
@@ -1510,7 +1517,7 @@ class PassCompiler(BaseCompiler):
         return [axis.name for space in spaces if isinstance(space, PhaseSpace) for axis in space.axes]
 
     @staticmethod
-    def _get_collision_issue(record: CensusRecordSpec) -> IssueSpec | None:
+    def _get_collision_issue(record: _CensusRecordSpec) -> IssueSpec | None:
         """Return the issue of a collision law on a wrong phase space, or `None`.
 
         The phase space must have two interval class axes.
@@ -1532,7 +1539,7 @@ class PassCompiler(BaseCompiler):
         return IssueSpec('law-space', record.path, message, fix)
 
     @staticmethod
-    def _get_coordinate_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_coordinate_issues(records: list[_CensusRecordSpec], nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the coordinates and axis reductions of laws off a fitting phase space.
 
         The group of the law is not on a phase space with them.
@@ -1595,7 +1602,7 @@ class PassCompiler(BaseCompiler):
     @staticmethod
     def _get_neighbor_set_issue(
         name: str,
-        record: CensusRecordSpec,
+        record: _CensusRecordSpec,
         over: object,
         backend: BaseBackend | None,
     ) -> IssueSpec | None:
@@ -1638,7 +1645,7 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _get_neighborhood_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_neighborhood_issues(records: list[_CensusRecordSpec], nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the unoffered neighbourhood reductions and the cones without a direction.
 
         A reduction is unoffered when its space does not offer it.
@@ -1694,7 +1701,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_solver_issues(solver: object, census: CensusSpec, system: CompositeSystem) -> list[IssueSpec]:
+    def _get_solver_issues(solver: object, census: _CensusSpec, system: CompositeSystem) -> list[IssueSpec]:
         """Return the solver arguments rejected and the requirements it does not support.
 
         They are the arguments the solver passed rejects and the requirements of a system it does not support.
@@ -1758,7 +1765,7 @@ class PassCompiler(BaseCompiler):
         return PassCompiler._get_matrix_problem(matrix)
 
     @staticmethod
-    def _get_wiener_issues(system: CompositeSystem, nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_wiener_issues(system: CompositeSystem, nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the Wiener processes outside continuous time or with a bad covariance.
 
         A bad covariance is an invalid one.
@@ -1778,7 +1785,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_law_name(record: CensusRecordSpec) -> str:
+    def _get_law_name(record: _CensusRecordSpec) -> str:
         """Return the name of the law of a census record."""
         return f'{type(record.law).__name__} of {record.path}'
 
@@ -1793,12 +1800,12 @@ class PassCompiler(BaseCompiler):
         )
 
     @staticmethod
-    def _get_noise_records(records: list[CensusRecordSpec]) -> list[CensusRecordSpec]:
+    def _get_noise_records(records: list[_CensusRecordSpec]) -> list[_CensusRecordSpec]:
         """Return the records of noise laws."""
         return [record for record in records if isinstance(record.law, NoiseLaw)]
 
     @staticmethod
-    def _handle_issues(records: list[CensusRecordSpec]) -> list[IssueSpec]:
+    def _handle_issues(records: list[_CensusRecordSpec]) -> list[IssueSpec]:
         """Return the laws that use a Wiener process handle outside a noise law.
 
         They use the handle outside the process of a noise law.
@@ -1815,9 +1822,9 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_convention_issues(records: list[CensusRecordSpec]) -> list[IssueSpec]:
+    def _get_convention_issues(records: list[_CensusRecordSpec]) -> list[IssueSpec]:
         """Return the processes that noise laws of different conventions share."""
-        sharing: dict[ProcessKey, list[CensusRecordSpec]] = {}
+        sharing: dict[ProcessKey, list[_CensusRecordSpec]] = {}
         for record in PassCompiler._get_noise_records(records):
             for key in dict.fromkeys(record.processes):
                 if key is not None:
@@ -1839,10 +1846,10 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_sharer(
-        record: CensusRecordSpec,
-        noisy: list[CensusRecordSpec],
+        record: _CensusRecordSpec,
+        noisy: list[_CensusRecordSpec],
         wieners: dict[str, WienerProcessSpec],
-    ) -> CensusRecordSpec | None:
+    ) -> _CensusRecordSpec | None:
         """Return a noise law of another component that drives a state an amplitude reads.
 
         The amplitude of the law reads the state through its process.
@@ -1863,7 +1870,7 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _get_scope_issues(records: list[CensusRecordSpec], wieners: dict[str, WienerProcessSpec]) -> list[IssueSpec]:
+    def _get_scope_issues(records: list[_CensusRecordSpec], wieners: dict[str, WienerProcessSpec]) -> list[IssueSpec]:
         """Return the noise laws whose drift correction needs another amplitude.
 
         The convention of the law has a drift correction that needs an amplitude of another component.
@@ -1897,16 +1904,16 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_noise_needs(
-        records: list[CensusRecordSpec],
+        records: list[_CensusRecordSpec],
         wieners: dict[str, WienerProcessSpec],
-    ) -> dict[NoiseKind, CensusRecordSpec]:
+    ) -> dict[NoiseKind, _CensusRecordSpec]:
         """Return the noise structures a system uses.
 
         Each comes with the first law that needs it.
         """
-        needs: dict[NoiseKind, CensusRecordSpec] = {}
+        needs: dict[NoiseKind, _CensusRecordSpec] = {}
         states: dict[object, set[tuple[str, int]]] = {}
-        first: dict[object, CensusRecordSpec] = {}
+        first: dict[object, _CensusRecordSpec] = {}
         spread: set[object] = set()
         for record in PassCompiler._get_noise_records(records):
             if isinstance(record.law, NoiseLaw) and record.law.conserved:
@@ -1955,7 +1962,7 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_noise_support_issues(
-        records: list[CensusRecordSpec],
+        records: list[_CensusRecordSpec],
         wieners: dict[str, WienerProcessSpec],
         solver: object,
         backend: object,
@@ -1979,7 +1986,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_noise_issues(compilation: Compilation, records: list[CensusRecordSpec]) -> list[IssueSpec]:
+    def _get_noise_issues(compilation: Compilation, records: list[_CensusRecordSpec]) -> list[IssueSpec]:
         """Return the problems of the Wiener processes and the noise laws of a system."""
         nodes = Compilation._get_required(compilation.nodes, 'nodes')
         solver, backend = compilation.solver, compilation.backend
@@ -1992,7 +1999,7 @@ class PassCompiler(BaseCompiler):
         return issues + PassCompiler._get_noise_support_issues(records, wieners, solver, backend)
 
     @staticmethod
-    def _get_law_values(record: CensusRecordSpec) -> Iterator[object]:
+    def _get_law_values(record: _CensusRecordSpec) -> Iterator[object]:
         """Yield the symbolic values of the law of a census record.
 
         The items of vectors are included.
@@ -2004,7 +2011,7 @@ class PassCompiler(BaseCompiler):
                 yield value
 
     @staticmethod
-    def _get_held_reductions(census: CensusSpec, time: Expression) -> list[_HeldReductionSpec]:
+    def _get_held_reductions(census: _CensusSpec, time: Expression) -> list[_HeldReductionSpec]:
         """Return the reductions of agents that the laws of a census read.
 
         Each comes once, in the order they are read.
@@ -2106,8 +2113,8 @@ class PassCompiler(BaseCompiler):
     @staticmethod
     def _get_fixed_groups(
         request: TopologyRequestSpec,
-        owner: NodeSpec | None,
-        groups: list[NodeSpec],
+        owner: _NodeSpec | None,
+        groups: list[_NodeSpec],
     ) -> tuple[list[str], bool]:
         """Return the fixed groups a request changes and if its layer lacks an edge group."""
         edges = [node for node in groups if node.as_group.on == 'edges' and node.as_group.layer == request.layer]
@@ -2123,7 +2130,7 @@ class PassCompiler(BaseCompiler):
         return fixed, TopologyKernel._changes_edges(request) and not edges
 
     @staticmethod
-    def _get_fixed_group_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_fixed_group_issues(records: list[_CensusRecordSpec], nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the topology requests that change fixed groups or bad layers.
 
         A bad layer is one without a variable edge group whose edges they change.

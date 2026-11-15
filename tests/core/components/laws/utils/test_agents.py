@@ -4,6 +4,7 @@ from typing import Annotated
 
 import pytest
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RuleLaw
@@ -12,7 +13,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView
 from skcomplex.core.errors import ConservationError, ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 def _balance(agent):
@@ -136,7 +137,7 @@ class PaymentsInteraction(Interaction):
 
 def test_invariant_of_agents_names_the_observable_and_the_change():
     """Test that lowering assets alone breaks the balance sheet that an observable of the agents sums."""
-    balance = ObservableSpec('balance', _balance, group='banks', reduce='sum')
+    balance = Observable('balance', _balance, group='banks', reduce='sum')
     with pytest.raises(ConservationError, match='invariant balance changed from 0 to -1 at frame 1'):
         simulate(
             CompositeSystem(elements=[GroupElement('banks', element=BankElement, size=1)]),
@@ -177,7 +178,7 @@ def test_interaction_invariant_checks_the_total_of_its_agents(creates, violated)
         elements=[GroupElement('holders', element=LenderElement, size=3, values={'money': 5.0}, variable=True)],
         interactions=[PaymentsInteraction('payments', holders='holders', creates=creates)],
     )
-    total = ObservableSpec('total_money', group='holders', variable='money', reduce='sum')
+    total = Observable('total_money', group='holders', variable='money', reduce='sum')
     settings = {'until': 3, 'observables': [total], 'invariants': {'total_money': 1e-9}}
     if violated:
         with pytest.raises(ConservationError, match='invariant total_money'):

@@ -8,13 +8,13 @@ from sage.all__sagemath_symbolics import SR, var
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw, UpdateLaw
+from skcomplex.core.components.laws import RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import lag, total, where
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class EconomyElement(Element):

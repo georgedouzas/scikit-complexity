@@ -15,12 +15,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import draw, either, where
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -152,7 +153,7 @@ class FixedEnergySandpileSystem(BaseSystem):
     references = ('Dickman, Vespignani, and Zapperi 1998', 'Vespignani et al. 2000', 'Gros 2015')
     until = 500
     dt = 1
-    observables = (ObservableSpec('activity', _get_active, group='pile'),)
+    observables = (Observable('activity', _get_active, group='pile'),)
 
     def __init__(
         self,

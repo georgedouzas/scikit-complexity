@@ -7,9 +7,10 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 from ...errors import RewritingError
-from ...specs import AffineSpec, RequirementSpec
 from ..spaces import DiscreteTime
+from ._affine_spec import AffineSpec
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 PIECE_SIZE = 2
 
@@ -43,7 +44,7 @@ class SubstitutionLaw(BaseLaw):
 
     Examples:
         >>> from skcomplex.core.components.laws import SubstitutionLaw
-        >>> from skcomplex.core.specs import AffineSpec
+        >>> from skcomplex.core.components.laws import AffineSpec
         >>> len(SubstitutionLaw('interval', [('interval', AffineSpec(scale=1 / 3))]).pieces)
         1
     """

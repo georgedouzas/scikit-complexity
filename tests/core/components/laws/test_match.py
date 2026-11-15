@@ -7,12 +7,12 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import MatchLaw, RuleLaw
+from skcomplex.core.components.laws import MatchLaw, PartnerSpec, RuleLaw
 from skcomplex.core.components.laws.utils import matches
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import PartnerSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 
 class TraderElement(Element):

@@ -14,11 +14,12 @@ import networkx as nx
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class NetworkSaverElement(Element):
@@ -111,7 +112,7 @@ class BouchaudMezardWealthSystem(BaseSystem):
     references = ('Yakovenko and Rosser 2009', 'Bouchaud and Mezard 2000')
     until = 1.0
     dt = 0.1
-    observables = (ObservableSpec('mean_wealth', group='agents', variable='W'),)
+    observables = (Observable('mean_wealth', group='agents', variable='W'),)
 
     def __init__(
         self,

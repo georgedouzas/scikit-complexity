@@ -46,12 +46,7 @@ from ._maps import (
     TentMapSystem,
     TowelMapSystem,
 )
-from ._normal_forms import (
-    CuspFormSystem,
-    HopfFormSystem,
-    SaddleNodeFormSystem,
-    TakensBogdanovFormSystem,
-)
+from ._normal_forms import CuspFormSystem, HopfFormSystem, SaddleNodeFormSystem, TakensBogdanovFormSystem
 from ._subcritical_forms import SubcriticalHopfFormSystem
 
 __all__: list[str] = [

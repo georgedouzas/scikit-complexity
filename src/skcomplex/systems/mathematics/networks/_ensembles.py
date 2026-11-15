@@ -20,10 +20,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components, maximum, mod, neighbors, where
-from ....core.components.spaces import DiscreteTime, NetworkSpace
+from ....core.components.spaces import DiscreteTime, LayerSpec, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import LayerSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.networks import NetworkNodeElement
 from ..common.networks._regulated_node import ACTIVITY_VISUAL
 from ..common.networks._vertex import DEGREE_VISUAL

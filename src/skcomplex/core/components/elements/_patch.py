@@ -7,9 +7,11 @@ from collections.abc import Sequence
 from typing import Annotated
 
 from ...errors import RewritingError
-from ...specs import AffineSpec, PrototileSpec, StateSpec, VisualSpec
+from ...specs import StateSpec, VisualSpec
+from ..laws import AffineSpec
 from ..spaces import BaseSpace
 from ._element import Element
+from ._prototile_spec import PrototileSpec
 
 
 class PatchElement(Element):
@@ -56,7 +58,8 @@ class PatchElement(Element):
         >>> from skcomplex.core.components.laws import SubstitutionLaw
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.specs import AffineSpec, PrototileSpec
+        >>> from skcomplex.core.components.laws import AffineSpec
+        >>> from skcomplex.core.components.elements import PrototileSpec
         >>> class CantorElement(PatchElement):
         ...     law_classes = (SubstitutionLaw,)
         ...

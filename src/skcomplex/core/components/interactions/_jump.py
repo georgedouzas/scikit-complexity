@@ -13,7 +13,8 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...enums import ElementKind
 from ...errors import ValidationError
-from ...specs import RoleSpec, Tags
+from ...specs import RoleSpec
+from .._tags import Tags
 from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import uniform, where
 from ..spaces import BaseSpace

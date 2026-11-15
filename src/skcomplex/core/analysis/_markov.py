@@ -15,8 +15,8 @@ from scipy.sparse import csgraph
 from ..engine.runtime import Trajectory
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
 from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_path
 from .types import Source
 

@@ -221,7 +221,8 @@ from skcomplex.core.components.laws import NoiseLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-from skcomplex.core.specs import RoleSpec, StateSpec, WienerProcessSpec
+from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.components.interactions import WienerProcessSpec
 
 
 class StockElement(Element):

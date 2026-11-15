@@ -15,17 +15,20 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....enums import ComponentReductionKind, PathReductionKind
 from ....errors import ValidationError
-from ....specs import HyperedgeReductionSpec, LayerSpec, NeighborReductionSpec, ReductionSpec
 from ....types import AnyArray
 from ...spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
     LatticeNeighborhood,
+    LayerSpec,
     MemoryNeighborhood,
     NearestNeighborhood,
     RadiusNeighborhood,
 )
 from ...spaces._lattice import BOUNDARIES
+from .._hyperedge_reduction_spec import _HyperedgeReductionSpec
+from .._neighbor_reduction_spec import _NeighborReductionSpec
+from .._reduction_spec import _ReductionSpec
 from ._conditions import both
 from ._draws import draws_in
 from ._operators import _OperatorFunction
@@ -938,7 +941,7 @@ def _calls_in(expression: object, names: set[str]) -> list[Expression]:
     return list(found.values())
 
 
-def reductions_in(expression: object) -> list[ReductionSpec]:
+def reductions_in(expression: object) -> list[_ReductionSpec]:
     """Return the outermost reduction calls of an expression.
 
     They may hold further reductions in their arguments.
@@ -963,7 +966,7 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
     for call in _calls_in(expression, set(KINDS)):
         argument, condition, weights, over = call.operands()
         reductions.append(
-            ReductionSpec(
+            _ReductionSpec(
                 call=call,
                 kind=KINDS[call.operator().name()],
                 argument=argument,
@@ -980,13 +983,13 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
     return reductions
 
 
-def _component_reduction(call: Expression) -> NeighborReductionSpec:
+def _component_reduction(call: Expression) -> _NeighborReductionSpec:
     """Return the neighbourhood reduction of the links of a components call.
 
     It is of the kind `'component-'` and its name.
     """
     active, over, kind = call.operands()
-    return NeighborReductionSpec(
+    return _NeighborReductionSpec(
         call=call,
         kind=f'component-{tuple(ComponentReductionKind)[int(SR(kind))]}',
         argument=active,
@@ -995,13 +998,13 @@ def _component_reduction(call: Expression) -> NeighborReductionSpec:
     )
 
 
-def _path_reduction(call: Expression) -> NeighborReductionSpec:
+def _path_reduction(call: Expression) -> _NeighborReductionSpec:
     """Return the neighbourhood reduction of the links of a shortest paths call.
 
     It is of the kind `'path-'` and its name.
     """
     active, over, kind = call.operands()
-    return NeighborReductionSpec(
+    return _NeighborReductionSpec(
         call=call,
         kind=f'path-{tuple(PathReductionKind)[int(SR(kind))]}',
         argument=active,
@@ -1010,7 +1013,7 @@ def _path_reduction(call: Expression) -> NeighborReductionSpec:
     )
 
 
-def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
+def neighborhoods_in(expression: object) -> list[_NeighborReductionSpec]:
     """Return the outermost neighbourhood reductions of an expression.
 
     They include the components reductions. A components reduction has the kind `'component-'` followed by its
@@ -1042,7 +1045,7 @@ def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
             continue
         argument, weight, over, kind = call.operands()
         reductions.append(
-            NeighborReductionSpec(
+            _NeighborReductionSpec(
                 call=call,
                 kind=NEIGHBOR_REDUCTIONS[int(SR(kind))],
                 argument=argument,
@@ -1053,7 +1056,7 @@ def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
     return reductions
 
 
-def hyperedges_in(expression: object) -> list[HyperedgeReductionSpec]:
+def hyperedges_in(expression: object) -> list[_HyperedgeReductionSpec]:
     """Return the outermost hyperedge reductions of an expression.
 
     Args:
@@ -1075,7 +1078,7 @@ def hyperedges_in(expression: object) -> list[HyperedgeReductionSpec]:
     for call in _calls_in(expression, {'hyperedges'}):
         argument, weight, size, kind, over = call.operands()
         reductions.append(
-            HyperedgeReductionSpec(
+            _HyperedgeReductionSpec(
                 call=call,
                 kind=NEIGHBOR_REDUCTIONS[int(SR(kind))],
                 argument=argument,

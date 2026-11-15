@@ -17,6 +17,7 @@ import scipy.sparse.linalg
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import NeighborInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -24,7 +25,7 @@ from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import CellComplexSpace, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 SOLVER_TOLERANCE = 1e-15
@@ -238,12 +239,12 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         return float(np.abs(-(edges.T @ electric) - (density - density.mean())).max())
 
     @staticmethod
-    def _get_market_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_market_observables(system: CompositeSystem) -> list[Observable]:
         """Return the total of the good and the Gauss residual against its excess density."""
         space = system.elements[0].space.prepare()
         return [
-            ObservableSpec('total_good', function=GaugeArbitrageMarketSystem._get_total_good),
-            ObservableSpec(
+            Observable('total_good', function=GaugeArbitrageMarketSystem._get_total_good),
+            Observable(
                 'gauss_residual',
                 function=partial(GaugeArbitrageMarketSystem._get_gauss_residual, space.incidences_[0]),
             ),

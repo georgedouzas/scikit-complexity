@@ -10,9 +10,9 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.problems import NetworkSnapshotSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import NetworkSnapshotSpec
 
 REACTIONS = np.array([[0, 1, 2, -1], [2, 0, 3, -1], [3, 1, 2, 4], [5, 6, -1, -1]])
 

@@ -9,10 +9,11 @@ from typing import ClassVar
 import numpy as np
 
 from ...errors import ValidationError
-from ...specs import PartnerSpec, RequirementSpec
 from ..spaces import DiscreteTime
 from ..types import AgentViewProtocol, Feasibility, Pairing, SystemViewProtocol
 from ._base import BaseLaw
+from ._partner_spec import PartnerSpec
+from ._requirement_spec import RequirementSpec
 from ._rule import RuleLaw
 
 

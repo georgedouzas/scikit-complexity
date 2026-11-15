@@ -6,24 +6,13 @@ import pytest
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.base import BaseConfig
-from skcomplex.core.components.spaces import BallNeighborhood, ContinuousTime
+from skcomplex.core.components import Observable
+from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, RequirementSpec, SamplerSpec, TopologyRequestSpec
+from skcomplex.core.components.spaces import BallNeighborhood, ContinuousTime, ScheduleSpec
+from skcomplex.core.engine.compile import PhasesScheduleSpec
+from skcomplex.core.engine.problems import HilbertSpec
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import (
-    BaseSpec,
-    HilbertSpec,
-    MoveSpec,
-    ObjectiveSpec,
-    ObservableSpec,
-    ParameterSpec,
-    PhasesScheduleSpec,
-    RequirementSpec,
-    RoleSpec,
-    SamplerSpec,
-    ScheduleSpec,
-    StateSpec,
-    TopologyRequestSpec,
-    VisualSpec,
-)
+from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 def test_specs_are_frozen_records():
@@ -31,7 +20,7 @@ def test_specs_are_frozen_records():
     assert not issubclass(BaseSpec, BaseConfig)
     assert not hasattr(BaseSpec, 'prepare')
     assert not hasattr(BaseSpec, 'run')
-    for spec in (StateSpec, ParameterSpec, RoleSpec, ObservableSpec, HilbertSpec, TopologyRequestSpec):
+    for spec in (StateSpec, ParameterSpec, RoleSpec, Observable, HilbertSpec, TopologyRequestSpec):
         assert spec.__bases__ == (BaseSpec,)
         assert spec.__dataclass_params__.frozen
     assert PhasesScheduleSpec.__bases__ == (ScheduleSpec,)

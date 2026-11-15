@@ -15,7 +15,21 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import ArrayUpdateLaw, BaseLaw, CascadeLaw, ExtremalLaw, LocalRuleLaw, SampleLaw
+from ....components.laws import (
+    ArrayUpdateLaw,
+    BaseLaw,
+    CascadeLaw,
+    ExtremalLaw,
+    LinearRuleSpec,
+    LocalRuleLaw,
+    MoveSpec,
+    ObjectiveSpec,
+    OuterTotalisticSpec,
+    SampleLaw,
+    SamplerSpec,
+    TableSpec,
+    TotalisticSpec,
+)
 from ....components.laws.utils._reductions import neighborhoods_in
 from ....components.spaces import (
     AdjacencyNeighborhood,
@@ -29,34 +43,26 @@ from ....components.spaces import (
     NetworkSpace,
     StateTranslationNeighborhood,
 )
-from ....components.specs import LatticeContextSpec, LatticeStateSpec
 from ....errors import SpaceError, ValidationError
-from ....specs import (
-    ArgumentsSpec,
-    IssueSpec,
-    LinearRuleSpec,
-    LookupSpec,
-    MoveSpec,
-    ObjectiveSpec,
-    OuterTotalisticSpec,
-    SamplerSpec,
-    TableSpec,
-    TotalisticSpec,
-)
 from ....types import Array, Indices
 from ..._utils import symbol
 from ...enums import ReadKind
+from ...problems._arguments_spec import _ArgumentsSpec
 from ...problems._cascade_kernel import CascadeKernel
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._drive_kernel import DriveKernel
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._extremal_kernel import ExtremalKernel
 from ...problems._kernel_spec import KernelSpec
+from ...problems._lattice_state_spec import _LatticeStateSpec
+from ...problems._lookup_spec import _LookupSpec
 from ...problems._monte_carlo_kernel import MonteCarloKernel
 from ...problems._rule_kernel import RuleKernel
 from ...problems._source_loader import SourceLoader
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
+from .._issue_spec import IssueSpec
+from .._lattice_context_spec import _LatticeContextSpec
 from .._laws import LATTICE_LAWS
 from ._cells import DEGREES
 
@@ -105,12 +111,12 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _get_lattice_state(
-        context: LatticeContextSpec,
+        context: _LatticeContextSpec,
         item: Expression,
         law: str,
         *,
         components: bool = False,
-    ) -> LatticeStateSpec:
+    ) -> _LatticeStateSpec:
         """Return the lattice state of a target symbol, or raise an error naming the law.
 
         Only a law that changes every component of a member, a drive or a local rule, may target a state of several
@@ -130,13 +136,13 @@ class LatticeProblemPass(BasePass):
         return state
 
     @staticmethod
-    def _get_keywords(context: LatticeContextSpec, function: Callable[..., object]) -> ArgumentsSpec:
+    def _get_keywords(context: _LatticeContextSpec, function: Callable[..., object]) -> _ArgumentsSpec:
         """Return the parameters a function accepts by keyword."""
         by_name = {
             name: (is_state, start, size) for name, is_state, start, size in context.arguments.values() if not is_state
         }
         names = LatticeProblemPass._get_accepted(function, list(by_name))
-        return ArgumentsSpec(
+        return _ArgumentsSpec(
             names,
             tuple(by_name[name][0] for name in names),
             tuple(by_name[name][1] for name in names),
@@ -166,7 +172,7 @@ class LatticeProblemPass(BasePass):
         return tuple(name for name in names if name in keywords)
 
     @staticmethod
-    def _get_lattice_context(spec: KernelSpec, declarations: DeclarationsSpec, fused: bool) -> LatticeContextSpec:
+    def _get_lattice_context(spec: KernelSpec, declarations: DeclarationsSpec, fused: bool) -> _LatticeContextSpec:
         """Return the lattice states, arguments, and neighbour symbols of a component.
 
         They are those of the symbols the component reads.
@@ -181,15 +187,15 @@ class LatticeProblemPass(BasePass):
             if reference.is_state and is_lattice and isinstance(space, LatticeSpace | NetworkSpace | CayleySpace):
                 part = (getattr(block.node.component, 'on', None) if block is not None else None) or 'sites'
                 rows = None if part == 'sites' else entry.rows
-                states[item] = LatticeStateSpec(entry.name, entry.start, space, part, rows, entry.columns)
+                states[item] = _LatticeStateSpec(entry.name, entry.start, space, part, rows, entry.columns)
             if not entry.member_shape:
                 arguments[item] = (variable, reference.is_state, entry.start, entry.size)
             if reference.source is ReadKind.OTHER:
                 others[item] = entry.name
-        return LatticeContextSpec(spec.owner, states, arguments, fused, others)
+        return _LatticeContextSpec(spec.owner, states, arguments, fused, others)
 
     @staticmethod
-    def _get_monte_carlo_step(spec: KernelSpec, law: SampleLaw, context: LatticeContextSpec) -> LatticeStep:
+    def _get_monte_carlo_step(spec: KernelSpec, law: SampleLaw, context: _LatticeContextSpec) -> LatticeStep:
         """Return the Monte Carlo sampling of a sample.
 
         It uses Metropolis acceptance at `intensity` by default.
@@ -203,7 +209,7 @@ class LatticeProblemPass(BasePass):
         return LatticeProblemPass._compile_monte_carlo(law.objective, law.move, sampler, context)
 
     @staticmethod
-    def _get_lattice_step(spec: KernelSpec, law: BaseLaw, context: LatticeContextSpec) -> LatticeStep | None:
+    def _get_lattice_step(spec: KernelSpec, law: BaseLaw, context: _LatticeContextSpec) -> LatticeStep | None:
         """Return the step of a lattice law, or `None` for a law of another kind."""
         if isinstance(law, LocalRuleLaw):
             return LatticeProblemPass._compile_rule(law, context)
@@ -387,10 +393,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _get_extremal_source(
-        targets: tuple[LatticeStateSpec, ...],
-        key: LatticeStateSpec,
+        targets: tuple[_LatticeStateSpec, ...],
+        key: _LatticeStateSpec,
         maximum: bool,
-        arguments: ArgumentsSpec,
+        arguments: _ArgumentsSpec,
     ) -> str:
         """Return the source of the compiled loop of the applications of an extremal law."""
         values = ', '.join(f'x[{state.start} + sites]' for state in targets)
@@ -422,10 +428,10 @@ class LatticeProblemPass(BasePass):
     @staticmethod
     def _get_extremal_loop(
         rule: Callable[..., object],
-        targets: tuple[LatticeStateSpec, ...],
-        key: LatticeStateSpec,
+        targets: tuple[_LatticeStateSpec, ...],
+        key: _LatticeStateSpec,
         maximum: bool,
-        arguments: ArgumentsSpec,
+        arguments: _ArgumentsSpec,
     ) -> Callable[..., None] | None:
         """Return the compiled loop of the applications of an extremal law.
 
@@ -489,7 +495,7 @@ class LatticeProblemPass(BasePass):
             raise ValidationError(error_msg) from error
 
     @staticmethod
-    def _get_lookup_of(rule: object, n_offsets: int, owner: str) -> LookupSpec | None:
+    def _get_lookup_of(rule: object, n_offsets: int, owner: str) -> _LookupSpec | None:
         """Return the lookup array of a table or totalistic rule.
 
         It is `None` for a function rule.
@@ -502,7 +508,7 @@ class LatticeProblemPass(BasePass):
                     error_msg = f'{owner} has a table pattern {pattern} for a neighbourhood of {n_offsets} cells.'
                     raise ValidationError(error_msg)
                 values[int(np.ravel_multi_index(tuple(int(item) for item in pattern), (base,) * n_offsets))] = value
-            return LookupSpec('table', base, values)
+            return _LookupSpec('table', base, values)
         if isinstance(rule, TotalisticSpec | OuterTotalisticSpec):
             sums = np.arange(n_offsets * (rule.states - 1) + 1)
             if isinstance(rule, TotalisticSpec):
@@ -510,7 +516,7 @@ class LatticeProblemPass(BasePass):
                     values = np.broadcast_to(np.asarray(rule.rule(sums), dtype=float), sums.shape).copy()
                 else:
                     values = np.asarray([float(rule.rule.get(int(total), rule.default)) for total in sums])
-                return LookupSpec('totalistic', rule.states, values)
+                return _LookupSpec('totalistic', rule.states, values)
             centers = np.arange(rule.states)[:, None]
             if callable(rule.rule):
                 grid = np.broadcast_to(
@@ -524,7 +530,7 @@ class LatticeProblemPass(BasePass):
                         for center in range(rule.states)
                     ],
                 )
-            return LookupSpec('outer', rule.states, grid.ravel().copy(), sums.size)
+            return _LookupSpec('outer', rule.states, grid.ravel().copy(), sums.size)
         return None
 
     @staticmethod
@@ -533,7 +539,7 @@ class LatticeProblemPass(BasePass):
         target: Expression,
         *,
         objective: ObjectiveSpec,
-        context: LatticeContextSpec,
+        context: _LatticeContextSpec,
         neighbors: Sequence[Expression],
         masks: Sequence[Expression],
     ) -> Expression:
@@ -619,7 +625,7 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _get_coface_tables(
-        target: LatticeStateSpec,
+        target: _LatticeStateSpec,
         owner: str,
     ) -> tuple[Indices, Array, scipy.sparse.csr_array]:
         """Return the cofaces of the moved cells, their signs, and incidences.
@@ -634,7 +640,7 @@ class LatticeProblemPass(BasePass):
         return space.cofaces_[degree], space.orientations_[degree], space.incidences_[degree]
 
     @staticmethod
-    def _compile_drive(law: ArrayUpdateLaw, context: LatticeContextSpec) -> DriveKernel:
+    def _compile_drive(law: ArrayUpdateLaw, context: _LatticeContextSpec) -> DriveKernel:
         """Return a drive compiled for its lattice state.
 
         Args:
@@ -668,7 +674,7 @@ class LatticeProblemPass(BasePass):
         ).prepare()
 
     @staticmethod
-    def _compile_rule(law: LocalRuleLaw, context: LatticeContextSpec) -> RuleKernel:
+    def _compile_rule(law: LocalRuleLaw, context: _LatticeContextSpec) -> RuleKernel:
         """Return a local rule compiled for its lattice.
 
         Args:
@@ -755,7 +761,7 @@ class LatticeProblemPass(BasePass):
             lookup=lookup,
             schedule=law.schedule,
             stochastic=law.stochastic,
-            arguments=LatticeProblemPass._get_keywords(context, function) if function is not None else ArgumentsSpec(),
+            arguments=LatticeProblemPass._get_keywords(context, function) if function is not None else _ArgumentsSpec(),
             fused=context.fused and lookup is not None and law.schedule == 'synchronous',
             degrees=LatticeProblemPass._get_degrees_of(table, law.over) if reads_degree else None,
             classes=LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
@@ -774,7 +780,7 @@ class LatticeProblemPass(BasePass):
     def _get_translations_of(
         law: LocalRuleLaw,
         space: BaseSpace,
-        reads: tuple[LatticeStateSpec, ...],
+        reads: tuple[_LatticeStateSpec, ...],
         owner: str,
     ) -> Indices | None:
         """Return the translation table of a memory translated by the values of a state.
@@ -814,7 +820,7 @@ class LatticeProblemPass(BasePass):
             raise ValidationError(error_msg) from error
 
     @staticmethod
-    def _compile_part(law: object, context: LatticeContextSpec) -> RuleKernel | DriveKernel:
+    def _compile_part(law: object, context: _LatticeContextSpec) -> RuleKernel | DriveKernel:
         """Return a law of a cascade compiled."""
         if isinstance(law, LocalRuleLaw):
             return LatticeProblemPass._compile_rule(law, context)
@@ -824,7 +830,7 @@ class LatticeProblemPass(BasePass):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _compile_cascade(law: CascadeLaw, context: LatticeContextSpec) -> CascadeKernel:
+    def _compile_cascade(law: CascadeLaw, context: _LatticeContextSpec) -> CascadeKernel:
         """Return a cascade compiled for its lattice.
 
         Args:
@@ -852,7 +858,7 @@ class LatticeProblemPass(BasePass):
         ).prepare()
 
     @staticmethod
-    def _compile_extremal(law: ExtremalLaw, context: LatticeContextSpec) -> ExtremalKernel:
+    def _compile_extremal(law: ExtremalLaw, context: _LatticeContextSpec) -> ExtremalKernel:
         """Return an extremal law compiled for its lattice or network.
 
         Args:
@@ -938,8 +944,8 @@ class LatticeProblemPass(BasePass):
         objective: ObjectiveSpec,
         move: MoveSpec,
         sampler: SamplerSpec,
-        context: LatticeContextSpec,
-        target: LatticeStateSpec,
+        context: _LatticeContextSpec,
+        target: _LatticeStateSpec,
     ) -> LoweredObjective:
         """Return the table, classes, symbols, and expression of a neighbour objective.
 
@@ -971,8 +977,8 @@ class LatticeProblemPass(BasePass):
         objective: ObjectiveSpec,
         move: MoveSpec,
         sampler: SamplerSpec,
-        context: LatticeContextSpec,
-        target: LatticeStateSpec,
+        context: _LatticeContextSpec,
+        target: _LatticeStateSpec,
     ) -> LoweredObjective:
         """Return the table, classes, symbols, expression, and incidence of an objective.
 
@@ -996,7 +1002,7 @@ class LatticeProblemPass(BasePass):
         objective: ObjectiveSpec,
         move: MoveSpec,
         sampler: SamplerSpec,
-        context: LatticeContextSpec,
+        context: _LatticeContextSpec,
     ) -> MonteCarloKernel:
         """Return Monte Carlo sampling compiled from an objective, a move, and a sampler.
 
@@ -1062,7 +1068,7 @@ class LatticeProblemPass(BasePass):
                 error_msg = f'{owner} read {item}, which is not a parameter or state of the lattice group.'
                 raise ValidationError(error_msg)
         found = [context.arguments[item] for item in extra]
-        arguments = ArgumentsSpec(
+        arguments = _ArgumentsSpec(
             tuple(str(item) for item in extra),
             tuple(item[1] for item in found),
             tuple(item[2] for item in found),

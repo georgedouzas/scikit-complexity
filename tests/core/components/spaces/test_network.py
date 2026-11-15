@@ -11,12 +11,12 @@ import xgi
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import AdjacencyNeighborhood, BallNeighborhood, NetworkSpace
+from skcomplex.core.components.spaces import AdjacencyNeighborhood, BallNeighborhood, LayerSpec, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 BACKENDS = (NumpyBackend(), NumbaBackend())
 GENERATORS = [

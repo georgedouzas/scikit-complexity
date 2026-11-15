@@ -7,10 +7,20 @@ import pytest
 from sage.all__sagemath_symbolics import var, vector
 
 from skcomplex.core.components import laws
-from skcomplex.core.components.laws import BaseLaw, ConstraintLaw, EventLaw, JumpLaw, LocalRuleLaw, NoiseLaw, RateLaw
+from skcomplex.core.components.laws import (
+    BaseLaw,
+    CallSpec,
+    ConstraintLaw,
+    EventLaw,
+    JumpLaw,
+    LocalRuleLaw,
+    NoiseLaw,
+    RateLaw,
+    RequirementSpec,
+    TotalisticSpec,
+)
 from skcomplex.core.components.spaces import BallNeighborhood
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import CallSpec, RequirementSpec, TotalisticSpec
 
 
 def test_every_law_derives_from_the_law_base():

@@ -13,12 +13,14 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...enums import ElementKind
 from ...errors import ValidationError
-from ...specs import RoleSpec, Tags, WienerProcessSpec
+from ...specs import RoleSpec
+from .._tags import Tags
 from ..base import BaseComponent
 from ..laws import BaseLaw, NoiseLaw, RateLaw
 from ..spaces import BaseSpace
 from ._base import RATE_DOMAINS
 from ._interaction import Interaction
+from ._wiener_process_spec import WienerProcessSpec
 
 CONVENTIONS = ('ito', 'stratonovich', 'anti-ito')
 

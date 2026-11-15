@@ -11,7 +11,7 @@ from typing import ClassVar
 import numpy as np
 
 from ...errors import PhaseSpaceTooLargeError, ValidationError
-from ...specs import AxisSpec
+from ._axis_spec import AxisSpec
 from ._lattice import LatticeSpace
 
 DEFAULT_LIMIT = 2**26
@@ -66,7 +66,7 @@ class PhaseSpace(LatticeSpace):
 
     Examples:
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-        >>> from skcomplex.core.specs import AxisSpec
+        >>> from skcomplex.core.components.spaces import AxisSpec
         >>> space = PhaseSpace(LatticeSpace((64,), spacing=0.2), [AxisSpec('v', 128, -6.0, 6.0)]).prepare()
         >>> space.size_, space.shape_, space.class_axes_
         (8192, (64, 128), {'v': 1})

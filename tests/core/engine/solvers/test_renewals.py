@@ -12,13 +12,14 @@ from skcomplex.core.components.laws import JumpLaw, RateLaw
 from skcomplex.core.components.laws.utils import bernoulli, draw, mean, normal
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems import RenewalRecordSpec
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import RenewalSolver, RK4Solver, ScipyODESolver
+from skcomplex.core.engine.solvers import RenewalSolver, RK4Solver, ScipyODESolver, StepSpec
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import ParameterSpec, RenewalRecordSpec, StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class CounterElement(Element):

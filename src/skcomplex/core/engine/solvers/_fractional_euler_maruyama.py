@@ -10,20 +10,12 @@ import numpy.typing as npt
 import scipy.fft
 import scipy.linalg
 
-from ...components.laws import (
-    BoundaryLaw,
-    ConstraintLaw,
-    EventLaw,
-    FluxLaw,
-    NoiseLaw,
-    RateLaw,
-    TransferLaw,
-)
+from ...components.laws import BoundaryLaw, ConstraintLaw, EventLaw, FluxLaw, NoiseLaw, RateLaw, TransferLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import SolverError, ValidationError
-from ...specs import SupportSpec
 from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ._horizon_error import HorizonError
 from ._solver import Solver
@@ -76,7 +68,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> class WalkerElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)

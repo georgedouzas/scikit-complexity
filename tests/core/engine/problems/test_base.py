@@ -4,9 +4,16 @@ import enum
 import inspect
 
 from skcomplex.core.engine import problems as package
-from skcomplex.core.engine.problems import BaseKernel, BasePrinter, BaseProblemSpec, BaseSearch
+from skcomplex.core.engine.problems import (
+    BaseKernel,
+    BasePrinter,
+    BaseProblemSpec,
+    BaseRecordSpec,
+    BaseSearch,
+    BaseStructureSpec,
+)
 from skcomplex.core.engine.problems._source_loader import SourceLoader
-from skcomplex.core.specs import BaseRecordSpec, BaseSpec, BaseStructureSpec
+from skcomplex.core.specs import BaseSpec
 
 BASES = (BaseSpec, BaseKernel, BaseSearch, BasePrinter, SourceLoader)
 
@@ -33,8 +40,8 @@ def test_kernel_search_and_printer_bases_are_configurable():
 
 
 def test_public_problems_are_the_bases_frames_and_two_forms():
-    """The bases, the problems of the shared pass core and the operator form, and the frames are public."""
-    assert set(package.__all__) == {
+    """The bases, the problems of the shared pass core and the operator form, the frames, and values are public."""
+    expected = {
         'BaseKernel',
         'BasePrinter',
         'BaseProblemSpec',
@@ -43,3 +50,5 @@ def test_public_problems_are_the_bases_frames_and_two_forms():
         'OperatorProblemSpec',
         'ProblemSpec',
     }
+    assert expected <= set(package.__all__)
+    assert all(name.endswith('Spec') for name in set(package.__all__) - expected)

@@ -15,14 +15,16 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.analysis import distribution
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView
-from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.specs import BaseSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 from ..common.resources import RegrowthInteraction
@@ -222,8 +224,8 @@ class SugarscapeSystem(BaseSystem):
     references = ('Argun et al. 2021 sec. 16.2', 'Downey 2018 ch. 9')
     until = 100
     observables = (
-        ObservableSpec('population', group='foragers', variable='sugar', reduce='count'),
-        ObservableSpec('gini', group='foragers', variable='sugar', reduce=_get_gini),
+        Observable('population', group='foragers', variable='sugar', reduce='count'),
+        Observable('gini', group='foragers', variable='sugar', reduce=_get_gini),
     )
 
     @staticmethod

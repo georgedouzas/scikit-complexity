@@ -6,9 +6,11 @@
 from collections.abc import Sequence
 from typing import ClassVar
 
-from ...specs import DatasetSpec, ObservableSpec, RequirementSpec
+from .._observable_spec import Observable
 from ..spaces import DiscreteTime
 from ._base import BaseLaw
+from ._dataset_spec import DatasetSpec
+from ._requirement_spec import RequirementSpec
 
 
 class GradientStepLaw(BaseLaw):
@@ -56,9 +58,10 @@ class GradientStepLaw(BaseLaw):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.components.laws import GradientStepLaw
-        >>> from skcomplex.core.specs import DatasetSpec, ObservableSpec
+        >>> from skcomplex.core.components import Observable
+        >>> from skcomplex.core.components.laws import DatasetSpec
         >>> data = DatasetSpec({'inputs.x': np.zeros((4, 3, 1))})
-        >>> law = GradientStepLaw(['readout.W'], ObservableSpec('error', 0.0), data, 'adam', 2)
+        >>> law = GradientStepLaw(['readout.W'], Observable('error', 0.0), data, 'adam', 2)
         >>> law.prepare('training').targets_
         ()
     """
@@ -68,13 +71,13 @@ class GradientStepLaw(BaseLaw):
     def __init__(
         self,
         trained: Sequence[str],
-        loss: ObservableSpec,
+        loss: Observable,
         data: DatasetSpec,
         optimizer: str,
         batch_size: int,
         *,
         truncation: int | None = None,
-        metrics: Sequence[ObservableSpec] = (),
+        metrics: Sequence[Observable] = (),
         label: str = '',
     ) -> None:
         super().__init__(label)

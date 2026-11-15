@@ -14,11 +14,12 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
+from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 
 ALONG_ROW = LatticeNeighborhood(((0, 0), (0, -1), (0, 1)))
@@ -124,9 +125,9 @@ class BiasedTrapWalkSystem(BaseSystem):
     until = 2000
     dt = 10
     observables = (
-        ObservableSpec('visits', group='traps', variable='visited', reduce='sum'),
-        ObservableSpec('walkers', group='traps', variable='occupied', reduce='sum'),
-        ObservableSpec('position', _get_mean_position),
+        Observable('visits', group='traps', variable='visited', reduce='sum'),
+        Observable('walkers', group='traps', variable='occupied', reduce='sum'),
+        Observable('position', _get_mean_position),
     )
 
     def __init__(

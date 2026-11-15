@@ -14,13 +14,15 @@ import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction, Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.networks import RegulatedNodeElement
 
 
@@ -219,7 +221,7 @@ class TriadicPercolationSystem(BaseSystem):
     references = ('Sun et al. 2023', 'Millán, Sun, Torres, and Bianconi 2023')
     until = 30
     dt = 1
-    observables = (ObservableSpec('giant', group='nodes', variable='active'),)
+    observables = (Observable('giant', group='nodes', variable='active'),)
 
     def __init__(
         self,

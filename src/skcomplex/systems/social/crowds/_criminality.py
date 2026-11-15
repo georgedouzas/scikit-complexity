@@ -15,12 +15,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
 
@@ -381,7 +382,7 @@ def security_density(s: SimpleNamespace, forces: int) -> Expression:
     return moment(s.x, 0, np.arange(forces, dtype=float))
 
 
-def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
+def criminality_observables(classes: int, forces: int) -> list[Observable]:
     """Return the mean criminality, the criminal fraction, and the security density.
 
     The density is that of the security forces of the system.
@@ -404,9 +405,9 @@ def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
     """
     criminality = criminality_grid(classes)
     return [
-        ObservableSpec('mean_criminality', partial(mean_criminality, criminality=criminality), group='citizens'),
-        ObservableSpec('criminal_fraction', partial(criminal_fraction, criminality=criminality), group='citizens'),
-        ObservableSpec('security_forces', partial(security_density, forces=forces), group='security'),
+        Observable('mean_criminality', partial(mean_criminality, criminality=criminality), group='citizens'),
+        Observable('criminal_fraction', partial(criminal_fraction, criminality=criminality), group='citizens'),
+        Observable('security_forces', partial(security_density, forces=forces), group='security'),
     ]
 
 

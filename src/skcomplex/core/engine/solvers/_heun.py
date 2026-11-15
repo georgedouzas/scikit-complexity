@@ -18,8 +18,8 @@ from ...components.laws import (
 )
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import NoiseKind, OrderKind
-from ...specs import SupportSpec
 from ...types import Array
+from ..backends import SupportSpec
 from ._sde import SDESolver
 
 
@@ -42,7 +42,7 @@ class HeunSolver(SDESolver):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
         >>> from skcomplex.core.engine.solvers import HeunSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> problem = simulate(GeometricBrownianMotionSystem(), until=0).problem
         >>> stepper = HeunSolver(dt=0.01, random_state=0).prepare(problem)
         >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)

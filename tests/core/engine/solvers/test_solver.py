@@ -18,10 +18,11 @@ from skcomplex.core.engine.solvers import (
     IterationSolver,
     MilsteinSolver,
     RK4Solver,
+    StepSpec,
     VelocityVerletSolver,
 )
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 

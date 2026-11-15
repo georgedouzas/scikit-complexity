@@ -21,9 +21,10 @@ from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw, RateL
 from ....core.components.laws.utils import laplacian, local_operator
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.engine.problems import HilbertSpec
 from ....core.engine.solvers import ETDRK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 FORMULATIONS = ('fields', 'operators')
 

@@ -13,8 +13,8 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import GillespieSolver
-from skcomplex.core.specs import StateSpec, StepSpec, VisualSpec
+from skcomplex.core.engine.solvers import GillespieSolver, StepSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction, SIRSystem
 
 

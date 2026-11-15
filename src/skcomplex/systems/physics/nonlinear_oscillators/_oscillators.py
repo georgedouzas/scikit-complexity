@@ -13,6 +13,7 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import Expression, cos, exp, oo, sin, sqrt, tan
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import CrossingInteraction, HamiltonianInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -20,7 +21,7 @@ from ....core.components.laws.utils import derivative, periodic_guard
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.oscillators import StuartLandauElement
@@ -509,7 +510,7 @@ class HenonHeilesSystem(BaseSystem):
     dt = 0.05
     solver = Yoshida4Solver(dt=0.01)
     invariants: ClassVar[Mapping[str, float]] = {'star.energy': 1e-6}
-    observables = (ObservableSpec('energy', _get_henon_heiles_energy, element='star'),)
+    observables = (Observable('energy', _get_henon_heiles_energy, element='star'),)
 
     def __init__(
         self,
@@ -807,7 +808,7 @@ class NuclearQuadrupoleSystem(BaseSystem):
     dt = 0.05
     solver = Yoshida4Solver(dt=0.01)
     invariants: ClassVar[Mapping[str, float]] = {'nucleus.energy': 1e-6}
-    observables = (ObservableSpec('energy', _get_quadrupole_energy, element='nucleus'),)
+    observables = (Observable('energy', _get_quadrupole_energy, element='nucleus'),)
 
     def __init__(
         self,

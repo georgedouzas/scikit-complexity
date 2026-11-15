@@ -16,11 +16,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
+from ....core.specs import ParameterSpec, RoleSpec
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
 
@@ -406,7 +407,7 @@ def mean_speed(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
     return moment(s.x, 1, np.tile(walking_speeds(speeds), rooms + 1), normalized=True)
 
 
-def evacuation_observables(rooms: int, speeds: int) -> list[ObservableSpec]:
+def evacuation_observables(rooms: int, speeds: int) -> list[Observable]:
     """Return the evacuated fraction and the mean walking speed of a crowd `crowd`.
 
     Args:
@@ -426,8 +427,8 @@ def evacuation_observables(rooms: int, speeds: int) -> list[ObservableSpec]:
         ['evacuated', 'mean_speed']
     """
     return [
-        ObservableSpec('evacuated', partial(evacuated_fraction, rooms=rooms, speeds=speeds), group='crowd'),
-        ObservableSpec('mean_speed', partial(mean_speed, rooms=rooms, speeds=speeds), group='crowd'),
+        Observable('evacuated', partial(evacuated_fraction, rooms=rooms, speeds=speeds), group='crowd'),
+        Observable('mean_speed', partial(mean_speed, rooms=rooms, speeds=speeds), group='crowd'),
     ]
 
 

@@ -15,11 +15,12 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction, MapInteraction
+from ....core.components.laws import TotalisticSpec
 from ....core.components.spaces import BallNeighborhood, LatticeSpace, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TotalisticSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
 
 MAJORITY = 5

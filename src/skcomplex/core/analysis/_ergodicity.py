@@ -11,8 +11,8 @@ import numpy.typing as npt
 
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
 from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_series
 from ._markov import _stationary_distribution
 from .types import Source

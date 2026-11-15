@@ -31,7 +31,7 @@ Watts and Strogatz drawn with the same seed are compared.
 import networkx as nx
 
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.specs import LayerSpec
+from skcomplex.core.components.spaces import LayerSpec
 
 first = NetworkSpace(nx.watts_strogatz_graph(100, 6, 0.1, seed=7))
 second = NetworkSpace(nx.watts_strogatz_graph(100, 6, 0.1, seed=7))
@@ -522,7 +522,8 @@ from skcomplex.core.components.laws.utils import mean, neighbors, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 
 
 class PlayerElement(Element):
@@ -794,7 +795,8 @@ from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec, TopologyRequestSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import TopologyRequestSpec
 
 
 class NodeElement(Element):

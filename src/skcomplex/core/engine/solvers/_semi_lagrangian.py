@@ -13,8 +13,8 @@ from ...components.laws import FluxLaw, RateLaw
 from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
 from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ..problems._finite_volume_kernel import FiniteVolumeKernel
 from ..problems._steps import step_count
@@ -60,7 +60,7 @@ class SemiLagrangianSolver(Solver):
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import SemiLagrangianSolver
-        >>> from skcomplex.core.specs import AxisSpec
+        >>> from skcomplex.core.components.spaces import AxisSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> space = PhaseSpace(LatticeSpace((16,)), [AxisSpec('v', 8, -1.0, 1.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(16) / 16), np.ones(8))

@@ -21,10 +21,11 @@ from skcomplex.core.engine.solvers import (
     MilsteinSolver,
     RK4Solver,
     ScipyODESolver,
+    StepSpec,
     VelocityVerletSolver,
 )
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import HutchinsonSystem
 from skcomplex.systems.biology.physiology import MackeyGlassSystem
 from skcomplex.systems.engineering.processes import BathtubSystem

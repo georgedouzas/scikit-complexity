@@ -20,6 +20,7 @@ from sage.sets.real_set import RealSet
 from shapely import Polygon
 from shapely.geometry import shape
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import ContinuousSpace
@@ -27,7 +28,7 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 
@@ -496,7 +497,7 @@ class KauaiPopulationSystem(BaseSystem):
     topics = ('agents', 'continuous space', 'region layers', 'census', 'sentiment')
     references = ('Carmichael et al. 2019',)
     until = 30
-    observables = (ObservableSpec('mean_sentiment', group='residents', variable='sentiment', reduce='mean'),)
+    observables = (Observable('mean_sentiment', group='residents', variable='sentiment', reduce='mean'),)
 
     def __init__(
         self,

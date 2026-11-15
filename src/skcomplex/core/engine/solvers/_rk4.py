@@ -22,8 +22,8 @@ from ...components.laws import (
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
 from ...types import Array
+from ..backends import SupportSpec
 from ..problems._steps import step_count
 from ..types import Interpolant
 from ._base import BaseSolver
@@ -55,7 +55,7 @@ class RK4Solver(Solver):
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import RK4Solver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> system = CompositeSystem(
         ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],

@@ -13,13 +13,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import inverse_helmholtz, partial
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.fields import AdvectionInteraction, DiffusivityInteraction
 
 
@@ -175,7 +176,7 @@ class ActiveViscoelasticGelSystem(BaseSystem):
     dt = 0.1
     solver = RK4Solver(dt=0.005)
     observables = (
-        ObservableSpec(
+        Observable(
             'v',
             _get_gel_velocity,
             group='gel',

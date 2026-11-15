@@ -11,12 +11,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import shift_member
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 BINARY = FiniteEnumeratedSet([0, 1])
 NEIGHBOURS = 6
@@ -239,9 +240,7 @@ class CellCycleInvasionSystem(BaseSystem):
     references = ('Carr et al. 2021', 'Simpson et al. 2018', 'Wang et al. 2024')
     until = 48.0
     dt = 1.0
-    observables = tuple(
-        ObservableSpec(f'{phase}_cells', group='cells', variable=phase, reduce='sum') for phase in PHASES
-    )
+    observables = tuple(Observable(f'{phase}_cells', group='cells', variable=phase, reduce='sum') for phase in PHASES)
 
     def __init__(
         self,

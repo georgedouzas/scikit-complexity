@@ -177,13 +177,13 @@ row in the same way.
 ## Scenarios
 
 A scenario is a named variant of a system, such as an intervention, compared with the baseline under the same random
-draws. A [`ScenarioSpec`][skcomplex.core.components.specs.ScenarioSpec] changes values before the run with
+draws. A [`ScenarioSpec`][skcomplex.core.experiments.ScenarioSpec] changes values before the run with
 `overrides`, changes parameters during the run with `schedule`, or replaces the system for a change of structure. Here
 trappers raise the death rate of the lynx from 0.80 to 1.0 from year 10 on, and
 [`compare_scenarios`][skcomplex.core.experiments.compare_scenarios] runs both scenarios.
 
 ```python continuation
-from skcomplex.core.components.specs import ScenarioSpec
+from skcomplex.core.experiments import ScenarioSpec
 from skcomplex.core.experiments import compare_scenarios
 
 scenarios = [ScenarioSpec('baseline'), ScenarioSpec('trapping', schedule=[(10.0, 'death.d', 1.0)])]

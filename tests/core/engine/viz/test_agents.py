@@ -10,8 +10,8 @@ from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems import AgentSnapshotSpec
 from skcomplex.core.engine.viz import AgentsVisual
-from skcomplex.core.specs import AgentSnapshotSpec
 from skcomplex.systems.social.organizations import ObesitySystem
 
 from .conftest import Logs, _frames, _radius

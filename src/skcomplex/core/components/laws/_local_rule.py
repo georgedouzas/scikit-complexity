@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, LinearRuleSpec, OuterTotalisticSpec, RequirementSpec, TableSpec, TotalisticSpec
+from ...specs import BaseSpec
 from ...types import IntArray
 from ..spaces import (
     BaseNeighborhood,
@@ -25,6 +25,11 @@ from ..spaces import (
     StateTranslationNeighborhood,
 )
 from ._base import BaseLaw
+from ._linear_rule_spec import LinearRuleSpec
+from ._outer_totalistic_spec import OuterTotalisticSpec
+from ._requirement_spec import RequirementSpec
+from ._table_spec import TableSpec
+from ._totalistic_spec import TotalisticSpec
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')
 IDENTITY = '1'
@@ -84,7 +89,7 @@ class LocalRuleLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import LocalRuleLaw
-        >>> from skcomplex.core.specs import LinearRuleSpec, TotalisticSpec
+        >>> from skcomplex.core.components.laws import LinearRuleSpec, TotalisticSpec
         >>> from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> cell = var('cell')
         >>> box = BallNeighborhood(n_dim=1, center='inline')

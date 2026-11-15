@@ -12,8 +12,8 @@ import numpy.typing as npt
 from sklearn.metrics import normalized_mutual_info_score
 
 from ..enums import DataKind
-from ..specs import AnalysisTags
 from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _read_networks
 from ._fit import fit_law
 from .types import Source

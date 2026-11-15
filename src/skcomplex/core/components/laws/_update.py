@@ -6,10 +6,11 @@
 from typing import ClassVar
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec, TopologyRequestSpec
 from ..spaces import DiscreteTime
 from ..types import Target
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
+from ._topology_request_spec import TopologyRequestSpec
 
 
 class UpdateLaw(BaseLaw):

@@ -35,7 +35,8 @@ from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.specs import AxisSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.spaces import AxisSpec
 
 
 class DensityElement(Element):
@@ -126,7 +127,8 @@ from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.specs import AxisSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.spaces import AxisSpec
 
 
 class DensityElement(Element):
@@ -186,7 +188,9 @@ from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.spaces import AxisSpec
+from skcomplex.core.components import Observable
 
 
 class DensityElement(Element):
@@ -202,7 +206,7 @@ def total(s):
 axes = [AxisSpec('x', 20, 0.0, 1.0), AxisSpec('y', 20, 0.0, 1.0)]
 simplex = SimplexSpace(LatticeSpace((1,)), axes).prepare()
 groups = FieldElement('groups', element=DensityElement, space=simplex, values={'x': 2.0 * (simplex.volumes_ > 0)})
-observables = [ObservableSpec('total', total, group='groups')]
+observables = [Observable('total', total, group='groups')]
 trajectory = simulate(CompositeSystem(elements=[groups]), until=0.1, dt=0.1, observables=observables)
 round(float(np.asarray(trajectory.get_values('total'))[-1]), 10)
 ```

@@ -9,11 +9,12 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from ..engine.problems import NetworkSnapshotSpec
 from ..engine.runtime import Trajectory
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, NetworkSnapshotSpec
 from ..types import Array, Indices
+from ._analysis_tags import AnalysisTags
 from .types import Source
 
 TAGS = AnalysisTags(DataKind.NETWORK)
@@ -93,7 +94,7 @@ def autocatalytic_sets(
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import autocatalytic_sets
-        >>> from skcomplex.core.specs import NetworkSnapshotSpec
+        >>> from skcomplex.core.engine.problems import NetworkSnapshotSpec
         >>> nodes = np.arange(5)
         >>> reactions = np.array([[0, 1, 2], [2, 0, 3], [3, 1, 4]])
         >>> sources, targets = np.array([3, 4, 0]), np.array([2, 3, 4])

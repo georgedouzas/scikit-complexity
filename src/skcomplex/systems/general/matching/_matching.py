@@ -14,13 +14,13 @@ import numpy as np
 
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, MatchLaw, RuleLaw
+from ....core.components.laws import BaseLaw, MatchLaw, PartnerSpec, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, Pairing, SystemViewProtocol
 from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import PartnerSpec, RoleSpec
+from ....core.specs import RoleSpec
 from ._batch_matching_spec import BatchMatchingSpec
 from ._continuous_matching_spec import ContinuousMatchingSpec
 from ._iterative_matching_spec import IterativeMatchingSpec

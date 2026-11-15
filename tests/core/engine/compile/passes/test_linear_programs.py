@@ -8,17 +8,18 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import LinearProgramLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import LinearObjectiveSpec, LinearProgramLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import either
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, StaticTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CoSimulationSolver, RK4Solver
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import InfeasibleError, ValidationError
-from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, RoleSpec, RunStateSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 TOY_NAMES = ('v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'b1', 'b2', 'vbio')
 TOY_REVERSIBLE = ('v4', 'v6', 'b2')

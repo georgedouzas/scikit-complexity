@@ -11,15 +11,17 @@ from dataclasses import KW_ONLY, dataclass, field
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ...components import Observable
 from ...components.spaces import BaseSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec, CompiledInteractionSpec
 from ...components.systems import CompositeSystem
 from ...enums import FormKind
 from ...specs._base_spec import BaseSpec
-from ...specs._layout_spec import LayoutSpec
-from ...specs._observable_spec import ObservableSpec
 from ...specs._variable_spec import VariableSpec
 from ...types import Array
+from ._compiled_agents_spec import _CompiledAgentsSpec
+from ._compiled_element_spec import CompiledElementSpec
+from ._compiled_interaction_spec import _CompiledInteractionSpec
+from ._layout_spec import LayoutSpec
 from ._markov_kernel import MarkovKernel
 from ._renewal_kernel import RenewalKernel
 from ._topology_kernel import TopologyKernel
@@ -96,7 +98,7 @@ class BaseProblemSpec(BaseSpec):
         >>> import numpy as np
         >>> from skcomplex.core.enums import FormKind
         >>> from skcomplex.core.engine._utils import symbol
-        >>> from skcomplex.core.specs import LayoutSpec
+        >>> from skcomplex.core.engine.problems import LayoutSpec
         >>> from skcomplex.core.engine.problems import BaseProblemSpec
         >>> layout = LayoutSpec(())
         >>> problem = BaseProblemSpec(FormKind.ODE, layout, layout, np.zeros(0), np.zeros(0), symbol('t'))
@@ -113,16 +115,16 @@ class BaseProblemSpec(BaseSpec):
     _: KW_ONLY
     symbols: Mapping[str, Expression | FreeModuleElement] = field(default_factory=dict, repr=False)
     elements: tuple[CompiledElementSpec, ...] = ()
-    interactions: tuple[CompiledInteractionSpec, ...] = ()
+    interactions: tuple[_CompiledInteractionSpec, ...] = ()
     system: CompositeSystem | None = field(default=None, repr=False)
-    agents: tuple[CompiledAgentsSpec, ...] = ()
+    agents: tuple[_CompiledAgentsSpec, ...] = ()
     agent_space: BaseSpace | None = None
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
     renewals: tuple[RenewalKernel, ...] = field(default=(), repr=False)
     matrices: tuple[MarkovKernel, ...] = field(default=(), repr=False)
     transfer_network: TransferNetworkSpec | None = field(default=None, repr=False)
     topology: TopologyKernel | None = field(default=None, repr=False)
-    observables: tuple[tuple[str, ObservableSpec], ...] = field(default=(), repr=False)
+    observables: tuple[tuple[str, Observable], ...] = field(default=(), repr=False)
 
     @property
     def partition_problems(self) -> tuple[BaseProblemSpec, ...]:

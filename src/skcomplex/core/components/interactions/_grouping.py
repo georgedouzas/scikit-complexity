@@ -11,8 +11,10 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ...enums import ElementKind
 from ...errors import ValidationError
-from ...specs import BaseSpec, PartnerSpec, ReductionSpec, RoleSpec, Tags
-from ..laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
+from ...specs import BaseSpec, RoleSpec
+from .._tags import Tags
+from ..laws import BaseLaw, MatchLaw, PartnerSpec, RuleLaw, UpdateLaw
+from ..laws._reduction_spec import _ReductionSpec
 from ..laws.utils import both, count, maximum, mean, minimum, total, variance
 from ..laws.utils._reductions import reductions_in
 from ..spaces import BaseSpace
@@ -345,7 +347,7 @@ class GroupingInteraction(Interaction):
         for index in system.rng.permutation(len(groups)):
             self.act_on(groups[int(index)], system)
 
-    def _get_keyed(self, reduction: ReductionSpec, member: SimpleNamespace, members: SimpleNamespace) -> Expression:
+    def _get_keyed(self, reduction: _ReductionSpec, member: SimpleNamespace, members: SimpleNamespace) -> Expression:
         """Return a reduction over the members of a group that share the value of `by`.
 
         The reduction is restricted to these members.

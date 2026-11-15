@@ -19,11 +19,12 @@ from skcomplex.core.engine.solvers import (
     GrunwaldLetnikovSolver,
     L1Solver,
     RK4Solver,
+    StepSpec,
 )
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 SCHEMES = [GrunwaldLetnikovSolver, L1Solver, FractionalABMSolver]
 

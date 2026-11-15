@@ -12,12 +12,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class RiceBalanceElement(Element):
@@ -169,7 +170,7 @@ class RiceFoodBalanceSystem(BaseSystem):
     dt = 0.25
     observables = tuple(
         [
-            ObservableSpec(name, expression, element='region')
+            Observable(name, expression, element='region')
             for name, expression in (
                 ('food_available', _get_food_available),
                 ('food_required', _get_food_required),

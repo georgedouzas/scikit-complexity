@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import I, exp
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw
@@ -20,13 +21,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleError, ValidationError
-from skcomplex.core.specs import (
-    ObservableSpec,
-    ParameterSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems import all_systems
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.economics.resources import HarvestingSystem
@@ -194,7 +189,7 @@ def _modulus(s):
     return abs(s.z)
 
 
-ORDER = [ObservableSpec('z', _phase_vector, group='osc'), ObservableSpec('order', _modulus)]
+ORDER = [Observable('z', _phase_vector, group='osc'), Observable('order', _modulus)]
 
 
 def _share(s):
@@ -449,7 +444,7 @@ def test_observable_evaluator_lowers_field_operators():
     values = np.sin(np.pi * np.arange(1, 9) / 9)
     space = LatticeSpace(8, boundary='fixed')
     field = FieldElement('field', element=SiteElement, space=space, values={'u': values}, boundary={'u': ('fixed', 0)})
-    observable = ObservableSpec('psi', _field_streamfunction, group='field', reduce=_field_values)
+    observable = Observable('psi', _field_streamfunction, group='field', reduce=_field_values)
     problem = PassCompiler(observables=[observable]).prepare(CompositeSystem(elements=[field])).run().problem_
     evaluator = ObservableEvaluator(problem).prepare()
     psi = evaluator.evaluate(0.0, problem.initial_state, problem.initial_parameters)['psi']
@@ -475,7 +470,7 @@ def test_complex_observable_is_complex():
     system = CompositeSystem(
         elements=[PhaseElement('osc', z=3 + 4j, omega=0.0)],
     )
-    observables = [ObservableSpec('double', _double), ObservableSpec('size', _size)]
+    observables = [Observable('double', _double), Observable('size', _size)]
     trajectory = simulate(system, until=0.5, dt=0.5, observables=observables)
     assert trajectory.get_values('double')[0] == 6 + 8j
     assert trajectory.get_values('size')[0] == 5.0
@@ -493,7 +488,7 @@ def test_order_parameter_every_frame():
 
 def test_expression_observable_of_elements():
     """Test that a system observable combines symbols of single elements and earlier observables."""
-    observables = [ObservableSpec('total', _total), ObservableSpec('share', _share)]
+    observables = [Observable('total', _total), Observable('share', _share)]
     trajectory = simulate(_two_populations(), until=1, dt=0.5, observables=observables)
     assert np.allclose(trajectory.get_values('total'), trajectory.get_values('a.n') + trajectory.get_values('b.n'))
     assert np.allclose(trajectory.get_values('share'), trajectory.get_values('a.n') / trajectory.get_values('total'))
@@ -502,7 +497,7 @@ def test_expression_observable_of_elements():
 def test_observable_by_subsystem_path():
     """Test that an observable of a subsystem is recorded under the subsystem's path."""
     system = CompositeSystem(systems=[CompositeSystem('market', elements=[GrowingPopulationElement('a', n=3.0)])])
-    trajectory = simulate(system, until=2, dt=1, observables=[ObservableSpec('market/volume', _volume)])
+    trajectory = simulate(system, until=2, dt=1, observables=[Observable('market/volume', _volume)])
     assert trajectory.get_values('market/volume').tolist() == [6.0, 6.0, 6.0]
 
 
@@ -515,7 +510,7 @@ def test_agent_reduction_read_by_other_partition():
         ],
         interactions=[InflowInteraction('inflow', target='land/soil', source='village/mean_wealth')],
     )
-    observables = [ObservableSpec('village/mean_wealth', group='savers', variable='wealth')]
+    observables = [Observable('village/mean_wealth', group='savers', variable='wealth')]
     trajectory = simulate(system, until=2, dt=1, observables=observables)
     assert trajectory.get_values('village/mean_wealth').tolist() == [1.0, 2.0, 3.0]
     assert trajectory.get_values('land/soil.n')[-1] == pytest.approx(2.0 + 3.0)
@@ -530,7 +525,7 @@ def test_observable_read_in_one_form_is_lowered():
         ],
         interactions=[InflowInteraction('inflow', target='soil', source='mean_n')],
     )
-    observables = [ObservableSpec('mean_n', group='herd', variable='n')]
+    observables = [Observable('mean_n', group='herd', variable='n')]
     trajectory = simulate(system, until=1, dt=1.0, observables=observables)
     assert trajectory.get_values('soil.n')[-1] == pytest.approx(trajectory.get_values('soil.n')[0] + 3.0)
 
@@ -539,14 +534,14 @@ def test_observable_of_a_member_symbol_outside_a_reduction_is_rejected():
     """Test that an observable using a group member's symbol outside a reduction is rejected."""
     system = CompositeSystem(elements=[GroupElement('herd', element=GrowingPopulationElement, size=3)])
     with pytest.raises(AttributeError, match='herd'):
-        simulate(system, until=1, observables=[ObservableSpec('bad', _herd)])
+        simulate(system, until=1, observables=[Observable('bad', _herd)])
 
 
 def test_simulation_checks_its_observables():
     """Test that a run rejects an observable whose expression is a lambda before compiling."""
     system = CompositeSystem(elements=[GrowingPopulationElement('a')])
     with pytest.raises(ValidationError, match="'total'"):
-        simulate(system, until=1, observables=[ObservableSpec('total', lambda s: s.a.n)])
+        simulate(system, until=1, observables=[Observable('total', lambda s: s.a.n)])
 
 
 def test_observables_read_time():
@@ -557,7 +552,7 @@ def test_observables_read_time():
             GroupElement('herd', element=GrowingPopulationElement, size=2, values={'n': [1.0, 3.0]}),
         ],
     )
-    observables = [ObservableSpec('timed', _timed), ObservableSpec('member_timed', _member_timed, group='herd')]
+    observables = [Observable('timed', _timed), Observable('member_timed', _member_timed, group='herd')]
     trajectory = simulate(system, until=2, dt=1.0, observables=observables)
     assert trajectory.get_values('timed').tolist() == [0.0, 2.0, 4.0]
     assert trajectory.get_values('member_timed').tolist() == [2.0, 3.0, 4.0]
@@ -565,7 +560,7 @@ def test_observables_read_time():
 
 def test_observable_reads_weighted_reduction_of_its_members():
     """Test that a member expression with a weighted total gives the local field energy at every frame."""
-    trajectory = _decaying_group(ObservableSpec('energy', _local_field_energy, group='u', reduce='sum'), until=2)
+    trajectory = _decaying_group(Observable('energy', _local_field_energy, group='u', reduce='sum'), until=2)
     x = np.asarray(trajectory.get_values('u.x'))
     np.testing.assert_allclose(
         trajectory.get_values('energy'),
@@ -576,7 +571,7 @@ def test_observable_reads_weighted_reduction_of_its_members():
 
 def test_observable_reads_plain_reduction_of_its_members():
     """Test that a member expression with a plain mean gives the variance of the group at every frame."""
-    trajectory = _decaying_group(ObservableSpec('spread', _deviation, group='u', reduce='var'), until=2)
+    trajectory = _decaying_group(Observable('spread', _deviation, group='u', reduce='var'), until=2)
     np.testing.assert_allclose(
         trajectory.get_values('spread'),
         np.asarray(trajectory.get_values('u.x')).var(axis=1),
@@ -587,12 +582,12 @@ def test_observable_reads_plain_reduction_of_its_members():
 def test_observable_rejects_reduction_over_another_group():
     """Test that a reduction over a group other than the observable's raises the role error of laws."""
     with pytest.raises(RoleError, match=r'observable other reads a group other than u'):
-        _decaying_group(ObservableSpec('other', _deviation_from_other, group='u', reduce='sum'))
+        _decaying_group(Observable('other', _deviation_from_other, group='u', reduce='sum'))
 
 
 def test_observable_of_an_element_records_its_expression_with_delays():
     """Test that an observable of an element's expression records it under the element and reads its delays."""
-    observed = ObservableSpec('perceived', _perceived, element='tank')
+    observed = Observable('perceived', _perceived, element='tank')
     trajectory = simulate(CompositeSystem(elements=[SmoothedElement('tank')]), until=4, dt=0.5, observables=[observed])
     perceived = trajectory.get_values('tank.perceived')
     np.testing.assert_allclose(perceived, trajectory.get_values('tank.smoothing_delay1_0')[:, 0])
@@ -602,7 +597,7 @@ def test_observable_of_an_element_records_its_expression_with_delays():
 
 def test_observable_of_an_element_rejects_a_delay_no_law_uses():
     """Test that observing a delay that no law of the system reads raises an error that names the observable."""
-    observed = ObservableSpec('smoothed', _smoothed_population, element='rabbits')
+    observed = Observable('smoothed', _smoothed_population, element='rabbits')
     with pytest.raises(ValidationError, match=r'rabbits\.smoothed'):
         simulate(
             CompositeSystem(elements=[GrowingPopulationElement('rabbits', n=2.0)]),

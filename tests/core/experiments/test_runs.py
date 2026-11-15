@@ -57,10 +57,10 @@ def peak(trajectory, *, variable='I.x'):
 
 
 def test_surface_holds_functions_and_results():
-    """Test that the public names are experiment functions and frozen results, and none is an estimator."""
+    """Test that the public names are experiment functions, frozen results, and values, and none is an estimator."""
     for name in experiments.__all__:
         item = getattr(experiments, name)
-        if name.endswith('Result'):
+        if name.endswith(('Result', 'Spec')):
             assert item.__dataclass_params__.frozen, name
         else:
             assert inspect.isfunction(item), name

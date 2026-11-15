@@ -13,10 +13,11 @@ import scipy.sparse
 import xgi
 
 from ...errors import SpaceError, ValidationError
-from ...specs import LayerSpec, Tags
 from ...types import Indices
+from .._tags import Tags
 from ._adjacency import AdjacencyNeighborhood
 from ._base import BaseNeighborhood, BaseSpace
+from ._layer_spec import LayerSpec
 
 MIN_HYPEREDGE_NODES = 2
 
@@ -81,7 +82,7 @@ class NetworkSpace(BaseSpace):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.components.spaces import NetworkSpace
-        >>> from skcomplex.core.specs import LayerSpec
+        >>> from skcomplex.core.components.spaces import LayerSpec
         >>> NetworkSpace(nx.cycle_graph(5)).prepare().size_
         5
         >>> space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))])

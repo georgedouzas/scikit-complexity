@@ -17,6 +17,7 @@ from sage.all__sagemath_symbolics import Expression, I, arcsin, cos, exp, oo, pi
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import clip, neighbors, where
@@ -24,7 +25,7 @@ from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 SOFTENING = 1e-12
 
@@ -185,8 +186,8 @@ class SzaboCellsSystem(BaseSystem):
     solver = EulerMaruyamaSolver(dt=0.01)
     backend = NumbaBackend()
     observables = (
-        ObservableSpec('mean_heading', _get_heading, group='cells'),
-        ObservableSpec('polarization', _get_polarization),
+        Observable('mean_heading', _get_heading, group='cells'),
+        Observable('polarization', _get_polarization),
     )
 
     @staticmethod

@@ -10,10 +10,9 @@ import rerun.blueprint as rrb
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.problems import BaseProblemSpec, FrameSpec, ProblemSpec
+from skcomplex.core.engine.problems import AgentSnapshotSpec, BaseProblemSpec, FrameSpec, ProblemSpec
 from skcomplex.core.engine.runtime import BaseObserver, simulate
 from skcomplex.core.engine.viz import BaseVisual, RerunObserver
-from skcomplex.core.specs import AgentSnapshotSpec
 from skcomplex.systems.biology.evolution import MoranProcessSystem
 
 

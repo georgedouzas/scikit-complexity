@@ -27,10 +27,11 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems import HilbertSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import UnitarySolver
 from skcomplex.core.errors import RoleElementError, TagError, ValidationError
-from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 PAULI = HilbertSpec(

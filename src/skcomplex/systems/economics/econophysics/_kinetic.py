@@ -11,12 +11,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class SavingTraderView(AgentView):
@@ -229,7 +230,7 @@ class KineticWealthExchangeSystem(BaseSystem):
     topics = ('wealth', 'agents', 'exchange', 'kinetic')
     references = ('Chakraborti and Chakrabarti 2000', 'Dragulescu and Yakovenko 2000', 'Yakovenko and Rosser 2009')
     until = 200
-    observables = (ObservableSpec('variance', group='traders', variable='wealth', reduce='var'),)
+    observables = (Observable('variance', group='traders', variable='wealth', reduce='var'),)
 
     def __init__(
         self,

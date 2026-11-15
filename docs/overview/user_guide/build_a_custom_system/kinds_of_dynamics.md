@@ -79,7 +79,8 @@ from skcomplex.core.components.spaces import ContinuousTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import UnregisteredLawError
-from skcomplex.core.specs import ParameterSpec, RequirementSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import RequirementSpec
 
 
 class DecayLaw(BaseLaw):

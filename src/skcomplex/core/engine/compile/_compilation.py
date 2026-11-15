@@ -10,13 +10,10 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.laws import BaseLaw, EventLaw, RuleLaw
-from ...components.specs import CensusSpec, NodeSpec
+from ...components.laws import BaseLaw, EventLaw, RuleLaw, TopologyRequestSpec
 from ...components.systems import CompositeSystem
 from ...enums import FormKind
 from ...errors import PipelineError
-from ...specs import MatrixLawSpec, TopologyRequestSpec
-from ...specs._plan_spec import _PlanSpec
 from ..backends import BaseBackend
 from ..enums import ReadKind
 from ..problems import ProblemSpec
@@ -32,6 +29,7 @@ from ..problems._kernel_spec import KernelSpec
 from ..problems._linear_term_spec import LinearTermSpec
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._markov_kernel import MarkovKernel
+from ..problems._node_spec import _NodeSpec
 from ..problems._output_spec import OutputSpec
 from ..problems._problem_functions_spec import _ProblemFunctionsSpec
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
@@ -40,6 +38,9 @@ from ..problems._topology_kernel import TopologyKernel
 from ..problems._transfer_network_spec import TransferNetworkSpec
 from ..problems._transfer_state_spec import TransferStateSpec
 from ._bound_renewal_spec import BoundRenewalSpec
+from ._census_spec import _CensusSpec
+from ._matrix_law_spec import _MatrixLawSpec
+from ._plan_spec import _PlanSpec
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
 type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
@@ -211,8 +212,8 @@ class Compilation:
             The passes that ran.
     """
 
-    nodes: list[NodeSpec] | None = None
-    census: CensusSpec | None = None
+    nodes: list[_NodeSpec] | None = None
+    census: _CensusSpec | None = None
     plan: _PlanSpec | None = None
     layout: DeclarationsSpec | None = None
     specs: list[tuple[KernelSpec, BlockSpec]] | None = None
@@ -220,7 +221,7 @@ class Compilation:
     apart: Laws | None = None
     programs: Laws | None = None
     lowered: BlockLaws | None = None
-    markov: list[tuple[KernelSpec, MatrixLawSpec]] | None = None
+    markov: list[tuple[KernelSpec, _MatrixLawSpec]] | None = None
     matrices: tuple[MarkovKernel, ...] | None = None
     ordered: Laws | None = None
     delayed: Laws | None = None

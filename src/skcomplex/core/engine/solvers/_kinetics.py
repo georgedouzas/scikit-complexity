@@ -12,8 +12,8 @@ from ...components.laws import BilinearLaw
 from ...components.spaces import ContinuousTime, LatticeSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
 from ...types import Array, Indices, IntArray
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ..problems._encounter_kernel import EncounterKernel
 from ..problems._kinetic_problem_spec import KineticProblemSpec

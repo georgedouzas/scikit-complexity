@@ -19,6 +19,7 @@ from ....components.interactions import BaseInteraction
 from ....components.laws import (
     BaseLaw,
     BoundaryLaw,
+    CallSpec,
     CascadeLaw,
     ConstraintLaw,
     EventLaw,
@@ -38,11 +39,10 @@ from ....components.laws.utils._operators import _OperatorFunction
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.laws.utils._tensors import distribute_operators
 from ....components.spaces import CellComplexSpace, LatticeSpace
-from ....components.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....components.systems import CompositeSystem
 from ....enums import ElementKind, VariableKind
 from ....errors import RoleElementError, SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
-from ....specs import CallSpec, EntrySpec, TensorSpec
+from ....specs import EntrySpec, TensorSpec
 from ....types import ProcessKey
 from ..._utils import components_of, declarations_of, symbol, symbols_of, vector
 from ...enums import ReadKind
@@ -50,9 +50,12 @@ from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
+from ...problems._node_spec import _NodeSpec
 from ...problems._pair_search import PairSearch
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
+from .._census_record_spec import _CensusRecordSpec
+from .._census_spec import _CensusSpec
 from .._compilation import Compilation
 from .._field_lowering import FieldLowering
 from .._observables import ObservableEvaluator
@@ -148,7 +151,7 @@ class CensusPass(BasePass):
         return tuple(sorted(str(item) for item in symbols if item in handles))
 
     @staticmethod
-    def _get_component_kind(node: NodeSpec) -> ElementKind:
+    def _get_component_kind(node: _NodeSpec) -> ElementKind:
         """Return the kind of the component of a node."""
         if isinstance(node.component, GroupElement) and node.component.variable:
             return ElementKind.VARIABLE_GROUP
@@ -192,7 +195,7 @@ class CensusPass(BasePass):
         observer: Observer,
         declarations: DeclarationsSpec,
         agents: set[str],
-    ) -> list[CensusRecordSpec]:
+    ) -> list[_CensusRecordSpec]:
         """Return the census records of the laws of one component."""
         records = []
         specs, _ = SpecsPass._get_specs_of(block, elements, declarations, observer)
@@ -208,7 +211,7 @@ class CensusPass(BasePass):
                 kind = CensusPass._get_component_kind(elements.get(owner, block).node)
                 processes, driven, reads = CensusPass._get_noise_census(spec, law, declarations)
                 records.append(
-                    CensusRecordSpec(
+                    _CensusRecordSpec(
                         block.node.path,
                         owner,
                         law,
@@ -227,7 +230,7 @@ class CensusPass(BasePass):
         return records
 
     @staticmethod
-    def _get_census_of(system: CompositeSystem, nodes: list[NodeSpec]) -> CensusSpec:
+    def _get_census_of(system: CompositeSystem, nodes: list[_NodeSpec]) -> _CensusSpec:
         """Return the census of the laws of a system.
 
         The errors of the components that fail are included. The census declares every component and collects its laws
@@ -267,7 +270,7 @@ class CensusPass(BasePass):
                 records += CensusPass._get_records_of(block, elements, observer, declarations, agents)
             except SkcomplexError as error:
                 errors.append((block.node.path, error))
-        return CensusSpec(system, records, errors, declarations.agents)
+        return _CensusSpec(system, records, errors, declarations.agents)
 
     @staticmethod
     def _get_renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
@@ -938,7 +941,7 @@ class CensusPass(BasePass):
         return [*rules, *checked]
 
     @staticmethod
-    def _get_component_of(node: NodeSpec) -> BaseComponent:
+    def _get_component_of(node: _NodeSpec) -> BaseComponent:
         """Return the component whose laws describe a node, a member for a group."""
         if isinstance(node.component, GroupElement):
             group = node.component

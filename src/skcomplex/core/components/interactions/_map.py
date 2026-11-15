@@ -14,7 +14,8 @@ from sage.all__sagemath_symbolics import SR
 
 from ...enums import ElementKind, ScheduleKind
 from ...errors import ValidationError
-from ...specs import BaseSpec, RoleSpec, Tags
+from ...specs import BaseSpec, RoleSpec
+from .._tags import Tags
 from ..base import BaseComponent
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import uniform

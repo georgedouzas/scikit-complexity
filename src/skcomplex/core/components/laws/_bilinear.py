@@ -9,9 +9,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec
 from ..spaces import ContinuousTime, LatticeSpace
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 
 class BilinearLaw(BaseLaw):

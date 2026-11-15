@@ -802,7 +802,10 @@ def check_core_components_pages_cover_every_class(root: Path) -> list[str]:
         found += [
             f'{path.relative_to(root)}:1: no section for {item.__name__}'
             for item in classes
-            if isinstance(item, type) and not inspect.isabstract(item) and item.__name__ not in headings
+            if isinstance(item, type)
+            and not inspect.isabstract(item)
+            and item.__name__ not in headings
+            and not item.__name__.endswith('Spec')
         ]
         for start, block in _python_blocks(path):
             found += [
@@ -935,7 +938,7 @@ def check_shared_packages_hold_only_subpackages(root: Path) -> list[str]:
 def _public_classes() -> list[type]:
     """Return the public classes of the subpackages of `skcomplex.core.components`, without typed dictionaries."""
     found: dict[str, type] = {}
-    for name in ('elements', 'interactions', 'laws', 'spaces', 'specs', 'systems'):
+    for name in ('elements', 'interactions', 'laws', 'spaces', 'systems'):
         package = importlib.import_module(f'skcomplex.core.components.{name}')
         for item in package.__all__:
             value = getattr(package, item)
@@ -1619,7 +1622,7 @@ def check_components_compare_and_name_uses(root: Path) -> list[str]:
     """Return every public class of a family that compares itself with no nearest part or names no uses."""
     found = []
     for place, name, _, docstring in _public_definitions(root, ast.ClassDef):
-        if not name.startswith(FAMILIES):
+        if not name.startswith(FAMILIES) or name.endswith('Spec'):
             continue
         paragraphs = [' '.join(paragraph.split()) for paragraph in docstring.split('\n\n')]
         compares = any(p.startswith('Unlike') and 'Choose it when' in p for p in paragraphs)

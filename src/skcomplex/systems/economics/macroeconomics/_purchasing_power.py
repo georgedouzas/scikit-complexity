@@ -13,11 +13,12 @@ from types import SimpleNamespace
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
+from ....core.components import Observable
 from ....core.components.elements import DeclaredElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 
 SECTORS = 3
 A_MATRIX = ((-1.0, 0.3, 0.2), (0.2, -0.8, 0.3), (0.1, 0.4, -0.6))
@@ -236,13 +237,13 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
         return values[index]
 
     @staticmethod
-    def _get_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_observables(system: CompositeSystem) -> list[Observable]:
         """Return the index and the input of every sector."""
         economy = system.elements[0]
         if not isinstance(economy, PurchasingPowerElement):
             return []
         return [
-            ObservableSpec(
+            Observable(
                 f'{name}{i + 1}',
                 partial(CategorizedPurchasingPowerSystem._get_sector_value, economy=economy, method=method, index=i),
                 element='economy',

@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 from shapely import Point, Polygon, box
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RuleLaw
@@ -20,11 +21,12 @@ from skcomplex.core.components.spaces import (
     NetworkSpace,
 )
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._agents import AgentsPass
 from skcomplex.core.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import AgentView, MesaSolver
+from skcomplex.core.engine.solvers import AgentView, MesaSolver, StepSpec
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import (
     BackendError,
@@ -34,16 +36,7 @@ from skcomplex.core.errors import (
     SpaceError,
     ValidationError,
 )
-from skcomplex.core.specs import (
-    ObservableSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StateSpec,
-    StepSpec,
-    VisualSpec,
-)
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.general.agents import MovementInteraction
@@ -1026,7 +1019,7 @@ def _stepped(
     system: CompositeSystem,
     until: int,
     random_state: int = 0,
-    observables: tuple[ObservableSpec, ...] = (),
+    observables: tuple[Observable, ...] = (),
 ) -> MesaSolver:
     """Return the agent-based solver after it stepped a system one unit of time at a time until a time."""
     problem = simulate(system, until=0, random_state=random_state, observables=observables).problem
@@ -1122,7 +1115,7 @@ def test_history_reads_an_observable_at_earlier_steps():
     """Test that a rule reads the values of an observable of the run at the end of every earlier step."""
     system = _visited_system(1.0)
     system.interactions = [TotalReaderInteraction('reader')]
-    observables = [ObservableSpec('total', group='visited', variable='visits', reduce='sum')]
+    observables = [Observable('total', group='visited', variable='visits', reduce='sum')]
     solver = _stepped(system, until=3, observables=tuple(observables))
     assert solver.storage_['reader']['histories'] == [[], [4.0], [4.0, 8.0]]
 
@@ -1134,7 +1127,7 @@ def _weight_of(agent: VisitedView) -> float:
 
 def test_observables_read_agent_views():
     """Test that an observable of an agent group reads the views of its agents, with the parameters of the group."""
-    observables = [ObservableSpec('weights', group='visited', expression=_weight_of, reduce='sum')]
+    observables = [Observable('weights', group='visited', expression=_weight_of, reduce='sum')]
     trajectory = simulate(_visited_system(1.0), until=1, observables=observables)
     assert trajectory.get_values('weights').tolist() == [8.0, 8.0]
 
@@ -1552,7 +1545,7 @@ def test_history_keeps_reported_objects():
 
 def test_observable_keeps_a_hashable_value():
     """Test that an observable of a group by a function of its values may give an object."""
-    observables = [ObservableSpec('lengths', group='queues', variable='orders', reduce=_lengths)]
+    observables = [Observable('lengths', group='queues', variable='orders', reduce=_lengths)]
     group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
     system = CompositeSystem(elements=[group], time=DiscreteTime())
     trajectory = simulate(system, until=2, observables=observables, random_state=0)

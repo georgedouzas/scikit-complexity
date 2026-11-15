@@ -8,8 +8,8 @@ import math
 from ...components.laws import BoundaryLaw, LinearProgramLaw, TransferLaw, TransitionLaw, UpdateLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
-from ...specs import SupportSpec
 from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ._base import BaseSolver
 from ._solver import Solver
@@ -27,7 +27,7 @@ class IterationSolver(Solver):
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
         >>> from skcomplex.core.engine.solvers import IterationSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> system = CompositeSystem(
         ...     elements=[MarketElement('m', price=1)],
         ...     interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],

@@ -12,6 +12,7 @@ import pytest
 from sage.all__sagemath_symbolics import Expression, exp, oo, tanh, var
 from sage.sets.real_set import RealSet
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import (
@@ -20,12 +21,12 @@ from skcomplex.core.components.laws.utils import (
     integral_transform,
     integration_variable,
 )
-from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 
 class AmountElement(Element):
@@ -66,7 +67,7 @@ def _observed(values: np.ndarray, axis: AxisSpec, function: Callable[[SimpleName
     """Return an observable of a constant density on one class axis at every cell."""
     space = PhaseSpace(LatticeSpace((1,)), [axis]).prepare()
     field = FieldElement('g', element=AmountElement, space=space, values={'x': values})
-    observables = [ObservableSpec('value', function, group='g', reduce=np.asarray)]
+    observables = [Observable('value', function, group='g', reduce=np.asarray)]
     trajectory = simulate(CompositeSystem(elements=[field]), until=0.1, dt=0.1, observables=observables)
     return np.asarray(trajectory.get_values('value'), dtype=float)[-1].ravel()
 

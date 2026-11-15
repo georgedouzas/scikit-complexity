@@ -16,13 +16,14 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import pi, sin
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import CellComplexSpace, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 
@@ -225,15 +226,15 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         return float(np.abs(faces @ GaugeNetworkAgentsSystem._get_differences(edges, values)).max(initial=0.0))
 
     @staticmethod
-    def _get_agent_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_agent_observables(system: CompositeSystem) -> list[Observable]:
         """Return the energy of the transported differences and their twist.
 
         The twist is around the faces.
         """
         space = system.elements[0].space.prepare()
         return [
-            ObservableSpec('energy', function=partial(GaugeNetworkAgentsSystem._get_energy, space.incidences_[0])),
-            ObservableSpec('twist', function=partial(GaugeNetworkAgentsSystem._get_twist, *space.incidences_[:2])),
+            Observable('energy', function=partial(GaugeNetworkAgentsSystem._get_energy, space.incidences_[0])),
+            Observable('twist', function=partial(GaugeNetworkAgentsSystem._get_twist, *space.incidences_[:2])),
         ]
 
     def __init__(

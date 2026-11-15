@@ -11,13 +11,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction, Interaction, JumpInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import NumbaBackend
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.kinetics import CompartmentElement
 
 
@@ -157,8 +158,8 @@ class NeutralClusteringSystem(BaseSystem):
     dt = 0.5
     backend = NumbaBackend()
     observables = (
-        ObservableSpec('mean', group='patches', variable='x', reduce='mean'),
-        ObservableSpec('variance', group='patches', variable='x', reduce='var'),
+        Observable('mean', group='patches', variable='x', reduce='mean'),
+        Observable('variance', group='patches', variable='x', reduce='var'),
     )
 
     def __init__(

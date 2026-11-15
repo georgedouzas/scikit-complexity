@@ -12,21 +12,24 @@ from sage.all__sagemath_symbolics import RR, SR, Expression, log
 from sage.modules.free_module_element import FreeModuleElement
 from scipy import stats
 
-from ...components.laws import BaseLaw, UpdateLaw
+from ...components.laws import BaseLaw, CallSpec, DrawSpec, UpdateLaw
 from ...components.laws.utils import clip, logistic, stop_gradient, where
 from ...components.laws.utils._draws import draws_in
 from ...components.laws.utils._reductions import reductions_in
 from ...enums import DrawKind
 from ...errors import ValidationError
-from ...specs import CallSpec, DrawSpec, EntrySpec, NamedDrawSpec, NeighborReadSpec, SampledDrawSpec
+from ...specs import EntrySpec
 from ...types import Array, Indices
 from .._utils import components_of, symbol, symbols_of, vector
 from ..enums import ReadKind
 from ..problems._draw_kernel import DrawKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._kernel_spec import KernelSpec
+from ..problems._named_draw_spec import _NamedDrawSpec
+from ..problems._neighbor_read_spec import _NeighborReadSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._request_spec import _RequestSpec
+from ..problems._sampled_draw_spec import _SampledDrawSpec
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 from ._members import MemberLowering
@@ -253,7 +256,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         for spec in specs:
             for reference in spec.references.values():
                 read = reference.neighbor
-                if isinstance(read, NeighborReadSpec) and read.order is not None:
+                if isinstance(read, _NeighborReadSpec) and read.order is not None:
                     orders.setdefault(id(read.order), read.order)
         return tuple(orders.values())
 
@@ -283,8 +286,8 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             if request.draw is None:
                 flags.extend([request.normal] * request.rows)
             start += request.rows
-        sampled: list[SampledDrawSpec] = []
-        named: list[NamedDrawSpec] = []
+        sampled: list[_SampledDrawSpec] = []
+        named: list[_NamedDrawSpec] = []
         position = self.offset_
         for request in ordered:
             if request.draw is None:
@@ -292,7 +295,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
                 position += request.rows
         for request in ordered:
             if request.draw is not None:
-                sampled.append(SampledDrawSpec(position, request.rows, self._get_sampler(request)))
+                sampled.append(_SampledDrawSpec(position, request.rows, self._get_sampler(request)))
                 named.append(self._get_named(request, position))
                 position += request.rows
         self.draws_ = DrawKernel(
@@ -303,7 +306,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             tuple(named),
         ).prepare()
 
-    def _get_named(self, request: _RequestSpec, start: int) -> NamedDrawSpec:
+    def _get_named(self, request: _RequestSpec, start: int) -> _NamedDrawSpec:
         """Return a draw of a request as runs record and replay it.
 
         Its arguments are evaluated from the states and parameters of the member.
@@ -314,7 +317,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             raise ValidationError(error_msg)
         nested = draws_in(list(draw.arguments))
         arguments = None if nested else self._get_arguments_of(request, draw)
-        return NamedDrawSpec(f'{request.owner}.{request.name}', draw, start, request.rows, arguments)
+        return _NamedDrawSpec(f'{request.owner}.{request.name}', draw, start, request.rows, arguments)
 
     def _get_arguments_of(
         self,

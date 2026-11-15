@@ -9,9 +9,9 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import CollocationSolver, PontryaginSolver
+from skcomplex.core.engine.solvers import CollocationSolver, PontryaginSolver, StepSpec
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class FreeElement(Element):

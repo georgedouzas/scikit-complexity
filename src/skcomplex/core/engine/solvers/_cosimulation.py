@@ -38,19 +38,21 @@ from ...components.spaces import (
 )
 from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import ContextError, SolverError, ValidationError
-from ...specs import AgentSnapshotSpec, AgentStateSpec, EntrySpec, StepSpec, SupportSpec
-from ...specs._held_reduction_spec import _HeldReductionSpec
+from ...specs import EntrySpec
 from ...types import Array
-from ..backends import NumbaBackend, NumpyBackend
+from ..backends import NumbaBackend, NumpyBackend, SupportSpec
+from ..compile._held_reduction_spec import _HeldReductionSpec
 from ..compile._observables import ObservableEvaluator
 from ..compile._pass_compiler import PassCompiler
-from ..problems import ProblemSpec
+from ..problems import AgentSnapshotSpec, ProblemSpec
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._partition_spec import PartitionSpec
 from ..problems._reduction_kernel import ReductionKernel
+from ._agent_state_spec import _AgentStateSpec
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS
 from ._solver import Solver
+from ._step_spec import StepSpec
 
 STEPWISE_FORMS = (FormKind.DISCRETE, FormKind.AGENT)
 TOLERANCE = 1e-9
@@ -420,11 +422,11 @@ class CoSimulationSolver(Solver):
         agents: dict[str, list[object]] = {}
         for stepper in self.steppers_.values():
             external = stepper.snapshot_
-            if isinstance(external, AgentStateSpec):
+            if isinstance(external, _AgentStateSpec):
                 groups.update(external.groups)
                 reporters.update(external.reporters)
             agents.update(stepper.agents_)
-        self.snapshot_ = AgentStateSpec(groups, reporters) if groups or reporters else None
+        self.snapshot_ = _AgentStateSpec(groups, reporters) if groups or reporters else None
         self.agents_ = agents
 
     def _release(self) -> None:

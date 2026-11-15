@@ -16,12 +16,13 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import count, total, uniform, where
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class ParticipantElement(Element):
@@ -186,7 +187,7 @@ class HypergraphExposureSisSystem(BaseSystem):
     references = ('St-Onge et al. 2021', 'Majhi et al. 2022')
     until = 200
     dt = 1
-    observables = (ObservableSpec('prevalence', group='participants', variable='infected'),)
+    observables = (Observable('prevalence', group='participants', variable='infected'),)
 
     def __init__(
         self,

@@ -9,21 +9,14 @@ import pytest
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.interactions import TransferInteraction
-from skcomplex.core.components.laws import BaseLaw, RateLaw, RuleLaw, Sink, Source
+from skcomplex.core.components.laws import BaseLaw, PartnerSpec, RateLaw, RuleLaw, Sink, Source
 from skcomplex.core.components.laws.utils import bernoulli
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import (
-    ParameterSpec,
-    PartnerSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 NAMED_SHORTHANDS = {
     'random': PartnerSpec('all', 'uniform'),

@@ -21,9 +21,11 @@ from ..components.systems import CompositeSystem
 from ..engine.runtime import simulate
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, DeclaredVariableSpec, ParameterSpec, SamplesSpec, StateSpec, VisualSpec
+from ..specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _read_samples
+from ._samples_spec import _SamplesSpec
 from ._utils import load_module
 from .types import Runs
 
@@ -96,7 +98,7 @@ class SparseIdentificationResult:
             The variables at the `horizon` samples after the last one, one row per sample.
     """
 
-    samples: SamplesSpec
+    samples: _SamplesSpec
     system: CompositeSystem
     labels: list[str]
     states: list[str]

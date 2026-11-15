@@ -25,12 +25,12 @@ from ...components.laws import (
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import RunStateSpec, SupportSpec
-from ...specs._segment_spec import _SegmentSpec
 from ...types import Array
-from ..problems import ProblemSpec
+from ..backends import SupportSpec
+from ..problems import ProblemSpec, RunStateSpec
 from ._event_locator import EventLocator
 from ._history import RESTART, History
+from ._segment_spec import _SegmentSpec
 from ._solver import Solver
 
 METHODS = {'RK45': RK45, 'RK23': RK23, 'DOP853': DOP853, 'Radau': Radau, 'BDF': BDF, 'LSODA': LSODA}
@@ -117,7 +117,7 @@ class ScipyODESolver(Solver):
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import ScipyODESolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> system = CompositeSystem(
         ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],

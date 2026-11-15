@@ -9,8 +9,9 @@ from typing import Annotated, ClassVar
 
 from ...enums import ElementKind
 from ...errors import ValidationError
-from ...specs import BaseSpec, RoleSpec, Tags, TopologyRequestSpec
-from ..laws import BaseLaw, JumpLaw, UpdateLaw
+from ...specs import BaseSpec, RoleSpec
+from .._tags import Tags
+from ..laws import BaseLaw, JumpLaw, TopologyRequestSpec, UpdateLaw
 from ..laws.utils import where
 from ..spaces import BaseSpace
 from ._neighbor import NeighborInteraction

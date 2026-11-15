@@ -16,7 +16,8 @@ from sage.sets.real_set import RealSet
 
 from ...enums import ElementKind
 from ...errors import ValidationError
-from ...specs import BaseSpec, ParameterSpec, RoleSpec, Tags
+from ...specs import BaseSpec, ParameterSpec, RoleSpec
+from .._tags import Tags
 from ..laws import BaseLaw, RateLaw, UpdateLaw
 from ..laws.utils import count, delayed, hyperedges, maximum, minimum, neighbors, shift_member, total
 from ..spaces import BaseNeighborhood, BaseSpace

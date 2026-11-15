@@ -2,9 +2,9 @@
 
 import pytest
 
-from skcomplex.core.components.elements import PatchElement
+from skcomplex.core.components.elements import PatchElement, PrototileSpec
+from skcomplex.core.components.laws import AffineSpec
 from skcomplex.core.errors import RewritingError
-from skcomplex.core.specs import AffineSpec, PrototileSpec
 
 INTERVAL = PrototileSpec('interval', [(0, 0), (1, 0)])
 

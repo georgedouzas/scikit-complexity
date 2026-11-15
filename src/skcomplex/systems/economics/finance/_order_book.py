@@ -15,13 +15,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ...general.agents import ImitationInteraction
 from ...general.matching import ContinuousMatchingSpec, MatchingInteraction, MatchSpec, RandomSearchSpec
 from ...general.matching.types import MatchingRule
@@ -401,9 +403,9 @@ class OrderBookSystem(BaseSystem):
     until = 200
     invariants: ClassVar[Mapping[str, float]] = {f'total_{name}': 1e-6 for name in HOLDINGS}
     observables = (
-        ObservableSpec('chartists', group='traders', variable='strategy', reduce='mean'),
-        ObservableSpec('mean_wealth', group='traders', variable='wealth', reduce='mean'),
-        *(ObservableSpec(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS),
+        Observable('chartists', group='traders', variable='strategy', reduce='mean'),
+        Observable('mean_wealth', group='traders', variable='wealth', reduce='mean'),
+        *(Observable(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS),
     )
 
     def __init__(

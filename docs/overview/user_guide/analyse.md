@@ -941,7 +941,7 @@ from a network snapshot or from chosen `frames` of a trajectory.
 import numpy as np
 
 from skcomplex.core.analysis import autocatalytic_sets
-from skcomplex.core.specs import NetworkSnapshotSpec
+from skcomplex.core.engine.problems import NetworkSnapshotSpec
 
 reactions = np.array([[0, 1, 2], [2, 0, 3], [3, 1, 4]])
 snapshot = NetworkSnapshotSpec(np.arange(5), np.array([3, 4, 0]), np.array([2, 3, 4]), np.arange(3), reactions)

@@ -11,24 +11,25 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, EventLaw, JumpLaw, RateLaw
+from ....components.laws import BaseLaw, CallSpec, EventLaw, JumpLaw, RateLaw
 from ....components.spaces import LatticeSpace
-from ....components.specs import CompiledElementSpec, CompiledInteractionSpec, NodeSpec
 from ....enums import FormKind, VariableKind
 from ....errors import PipelineError, ValidationError
-from ....specs import CallSpec, LayoutSpec, VisualSpec
-from ....specs._breakpoints_spec import _BreakpointsSpec
-from ....specs._delay_spec import _DelaySpec
+from ....specs import VisualSpec
 from ....types import Array, Indices
 from ..._utils import components_of, declarations_of, symbols_of
 from ...enums import ReadKind
-from ...problems import ProblemSpec
+from ...problems import CompiledElementSpec, LayoutSpec, ProblemSpec
 from ...problems._block_spec import BlockSpec
+from ...problems._breakpoints_spec import _BreakpointsSpec
+from ...problems._compiled_interaction_spec import _CompiledInteractionSpec
 from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._delay_spec import _DelaySpec
 from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._event_kernel import EventKernel
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
+from ...problems._node_spec import _NodeSpec
 from ...problems._random_stream import RandomStream
 from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._reference_spec import ReferenceSpec
@@ -137,10 +138,10 @@ class ProblemPass(BasePass):
     def _get_compiled_interactions(
         blocks: list[BlockSpec],
         specs: list[tuple[KernelSpec, BlockSpec]],
-    ) -> tuple[CompiledInteractionSpec, ...]:
+    ) -> tuple[_CompiledInteractionSpec, ...]:
         """Return the interactions with the paths their roles bind to."""
         return tuple(
-            CompiledInteractionSpec(
+            _CompiledInteractionSpec(
                 path=block.node.path,
                 interaction=block.node.as_interaction,
                 roles=next(spec.roles for spec, _ in specs if spec.owner == block.node.path),
@@ -843,7 +844,7 @@ class ProblemPass(BasePass):
         return history
 
     @staticmethod
-    def _get_visual_of(node: NodeSpec) -> VisualSpec:
+    def _get_visual_of(node: _NodeSpec) -> VisualSpec:
         """Return the visual of an element or a group.
 
         It is its own visual when it sets one, and its default otherwise.

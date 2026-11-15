@@ -12,11 +12,11 @@ from sklearn.base import clone
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, LayerSpec, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 from ....conftest import SpinElement
 

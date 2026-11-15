@@ -13,12 +13,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TransitionInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
 
 
@@ -361,8 +363,8 @@ class LabourMarketSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 ch. 7',)
     until = 200
     observables = (
-        ObservableSpec('unemployment', group='workers', variable='employer', reduce=_get_unemployment),
-        ObservableSpec('searching', group='workers', variable='supply', reduce='sum'),
+        Observable('unemployment', group='workers', variable='employer', reduce=_get_unemployment),
+        Observable('searching', group='workers', variable='supply', reduce='sum'),
     )
 
     def __init__(

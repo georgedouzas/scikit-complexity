@@ -8,11 +8,11 @@ import pytest
 from scipy.special import expit
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace
+from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace, LayerSpec, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.general.agents import ImitationInteraction
 
 SIZE = 50

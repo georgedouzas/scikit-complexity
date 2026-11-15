@@ -11,8 +11,9 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.engine.solvers import PontryaginSolver
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -81,8 +82,8 @@ class SIRVaccinationSystem(DynamicalSystem):
     dt = 0.2
     solver = PontryaginSolver(objective=_get_cost)
     observables = (
-        ObservableSpec('vaccinated', _get_vaccinated),
-        ObservableSpec('cost', _get_cost),
+        Observable('vaccinated', _get_vaccinated),
+        Observable('cost', _get_cost),
     )
 
     def __init__(

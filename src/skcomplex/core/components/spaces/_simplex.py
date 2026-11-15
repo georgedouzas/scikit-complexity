@@ -53,7 +53,7 @@ class SimplexSpace(PhaseSpace):
 
     Examples:
         >>> from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
-        >>> from skcomplex.core.specs import AxisSpec
+        >>> from skcomplex.core.components.spaces import AxisSpec
         >>> axes = [AxisSpec('x', 10, 0.0, 1.0), AxisSpec('y', 10, 0.0, 1.0)]
         >>> space = SimplexSpace(LatticeSpace((1,)), axes).prepare()
         >>> space.shape_, float(space.volumes_.sum())

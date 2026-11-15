@@ -7,8 +7,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....enums import ComponentReductionKind
 from ....errors import ValidationError
-from ....specs import LayerSpec
-from ...spaces import BaseNeighborhood
+from ...spaces import BaseNeighborhood, LayerSpec
 from ._reductions import COMPONENTS, _neighborhood_symbol
 
 

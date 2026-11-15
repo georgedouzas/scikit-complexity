@@ -13,11 +13,12 @@ import networkx as nx
 import numpy as np
 
 from ....core.analysis import motifs, network_measures
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import AnalysisError
-from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
+from ....core.specs import ParameterSpec, VisualSpec
 from ..common.networks import NetworkNodeElement
 
 BLOCKS = 4
@@ -147,12 +148,12 @@ class NetworkStructureAnalysisSystem(BaseSystem):
     until = 1
     dt = 1
     observables = (
-        ObservableSpec('clustering', group='nodes', variable='clustering', reduce='mean'),
-        ObservableSpec('path_length', _get_path_length),
-        ObservableSpec('assortativity', _get_assortativity),
-        ObservableSpec('modularity', _get_modularity),
-        ObservableSpec('agreement', _get_agreement),
-        ObservableSpec('triangle_zscore', _get_triangle_zscore),
+        Observable('clustering', group='nodes', variable='clustering', reduce='mean'),
+        Observable('path_length', _get_path_length),
+        Observable('assortativity', _get_assortativity),
+        Observable('modularity', _get_modularity),
+        Observable('agreement', _get_agreement),
+        Observable('triangle_zscore', _get_triangle_zscore),
     )
 
     def __init__(

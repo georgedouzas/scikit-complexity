@@ -10,6 +10,7 @@ from scipy.special import iv
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
+from skcomplex.core.components.laws import PartnerSpec
 from skcomplex.core.components.laws.utils import exterior_derivative, neighbors
 from skcomplex.core.components.spaces import (
     BallNeighborhood,
@@ -22,7 +23,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, PartnerSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.physics.common.fields import HolonomyScoreSpec, WilsonSamplingInteraction
 
 SIDE = 16

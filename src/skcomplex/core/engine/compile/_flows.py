@@ -30,13 +30,13 @@ from ...components.spaces import DiscreteTime
 from ...enums import VariableKind
 from ...errors import ConservationError, LabelError, ValidationError
 from ...specs import EntrySpec
-from ...specs._compiled_flow_spec import _CompiledFlowSpec
 from ...types import Array
 from .._utils import declarations_of, symbol, symbols_of
 from ..enums import ReadKind
 from ..problems._block_spec import BlockSpec
 from ..problems._born_spec import _BornSpec
 from ..problems._compiled_delay_spec import _CompiledDelaySpec
+from ..problems._compiled_flow_spec import _CompiledFlowSpec
 from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._flow_term_spec import _FlowTermSpec
 from ..problems._kernel_spec import KernelSpec

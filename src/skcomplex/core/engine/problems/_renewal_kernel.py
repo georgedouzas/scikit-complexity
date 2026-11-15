@@ -8,8 +8,8 @@ from collections.abc import Callable, Mapping
 import numpy as np
 import numpy.typing as npt
 
+from ...components.laws import DrawSpec
 from ...errors import SolverError, ValidationError
-from ...specs import DrawSpec, RenewalRecordSpec, RunStateSpec
 from ...types import Array, Indices
 from ..enums import ReadKind
 from ..types import Drawn
@@ -17,6 +17,8 @@ from ._base import BaseKernel
 from ._draw_kernel import DrawKernel
 from ._expression_printer import ExpressionPrinter
 from ._reference_spec import ReferenceSpec
+from ._renewal_record_spec import RenewalRecordSpec
+from ._run_state_spec import RunStateSpec
 
 READ_SOURCES = frozenset({ReadKind.SINGLE, ReadKind.MEMBER})
 

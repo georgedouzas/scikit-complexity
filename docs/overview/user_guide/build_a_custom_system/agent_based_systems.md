@@ -194,7 +194,8 @@ from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 
 
 class TraderElement(Element):

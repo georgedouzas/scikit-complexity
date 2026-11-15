@@ -623,7 +623,9 @@ from skcomplex.core.components.laws import DissipatorLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.engine.problems import HilbertSpec
+from skcomplex.core.components import Observable
 
 QUBIT = HilbertSpec(
     2,
@@ -658,7 +660,7 @@ def excited(namespace):
     return local_operator(namespace.atom.psi, 'excited')
 
 
-observables = [ObservableSpec('excited', excited)]
+observables = [Observable('excited', excited)]
 trajectory = simulate(CompositeSystem(elements=[AtomElement('atom')]), until=2, dt=1.0, observables=observables)
 np.real(trajectory.get_values('excited')).round(3).tolist()
 ```
@@ -702,7 +704,7 @@ def photons(namespace):
     return local_operator(namespace.cavity.psi, 'number')
 
 
-observed = [ObservableSpec('photons', photons)]
+observed = [Observable('photons', photons)]
 trajectory = simulate(CompositeSystem(elements=[CavityElement('cavity')]), until=10, dt=5.0, observables=observed)
 np.real(trajectory.get_values('photons')).round(3).tolist()
 ```
@@ -1082,7 +1084,9 @@ from skcomplex.core.components.laws import GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.engine.problems import HilbertSpec
+from skcomplex.core.components import Observable
 
 SPIN = HilbertSpec(
     2,
@@ -1116,7 +1120,7 @@ def sz(namespace):
     return local_operator(namespace.spin.psi, 'z')
 
 
-observables = [ObservableSpec('sz', sz)]
+observables = [Observable('sz', sz)]
 precession = CompositeSystem(elements=[SpinElement('spin')])
 trajectory = simulate(precession, until=np.pi, dt=np.pi / 2, observables=observables)
 (np.real(trajectory.get_values('sz')).round(3) + 0.0).tolist()
@@ -1164,7 +1168,7 @@ def arrived(namespace):
     return local_operator(namespace.walker.psi, 'end')
 
 
-observed = [ObservableSpec('end', arrived)]
+observed = [Observable('end', arrived)]
 crossing = np.pi / np.sqrt(2)
 walker = CompositeSystem(elements=[WalkerElement('walker')])
 walk = simulate(walker, until=crossing, dt=crossing / 2, observables=observed)
@@ -1220,7 +1224,9 @@ from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DatasetSpec, ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import DatasetSpec
+from skcomplex.core.components import Observable
 
 
 class ScaleElement(Element):
@@ -1253,7 +1259,7 @@ training = TrainingInteraction(
     'fit',
     system='decay',
     trained=['unit.a'],
-    loss=ObservableSpec('error', squared_error),
+    loss=Observable('error', squared_error),
     data=DatasetSpec({'unit.observed': 0.8 ** np.arange(1, 11)[np.newaxis]}),
     learning_rate=0.05,
     batch_size=1,
@@ -1275,7 +1281,7 @@ interest = TrainingInteraction(
     'fit',
     system='deposit',
     trained=['unit.a'],
-    loss=ObservableSpec('error', squared_error),
+    loss=Observable('error', squared_error),
     data=DatasetSpec({'unit.observed': balances}),
     learning_rate=0.01,
     batch_size=1,
@@ -1445,7 +1451,8 @@ from skcomplex.core.components.laws import LinearProgramLaw
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import LinearObjectiveSpec
 
 
 class CellElement(Element):
@@ -1563,7 +1570,8 @@ from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import LinearRuleSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import LinearRuleSpec
 
 
 class CellElement(Element):
@@ -1591,7 +1599,7 @@ every four steps.
 
 ```python continuation
 from skcomplex.core.components.spaces import BallNeighborhood
-from skcomplex.core.specs import OuterTotalisticSpec
+from skcomplex.core.components.laws import OuterTotalisticSpec
 
 life = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 
@@ -2183,7 +2191,8 @@ from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
 
 nearest = BallNeighborhood(metric='manhattan')
 
@@ -2487,7 +2496,8 @@ from skcomplex.core.components.elements import PatchElement
 from skcomplex.core.components.laws import SubstitutionLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import AffineSpec, PrototileSpec
+from skcomplex.core.components.laws import AffineSpec
+from skcomplex.core.components.elements import PrototileSpec
 
 
 class CarpetElement(PatchElement):

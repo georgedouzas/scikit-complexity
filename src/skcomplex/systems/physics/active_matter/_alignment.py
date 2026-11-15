@@ -14,12 +14,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, I, exp, oo, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import PairInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
+from ....core.specs import ParameterSpec, VisualSpec
 from ..common.particles import ActiveParticleElement, SelfPropulsionInteraction
 
 HEADINGS = VisualSpec(
@@ -159,8 +160,8 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
     dt = 1.0
     solver = EulerMaruyamaSolver(dt=0.05)
     observables = (
-        ObservableSpec('mean_heading', _get_heading, group='swimmers'),
-        ObservableSpec('polarization', _get_polarization),
+        Observable('mean_heading', _get_heading, group='swimmers'),
+        Observable('polarization', _get_polarization),
     )
 
     def __init__(

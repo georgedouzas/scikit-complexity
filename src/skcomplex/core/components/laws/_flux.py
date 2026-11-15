@@ -6,10 +6,10 @@
 from typing import ClassVar
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec
 from ..spaces import ContinuousTime, LatticeSpace, MeshSpace
 from ..types import Target
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 LIMITERS = ('minmod', 'van-leer', None)
 RIEMANN_SOLVERS = ('rusanov', 'godunov')

@@ -15,12 +15,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.spins import SpinSamplingInteraction
 
 SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
@@ -243,7 +244,7 @@ class EdwardsAndersonSystem(BaseSystem):
     references = ('Edwards and Anderson 1975', 'Bertin 2021', 'Binder and Young 1986')
     until = 500
     dt = 5
-    observables = (ObservableSpec('magnetization', group='spins', variable='spin'),)
+    observables = (Observable('magnetization', group='spins', variable='spin'),)
 
     @staticmethod
     def _get_square(size: int | Sequence[int]) -> tuple[int, int]:
@@ -372,8 +373,8 @@ class MattisSpinGlassSystem(BaseSystem):
     until = 300
     dt = 2
     observables = (
-        ObservableSpec('magnetization', group='spins', variable='spin'),
-        ObservableSpec('overlap', _get_overlap, group='spins'),
+        Observable('magnetization', group='spins', variable='spin'),
+        Observable('overlap', _get_overlap, group='spins'),
     )
 
     def __init__(

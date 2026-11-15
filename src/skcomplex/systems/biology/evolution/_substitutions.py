@@ -15,13 +15,14 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable, Tags
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import total
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, Tags, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 
@@ -245,7 +246,7 @@ class OriginFixationWalkSystem(BaseSystem):
         return s.substitution.F0 + s.field_share + s.coupling_share
 
     @staticmethod
-    def _walk_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _walk_observables(system: CompositeSystem) -> list[Observable]:
         """Return the shares of the fields and the couplings, and the genome fitness.
 
         The shares are those in the fitness of the genome.
@@ -254,14 +255,14 @@ class OriginFixationWalkSystem(BaseSystem):
         loci = system.elements[0].prepare().size_
         matrix = np.zeros((loci, loci)) if couplings is None else np.asarray(couplings)
         return [
-            ObservableSpec('field_share', OriginFixationWalkSystem._get_field_share, group='genome', reduce='sum'),
-            ObservableSpec(
+            Observable('field_share', OriginFixationWalkSystem._get_field_share, group='genome', reduce='sum'),
+            Observable(
                 'coupling_share',
                 group='genome',
                 variable='s',
                 reduce=partial(OriginFixationWalkSystem._get_coupling_share, couplings=matrix),
             ),
-            ObservableSpec('fitness', OriginFixationWalkSystem._get_genome_fitness),
+            Observable('fitness', OriginFixationWalkSystem._get_genome_fitness),
         ]
 
     def __init__(

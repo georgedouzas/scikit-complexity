@@ -8,9 +8,9 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec
 from ..spaces import ContinuousTime
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 from .utils._local_operators import has_operator
 
 

@@ -13,11 +13,12 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.components.laws.utils import clip, distributed_delay, minimum, series, step
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 MONTHS_PER_YEAR = 12.0
 HUSK_SHARE = 0.2
@@ -467,9 +468,9 @@ class RiceMillingSystem(BaseSystem):
     until = 120.0
     dt = 0.25
     observables = (
-        ObservableSpec('procurement', RiceMillElement._get_procurement, element='mill'),
-        ObservableSpec('indicated_milling', RiceMillElement._get_indicated_milling, element='mill'),
-        ObservableSpec('milling', RiceMillElement._get_milling, element='mill'),
+        Observable('procurement', RiceMillElement._get_procurement, element='mill'),
+        Observable('indicated_milling', RiceMillElement._get_indicated_milling, element='mill'),
+        Observable('milling', RiceMillElement._get_milling, element='mill'),
     )
 
     def __init__(
@@ -561,9 +562,9 @@ class SolidWasteSystem(BaseSystem):
     until = 40.0
     dt = 0.1
     observables = (
-        ObservableSpec('generation', WasteSystemElement._get_generation, element='city'),
-        ObservableSpec('collection', WasteSystemElement._get_collection, element='city'),
-        ObservableSpec('acceptance', WasteSystemElement._get_acceptance, element='city'),
+        Observable('generation', WasteSystemElement._get_generation, element='city'),
+        Observable('collection', WasteSystemElement._get_collection, element='city'),
+        Observable('acceptance', WasteSystemElement._get_acceptance, element='city'),
     )
 
     def __init__(
@@ -649,8 +650,8 @@ class FoodReliefSystem(BaseSystem):
     until = 120.0
     dt = 0.5
     observables = (
-        ObservableSpec('need', ReliefPipelineElement._need, element='relief'),
-        ObservableSpec('shipments', ReliefPipelineElement._get_shipments, element='relief'),
+        Observable('need', ReliefPipelineElement._need, element='relief'),
+        Observable('shipments', ReliefPipelineElement._get_shipments, element='relief'),
     )
 
     def __init__(
@@ -738,9 +739,9 @@ class IrrigationSystem(BaseSystem):
     until = 730.0
     dt = 1.0
     observables = (
-        ObservableSpec('demand', IrrigationSchemeElement._get_demand, element='scheme'),
-        ObservableSpec('release', IrrigationSchemeElement._get_reservoir_release, element='scheme'),
-        ObservableSpec('pumping', IrrigationSchemeElement._get_pumping, element='scheme'),
+        Observable('demand', IrrigationSchemeElement._get_demand, element='scheme'),
+        Observable('release', IrrigationSchemeElement._get_reservoir_release, element='scheme'),
+        Observable('pumping', IrrigationSchemeElement._get_pumping, element='scheme'),
     )
 
     def __init__(

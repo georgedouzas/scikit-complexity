@@ -12,6 +12,7 @@ from sage.all__sagemath_symbolics import RR, SR, ZZ, Expression, cos, identity_m
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.interactions import (
     HyperedgeInteraction,
@@ -20,8 +21,20 @@ from skcomplex.core.components.interactions import (
     PairInteraction,
     RateInteraction,
     SamplingInteraction,
+    WienerProcessSpec,
 )
-from skcomplex.core.components.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, SampleLaw, UpdateLaw
+from skcomplex.core.components.laws import (
+    BoundaryLaw,
+    JumpLaw,
+    MoveSpec,
+    NoiseLaw,
+    ObjectiveSpec,
+    RateLaw,
+    RuleLaw,
+    SampleLaw,
+    SamplerSpec,
+    UpdateLaw,
+)
 from skcomplex.core.components.laws.utils import (
     codifferential,
     convolve,
@@ -40,6 +53,7 @@ from skcomplex.core.components.laws.utils import (
     tensor_divergence,
 )
 from skcomplex.core.components.spaces import (
+    AxisSpec,
     CayleySpace,
     CellComplexSpace,
     CofaceNeighborhood,
@@ -55,7 +69,7 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import domain_of, symbol
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import BasePass
+from skcomplex.core.engine.compile import BasePass, IssueSpec, ValidationReportSpec
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
 from skcomplex.core.engine.compile.passes._flatten import FlattenPass
@@ -75,20 +89,7 @@ from skcomplex.core.errors import (
     UnregisteredLawError,
     ValidationError,
 )
-from skcomplex.core.specs import (
-    AxisSpec,
-    IssueSpec,
-    MoveSpec,
-    ObjectiveSpec,
-    ObservableSpec,
-    ParameterSpec,
-    RoleSpec,
-    SamplerSpec,
-    StateSpec,
-    ValidationReportSpec,
-    VisualSpec,
-    WienerProcessSpec,
-)
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
@@ -523,7 +524,7 @@ def test_general_compiler_names_the_compiler_of_a_operator_system():
 
 def test_compiler_reports_an_observable_of_a_missing_system():
     """Test that an observable labelled with a nested system that does not exist is an issue of the report."""
-    observable = ObservableSpec('village/size', lambda s: s.rabbits.x)
+    observable = Observable('village/size', lambda s: s.rabbits.x)
     report = PassCompiler(observables=[observable]).prepare(_growth()).report_
     assert [issue.code for issue in report.errors] == ['observable-path']
 
@@ -2182,7 +2183,7 @@ def test_observable_among_the_laws_is_rejected():
 
         def _get_laws(self, s):
             """Return the laws of the mixed element."""
-            return [RateLaw(s.a, -s.a), ObservableSpec('level', s.a)]
+            return [RateLaw(s.a, -s.a), Observable('level', s.a)]
 
     (issue,) = PassCompiler().prepare(CompositeSystem(elements=[MixedElement('tank')])).report_.errors
     assert issue.path == 'tank'

@@ -10,11 +10,14 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ...components.elements import PatchElement
-from ...components.laws import SubstitutionLaw
+from ...components.laws import AffineSpec, SubstitutionLaw
 from ...errors import RewritingError
-from ...specs import AffineSpec, BaseStructureSpec, ParametersSpec, PatchStructureSpec, RunStateSpec
 from ._base import BaseKernel
 from ._base_problem_spec import BaseProblemSpec
+from ._base_structure_spec import BaseStructureSpec
+from ._parameters_spec import _ParametersSpec
+from ._patch_structure_spec import PatchStructureSpec
+from ._run_state_spec import RunStateSpec
 from ._word_kernel import IDENTIFIER
 
 
@@ -48,7 +51,7 @@ class PatchKernel(BaseKernel):
         path: str,
         patch: PatchElement,
         substitutions: Sequence[SubstitutionLaw],
-        parameters: ParametersSpec,
+        parameters: _ParametersSpec,
     ) -> None:
         self.path = path
         self.patch = patch

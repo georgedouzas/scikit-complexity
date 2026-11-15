@@ -16,12 +16,13 @@ from sage.all__sagemath_symbolics import Expression, I, exp, oo, pi
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import neighbors, uniform
 from ....core.components.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.particles import PropulsionStepInteraction
 
 SPECIES = VisualSpec('points', {'position': 'x', 'radius': 0.04, 'color_by': 'species', 'color_range': (0.0, 1.0)})
@@ -196,8 +197,8 @@ class NonreciprocalVicsekSystem(BaseSystem):
     until = 300.0
     dt = 1.0
     observables = (
-        ObservableSpec('heading_a', _get_heading_a, group='movers'),
-        ObservableSpec('heading_b', _get_heading_b, group='movers'),
+        Observable('heading_a', _get_heading_a, group='movers'),
+        Observable('heading_b', _get_heading_b, group='movers'),
     )
 
     def __init__(

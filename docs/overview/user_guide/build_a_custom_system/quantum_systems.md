@@ -62,7 +62,9 @@ from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.engine.problems import HilbertSpec
+from skcomplex.core.components import Observable
 
 PAULI = {
     'x': (np.array([[0, 0.5], [0.5, 0]]), True),
@@ -107,7 +109,7 @@ chain = CompositeSystem(
     ],
     interactions=[ExchangeInteraction('exchange', target='chain')],
 )
-observables = [ObservableSpec('sz', sz, group='chain', reduce=sites)]
+observables = [Observable('sz', sz, group='chain', reduce=sites)]
 trajectory = simulate(chain, until=2.0, dt=0.5, observables=observables)
 trajectory.get_values('sz').shape, round(float(np.ptp(trajectory.get_values('energy'))), 8)
 ```
@@ -142,7 +144,7 @@ frame to QuTiP.
 - `LindbladSolver`, the default, solves the master equation.
 - `JumpTrajectoriesSolver` draws quantum jumps from the random stream of the run.
 
-An `ObservableSpec` whose expression is an operator records its expectation. One over a group gives one value per
+An `Observable` whose expression is an operator records its expectation. One over a group gives one value per
 member when its `reduce` keeps the values, as `sites` does above. Every quantum run also records its `energy`, and its
 `purity` when it is open. Groups on a lattice stream the space-time image of their local expectations to Rerun.
 

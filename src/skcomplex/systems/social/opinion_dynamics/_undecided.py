@@ -15,13 +15,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class UndecidedView(AgentView):
@@ -287,7 +288,7 @@ class UndecidedFlowsSystem(BaseSystem):
     references = ('Jensen 2023',)
     until = 20.0
     dt = 0.1
-    observables = (ObservableSpec('critical_size', _get_critical_size, element='population'),)
+    observables = (Observable('critical_size', _get_critical_size, element='population'),)
 
     def __init__(
         self,

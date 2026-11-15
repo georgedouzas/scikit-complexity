@@ -16,9 +16,10 @@ from ...components.laws import DissipatorLaw, GeneratorLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import RunStateSpec, SupportSpec
 from ...types import Array
+from ..backends import SupportSpec
 from ..compile.passes._operator_compiler import DEFAULT_MAX_DIMENSION
+from ..problems import RunStateSpec
 from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_problem_spec import OperatorProblemSpec
 from ._base import BaseSolver

@@ -11,6 +11,7 @@ from typing import Annotated, ClassVar, SupportsFloat
 from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Tags
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import JumpInteraction
 from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
@@ -18,7 +19,7 @@ from ....core.components.laws.utils import where
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ElementKind, ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, Tags
+from ....core.specs import ParameterSpec, RoleSpec
 from .types import Stoichiometry
 
 MODES = ('rate', 'jump', 'langevin')

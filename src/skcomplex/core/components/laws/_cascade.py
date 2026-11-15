@@ -6,9 +6,9 @@
 from collections.abc import Callable, Sequence
 from typing import ClassVar
 
-from ...specs import RequirementSpec
 from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 
 class CascadeLaw(BaseLaw):

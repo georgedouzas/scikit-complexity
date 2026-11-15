@@ -13,21 +13,23 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sklearn.base import clone
 
+from ...components import Observable
 from ...components.interactions import TrainingInteraction
 from ...components.laws import ConstraintLaw, GradientStepLaw, RateLaw, UpdateLaw
 from ...components.spaces import DiscreteTime
 from ...components.systems import CompositeSystem
 from ...enums import FormKind
 from ...errors import SkcomplexError, SolverError, ValidationError
-from ...specs import EntrySpec, IssueSpec, LayoutSpec, ObservableSpec, ParameterSpec
+from ...specs import EntrySpec, ParameterSpec
 from .._utils import symbol, symbols_of
 from ..backends import BaseBackend, JaxBackend
-from ..problems import BaseProblemSpec, ProblemSpec
+from ..problems import BaseProblemSpec, LayoutSpec, ProblemSpec
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._learning_problem_spec import LearningProblemSpec
 from ..types import TracedArray, TracedFunction
 from ._base import BaseCompiler
 from ._compilation import Compilation
+from ._issue_spec import IssueSpec
 from ._observables import ObservableEvaluator
 from .passes._functions import FunctionsPass
 
@@ -92,7 +94,7 @@ class _LearningCompiler(BaseCompiler):
         inner: BaseCompiler,
         backend: BaseBackend | None = None,
         solver: object = None,
-        observables: Sequence[ObservableSpec] = (),
+        observables: Sequence[Observable] = (),
     ) -> None:
         super().__init__(backend, solver, observables)
         self.inner = inner
@@ -336,7 +338,7 @@ class _LearningCompiler(BaseCompiler):
         return value
 
     @staticmethod
-    def _get_evaluated(observable: ObservableSpec, namespace: SimpleNamespace) -> object:
+    def _get_evaluated(observable: Observable, namespace: SimpleNamespace) -> object:
         """Return the expression of an observable in a namespace.
 
         It raises an error that names the variable it misses.
@@ -349,7 +351,7 @@ class _LearningCompiler(BaseCompiler):
             error_msg = f'The observable {observable.label} reads {error.name}, which the nested system does not have.'
             raise ValidationError(error_msg) from error
 
-    def _measure_of(self, problem: ProblemSpec, observable: ObservableSpec) -> TracedFunction:
+    def _measure_of(self, problem: ProblemSpec, observable: Observable) -> TracedFunction:
         """Return the pure JAX function of an observable of the nested system.
 
         The function is a value of its states and parameters.

@@ -7,10 +7,10 @@ from typing import ClassVar
 
 from sage.structure.element import Matrix
 
-from ...specs import RequirementSpec
 from ..spaces import ContinuousTime
 from ..types import Target
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 
 class RateLaw(BaseLaw):

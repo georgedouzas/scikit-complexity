@@ -9,11 +9,11 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
-from ...specs._agent_snapshot_spec import AgentSnapshotSpec
-from ...specs._base_record_spec import BaseRecordSpec
 from ...specs._base_spec import BaseSpec
 from ...types import AnyArray, Array
+from ._agent_snapshot_spec import AgentSnapshotSpec
 from ._base_problem_spec import BaseProblemSpec
+from ._base_record_spec import BaseRecordSpec
 
 
 @dataclass(frozen=True)

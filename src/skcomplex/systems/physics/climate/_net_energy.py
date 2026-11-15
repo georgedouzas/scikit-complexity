@@ -12,10 +12,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 def _get_gross_energy(s: SimpleNamespace) -> Expression:
@@ -201,10 +202,10 @@ class EnergyReturnSystem(BaseSystem):
     until = 250.0
     dt = 1.0
     observables = (
-        ObservableSpec('eroi', _get_eroi, element='energy'),
-        ObservableSpec('gross_energy', _get_gross_energy, element='energy'),
-        ObservableSpec('extraction_cost', _get_extraction_cost, element='energy'),
-        ObservableSpec('net_per_capita', _get_net_per_capita, element='energy'),
+        Observable('eroi', _get_eroi, element='energy'),
+        Observable('gross_energy', _get_gross_energy, element='energy'),
+        Observable('extraction_cost', _get_extraction_cost, element='energy'),
+        Observable('net_per_capita', _get_net_per_capita, element='energy'),
     )
 
     def __init__(

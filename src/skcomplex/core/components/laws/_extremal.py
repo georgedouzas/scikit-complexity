@@ -9,9 +9,9 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec
 from ..spaces import BaseNeighborhood, DiscreteTime, LatticeSpace, NetworkSpace
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 EXTREMA = ('min', 'max')
 

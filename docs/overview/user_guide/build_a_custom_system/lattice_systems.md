@@ -54,7 +54,8 @@ from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import OuterTotalisticSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import OuterTotalisticSpec
 
 
 class LifeElement(Element):
@@ -136,7 +137,8 @@ from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
 
 nearest = BallNeighborhood(metric='manhattan')
 
@@ -245,7 +247,8 @@ from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
 
 
 class GraphSpinElement(Element):

@@ -18,9 +18,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
+from skcomplex.core.components import Observable
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.systems.biology.collective_behaviour import CouzinLeadershipSystem
 
 SYSTEM = 'couzin_leadership'
@@ -50,7 +50,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-heading_x = ObservableSpec('heading_x', group='shoal', variable='vx')
+heading_x = Observable('heading_x', group='shoal', variable='vx')
 trajectory = simulate(
     CouzinLeadershipSystem(n_fish=50, informed=0.1, size=SIZE, random_state=0),
     until=150,

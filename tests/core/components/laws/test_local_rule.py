@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_gap import PermutationGroup
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.laws import LocalRuleLaw
+from skcomplex.core.components.laws import LinearRuleSpec, LocalRuleLaw, OuterTotalisticSpec, TableSpec, TotalisticSpec
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
     BallNeighborhood,
@@ -20,7 +20,6 @@ from skcomplex.core.components.spaces import (
     StateTranslationNeighborhood,
 )
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import LinearRuleSpec, OuterTotalisticSpec, TableSpec, TotalisticSpec
 from skcomplex.systems.computer_science.automata import Wolfram
 
 LIFE = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})

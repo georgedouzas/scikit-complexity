@@ -13,12 +13,13 @@ import networkx as nx
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
+from ....core.specs import StateSpec, VisualSpec
 
 SIZE_VISUAL = VisualSpec('sites', {'states': ['size']})
 
@@ -91,7 +92,7 @@ class ExplosivePercolationSystem(BaseSystem):
     topics = ('network', 'percolation', 'explosive percolation', 'Achlioptas process', 'giant component')
     references = ("Achlioptas, D'Souza, and Spencer 2009", 'Artime et al. 2025')
     until = 1000
-    observables = (ObservableSpec('largest', group='nodes', variable='size', reduce='max'),)
+    observables = (Observable('largest', group='nodes', variable='size', reduce='max'),)
 
     def __init__(
         self,

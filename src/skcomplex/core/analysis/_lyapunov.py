@@ -19,8 +19,8 @@ from ..engine.problems._source_loader import SourceLoader
 from ..engine.runtime import Trajectory
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
 from ..types import Array, VectorFunction
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_series, _read_system
 from ._stability import StabilityResult
 from .types import Source

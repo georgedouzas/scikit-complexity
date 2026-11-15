@@ -22,6 +22,7 @@ from sage.all__sagemath_symbolics import NN, SR, oo
 from sage.sets.real_set import RealSet
 from scipy.spatial import Voronoi
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import SamplingInteraction
 from ....core.components.laws import ArrayUpdateLaw, BaseLaw
@@ -36,7 +37,7 @@ from ....core.components.spaces import (
 )
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, Indices
 
 MATRIX_AXES = 2
@@ -713,7 +714,7 @@ class CellularPottsSystem(BaseSystem):
         return float(np.abs(areas - target_area).mean() / target_area)
 
     @staticmethod
-    def _get_cellular_potts_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_cellular_potts_observables(system: CompositeSystem) -> list[Observable]:
         """Return the share of homotypic contacts and the deviation of the areas.
 
         The deviation is that of the areas from their target.
@@ -726,7 +727,7 @@ class CellularPottsSystem(BaseSystem):
             sizes = np.asarray([volume for _, volume in space.graph.nodes(data='volume', default=1.0)], dtype=float)
         kinds = np.asarray(adhesion.kinds, dtype=np.intp)
         return [
-            ObservableSpec(
+            Observable(
                 'homotypic_contacts',
                 function=partial(
                     CellularPottsSystem._get_homotypic_contacts,
@@ -734,7 +735,7 @@ class CellularPottsSystem(BaseSystem):
                     kinds,
                 ),
             ),
-            ObservableSpec(
+            Observable(
                 'area_deviation',
                 function=partial(CellularPottsSystem._get_area_deviation, sizes, float(adhesion.target_area)),
             ),

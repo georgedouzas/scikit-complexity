@@ -17,10 +17,10 @@ density, which grows exponentially and saturates.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.components import Observable
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.systems.physics.active_matter import BertinDrozGregoireSystem
 
 SYSTEM = 'bertin_droz_gregoire'
@@ -37,7 +37,7 @@ def polar_order(_, values):
     return np.abs(density @ np.exp(1j * THETA)) / density.sum()
 
 
-observables = [ObservableSpec('polar_order', function=polar_order)]
+observables = [Observable('polar_order', function=polar_order)]
 system = BertinDrozGregoireSystem(positions=1, angles=ANGLES, density=2 * TRANSITION)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 solver = RK4Solver(dt=0.2)

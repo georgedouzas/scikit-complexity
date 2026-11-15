@@ -12,6 +12,7 @@ import pytest
 from sage.all__sagemath_symbolics import SR, cos, exp, var
 from scipy.special import logsumexp
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
@@ -19,11 +20,12 @@ from skcomplex.core.components.laws import ConstraintLaw, RateLaw
 from skcomplex.core.components.laws.utils import log_sum_exp, total
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.compile import IssueSpec
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import IssueSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class SurvivalElement(Element):
@@ -219,7 +221,7 @@ def test_run_without_equations() -> None:
     group = GroupElement('g', element=ValueElement, size=4, values={'x': np.arange(1.0, 5.0)})
     trajectory = _simulated(
         CompositeSystem(elements=[group], time=StaticTime()),
-        observables=[ObservableSpec('all', group='g', variable='x', reduce='sum')],
+        observables=[Observable('all', group='g', variable='x', reduce='sum')],
     )
     assert trajectory.get_values('g.x').tolist() == [[1.0, 2.0, 3.0, 4.0]]
     assert trajectory.get_values('all').tolist() == [10.0]

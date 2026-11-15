@@ -5,6 +5,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
@@ -16,7 +17,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CoSimulationSolver, ScipyODESolver
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import IncompatibleLawsError, SolverError, ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
@@ -362,7 +363,7 @@ def test_held_observable_reduces_element_group():
         ],
         interactions=[CopyInteraction('copy', target='ledger/tally', source='herds/largest')],
     )
-    largest = ObservableSpec('herds/largest', group='herd', reduce=np.max, variable='x')
+    largest = Observable('herds/largest', group='herd', reduce=np.max, variable='x')
     trajectory = simulate(system, until=1, dt=1, observables=[largest])
     assert trajectory.get_values('herds/largest.value')[0] == 3.0
     assert trajectory.get_values('ledger/tally.k')[-1] == pytest.approx(3.0)

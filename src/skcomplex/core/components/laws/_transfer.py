@@ -9,8 +9,9 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, RequirementSpec
+from ...specs import BaseSpec
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 SHIFT = 'shift_member'
 

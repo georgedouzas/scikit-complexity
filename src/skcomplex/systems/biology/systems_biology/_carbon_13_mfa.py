@@ -23,10 +23,10 @@ from ....core.analysis import bind_analysis
 from ....core.analysis.types import Source
 from ....core.components.spaces import StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.problems import ProblemSpec
+from ....core.engine.problems import ProblemSpec, RunStateSpec
 from ....core.engine.runtime import simulate
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import BaseSpec, DeclaredVariableSpec, RunStateSpec, VisualSpec
+from ....core.specs import BaseSpec, DeclaredVariableSpec, VisualSpec
 from ....core.types import Array
 from ..common.metabolism import MetabolicNetworkElement, ReactionSpec
 

@@ -14,11 +14,12 @@ from ...components.laws import BoundaryLaw, ConstraintLaw, FluxLaw, RateLaw
 from ...components.spaces import ContinuousTime
 from ...enums import OrderKind
 from ...errors import SolverError, ValidationError
-from ...specs import ControlSolutionSpec, SupportSpec
 from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ..problems._control_problem_spec import _ControlProblemSpec
 from ..types import Cost, GridFunction
+from ._control_solution_spec import _ControlSolutionSpec
 from ._optimal_control import OptimalControlSolver
 
 MIN_RELAXATION = 1e-3
@@ -229,7 +230,7 @@ class PontryaginSolver(OptimalControlSolver):
         )
         self._law: GridFunction = self._get_function(control_problem, law, costates)
 
-    def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolutionSpec:
+    def _solve(self, x0: Array, p: Array, horizon: float) -> _ControlSolutionSpec:
         """Return the optimal solution by a forward-backward sweep.
 
         The sweep uses relaxed control updates.

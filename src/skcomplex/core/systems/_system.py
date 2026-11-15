@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from ..components import Observable
 from ..components.base import BaseComponent
 from ..components.elements import BaseElement
 from ..components.interactions import BaseInteraction
@@ -16,7 +17,6 @@ from ..engine.backends import BaseBackend
 from ..engine.runtime import compile_problem
 from ..engine.solvers import BaseSolver
 from ..errors import ValidationError
-from ..specs import ObservableSpec
 from ._base import BaseSystem
 
 AUTO = 'auto'
@@ -160,7 +160,7 @@ class System(BaseSystem):
             raise ValidationError(error_msg)
         return target
 
-    def _prepare(self, context: Sequence[ObservableSpec] | None = None) -> None:
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Check the components, compile the problem, and choose the solver and backend.
 
         Args:

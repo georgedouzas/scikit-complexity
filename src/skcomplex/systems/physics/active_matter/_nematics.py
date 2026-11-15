@@ -17,6 +17,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 from sage.structure.element import Matrix
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import ConservationInteraction, GradientInteraction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -36,7 +37,7 @@ from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import TensorShapeError, ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 GEL_ORDERS = ('nematic', 'polar')
 NEMATIC_BOX = 10.0
@@ -750,8 +751,8 @@ class ActiveGelsSystem(BaseSystem):
     dt = 0.025
     solver = RK4Solver(dt=5e-4)
     observables = (
-        ObservableSpec('u_x', _get_velocity_x, group='gel', reduce=_get_sites),
-        ObservableSpec('u_y', _get_velocity_y, group='gel', reduce=_get_sites),
+        Observable('u_x', _get_velocity_x, group='gel', reduce=_get_sites),
+        Observable('u_y', _get_velocity_y, group='gel', reduce=_get_sites),
     )
 
     def __init__(

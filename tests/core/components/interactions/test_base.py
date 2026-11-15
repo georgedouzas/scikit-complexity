@@ -28,7 +28,7 @@ from skcomplex.core.components.interactions import (
     TransferInteraction,
     TransitionInteraction,
 )
-from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws import PartnerSpec, RateLaw, TopologyRequestSpec
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     BallNeighborhood,
@@ -41,7 +41,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.enums import ElementKind
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import BaseSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, TopologyRequestSpec
+from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.general.agents import (
     BirthDeathInteraction,
     ChoiceInteraction,
@@ -584,7 +584,7 @@ def test_get_requirements_accepts_any_space_when_a_law_does():
 def test_every_core_interaction_declares_its_roles():
     """Test that every role of every interaction of the core names the kinds of element it accepts."""
     found = _interaction_classes()
-    assert {kind.__name__ for kind in found} == set(interactions.__all__)
+    assert {kind.__name__ for kind in found} == {name for name in interactions.__all__ if name.endswith('Interaction')}
     for kind in found:
         for name, spec in kind._get_specs().items():
             if isinstance(spec, RoleSpec) and not spec.noise:

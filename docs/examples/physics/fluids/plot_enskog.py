@@ -18,10 +18,10 @@ as a sound wave.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.components import Observable
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.systems.physics.fluids import BoltzmannEquationSystem, EnskogSystem
 
 SYSTEM = 'enskog'
@@ -36,7 +36,7 @@ def density_wave(_, values):
     return 2 * density @ np.sin(2 * np.pi * np.arange(POSITIONS) / POSITIONS) / POSITIONS
 
 
-observables = [ObservableSpec('density_wave', function=density_wave)]
+observables = [Observable('density_wave', function=density_wave)]
 system = EnskogSystem(positions=POSITIONS, velocities=VELOCITIES, knudsen=KNUDSEN, diameter=0.8)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 solver = StrangSplittingSolver(SemiLagrangianSolver(0.1), RK4Solver(0.05), 0.1)

@@ -18,6 +18,7 @@ from sage.all__sagemath_symbolics import Expression, sqrt
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import PairInteraction, RateInteraction
 from ....core.components.laws.utils import neighbors
@@ -26,7 +27,7 @@ from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
+from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.elements import PointElement
 
@@ -267,7 +268,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
         return s.target.active * amplitude
 
     @staticmethod
-    def _get_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_observables(system: CompositeSystem) -> list[Observable]:
         """Return the observables of the agents.
 
         They are the velocity of the active agents, their polarization, and the mean distance within each kind.
@@ -279,11 +280,11 @@ class ActivePassiveFlockingSystem(BaseSystem):
             raise ValidationError(error_msg)
         size = float(system.space.extent[0])
         return [
-            ObservableSpec('velocity_x', ActivePassiveFlockingSystem._get_velocity_x, group='agents'),
-            ObservableSpec('velocity_y', ActivePassiveFlockingSystem._get_velocity_y, group='agents'),
-            ObservableSpec('mean_speed', ActivePassiveFlockingSystem._get_speed, group='agents'),
-            ObservableSpec('polarization', ActivePassiveFlockingSystem._get_polarization),
-            ObservableSpec(
+            Observable('velocity_x', ActivePassiveFlockingSystem._get_velocity_x, group='agents'),
+            Observable('velocity_y', ActivePassiveFlockingSystem._get_velocity_y, group='agents'),
+            Observable('mean_speed', ActivePassiveFlockingSystem._get_speed, group='agents'),
+            Observable('polarization', ActivePassiveFlockingSystem._get_polarization),
+            Observable(
                 'active_distance',
                 function=functools.partial(
                     ActivePassiveFlockingSystem._get_mean_distance,
@@ -291,7 +292,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
                     size=size,
                 ),
             ),
-            ObservableSpec(
+            Observable(
                 'passive_distance',
                 function=functools.partial(
                     ActivePassiveFlockingSystem._get_mean_distance,

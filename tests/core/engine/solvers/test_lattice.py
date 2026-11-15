@@ -7,7 +7,18 @@ import pytest
 from sage.all__sagemath_symbolics import ZZ
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import ArrayUpdateLaw, CascadeLaw, LocalRuleLaw, SampleLaw
+from skcomplex.core.components.laws import (
+    ArrayUpdateLaw,
+    CascadeLaw,
+    LocalRuleLaw,
+    MoveSpec,
+    ObjectiveSpec,
+    OuterTotalisticSpec,
+    SampleLaw,
+    SamplerSpec,
+    TableSpec,
+    TotalisticSpec,
+)
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     BallNeighborhood,
@@ -19,17 +30,7 @@ from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import (
-    MoveSpec,
-    ObjectiveSpec,
-    OuterTotalisticSpec,
-    ParameterSpec,
-    SamplerSpec,
-    StateSpec,
-    TableSpec,
-    TotalisticSpec,
-    VisualSpec,
-)
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem, GameOfLifeSystem
 from skcomplex.systems.physics.criticality import ForestFireSystem
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, XYSystem

@@ -12,9 +12,10 @@ from sage.sets.real_set import RealSet
 
 from ...enums import ElementKind, OptimizerKind
 from ...errors import ValidationError
-from ...specs import DatasetSpec, ObservableSpec, ParameterSpec, RoleSpec
+from ...specs import ParameterSpec, RoleSpec
+from .._observable_spec import Observable
 from ..base import BaseComponent
-from ..laws import BaseLaw, GradientStepLaw
+from ..laws import BaseLaw, DatasetSpec, GradientStepLaw
 from ..spaces import BaseSpace
 from ._interaction import Interaction
 
@@ -88,10 +89,11 @@ class TrainingInteraction(Interaction):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.components.interactions import TrainingInteraction
-        >>> from skcomplex.core.specs import DatasetSpec, ObservableSpec
+        >>> from skcomplex.core.components import Observable
+        >>> from skcomplex.core.components.laws import DatasetSpec
         >>> data = DatasetSpec({'inputs.x': np.zeros((4, 3, 1))})
         >>> training = TrainingInteraction(
-        ...     'training', system='net', trained=['readout.W'], loss=ObservableSpec('error', 0.0), data=data
+        ...     'training', system='net', trained=['readout.W'], loss=Observable('error', 0.0), data=data
         ... )
         >>> training.optimizer
         'adam'
@@ -107,7 +109,7 @@ class TrainingInteraction(Interaction):
         *,
         system: Annotated[str, RoleSpec(elements=(ElementKind.ANY,))],
         trained: Sequence[str],
-        loss: ObservableSpec,
+        loss: Observable,
         data: DatasetSpec,
         optimizer: str = 'adam',
         learning_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-3,
@@ -116,7 +118,7 @@ class TrainingInteraction(Interaction):
         beta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, 1))] = 0.999,
         batch_size: int = 32,
         truncation: int | None = None,
-        metrics: Sequence[ObservableSpec] = (),
+        metrics: Sequence[Observable] = (),
     ) -> None:
         super().__init__(label)
         self.system = system
@@ -163,8 +165,8 @@ class TrainingInteraction(Interaction):
             error_msg = f'The data of {self.label!r} is a {type(self.data).__name__}. Give a `DatasetSpec`.'
             raise ValidationError(error_msg)
         observables = [self.loss, *self.metrics]
-        if not all(isinstance(item, ObservableSpec) for item in observables):
-            error_msg = f'The loss and the metrics of {self.label!r} are observables. Give `ObservableSpec`s.'
+        if not all(isinstance(item, Observable) for item in observables):
+            error_msg = f'The loss and the metrics of {self.label!r} are observables. Give `Observable`s.'
             raise ValidationError(error_msg)
         labels = ['loss', *(item.label for item in self.metrics)]
         if len(set(labels)) < len(labels):

@@ -19,11 +19,11 @@ import scipy.sparse as sp
 from .....core.analysis.types import Source
 from .....core.components.systems import BaseSystem, CompositeSystem
 from .....core.engine.compile import OperatorCompiler
-from .....core.engine.problems import BaseProblemSpec, OperatorProblemSpec
+from .....core.engine.problems import BaseProblemSpec, OperatorProblemSpec, RunStateSpec
 from .....core.engine.runtime import Trajectory
 from .....core.errors import AnalysisError, ParameterError
-from .....core.specs import RunStateSpec, SectorSpec
 from .....core.types import Array
+from ._sector_spec import SectorSpec
 
 KINDS = ('spectrum', 'ground-state', 'purity', 'entanglement')
 SETTINGS = {
@@ -146,7 +146,8 @@ def operator_measures(
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.laws import GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
-        >>> from skcomplex.core.specs import HilbertSpec, StateSpec
+        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.problems import HilbertSpec
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}

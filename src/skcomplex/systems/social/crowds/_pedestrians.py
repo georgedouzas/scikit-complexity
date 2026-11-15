@@ -12,12 +12,7 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
-from ....core.components.interactions import (
-    BaseInteraction,
-    GradientInteraction,
-    PairInteraction,
-    RateInteraction,
-)
+from ....core.components.interactions import BaseInteraction, GradientInteraction, PairInteraction, RateInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver

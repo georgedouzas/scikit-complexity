@@ -12,17 +12,19 @@ from sage.all__sagemath_symbolics import NN, Expression
 
 from ...components.elements import GroupElement, PatchElement, WordElement
 from ...components.laws import ProductionLaw, SubstitutionLaw
-from ...components.specs import CompiledElementSpec, NodeSpec
 from ...components.systems import CompositeSystem
 from ...enums import FormKind, VariableKind
 from ...errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
-from ...specs import EntrySpec, IssueSpec, LayoutSpec, ParametersSpec
+from ...specs import EntrySpec
 from .._utils import declarations_of, symbol
-from ..problems import BaseProblemSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
+from ..problems._node_spec import _NodeSpec
+from ..problems._parameters_spec import _ParametersSpec
 from ..problems._patch_kernel import PatchKernel
 from ..problems._rewriting_problem_spec import RewritingProblemSpec
 from ..problems._word_kernel import WordKernel
 from ._base import BaseCompiler
+from ._issue_spec import IssueSpec
 from .passes._flatten import FlattenPass
 from .passes._layout import LayoutPass
 from .passes._problem import ProblemPass
@@ -108,7 +110,7 @@ class RewritingCompiler(BaseCompiler):
         return component.element if isinstance(component, GroupElement) else type(component)
 
     @staticmethod
-    def _get_productions(node: NodeSpec, namespace: SimpleNamespace) -> list[Production]:
+    def _get_productions(node: _NodeSpec, namespace: SimpleNamespace) -> list[Production]:
         """Return the checked productions or substitutions of a word or a patch."""
         laws = node.as_element._get_laws(namespace)
         productions = [law for law in laws if isinstance(law, PRODUCTION_LAWS)]
@@ -123,7 +125,7 @@ class RewritingCompiler(BaseCompiler):
 
     @staticmethod
     def _get_parameters(
-        nodes: list[NodeSpec],
+        nodes: list[_NodeSpec],
     ) -> tuple[list[EntrySpec], list[float], dict[str, SimpleNamespace], dict[str, Expression]]:
         """Return the parameter entries and values of the rewritten elements.
 
@@ -151,9 +153,9 @@ class RewritingCompiler(BaseCompiler):
 
     @staticmethod
     def _get_compiled(
-        node: NodeSpec,
+        node: _NodeSpec,
         laws: list[Production],
-        parameters: ParametersSpec,
+        parameters: _ParametersSpec,
         values: npt.NDArray[np.float64],
     ) -> WordKernel | PatchKernel:
         """Return the compiled rewriting system of one element.
@@ -257,7 +259,7 @@ class RewritingCompiler(BaseCompiler):
                 )
                 raise IncompatibleLawsError(error_msg)
         entries, values, namespaces, symbols = RewritingCompiler._get_parameters(nodes)
-        parameters = ParametersSpec(tuple(symbols.values()), symbol('t'))
+        parameters = _ParametersSpec(tuple(symbols.values()), symbol('t'))
         initial_parameters = np.asarray(values, dtype=float)
         compiled = tuple(
             RewritingCompiler._get_compiled(

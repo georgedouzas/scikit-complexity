@@ -9,13 +9,14 @@ from sage.all__sagemath_symbolics import CC
 
 from ....components.laws import RuleLaw
 from ....components.spaces import BaseSpace
-from ....components.specs import CompiledAgentsSpec, NodeSpec
 from ....enums import VariableKind
 from ....errors import BackendError, LabelError, ValidationError
 from ....specs import VisualSpec
 from ..._utils import declarations_of
 from ...problems._block_spec import BlockSpec
+from ...problems._compiled_agents_spec import _CompiledAgentsSpec
 from ...problems._kernel_spec import KernelSpec
+from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
 from .._compilation import Compilation
 from ._layout import LayoutPass
@@ -74,7 +75,7 @@ class AgentsProblemPass(BasePass):
         )
 
     @staticmethod
-    def _check_agent_names(node: NodeSpec) -> None:
+    def _check_agent_names(node: _NodeSpec) -> None:
         """Raise an error for an agent state or parameter named like an attribute.
 
         The attribute is one of the agent view or of Mesa.
@@ -92,7 +93,7 @@ class AgentsProblemPass(BasePass):
             raise LabelError(error_msg)
 
     @staticmethod
-    def _get_agent_visual(node: NodeSpec) -> VisualSpec:
+    def _get_agent_visual(node: _NodeSpec) -> VisualSpec:
         """Return the visual of agents and the points of the agents without one.
 
         The visual is their own or that of their element type.
@@ -116,7 +117,7 @@ class AgentsProblemPass(BasePass):
     def _get_compiled_agents(
         blocks: list[BlockSpec],
         rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]],
-    ) -> tuple[CompiledAgentsSpec, ...]:
+    ) -> tuple[_CompiledAgentsSpec, ...]:
         """Return the agent elements and groups with their states, values, and rules.
 
         The values are the initial values and the parameters.
@@ -138,7 +139,7 @@ class AgentsProblemPass(BasePass):
                 raise BackendError(error_msg)
             states = tuple(declared)
             agents.append(
-                CompiledAgentsSpec(
+                _CompiledAgentsSpec(
                     path=node.path,
                     element=node.as_element,
                     size=node.members or 1,

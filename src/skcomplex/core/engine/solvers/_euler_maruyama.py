@@ -11,8 +11,8 @@ from ...components.laws import BoundaryLaw, ConstraintLaw, EventLaw, FluxLaw, Ju
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import NoiseKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
 from ...types import Array
+from ..backends import SupportSpec
 from ..problems._steps import step_count
 from ._base import BaseSolver
 from ._sde import SDESolver
@@ -36,7 +36,7 @@ class EulerMaruyamaSolver(SDESolver):
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
         >>> from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> system = CompositeSystem(
         ...     elements=[AssetElement('stock', price=100)],
         ...     interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],

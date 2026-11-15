@@ -13,15 +13,17 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
 
@@ -425,9 +427,9 @@ class RidesharingSystem(BaseSystem):
     references = ('Carmichael and Hadzikadic 2019 ch. 7',)
     until = 200
     observables = (
-        ObservableSpec('queue', group='riders', variable='waited', reduce='count'),
-        ObservableSpec('mean_wait', group='riders', variable='waited', reduce='mean'),
-        ObservableSpec('utilisation', _get_busy, group='cabs', reduce='mean'),
+        Observable('queue', group='riders', variable='waited', reduce='count'),
+        Observable('mean_wait', group='riders', variable='waited', reduce='mean'),
+        Observable('utilisation', _get_busy, group='cabs', reduce='mean'),
     )
 
     def __init__(

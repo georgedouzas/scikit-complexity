@@ -18,17 +18,17 @@ import rerun as rr
 from scipy.optimize import minimize_scalar
 from scipy.special import rel_entr
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ArrayUpdateLaw, BaseLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.specs import CompiledElementSpec
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.problems import BaseProblemSpec, FrameSpec
+from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
 from ....core.engine.runtime import Trajectory
 from ....core.engine.viz import PointsVisual
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._extras import import_extra
 from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
@@ -573,11 +573,11 @@ class FuzzyOilDropSystem(BaseSystem):
         state = ANGLE_STATE if self.dynamics == 'folding' else COORDINATE_STATE
         settings = super().get_run_settings()
         settings['observables'] = [
-            ObservableSpec(
+            Observable(
                 'RD',
                 function=partial(FuzzyOilDropSystem._read_observed_value, 'relative-distance', self.entry, state),
             ),
-            ObservableSpec(
+            Observable(
                 'K',
                 function=partial(FuzzyOilDropSystem._read_observed_value, 'environment-factor', self.entry, state),
             ),

@@ -17,8 +17,7 @@ from scipy.special import jv
 
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import SectorSpec
-from skcomplex.systems.physics.common.quantum import operator_measures
+from skcomplex.systems.physics.common.quantum import SectorSpec, operator_measures
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem, total_magnetization
 
 SYSTEM = 'quantum_heisenberg'

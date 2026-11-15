@@ -7,11 +7,12 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.core.components.laws import TableSpec, TotalisticSpec
 from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, TableSpec, TotalisticSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 SIZE = 9
 

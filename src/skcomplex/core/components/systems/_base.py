@@ -14,7 +14,8 @@ import numpy.typing as npt
 
 from ...base import BaseConfig
 from ...errors import ValidationError
-from ...specs import ObservableSpec, Tags
+from .._observable_spec import Observable
+from .._tags import Tags
 from ..base import BaseComponent
 from ..spaces import BaseSpace
 
@@ -34,7 +35,7 @@ class RunSettings(TypedDict):
     until: float | None
     dt: float | None
     solver: BaseConfig | None
-    observables: Sequence[ObservableSpec]
+    observables: Sequence[Observable]
     initial_state: Mapping[str, object] | None
     invariants: Mapping[str, float] | None
     schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None
@@ -103,7 +104,7 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
     until: ClassVar[float | None] = None
     dt: ClassVar[float | None] = None
     solver: ClassVar[BaseConfig | None] = None
-    observables: Sequence[ObservableSpec] = ()
+    observables: Sequence[Observable] = ()
     initial_state: ClassVar[Mapping[str, object] | None] = None
     invariants: ClassVar[Mapping[str, float] | None] = None
     schedule: ClassVar[Mapping[str, Callable[[float], float | npt.ArrayLike]] | None] = None

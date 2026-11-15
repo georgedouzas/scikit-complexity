@@ -15,12 +15,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction
 from ....core.components.laws.utils import moment, total
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.elements import NonnegativeElement
 from ...general.kinetics import EncounterInteraction
 
@@ -327,7 +328,7 @@ def mean_wealth(s: SimpleNamespace, wealth: npt.NDArray[np.float64]) -> Expressi
     return moment(s.x, 1, wealth, normalized=True)
 
 
-def wealth_observables(classes: int) -> list[ObservableSpec]:
+def wealth_observables(classes: int) -> list[Observable]:
     """Return the density, the mean wealth, and the Gini coefficient of a distribution.
 
     The distribution is `wealth`, over wealth classes.
@@ -347,9 +348,9 @@ def wealth_observables(classes: int) -> list[ObservableSpec]:
     """
     wealth = wealth_classes(classes)
     return [
-        ObservableSpec('density', partial(wealth_density, wealth=wealth), group='wealth'),
-        ObservableSpec('mean_wealth', partial(mean_wealth, wealth=wealth), group='wealth'),
-        ObservableSpec('gini', partial(gini_coefficient, wealth=wealth), group='wealth'),
+        Observable('density', partial(wealth_density, wealth=wealth), group='wealth'),
+        Observable('mean_wealth', partial(mean_wealth, wealth=wealth), group='wealth'),
+        Observable('gini', partial(gini_coefficient, wealth=wealth), group='wealth'),
     ]
 
 

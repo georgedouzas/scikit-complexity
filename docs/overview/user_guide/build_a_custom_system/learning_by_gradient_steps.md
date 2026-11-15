@@ -25,7 +25,9 @@ from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DatasetSpec, ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import DatasetSpec
+from skcomplex.core.components import Observable
 
 
 class DecayElement(Element):
@@ -56,7 +58,7 @@ training = TrainingInteraction(
     'fit',
     system='decay',
     trained=['unit.a'],
-    loss=ObservableSpec('error', squared_error),
+    loss=Observable('error', squared_error),
     data=DatasetSpec({'unit.observed': series[np.newaxis]}),
     learning_rate=0.05,
     batch_size=1,
@@ -98,7 +100,7 @@ This section describes each component of a training run and the options it takes
   from the initial states of the system. `weights` masks steps out of the loss. It is one array for every observable,
   or a mapping from the label of the loss or of a metric to its own weights. `times` gives the inner times of an ODE
   system, `1, 2, ...` by default.
-- **The loss and the metrics.** `loss` and `metrics` are `ObservableSpec`s over the symbols of the inner system. The
+- **The loss and the metrics.** `loss` and `metrics` are `Observable`s over the symbols of the inner system. The
   loss of a batch is the weighted mean of the observable over its sequences and steps. The trajectory records the
   trained parameters under their inner paths, such as `decay/unit.a`, the mean batch loss of every epoch as
   `<interaction>/loss`, and every metric over the whole dataset as `<interaction>/<metric>`. The same observables given

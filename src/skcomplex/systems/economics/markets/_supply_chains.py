@@ -13,12 +13,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 
@@ -599,9 +600,9 @@ class BeerGameSystem(BaseSystem):
     until = 36.0
     dt = 0.5
     observables = (
-        *(ObservableSpec('orders', BreweryInteraction._get_orders, element=label) for label in ECHELONS),
-        *(ObservableSpec('shipments', EchelonElement._get_shipments, element=label) for label in ECHELONS),
-        ObservableSpec('customers.orders', _get_customer_orders),
+        *(Observable('orders', BreweryInteraction._get_orders, element=label) for label in ECHELONS),
+        *(Observable('shipments', EchelonElement._get_shipments, element=label) for label in ECHELONS),
+        Observable('customers.orders', _get_customer_orders),
     )
 
     @staticmethod

@@ -4,10 +4,10 @@
 # License: MIT
 
 
-from ...specs import RunStateSpec
 from ...types import Indices
 from ..types import EdgesFound
 from ._base import BaseSearch
+from ._run_state_spec import RunStateSpec
 
 
 class StaticSearch(BaseSearch):

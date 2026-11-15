@@ -24,8 +24,8 @@ from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..enums import DataKind, FormKind, VariableKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
 from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite, _read_system
 from ._groups import _Expansion
 from ._symbolic import _declare_domains

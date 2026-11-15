@@ -12,10 +12,10 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...components.spaces import PhaseSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
 from ..enums import ComplexComponentKind
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import BaseVisual
 
 MIN_HISTORY = 64
@@ -274,7 +274,11 @@ class ImageVisual(BaseVisual):
                 cyclic=True,
             )
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return one 2D spatial view per chosen state.
 
         A lattice of three or more dimensions gets a tensor view. A one-dimensional lattice gets the 2D spatial views of

@@ -13,11 +13,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, floor, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import mod, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 DOUBLING_DENOMINATOR = 1125899906840747.0
 
@@ -223,8 +224,8 @@ class CubicChaoticMapSystem(BaseSystem):
     until = 200
     dt = 1
     observables = (
-        ObservableSpec('displacement', group='walkers', variable='y'),
-        ObservableSpec('square_displacement', _get_square_displacement, group='walkers'),
+        Observable('displacement', group='walkers', variable='y'),
+        Observable('square_displacement', _get_square_displacement, group='walkers'),
     )
 
     def __init__(

@@ -14,7 +14,7 @@ from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuous
 from sage.all__sagemath_symbolics import Expression
 from sage.structure.element import RingElement
 
-from ..specs import ObservableSpec
+from ..components import Observable
 from ..types import AnyArray, Array, ComplexArray, Indices, IntArray, IntTuple
 
 type Sparse = scipy.sparse.csr_array
@@ -53,7 +53,7 @@ type Marks = Callable[..., npt.ArrayLike] | Sequence[Sequence[float]]
 type Colors = tuple[int, int, int] | list[tuple[int, int, int, int]]
 type Generators = list[tuple[str, Expression]]
 type Dissipators = list[tuple[str, Expression, object]]
-type Declared = dict[str, tuple[str, ObservableSpec]]
+type Declared = dict[str, tuple[str, Observable]]
 type Number = RingElement | int | float | complex
 type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
 type SpectralBlock = tuple[IntTuple, list[Indices], ComplexArray]

@@ -4,6 +4,7 @@ The kinds of data are series, paths, fields, agents, and networks.
 """
 
 from ._alignment import AlignmentResult, alignment
+from ._analysis_tags import AnalysisTags
 from ._autocatalytic import AutocatalyticSetsResult, autocatalytic_sets
 from ._automata import AutomatonResult, automaton
 from ._base import bind_analysis
@@ -49,15 +50,18 @@ from ._rolling import RollingResult, rolling
 from ._scaling import ScalingResult, scaling
 from ._sections import SectionResult, section
 from ._shape import ChainShapeResult, chain_shape
+from ._signature_spec import SignatureSpec
 from ._signatures import SignaturesResult, signatures
 from ._sparse_identification import SparseIdentificationResult, sparse_identification
 from ._spectrum import SpectrumResult, spectrum
 from ._stability import StabilityResult, stability
 from ._surrogates import SurrogateTestResult, surrogate_test
 from ._symbolic import SymbolicResult, symbolic
+from ._symmetry_spec import SymmetrySpec
 
 __all__: list[str] = [
     'AlignmentResult',
+    'AnalysisTags',
     'ApplicableAnalysesResult',
     'AutocatalyticSetsResult',
     'AutomatonResult',
@@ -102,12 +106,14 @@ __all__: list[str] = [
     'RollingResult',
     'ScalingResult',
     'SectionResult',
+    'SignatureSpec',
     'SignaturesResult',
     'SparseIdentificationResult',
     'SpectrumResult',
     'StabilityResult',
     'SurrogateTestResult',
     'SymbolicResult',
+    'SymmetrySpec',
     'alignment',
     'applicable_analyses',
     'autocatalytic_sets',

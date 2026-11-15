@@ -12,10 +12,11 @@ from skcomplex.core.components.laws import BaseLaw, UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 

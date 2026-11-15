@@ -5,9 +5,9 @@ from collections.abc import Sequence
 import pytest
 from sklearn.base import clone
 
+from skcomplex.core.components import Observable
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.errors import NotPreparedError
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.systems import BaseSystem, System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
@@ -21,7 +21,7 @@ class MeadowSystem(BaseSystem):
         super().__init__(label)
         self.r = r
 
-    def _prepare(self, context: Sequence[ObservableSpec] | None = None) -> None:
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the meadow."""
         super()._prepare(context)
         self.system_ = System(self.label, systems=[LotkaVolterraSystem(label='meadow', r=self.r)])

@@ -24,9 +24,9 @@ from ...base import BaseConfig
 from ...components.elements import Element
 from ...components.systems import BaseSystem
 from ...errors import ValidationError
-from ...specs import RunSettingsSpec
 from ._expressions import INTERPOLATED, _ExpressionWriter
 from ._module_writer import _ModuleWriter
+from ._run_settings_spec import RunSettingsSpec
 from ._system_variables_spec import _SystemVariablesSpec
 
 VENSIM_SUFFIX = '.mdl'

@@ -5,9 +5,9 @@
 
 from typing import ClassVar
 
-from ...specs import RequirementSpec
 from ..types import Target
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 
 class BoundaryLaw(BaseLaw):

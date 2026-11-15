@@ -12,12 +12,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, series, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 ACTORS = ('a', 'b', 'c')
 ALLOCATION_TABLE = ((0.0, 0.2, 0.5, 0.8, 1.0), (0.0, 0.05, 0.5, 0.95, 1.0))
@@ -205,8 +206,8 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
     until = 100.0
     dt = 0.5
     observables = (
-        ObservableSpec('success', _get_success, element='contest'),
-        ObservableSpec('allocation', _get_allocation, element='contest'),
+        Observable('success', _get_success, element='contest'),
+        Observable('allocation', _get_allocation, element='contest'),
     )
 
     def __init__(
@@ -330,7 +331,7 @@ class ShiftingTheBurdenSystem(BaseSystem):
     references = ('Meadows 2008',)
     until = 60.0
     dt = 0.5
-    observables = (ObservableSpec('symptom', _get_symptom, element='burden'),)
+    observables = (Observable('symptom', _get_symptom, element='burden'),)
 
     def __init__(
         self,
@@ -456,8 +457,8 @@ class EscalationSystem(BaseSystem):
     until = 100.0
     dt = 0.5
     observables = (
-        ObservableSpec('desired_a', _get_desired_a, element='race'),
-        ObservableSpec('desired_b', _get_desired_b, element='race'),
+        Observable('desired_a', _get_desired_a, element='race'),
+        Observable('desired_b', _get_desired_b, element='race'),
     )
 
     def __init__(
@@ -567,7 +568,7 @@ class PolicyResistanceSystem(BaseSystem):
     references = ('Meadows 2008',)
     until = 100.0
     dt = 0.5
-    observables = (ObservableSpec('compromise', _get_compromise, element='standoff'),)
+    observables = (Observable('compromise', _get_compromise, element='standoff'),)
 
     @staticmethod
     def _pull(s: SimpleNamespace, actor: str) -> Expression:
@@ -711,7 +712,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
     references = ('Meadows 2008',)
     until = 100.0
     dt = 0.5
-    observables = (ObservableSpec('discrepancy', _get_discrepancy, element='performance'),)
+    observables = (Observable('discrepancy', _get_discrepancy, element='performance'),)
 
     def __init__(
         self,

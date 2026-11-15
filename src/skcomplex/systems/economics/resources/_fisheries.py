@@ -13,12 +13,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import minimum
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 TONNES_PER_MILLION_KG = 1e3
 FEMALE_FRACTION = 0.5
@@ -263,9 +264,9 @@ class HilsaFisherySystem(BaseSystem):
     until = 120.0
     dt = 0.5
     observables = (
-        ObservableSpec('nests', _nests, element='hilsa'),
-        ObservableSpec('adult_weight', _get_adult_weight, element='hilsa'),
-        ObservableSpec('juvenile_weight', _get_juvenile_weight, element='hilsa'),
+        Observable('nests', _nests, element='hilsa'),
+        Observable('adult_weight', _get_adult_weight, element='hilsa'),
+        Observable('juvenile_weight', _get_juvenile_weight, element='hilsa'),
     )
 
     @staticmethod

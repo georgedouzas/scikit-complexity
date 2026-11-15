@@ -16,20 +16,12 @@ from ....components.spaces import DelaunayNeighborhood, DiscreteTime
 from ....components.systems import CompositeSystem
 from ....enums import FormKind
 from ....errors import BackendWarning, ValidationError
-from ....specs import (
-    DEFAULT_PHASE,
-    EntrySpec,
-    LayoutSpec,
-    LoweredFunctionsSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RunStateSpec,
-)
+from ....specs import EntrySpec
 from ....types import Array, Indices, VectorFunction
 from ..._utils import symbols_of
-from ...backends import BaseBackend, NumpyBackend
+from ...backends import BaseBackend, LoweredFunctionsSpec, NumpyBackend
 from ...enums import ReadKind
-from ...problems import ProblemSpec
+from ...problems import LayoutSpec, ProblemSpec, RunStateSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._draw_kernel import DrawKernel
 from ...problems._draw_recorder import DrawRecorder
@@ -47,6 +39,8 @@ from .._algebraic_law import AlgebraicLaw
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._forms import STEPWISE_FORMS
+from .._phase_spec import PhaseSpec
+from .._phases_schedule_spec import DEFAULT_PHASE, PhasesScheduleSpec
 
 
 class FunctionsPass(BasePass):

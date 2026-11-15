@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
 from skcomplex.core.components.elements import BaseElement, Element, GroupElement
-from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import NetworkSpace
@@ -22,7 +22,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.errors import LabelError, RoleError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 from ....conftest import HoldingElement, _correlated
 

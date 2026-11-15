@@ -18,13 +18,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import GradientInteraction, HamiltonianInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.particles import MassPointElement, PotentialEnergyInteraction
 from .types import Preset
 
@@ -329,7 +330,7 @@ class TwoBodyOrbitSystem(BaseSystem):
     dt = 0.01
     solver = Yoshida4Solver()
     invariants: ClassVar[Mapping[str, float]] = {'planet.energy': 1e-6}
-    observables = (ObservableSpec('energy', _get_kepler_energy, element='planet'),)
+    observables = (Observable('energy', _get_kepler_energy, element='planet'),)
 
     def __init__(
         self,
@@ -523,7 +524,7 @@ class RestrictedThreeBodySystem(BaseSystem):
     dt = 0.02
     solver = RK4Solver()
     invariants: ClassVar[Mapping[str, float]] = {'body.energy': 1e-6}
-    observables = (ObservableSpec('energy', _get_rotating_frame_energy, element='body'),)
+    observables = (Observable('energy', _get_rotating_frame_energy, element='body'),)
 
     def __init__(
         self,

@@ -15,7 +15,7 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import clone
 
-from ..components.specs import ScenarioSpec
+from ..components import Observable
 from ..components.systems import BaseSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
@@ -23,9 +23,9 @@ from ..engine.runtime import Trajectory, compile_problem, run_problem
 from ..engine.solvers import BaseSolver
 from ..enums import ExecutorKind
 from ..errors import ExperimentError, ValidationError
-from ..specs import ObservableSpec
-from ..specs._run_result_spec import _RunResultSpec
 from ._results import ExperimentResult
+from ._run_result_spec import _RunResultSpec
+from ._scenario_spec import ScenarioSpec
 from ._utils import build_system
 from .specs._task_spec import _TaskSpec
 from .types import Output, Row, Source
@@ -448,7 +448,7 @@ def _run_experiment(
     solver: BaseSolver | None,
     outputs: Sequence[Output] | None,
     warmup: float,
-    observables: Sequence[ObservableSpec],
+    observables: Sequence[Observable],
     random_state: int | None,
     executor: str | Executor,
 ) -> ExperimentResult:

@@ -13,11 +13,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, normal, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class MeasuredFisheryElement(Element):
@@ -180,9 +181,9 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Argun et al. 2016')
     until = 5000
     observables = (
-        ObservableSpec('extinct', group='fisheries', variable='x', reduce=_get_extinct_share),
-        ObservableSpec('mean_stock', group='fisheries', variable='x', reduce='mean'),
-        ObservableSpec('mean_catch', group='fisheries', variable='catch', reduce='mean'),
+        Observable('extinct', group='fisheries', variable='x', reduce=_get_extinct_share),
+        Observable('mean_stock', group='fisheries', variable='x', reduce='mean'),
+        Observable('mean_catch', group='fisheries', variable='catch', reduce='mean'),
     )
 
     def __init__(

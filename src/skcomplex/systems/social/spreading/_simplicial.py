@@ -17,13 +17,14 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 PAIR = 2
 TRIANGLE = 3
@@ -179,7 +180,7 @@ class SimplicialContagionSystem(BaseSystem):
     references = ('Iacopini et al. 2019', 'Majhi et al. 2022')
     until = 20.0
     dt = 0.5
-    observables = (ObservableSpec('prevalence', group='nodes', variable='infected'),)
+    observables = (Observable('prevalence', group='nodes', variable='infected'),)
 
     def __init__(
         self,

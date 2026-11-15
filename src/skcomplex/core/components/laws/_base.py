@@ -19,8 +19,10 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.structure.element import Matrix
 
 from ...errors import ValidationError
-from ...specs import CallSpec, RequirementSpec, Tags
+from .._tags import Tags
 from ..base import BaseComponent
+from ._call_spec import CallSpec
+from ._requirement_spec import RequirementSpec
 
 
 class BaseLaw(BaseComponent[str, object]):

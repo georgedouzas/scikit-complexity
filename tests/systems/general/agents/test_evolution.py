@@ -10,10 +10,11 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import BaseLaw, RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.general.agents import EvolutionInteraction
 
 NEUTRAL_RUNS = 100

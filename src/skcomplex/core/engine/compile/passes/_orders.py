@@ -15,13 +15,21 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.interactions import ConnectionInteraction
-from ....components.laws import BaseLaw, BoundaryLaw, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import (
+    BaseLaw,
+    BoundaryLaw,
+    CallSpec,
+    ConstraintLaw,
+    EventLaw,
+    JumpLaw,
+    NoiseLaw,
+    RateLaw,
+    UpdateLaw,
+)
 from ....components.laws.utils._reductions import reductions_in
 from ....components.spaces import StaticTime
 from ....enums import VariableKind
 from ....errors import ValidationError
-from ....specs import CallSpec, IssueSpec
-from ....specs._orders_spec import _OrdersSpec
 from ....types import Array
 from ..._utils import components_of, declarations_of, symbol, vector
 from ...problems._block_spec import BlockSpec
@@ -29,7 +37,9 @@ from ...problems._kernel_spec import KernelSpec
 from ...problems._relation_spec import _RelationSpec
 from .._base import BasePass
 from .._compilation import Compilation
+from .._issue_spec import IssueSpec
 from .._laws import KERNEL_FREE_LAWS
+from .._orders_spec import _OrdersSpec
 from .._renewal_law import RenewalLaw
 from ._complex import LowerComplexPass
 from ._equation_blocks import EquationBlocksLowering

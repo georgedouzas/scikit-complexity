@@ -5,9 +5,12 @@
 
 from typing import ClassVar
 
-from ...specs import MoveSpec, ObjectiveSpec, RequirementSpec, SamplerSpec
 from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ._base import BaseLaw
+from ._move_spec import MoveSpec
+from ._objective_spec import ObjectiveSpec
+from ._requirement_spec import RequirementSpec
+from ._sampler_spec import SamplerSpec
 
 
 class SampleLaw(BaseLaw):
@@ -40,7 +43,7 @@ class SampleLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import SampleLaw
         >>> from skcomplex.core.components.spaces import BallNeighborhood
-        >>> from skcomplex.core.specs import ObjectiveSpec, MoveSpec, SamplerSpec
+        >>> from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
         >>> spin = var('spin')
         >>> cross = BallNeighborhood(metric='manhattan')
         >>> law = SampleLaw(ObjectiveSpec(-spin, cross), MoveSpec(spin), SamplerSpec('glauber', 2.0))

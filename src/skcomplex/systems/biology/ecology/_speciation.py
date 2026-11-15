@@ -14,11 +14,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray
 from ...general.agents import EvolutionInteraction
 
@@ -169,7 +170,7 @@ class NeutralBiodiversitySystem(BaseSystem):
     topics = ('neutral theory', 'biodiversity', 'speciation', 'agents', 'species abundance')
     references = ('Bertin 2021', 'Hubbell 2001', 'Vallade and Houchmandzadeh 2003')
     until = 500
-    observables = (ObservableSpec('richness', group='community', variable='species', reduce=_get_richness),)
+    observables = (Observable('richness', group='community', variable='species', reduce=_get_richness),)
 
     def __init__(
         self,

@@ -383,7 +383,6 @@ name = "Core packages import only the packages listed before them"
 type = "layers"
 containers = ["skcomplex.core.components"]
 layers = [
-    "specs",
     "systems",
     "elements | interactions",
     "laws",

@@ -14,12 +14,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 DEMANDS = ('cobb-douglas', 'elasticity')
@@ -230,9 +231,9 @@ class HouseholdDemandSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016',)
     until = 10
     observables = (
-        ObservableSpec('total_demand', group='households', variable='demand', reduce='sum'),
-        ObservableSpec('total_expenditure', group='households', variable='expenditure', reduce='sum'),
-        ObservableSpec('mean_utility', group='households', variable='utility', reduce='mean'),
+        Observable('total_demand', group='households', variable='demand', reduce='sum'),
+        Observable('total_expenditure', group='households', variable='expenditure', reduce='sum'),
+        Observable('mean_utility', group='households', variable='utility', reduce='mean'),
     )
 
     def __init__(

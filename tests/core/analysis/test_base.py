@@ -11,7 +11,15 @@ import pytest
 from sage.all__sagemath_symbolics import NN
 
 import skcomplex.core.analysis
-from skcomplex.core.analysis import bind_analysis, lyapunov, motifs, network_measures, renormalization, rolling
+from skcomplex.core.analysis import (
+    AnalysisTags,
+    bind_analysis,
+    lyapunov,
+    motifs,
+    network_measures,
+    renormalization,
+    rolling,
+)
 from skcomplex.core.analysis._base import (
     _composite,
     _get_analysis_tags,
@@ -29,7 +37,7 @@ from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, TagError, ValidationError
-from skcomplex.core.specs import AnalysisTags, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import (
     GeneralizedLotkaVolterraSystem,
     LogisticGrowthSystem,
@@ -295,10 +303,10 @@ def test_networks_of_a_changing_network_snapshot():
 
 
 def test_surface_holds_analysis_functions_and_results():
-    """Test that the public names of the analysis package are functions, frozen results, and the binding helper."""
+    """Test that the public names of the analysis package are functions, frozen results, and frozen values."""
     for name in skcomplex.core.analysis.__all__:
         item = getattr(skcomplex.core.analysis, name)
-        if name.endswith('Result'):
+        if name.endswith(('Result', 'Spec', 'Tags')):
             assert dataclasses.is_dataclass(item)
             assert item.__dataclass_params__.frozen
         else:

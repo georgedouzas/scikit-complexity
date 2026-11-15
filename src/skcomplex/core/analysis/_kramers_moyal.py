@@ -11,8 +11,8 @@ from scipy.signal import convolve
 
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
 from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _read_series
 from .types import Source
 

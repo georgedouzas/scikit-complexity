@@ -14,10 +14,11 @@ from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
 from ...base import BaseConfig
+from ...components import Observable
 from ...components.systems import CompositeSystem
 from ...enums import FormKind
 from ...errors import ParameterError, SimulationError, ValidationError
-from ...specs import AgentStateSpec, EntrySpec, ObservableSpec, RunStateSpec, StepSpec, StructureStateSpec
+from ...specs import EntrySpec
 from ...types import Array
 from ..backends import BaseBackend
 from ..compile import BaseCompiler
@@ -25,10 +26,12 @@ from ..compile._observables import ObservableEvaluator
 from ..compile._pass_compiler import PassCompiler
 from ..compile._rewriting_compiler import RewritingCompiler
 from ..compile.passes._operator_compiler import OperatorCompiler
-from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec
+from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec, RunStateSpec
 from ..problems._draw_recorder import DrawRecorder
-from ..solvers import BaseSolver, CoSimulationSolver, FractionalEulerMaruyamaSolver
+from ..solvers import BaseSolver, CoSimulationSolver, FractionalEulerMaruyamaSolver, StepSpec
+from ..solvers._agent_state_spec import _AgentStateSpec
 from ..solvers._defaults import DEFAULT_SOLVERS
+from ..solvers._structure_state_spec import _StructureStateSpec
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver
 from ._invariants import InvariantObserver
@@ -177,7 +180,7 @@ class Simulation(BaseConfig[None, float]):
         random_state: int | np.random.Generator | None = None,
         checked: bool = False,
         schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
-        observables: Sequence[ObservableSpec] = (),
+        observables: Sequence[Observable] = (),
         invariants: Mapping[str, float] | None = None,
         initial_state: Mapping[str, object] | None = None,
         until: float | None = None,
@@ -335,9 +338,9 @@ class Simulation(BaseConfig[None, float]):
         The events since the previous frame go with it.
         """
         external = self.stepper_.snapshot_
-        agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentStateSpec) else ({}, {})
-        structures = external.structures if isinstance(external, StructureStateSpec) else {}
-        reporters = external.reporters if isinstance(external, StructureStateSpec) else reporters
+        agents, reporters = (external.groups, external.reporters) if isinstance(external, _AgentStateSpec) else ({}, {})
+        structures = external.structures if isinstance(external, _StructureStateSpec) else {}
+        reporters = external.reporters if isinstance(external, _StructureStateSpec) else reporters
         state = self._get_frame_state()
         observables = cast(
             dict[str, npt.ArrayLike],

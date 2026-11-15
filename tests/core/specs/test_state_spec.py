@@ -15,13 +15,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import (
-    MatrixGroupSpec,
-    ParameterSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 from ...conftest import RotorElement
 

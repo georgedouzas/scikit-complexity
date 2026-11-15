@@ -106,7 +106,7 @@ within one cluster of these values at every bound, as the known result predicts.
 ## Sensitivity of the final consensus
 
 The variance of the opinions measures the final consensus. It is zero when every agent holds the same opinion and grows
-as the opinions split into clusters far apart. An [ObservableSpec][skcomplex.core.specs.ObservableSpec] computes it at
+as the opinions split into clusters far apart. An [Observable][skcomplex.core.components.Observable] computes it at
 every frame, as it reduces the variable `opinion` of the group `people` with `'var'`.
 [sensitivity][skcomplex.core.experiments.sensitivity] then varies the bound and the convergence rate within their bounds
 and measures the effect of each on the last value of the observable. The method `'morris'` runs Morris trajectories,
@@ -115,9 +115,9 @@ an input, and ranks the inputs.
 
 ```python continuation
 from skcomplex.core.experiments import sensitivity
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 
-spread = ObservableSpec('spread', group='people', variable='opinion', reduce='var')
+spread = Observable('spread', group='people', variable='opinion', reduce='var')
 ranges = {'confidence': (0.1, 0.5), 'convergence': (0.1, 0.5)}
 effects = sensitivity(
     DeffuantSystem(100), ranges, output='spread', method='morris', n=10, until=100, observables=[spread], random_state=0

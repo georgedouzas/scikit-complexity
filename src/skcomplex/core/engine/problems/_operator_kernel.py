@@ -9,10 +9,10 @@ import numpy as np
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import Expression
 
-from ...specs import RunStateSpec
 from ...types import Array
 from .._utils import symbol
 from ._base import BaseKernel
+from ._run_state_spec import RunStateSpec
 
 
 class OperatorKernel(BaseKernel):

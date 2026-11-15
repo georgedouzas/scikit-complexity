@@ -13,10 +13,11 @@ from ..engine.problems import ProblemSpec
 from ..engine.problems._event_kernel import EventKernel
 from ..engine.runtime._simulations import Simulation
 from ..engine.solvers import Solver
+from ..engine.solvers._event_record_spec import _EventRecordSpec
 from ..enums import DataKind, FormKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, EventRecordSpec
 from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_system
 from ._utils import compile_problem
 from .types import Source
@@ -236,7 +237,7 @@ def _crossings(
     crossings = [
         record
         for record in trajectory.events
-        if isinstance(record, EventRecordSpec) and record.label == SECTION and record.time >= start
+        if isinstance(record, _EventRecordSpec) and record.label == SECTION and record.time >= start
     ]
     states = np.zeros((len(crossings), problem.states.size))
     for row, record in enumerate(crossings):

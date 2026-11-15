@@ -11,12 +11,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo, pi
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace, StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class BranchingVesselElement(Element):
@@ -158,8 +159,8 @@ class WestBrownEnquistSystem(BaseSystem):
     topics = ('allometry', 'kleiber law', 'fractal network', 'static', 'metabolic scaling')
     references = ('West, Brown, and Enquist 1997', 'Ribeiro and Netto 2024')
     observables = (
-        ObservableSpec('blood_volume', group='vessels', variable='volume', reduce='sum'),
-        ObservableSpec('capillaries', group='vessels', variable='terminal', reduce='sum'),
+        Observable('blood_volume', group='vessels', variable='volume', reduce='sum'),
+        Observable('capillaries', group='vessels', variable='terminal', reduce='sum'),
     )
 
     def __init__(

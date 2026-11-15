@@ -15,8 +15,9 @@ from scipy import stats
 
 from ..enums import DataKind, TieKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, BaseSpec
+from ..specs import BaseSpec
 from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import SNAPSHOT_DIMENSIONS, _check_choice, _check_settings, _read_fields, _read_series
 from ._utils import load_module
 from .types import Source

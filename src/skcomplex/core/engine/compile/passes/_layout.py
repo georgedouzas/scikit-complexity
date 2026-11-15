@@ -16,22 +16,23 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ....components.elements import FieldElement, GroupElement
-from ....components.interactions import BaseInteraction
+from ....components.interactions import BaseInteraction, WienerProcessSpec
 from ....components.laws import LinearProgramLaw
 from ....components.laws.utils import coordinate
 from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace, PhaseSpace
-from ....components.specs import CensusRecordSpec, NodeSpec
 from ....enums import VariableKind
 from ....errors import LabelError, SpaceError, ValidationError
-from ....specs import EntrySpec, PowerSeriesSpec, TensorSpec, VariableSpec, WienerProcessSpec
+from ....specs import EntrySpec, PowerSeriesSpec, TensorSpec, VariableSpec
 from ....types import Array
 from ..._utils import components_of, declarations_of, default_of, symbol, vector
 from ...enums import ReadKind
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
+from ...problems._node_spec import _NodeSpec
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BasePass
+from .._census_record_spec import _CensusRecordSpec
 from .._compilation import Compilation
 
 HIDDEN_MEMBERS = '~members'
@@ -69,7 +70,7 @@ class LayoutPass(BasePass):
     @staticmethod
     def _copy_with_program_values(
         declarations: DeclarationsSpec,
-        records: Sequence[CensusRecordSpec],
+        records: Sequence[_CensusRecordSpec],
     ) -> DeclarationsSpec:
         """Return the declarations with the hidden states of linear programs.
 
@@ -122,14 +123,14 @@ class LayoutPass(BasePass):
                 seen[name] = reference.entry.name
 
     @staticmethod
-    def _get_group_sizes(nodes: list[NodeSpec]) -> dict[str, int]:
+    def _get_group_sizes(nodes: list[_NodeSpec]) -> dict[str, int]:
         """Return the number of members of every group of a system tree, by path."""
         return {node.path: node.members for node in nodes if node.members is not None and not node.interaction}
 
     @staticmethod
     def _declare_component(
         declarations: DeclarationsSpec,
-        node: NodeSpec,
+        node: _NodeSpec,
         groups: Mapping[str, int],
     ) -> tuple[DeclarationsSpec, BlockSpec]:
         """Return the declarations with a component added, and the block of the component.
@@ -177,7 +178,7 @@ class LayoutPass(BasePass):
         return replace(declarations, blocks={**declarations.blocks, node.path: block}), block
 
     @staticmethod
-    def _declare_processes(declarations: DeclarationsSpec, node: NodeSpec) -> DeclarationsSpec:
+    def _declare_processes(declarations: DeclarationsSpec, node: _NodeSpec) -> DeclarationsSpec:
         """Return the declarations with a block of Wiener process handles.
 
         The block holds the handle `dW` of every Wiener process an interaction binds.
@@ -192,7 +193,7 @@ class LayoutPass(BasePass):
                 if wiener.dimension == 1
                 else vector(symbol(f'{base}_{index}') for index in range(wiener.dimension))
             )
-            process = NodeSpec(path, node.scope, wiener, node.space, WienerProcessSpec, interaction=True)
+            process = _NodeSpec(path, node.scope, wiener, node.space, WienerProcessSpec, interaction=True)
             processes[path] = BlockSpec(process, {'dW': handle})
             for index, item in enumerate(components_of(handle)):
                 handles[item] = (path, index)
@@ -275,7 +276,7 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _get_role_shape(
-        node: NodeSpec,
+        node: _NodeSpec,
         variable: str,
         declaration: VariableSpec,
         groups: Mapping[str, int],
@@ -471,7 +472,7 @@ class LayoutPass(BasePass):
         return declarations, block
 
     @staticmethod
-    def _get_members(node: NodeSpec, space: NetworkSpace) -> Array:
+    def _get_members(node: _NodeSpec, space: NetworkSpace) -> Array:
         """Return the member nodes of every row of a variable group on hyperedges.
 
         The free rows hold zeros. A group with a rank holds a column per member of its largest hyperedge, and a smaller
@@ -515,7 +516,7 @@ class LayoutPass(BasePass):
         return members
 
     @staticmethod
-    def _get_value_of(node: NodeSpec, variable: str) -> object:
+    def _get_value_of(node: _NodeSpec, variable: str) -> object:
         """Return the value of a variable of a component.
 
         For a group without it, it is the default of the element type.
@@ -553,7 +554,7 @@ class LayoutPass(BasePass):
         return value
 
     @staticmethod
-    def _get_per_entry_shape(node: NodeSpec, variable: str, declaration: VariableSpec) -> tuple[int, ...]:
+    def _get_per_entry_shape(node: _NodeSpec, variable: str, declaration: VariableSpec) -> tuple[int, ...]:
         """Return the shape of a parameter with one value per entry of a variadic role.
 
         It first checks its length.
@@ -745,7 +746,7 @@ class LayoutPass(BasePass):
         return np.ascontiguousarray(flat).view(float) if domain is CC else np.asarray(flat, dtype=float)
 
     @staticmethod
-    def _get_noise_processes(nodes: list[NodeSpec]) -> dict[str, WienerProcessSpec]:
+    def _get_noise_processes(nodes: list[_NodeSpec]) -> dict[str, WienerProcessSpec]:
         """Return the Wiener processes bound by the noise roles of a tree, by path.
 
         The noise roles are those of the interactions of a system tree. Interactions of one system that bind processes

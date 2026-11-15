@@ -17,13 +17,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, fast_callable, oo
 from sage.sets.real_set import RealSet
 
+from .....core.components import Tags
 from .....core.components.interactions import Interaction
-from .....core.components.laws import BaseLaw, RateLaw, UpdateLaw
+from .....core.components.laws import BaseLaw, CallSpec, RateLaw, UpdateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import NamespaceFunction, PairPotential, Target
 from .....core.enums import ElementKind
 from .....core.errors import ValidationError
-from .....core.specs import CallSpec, ParameterSpec, RoleSpec, Tags
+from .....core.specs import ParameterSpec, RoleSpec
 from .....core.types import Array
 
 TENSORS = ('free-draining', 'oseen', 'rotne-prager-yamakawa')

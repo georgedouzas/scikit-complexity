@@ -22,15 +22,16 @@ from skcomplex.core.components.laws.utils import (
     laplacian,
     shifted,
 )
-from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace, PhaseSpace
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, MeshSpace, NetworkSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.problems._collision_kernel import CollisionKernel
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ParameterSpec, RunStateSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class HeatElement(Element):

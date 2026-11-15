@@ -21,7 +21,8 @@ from skcomplex.core.components.laws import LinearProgramLaw
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import LinearObjectiveSpec
 
 
 class RoutesElement(Element):

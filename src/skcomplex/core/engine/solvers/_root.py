@@ -10,9 +10,9 @@ from ...components.laws import ConstraintLaw, LinearProgramLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace, StaticTime
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import RunStateSpec, SupportSpec
 from ...types import Array
-from ..problems import ProblemSpec
+from ..backends import SupportSpec
+from ..problems import ProblemSpec, RunStateSpec
 from ..problems._jacobian_kernel import JacobianKernel
 from ._solver import Solver
 

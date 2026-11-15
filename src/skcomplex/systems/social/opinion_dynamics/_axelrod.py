@@ -12,13 +12,14 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 from scipy import ndimage
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray, IntArray
 
 
@@ -210,7 +211,7 @@ def _count_cultures(cultures: AnyArray) -> int:
     return len(np.unique(cultures))
 
 
-def culture_observables(width: int, height: int) -> list[ObservableSpec]:
+def culture_observables(width: int, height: int) -> list[Observable]:
     """Return the share of the largest cultural region and the number of cultures.
 
     They are read from a full grid of villages.
@@ -234,8 +235,8 @@ def culture_observables(width: int, height: int) -> list[ObservableSpec]:
     locations = [(x, y) for x in range(width) for y in range(height)]
     region = partial(largest_region, locations, width=width, height=height)
     return [
-        ObservableSpec('largest_region', group='villages', variable='culture', reduce=region),
-        ObservableSpec('cultures', group='villages', variable='culture', reduce=_count_cultures),
+        Observable('largest_region', group='villages', variable='culture', reduce=region),
+        Observable('cultures', group='villages', variable='culture', reduce=_count_cultures),
     ]
 
 
@@ -278,7 +279,7 @@ class AxelrodSystem(BaseSystem):
     until = 200
 
     @staticmethod
-    def _get_culture_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_culture_observables(system: CompositeSystem) -> list[Observable]:
         """Return the culture observables of the grid of a system."""
         if not isinstance(system.space, LatticeSpace):
             return []

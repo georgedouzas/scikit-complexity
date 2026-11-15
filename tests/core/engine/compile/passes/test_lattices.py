@@ -11,7 +11,18 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.laws import ExtremalLaw, LocalRuleLaw, SampleLaw
+from skcomplex.core.components.laws import (
+    ExtremalLaw,
+    LinearRuleSpec,
+    LocalRuleLaw,
+    MoveSpec,
+    ObjectiveSpec,
+    OuterTotalisticSpec,
+    SampleLaw,
+    SamplerSpec,
+    TableSpec,
+    TotalisticSpec,
+)
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
@@ -23,25 +34,13 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.problems import FrameSpec
+from skcomplex.core.engine.problems import ExtremalRecordSpec, FrameSpec
 from skcomplex.core.engine.problems._extremal_kernel import ExtremalKernel
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver, SiteVisual
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import (
-    ExtremalRecordSpec,
-    LinearRuleSpec,
-    MoveSpec,
-    ObjectiveSpec,
-    OuterTotalisticSpec,
-    ParameterSpec,
-    SamplerSpec,
-    StateSpec,
-    TableSpec,
-    TotalisticSpec,
-    VisualSpec,
-)
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.physics.criticality import HexagonalForestFireSystem
 from skcomplex.systems.physics.statistical_mechanics import GraphIsingSystem
 

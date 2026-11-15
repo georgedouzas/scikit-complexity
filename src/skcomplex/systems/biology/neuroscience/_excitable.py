@@ -14,12 +14,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray
 
 EXCITED = 1
@@ -126,7 +127,7 @@ class KinouchiCopelliSystem(BaseSystem):
     references = ('Kinouchi and Copelli 2006', 'Larremore et al. 2011')
     until = 1000
     dt = 1
-    observables = (ObservableSpec('activity', group='neurons', variable='phase', reduce=_get_excited_fraction),)
+    observables = (Observable('activity', group='neurons', variable='phase', reduce=_get_excited_fraction),)
 
     def __init__(
         self,

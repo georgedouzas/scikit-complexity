@@ -170,11 +170,11 @@ above.
 
 This section records the mean and the variance of the distribution as it changes. The function
 `moment(expression, order, coordinates)` sums `c_j^r f_j` over the members of a group, with the coordinate `c_j` of
-every member, here its wealth class. Each moment enters an `ObservableSpec`, which records it at every output time.
+every member, here its wealth class. Each moment enters an `Observable`, which records it at every output time.
 
 ```python continuation
 from skcomplex.core.components.laws.utils import moment
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 
 
 def mean_wealth(s):
@@ -186,8 +186,8 @@ def wealth_variance(s):
 
 
 observables = [
-    ObservableSpec('mean_wealth', mean_wealth, group='wealth'),
-    ObservableSpec('wealth_variance', wealth_variance, group='wealth'),
+    Observable('mean_wealth', mean_wealth, group='wealth'),
+    Observable('wealth_variance', wealth_variance, group='wealth'),
 ]
 trajectory = simulate(economy, until=100, dt=10.0, observables=observables)
 variance = trajectory.get_values('wealth_variance')
@@ -298,7 +298,8 @@ from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec, TotalisticSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import TotalisticSpec
 
 tree = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=4).prepare()
 memory = MemoryNeighborhood(['1', *[word for name in tree.generators_ for word in (name, f'{name}^-1')]])
@@ -404,7 +405,8 @@ from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import OuterTotalisticSpec, StateSpec, TableSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import OuterTotalisticSpec, TableSpec
 
 
 class CellElement(Element):
@@ -486,7 +488,8 @@ from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import LinearRuleSpec, StateSpec, SubshiftSpec, TableSpec
+from skcomplex.core.specs import StateSpec, SubshiftSpec
+from skcomplex.core.components.laws import LinearRuleSpec, TableSpec
 
 
 class CellElement(Element):

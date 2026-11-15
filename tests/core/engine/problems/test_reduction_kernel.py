@@ -9,6 +9,7 @@ import pytest
 import scipy.sparse
 from sage.all__sagemath_symbolics import cos, heaviside, pi, sin, tanh
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
@@ -19,7 +20,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleError, ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 RNG = np.random.default_rng(0)
 
@@ -455,8 +456,8 @@ def test_kuramoto_through_observables(backend):
     """Test that laws reading observables of their own partition compile to one ODE at the current state."""
     system, theta, omega = _kuramoto(40, observables=True)
     observables = [
-        ObservableSpec('X', _cosine, group='oscillators'),
-        ObservableSpec('Y', _sine, group='oscillators'),
+        Observable('X', _cosine, group='oscillators'),
+        Observable('Y', _sine, group='oscillators'),
     ]
     problem = PassCompiler(backend=backend(), observables=observables).prepare(system).run().problem_
     assert problem.form.name == 'ODE'
@@ -471,7 +472,7 @@ def test_callable_observable_in_same_partition():
         interactions=[ReaderInteraction('reader', target='soil', source='spread')],
     )
     with pytest.raises(ValidationError, match=r'spread.*symbolically.*another'):
-        PassCompiler(observables=[ObservableSpec('spread', group='herd', variable='x', reduce=np.ptp)]).prepare(
+        PassCompiler(observables=[Observable('spread', group='herd', variable='x', reduce=np.ptp)]).prepare(
             system,
         ).run()
 
@@ -510,7 +511,7 @@ def test_observable_read_in_its_own_partition():
         ],
         interactions=[ReaderInteraction('reader', target='account', source='mean_wealth')],
     )
-    observables = [ObservableSpec('mean_wealth', group='savers', variable='W')]
+    observables = [Observable('mean_wealth', group='savers', variable='W')]
     simulation = simulate(system, until=5, dt=0.5, observables=observables)
     problem, trajectory = simulation.problem, simulation
     assert not problem.partitions

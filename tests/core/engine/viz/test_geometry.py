@@ -2,13 +2,12 @@
 
 import rerun.blueprint as rrb
 
-from skcomplex.core.components.elements import WordElement
+from skcomplex.core.components.elements import GeometrySpec, WordElement
 from skcomplex.core.components.laws import ProductionLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import GeometryVisual, RerunObserver
-from skcomplex.core.specs import GeometrySpec
 
 
 class TreeElement(WordElement):

@@ -7,6 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import oo, var
 from sage.sets.real_set import RealSet
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BilinearLaw, RateLaw
@@ -17,7 +18,7 @@ from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 CLASSES = 9
 ACTIVITIES = np.linspace(0.0, 1.0, CLASSES)
@@ -110,9 +111,9 @@ def activity_variance(s):
 
 
 OBSERVABLES = [
-    ObservableSpec('density', density, group='wealth'),
-    ObservableSpec('mean_activity', mean_activity, group='wealth'),
-    ObservableSpec('variance', activity_variance, group='wealth'),
+    Observable('density', density, group='wealth'),
+    Observable('mean_activity', mean_activity, group='wealth'),
+    Observable('variance', activity_variance, group='wealth'),
 ]
 
 

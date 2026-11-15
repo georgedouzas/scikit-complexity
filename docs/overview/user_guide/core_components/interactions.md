@@ -1736,7 +1736,8 @@ from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import OuterTotalisticSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import OuterTotalisticSpec
 
 
 class CellElement(Element):
@@ -1761,7 +1762,7 @@ The same class moves cars along a ring road by the elementary rule 184. A car mo
 empty. The `TableSpec` maps each pattern of the left neighbour, the cell, and the right neighbour to the next value.
 
 ```python continuation
-from skcomplex.core.specs import TableSpec
+from skcomplex.core.components.laws import TableSpec
 
 moves = {(1, 1, 1): 1, (1, 1, 0): 0, (1, 0, 1): 1, (1, 0, 0): 1}
 patterns = moves | {(0, 1, 1): 1, (0, 1, 0): 0, (0, 0, 1): 0, (0, 0, 0): 0}
@@ -2167,7 +2168,9 @@ from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DatasetSpec, ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import DatasetSpec
+from skcomplex.core.components import Observable
 
 
 class FactorElement(Element):
@@ -2189,7 +2192,7 @@ class FactorElement(Element):
         return [UpdateLaw(namespace.x, namespace.a * namespace.x)]
 
 
-squared_error = ObservableSpec('error', lambda s: (s.unit.x - s.unit.observed) ** 2)
+squared_error = Observable('error', lambda s: (s.unit.x - s.unit.observed) ** 2)
 series = 0.8 ** np.arange(1, 11)
 blood = CompositeSystem('blood', elements=[FactorElement('unit')], time=DiscreteTime())
 fit = TrainingInteraction(

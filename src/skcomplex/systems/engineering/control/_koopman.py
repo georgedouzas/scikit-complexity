@@ -20,13 +20,15 @@ from sklearn.base import TransformerMixin
 from sklearn.preprocessing import PolynomialFeatures
 
 from ....core.analysis import ModeDecompositionResult, mode_decomposition
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, RateInteraction
+from ....core.components.laws import CallSpec
 from ....core.components.spaces import ContinuousTime, DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.runtime import Trajectory, simulate
 from ....core.errors import ValidationError
-from ....core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 DUFFING_A, DUFFING_B, DUFFING_D = 1.0, -1.0, -0.3
@@ -501,5 +503,5 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
             symbolic=case.symbolic_reference,
         )
         settings = super().get_run_settings()
-        settings['observables'] = [ObservableSpec('reference', reference)]
+        settings['observables'] = [Observable('reference', reference)]
         return settings

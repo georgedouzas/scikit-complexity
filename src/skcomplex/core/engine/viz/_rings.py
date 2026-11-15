@@ -7,9 +7,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...specs import EntrySpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import UPWARD, BaseVisual
 
 PHASE_MARGIN = 0.1
@@ -91,7 +91,11 @@ class PhaseRingVisual(BaseVisual):
             if state not in {self.phase, self.position}:
                 BaseVisual._log_scalars(recording, f'{element.path}/{state}', frame.get_value(name))
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return a 2D view of the phases against the positions.
 
         It is bounded by one turn of phase.

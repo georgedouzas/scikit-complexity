@@ -16,6 +16,7 @@ import scipy.sparse
 import scipy.sparse.linalg
 from sage.all__sagemath_symbolics import Expression, pi
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import codifferential, exterior_derivative
@@ -23,7 +24,7 @@ from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSp
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import VelocityVerletSolver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.fields import WilsonSamplingInteraction
 
@@ -328,7 +329,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         return CompositeSystem(self.label, elements=[links], interactions=[sampling], time=DiscreteTime())
 
     @staticmethod
-    def _get_gauge_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_gauge_observables(system: CompositeSystem) -> list[Observable]:
         """Return the observables of the dynamics.
 
         They are the mean plaquette of a sampled system, or the Gauss residual and the field energy of a Maxwell one.
@@ -345,17 +346,17 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         space = links.space.prepare()
         if links.element is GaugeLinkElement:
             return [
-                ObservableSpec(
+                Observable(
                     'mean_plaquette',
                     function=partial(LatticeGaugeFieldsSystem._get_mean_plaquette, space.incidences_[1]),
                 ),
             ]
         return [
-            ObservableSpec(
+            Observable(
                 'gauss_residual',
                 function=partial(LatticeGaugeFieldsSystem._get_gauss_residual, space.incidences_[0]),
             ),
-            ObservableSpec(
+            Observable(
                 'field_energy',
                 function=partial(LatticeGaugeFieldsSystem._get_field_energy, space.incidences_[1]),
             ),

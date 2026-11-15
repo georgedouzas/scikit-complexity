@@ -20,10 +20,11 @@ from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import CrankNicolsonSolver, RK4Solver, ScipyODESolver, _scipy_ode
+from skcomplex.core.engine.solvers import CrankNicolsonSolver, RK4Solver, ScipyODESolver, StepSpec, _scipy_ode
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, RunStateSpec, StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import FisherKPPSystem
 from skcomplex.systems.biology.physiology import FitzhughNagumoSystem

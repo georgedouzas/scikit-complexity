@@ -15,13 +15,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 from scipy.spatial import KDTree
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 
@@ -258,9 +259,9 @@ class BinaryCollisionFlockingSystem(BaseSystem):
     until = 200
     dt = 1
     observables = (
-        ObservableSpec('mean_cos', _get_cosine, group='birds'),
-        ObservableSpec('mean_sin', _get_sine, group='birds'),
-        ObservableSpec('polarization', _get_polarization),
+        Observable('mean_cos', _get_cosine, group='birds'),
+        Observable('mean_sin', _get_sine, group='birds'),
+        Observable('polarization', _get_polarization),
     )
 
     def __init__(

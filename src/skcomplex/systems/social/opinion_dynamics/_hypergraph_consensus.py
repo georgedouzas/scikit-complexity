@@ -16,13 +16,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, oo, pi, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 TRIANGLE = 3
 
@@ -200,8 +201,8 @@ class HypergraphConsensusSystem(BaseSystem):
     until = 10.0
     dt = 0.1
     observables = (
-        ObservableSpec('mean_opinion', group='nodes', variable='x'),
-        ObservableSpec('spread', _spread, group='nodes'),
+        Observable('mean_opinion', group='nodes', variable='x'),
+        Observable('spread', _spread, group='nodes'),
     )
 
     def __init__(

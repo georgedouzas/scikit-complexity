@@ -13,13 +13,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from scipy import sparse
 
-from ....components.laws import LinearProgramLaw
-from ....specs import IssueSpec, LayoutSpec, LinearObjectiveSpec, RunStateSpec
+from ....components.laws import LinearObjectiveSpec, LinearProgramLaw
 from ....specs._base_spec import BaseSpec
 from ....types import Array, Indices
 from ..._utils import symbol, symbols_of
 from ...enums import LinearProgramBound
-from ...problems import ProblemSpec
+from ...problems import LayoutSpec, ProblemSpec, RunStateSpec
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._linear_program_kernel import LinearProgramKernel
@@ -32,6 +31,7 @@ from ...problems._linear_program_spec import (
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BasePass
 from .._compilation import Compilation, Laws
+from .._issue_spec import IssueSpec
 from ._census import CensusPass
 
 ABSOLUTE = 'abs'

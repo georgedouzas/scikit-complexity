@@ -35,10 +35,10 @@ from ...components.spaces import (
     SimplexSpace,
 )
 from ...errors import ValidationError
-from ...specs import NeighborReadSpec, RunStateSpec
 from ...types import Array, Indices, IntTuple
 from .._utils import domain_of, symbol
 from ..enums import ReadKind
+from ..problems import RunStateSpec
 from ..problems._collision_kernel import CollisionKernel
 from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._diffusive_limit_spec import DiffusiveLimitSpec
@@ -46,6 +46,7 @@ from ..problems._expression_printer import ExpressionPrinter
 from ..problems._field_operator_kernel import FieldOperatorKernel
 from ..problems._kernel_spec import KernelSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
+from ..problems._neighbor_read_spec import _NeighborReadSpec
 from ..problems._reference_spec import ReferenceSpec
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
@@ -325,7 +326,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 table, ghost, mode = self._get_table(base, place, total)
                 space = place.space
                 lattice = space if isinstance(space, LatticeSpace) and mode is not None else None
-                read = NeighborReadSpec(
+                read = _NeighborReadSpec(
                     table,
                     ghost,
                     None if lattice is None else lattice.shape_,

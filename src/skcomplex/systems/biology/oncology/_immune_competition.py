@@ -13,11 +13,11 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec
 from ...general.kinetics import EncounterInteraction
 from ..common.populations import PopulationDensityElement
 
@@ -109,7 +109,7 @@ def mean_activity(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Ex
     return moment(s.x, 1, activities, normalized=True)
 
 
-def immune_observables(classes: int) -> list[ObservableSpec]:
+def immune_observables(classes: int) -> list[Observable]:
     """Return the tumour density, mean progression, and mean immune activation.
 
     The progression is the mean tumour progression of the system.
@@ -129,9 +129,9 @@ def immune_observables(classes: int) -> list[ObservableSpec]:
     """
     activities = activity_grid(classes)
     return [
-        ObservableSpec('tumour_density', partial(cell_density, activities=activities), group='tumour'),
-        ObservableSpec('tumour_progression', partial(mean_activity, activities=activities), group='tumour'),
-        ObservableSpec('immune_activation', partial(mean_activity, activities=activities), group='immune'),
+        Observable('tumour_density', partial(cell_density, activities=activities), group='tumour'),
+        Observable('tumour_progression', partial(mean_activity, activities=activities), group='tumour'),
+        Observable('immune_activation', partial(mean_activity, activities=activities), group='immune'),
     ]
 
 

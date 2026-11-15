@@ -13,12 +13,14 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import ChoiceInteraction
 from ..common.forecasting import heuristics
@@ -343,7 +345,7 @@ class ElFarolSystem(BaseSystem):
     topics = ('el farol', 'agents', 'inductive reasoning', 'bounded rationality')
     references = ('Arthur 1994', 'Yakovenko and Rosser 2009', 'Carmichael and Hadzikadic 2019 ch. 9')
     until = 200
-    observables = (ObservableSpec('attendance', group='patrons', variable='attends', reduce='sum'),)
+    observables = (Observable('attendance', group='patrons', variable='attends', reduce='sum'),)
 
     def __init__(
         self,

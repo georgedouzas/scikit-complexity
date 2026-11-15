@@ -9,10 +9,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.mechanics import SpringDamperInteraction
 
 
@@ -130,7 +131,7 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
     references = ('Trzaska 2023',)
     until = 10.0
     dt = 0.01
-    observables = (ObservableSpec('voltage', _get_piezo_voltage),)
+    observables = (Observable('voltage', _get_piezo_voltage),)
 
     def __init__(
         self,

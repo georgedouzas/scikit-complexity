@@ -7,9 +7,10 @@ import numbers
 from typing import ClassVar
 
 from ...errors import RewritingError
-from ...specs import Letters, ModuleSpec, RequirementSpec
 from ..spaces import DiscreteTime
 from ._base import BaseLaw
+from ._module_spec import Letters, ModuleSpec
+from ._requirement_spec import RequirementSpec
 
 
 class ProductionLaw(BaseLaw):

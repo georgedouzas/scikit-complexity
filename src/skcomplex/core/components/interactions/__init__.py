@@ -11,8 +11,8 @@ from ._base import BaseInteraction
 from ._connection import ConnectionInteraction
 from ._conservation import ConservationInteraction
 from ._coupling import CouplingInteraction
-from ._euler_lagrange import EulerLagrangeInteraction
 from ._crossing import CrossingInteraction
+from ._euler_lagrange import EulerLagrangeInteraction
 from ._gradient import GradientInteraction
 from ._grouping import GroupingInteraction
 from ._hamiltonian import HamiltonianInteraction
@@ -29,6 +29,7 @@ from ._topology import TopologyInteraction
 from ._training import TrainingInteraction
 from ._transfer import TransferInteraction
 from ._transition import TransitionInteraction
+from ._wiener_process_spec import WienerProcessSpec
 
 __all__: list[str] = [
     'BaseInteraction',
@@ -53,4 +54,5 @@ __all__: list[str] = [
     'TrainingInteraction',
     'TransferInteraction',
     'TransitionInteraction',
+    'WienerProcessSpec',
 ]

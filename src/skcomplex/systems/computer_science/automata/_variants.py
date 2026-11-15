@@ -18,11 +18,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import (
-    BallNeighborhood,
-    LatticeNeighborhood,
-    LatticeSpace,
-)
+from ....core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec

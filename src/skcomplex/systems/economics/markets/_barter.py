@@ -14,11 +14,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import StateSpec, VisualSpec
 from ..common.exchange import ExchangeInteraction, cobb_douglas
 
 GOODS = ('chocolate', 'cigarettes')
@@ -189,8 +191,8 @@ class BarterSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 ch. 5', 'Radford 1945')
     until = 20
     observables = (
-        ObservableSpec('utility', _get_utility, group='barterers', reduce='mean'),
-        *(ObservableSpec(good, group='barterers', variable=good, reduce='sum') for good in GOODS),
+        Observable('utility', _get_utility, group='barterers', reduce='mean'),
+        *(Observable(good, group='barterers', variable=good, reduce='sum') for good in GOODS),
     )
 
     def __init__(

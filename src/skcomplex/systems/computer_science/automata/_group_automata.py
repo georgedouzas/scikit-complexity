@@ -12,8 +12,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
+from ....core.components.laws import TotalisticSpec
 from ....core.components.spaces import (
     BallNeighborhood,
     CayleySpace,
@@ -22,7 +24,7 @@ from ....core.components.spaces import (
     MemoryNeighborhood,
 )
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, SubshiftSpec, TotalisticSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, SubshiftSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 from ._generator_neighborhood import GeneratorNeighborhood
@@ -137,7 +139,7 @@ class FreeGroupAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 20
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     @staticmethod
     def _get_majority(center: Array, *values: Array, degree: Array) -> Array:
@@ -238,7 +240,7 @@ class LamplighterAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023', 'Grigorchuk and Zuk 2001')
     until = 20
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,
@@ -305,7 +307,7 @@ class HeisenbergAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 20
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,
@@ -369,7 +371,7 @@ class BaumslagSolitarAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023', 'Baumslag and Solitar 1962')
     until = 20
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,
@@ -434,7 +436,7 @@ class LinearRingAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 40
     dt = 1
-    observables = (ObservableSpec('mean', group='cells', variable='value'),)
+    observables = (Observable('mean', group='cells', variable='value'),)
 
     def __init__(
         self,
@@ -513,7 +515,7 @@ class SubshiftsSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023', 'Lind and Marcus 1995')
     until = 50
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,
@@ -583,7 +585,7 @@ class GrigorchukAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023', 'Grigorchuk 1984')
     until = 20
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,

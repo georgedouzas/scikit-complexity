@@ -11,9 +11,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...components.spaces import LatticeSpace, NetworkSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
-from ...specs import NetworkSnapshotSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec, NetworkSnapshotSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import GRID_RADIUS, NODE_SPACING, BaseVisual
 
 HEXAGON_RADIUS = float(1 / np.sqrt(3.0))
@@ -169,7 +168,11 @@ class SiteVisual(BaseVisual):
                 rr.Points2D(positions, colors=self._get_colors(values, self.low, self.high), radii=radius),
             )
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return the views of the chosen states of a group.
 
         A group on a network or a changing topology gets one graph view per state, and others 2D spatial views.

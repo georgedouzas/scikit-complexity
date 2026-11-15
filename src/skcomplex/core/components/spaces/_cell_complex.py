@@ -14,8 +14,8 @@ import scipy.sparse
 import xgi
 
 from ...errors import SpaceError, ValidationError
-from ...specs import Tags
 from ...types import Array, Indices
+from .._tags import Tags
 from ._lattice import LatticeSpace
 from ._network import NetworkSpace
 

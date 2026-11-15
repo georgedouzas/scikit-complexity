@@ -12,7 +12,7 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 from ...errors import RoleElementError, TagError
-from ...specs import Tags
+from .._tags import Tags
 from ..base import BaseComponent
 from ..elements import BaseElement
 from ..interactions import BaseInteraction

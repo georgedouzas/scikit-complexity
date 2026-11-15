@@ -16,18 +16,20 @@ from ...components.laws import ConstraintLaw, GradientStepLaw, RateLaw, UpdateLa
 from ...components.spaces import ContinuousTime, DiscreteTime
 from ...enums import FormKind, OrderKind
 from ...errors import BackendError, ValidationError
-from ...specs import LoweredFunctionsSpec, ReadSpec, SupportSpec
 from ...types import Array
 from ..enums import ReadKind
 from ..problems._draw_kernel import DrawKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
+from ..problems._read_spec import _ReadSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..types import TracedArray, TracedFunction
 from ._base import BaseBackend
+from ._lowered_functions_spec import LoweredFunctionsSpec
+from ._support_spec import SupportSpec
 
 FORMS = (FormKind.ODE, FormKind.DISCRETE)
 MEMBER_READS = (ReadKind.MEMBER, ReadKind.REDUCED)
@@ -407,12 +409,12 @@ class JaxBackend(BaseBackend):
         raise BackendError(error_msg)
 
     @staticmethod
-    def _get_weight_matrix(weights: scipy.sparse.csr_array | ReadSpec) -> Callable[[TracedArray, TracedArray], object]:
+    def _get_weight_matrix(weights: scipy.sparse.csr_array | _ReadSpec) -> Callable[[TracedArray, TracedArray], object]:
         """Return the function that gives the weight matrix of a reduction.
 
         The matrix is a shaped parameter or a constant matrix.
         """
-        if isinstance(weights, ReadSpec) and weights.entry is not None:
+        if isinstance(weights, _ReadSpec) and weights.entry is not None:
             is_state, index, shape = weights.is_state, weights.index, weights.entry.shape
             return lambda x, q: (x if is_state else q)[index].reshape(shape)
         matrix = np.asarray(scipy.sparse.csr_array(weights).toarray())

@@ -12,8 +12,8 @@ from scipy import stats
 
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
 from ..types import AnyArray, Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_real, _read_series
 from ._information import _row_codes
 from .types import Source

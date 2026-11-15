@@ -14,12 +14,12 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_helmholtz, moment
-from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace, SimplexSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SemiLagrangianSolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import AxisSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 
 class AmountElement(Element):

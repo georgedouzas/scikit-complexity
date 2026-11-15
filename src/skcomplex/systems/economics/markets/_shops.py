@@ -15,22 +15,17 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import clip, sign
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import (
-    ObservableSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 
@@ -565,9 +560,9 @@ class ShopsSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 sec. 6.3-6.4',)
     until = 100
     observables = (
-        ObservableSpec('open_shops', group='shops', variable='price', reduce='count'),
-        ObservableSpec('mean_price', group='shops', variable='price', reduce='mean'),
-        ObservableSpec('concentration', group='shops', variable='sales', reduce=_get_largest_share),
+        Observable('open_shops', group='shops', variable='price', reduce='count'),
+        Observable('mean_price', group='shops', variable='price', reduce='mean'),
+        Observable('concentration', group='shops', variable='sales', reduce=_get_largest_share),
     )
 
     def __init__(

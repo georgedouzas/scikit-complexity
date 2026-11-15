@@ -12,13 +12,13 @@ from ....components.laws.utils._draws import draws_in
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.spaces import DiscreteTime
 from ....errors import IncompatibleLawsError, RoleError
-from ....specs._matrix_law_spec import RANDOM_FIELDS
 from ..._utils import components_of
 from ...enums import ReadKind
 from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
 from .._compilation import Compilation
 from .._draw_lowering import DrawLowering
+from .._matrix_law_spec import RANDOM_FIELDS
 from .._renewal_law import RenewalLaw
 
 

@@ -12,6 +12,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
@@ -19,7 +20,7 @@ from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood, StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class CityResidentElement(Element):
@@ -141,7 +142,7 @@ class GravityUrbanScalingSystem(BaseSystem):
     field = 'social/organizations'
     topics = ('urban scaling', 'gravity system', 'static', 'allometry')
     references = ('Ribeiro and Netto 2024, arXiv 2404.02642', 'Ribeiro et al. 2017')
-    observables = (ObservableSpec('total_contacts', group='residents', variable='contacts', reduce='sum'),)
+    observables = (Observable('total_contacts', group='residents', variable='contacts', reduce='sum'),)
 
     def __init__(
         self,

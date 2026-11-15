@@ -14,12 +14,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 UPPER = 0
@@ -182,7 +183,7 @@ class PhoneAdoptionSystem(BaseSystem):
     topics = ('diffusion', 'adoption', 'network effect', 'agents')
     references = ('Hamill and Gilbert 2016',)
     until = 50
-    observables = (ObservableSpec('share', group='households', variable='phone'),)
+    observables = (Observable('share', group='households', variable='phone'),)
 
     def __init__(
         self,

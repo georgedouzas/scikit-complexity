@@ -15,13 +15,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
 from ...general.matching.types import MatchingRule
 
@@ -362,8 +363,8 @@ class WilhiteTradeNetworksSystem(BaseSystem):
     references = ('Wilhite 2001', 'Gooding 2019')
     until = 60
     observables = (
-        ObservableSpec('dispersion', group='traders', variable='mrs', reduce=_log_spread),
-        ObservableSpec('utility', _get_utility, group='traders'),
+        Observable('dispersion', group='traders', variable='mrs', reduce=_log_spread),
+        Observable('utility', _get_utility, group='traders'),
     )
 
     def __init__(

@@ -10,9 +10,9 @@ import numpy.typing as npt
 from sklearn.base import clone
 
 from ...base import BaseConfig
+from ...components import Observable, Tags
 from ...components.systems import BaseSystem, CompositeSystem
 from ...errors import TagError, ValidationError
-from ...specs import ObservableSpec, Tags
 from ..backends import BaseBackend, NumpyBackend
 from ..compile import BaseCompiler
 from ..problems import BaseProblemSpec
@@ -99,8 +99,8 @@ def _prepare_runners(
     solver: BaseSolver | None,
     backend: BaseBackend | None,
     compiler: BaseCompiler | None,
-    observables: Sequence[ObservableSpec],
-) -> tuple[CompositeSystem, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[ObservableSpec]]:
+    observables: Sequence[Observable],
+) -> tuple[CompositeSystem, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[Observable]]:
     """Return the composite of a system with copies of its runners, and observables.
 
     The runners are the solver, the backend, and the compiler. A setting left out comes from the tuned run settings of
@@ -164,7 +164,7 @@ def compile_problem(
     system: BaseSystem,
     *,
     solver: BaseSolver | None = None,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
 ) -> tuple[BaseProblemSpec, BaseSolver]:
     """Return the problem compiled from a system, and the solver of its runs.
 
@@ -210,7 +210,7 @@ def run_problem(
     initial_state: Mapping[str, object] | None = None,
     solver: BaseSolver | None = None,
     backend: BaseBackend | None = None,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
     observers: Sequence[BaseObserver] = (),
     invariants: Mapping[str, float] | None = None,
     schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
@@ -289,8 +289,8 @@ def run_problem(
         >>> from skcomplex.core.engine.runtime import compile_problem, run_problem
         >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
         >>> system = LotkaVolterraSystem()
-        >>> run_problem(system, compile_problem(system), until=5.0).times[-1]
-        np.float64(5.0)
+        >>> float(run_problem(system, compile_problem(system), until=5.0).times[-1])
+        5.0
     """
     if not isinstance(system, BaseSystem):
         error_msg = f'simulate takes a system, not {system!r}.'
@@ -338,7 +338,7 @@ def simulate(
     initial_state: Mapping[str, object] | None = None,
     solver: BaseSolver | None = None,
     backend: BaseBackend | None = None,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
     observers: Sequence[BaseObserver] = (),
     invariants: Mapping[str, float] | None = None,
     schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,

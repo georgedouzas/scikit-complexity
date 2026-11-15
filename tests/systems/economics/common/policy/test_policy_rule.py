@@ -5,12 +5,13 @@ from typing import Annotated
 import numpy as np
 import pytest
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SimulationError, ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
 
 
@@ -73,7 +74,7 @@ def test_act_changes_a_parameter_only_above_the_target():
         elements=[GroupElement('counters', element=CounterElement, size=1)],
         interactions=[ControllerInteraction('controller')],
     )
-    observables = [ObservableSpec('total', group='counters', variable='level', reduce='sum')]
+    observables = [Observable('total', group='counters', variable='level', reduce='sum')]
     trajectory = simulate(system, until=10, random_state=0, observables=observables)
     totals = trajectory.get_values('controller.total')[1:]
     changes = np.diff(trajectory.get_values('controller.rate'))

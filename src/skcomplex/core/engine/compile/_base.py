@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression
 
 from ...base import BaseConfig
+from ...components import Observable
 from ...components.laws import BaseLaw
 from ...components.systems import CompositeSystem
 from ...enums import FormKind
@@ -26,13 +27,14 @@ from ...errors import (
     TensorSymmetryError,
     ValidationError,
 )
-from ...specs import IssueSpec, ObservableSpec, SupportSpec, ValidationReportSpec
-from ..backends import BaseBackend, NumbaBackend, NumpyBackend
+from ..backends import BaseBackend, NumbaBackend, NumpyBackend, SupportSpec
 from ..backends._base import AUTO_MEMBERS
 from ..problems import BaseProblemSpec
 from ..problems._kernel_spec import KernelSpec
 from ..problems._reference_spec import ReferenceSpec
 from ._compilation import Compilation
+from ._issue_spec import IssueSpec
+from ._validation_report_spec import ValidationReportSpec
 
 FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
@@ -96,7 +98,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         self,
         backend: BaseBackend | None = None,
         solver: object = None,
-        observables: Sequence[ObservableSpec] = (),
+        observables: Sequence[Observable] = (),
     ) -> None:
         self.backend = backend
         self.solver = solver
@@ -119,7 +121,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         if self.backend is not None and not isinstance(self.backend, BaseBackend):
             error_msg = f'The backend is a {type(self.backend).__name__}. Pass a backend instance or `None`.'
             raise ValidationError(error_msg)
-        wrong = [item for item in self.observables if not isinstance(item, ObservableSpec)]
+        wrong = [item for item in self.observables if not isinstance(item, Observable)]
         if wrong:
             error_msg = f'The observables hold a {type(wrong[0]).__name__}. Pass observable specs.'
             raise ValidationError(error_msg)
@@ -286,7 +288,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         return expression(SimpleNamespace(**vars(getattr(namespace, element)), t=namespace.t))
 
     @staticmethod
-    def _get_of_root(observable: ObservableSpec) -> ObservableSpec:
+    def _get_of_root(observable: Observable) -> Observable:
         """Return an observable of an element as an observable of the root system.
 
         The observable of the root system is labelled `<element>.<label>`.
@@ -302,7 +304,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         )
 
     @staticmethod
-    def _get_observables_of(system: CompositeSystem, scope: str = '') -> Iterator[tuple[str, ObservableSpec]]:
+    def _get_observables_of(system: CompositeSystem, scope: str = '') -> Iterator[tuple[str, Observable]]:
         """Yield every observable of a system tree.
 
         Each comes with the path of the system that declares it.
@@ -334,7 +336,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
     @staticmethod
     def _get_attached(
         system: CompositeSystem,
-        by_scope: dict[str, list[ObservableSpec]],
+        by_scope: dict[str, list[Observable]],
         scope: str,
     ) -> CompositeSystem:
         """Return a copy of a system that holds the observables of its scope.
@@ -350,7 +352,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         return copied
 
     @staticmethod
-    def _copy_with_observables(system: CompositeSystem, observables: Sequence[ObservableSpec]) -> CompositeSystem:
+    def _copy_with_observables(system: CompositeSystem, observables: Sequence[Observable]) -> CompositeSystem:
         """Return a copy of a system tree with observables in the systems they name.
 
         Every observable is declared in the system its label names.
@@ -370,7 +372,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
             ValidationError:
                 An observable names a nested system that does not exist.
         """
-        by_scope: dict[str, list[ObservableSpec]] = {}
+        by_scope: dict[str, list[Observable]] = {}
         for observable in observables:
             observable._check()
             checked = BaseCompiler._get_of_root(observable)

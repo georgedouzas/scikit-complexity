@@ -14,29 +14,28 @@ import qutip
 from sage.all__sagemath_symbolics import CC, SR, Expression
 from sage.modules.free_module import FreeModule_generic
 
+from ....components import Observable
 from ....components.elements import BaseElement, Element, GroupElement
 from ....components.interactions import BaseInteraction, NeighborInteraction
 from ....components.laws import DissipatorLaw, GeneratorLaw
-from ....components.specs import (
-    CompiledElementSpec,
-    CompiledInteractionSpec,
-    NodeSpec,
-    OperatorViewSpec,
-    SubsystemSpec,
-)
 from ....components.systems import CompositeSystem
 from ....enums import FormKind, VariableKind
 from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
-from ....specs import EntrySpec, HilbertSpec, IssueSpec, LayoutSpec, ObservableSpec
+from ....specs import EntrySpec
 from ....types import Array
 from ..._utils import declarations_of, symbol, vector
 from ...backends import BaseBackend
-from ...problems import BaseProblemSpec
+from ...problems import BaseProblemSpec, CompiledElementSpec, HilbertSpec, LayoutSpec
+from ...problems._compiled_interaction_spec import _CompiledInteractionSpec
+from ...problems._node_spec import _NodeSpec
 from ...problems._operator_kernel import OperatorKernel
 from ...problems._operator_lowering import OperatorLowering
 from ...problems._operator_problem_spec import REAL_TOLERANCE, OperatorProblemSpec
+from ...problems._operator_view_spec import _OperatorViewSpec
+from ...problems._subsystem_spec import _SubsystemSpec
 from ...types import Dissipators, Generators
 from .._base import BaseCompiler
+from .._issue_spec import IssueSpec
 from ._flatten import FlattenPass
 from ._hilbert_space_error import HilbertSpaceError
 from ._layout import LayoutPass
@@ -77,7 +76,7 @@ class OperatorCompiler(BaseCompiler):
         self,
         backend: BaseBackend | None = None,
         solver: object = None,
-        observables: Sequence[ObservableSpec] = (),
+        observables: Sequence[Observable] = (),
         max_dimension: int = DEFAULT_MAX_DIMENSION,
     ) -> None:
         super().__init__(backend, solver, observables)
@@ -151,7 +150,7 @@ class OperatorCompiler(BaseCompiler):
         return self._compile_operator(system, initial=initial_state.get(whole), max_dimension=limit)
 
     @staticmethod
-    def _get_view_of(element: Element) -> OperatorViewSpec:
+    def _get_view_of(element: Element) -> _OperatorViewSpec:
         """Return the operator view of an element.
 
         It holds the name of its state and its Hilbert space.
@@ -189,7 +188,7 @@ class OperatorCompiler(BaseCompiler):
                 f'HilbertSpec has dimension {space.dimension}.'
             )
             raise ValidationError(error_msg)
-        return OperatorViewSpec(element, state, space)
+        return _OperatorViewSpec(element, state, space)
 
     @staticmethod
     def _get_hilbert_of(element: BaseElement) -> HilbertSpec | None:
@@ -270,7 +269,7 @@ class OperatorCompiler(BaseCompiler):
         return element.element(element.label).set_params(**values)
 
     @staticmethod
-    def _is_operator_node(node: NodeSpec) -> bool:
+    def _is_operator_node(node: _NodeSpec) -> bool:
         """Check whether a node is an operator element or a group of operator elements."""
         return not isinstance(node.component, BaseInteraction) and OperatorCompiler._is_operator(node.component)
 
@@ -304,7 +303,7 @@ class OperatorCompiler(BaseCompiler):
         return items[member] if size is None or len(items) == size else value
 
     @staticmethod
-    def _get_members_of(node: NodeSpec) -> list[tuple[str, OperatorViewSpec]]:
+    def _get_members_of(node: _NodeSpec) -> list[tuple[str, _OperatorViewSpec]]:
         """Return the key and the element of every member of an operator element or group."""
         component = node.as_element
         if isinstance(component, Element):
@@ -321,7 +320,7 @@ class OperatorCompiler(BaseCompiler):
         return members
 
     @staticmethod
-    def _check_classical(nodes: list[NodeSpec]) -> None:
+    def _check_classical(nodes: list[_NodeSpec]) -> None:
         """Raise an error for an operator system with classical components or states.
 
         The components are classical elements, or operator elements with states.
@@ -356,7 +355,7 @@ class OperatorCompiler(BaseCompiler):
                 raise ValidationError(error_msg)
 
     @staticmethod
-    def _check_dimension(nodes: list[NodeSpec], dimensions: list[int], limit: int) -> None:
+    def _check_dimension(nodes: list[_NodeSpec], dimensions: list[int], limit: int) -> None:
         """Raise an error when the Hilbert space dimension exceeds the solver limit."""
         total = math.prod(dimensions)
         if total <= limit:
@@ -374,7 +373,7 @@ class OperatorCompiler(BaseCompiler):
 
     @staticmethod
     def _get_parameter_symbols(
-        node: NodeSpec,
+        node: _NodeSpec,
         symbols: Mapping[str, Expression],
         member: int | None,
     ) -> dict[str, Expression]:
@@ -387,7 +386,7 @@ class OperatorCompiler(BaseCompiler):
 
     @staticmethod
     def _get_role_namespace(
-        node: NodeSpec,
+        node: _NodeSpec,
         label: str,
         members: Mapping[str, tuple[SimpleNamespace, ...]],
         groups: set[str],
@@ -425,12 +424,12 @@ class OperatorCompiler(BaseCompiler):
 
     @staticmethod
     def _get_interaction_laws(
-        node: NodeSpec,
+        node: _NodeSpec,
         interaction: BaseInteraction,
         *,
         symbols: Mapping[str, object],
         members: Mapping[str, tuple[SimpleNamespace, ...]],
-        groups: dict[str, NodeSpec],
+        groups: dict[str, _NodeSpec],
         generators: Generators,
         dissipators: Dissipators,
     ) -> None:
@@ -606,16 +605,16 @@ class OperatorCompiler(BaseCompiler):
         return namespaces
 
     @staticmethod
-    def _get_subsystems_of(operator_nodes: list[NodeSpec]) -> dict[str, SubsystemSpec]:
+    def _get_subsystems_of(operator_nodes: list[_NodeSpec]) -> dict[str, _SubsystemSpec]:
         """Return the subsystems of the operator elements and groups in tensor order.
 
         Each comes with its state symbol.
         """
-        subsystems: dict[str, SubsystemSpec] = {}
+        subsystems: dict[str, _SubsystemSpec] = {}
         for node in operator_nodes:
             for key, element in OperatorCompiler._get_members_of(node):
                 state = symbol(f'{element.state}_{OperatorCompiler._get_name_of(key)}', CC)
-                subsystems[key] = SubsystemSpec(key, element, len(subsystems), state, element.get_local_operators())
+                subsystems[key] = _SubsystemSpec(key, element, len(subsystems), state, element.get_local_operators())
         return subsystems
 
     @staticmethod
@@ -630,8 +629,8 @@ class OperatorCompiler(BaseCompiler):
 
     @staticmethod
     def _get_element_laws(
-        operator_nodes: list[NodeSpec],
-        subsystems: Mapping[str, SubsystemSpec],
+        operator_nodes: list[_NodeSpec],
+        subsystems: Mapping[str, _SubsystemSpec],
         *,
         symbols: Mapping[str, object],
         time: Expression,
@@ -665,7 +664,7 @@ class OperatorCompiler(BaseCompiler):
         system: CompositeSystem,
         initial: object,
         *,
-        subsystems: Mapping[str, SubsystemSpec],
+        subsystems: Mapping[str, _SubsystemSpec],
         generator: tuple[OperatorKernel, ...],
         p: Array,
         is_open: bool,
@@ -687,7 +686,7 @@ class OperatorCompiler(BaseCompiler):
         return np.outer(state, state.conj()) if is_open and state.ndim == 1 else state
 
     @staticmethod
-    def _get_compiled_element(node: NodeSpec) -> CompiledElementSpec:
+    def _get_compiled_element(node: _NodeSpec) -> CompiledElementSpec:
         """Return the compiled element of an operator element or group.
 
         It has no states in the state vector.
@@ -700,7 +699,7 @@ class OperatorCompiler(BaseCompiler):
         return CompiledElementSpec(node.path, component, {}, parameters, visual, node.members)
 
     @staticmethod
-    def _get_compiled_interaction(node: NodeSpec) -> CompiledInteractionSpec:
+    def _get_compiled_interaction(node: _NodeSpec) -> _CompiledInteractionSpec:
         """Return the compiled interaction of an operator system.
 
         It holds the paths its roles bind to.
@@ -709,7 +708,7 @@ class OperatorCompiler(BaseCompiler):
         roles = {
             name: f'{node.scope}{getattr(component, name)}' for name in declarations_of(component, VariableKind.ROLE)
         }
-        return CompiledInteractionSpec(node.path, component, roles)
+        return _CompiledInteractionSpec(node.path, component, roles)
 
     @staticmethod
     def _compile_operator(
@@ -831,7 +830,7 @@ class OperatorCompiler(BaseCompiler):
         return '_'.join(part for part in re.split(r'\W+', path) if part)
 
     @staticmethod
-    def _get_parameters(nodes: list[NodeSpec]) -> tuple[list[EntrySpec], list[Array], dict[str, Expression]]:
+    def _get_parameters(nodes: list[_NodeSpec]) -> tuple[list[EntrySpec], list[Array], dict[str, Expression]]:
         """Return the parameter entries, initial values, and symbols of every component.
 
         For groups, they are given per member.

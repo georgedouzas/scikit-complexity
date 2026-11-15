@@ -17,11 +17,11 @@ from gallery_tools import Example, build_from_environment, library_systems
 from inventory_checks import InventoryError, inventory_problems
 
 from skcomplex.core.analysis import symbolic
+from skcomplex.core.components import Tags
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import Tags
 
 DOCS = Path(str(files('gallery_tools'))).parent
 INVENTORY = DOCS / 'overview' / 'inventory.toml'

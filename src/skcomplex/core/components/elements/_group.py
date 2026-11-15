@@ -11,7 +11,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import ZZ
 
 from ...errors import SpaceError, ValidationError
-from ...specs import RoleSpec, Spec, StateSpec, Tags, VisualSpec
+from ...specs import RoleSpec, Spec, StateSpec, VisualSpec
+from .._tags import Tags
 from ..base import BaseComponent
 from ..spaces import BaseSpace, NetworkSpace
 from ._base import BaseElement

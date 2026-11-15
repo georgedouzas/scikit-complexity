@@ -15,12 +15,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 NAND = (2, 0b0111)
@@ -416,7 +417,7 @@ class NkTechnologySystem(BaseSystem):
     topics = ('innovation', 'technology', 'learning curve', 'agents')
     references = ('Thurner et al. 2018', 'McNerney et al. 2011')
     until = 200
-    observables = (ObservableSpec('total_cost', group='components', reduce='sum', variable='cost'),)
+    observables = (Observable('total_cost', group='components', reduce='sum', variable='cost'),)
 
     def __init__(
         self,

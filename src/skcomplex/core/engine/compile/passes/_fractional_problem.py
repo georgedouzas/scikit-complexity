@@ -13,13 +13,15 @@ from sage.all__sagemath_symbolics import SR
 
 from ....components.laws import NoiseLaw
 from ....enums import FormKind
-from ....specs import FractionalRowsSpec, FractionalStateSpec, LayoutSpec
 from ....types import Array
+from ...problems import LayoutSpec
+from ...problems._fractional_rows_spec import _FractionalRowsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
 from .._base import BasePass
 from .._compilation import Compilation
+from .._fractional_state_spec import _FractionalStateSpec
 from ._check_fractional_noise import CheckFractionalNoisePass
 from ._fractional_form import FractionalFormPass
 
@@ -68,7 +70,7 @@ class FractionalProblemPass(BasePass):
         return lambda p: np.broadcast_to(np.asarray(reference.get_column_of(empty, p), dtype=float), (rows,)).copy()
 
     @staticmethod
-    def _get_fractional_rows(lowered: LoweredKernelsSpec) -> tuple[FractionalRowsSpec, ...]:
+    def _get_fractional_rows(lowered: LoweredKernelsSpec) -> tuple[_FractionalRowsSpec, ...]:
         """Return the noise rows that noise laws with a Hurst index drive.
 
         They are in the order of the noise rows.
@@ -84,7 +86,7 @@ class FractionalProblemPass(BasePass):
                     positions = position + np.arange(kernel.rows, dtype=np.intp)
                     description = CheckFractionalNoisePass._get_fractional_description(spec, law)
                     rows.append(
-                        FractionalRowsSpec(
+                        _FractionalRowsSpec(
                             description,
                             positions,
                             FractionalProblemPass._get_hurst_function(kernel, law.hurst),
@@ -94,7 +96,7 @@ class FractionalProblemPass(BasePass):
         return tuple(rows)
 
     @staticmethod
-    def _get_state_orders(states: list[FractionalStateSpec], layout: LayoutSpec) -> Array:
+    def _get_state_orders(states: list[_FractionalStateSpec], layout: LayoutSpec) -> Array:
         """Return the order of every state component.
 
         It is 1 for the states outside the fractional ones.

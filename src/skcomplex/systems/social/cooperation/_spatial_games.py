@@ -20,8 +20,9 @@ from ....core.components.interactions import GroupingInteraction, LocalRuleInter
 from ....core.components.laws.utils import count, total
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, Pair
 from ...general.agents import ImitationInteraction
 from ._contributor import ContributorElement

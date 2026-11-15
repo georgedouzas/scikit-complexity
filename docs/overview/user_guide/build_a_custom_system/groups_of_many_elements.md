@@ -369,7 +369,8 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import RunStateSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.engine.problems import RunStateSpec
 
 
 class UnitElement(Element):

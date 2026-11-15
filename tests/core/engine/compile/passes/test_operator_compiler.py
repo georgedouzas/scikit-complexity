@@ -9,6 +9,7 @@ import pytest
 import qutip
 from sage.all__sagemath_symbolics import CC
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw, RateLaw
@@ -19,17 +20,11 @@ from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile import BaseCompiler, BasePass
 from skcomplex.core.engine.compile._observables import ObservableEvaluator
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
+from skcomplex.core.engine.problems import HilbertSpec
 from skcomplex.core.engine.problems._operator_problem_spec import OperatorProblemSpec
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import IncompatibleLawsError, ValidationError
-from skcomplex.core.specs import (
-    HilbertSpec,
-    ObservableSpec,
-    ParameterSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.physics.common.quantum import QUBIT, ModeElement, QubitElement, mode_space
 
@@ -256,8 +251,8 @@ def test_observable_evaluator_reads_local_magnetization():
         ],
     )
     observables = [
-        ObservableSpec('sz', local_z, group='chain', reduce=np.asarray),
-        ObservableSpec('total', local_z, group='chain', reduce='sum'),
+        Observable('sz', local_z, group='chain', reduce=np.asarray),
+        Observable('total', local_z, group='chain', reduce='sum'),
     ]
     problem = OperatorCompiler(observables=observables).prepare(system).run().problem_
     values = ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
@@ -270,7 +265,7 @@ def test_observable_evaluator_rejects_non_operators():
     system = CompositeSystem(elements=[QubitElement('q')])
     with pytest.raises(ValidationError, match='must give an operator'):
         ObservableEvaluator(
-            OperatorCompiler(observables=[ObservableSpec('label', attrgetter('t'))]).prepare(system).run().problem_,
+            OperatorCompiler(observables=[Observable('label', attrgetter('t'))]).prepare(system).run().problem_,
         ).prepare()
 
 

@@ -18,12 +18,12 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
-from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, RuleLaw, TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import both, minimum, mod, neighbors, total, uniform, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 

@@ -12,7 +12,8 @@ import qutip
 from sage.all__sagemath_symbolics import CC
 
 from .....core.components.elements import Element
-from .....core.specs import HilbertSpec, StateSpec, VisualSpec
+from .....core.engine.problems import HilbertSpec
+from .....core.specs import StateSpec, VisualSpec
 
 QUBIT = HilbertSpec(
     2,

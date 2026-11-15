@@ -17,8 +17,8 @@ from scipy import stats
 from ..engine.runtime import Trajectory
 from ..enums import DataKind
 from ..errors import AnalysisError, UnobservedStatesWarning
-from ..specs import AnalysisTags
 from ..types import AnyArray, Array, IntArray
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_series
 from ._information import _knn_chain, _log_determinant, _row_codes
 from ._markov import _stationary_distribution

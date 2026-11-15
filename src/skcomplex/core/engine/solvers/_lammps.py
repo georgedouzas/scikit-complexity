@@ -23,16 +23,15 @@ from sage.sets.real_set import RealSet
 from ...components.interactions import BaseInteraction, PairInteraction
 from ...components.laws import BoundaryLaw, ConstraintLaw, FluxLaw, NoiseLaw, RateLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...components.specs import CompiledElementSpec, CompiledInteractionSpec
 from ...components.systems import CompositeSystem
 from ...enums import FormKind, NoiseKind, OrderKind, VariableKind
 from ...errors import BackendError, SolverError
-from ...specs import SupportSpec
 from ...types import Array
 from .._utils import declarations_of, symbol, symbols_of
-from ..backends import NumpyBackend
+from ..backends import NumpyBackend, SupportSpec
 from ..compile._pass_compiler import PassCompiler
-from ..problems import ProblemSpec
+from ..problems import CompiledElementSpec, ProblemSpec
+from ..problems._compiled_interaction_spec import _CompiledInteractionSpec
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._steps import step_count
 from ..types import PairArguments
@@ -205,7 +204,7 @@ class LammpsSolver(ExternalSolver):
             unsupported += self._check_external(problem, external)
         return unsupported
 
-    def _check_pair(self, problem: ProblemSpec, item: CompiledInteractionSpec) -> list[str]:
+    def _check_pair(self, problem: ProblemSpec, item: _CompiledInteractionSpec) -> list[str]:
         """Return a description of a pair interaction whose energy has no Lepton form."""
         if self._get_native(self.pairs or {}, item.interaction) is not None:
             return []
@@ -243,7 +242,7 @@ class LammpsSolver(ExternalSolver):
             return []
         return [f'interactions {", ".join(sorted(external))}, which have {", ".join(sorted(set(reasons)))}']
 
-    def _get_pair_expression(self, problem: ProblemSpec, p: Array, item: CompiledInteractionSpec) -> str:
+    def _get_pair_expression(self, problem: ProblemSpec, p: Array, item: _CompiledInteractionSpec) -> str:
         """Return the Lepton expression of a pair potential.
 
         Its parameters take their current values.
@@ -591,7 +590,7 @@ class LammpsSolver(ExternalSolver):
         self.atom_types_ = np.concatenate(types)
 
     @staticmethod
-    def _get_role_path(item: CompiledInteractionSpec, role: str) -> str:
+    def _get_role_path(item: _CompiledInteractionSpec, role: str) -> str:
         """Return the path of the group or element a role of an interaction binds to."""
         path = item.roles[role]
         if not isinstance(path, str):
@@ -629,7 +628,7 @@ class LammpsSolver(ExternalSolver):
         return float(LammpsSolver._get_parameter(problem, p, element.path, divisors.pop())[0])
 
     @staticmethod
-    def _is_potential(item: CompiledInteractionSpec) -> bool:
+    def _is_potential(item: _CompiledInteractionSpec) -> bool:
         """Return whether an interaction is a pair coupling through a pair potential."""
         return isinstance(item.interaction, PairInteraction) and item.interaction.potential is not None
 

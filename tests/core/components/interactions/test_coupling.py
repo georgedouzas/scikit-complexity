@@ -11,6 +11,7 @@ import scipy.integrate
 import scipy.optimize
 from sage.all__sagemath_symbolics import SR, I, atan2, cos, exp, pi, sin, sqrt, vector
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.laws import BaseLaw, RateLaw, UpdateLaw
@@ -28,7 +29,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 GAMMA = 0.5
@@ -484,8 +485,8 @@ def test_coupling_map_form_aligns_a_vicsek_flock_at_low_noise():
         time=DiscreteTime(),
     )
     observables = [
-        ObservableSpec('mean_heading', _heading, group='flock'),
-        ObservableSpec('polarization', _polarization),
+        Observable('mean_heading', _heading, group='flock'),
+        Observable('polarization', _polarization),
     ]
     trajectory = simulate(system, until=150.0, dt=1.0, random_state=0, observables=observables)
     polarization = np.asarray(trajectory.get_values('polarization'), dtype=float)

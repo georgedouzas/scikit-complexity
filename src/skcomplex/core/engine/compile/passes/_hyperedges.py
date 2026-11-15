@@ -12,18 +12,18 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._reduction_spec import _ReductionSpec
 from ....components.laws.utils import maximum, minimum, where
 from ....components.laws.utils._reductions import reductions_in
 from ....components.spaces import NetworkSpace
-from ....components.specs import NodeSpec
 from ....errors import RoleError, ValidationError
-from ....specs import ReductionSpec
 from ....types import Indices
 from ..._utils import vector
 from ...enums import ReadKind
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import ACTIVE, MEMBERS
 from ...problems._kernel_spec import KernelSpec
+from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
 
 MEMBER_LAWS = 'member'
@@ -45,7 +45,7 @@ class HyperedgeTables:
     """
 
     @staticmethod
-    def _get_space(node: NodeSpec, nodes: BlockSpec, second: BlockSpec | None) -> NetworkSpace:
+    def _get_space(node: _NodeSpec, nodes: BlockSpec, second: BlockSpec | None) -> NetworkSpace:
         """Return the network of the nodes.
 
         It first checks the sizes of the groups the roles bind.
@@ -73,7 +73,7 @@ class HyperedgeTables:
 
     @staticmethod
     def _get_edge_indices(
-        node: NodeSpec,
+        node: _NodeSpec,
         space: NetworkSpace,
         edges: BlockSpec,
         ends: tuple[Indices, Indices],
@@ -181,7 +181,7 @@ class HyperedgeTables:
         return indptr, [item[order] for item in others]
 
     @staticmethod
-    def _get_sizes(node: NodeSpec, space: NetworkSpace) -> list[int]:
+    def _get_sizes(node: _NodeSpec, space: NetworkSpace) -> list[int]:
         """Return the sizes of the hyperedges an interaction runs on.
 
         It is its own size, or every size of the network.
@@ -214,7 +214,7 @@ class HyperedgeTables:
         return [size]
 
     @staticmethod
-    def _get_tables_of(node: NodeSpec, nodes: BlockSpec, second: BlockSpec | None) -> list[tuple[str, Tables]]:
+    def _get_tables_of(node: _NodeSpec, nodes: BlockSpec, second: BlockSpec | None) -> list[tuple[str, Tables]]:
         """Return the gather tables of every hyperedge size an interaction runs on.
 
         Tables are given for both kinds of laws.
@@ -263,7 +263,7 @@ class HyperedgeTables:
 
     @staticmethod
     def _get_growing_tables_of(
-        node: NodeSpec,
+        node: _NodeSpec,
         nodes: BlockSpec,
         second: BlockSpec | None,
         growing: BlockSpec,
@@ -415,7 +415,7 @@ class HyperedgeTables:
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _get_neighborhoods(node: NodeSpec, nodes: BlockSpec) -> list[list[int]]:
+    def _get_neighborhoods(node: _NodeSpec, nodes: BlockSpec) -> list[list[int]]:
         """Return every member of a group on the sites of a space and its neighbours.
 
         Every member is followed by the members around it.
@@ -446,7 +446,7 @@ class HyperedgeTables:
         return [[site, *space._get_neighbors(site).tolist()] for site in range(size)]
 
     @staticmethod
-    def _get_groups_of(node: NodeSpec, nodes: BlockSpec) -> list[np.ndarray]:
+    def _get_groups_of(node: _NodeSpec, nodes: BlockSpec) -> list[np.ndarray]:
         """Return the members of the groups of a grouping.
 
         There is one array per size, with one row per group. Pairs and partitions hold positions in an order drawn at
@@ -551,7 +551,7 @@ class HyperedgeTables:
         return columns, positions
 
     @staticmethod
-    def _get_expanded(reduction: ReductionSpec, slots: dict[Expression, list[Expression]]) -> Expression:
+    def _get_expanded(reduction: _ReductionSpec, slots: dict[Expression, list[Expression]]) -> Expression:
         """Return a reduction over the members of a hyperedge written out over slots.
 
         It is written as a sum, a mean, or an extremum of slots.

@@ -13,9 +13,9 @@ from ...components.laws import BilinearLaw, FluxLaw, RateLaw
 from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import RunStateSpec, SupportSpec
 from ...types import Array
-from ..problems import ProblemSpec
+from ..backends import SupportSpec
+from ..problems import ProblemSpec, RunStateSpec
 from ..problems._steps import step_count
 from ._rk4 import RK4Solver
 from ._solver import Solver
@@ -68,7 +68,7 @@ class StrangSplittingSolver(Solver):
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
-        >>> from skcomplex.core.specs import AxisSpec
+        >>> from skcomplex.core.components.spaces import AxisSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> space = PhaseSpace(LatticeSpace((8,)), [AxisSpec('v', 16, -6.0, 6.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(8) / 8), np.exp(-space.coordinates_['v'] ** 2))

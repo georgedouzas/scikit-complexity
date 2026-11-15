@@ -14,7 +14,7 @@ from scipy.linalg import circulant
 from skcomplex.core.analysis import automaton, entropy
 from skcomplex.core.components.elements import DeclaredElement, Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.laws import LocalRuleLaw
+from skcomplex.core.components.laws import LinearRuleSpec, LocalRuleLaw, OuterTotalisticSpec, TableSpec, TotalisticSpec
 from skcomplex.core.components.spaces import (
     BallNeighborhood,
     CayleySpace,
@@ -25,15 +25,7 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import (
-    DeclaredVariableSpec,
-    LinearRuleSpec,
-    OuterTotalisticSpec,
-    StateSpec,
-    SubshiftSpec,
-    TableSpec,
-    TotalisticSpec,
-)
+from skcomplex.core.specs import DeclaredVariableSpec, StateSpec, SubshiftSpec
 from skcomplex.systems.computer_science.automata import lamplighter
 
 LIFE = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})

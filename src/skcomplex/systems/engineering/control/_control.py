@@ -10,13 +10,14 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, CrossingInteraction
 from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import clip, derivative, sign, step, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ConnectorSpec, DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ConnectorSpec, DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.electrical import ELECTRICAL, GroundElement, TwoPinElement, VoltageSourceElement
@@ -631,7 +632,7 @@ class SatelliteTransferSystem(DynamicalSystem):
     until = 20.0
     dt = 0.05
     solver = RK4Solver(dt=0.005)
-    observables = (ObservableSpec('energy', _get_energy_of_satellite),)
+    observables = (Observable('energy', _get_energy_of_satellite),)
 
     def __init__(
         self,
@@ -757,7 +758,7 @@ class HeatedRoomSystem(BaseSystem):
     references = ('Fritzson 2015',)
     until = 14400.0
     dt = 10.0
-    observables = (ObservableSpec('power', _get_heating_power),)
+    observables = (Observable('power', _get_heating_power),)
 
     def __init__(
         self,

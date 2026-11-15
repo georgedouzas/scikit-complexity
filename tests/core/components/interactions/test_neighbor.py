@@ -17,6 +17,7 @@ from skcomplex.core.components.spaces import (
     BallNeighborhood,
     DiscreteTime,
     LatticeSpace,
+    LayerSpec,
     NetworkSpace,
 )
 from skcomplex.core.components.systems import CompositeSystem
@@ -25,7 +26,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import RoleError, ValidationError
-from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 

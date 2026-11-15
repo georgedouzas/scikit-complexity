@@ -118,7 +118,7 @@ An [observable](glossary.md#observable) is a value computed from the states at e
 `V = b H - d ln H + a L - r ln L` constant along every orbit, so it serves as a check of the numerical integration.
 
 ```python continuation
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 
 
 def get_constant(t, values):
@@ -126,12 +126,12 @@ def get_constant(t, values):
     return 0.024 * prey - 0.80 * np.log(prey) + 0.028 * predators - 0.55 * np.log(predators)
 
 
-constant = ObservableSpec('constant', function=get_constant)
+constant = Observable('constant', function=get_constant)
 observed = simulate(system, until=20, dt=1.0, observables=[constant], invariants={'constant': 1e-3})
 observed.get_values('constant').round(4)[[0, -1]].tolist()
 ```
 
-The [ObservableSpec][skcomplex.core.specs.ObservableSpec] reads the dotted names of the states and returns a number,
+The [Observable][skcomplex.core.components.Observable] reads the dotted names of the states and returns a number,
 which the trajectory records under its label. The constant is -2.6514 at the start and at the end, and the run raises
 no error, because it stays within the tolerance of 0.001 that `invariants` gives it. The section on solvers below shows
 a run that leaves it.
@@ -313,7 +313,8 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import CallSpec, ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.components.laws import CallSpec
 
 
 class PopulationElement(Element):

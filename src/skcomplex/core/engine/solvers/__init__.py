@@ -42,6 +42,7 @@ from ._semi_lagrangian import SemiLagrangianSolver
 from ._solver import Solver
 from ._split import SplitSolver
 from ._ssprk import SSPRKSolver
+from ._step_spec import StepSpec
 from ._strang_splitting import StrangSplittingSolver
 from ._unitary import UnitarySolver
 from ._velocity_verlet import VelocityVerletSolver
@@ -91,6 +92,7 @@ __all__: list[str] = [
     'SemiLagrangianSolver',
     'Solver',
     'SplitSolver',
+    'StepSpec',
     'StrangSplittingSolver',
     'SystemView',
     'UnitarySolver',

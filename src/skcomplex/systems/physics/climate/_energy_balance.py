@@ -13,12 +13,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, tanh
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import gradient, laplacian, where
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -414,7 +415,7 @@ class DaisyworldSystem(DynamicalSystem):
     references = ('Watson and Lovelock 1983', 'Jensen 2023')
     until = 100.0
     dt = 0.5
-    observables = (ObservableSpec('temperature', _get_daisyworld_temperature),)
+    observables = (Observable('temperature', _get_daisyworld_temperature),)
 
     def __init__(
         self,

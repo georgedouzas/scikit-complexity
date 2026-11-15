@@ -9,9 +9,9 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ...specs import AgentSnapshotSpec, BaseRecordSpec, DrawLogSpec, NetworkSnapshotSpec
 from ...types import AnyArray
-from ..problems import BaseProblemSpec
+from ..problems import AgentSnapshotSpec, BaseProblemSpec, BaseRecordSpec, NetworkSnapshotSpec
+from ..problems._draw_log_spec import _DrawLogSpec
 
 
 class Trajectory:
@@ -80,7 +80,7 @@ class Trajectory:
         observables: Sequence[Mapping[str, object]] = (),
         events: Sequence[BaseRecordSpec] = (),
         structures: Sequence[Mapping[str, object]] = (),
-        draws: DrawLogSpec | None = None,
+        draws: _DrawLogSpec | None = None,
         log_probability: float | None = None,
     ) -> None:
         self.problem = problem

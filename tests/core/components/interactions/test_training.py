@@ -5,14 +5,14 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.interactions import TrainingInteraction
-from skcomplex.core.components.laws import GradientStepLaw
+from skcomplex.core.components.laws import DatasetSpec, GradientStepLaw
 from skcomplex.core.enums import OptimizerKind
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import DatasetSpec, ObservableSpec
 
 DATA = DatasetSpec({'inputs.x': np.zeros((4, 3, 1))})
-LOSS = ObservableSpec('error', 0.0)
+LOSS = Observable('error', 0.0)
 
 
 def _training(**arguments):
@@ -36,7 +36,7 @@ def test_check_counts_that_are_not_positive_integers(name, value):
 
 @pytest.mark.parametrize(
     'arguments',
-    [{'trained': []}, {'data': {'inputs.x': np.zeros((4, 3))}}, {'metrics': [ObservableSpec('loss', 0.0)]}],
+    [{'trained': []}, {'data': {'inputs.x': np.zeros((4, 3))}}, {'metrics': [Observable('loss', 0.0)]}],
 )
 def test_check_trained_data_and_metrics(arguments):
     """Test that no trained parameter, data that is no dataset, or a metric labelled `loss` raise an error."""

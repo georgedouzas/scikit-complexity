@@ -19,6 +19,7 @@ from pymoo.core.problem import Problem
 from pymoo.core.termination import NoTermination
 from sage.all__sagemath_symbolics import Expression, cos, pi
 
+from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, SamplingInteraction
@@ -29,7 +30,7 @@ from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.components.types import SystemViewProtocol
 from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ObservableSpec, RoleSpec, StateSpec
+from ....core.specs import BaseSpec, RoleSpec, StateSpec
 from ....core.types import Array
 
 SEEDS = 2**31
@@ -664,5 +665,5 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         settings = super().get_run_settings()
         if self.algorithm == ANNEALING and self.landscape in MEMBER_ENERGIES:
             member = MEMBER_ENERGIES[self.landscape]
-            settings['observables'] = (ObservableSpec('search/lowest', member, group='candidates', reduce='min'),)
+            settings['observables'] = (Observable('search/lowest', member, group='candidates', reduce='min'),)
         return settings

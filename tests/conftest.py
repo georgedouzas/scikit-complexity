@@ -12,13 +12,14 @@ import qutip
 from sage.all__sagemath_symbolics import CC, pi
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
 from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import mean, total
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.problems import HilbertSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
-from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 QUEUE_LENGTH = 2
 

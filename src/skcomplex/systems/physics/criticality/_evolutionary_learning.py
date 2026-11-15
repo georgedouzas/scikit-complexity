@@ -14,11 +14,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, Expression, oo, tanh
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, minimum, mod, total, uniform, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 TEMPERATURE_VISUAL = VisualSpec('histograms', {'color_by': 'temperature', 'histogram_first': True})
@@ -198,9 +199,9 @@ class EvolutionarySKGameSystem(BaseSystem):
     until = 3000
     dt = 1
     observables = (
-        ObservableSpec('mean_reward', group='agents', variable='reward'),
-        ObservableSpec('mean_temperature', group='agents', variable='temperature'),
-        ObservableSpec('least_fitness', group='agents', variable='fitness', reduce='min'),
+        Observable('mean_reward', group='agents', variable='reward'),
+        Observable('mean_temperature', group='agents', variable='temperature'),
+        Observable('least_fitness', group='agents', variable='fitness', reduce='min'),
     )
 
     def __init__(

@@ -15,19 +15,11 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.components.elements import FieldElement
 from ....core.components.interactions import ConservationInteraction, RateInteraction
-from ....core.components.laws.utils import (
-    convolve,
-    coordinate,
-    cumulative_integral,
-    displacement,
-    reduce_axes,
-    where,
-)
-from ....core.components.spaces import BaseSpace, LatticeSpace, PhaseSpace
+from ....core.components.laws.utils import convolve, coordinate, cumulative_integral, displacement, reduce_axes, where
+from ....core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import AxisSpec
 from ..common.populations import PopulationDensityElement
 
 HEIGHT_AXIS = 1

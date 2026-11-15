@@ -8,16 +8,21 @@ from ._base import BaseElement
 from ._declared import DeclaredElement
 from ._element import Element
 from ._field import FieldElement
+from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
 from ._group import GroupElement
 from ._patch import PatchElement
+from ._prototile_spec import PrototileSpec
 from ._word import WordElement
 
 __all__: list[str] = [
+    'TURTLE_SYMBOLS',
     'BaseElement',
     'DeclaredElement',
     'Element',
     'FieldElement',
+    'GeometrySpec',
     'GroupElement',
     'PatchElement',
+    'PrototileSpec',
     'WordElement',
 ]

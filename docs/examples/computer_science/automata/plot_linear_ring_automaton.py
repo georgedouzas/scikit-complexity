@@ -14,11 +14,11 @@ import numpy as np
 
 from skcomplex.core.analysis import automaton
 from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.core.components.laws import LinearRuleSpec
 from skcomplex.core.components.spaces import BallNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import LinearRuleSpec
 from skcomplex.systems.computer_science.automata import LinearRingAutomatonSystem
 
 SYSTEM = 'linear_ring_automaton'

@@ -13,7 +13,7 @@ import numpy.typing as npt
 
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _read_networks
 from ._utils import load_module
 from .types import Source

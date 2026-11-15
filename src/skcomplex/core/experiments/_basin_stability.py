@@ -10,7 +10,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ..components.specs import ScenarioSpec
 from ..engine.problems import ProblemSpec
 from ..engine.runtime import Trajectory
 from ..enums import DomainKind
@@ -18,6 +17,7 @@ from ..errors import ValidationError
 from ._designs import _get_rows
 from ._replicate import _run_replicated
 from ._runs import _check_count, _check_source, _compile, _run_experiment
+from ._scenario_spec import ScenarioSpec
 from ._utils import build_system
 from .types import Row, Source
 

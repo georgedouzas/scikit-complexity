@@ -12,8 +12,9 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...enums import BoundaryKind, ElementKind, ScheduleKind
 from ...errors import SimulationError, ValidationError
-from ...specs import PartnerSpec, RoleSpec, Tags
-from ..laws import BaseLaw, MatchLaw, RuleLaw, Sink, Source, TransferLaw
+from ...specs import RoleSpec
+from .._tags import Tags
+from ..laws import BaseLaw, MatchLaw, PartnerSpec, RuleLaw, Sink, Source, TransferLaw
 from ..laws.utils import shift_member, where
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, Pairing, SystemViewProtocol

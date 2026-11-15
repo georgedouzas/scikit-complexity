@@ -15,10 +15,11 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import total
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.agents import ChoiceInteraction
 
 
@@ -115,7 +116,7 @@ class DilutedHopfieldSystem(BaseSystem):
     references = ('Derrida, Gardner, and Zippelius 1987', 'Bertin 2021')
     until = 20
     dt = 1
-    observables = (ObservableSpec('overlap', _get_overlap, group='neurons'),)
+    observables = (Observable('overlap', _get_overlap, group='neurons'),)
 
     def __init__(
         self,

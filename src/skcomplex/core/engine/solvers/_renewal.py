@@ -7,8 +7,8 @@
 from ...components.laws import BoundaryLaw, ConstraintLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import FormKind, NoiseKind, OrderKind
-from ...specs import SupportSpec
 from ...types import Array
+from ..backends import SupportSpec
 from ._solver import Solver
 
 
@@ -29,7 +29,7 @@ class RenewalSolver(Solver):
         >>> from skcomplex.core.components.laws.utils import draw
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import RenewalSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> class CounterElement(Element):
         ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)

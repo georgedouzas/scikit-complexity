@@ -14,13 +14,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, ln, oo, pi, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import draw, logistic, neighbors
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
+from ....core.specs import StateSpec, VisualSpec
 
 MEETINGS_VISUAL = VisualSpec('sites', {'states': ['meetings']})
 SMALLEST_ANGLE = 1e-12
@@ -137,7 +138,7 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         'Papadopoulos et al. 2015',
     )
     until = 297
-    observables = (ObservableSpec('total_meetings', group='residents', variable='meetings', reduce='sum'),)
+    observables = (Observable('total_meetings', group='residents', variable='meetings', reduce='sum'),)
 
     def __init__(
         self,

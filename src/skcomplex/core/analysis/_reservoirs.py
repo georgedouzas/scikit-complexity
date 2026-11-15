@@ -10,15 +10,16 @@ from types import SimpleNamespace
 import numpy as np
 import numpy.typing as npt
 
-from ..components.laws import BaseLaw, UpdateLaw
+from ..components.laws import BaseLaw, CallSpec, UpdateLaw
 from ..components.spaces import DiscreteTime
 from ..components.systems import CompositeSystem
 from ..engine._utils import vector
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, CallSpec, SamplesSpec
 from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _read_samples
+from ._samples_spec import _SamplesSpec
 from ._sparse_identification import (
     _check_horizon,
     _check_validation,
@@ -195,7 +196,7 @@ class ReservoirResult:
             The variables at the `horizon` samples after the last one, one row per sample.
     """
 
-    samples: SamplesSpec
+    samples: _SamplesSpec
     system: CompositeSystem
     labels: list[str]
     states: list[str]

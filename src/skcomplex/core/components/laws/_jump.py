@@ -9,9 +9,10 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import CallSpec, RequirementSpec
 from ..spaces import ContinuousTime
 from ._base import BaseLaw
+from ._call_spec import CallSpec
+from ._requirement_spec import RequirementSpec
 
 
 class JumpLaw(BaseLaw):

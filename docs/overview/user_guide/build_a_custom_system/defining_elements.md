@@ -251,7 +251,9 @@ from skcomplex.core.components.laws.utils import reduction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import CallSpec
+from skcomplex.core.components import Observable
 
 
 class TankElement(Element):
@@ -291,7 +293,7 @@ Python with a `BackendWarning`. This table lists the laws that take a function, 
 | `FluxLaw` | `speed` | `f(t, values)`, which gives the wave speed of the Rusanov flux |
 | `TransitionLaw` | `matrix` | `f(t, values)` or `CallSpec(f, relative=True)` |
 | `reduction(function, expression)` | `function` | `f(array)` of the values of the members |
-| `ObservableSpec` | `function` | `f(t, values)` |
+| `Observable` | `function` | `f(t, values)` |
 
 `CallSpec(f, (s.x, s.k))` calls `f(t, x, k)` once per member of a group. Three options change that.
 
@@ -364,7 +366,7 @@ def total_level(t, values):
     return values['a.level'] + values['a.rate']
 
 
-observables = [ObservableSpec('sum', function=total_level)]
+observables = [Observable('sum', function=total_level)]
 observed = simulate(CompositeSystem(elements=[TankElement('a')]), until=1, dt=0.5, observables=observables)
 observed.get_values('sum').shape
 ```

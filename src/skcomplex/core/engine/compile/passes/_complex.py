@@ -10,9 +10,18 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, I, arctan2, sqrt
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, BoundaryLaw, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import (
+    BaseLaw,
+    BoundaryLaw,
+    CallSpec,
+    ConstraintLaw,
+    EventLaw,
+    JumpLaw,
+    NoiseLaw,
+    RateLaw,
+    UpdateLaw,
+)
 from ....errors import ValidationError
-from ....specs import CallSpec
 from ..._utils import components_of
 from ...types import Parts
 from .._base import BasePass

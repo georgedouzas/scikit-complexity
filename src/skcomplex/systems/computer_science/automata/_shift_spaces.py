@@ -19,13 +19,14 @@ from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement, WordElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws import ProductionLaw
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 
@@ -185,7 +186,7 @@ class GapSubshiftSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 100
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,

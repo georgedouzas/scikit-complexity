@@ -10,13 +10,14 @@ from typing import Annotated, ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ....core.components import Tags
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, BilinearLaw, RateLaw
 from ....core.components.laws.utils import collision_integral
 from ....core.components.spaces import BaseSpace
 from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec, Tags
+from ....core.specs import RoleSpec
 
 OUTCOMES = ('conservative', 'destructive', 'proliferative')
 

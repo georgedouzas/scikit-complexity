@@ -9,12 +9,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class GibratFirmView(AgentView):
@@ -249,11 +250,11 @@ class ReflectingFloorInteraction(MapInteraction):
         return max(agent.x, self._get_floor(system))
 
 
-def _get_size_observables() -> list[ObservableSpec]:
+def _get_size_observables() -> list[Observable]:
     """Return the mean and the largest size of the firms."""
     return [
-        ObservableSpec('mean_size', group='firms', variable='x'),
-        ObservableSpec('max_size', group='firms', reduce='max', variable='x'),
+        Observable('mean_size', group='firms', variable='x'),
+        Observable('max_size', group='firms', reduce='max', variable='x'),
     ]
 
 

@@ -6,8 +6,9 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, ZZ
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.laws import FluxLaw, JumpLaw, RateLaw, TransitionLaw, UpdateLaw
+from skcomplex.core.components.laws import CallSpec, FluxLaw, JumpLaw, RateLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import reduction, total
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -16,7 +17,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import BackendWarning, ValidationError
-from skcomplex.core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 STEPS = 2000
 MATRIX = [[0.9, 0.1], [0.4, 0.6]]
@@ -342,7 +343,7 @@ def _system_output(t, values):
 
 def test_observable_function_records_its_value_at_every_frame():
     """Test that an observable given as a function gives the expression that it computes at every frame."""
-    observables = [ObservableSpec('learned', function=_system_output)]
+    observables = [Observable('learned', function=_system_output)]
     for backend in (NumpyBackend(), NumbaBackend()):
         system = CompositeSystem(elements=[SymbolicElement('a')])
         trajectory = simulate(system, until=1.0, dt=0.1, observables=observables, backend=backend)

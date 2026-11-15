@@ -12,12 +12,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, series, step
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 PRICE_TABLE = ((0.0, 0.5, 1.0, 1.5, 2.0, 3.0), (3.0, 1.8, 1.0, 0.65, 0.5, 0.4))
 INVESTMENT_TABLE = ((0.0, 0.5, 1.0, 1.25, 1.5, 2.0, 3.0), (0.0, 0.1, 1.0, 2.5, 4.0, 5.0, 5.5))
@@ -209,10 +210,10 @@ class CommodityCycleSystem(BaseSystem):
     until = 60.0
     dt = 0.25
     observables = (
-        ObservableSpec('coverage', _get_coverage, element='market'),
-        ObservableSpec('price', _get_price, element='market'),
-        ObservableSpec('expected_price', _get_expected_price, element='market'),
-        ObservableSpec('capacity_orders', _get_capacity_orders, element='market'),
+        Observable('coverage', _get_coverage, element='market'),
+        Observable('price', _get_price, element='market'),
+        Observable('expected_price', _get_expected_price, element='market'),
+        Observable('capacity_orders', _get_capacity_orders, element='market'),
     )
 
     @staticmethod

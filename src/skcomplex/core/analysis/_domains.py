@@ -13,8 +13,8 @@ import numpy.typing as npt
 from ..engine.runtime import Trajectory
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
 from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_fields, _read_networks
 from ._correlation import _correlation_function
 from ._neighbors import _pairs

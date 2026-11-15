@@ -18,16 +18,17 @@ from sage.structure.element import Matrix
 
 from ..components.elements import GroupElement
 from ..components.interactions import LocalRuleInteraction
-from ..components.laws import LocalRuleLaw
+from ..components.laws import LinearRuleSpec, LocalRuleLaw, OuterTotalisticSpec, TableSpec, TotalisticSpec
 from ..components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
 from ..components.systems import CompositeSystem
 from ..components.types import Reach
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, BaseSpec, LinearRuleSpec, OuterTotalisticSpec, SubshiftSpec, TableSpec, TotalisticSpec
-from ..specs._composed_rule_spec import _ComposedRuleSpec
+from ..specs import BaseSpec, SubshiftSpec
 from ..types import Indices, IntArray
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite
+from ._composed_rule_spec import _ComposedRuleSpec
 from ._utils import load_module
 from .types import Item, Source
 
@@ -335,7 +336,8 @@ def automaton(
         >>> from skcomplex.core.components.interactions import LocalRuleInteraction
         >>> from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec, SubshiftSpec, TableSpec, TotalisticSpec
+        >>> from skcomplex.core.specs import StateSpec, SubshiftSpec
+        >>> from skcomplex.core.components.laws import TableSpec, TotalisticSpec
         >>> class CellElement(Element):
         ...     def __init__(self, label, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
         ...         super().__init__(label)

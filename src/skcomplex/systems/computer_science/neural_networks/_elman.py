@@ -12,20 +12,14 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import exp
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, TrainingInteraction
+from ....core.components.laws import DatasetSpec
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import (
-    DatasetSpec,
-    ObservableSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 TRAINED = ('input.D', 'recurrence.A', 'readout.W', 'hidden.b', 'outputs.c')
@@ -460,14 +454,14 @@ class ElmanNetworkSystem(BaseSystem):
             'training',
             system='net',
             trained=TRAINED,
-            loss=ObservableSpec('error', group='outputs', reduce='sum', expression=self._get_squared_error),
+            loss=Observable('error', group='outputs', reduce='sum', expression=self._get_squared_error),
             data=data,
             learning_rate=self.learning_rate,
             batch_size=self.batch_size,
             truncation=self.truncation,
             metrics=(
-                ObservableSpec('xor_error', group='outputs', reduce='sum', expression=self._get_squared_error),
-                ObservableSpec('random_error', group='outputs', reduce='sum', expression=self._get_squared_error),
+                Observable('xor_error', group='outputs', reduce='sum', expression=self._get_squared_error),
+                Observable('random_error', group='outputs', reduce='sum', expression=self._get_squared_error),
             ),
         )
         return CompositeSystem(self.label, systems=[net], interactions=[training], time=DiscreteTime())

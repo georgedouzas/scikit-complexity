@@ -18,6 +18,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, I, atan2, cos, exp, oo, pi, sin, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, CouplingInteraction
 from ....core.components.laws import BaseLaw, UpdateLaw
@@ -32,7 +33,7 @@ from ....core.components.spaces import (
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.particles import PropulsionStepInteraction
 
 CLOSE = 0.2
@@ -411,16 +412,16 @@ class HeadingAlignmentInteraction(CouplingInteraction):
         return reduction + uniform('noise', -eta * math.pi, eta * math.pi)
 
 
-def _get_orders(group: str) -> list[ObservableSpec]:
+def _get_orders(group: str) -> list[Observable]:
     """Return the mean heading and axis of a group of flockers and their moduli.
 
     The moduli are the polar and nematic orders.
     """
     return [
-        ObservableSpec('mean_heading', _get_member_heading, group=group),
-        ObservableSpec('polarization', _get_polarization),
-        ObservableSpec('mean_axis', _get_axis, group=group),
-        ObservableSpec('nematic_order', _get_nematic_order),
+        Observable('mean_heading', _get_member_heading, group=group),
+        Observable('polarization', _get_polarization),
+        Observable('mean_axis', _get_axis, group=group),
+        Observable('nematic_order', _get_nematic_order),
     ]
 
 

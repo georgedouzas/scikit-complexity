@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import RR
 
 from skcomplex.core.engine import solvers
 from skcomplex.core.engine._utils import symbol
-from skcomplex.core.engine.problems import BaseProblemSpec
+from skcomplex.core.engine.problems import BaseProblemSpec, LayoutSpec
 from skcomplex.core.engine.solvers import (
     AgentView,
     BaseSolver,
@@ -20,11 +20,12 @@ from skcomplex.core.engine.solvers import (
     MonteCarloSolver,
     ScipyODESolver,
     Solver,
+    StepSpec,
     SystemView,
 )
 from skcomplex.core.enums import FormKind, OrderKind
 from skcomplex.core.errors import SkcomplexError, SolverError
-from skcomplex.core.specs import BaseSpec, EntrySpec, LayoutSpec, StepSpec
+from skcomplex.core.specs import BaseSpec, EntrySpec
 
 SOLVERS = [
     item

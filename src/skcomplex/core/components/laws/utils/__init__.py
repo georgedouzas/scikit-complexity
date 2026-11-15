@@ -49,13 +49,7 @@ from ._reductions import (
     variance,
 )
 from ._signals import periodic_guard, pulse, pulse_train, ramp, series, step
-from ._tensors import (
-    antisymmetric_part,
-    leray_projection,
-    symmetric_part,
-    tensor_divergence,
-    vector_gradient,
-)
+from ._tensors import antisymmetric_part, leray_projection, symmetric_part, tensor_divergence, vector_gradient
 
 __all__: list[str] = [
     'advection',

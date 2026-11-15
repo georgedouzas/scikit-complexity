@@ -29,8 +29,10 @@ def test_public_names_are_classes():
 
 
 def test_bases_and_the_operator_compiler_are_public():
-    """The bases and the operator compiler are public, and the other compilers and the passes are private."""
-    assert set(package.__all__) == {'BaseCompiler', 'BasePass', 'BaseLowering', 'HilbertSpaceError', 'OperatorCompiler'}
+    """The bases, the operator compiler, and values are public, and the other compilers and the passes are private."""
+    expected = {'BaseCompiler', 'BasePass', 'BaseLowering', 'HilbertSpaceError', 'OperatorCompiler'}
+    assert expected <= set(package.__all__)
+    assert all(name.endswith('Spec') for name in set(package.__all__) - expected)
     for compiler in (PassCompiler, OperatorCompiler, RewritingCompiler):
         assert issubclass(compiler, package.BaseCompiler)
     for compiler in (PassCompiler, RewritingCompiler):

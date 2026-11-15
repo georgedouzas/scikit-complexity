@@ -7,12 +7,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import EventLaw, RateLaw
+from skcomplex.core.components.laws import CallSpec, EventLaw, RateLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import BackendWarning, ValidationError
-from skcomplex.core.specs import CallSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 
 class BallElement(Element):

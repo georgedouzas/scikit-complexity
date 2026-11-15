@@ -12,12 +12,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class CarDealershipElement(Element):
@@ -177,9 +178,9 @@ class CarDealerSystem(BaseSystem):
     until = 100.0
     dt = 1.0
     observables = (
-        ObservableSpec('perceived', _get_perceived, element='dealer'),
-        ObservableSpec('desired_inventory', _get_desired_inventory, element='dealer'),
-        ObservableSpec('orders', _get_orders, element='dealer'),
+        Observable('perceived', _get_perceived, element='dealer'),
+        Observable('desired_inventory', _get_desired_inventory, element='dealer'),
+        Observable('orders', _get_orders, element='dealer'),
     )
 
     @staticmethod

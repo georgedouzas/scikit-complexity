@@ -9,12 +9,14 @@ from ...components.laws import ProductionLaw, SubstitutionLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import PatchStructureSpec, RunStateSpec, StructureStateSpec, SupportSpec, WordStructureSpec
 from ...types import Array
+from ..backends import SupportSpec
+from ..problems import PatchStructureSpec, RunStateSpec, WordStructureSpec
 from ..problems._patch_kernel import PatchKernel
 from ..problems._rewriting_problem_spec import RewritingProblemSpec
 from ..problems._word_kernel import WordKernel
 from ._base import BaseSolver
+from ._structure_state_spec import _StructureStateSpec
 
 
 class RewritingSolver(BaseSolver[RewritingProblemSpec]):
@@ -128,4 +130,4 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
                 reporters[f'{path}.length'] = structure.get_length()
                 reporters[f'{path}.area'] = structure.get_area()
         self.events_ = []
-        self.snapshot_ = StructureStateSpec(dict(self.structures_), reporters)
+        self.snapshot_ = _StructureStateSpec(dict(self.structures_), reporters)

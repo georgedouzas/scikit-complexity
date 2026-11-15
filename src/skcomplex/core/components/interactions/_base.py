@@ -13,11 +13,13 @@ import numpy.typing as npt
 
 from ...enums import DomainKind
 from ...errors import SpaceError, ValidationError
-from ...specs import BaseSpec, InteractionRequirementSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, Tags
+from ...specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
+from .._tags import Tags
 from ..base import BaseComponent
-from ..laws import BaseLaw
+from ..laws import BaseLaw, PartnerSpec
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
+from ._interaction_requirement_spec import _InteractionRequirementSpec
 
 GRID_CANDIDATES = ('neighbors', 'cell', 'local')
 RATE_DOMAINS = (DomainKind.REAL, DomainKind.INTEGER, DomainKind.COMPLEX, DomainKind.VECTOR)
@@ -499,7 +501,7 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
         self._check_states()
         self._check_space(context)
 
-    def get_requirements(self) -> InteractionRequirementSpec:
+    def get_requirements(self) -> _InteractionRequirementSpec:
         """Return what the interaction needs.
 
         It needs the element kinds and states of its roles, and its laws' time and space.
@@ -517,7 +519,7 @@ class BaseInteraction(BaseComponent[BaseSpace, SimpleNamespace]):
         """
         laws = self._get_law_classes()
         needs = [law.get_requirements() for law in laws]
-        return InteractionRequirementSpec(
+        return _InteractionRequirementSpec(
             time=self._get_accepted([need.time for need in needs]),
             space=self._get_accepted([need.space for need in needs]),
             roles={

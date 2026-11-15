@@ -11,8 +11,8 @@ from ...components.laws import BoundaryLaw, FluxLaw, RateLaw, TransferLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
 from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ._solver import Solver
 
@@ -51,7 +51,7 @@ class SSPRKSolver(Solver):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.physics.fluids import BurgersSystem
         >>> from skcomplex.core.engine.solvers import SSPRKSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> problem = simulate(BurgersSystem(64), until=0).problem
         >>> stepper = SSPRKSolver(random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_

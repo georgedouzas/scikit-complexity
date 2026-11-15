@@ -13,10 +13,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 from ..common.exchange import ExchangeInteraction, cobb_douglas
@@ -147,8 +149,8 @@ class GoodsTradersSystem(BaseSystem):
     until = 50
     invariants: ClassVar[Mapping[str, float]] = dict.fromkeys(GOODS, 1e-6)
     observables = (
-        ObservableSpec('utility', _get_utility, group='traders', reduce='mean'),
-        *(ObservableSpec(good, group='traders', variable=good, reduce='sum') for good in GOODS),
+        Observable('utility', _get_utility, group='traders', reduce='mean'),
+        *(Observable(good, group='traders', variable=good, reduce='sum') for good in GOODS),
     )
 
     def __init__(

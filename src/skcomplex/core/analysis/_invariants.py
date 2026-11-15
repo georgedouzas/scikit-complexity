@@ -12,6 +12,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ..components import Observable
 from ..components.interactions import BaseInteraction, EulerLagrangeInteraction, HamiltonianInteraction
 from ..components.laws.utils import derivative
 from ..components.systems import CompositeSystem
@@ -21,9 +22,10 @@ from ..engine.problems import ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..enums import DataKind, VariableKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, ObservableSpec, SymmetrySpec
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite, _read_system
 from ._stability import StabilityResult
+from ._symmetry_spec import SymmetrySpec
 from .types import Source
 
 KINDS = ('brackets', 'conservation', 'symmetry')
@@ -97,7 +99,7 @@ def invariants(
     source: Source,
     *,
     kind: str = 'conservation',
-    expressions: Sequence[ObservableSpec] = (),
+    expressions: Sequence[Observable] = (),
     symmetry: SymmetrySpec | None = None,
     samples: int = 16,
     random_state: int | np.random.Generator | None = None,
@@ -106,7 +108,7 @@ def invariants(
 
     A symmetry comes with its Noether charge. The canonical pairs and the Hamiltonian `H` are those of the system's
     `HamiltonianInteraction`s, whose Hamiltonians sum, and the Lagrangian `L` is the sum of those of its
-    `EulerLagrangeInteraction`s. The expressions are `ObservableSpec`s whose expression is a function of the namespace
+    `EulerLagrangeInteraction`s. The expressions are `Observable`s whose expression is a function of the namespace
     of the system, where `s.<element>.<state>` is the symbol of a state, or a symbolic expression of those symbols. The
     kinds:
 
@@ -158,7 +160,8 @@ def invariants(
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import HamiltonianInteraction
         >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import ObservableSpec, StateSpec
+        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.components import Observable
         >>> class OscillatorElement(Element):
         ...     def __init__(self, label, q: Annotated[float, StateSpec()] = 1.0, p: Annotated[float, StateSpec()] = 0):
         ...         super().__init__(label)
@@ -170,8 +173,8 @@ def invariants(
         ...     interactions=[HamiltonianInteraction('spring', target='mass', hamiltonian=energy)],
         ... )
         >>> expressions = [
-        ...     ObservableSpec('energy', lambda s: s.mass.q**2 + s.mass.p**2),
-        ...     ObservableSpec('position', lambda s: s.mass.q),
+        ...     Observable('energy', lambda s: s.mass.q**2 + s.mass.p**2),
+        ...     Observable('position', lambda s: s.mass.q),
         ... ]
         >>> result = invariants(system, expressions=expressions)
         >>> result.conserved
@@ -248,7 +251,7 @@ def invariants(
 
 def _check_inputs(
     kind: str,
-    expressions: Sequence[ObservableSpec],
+    expressions: Sequence[Observable],
     symmetry: SymmetrySpec | None,
     samples: int,
 ) -> None:
@@ -257,8 +260,8 @@ def _check_inputs(
     A foreign expression is not one of the system.
     """
     for expression in expressions:
-        if not isinstance(expression, ObservableSpec) or expression.group is not None:
-            error_msg = f'{expression!r} is not an expression of the system. Give an ObservableSpec without group.'
+        if not isinstance(expression, Observable) or expression.group is not None:
+            error_msg = f'{expression!r} is not an expression of the system. Give an Observable without group.'
             raise AnalysisError(error_msg)
     if kind == 'symmetry' and not isinstance(symmetry, SymmetrySpec):
         error_msg = f'The symmetry is {symmetry!r}. Give a SymmetrySpec to check.'
@@ -385,7 +388,7 @@ def _components(value: object) -> list[Expression]:
     return [SR(item) for item in value] if isinstance(value, FreeModuleElement | list | tuple) else [SR(value)]
 
 
-def _evaluate(namespace: SimpleNamespace, expression: ObservableSpec) -> Expression:
+def _evaluate(namespace: SimpleNamespace, expression: Observable) -> Expression:
     """Return the expression of an observable in the symbols of the system."""
     value = expression.expression
     scope = namespace if expression.element is None else _resolve(namespace, expression.element)

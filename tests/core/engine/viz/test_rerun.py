@@ -11,7 +11,7 @@ import rerun.blueprint as rrb
 from sage.all__sagemath_symbolics import CC, I
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
+from skcomplex.core.components.laws import RateLaw, RuleLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -27,7 +27,7 @@ from skcomplex.core.engine.viz import (
     SiteVisual,
 )
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, TopologyRequestSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem, LotkaVolterraSystem, WolfSheepSystem

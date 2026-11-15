@@ -15,9 +15,10 @@ from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import (
+    StepSpec,
     VelocityVerletSolver,
 )
-from skcomplex.core.specs import ParameterSpec, StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class BallElement(Element):

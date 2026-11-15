@@ -13,14 +13,16 @@ import qutip
 from sage.all__sagemath_symbolics import CC, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, Interaction, NeighborInteraction
 from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw
 from ....core.components.laws.utils import local_operator
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.engine.problems import HilbertSpec
 from ....core.errors import ValidationError
-from ....core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 MIN_SPIN_DIMENSION = 2
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
@@ -330,8 +332,8 @@ class QuantumHeisenbergSystem(BaseSystem):
     until = 8.0
     dt = 0.05
     observables = (
-        ObservableSpec('sz', local_magnetization, group='chain', reduce=_get_sites),
-        ObservableSpec('magnetization', total_magnetization),
+        Observable('sz', local_magnetization, group='chain', reduce=_get_sites),
+        Observable('magnetization', total_magnetization),
     )
 
     def __init__(

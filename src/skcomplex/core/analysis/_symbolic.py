@@ -40,10 +40,10 @@ from ..engine.problems._operator_problem_spec import OperatorProblemSpec
 from ..engine.problems._transfer_network_spec import TransferNetworkSpec
 from ..enums import DataKind, FormKind
 from ..errors import AnalysisError, ConservationError
-from ..specs import AnalysisTags
-from ..specs._unknown_spec import _UnknownSpec
 from ..types import Array, ComplexArray
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite, _read_system
+from ._unknown_spec import _UnknownSpec
 from ._utils import compile_problem
 from .types import Source
 

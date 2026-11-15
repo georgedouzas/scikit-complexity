@@ -6,12 +6,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.laws import RuleLaw
+from skcomplex.core.components.laws import PartnerSpec, RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import PartnerSpec, PhaseSpec, PhasesScheduleSpec
 from skcomplex.systems.general.matching import (
     BatchMatchingSpec,
     ContinuousMatchingSpec,

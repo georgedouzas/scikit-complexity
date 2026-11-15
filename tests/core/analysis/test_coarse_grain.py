@@ -8,13 +8,14 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.analysis import coarse_grain, spectrum
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
 
 CLASSES = np.arange(9.0)
@@ -102,8 +103,8 @@ def test_density_over_a_state_starts_a_distribution():
     distribution = GroupElement('wealth', element=AmountElement, size=9, on='sites', values={'x': densities})
     system = CompositeSystem(elements=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
     observables = [
-        ObservableSpec('density', density, group='wealth'),
-        ObservableSpec('mean', mean_class, group='wealth'),
+        Observable('density', density, group='wealth'),
+        Observable('mean', mean_class, group='wealth'),
     ]
     trajectory = simulate(system, until=0, observables=observables, dt=1.0)
     assert trajectory.get_values('density')[0] == pytest.approx(1.0)

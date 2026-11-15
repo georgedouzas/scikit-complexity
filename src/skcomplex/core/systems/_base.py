@@ -14,6 +14,7 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import clone
 
+from ..components import Observable, Tags
 from ..components.base import BaseComponent
 from ..components.systems import CompositeSystem
 from ..engine.backends import BaseBackend
@@ -21,10 +22,9 @@ from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import BaseClock, BaseObserver, Trajectory, run_problem
 from ..engine.solvers import BaseSolver
 from ..errors import NotPreparedError
-from ..specs import ObservableSpec, Tags
 
 
-class BaseSystem(BaseComponent[Sequence[ObservableSpec], SimpleNamespace]):
+class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     """An abstract system, which is prepared once and simulated many times.
 
     `prepare` checks the components of the system and compiles them into a problem once, as `fit` does for a
@@ -57,7 +57,7 @@ class BaseSystem(BaseComponent[Sequence[ObservableSpec], SimpleNamespace]):
 
     until: ClassVar[float | None] = None
     dt: ClassVar[float | None] = None
-    observables: ClassVar[Sequence[ObservableSpec]] = ()
+    observables: ClassVar[Sequence[Observable]] = ()
     initial_state: ClassVar[Mapping[str, object] | None] = None
     invariants: ClassVar[Mapping[str, float] | None] = None
     schedule: ClassVar[Mapping[str, Callable[[float], float | npt.ArrayLike]] | None] = None
@@ -127,7 +127,7 @@ class BaseSystem(BaseComponent[Sequence[ObservableSpec], SimpleNamespace]):
             raise NotPreparedError(error_msg)
 
     @abstractmethod
-    def _prepare(self, context: Sequence[ObservableSpec] | None = None) -> None:
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Check the model parameters and set `system_`, the `System` of the components.
 
         A subclass starts with `super()._prepare(context)`, which checks the label.
@@ -147,7 +147,7 @@ class BaseSystem(BaseComponent[Sequence[ObservableSpec], SimpleNamespace]):
         """
         self.laws_ = self._get_laws_of(inputs)
 
-    def prepare(self, context: Sequence[ObservableSpec] | None = None) -> Self:
+    def prepare(self, context: Sequence[Observable] | None = None) -> Self:
         """Check the system, build its components, and compile them into a problem.
 
         Args:
@@ -175,7 +175,7 @@ class BaseSystem(BaseComponent[Sequence[ObservableSpec], SimpleNamespace]):
         dt: float | None = None,
         initial_state: Mapping[str, object] | None = None,
         random_state: int | np.random.Generator | None = None,
-        observables: Sequence[ObservableSpec] = (),
+        observables: Sequence[Observable] = (),
         observers: Sequence[BaseObserver] = (),
         invariants: Mapping[str, float] | None = None,
         schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,

@@ -15,28 +15,28 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...components.laws import BaseLaw
 from ...errors import ValidationError
-from ...specs._accelerated_spec import AcceleratedSpec
-from ...specs._breakpoints_spec import _BreakpointsSpec
-from ...specs._delay_spec import _DelaySpec
-from ...specs._fractional_rows_spec import FractionalRowsSpec
-from ...specs._jump_channels_spec import _JumpChannelsSpec
-from ...specs._layout_spec import LayoutSpec
 from ...specs._variable_spec import VariableSpec
-from ...specs._wiener_block_spec import WienerBlockSpec
 from ...types import Array, Indices, VectorFunction
+from ._accelerated_spec import _AcceleratedSpec
 from ._base import BaseKernel
 from ._base_problem_spec import BaseProblemSpec
+from ._breakpoints_spec import _BreakpointsSpec
+from ._delay_spec import _DelaySpec
 from ._diffusive_limit_spec import DiffusiveLimitSpec
 from ._draw_kernel import DrawKernel
 from ._event_kernel import EventKernel
 from ._finite_volume_kernel import FiniteVolumeKernel
+from ._fractional_rows_spec import _FractionalRowsSpec
 from ._jacobian_kernel import JacobianKernel
+from ._jump_channels_spec import _JumpChannelsSpec
 from ._law_kernel import LawKernel
+from ._layout_spec import LayoutSpec
 from ._linear_program_kernel import LinearProgramKernel
 from ._linear_term_spec import LinearTermSpec
 from ._partition_spec import PartitionSpec
 from ._random_stream import RandomStream
 from ._reduction_kernel import ReductionKernel
+from ._wiener_block_spec import _WienerBlockSpec
 
 
 @dataclass(frozen=True)
@@ -261,7 +261,7 @@ class ProblemSpec(BaseProblemSpec):
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     noise_columns: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     n_processes: int = 0
-    noise_blocks: tuple[WienerBlockSpec, ...] = field(default=(), repr=False)
+    noise_blocks: tuple[_WienerBlockSpec, ...] = field(default=(), repr=False)
     propensities: VectorFunction | None = field(default=None, repr=False)
     jumps: tuple[_JumpChannelsSpec, ...] = field(default=(), repr=False)
     update: Callable[..., Array] | None = field(default=None, repr=False)
@@ -269,12 +269,12 @@ class ProblemSpec(BaseProblemSpec):
     algebraic: VectorFunction | None = field(default=None, repr=False)
     programs: tuple[LinearProgramKernel, ...] = field(default=(), repr=False)
     draws: DrawKernel | None = field(default=None, repr=False)
-    fractional: tuple[FractionalRowsSpec, ...] = field(default=(), repr=False)
+    fractional: tuple[_FractionalRowsSpec, ...] = field(default=(), repr=False)
     orders: Array = field(default_factory=lambda: np.zeros(0), repr=False)
 
     backend: str = 'numpy'
     backends: Mapping[str, str] = field(default_factory=dict)
-    accelerated: AcceleratedSpec | None = field(default=None, repr=False)
+    accelerated: _AcceleratedSpec | None = field(default=None, repr=False)
 
     def _flatten_symbols(self, layout: LayoutSpec) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""

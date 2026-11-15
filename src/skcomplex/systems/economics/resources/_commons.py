@@ -14,6 +14,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
@@ -21,17 +22,10 @@ from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SimulationError
-from ....core.specs import (
-    ObservableSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
 from ...general.matching.types import MatchingRule
@@ -520,9 +514,9 @@ class TragedyOfTheCommonsSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 sec. 10.2', 'Hardin 1968')
     until = 100
     observables = (
-        ObservableSpec('grass', group='meadow', variable='grass', reduce='sum'),
-        ObservableSpec('herd', group='cows', variable='energy', reduce='count'),
-        ObservableSpec('quota', group='herders', variable='quota', reduce='mean'),
+        Observable('grass', group='meadow', variable='grass', reduce='sum'),
+        Observable('herd', group='cows', variable='energy', reduce='count'),
+        Observable('quota', group='herders', variable='quota', reduce='mean'),
     )
 
     @staticmethod

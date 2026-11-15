@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import CC, I, arg, conjugate, exp, gamma, imag_part, real_part
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.laws import ConstraintLaw, EventLaw, JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import CallSpec, ConstraintLaw, EventLaw, JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative, laplacian, mod, total, where
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -23,7 +23,7 @@ from skcomplex.core.engine.solvers import (
     ScipyODESolver,
 )
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import CallSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.physics.pattern_formation import GinzburgLandauElement
 
 from ..conftest import PhaseElement, QuadraticElement

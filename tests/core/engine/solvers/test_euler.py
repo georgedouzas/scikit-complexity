@@ -13,9 +13,9 @@ from skcomplex.core.components.laws.utils import delayed, step
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import EulerSolver
+from skcomplex.core.engine.solvers import EulerSolver, StepSpec
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 
 class AmountElement(Element):

@@ -13,11 +13,12 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import normal
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 
@@ -124,7 +125,7 @@ class NetworkHerdingSystem(BaseSystem):
     topics = ('herding', 'network', 'aggregation', 'agents', 'linear map')
     references = ('Caiani et al. 2016 §1.1.6',)
     until = 50
-    observables = (ObservableSpec('mean_choice', group='agents', variable='c', reduce='mean'),)
+    observables = (Observable('mean_choice', group='agents', variable='c', reduce='mean'),)
 
     def __init__(
         self,

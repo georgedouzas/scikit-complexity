@@ -31,13 +31,16 @@ from ...components.spaces import (
     RadiusNeighborhood,
 )
 from ...errors import ValidationError
-from ...specs import DirectionSpec, EntrySpec, PairReadSpec, RunStateSpec, VariableSpec
+from ...specs import EntrySpec, VariableSpec
 from ...types import Array, Indices
 from ..types import Pairs
 from ._base import BaseKernel
+from ._direction_spec import _DirectionSpec
 from ._edge_row_search import EdgeRowSearch
 from ._expression_printer import ExpressionPrinter
 from ._metric_search import MetricSearch
+from ._pair_read_spec import _PairReadSpec
+from ._run_state_spec import RunStateSpec
 from ._static_search import StaticSearch
 
 SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
@@ -114,7 +117,7 @@ class NeighborhoodKernel(BaseKernel):
         *,
         group: str,
         search: NeighborSearch,
-        reads: dict[Expression, PairReadSpec],
+        reads: dict[Expression, _PairReadSpec],
         time: Expression,
         coefficients: Array | None = None,
         hyperedge: int | None = None,
@@ -652,7 +655,7 @@ class NeighborhoodKernel(BaseKernel):
         direction = None
         if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
             name = NeighborhoodKernel._get_cone_direction(over, states, continuous.n_dim_)
-            direction = DirectionSpec(entries[name], not states[name].vector) if name in entries else None
+            direction = _DirectionSpec(entries[name], not states[name].vector) if name in entries else None
             if direction is None:
                 error_msg = f'The cone reads the direction {name!r}, which the members do not hold.'
                 raise ValidationError(error_msg)

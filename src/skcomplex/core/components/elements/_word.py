@@ -7,9 +7,11 @@ from collections.abc import Mapping, Sequence
 from typing import Annotated
 
 from ...errors import RewritingError
-from ...specs import GeometrySpec, Letters, StateSpec, VisualSpec
+from ...specs import StateSpec, VisualSpec
+from ..laws import Letters
 from ..spaces import BaseSpace
 from ._element import Element
+from ._geometry_spec import GeometrySpec
 
 
 class WordElement(Element):

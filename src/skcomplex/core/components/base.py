@@ -18,7 +18,8 @@ from sklearn.base import BaseEstimator
 
 from ..base import BaseConfig
 from ..errors import ValidationError
-from ..specs import STOCHASTIC_LAWS, DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec, Tags
+from ..specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec
+from ._tags import STOCHASTIC_LAWS, Tags
 
 
 class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):

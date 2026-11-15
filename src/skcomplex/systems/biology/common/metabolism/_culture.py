@@ -15,9 +15,9 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.elements import DeclaredElement, Element
 from .....core.components.interactions import Interaction
-from .....core.components.laws import BaseLaw, LinearProgramLaw, RateLaw, UpdateLaw
+from .....core.components.laws import BaseLaw, LinearObjectiveSpec, LinearProgramLaw, RateLaw, UpdateLaw
 from .....core.components.laws.utils import either, where
-from .....core.specs import DeclaredVariableSpec, LinearObjectiveSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from .....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ._metabolic_network import MetabolicNetworkElement
 
 POSITIVE = RealSet.open(0, oo)

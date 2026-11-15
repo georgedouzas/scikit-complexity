@@ -10,12 +10,12 @@ from sage.groups.matrix_gps.finitely_generated import MatrixGroup
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import LocalRuleLaw
+from skcomplex.core.components.laws import LocalRuleLaw, TableSpec, TotalisticSpec
 from skcomplex.core.components.spaces import BallNeighborhood, CayleySpace, MemoryNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SpaceTooLargeError, ValidationError
-from skcomplex.core.specs import StateSpec, TableSpec, TotalisticSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 HEISENBERG = (((1, 1, 0), (0, 1, 0), (0, 0, 1)), ((1, 0, 0), (0, 1, 1), (0, 0, 1)))
 GRIGORCHUK = 'a = (1, 1)(1, 2), b = (a, c), c = (a, d), d = (1, b)'

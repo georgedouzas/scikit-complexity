@@ -9,9 +9,9 @@ from dataclasses import dataclass, field
 from sage.all__sagemath_symbolics import Expression
 
 from ...specs._base_spec import BaseSpec
-from ...specs._noise_process_spec import NoiseProcessSpec
 from ...types import Indices
 from ..types import NumericFunction
+from ._noise_process_spec import _NoiseProcessSpec
 from ._reference_spec import ReferenceSpec
 
 
@@ -69,7 +69,7 @@ class OutputSpec(BaseSpec):
     arguments: tuple[Expression, ...] | None = None
     component: int = 0
     components: int = 1
-    process: NoiseProcessSpec | None = None
+    process: _NoiseProcessSpec | None = None
     combined: bool = False
     reduce: str | None = None
     counts: Indices | None = field(default=None, compare=False, repr=False)

@@ -13,13 +13,13 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate
-from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, PhaseSpace
+from skcomplex.core.components.spaces import AxisSpec, LatticeNeighborhood, LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import SpaceTooLargeError, ValidationError
-from skcomplex.core.specs import AxisSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 
 class AmountElement(Element):

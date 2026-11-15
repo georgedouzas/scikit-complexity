@@ -15,10 +15,10 @@ on those bits toward 0, while the error on the random bits stays at 0.25, the er
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.components import Observable
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 
 SYSTEM = 'elman_network'
@@ -49,7 +49,7 @@ def errors_by_position(frame, bits):
     net.elements[1].set_params(values={'b': trajectory.get_values('net/hidden.b')[frame]})
     net.elements[2].set_params(values={'c': trajectory.get_values('net/outputs.c')[frame]})
     schedule = {'inputs.x': lambda t: bits[round(t)], 'outputs.target': lambda t: bits[round(t)]}
-    error = ObservableSpec('error', group='outputs', reduce='sum', expression=squared_error)
+    error = Observable('error', group='outputs', reduce='sum', expression=squared_error)
     run = simulate(net, until=len(bits) - 1, backend=NumpyBackend(), schedule=schedule, observables=[error])
     values = run.get_values('error')
     steps = np.arange(len(bits))

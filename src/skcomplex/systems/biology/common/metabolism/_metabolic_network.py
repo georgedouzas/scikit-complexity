@@ -16,11 +16,11 @@ from typing import cast
 from sage.all__sagemath_symbolics import SR, Expression
 
 from .....core.components.elements import DeclaredElement
-from .....core.components.laws import LinearProgramLaw
+from .....core.components.laws import LinearObjectiveSpec, LinearProgramLaw
 from .....core.components.laws.utils import both, either
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import DeclaredVariableSpec, LinearObjectiveSpec, ParameterSpec, StateSpec, VisualSpec
+from .....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ._reaction_spec import ReactionSpec
 
 SWITCH_THRESHOLD = 0.5

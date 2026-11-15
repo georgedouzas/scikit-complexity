@@ -12,8 +12,8 @@ from scipy.spatial.transform import Rotation
 from ..engine.runtime import Trajectory
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
 from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _read_snapshots
 from .types import Source
 

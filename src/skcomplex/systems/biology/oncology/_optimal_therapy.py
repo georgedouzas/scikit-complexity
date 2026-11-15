@@ -12,11 +12,12 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import PontryaginSolver
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
@@ -361,7 +362,7 @@ class OptimalChemotherapySystem(BaseSystem):
     until = 30.0
     dt = 0.25
     solver = PontryaginSolver(objective=_get_chemotherapy_cost, terminal=_get_tumour)
-    observables = (ObservableSpec('tumour_share', _get_tumour_share),)
+    observables = (Observable('tumour_share', _get_tumour_share),)
 
     def __init__(
         self,
@@ -453,7 +454,7 @@ class OptimalImmunotherapySystem(BaseSystem):
         terminal=_get_tumour_site,
         nodes=1001,
     )
-    observables = (ObservableSpec('immune_ratio', _get_immune_ratio),)
+    observables = (Observable('immune_ratio', _get_immune_ratio),)
 
     def __init__(
         self,

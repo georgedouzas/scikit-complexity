@@ -14,14 +14,16 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.agents import ChoiceInteraction, MovementInteraction
 from ..common.learning import PayoffLearningInteraction
 
@@ -324,7 +326,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
     topics = ('agents', 'discrete choice', 'symmetry breaking', 'phase transition', 'retail')
     references = ('Bertin 2021', 'Bouchaud 2013')
     until = 300
-    observables = (ObservableSpec('m', group='customers', expression=CustomerElement.get_preference),)
+    observables = (Observable('m', group='customers', expression=CustomerElement.get_preference),)
 
     def __init__(
         self,

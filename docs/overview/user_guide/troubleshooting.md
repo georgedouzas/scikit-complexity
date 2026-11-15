@@ -163,7 +163,7 @@ import numpy as np
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.errors import ConservationError
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
@@ -174,7 +174,7 @@ def get_constant(t, values):
     return 0.024 * prey - 0.80 * np.log(prey) + 0.028 * predators - 0.55 * np.log(predators)
 
 
-constant = ObservableSpec('constant', function=get_constant)
+constant = Observable('constant', function=get_constant)
 try:
     simulate(
         system, until=20, dt=1.0, solver=EulerSolver(dt=0.1), observables=[constant], invariants={'constant': 1e-3}
@@ -479,7 +479,7 @@ is the product of all of them. `limit` guards the memory.
 ```python
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.errors import PhaseSpaceTooLargeError
-from skcomplex.core.specs import AxisSpec
+from skcomplex.core.components.spaces import AxisSpec
 
 try:
     PhaseSpace(LatticeSpace((100, 100)), [AxisSpec('v', 64, -4.0, 4.0)], limit=100_000).prepare()
@@ -625,7 +625,8 @@ from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import InfeasibleError
-from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import LinearObjectiveSpec
 
 Output = Annotated[float, StateSpec(algebraic=True)]
 Demand = Annotated[float, ParameterSpec()]
@@ -697,7 +698,7 @@ from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import CapacityError
-from skcomplex.core.specs import TopologyRequestSpec
+from skcomplex.core.components.laws import TopologyRequestSpec
 
 
 class GrowthElement(Element):

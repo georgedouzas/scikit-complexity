@@ -118,7 +118,8 @@ from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import PartnerSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import PartnerSpec
 
 
 class EaterElement(Element):
@@ -374,7 +375,7 @@ This section lists the modules that every package of the core shares.
 - `skcomplex.core.enums` holds the kinds that every layer reads, such as `DataKind`, `FormKind`, and `ElementKind`.
 - `skcomplex.core.specs` holds the specs, frozen values that declare, record, or hold what the classes read. These
   include the specs that annotate states, parameters, and roles, such as `StateSpec`, `ParameterSpec`, and `RoleSpec`,
-  the specs of runs and structures, such as `ObservableSpec` and `WienerProcessSpec`, and the specs of rules, domains,
+  the specs of runs and structures, such as `Observable` and `WienerProcessSpec`, and the specs of rules, domains,
   and geometries, such as `TableSpec`, `LinearRuleSpec`, `SubshiftSpec`, and `GeometrySpec`.
 
 ### The core

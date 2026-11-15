@@ -11,10 +11,10 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...components.spaces import MeshSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
 from ..enums import ComplexComponentKind
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import BaseVisual
 
 SURFACE_DIMENSION = 2
@@ -129,7 +129,11 @@ class MeshVisual(BaseVisual):
                 BaseVisual._get_phase_colors(phase),
             )
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return one 3D spatial view per chosen state.
 
         Meshes are drawn with the value as their height.

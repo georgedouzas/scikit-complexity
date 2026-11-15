@@ -325,14 +325,15 @@ The [solver](../glossary.md#solver) `Yoshida4Solver` integrates a separable Hami
 states into two blocks whose rates read only the other block. It keeps the energy bounded over long runs.
 
 `invariants` computes Poisson brackets over the canonical pairs. It decides whether expressions given as
-`ObservableSpec`s are conserved, and checks a `SymmetrySpec` against the Hamiltonian or the Lagrangian, with its
+`Observable`s are conserved, and checks a `SymmetrySpec` against the Hamiltonian or the Lagrangian, with its
 Noether charge, the quantity that a continuous symmetry conserves.
 
 ```python continuation
 from skcomplex.core.analysis import invariants
-from skcomplex.core.specs import ObservableSpec, SymmetrySpec
+from skcomplex.core.components import Observable
+from skcomplex.core.analysis import SymmetrySpec
 
-momentum = ObservableSpec('angular_momentum', lambda s: s.sun.x * s.sun.py - s.sun.y * s.sun.px)
+momentum = Observable('angular_momentum', lambda s: s.sun.x * s.sun.py - s.sun.y * s.sun.px)
 rotation = SymmetrySpec('rotation', lambda s: {'sun.x': -s.sun.y, 'sun.y': s.sun.x})
 invariants(system, expressions=[momentum]).conserved, invariants(system, kind='symmetry', symmetry=rotation).charge
 ```
@@ -496,7 +497,8 @@ from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec, TotalisticSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import TotalisticSpec
 
 
 class CellElement(Element):

@@ -5,14 +5,16 @@ from typing import Annotated, ClassVar
 import numpy as np
 import pytest
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.components.types import AgentViewProtocol, SystemViewProtocol
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
 from skcomplex.systems.economics.markets import PriceAdjustmentInteraction, ShopsSystem
 
@@ -102,7 +104,7 @@ def test_interest_rate_rule():
         interactions=[CentralBankInteraction('bank', phase='policy')],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('policy')])),
     )
-    observables = [ObservableSpec('price_level', group='shops', variable='price')]
+    observables = [Observable('price_level', group='shops', variable='price')]
     trajectory = simulate(system, until=40, random_state=0, observables=observables)
     rate, inflation = trajectory.get_values('bank.rate'), trajectory.get_values('bank.inflation')
     changed = np.diff(rate) != 0

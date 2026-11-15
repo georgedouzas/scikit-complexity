@@ -7,9 +7,8 @@ from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ParameterError, ValidationError
-from skcomplex.core.specs import SectorSpec
 from skcomplex.systems.biology.common.populations import PopulationElement
-from skcomplex.systems.physics.common.quantum import operator_measures
+from skcomplex.systems.physics.common.quantum import SectorSpec, operator_measures
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem, total_magnetization
 
 from .....conftest import SpinElement

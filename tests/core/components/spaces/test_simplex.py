@@ -11,15 +11,16 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, moment
-from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, SimplexSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 SIZE = 12
 
@@ -99,7 +100,7 @@ def test_moment_over_a_simplex_weights_every_cell_by_its_volume() -> None:
     space = _simplex()
     start = 2.0 * (space.volumes_ > 0)
     groups = FieldElement('groups', element=AmountElement, space=space, values={'x': start})
-    observables = [ObservableSpec('total', total, group='groups')]
+    observables = [Observable('total', total, group='groups')]
     trajectory = simulate(CompositeSystem(elements=[groups]), until=0.1, dt=0.1, observables=observables)
     values = np.asarray(trajectory.get_values('total'), dtype=float)
     assert np.abs(values - 1.0).max() < 1e-12

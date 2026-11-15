@@ -9,14 +9,13 @@ import re
 import numpy as np
 
 from ....components.elements import DeclaredElement, Element, GroupElement
-from ....components.interactions import BaseInteraction
+from ....components.interactions import BaseInteraction, WienerProcessSpec
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace
-from ....components.specs import NodeSpec
 from ....components.systems import CompositeSystem
 from ....enums import VariableKind
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
-from ....specs import WienerProcessSpec
 from ..._utils import declarations_of, probe_laws
+from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
 from .._laws import AGENT_LAWS
 
@@ -307,7 +306,7 @@ class FlattenPass(BasePass):
         scope: str,
         space: BaseSpace | None,
         seen: list[BaseSpace] | None = None,
-    ) -> list[NodeSpec]:
+    ) -> list[_NodeSpec]:
         """Return the nodes of a system tree in tree order."""
         if not isinstance(system, CompositeSystem):
             error_msg = f'{system!r} is not an instance of CompositeSystem.'
@@ -327,13 +326,13 @@ class FlattenPass(BasePass):
             sized, active = FlattenPass._copy_with_capacity(FlattenPass._get_sized(element, space), place)
             if isinstance(sized, GroupElement):
                 path, members = f'{scope}{element.label}', sized.size_
-                node = NodeSpec(path, scope, sized, place, sized.get_declaring_element(), members, active=active)
+                node = _NodeSpec(path, scope, sized, place, sized.get_declaring_element(), members, active=active)
             else:
                 declaring = sized if isinstance(sized, DeclaredElement) else type(sized)
-                node = NodeSpec(f'{scope}{element.label}', scope, sized, place, declaring)
+                node = _NodeSpec(f'{scope}{element.label}', scope, sized, place, declaring)
             nodes.append(node)
         nodes += [
-            NodeSpec(
+            _NodeSpec(
                 f'{scope}{interaction.label}',
                 scope,
                 interaction,
@@ -348,7 +347,7 @@ class FlattenPass(BasePass):
         return nodes
 
     @staticmethod
-    def _flatten_system(system: CompositeSystem, scope: str = '', space: BaseSpace | None = None) -> list[NodeSpec]:
+    def _flatten_system(system: CompositeSystem, scope: str = '', space: BaseSpace | None = None) -> list[_NodeSpec]:
         """Return the elements and interactions of a system tree with their paths.
 
         Args:

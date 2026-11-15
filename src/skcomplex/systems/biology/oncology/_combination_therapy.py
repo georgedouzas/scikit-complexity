@@ -12,6 +12,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, exp, log, oo, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import where
@@ -19,7 +20,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -1866,7 +1867,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
     references = (BOOK, 'Teles and Lemos 2019', 'Hahnfeldt et al. 1999')
     until = 150.0
     dt = 0.25
-    observables = (ObservableSpec('toxicity', _get_total_toxicity),)
+    observables = (Observable('toxicity', _get_total_toxicity),)
 
     def __init__(
         self,

@@ -9,6 +9,7 @@ import pytest
 from sage.all__sagemath_symbolics import var
 from sklearn.base import clone
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw, RateLaw, RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace
@@ -16,7 +17,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import LabelError, ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class TallyElement(Element):
@@ -253,7 +254,7 @@ def test_expression_of_states_is_an_observable_of_the_laws():
         str(PassCompiler().prepare(system).run().problem_.equations['firm.debt'])
         == '-debt_firm*r_firm*(debt_firm/equity_firm - 1)'
     )
-    leverage = ObservableSpec('leverage', _firm_leverage)
+    leverage = Observable('leverage', _firm_leverage)
     trajectory = simulate(system, until=2, dt=0.5, observables=[leverage])
     debt, equity = trajectory.get_values('firm.debt'), trajectory.get_values('firm.equity')
     np.testing.assert_allclose(trajectory.get_values('leverage'), debt / equity)

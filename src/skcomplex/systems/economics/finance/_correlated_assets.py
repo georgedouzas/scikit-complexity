@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from ....core.components.interactions import WienerProcessSpec
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import WienerProcessSpec
 from ..common.assets import AssetElement, GeometricBrownianMotionInteraction
 
 

@@ -7,11 +7,13 @@ from collections.abc import Callable, Iterable
 
 import numpy as np
 
-from ...components.specs import LatticeStateSpec
 from ...errors import SolverError
-from ...specs import ArgumentsSpec, ExtremalRecordSpec, RunStateSpec
 from ...types import Array, Indices
+from ._arguments_spec import _ArgumentsSpec
 from ._base import BaseKernel
+from ._extremal_record_spec import ExtremalRecordSpec
+from ._lattice_state_spec import _LatticeStateSpec
+from ._run_state_spec import RunStateSpec
 
 
 class ExtremalKernel(BaseKernel):
@@ -62,13 +64,13 @@ class ExtremalKernel(BaseKernel):
         self,
         label: str,
         owner: str,
-        targets: tuple[LatticeStateSpec, ...],
-        key: LatticeStateSpec,
+        targets: tuple[_LatticeStateSpec, ...],
+        key: _LatticeStateSpec,
         members: Indices,
         *,
         counts: Indices,
         rule: Callable[..., object],
-        arguments: ArgumentsSpec,
+        arguments: _ArgumentsSpec,
         maximum: bool,
         repeat: int,
         loop: Callable[..., None] | None = None,

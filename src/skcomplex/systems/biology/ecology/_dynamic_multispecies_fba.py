@@ -9,13 +9,7 @@ The two strains compete for the medium.
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import CoSimulationSolver, RK4Solver
-from ..common.metabolism import (
-    BiomassElement,
-    ExchangeInteraction,
-    GrowthInteraction,
-    SubstrateElement,
-    load_network,
-)
+from ..common.metabolism import BiomassElement, ExchangeInteraction, GrowthInteraction, SubstrateElement, load_network
 
 GROWTH = 'Biomass_Ecoli_core'
 GLUCOSE_EXCHANGE = 'EX_glc__D_e'

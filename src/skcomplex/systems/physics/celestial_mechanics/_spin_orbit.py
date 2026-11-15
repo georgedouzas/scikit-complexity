@@ -14,12 +14,13 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import Expression, cos, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import EulerLagrangeInteraction
 from ....core.components.laws.utils import derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -227,8 +228,8 @@ class KeplerianDumbbellSystem(BaseSystem):
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
     invariants: ClassVar[Mapping[str, float]] = {'dumbbell.energy': 1e-6, 'dumbbell.angular_momentum': 1e-6}
     observables = (
-        ObservableSpec('energy', _get_dumbbell_energy, element='dumbbell'),
-        ObservableSpec('angular_momentum', _get_dumbbell_momentum, element='dumbbell'),
+        Observable('energy', _get_dumbbell_energy, element='dumbbell'),
+        Observable('angular_momentum', _get_dumbbell_momentum, element='dumbbell'),
     )
 
     @staticmethod

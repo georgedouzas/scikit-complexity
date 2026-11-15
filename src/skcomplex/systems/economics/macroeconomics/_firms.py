@@ -10,12 +10,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class InvestingFirmView(AgentView):
@@ -204,7 +205,7 @@ class ToyFirmInvestmentSystem(BaseSystem):
     topics = ('business cycle', 'agents', 'firms')
     references = ('Caiani et al. 2016', 'Delli Gatti et al. 2010')
     until = 100
-    observables = (ObservableSpec('production', group='firms', reduce='sum', variable='Y'),)
+    observables = (Observable('production', group='firms', reduce='sum', variable='Y'),)
 
     def __init__(
         self,

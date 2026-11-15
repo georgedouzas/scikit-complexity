@@ -7,7 +7,8 @@ from collections.abc import Sequence
 from dataclasses import replace
 from types import SimpleNamespace
 
-from ...specs import StateSpec, Tags, VisualSpec
+from ...specs import StateSpec, VisualSpec
+from .._tags import Tags
 from ..base import BaseComponent
 from ..spaces import BaseSpace
 

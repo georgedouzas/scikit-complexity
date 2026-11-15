@@ -453,7 +453,8 @@ from skcomplex.core.components.elements import PatchElement
 from skcomplex.core.components.laws import SubstitutionLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import AffineSpec, PrototileSpec
+from skcomplex.core.components.laws import AffineSpec
+from skcomplex.core.components.elements import PrototileSpec
 
 
 class CantorElement(PatchElement):

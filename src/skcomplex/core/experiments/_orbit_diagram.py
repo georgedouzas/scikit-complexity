@@ -10,11 +10,11 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..components.specs import ScenarioSpec
 from ..errors import ValidationError
 from ..types import Array
 from ._replicate import _run_replicated
 from ._runs import _check_count, _check_source, _run_experiment
+from ._scenario_spec import ScenarioSpec
 from .types import Source
 
 

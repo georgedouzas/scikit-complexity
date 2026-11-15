@@ -7,13 +7,13 @@ from sage.all__sagemath_gap import libgap
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import LocalRuleLaw
+from skcomplex.core.components.laws import LocalRuleLaw, TotalisticSpec
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import CayleyVisual, RerunObserver
-from skcomplex.core.specs import StateSpec, TotalisticSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 
 
 class ParityElement(Element):

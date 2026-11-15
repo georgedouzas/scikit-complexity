@@ -12,12 +12,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, EulerLagrangeInteraction, Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.electrical import GroundElement, InductorElement, ResistorElement, TwoPinElement, VoltageSourceElement
 from ..common.mechanics import SpringDamperInteraction
 
@@ -313,8 +314,8 @@ class DcMotorSystem(BaseSystem):
     until = 10.0
     dt = 0.01
     observables = (
-        ObservableSpec('speed', _get_speed_of_rotor),
-        ObservableSpec('current', _get_current_of_winding),
+        Observable('speed', _get_speed_of_rotor),
+        Observable('current', _get_current_of_winding),
     )
 
     def __init__(
@@ -427,7 +428,7 @@ class QuarterCarSystem(BaseSystem):
     references = ('Fritzson 2015',)
     until = 10.0
     dt = 0.005
-    observables = (ObservableSpec('energy', _get_spring_energy),)
+    observables = (Observable('energy', _get_spring_energy),)
 
     def __init__(
         self,

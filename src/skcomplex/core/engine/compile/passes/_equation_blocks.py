@@ -15,9 +15,8 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix
 from sage.modules.free_module_element import FreeModuleElement
 from scipy.optimize import root
 
-from ....components.laws import BaseLaw, BoundaryLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import BaseLaw, BoundaryLaw, CallSpec, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import SolverError, ValidationError
-from ....specs import CallSpec, IssueSpec
 from ....specs._base_spec import BaseSpec
 from ....types import Array
 from ..._utils import symbols_of, vector
@@ -28,6 +27,7 @@ from ...problems._relation_spec import _RelationSpec
 from .._algebraic_law import AlgebraicLaw
 from .._base import BaseLowering, BasePass
 from .._compilation import Compilation, Laws
+from .._issue_spec import IssueSpec
 from .._laws import KERNEL_FREE_LAWS
 from .._renewal_law import RenewalLaw
 

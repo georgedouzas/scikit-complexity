@@ -71,7 +71,7 @@ class LocalRuleInteraction(Interaction):
     Examples:
         >>> from skcomplex.core.components.interactions import LocalRuleInteraction
         >>> from skcomplex.core.components.spaces import BallNeighborhood
-        >>> from skcomplex.core.specs import TotalisticSpec
+        >>> from skcomplex.core.components.laws import TotalisticSpec
         >>> parity = TotalisticSpec({1: 1, 3: 1})
         >>> around = BallNeighborhood(metric='manhattan', n_dim=1, center='first')
         >>> rule = LocalRuleInteraction('parity', target='cells', state='cell', rule=parity, neighborhood=around)

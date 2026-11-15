@@ -13,9 +13,10 @@ from scipy import optimize
 from ..engine.runtime import Trajectory
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, SeriesSpec
 from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import STEP_TOLERANCE, _check_choice, _check_settings, _read_fields, _read_real, _read_series, _step_of
+from ._series_spec import _SeriesSpec
 from .types import Source
 
 MIN_LINE_POINTS = 2
@@ -247,7 +248,7 @@ def _read_replicas(source: Source, name: str | None) -> Array:
     return np.stack([_read_fields(replica, name) for replica in replicas])
 
 
-def _read_step(source: Source, series: SeriesSpec, dt: float | None) -> float:
+def _read_step(source: Source, series: _SeriesSpec, dt: float | None) -> float:
     """Return the time between samples, read from a trajectory or given for an array.
 
     Args:

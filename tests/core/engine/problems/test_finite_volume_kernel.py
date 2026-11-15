@@ -12,13 +12,13 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws import FluxLaw
-from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace, SimplexSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.solvers import SSPRKSolver, StepSpec
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import AxisSpec, StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.physics.fluids import BurgersSystem, ShallowWaterSystem
 
 N_STATES = 5

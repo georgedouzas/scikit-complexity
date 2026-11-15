@@ -5,18 +5,18 @@
 
 from collections.abc import Iterable, Mapping
 
-from ....components.specs import CensusSpec
 from ....components.systems import CompositeSystem
 from ....enums import FormKind
 from ....errors import IncompatibleLawsError, UnregisteredLawError
-from ....specs import IssueSpec
-from ....specs._owners_spec import _OwnersSpec
-from ....specs._plan_spec import _PlanSpec
-from ....specs._planned_partition_spec import _PlannedPartitionSpec
 from .._base import BaseCompiler, BasePass
+from .._census_spec import _CensusSpec
 from .._compilation import Compilation
 from .._forms import FORMS
+from .._issue_spec import IssueSpec
 from .._laws import FORMLESS_LAWS
+from .._owners_spec import _OwnersSpec
+from .._plan_spec import _PlanSpec
+from .._planned_partition_spec import _PlannedPartitionSpec
 from ._form import FormPass
 
 
@@ -155,7 +155,7 @@ class PlanPass(BasePass):
 
     @staticmethod
     def _plan_partitions(
-        census: CensusSpec,
+        census: _CensusSpec,
         kinds: Mapping[str, set[type]],
         solvers: Iterable[type] | None = None,
     ) -> '_PlanSpec':

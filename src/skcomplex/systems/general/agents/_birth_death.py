@@ -7,13 +7,14 @@ from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
+from ....core.components import Tags
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec, Tags
+from ....core.specs import RoleSpec
 
 PLACEMENTS = ('here', 'neighbor')
 SCHEDULES = ('sequential', 'random-sequential', 'member')

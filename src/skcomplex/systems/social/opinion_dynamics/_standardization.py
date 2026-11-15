@@ -12,13 +12,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray, Array
 from ...general.agents import ChoiceInteraction
 
@@ -235,8 +237,8 @@ class StandardizedAgentsSystem(BaseSystem):
     references = ('Bertin 2021', 'Bertin and Jensen 2019')
     until = 1000
     observables = (
-        ObservableSpec('q', group='agents', variable='spin', reduce=_get_standardization),
-        ObservableSpec('m', group='agents', variable='spin', reduce='mean'),
+        Observable('q', group='agents', variable='spin', reduce=_get_standardization),
+        Observable('m', group='agents', variable='spin', reduce='mean'),
     )
 
     def __init__(

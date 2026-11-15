@@ -10,9 +10,10 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
-from ...specs import LinearObjectiveSpec, RequirementSpec
 from ..spaces import ContinuousTime, DiscreteTime, StaticTime
 from ._base import BaseLaw
+from ._linear_objective_spec import LinearObjectiveSpec
+from ._requirement_spec import RequirementSpec
 
 INFEASIBLE_POLICIES = ('raise', 'zero', 'hold')
 RELATIONS = (operator.eq, operator.le, operator.ge)
@@ -65,7 +66,7 @@ class LinearProgramLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import LinearProgramLaw
-        >>> from skcomplex.core.specs import LinearObjectiveSpec
+        >>> from skcomplex.core.components.laws import LinearObjectiveSpec
         >>> v, w = var('v w')
         >>> law = LinearProgramLaw([v, w], [v + w <= 1], [LinearObjectiveSpec(v)]).prepare('flows')
         >>> law.targets_
