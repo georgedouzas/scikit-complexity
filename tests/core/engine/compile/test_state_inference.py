@@ -7,7 +7,7 @@ import networkx as nx
 import numpy as np
 import pytest
 import skfem
-from sage.all__sagemath_symbolics import abs_symbolic, oo
+from sage.all__sagemath_symbolics import abs_symbolic, oo, sin
 from sage.sets.real_set import RealSet
 from scipy.linalg import expm
 from scipy.special import ive
@@ -15,7 +15,7 @@ from scipy.special import ive
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw, UpdateLaw
+from skcomplex.core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import laplacian, neighbors
 from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace
 from skcomplex.core.errors import ValidationError
@@ -307,3 +307,96 @@ def test_get_declared_sums_over_network_neighbours():
     last = system.simulate(until=0.5, dt=0.01).get_values('nodes.x')[-1]
     exact = expm(-nx.laplacian_matrix(graph).toarray() * 0.5) @ start
     assert last == pytest.approx(exact, abs=1e-6)
+
+
+class Resistor(Interaction):
+    """Resistor whose current flows from node `a` to node `b` and adds into the balance of both."""
+
+    def __init__(self, label: str, *, a: Role = 'a', b: Role = 'b', R: float = 1.0) -> None:
+        super().__init__(label)
+        self.a = a
+        self.b = b
+        self.R = R
+
+    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+        """Set the current out of `a` and into `b` as terms of their balances."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            current = (context.a.v - context.b.v) / context.R
+            self.laws_: list[BaseComponent] = [
+                ConstraintLaw(-current, 0, target=context.a.v),
+                ConstraintLaw(current, 0, target=context.b.v),
+            ]
+
+
+class VoltageSource(Interaction):
+    """Source that holds node `plus` at `E (1 + w sin t)` above node `minus`, its current held by `branch`."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        branch: Role = 'branch',
+        plus: Role = 'plus',
+        minus: Role = 'minus',
+        E: float = 1.0,
+        w: float = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.branch = branch
+        self.plus = plus
+        self.minus = minus
+        self.E = E
+        self.w = w
+
+    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+        """Set the voltage as the equation of the current, and the current as terms of both balances."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            current = context.branch.i
+            voltage = context.E * (1 + context.w * sin(context.t))
+            self.laws_: list[BaseComponent] = [
+                ConstraintLaw(context.plus.v - context.minus.v, voltage, target=current),
+                ConstraintLaw(current, 0, target=context.plus.v),
+                ConstraintLaw(-current, 0, target=context.minus.v),
+            ]
+
+
+class Ground(Interaction):
+    """Ground that holds a node at zero potential, its current held by `branch`."""
+
+    def __init__(self, label: str, *, branch: Role = 'branch', node: Role = 'node') -> None:
+        super().__init__(label)
+        self.branch = branch
+        self.node = node
+
+    def _prepare(self, context: SimpleNamespace | None = None) -> None:
+        """Set zero potential as the equation of the current, and the current as a term of the balance."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [
+                ConstraintLaw(context.node.v, 0, target=context.branch.i),
+                ConstraintLaw(context.branch.i, 0, target=context.node.v),
+            ]
+
+
+def test_get_declared_balances_the_currents_of_three_resistors():
+    """Test that the currents of three resistors into the node they share sum to zero at every frame."""
+    nodes = [Element(name, values={'v': 0.0}) for name in ('n', 'a1', 'a2', 'g')]
+    branches = [Element(name, values={'i': 0.0}) for name in ('s1', 's2', 'earth')]
+    interactions = [
+        Resistor('r1', a='a1', b='n', R=1.0),
+        Resistor('r2', a='a2', b='n', R=2.0),
+        Resistor('r3', a='g', b='n', R=4.0),
+        VoltageSource('e1', branch='s1', plus='a1', minus='g', E=10.0, w=0.5),
+        VoltageSource('e2', branch='s2', plus='a2', minus='g', E=5.0),
+        Ground('ground', branch='earth', node='g'),
+    ]
+    system = System(elements=nodes + branches, interactions=interactions).prepare()
+    assert set(system.states_) == {'n.v', 'a1.v', 'a2.v', 'g.v', 's1.i', 's2.i', 'earth.i'}
+    trajectory = system.simulate(until=3.0, dt=0.5)
+    v = {name: trajectory.get_values(f'{name}.v') for name in ('n', 'a1', 'a2', 'g')}
+    into_node = (v['a1'] - v['n']) / 1.0 + (v['a2'] - v['n']) / 2.0 + (v['g'] - v['n']) / 4.0
+    assert np.abs(into_node).max() < 1e-9
+    assert v['a1'] == pytest.approx(10.0 * (1 + 0.5 * np.sin(trajectory.times)))
+    assert np.abs(v['g']).max() < 1e-12
