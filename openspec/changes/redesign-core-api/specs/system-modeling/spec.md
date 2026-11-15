@@ -45,6 +45,10 @@ private.
 - **THEN** `form_` is the ordinary differential equations, `equations_` maps `ball.x` to `ball.x'` and `ball.x'` to
   the sum of the forces over the mass, and `solver_` is the default ODE solver
 
+#### Scenario: Readable reductions
+- **WHEN** a user prepares a consensus whose rate sums the differences to the neighbours on a network
+- **THEN** `equations_` writes the sum as `neighbors(...)` of the states it reads, and names no internal symbol
+
 ### Requirement: Interactions own the parameters of their relation
 A parameter that describes the relation between elements or between an element and its surroundings SHALL belong to
 the interaction, and an element SHALL hold only the parameters that describe that element alone.
@@ -111,8 +115,9 @@ members SHALL reject at once a size below one, an unknown value name, and an arr
 - **THEN** the element has one member at every site of the mesh
 
 #### Scenario: A reserved name
-- **WHEN** an element class declares a state named `size`
-- **THEN** defining the class raises a named error that names `size` and the reserved names
+- **WHEN** an element class stores a quantity of its own under the name `size`, such as the half side of a table
+- **THEN** preparing it raises a named error that names `size` and the reserved names `label`, `size`, `space`, and
+  `values`
 
 ### Requirement: Components are prepared against their context
 Elements, interactions, spaces, neighbourhoods, and systems SHALL derive from `BaseComponent`, which gives `label`,
@@ -187,6 +192,31 @@ radius measured in the metric of its space. Spaces and neighbourhoods of one fie
 #### Scenario: A Cayley graph
 - **WHEN** a reviewer looks for `CayleySpace`
 - **THEN** it lives in `skcomplex.systems.computer_science.common.automata`, and no module of the core names it
+
+### Requirement: Elements are drawn as their class and values say
+An element class SHALL give its default drawing in its class attribute `visual`, whose numeric options MAY be
+expressions of the element's parameters. A group SHALL be drawn as its prepared member, or as its space when the space
+cannot show that drawing. A visualisation observer SHALL draw chosen elements otherwise by path.
+
+#### Scenario: A radius from a parameter
+- **WHEN** a group of cells whose class is drawn with `{'radius': 'R_0 / 2'}` is prepared with `R_0 = 2.0`
+- **THEN** the cells are drawn as points of radius 1.0
+
+#### Scenario: A drawing the space cannot show
+- **WHEN** a group whose class is drawn as an image lives on the nodes of a graph
+- **THEN** it is drawn as the sites of the graph
+
+#### Scenario: A drawing chosen at the run
+- **WHEN** a user simulates with `RerunObserver(visuals={'oscillators': VisualSpec('sites', {'states': ['theta']})})`
+- **THEN** the oscillators are drawn as sites, whatever their class says
+
+### Requirement: Interactions type-check with either context
+The context of an interaction's `_prepare` SHALL be typed as its space or the namespace of its bindings, so an
+interaction written in the new style type-checks without suppressions.
+
+#### Scenario: A new-style interaction
+- **WHEN** `mypy` checks a test whose interaction reads `context.target.x` in `_prepare`
+- **THEN** it reports no error for that `_prepare`
 
 ## MODIFIED Requirements
 
