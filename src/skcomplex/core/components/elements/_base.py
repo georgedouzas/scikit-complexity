@@ -91,6 +91,18 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
         """Return how the element is drawn, the `visual` of its class by default."""
         return self.visual
 
+    def _get_compiler(self) -> object:
+        """Return the compiler a value of the element names, or `None` for the general one.
+
+        A value names a compiler through its own `_get_compiler`, as the Hilbert space of a quantum state names the
+        compiler of operator dynamics. A subclass may name one itself, as a word that rewrites does.
+        """
+        for value in self.get_params(deep=False).values():
+            named = getattr(value, '_get_compiler', None)
+            if callable(named) and not isinstance(value, type):
+                return named()
+        return None
+
     def prepare(self, context: BaseSpace | None = None) -> Self:
         """Prepare the element on its space, checking that it holds values and no laws.
 

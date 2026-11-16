@@ -188,6 +188,12 @@ class GroupElement(BaseElement):
             values = {name: value for name, value in values.items() if name in settings}
         return member.set_params(**values)
 
+    def _get_compiler(self) -> object:
+        """Return the compiler a member names, or `None` for the general one."""
+        if not (isinstance(self.element, type) and issubclass(self.element, BaseElement)):
+            return None
+        return self._get_member()._get_compiler()
+
     def _get_member_specs(self) -> dict[str, Spec]:
         """Return the specs of a member.
 
