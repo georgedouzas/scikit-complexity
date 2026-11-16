@@ -1,4 +1,4 @@
-"""Test the `_euler_lagrange` module of `skcomplex.systems.physics.common.mechanics`."""
+"""Test the `_euler_lagrange` module of `skcomplex.systems.general.mechanics`."""
 
 from types import SimpleNamespace
 from typing import Annotated
@@ -16,7 +16,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
-from skcomplex.systems.physics.common.mechanics import EulerLagrangeInteraction
+from skcomplex.systems.general.mechanics import EulerLagrangeInteraction
 
 DAMPING, FORCE, OMEGA = 0.3, 0.5, 1.3
 

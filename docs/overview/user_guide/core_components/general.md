@@ -607,8 +607,115 @@ round(float(simulate(relaxation, until=1, dt=1.0).get_values('particle.x')[-1]),
 
 The particle relaxes from 1 to 0.135 in one unit of time, which is `exp(-2)`.
 
-See its [API entry][skcomplex.systems.general.gradients]
-and its [API entry][skcomplex.core.components.interactions.GradientInteraction].
+See its [API entry][skcomplex.systems.general.gradients].
+
+## EulerLagrangeInteraction
+
+An `EulerLagrangeInteraction` takes a Lagrangian, the kinetic minus the potential energy, and moves the coordinates by
+its equations of motion. Here a pendulum swings from an angle of 0.1 radians, with the Lagrangian
+`q'^2 / 2 + cos q` in units where gravity and the length are 1.
+
+```python
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import cos
+
+from skcomplex.core.components.elements import Element
+from skcomplex.systems.general.mechanics import EulerLagrangeInteraction
+from skcomplex.core.components.laws.utils import derivative
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.specs import StateSpec
+
+
+class CoordinateElement(Element):
+    def __init__(self, label, *, q: Annotated[float, StateSpec(order=2)] = 0.1, q_d1: float = 0.0):
+        super().__init__(label)
+        self.q = q
+        self.q_d1 = q_d1
+
+
+lagrangian = lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q)
+swing = EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=lagrangian)
+pendulum = CompositeSystem(elements=[CoordinateElement('bob')], interactions=[swing])
+simulate(pendulum, until=3.2, dt=1.6).get_values('bob.q').round(3).tolist()
+```
+
+The angle passes through -0.003 at 1.6 seconds and reaches -0.1 at 3.2, half of the period `2 pi` of small swings.
+`derivative(q, 1)` is the velocity of the coordinate.
+
+The same class gives an electric circuit of a coil and a capacitor, written by its energy. The charge `q` is the
+coordinate, the coil of inductance 2 stores `L q'^2 / 2`, and the capacitor of capacitance 0.5 stores `q^2 / (2 C)`.
+
+```python continuation
+energy = lambda s: 2.0 * derivative(s.target.q, 1) ** 2 / 2 - s.target.q**2 / (2 * 0.5)
+oscillation = EulerLagrangeInteraction('oscillation', target='circuit', states='q', lagrangian=energy)
+circuit = CompositeSystem(elements=[CoordinateElement('circuit', q=1.0)], interactions=[oscillation])
+simulate(circuit, until=3.14159, dt=3.14159 / 2).get_values('circuit.q').round(3).tolist()
+```
+
+The charge goes from 1 to 0 and to -1 in half a period, since the frequency `1 / sqrt(L C)` is 1.
+
+**How the engine runs it.** The interaction differentiates the Lagrangian and returns one equation per coordinate,
+`d/dt dL/dq' - dL/dq = Q - dR/dq'`, with the generalized forces `Q` and the dissipation `R`. The compiler solves the
+equations together for the accelerations, so a Lagrangian with a mass matrix, such as that of a double pendulum,
+needs no inversion by hand.
+
+```python continuation
+[law.__name__ for law in swing.law_classes]
+```
+
+The interaction emits equation laws, which hold at every time.
+
+**How it combines.** The role `target` binds an element or a group, and every role that binds one element adds its
+coordinates. Equations of one coordinate from several interactions add, so a spring between two pendulums is an
+interaction of its own whose Lagrangian holds only the coupling energy. `dissipation` and `forcing` add friction and
+external forces.
+
+**Limits and errors.** The coordinates are states of order 2, and the Lagrangian must be a function. `prepare` raises
+a `ValidationError` for a Lagrangian that is not one.
+
+```python continuation
+from skcomplex.core.errors import ValidationError
+
+try:
+    EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=0.5).prepare()
+except ValidationError as error:
+    message = str(error)
+message
+```
+
+The message reads "The lagrangian of 'swing' is 0.5. Give a function of the namespace." The fix is a function of
+the namespace, as above.
+
+**A field realization.** A field fixes the Lagrangian and names its parameters, such as a pendulum of length `l` under
+gravity `g`.
+
+```python continuation
+from skcomplex.core.specs import ParameterSpec
+
+
+class PendulumInteraction(EulerLagrangeInteraction):
+    def __init__(
+        self,
+        label,
+        *,
+        target,
+        g: Annotated[float, ParameterSpec()] = 9.81,
+        l: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        lagrangian = lambda s: s.l**2 * derivative(s.target.q, 1) ** 2 / 2 + s.g * s.l * cos(s.target.q)
+        super().__init__(label, target=target, states='q', lagrangian=lagrangian)
+        self.g = g
+        self.l = l
+
+
+PendulumInteraction('swing', target='bob', l=2.0).get_params()
+```
+
+Its parameters are the label, the target, `g`, and `l`.
+
+See its [API entry][skcomplex.systems.general.mechanics].
 
 ## DynamicalSystem
 

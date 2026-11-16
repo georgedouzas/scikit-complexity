@@ -12,8 +12,8 @@ from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import StateSpec
+from skcomplex.systems.general.mechanics import EulerLagrangeInteraction
 from skcomplex.systems.physics.celestial_mechanics import TwoBodyOrbitSystem
-from skcomplex.systems.physics.common.mechanics import EulerLagrangeInteraction
 from skcomplex.systems.physics.nonlinear_oscillators import HenonHeilesSystem
 
 MU = 0.01215

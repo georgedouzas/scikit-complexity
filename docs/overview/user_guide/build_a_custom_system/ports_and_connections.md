@@ -198,7 +198,7 @@ The voltage of the capacitor is 0.3679 after one second. It decays as `exp(-t / 
 through the load is that voltage over `R`. The ready-made systems of `skcomplex.systems.engineering.circuits` build
 their electrical and thermal components in the same way. A port component also drives a mechanism. Its
 `ConstraintLaw` then targets a coordinate of an
-[`EulerLagrangeInteraction`][skcomplex.systems.physics.common.mechanics] and adds to the equation of
+[`EulerLagrangeInteraction`][skcomplex.systems.general.mechanics] and adds to the equation of
 that coordinate, as `DcMotorSystem` of `skcomplex.systems.engineering.mechatronics` shows.
 
 ## The solve

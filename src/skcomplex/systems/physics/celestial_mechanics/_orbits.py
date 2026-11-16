@@ -26,7 +26,7 @@ from ....core.engine.solvers import RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ...general.gradients import GradientInteraction
-from ..common.mechanics import HamiltonianInteraction
+from ...physics.common.mechanics import HamiltonianInteraction
 from ..common.particles import MassPointElement, PotentialEnergyInteraction
 from .types import Preset
 

@@ -22,7 +22,7 @@ from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
-from ..common.mechanics import EulerLagrangeInteraction
+from ...general.mechanics import EulerLagrangeInteraction
 
 COORDINATES = ('u', 'theta', 'v', 'phi', 'psi')
 

@@ -36,7 +36,7 @@ below, then follow the link to its subsection.
   [Rates and relaxation](#rates-and-relaxation).
 - Move states down a potential, or write the mechanics of a Lagrangian or a Hamiltonian:
   [`GradientInteraction`](../core_components/general.md#gradientinteraction),
-  [`EulerLagrangeInteraction`][skcomplex.systems.physics.common.mechanics], and
+  [`EulerLagrangeInteraction`][skcomplex.systems.general.mechanics], and
   [`HamiltonianInteraction`][skcomplex.systems.physics.common.mechanics], in [Gradients and mechanics](#gradients-and-mechanics).
 - Evolve a metric by the Einstein equations, or move a particle along its geodesics: the physics classes in
   [Curved spacetimes](#curved-spacetimes).
@@ -306,8 +306,8 @@ The planet returns to `x = 1.0` after one period `2 pi` of its circular orbit.
 
 The [solver](../glossary.md#solver) `Yoshida4Solver` integrates a separable Hamiltonian at fourth order by three
 velocity Verlet steps. It first splits the states into two blocks whose rates read only the other block. It keeps the
-energy bounded over long runs. The mechanics family `skcomplex.systems.physics.common.mechanics` writes these laws
-from a Lagrangian or a Hamiltonian with its `EulerLagrangeInteraction` and `HamiltonianInteraction`.
+energy bounded over long runs. The shared mechanics `skcomplex.systems.general.mechanics` writes these laws
+from a Lagrangian with its `EulerLagrangeInteraction`.
 
 `invariants` decides whether expressions given as `Observable`s are conserved by the equations of any system.
 
@@ -319,7 +319,7 @@ momentum = Observable('angular_momentum', lambda s: s.planet.x * s.planet.py - s
 invariants(system, expressions=[momentum]).conserved
 ```
 
-The angular momentum is conserved. The mechanics family adds `poisson_brackets`, the brackets over the canonical
+The angular momentum is conserved. The mechanics family of physics adds `poisson_brackets`, the brackets over the canonical
 pairs, and `noether`, which checks a symmetry against the Hamiltonian or the Lagrangian and gives its Noether charge,
 the quantity that a continuous symmetry conserves.
 

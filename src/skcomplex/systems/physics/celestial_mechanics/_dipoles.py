@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.laws.utils import derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..common.mechanics import EulerLagrangeInteraction
+from ...general.mechanics import EulerLagrangeInteraction
 
 
 class DipoleChargeElement(Element):

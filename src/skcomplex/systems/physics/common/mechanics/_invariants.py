@@ -19,7 +19,7 @@ from .....core.components.interactions import BaseInteraction
 from .....core.components.laws.utils import derivative
 from .....core.components.systems import CompositeSystem
 from .....core.errors import AnalysisError
-from ._euler_lagrange import EulerLagrangeInteraction
+from ....general.mechanics import EulerLagrangeInteraction
 from ._hamiltonian import HamiltonianInteraction
 from ._symmetry_spec import SymmetrySpec
 

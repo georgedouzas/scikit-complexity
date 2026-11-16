@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import Expression, cos
 
 from .....core.components.laws.utils import derivative
 from .....core.specs import RoleSpec
-from ._euler_lagrange import EulerLagrangeInteraction
+from ....general.mechanics import EulerLagrangeInteraction
 
 
 class PendulumInteraction(EulerLagrangeInteraction):

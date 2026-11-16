@@ -18,7 +18,7 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
-from ..common.mechanics import EulerLagrangeInteraction
+from ...general.mechanics import EulerLagrangeInteraction
 
 
 class GyroscopeElement(Element):

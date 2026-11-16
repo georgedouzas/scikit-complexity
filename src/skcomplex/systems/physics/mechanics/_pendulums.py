@@ -22,7 +22,8 @@ from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common.mechanics import EulerLagrangeInteraction, PendulumElement, PendulumInteraction
+from ...general.mechanics import EulerLagrangeInteraction
+from ..common.mechanics import PendulumElement, PendulumInteraction
 from ..common.particles import (
     DampingInteraction,
     HarmonicPotentialInteraction,

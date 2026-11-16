@@ -24,7 +24,7 @@ from ....core.errors import ParameterError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
-from ..common.mechanics import HamiltonianInteraction
+from ...physics.common.mechanics import HamiltonianInteraction
 from ..common.oscillators import StuartLandauElement
 
 SPRINGS = ('tangent', 'linear')
