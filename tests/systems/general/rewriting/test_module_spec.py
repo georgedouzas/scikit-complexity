@@ -1,9 +1,9 @@
-"""Test the `_module_spec` module of `skcomplex.core.components.laws`."""
+"""Test the `_module_spec` module of `skcomplex.systems.general.rewriting`."""
 
 import pytest
 
-from skcomplex.core.components.laws import ModuleSpec
 from skcomplex.core.errors import RewritingError
+from skcomplex.systems.general.rewriting import ModuleSpec
 
 
 @pytest.mark.parametrize('spec', [ModuleSpec('')])

@@ -10,8 +10,8 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...errors import RewritingError
-from ...specs._base_spec import BaseSpec
+from ....core.errors import RewritingError
+from ....core.specs import BaseSpec
 
 type Letters = str | ModuleSpec | Sequence[str | ModuleSpec]
 
@@ -30,7 +30,7 @@ class ModuleSpec(BaseSpec):
             The parameters, numbers in a word and symbols or expressions in a production.
 
     Examples:
-        >>> from skcomplex.core.components.laws import ModuleSpec
+        >>> from skcomplex.systems.general.rewriting import ModuleSpec
         >>> ModuleSpec('F', (0.5,)).parameters
         (0.5,)
     """
@@ -68,7 +68,7 @@ class ModuleSpec(BaseSpec):
                 The modules of the word.
 
         Examples:
-            >>> from skcomplex.core.components.laws import ModuleSpec
+            >>> from skcomplex.systems.general.rewriting import ModuleSpec
             >>> [module.name for module in ModuleSpec.parse_word(['F', ModuleSpec('A', (1.0,)), '+-'])]
             ['F', 'A', '+', '-']
         """

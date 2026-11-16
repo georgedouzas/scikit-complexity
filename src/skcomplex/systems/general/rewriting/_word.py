@@ -6,12 +6,13 @@
 from collections.abc import Mapping, Sequence
 from typing import Annotated
 
-from ...errors import RewritingError
-from ...specs import StateSpec, VisualSpec
-from ..laws import Letters
-from ..spaces import BaseSpace
-from ._element import Element
+from ....core.components.elements import Element
+from ....core.components.spaces import BaseSpace
+from ....core.errors import RewritingError
+from ....core.specs import StateSpec, VisualSpec
 from ._geometry_spec import GeometrySpec
+from ._geometry_visual import GeometryVisual
+from ._module_spec import Letters
 
 
 class WordElement(Element):
@@ -55,8 +56,8 @@ class WordElement(Element):
         In Lindenmayer's algae `A` becomes `AB` and `B` becomes `A`, so the length of the word runs through the
         Fibonacci numbers.
 
-        >>> from skcomplex.core.components.elements import WordElement
-        >>> from skcomplex.core.components.laws import ProductionLaw
+        >>> from skcomplex.systems.general.rewriting import WordElement
+        >>> from skcomplex.systems.general.rewriting import ProductionLaw
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class AlgaeElement(WordElement):
@@ -69,7 +70,7 @@ class WordElement(Element):
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """
 
-    visual = VisualSpec('geometry')
+    visual = VisualSpec(GeometryVisual)
 
     def __init__(
         self,

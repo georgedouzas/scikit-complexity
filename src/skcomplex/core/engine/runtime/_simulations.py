@@ -27,7 +27,6 @@ from ..backends import BaseBackend
 from ..compile import BaseCompiler
 from ..compile._observables import ObservableEvaluator
 from ..compile._pass_compiler import PassCompiler
-from ..compile._rewriting_compiler import RewritingCompiler
 from ..compile.passes._operator_compiler import OperatorCompiler
 from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec, RunStateSpec
 from ..problems._draw_recorder import DrawRecorder
@@ -38,10 +37,10 @@ from ..solvers import (
     MinimizeSolver,
     RootSolver,
     StepSpec,
+    StructureStateSpec,
 )
 from ..solvers._agent_state_spec import _AgentStateSpec
 from ..solvers._defaults import DEFAULT_SOLVERS
-from ..solvers._structure_state_spec import _StructureStateSpec
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver
 from ._invariants import InvariantObserver
@@ -361,8 +360,8 @@ class Simulation(BaseConfig[None, float]):
         """
         external = self.stepper_.snapshot_
         agents, reporters = (external.groups, external.reporters) if isinstance(external, _AgentStateSpec) else ({}, {})
-        structures = external.structures if isinstance(external, _StructureStateSpec) else {}
-        reporters = external.reporters if isinstance(external, _StructureStateSpec) else reporters
+        structures = external.structures if isinstance(external, StructureStateSpec) else {}
+        reporters = external.reporters if isinstance(external, StructureStateSpec) else reporters
         state = self._get_frame_state()
         observables = cast(
             dict[str, npt.ArrayLike],
@@ -538,8 +537,6 @@ class Simulation(BaseConfig[None, float]):
         """
         if OperatorCompiler._contains_operator(system):
             return OperatorCompiler()
-        if RewritingCompiler._is_rewriting(system):
-            return RewritingCompiler()
         return None
 
     def _check_report(self, compiler: BaseCompiler) -> None:

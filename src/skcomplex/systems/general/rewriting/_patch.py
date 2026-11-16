@@ -6,11 +6,12 @@
 from collections.abc import Sequence
 from typing import Annotated
 
-from ...errors import RewritingError
-from ...specs import StateSpec, VisualSpec
-from ..laws import AffineSpec
-from ..spaces import BaseSpace
-from ._element import Element
+from ....core.components.elements import Element
+from ....core.components.spaces import BaseSpace
+from ....core.errors import RewritingError
+from ....core.specs import StateSpec, VisualSpec
+from ._affine_spec import AffineSpec
+from ._geometry_visual import GeometryVisual
 from ._prototile_spec import PrototileSpec
 
 
@@ -51,12 +52,12 @@ class PatchElement(Element):
     Examples:
         Each step keeps the outer thirds of every interval, which builds the Cantor set.
 
-        >>> from skcomplex.core.components.elements import PatchElement
-        >>> from skcomplex.core.components.laws import SubstitutionLaw
+        >>> from skcomplex.systems.general.rewriting import PatchElement
+        >>> from skcomplex.systems.general.rewriting import SubstitutionLaw
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.laws import AffineSpec
-        >>> from skcomplex.core.components.elements import PrototileSpec
+        >>> from skcomplex.systems.general.rewriting import AffineSpec
+        >>> from skcomplex.systems.general.rewriting import PrototileSpec
         >>> class CantorElement(PatchElement):
         ...     law_classes = (SubstitutionLaw,)
         ...
@@ -68,7 +69,7 @@ class PatchElement(Element):
         [1.0, 2.0, 4.0, 8.0]
     """
 
-    visual = VisualSpec('geometry')
+    visual = VisualSpec(GeometryVisual)
 
     def __init__(
         self,

@@ -1,9 +1,9 @@
-"""Test the `_geometry_spec` module of `skcomplex.core.components.elements`."""
+"""Test the `_geometry_spec` module of `skcomplex.systems.general.rewriting`."""
 
 import pytest
 
-from skcomplex.core.components.elements import GeometrySpec
 from skcomplex.core.errors import RewritingError
+from skcomplex.systems.general.rewriting import GeometrySpec
 
 
 @pytest.mark.parametrize('spec', [GeometrySpec(symbols={'X': 'jump'}), GeometrySpec(dimension=4)])

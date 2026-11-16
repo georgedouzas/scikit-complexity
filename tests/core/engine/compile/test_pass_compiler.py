@@ -71,7 +71,6 @@ from skcomplex.core.engine._utils import domain_of, symbol
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile import BasePass, IssueSpec, ValidationReportSpec
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
 from skcomplex.core.engine.compile.passes._flatten import FlattenPass
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.problems import ProblemSpec
@@ -508,7 +507,6 @@ def test_general_compiler_names_the_compiler_of_a_operator_system():
     """Test that the general compiler reports an operator system with the compiler it needs, which compiles it."""
     system = CompositeSystem(elements=[QubitElement('q')])
     assert OperatorCompiler().prepare(system).report_.ok
-    assert not RewritingCompiler().prepare(system).report_.ok
     compiler = PassCompiler().prepare(system)
     assert not compiler.report_.ok
     with pytest.raises(ValidationError, match=r'compiler=OperatorCompiler\(\)'):

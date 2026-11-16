@@ -6,11 +6,10 @@
 import numbers
 from typing import ClassVar
 
-from ...errors import RewritingError
-from ..spaces import DiscreteTime
-from ._base import BaseLaw
+from ....core.components.laws import BaseLaw, RequirementSpec
+from ....core.components.spaces import DiscreteTime
+from ....core.errors import RewritingError
 from ._module_spec import Letters, ModuleSpec
-from ._requirement_spec import RequirementSpec
 
 
 class ProductionLaw(BaseLaw):
@@ -57,7 +56,7 @@ class ProductionLaw(BaseLaw):
             The modules of the successor, set by `run`.
 
     Examples:
-        >>> from skcomplex.core.components.laws import ProductionLaw
+        >>> from skcomplex.systems.general.rewriting import ProductionLaw
         >>> [module.name for module in ProductionLaw('F', 'F+F--F+F').prepare().run({}).value_]
         ['F', '+', 'F', '-', '-', 'F', '+', 'F']
     """

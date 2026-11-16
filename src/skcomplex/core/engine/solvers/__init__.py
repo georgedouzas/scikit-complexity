@@ -36,7 +36,6 @@ from ._operator import OperatorSolver
 from ._optimal_control import OptimalControlSolver
 from ._pontryagin import PontryaginSolver
 from ._renewal import RenewalSolver
-from ._rewriting import RewritingSolver
 from ._rk4 import RK4Solver
 from ._root import RootSolver
 from ._scipy_ode import ScipyODESolver
@@ -47,6 +46,7 @@ from ._split import SplitSolver
 from ._ssprk import SSPRKSolver
 from ._step_spec import StepSpec
 from ._strang_splitting import StrangSplittingSolver
+from ._structure_state_spec import StructureStateSpec
 from ._unitary import UnitarySolver
 from ._velocity_verlet import VelocityVerletSolver
 from ._yoshida4 import Yoshida4Solver
@@ -90,7 +90,6 @@ __all__: list[str] = [
     'PontryaginSolver',
     'RK4Solver',
     'RenewalSolver',
-    'RewritingSolver',
     'RootSolver',
     'SDESolver',
     'SSPRKSolver',
@@ -100,6 +99,7 @@ __all__: list[str] = [
     'SplitSolver',
     'StepSpec',
     'StrangSplittingSolver',
+    'StructureStateSpec',
     'SystemView',
     'UnitarySolver',
     'VelocityVerletSolver',

@@ -246,7 +246,6 @@ Both populations are drawn by a `ScalarsVisual`, one at the path `prey` and one 
 | `'bodies'` | `BodiesVisual` | bodies at positions computed from the states of an element |
 | `'matrix'` | `MatrixVisual` | a matrix-valued state or parameter as an image |
 | `'expectations'` | `ExpectationVisual` | the local expectations of operator elements and groups |
-| `'geometry'` | `GeometryVisual` | the structure of a rewritten element |
 | `'linear_program'` | `LinearProgramVisual` | the linear program of an element |
 
 The default visuals follow the kind of element:

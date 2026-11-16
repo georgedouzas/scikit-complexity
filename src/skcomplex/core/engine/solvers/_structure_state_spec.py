@@ -10,7 +10,7 @@ from ...specs._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)
-class _StructureStateSpec(BaseSpec):
+class StructureStateSpec(BaseSpec):
     """A spec of the structures of elements kept outside the state vector.
 
     They are held at one frame, with their measures.

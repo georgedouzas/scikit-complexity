@@ -6,11 +6,10 @@
 from collections.abc import Sequence
 from typing import ClassVar
 
-from ...errors import RewritingError
-from ..spaces import DiscreteTime
+from ....core.components.laws import BaseLaw, RequirementSpec
+from ....core.components.spaces import DiscreteTime
+from ....core.errors import RewritingError
 from ._affine_spec import AffineSpec
-from ._base import BaseLaw
-from ._requirement_spec import RequirementSpec
 
 PIECE_SIZE = 2
 
@@ -43,8 +42,8 @@ class SubstitutionLaw(BaseLaw):
             Pairs of a prototile name and the scale, the rotation, and the translation of its map, set by `run`.
 
     Examples:
-        >>> from skcomplex.core.components.laws import SubstitutionLaw
-        >>> from skcomplex.core.components.laws import AffineSpec
+        >>> from skcomplex.systems.general.rewriting import SubstitutionLaw
+        >>> from skcomplex.systems.general.rewriting import AffineSpec
         >>> len(SubstitutionLaw('interval', [('interval', AffineSpec(scale=1 / 3))]).pieces)
         1
     """

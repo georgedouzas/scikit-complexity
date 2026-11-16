@@ -11,17 +11,16 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ...components.elements import TURTLE_SYMBOLS, GeometrySpec, WordElement
-from ...components.laws import Letters, ModuleSpec, ProductionLaw
-from ...errors import RewritingError
-from .._utils import symbols_of
-from ..types import Arrays
-from ._base import BaseKernel
-from ._base_problem_spec import BaseProblemSpec
+from ....core.engine._utils import symbols_of
+from ....core.engine.problems import BaseKernel, BaseProblemSpec, ExpressionPrinter, RunStateSpec
+from ....core.engine.types import Arrays
+from ....core.errors import RewritingError
 from ._base_structure_spec import BaseStructureSpec
-from ._expression_printer import ExpressionPrinter
+from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
 from ._group_spec import _GroupSpec
+from ._module_spec import Letters, ModuleSpec
 from ._parameters_spec import _ParametersSpec
+from ._production import ProductionLaw
 from ._rewriting_loops import (
     ACTION_CODES,
     DRAW,
@@ -38,8 +37,8 @@ from ._rewriting_loops import (
     _neighbors,
     _walk_word,
 )
-from ._run_state_spec import RunStateSpec
 from ._successor_spec import _SuccessorSpec
+from ._word import WordElement
 from ._word_structure_spec import WordStructureSpec
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
@@ -52,6 +51,12 @@ class WordKernel(BaseKernel):
     """A kernel of the string rewriting system of one word, compiled to array passes.
 
     It holds its alphabet, productions, and geometry.
+
+    Unlike `PatchKernel`, which places tiles, it rewrites a string of symbols, with contexts, conditions, and
+    probabilities. Choose it when the structure is a word.
+
+    It appears in many fields. It grows the L-systems of botany, the Koch curve of mathematics, and the substitution
+    sequences of computer science.
 
     Args:
         path:

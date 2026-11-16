@@ -9,15 +9,14 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.elements import PatchElement
-from ...components.laws import AffineSpec, SubstitutionLaw
-from ...errors import RewritingError
-from ._base import BaseKernel
-from ._base_problem_spec import BaseProblemSpec
+from ....core.engine.problems import BaseKernel, BaseProblemSpec, RunStateSpec
+from ....core.errors import RewritingError
+from ._affine_spec import AffineSpec
 from ._base_structure_spec import BaseStructureSpec
 from ._parameters_spec import _ParametersSpec
+from ._patch import PatchElement
 from ._patch_structure_spec import PatchStructureSpec
-from ._run_state_spec import RunStateSpec
+from ._substitution import SubstitutionLaw
 from ._word_kernel import IDENTIFIER
 
 
@@ -25,6 +24,12 @@ class PatchKernel(BaseKernel):
     """A kernel of the substitution system of one patch.
 
     It is compiled to batched products of affine matrices.
+
+    Unlike `WordKernel`, which rewrites a string, it replaces placed tiles by placed pieces. Choose it when the
+    structure is a tiling.
+
+    It appears in many fields. It grows the Cantor set and the Sierpinski triangle of mathematics and the
+    substitution tilings of quasicrystals.
 
     Args:
         path:

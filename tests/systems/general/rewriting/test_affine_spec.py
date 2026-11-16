@@ -1,10 +1,10 @@
-"""Test the `_affine_spec` module of `skcomplex.core.components.laws`."""
+"""Test the `_affine_spec` module of `skcomplex.systems.general.rewriting`."""
 
 import numpy as np
 import pytest
 
-from skcomplex.core.components.laws import AffineSpec
 from skcomplex.core.errors import RewritingError
+from skcomplex.systems.general.rewriting import AffineSpec
 
 
 @pytest.mark.parametrize('spec', [AffineSpec(translation=(1, 0, 0)), AffineSpec(matrix=np.eye(2))])

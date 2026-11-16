@@ -9,16 +9,11 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..problems import (
-    BaseProblemSpec,
-    BaseStructureSpec,
-    CompiledElementSpec,
-    FrameSpec,
-    PatchStructureSpec,
-    WordStructureSpec,
-)
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
-from ._base import BaseVisual
+from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ....core.engine.viz import BaseVisual
+from ._base_structure_spec import BaseStructureSpec
+from ._patch_structure_spec import PatchStructureSpec
+from ._word_structure_spec import WordStructureSpec
 
 MARGIN = 0.03
 SPACE_DIMENSION = 3
@@ -34,6 +29,12 @@ class GeometryVisual(BaseVisual):
     batch of line strips, colored by branch depth or by prototile. A filled patch is an image of its raster instead. The
     counts of symbols or prototiles are logged as series under `<path>/counts/<state>`.
 
+    Unlike `PointsVisual`, which draws members at their positions, it draws a structure that grows outside the state
+    vector. Choose it when an element is a word or a patch.
+
+    It appears in many fields. It draws the plants of botany, the fractal curves and tilings of mathematics, and the
+    sequences of symbolic dynamics.
+
     Args:
         filled:
             Whether to draw polygons as a filled image, or `None` to follow the patch.
@@ -48,7 +49,7 @@ class GeometryVisual(BaseVisual):
             The Rerun recording to log to, or `None` for the active recording of the thread.
 
     Examples:
-        >>> from skcomplex.core.engine.viz import GeometryVisual
+        >>> from skcomplex.systems.general.rewriting import GeometryVisual
         >>> GeometryVisual(filled=True)
         GeometryVisual(filled=True)
     """
@@ -101,7 +102,7 @@ class GeometryVisual(BaseVisual):
 
     def _get_views(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: object,
         problem: BaseProblemSpec,
     ) -> list[rrb.View]:
         """Return the view of the geometry and a time series view of the counts.
@@ -110,7 +111,7 @@ class GeometryVisual(BaseVisual):
 
         Args:
             element:
-                The compiled element, with its path.
+                The compiled element, with its path, or a group of agents, which has no geometry.
 
             problem:
                 The compiled problem the element belongs to.
@@ -118,15 +119,15 @@ class GeometryVisual(BaseVisual):
         Returns:
             views:
                 A 3D view for a word geometry in three dimensions, or a 2D view
-                otherwise, followed by the time series view.
+                otherwise, followed by the time series view, or none for a group of agents.
 
         Examples:
-            >>> from skcomplex.core.components.elements import WordElement
-            >>> from skcomplex.core.components.laws import ProductionLaw
+            >>> from skcomplex.systems.general.rewriting import WordElement
+            >>> from skcomplex.systems.general.rewriting import ProductionLaw
             >>> from skcomplex.core.components.spaces import DiscreteTime
-            >>> from skcomplex.core.components.elements import GeometrySpec
+            >>> from skcomplex.systems.general.rewriting import GeometrySpec
             >>> from skcomplex.core.components.systems import CompositeSystem
-            >>> from skcomplex.core.engine.viz import GeometryVisual
+            >>> from skcomplex.systems.general.rewriting import GeometryVisual
             >>> class KochElement(WordElement):
             ...     def _get_laws(self, namespace):
             ...         return [ProductionLaw('F', 'F+F--F+F')]
@@ -138,14 +139,13 @@ class GeometryVisual(BaseVisual):
             ['Spatial2DView', 'TimeSeriesView']
         """
         del problem
+        if not isinstance(element, CompiledElementSpec):
+            return []
         path = element.path
         series = rrb.TimeSeriesView(origin=f'{path}/counts', name=f'{path} counts')
-        component = element.element
-        geometry = getattr(component, 'geometry', None)
+        geometry = getattr(element.element, 'geometry', None)
         if geometry is not None and geometry.dimension == SPACE_DIMENSION:
             return [rrb.Spatial3DView(origin=path, name=path), series]
-        if not isinstance(element, CompiledElementSpec):
-            return [rrb.Spatial2DView(origin=path, name=path), series]
         bounds = self._get_bounds_of(element)
         if bounds is None or self._is_filled(element):
             return [rrb.Spatial2DView(origin=path, name=path), series]

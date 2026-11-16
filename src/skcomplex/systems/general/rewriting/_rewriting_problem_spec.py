@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass, field
 
-from ._base_problem_spec import BaseProblemSpec
+from ....core.engine.problems import BaseProblemSpec
 from ._patch_kernel import PatchKernel
 from ._word_kernel import WordKernel
 

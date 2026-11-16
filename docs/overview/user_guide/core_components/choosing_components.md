@@ -63,7 +63,7 @@ flowchart TD
 | a vector, such as a position | [`Element`](elements.md#element) with `StateSpec(vector=True)`, or the recipe [`PointElement`](general.md#pointelement) |
 | many alike members | [`GroupElement`](elements.md#groupelement) |
 | a value at every site of a space | [`FieldElement`](elements.md#fieldelement) |
-| a word or a pattern of tiles | [`WordElement`](elements.md#wordelement) or [`PatchElement`](elements.md#patchelement) |
+| a word or a pattern of tiles | the recipe [`WordElement`](general.md#wordelement) or [`PatchElement`](general.md#patchelement) |
 
 An amount that cannot be negative, such as a count or a sum of money, has the recipe
 [`NonnegativeElement`](general.md#nonnegativeelement).

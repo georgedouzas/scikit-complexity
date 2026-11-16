@@ -1,9 +1,9 @@
-"""Test the `_prototile_spec` module of `skcomplex.core.components.elements`."""
+"""Test the `_prototile_spec` module of `skcomplex.systems.general.rewriting`."""
 
 import pytest
 
-from skcomplex.core.components.elements import PrototileSpec
 from skcomplex.core.errors import RewritingError
+from skcomplex.systems.general.rewriting import PrototileSpec
 
 
 @pytest.mark.parametrize('spec', [PrototileSpec('point', [(0, 0)])])

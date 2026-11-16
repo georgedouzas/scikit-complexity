@@ -8,9 +8,9 @@ from dataclasses import KW_ONLY, dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...components.laws import ModuleSpec
-from ...types import AnyArray
+from ....core.types import AnyArray
 from ._base_structure_spec import BaseStructureSpec
+from ._module_spec import ModuleSpec
 
 
 @dataclass(frozen=True)
@@ -40,7 +40,7 @@ class WordStructureSpec(BaseStructureSpec):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.problems import WordStructureSpec
+        >>> from skcomplex.systems.general.rewriting._word_structure_spec import WordStructureSpec
         >>> WordStructureSpec(('A', 'B'), np.array([0, 1, 0]), np.zeros((3, 0)), 2).text
         'ABA'
     """

@@ -10,24 +10,24 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, Expression
 
-from ...components.elements import GroupElement, PatchElement, WordElement
-from ...components.laws import ProductionLaw, SubstitutionLaw
-from ...components.systems import CompositeSystem
-from ...enums import FormKind, VariableKind
-from ...errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
-from ...specs import EntrySpec
-from .._utils import declarations_of, symbol
-from ..problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
-from ..problems._node_spec import _NodeSpec
-from ..problems._parameters_spec import _ParametersSpec
-from ..problems._patch_kernel import PatchKernel
-from ..problems._rewriting_problem_spec import RewritingProblemSpec
-from ..problems._word_kernel import WordKernel
-from ._base import BaseCompiler
-from ._issue_spec import IssueSpec
-from .passes._flatten import FlattenPass
-from .passes._layout import LayoutPass
-from .passes._problem import ProblemPass
+from ....core.components.elements import Element, GroupElement
+from ....core.components.spaces import BaseSpace
+from ....core.components.systems import CompositeSystem
+from ....core.engine._utils import declarations_of, default_of, symbol
+from ....core.engine.compile import BaseCompiler, FlattenPass, IssueSpec
+from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
+from ....core.enums import FormKind, VariableKind
+from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
+from ....core.specs import EntrySpec, VisualSpec
+from ._parameters_spec import _ParametersSpec
+from ._patch import PatchElement
+from ._patch_kernel import PatchKernel
+from ._production import ProductionLaw
+from ._rewriting_problem_spec import RewritingProblemSpec
+from ._rewriting_solver import RewritingSolver
+from ._substitution import SubstitutionLaw
+from ._word import WordElement
+from ._word_kernel import WordKernel
 
 LAWS_OF = {'sequence': ProductionLaw, 'tiling': SubstitutionLaw}
 PRODUCTION_LAWS = (ProductionLaw, SubstitutionLaw)
@@ -42,9 +42,16 @@ class RewritingCompiler(BaseCompiler):
 
     The backend, the solver, and the initial state do not change a problem of the rewriting form.
 
+    Unlike the pass compiler of the core, which lowers laws to the equations of a form, it compiles each word or patch
+    to a kernel of its own and names `RewritingSolver` as the solver of its problems. Choose it for a system of words
+    or patches.
+
+    It appears in many fields. It compiles the L-systems of botany, the fractals of mathematics, and the substitution
+    sequences of computer science.
+
     Examples:
         >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
+        >>> from skcomplex.systems.general.rewriting._rewriting_compiler import RewritingCompiler
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> RewritingCompiler().prepare(CompositeSystem(elements=[PopulationElement('rabbits')])).report_.ok
         False
@@ -88,6 +95,20 @@ class RewritingCompiler(BaseCompiler):
         del initial_state
         return self._compile_rewriting(self.system_)
 
+    def _get_solver(self, problem: BaseProblemSpec) -> RewritingSolver:
+        """Return the rewriting solver, which rewrites one generation per step.
+
+        Args:
+            problem:
+                The compiled problem.
+
+        Returns:
+            solver:
+                The rewriting solver.
+        """
+        del problem
+        return RewritingSolver()
+
     @staticmethod
     def _is_rewriting(system: CompositeSystem) -> bool:
         """Check whether a system holds a word or a patch.
@@ -110,22 +131,22 @@ class RewritingCompiler(BaseCompiler):
         return component.element if isinstance(component, GroupElement) else type(component)
 
     @staticmethod
-    def _get_productions(node: _NodeSpec, namespace: SimpleNamespace) -> list[Production]:
+    def _get_productions(path: str, element: Element, namespace: SimpleNamespace) -> list[Production]:
         """Return the checked productions or substitutions of a word or a patch."""
-        laws = node.as_element._get_laws(namespace)
+        laws = element._get_laws(namespace)
         productions = [law for law in laws if isinstance(law, PRODUCTION_LAWS)]
         wrong = [law for law in laws if not isinstance(law, PRODUCTION_LAWS)]
         if wrong:
             error_msg = (
-                f'{node.path} returns {type(wrong[0]).__name__} from `_get_laws`, but a word or a patch '
+                f'{path} returns {type(wrong[0]).__name__} from `_get_laws`, but a word or a patch '
                 'changes by its productions only. Return ProductionLaw or SubstitutionLaw laws.'
             )
             raise RewritingError(error_msg)
-        return [law.prepare(node.path) for law in productions]
+        return [law.prepare(path) for law in productions]
 
     @staticmethod
     def _get_parameters(
-        nodes: list[_NodeSpec],
+        elements: Mapping[str, Element],
     ) -> tuple[list[EntrySpec], list[float], dict[str, SimpleNamespace], dict[str, Expression]]:
         """Return the parameter entries and values of the rewritten elements.
 
@@ -135,25 +156,26 @@ class RewritingCompiler(BaseCompiler):
         values: list[float] = []
         namespaces: dict[str, SimpleNamespace] = {}
         symbols: dict[str, Expression] = {}
-        for node in nodes:
+        for path, element in elements.items():
             names = {}
-            for name, declaration in declarations_of(type(node.component), VariableKind.PARAMETER).items():
-                value = LayoutPass._get_value_of(node, name)
+            for name, declaration in declarations_of(type(element), VariableKind.PARAMETER).items():
+                value = getattr(element, name) if hasattr(element, name) else default_of(element, name)
                 number = np.asarray(value)
                 if number.ndim or not EntrySpec._contains(declaration.domain, value):
-                    error_msg = f'{node.path}.{name} = {value!r} is not a number in the {declaration.domain} domain.'
+                    error_msg = f'{path}.{name} = {value!r} is not a number in the {declaration.domain} domain.'
                     raise ValidationError(error_msg)
-                dotted = f'{node.path}.{name}'
-                names[name] = symbol(f'{name}_{node.path}'.replace('/', '_').replace('-', '_'))
+                dotted = f'{path}.{name}'
+                names[name] = symbol(f'{name}_{path}'.replace('/', '_').replace('-', '_'))
                 symbols[dotted] = names[name]
                 entries.append(EntrySpec(dotted, len(entries), (), declaration.domain))
                 values.append(float(number))
-            namespaces[node.path] = SimpleNamespace(**names, t=symbol('t'))
+            namespaces[path] = SimpleNamespace(**names, t=symbol('t'))
         return entries, values, namespaces, symbols
 
     @staticmethod
     def _get_compiled(
-        node: _NodeSpec,
+        path: str,
+        element: Element,
         laws: list[Production],
         parameters: _ParametersSpec,
         values: npt.NDArray[np.float64],
@@ -162,22 +184,19 @@ class RewritingCompiler(BaseCompiler):
 
         It is compiled from the laws that target the element.
         """
-        element = node.component
         kind = RewritingCompiler._get_structure_of(type(element))
         if kind is None:
-            error_msg = f'{node.path} holds no sequence or tiling that rewriting laws rewrite.'
+            error_msg = f'{path} holds no sequence or tiling that rewriting laws rewrite.'
             raise ValidationError(error_msg)
         expected = LAWS_OF[kind]
         wrong = [law for law in laws if not isinstance(law, expected)]
         if wrong:
-            error_msg = (
-                f'{type(element).__name__} {node.path!r} is rewritten by {expected.__name__}s, but got {wrong[0]!r}.'
-            )
+            error_msg = f'{type(element).__name__} {path!r} is rewritten by {expected.__name__}s, but got {wrong[0]!r}.'
             raise RewritingError(error_msg)
         kernel: WordKernel | PatchKernel
         if isinstance(element, WordElement):
             kernel = WordKernel(
-                node.path,
+                path,
                 element,
                 [law for law in laws if isinstance(law, ProductionLaw)],
                 parameters,
@@ -185,16 +204,23 @@ class RewritingCompiler(BaseCompiler):
             )
         elif isinstance(element, PatchElement):
             kernel = PatchKernel(
-                node.path,
+                path,
                 element,
                 [law for law in laws if isinstance(law, SubstitutionLaw)],
                 parameters,
             )
         else:
-            error_msg = f'{node.path} holds no sequence or tiling that rewriting laws rewrite.'
+            error_msg = f'{path} holds no sequence or tiling that rewriting laws rewrite.'
             raise ValidationError(error_msg)
         kernel._compile()
         return kernel
+
+    @staticmethod
+    def _get_visual_of(element: Element, space: BaseSpace | None) -> VisualSpec:
+        """Return the visual of a word or a patch, the drawing its class gives."""
+        prepared = 'default_visual_' in vars(element)
+        default: VisualSpec = (element if prepared else element.prepare(space)).default_visual_
+        return default
 
     @staticmethod
     def _get_structure_of(element_type: type) -> str | None:
@@ -231,9 +257,9 @@ class RewritingCompiler(BaseCompiler):
         Examples:
             >>> from skcomplex.core.components.spaces import DiscreteTime
             >>> from skcomplex.core.components.systems import CompositeSystem
-            >>> from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
-            >>> from skcomplex.core.components.laws import ProductionLaw
-            >>> from skcomplex.core.components.elements import WordElement
+            >>> from skcomplex.systems.general.rewriting._rewriting_compiler import RewritingCompiler
+            >>> from skcomplex.systems.general.rewriting import ProductionLaw
+            >>> from skcomplex.systems.general.rewriting import WordElement
             >>> class AlgaeElement(WordElement):
             ...     def _get_laws(self, namespace):
             ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
@@ -243,7 +269,7 @@ class RewritingCompiler(BaseCompiler):
             ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])
         """
         nodes = FlattenPass._flatten_system(system)
-        elements = {
+        rewritten = {
             node.path: node
             for node in nodes
             if RewritingCompiler._get_structure_of(RewritingCompiler._get_type_of(node.component))
@@ -252,23 +278,25 @@ class RewritingCompiler(BaseCompiler):
             if isinstance(node.component, GroupElement) and RewritingCompiler._get_structure_of(node.component.element):
                 error_msg = f'{node.path} is a group of rewritten elements. Declare one element per structure.'
                 raise RewritingError(error_msg)
-            if node.path not in elements:
+            if node.path not in rewritten:
                 error_msg = (
                     f'{node.path} takes no part in rewriting, but its system holds words or patches. A '
                     'rewriting system holds only rewritten elements, which rewrite themselves by their laws.'
                 )
                 raise IncompatibleLawsError(error_msg)
-        entries, values, namespaces, symbols = RewritingCompiler._get_parameters(nodes)
+        elements = {path: node.component for path, node in rewritten.items() if isinstance(node.component, Element)}
+        entries, values, namespaces, symbols = RewritingCompiler._get_parameters(elements)
         parameters = _ParametersSpec(tuple(symbols.values()), symbol('t'))
         initial_parameters = np.asarray(values, dtype=float)
         compiled = tuple(
             RewritingCompiler._get_compiled(
-                node,
-                RewritingCompiler._get_productions(node, namespaces[path]),
+                path,
+                element,
+                RewritingCompiler._get_productions(path, element, namespaces[path]),
                 parameters,
                 initial_parameters,
             )
-            for path, node in elements.items()
+            for path, element in elements.items()
         )
         states: list[EntrySpec] = []
         initial: list[float] = []
@@ -282,7 +310,7 @@ class RewritingCompiler(BaseCompiler):
                     element=component,
                     states={name: f'{item.path}.{name}' for name in names},
                     parameters={name: f'{item.path}.{name}' for name in vars(namespaces[item.path]) if name != 't'},
-                    visual=ProblemPass._get_visual_of(elements[item.path]),
+                    visual=RewritingCompiler._get_visual_of(elements[item.path], rewritten[item.path].space),
                 ),
             )
             for name in names:

@@ -9,18 +9,29 @@ import pytest
 import shapely
 
 from skcomplex.core.analysis import scaling
-from skcomplex.core.components.elements import GeometrySpec, PatchElement, PrototileSpec, WordElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import AffineSpec, BaseLaw, Letters, ModuleSpec, ProductionLaw, SubstitutionLaw
+from skcomplex.core.components.laws import BaseLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
-from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
-from skcomplex.core.engine.problems import PatchStructureSpec, WordStructureSpec
 from skcomplex.core.engine.runtime import RecorderObserver, simulate
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import IncompatibleLawsError, RewritingError, ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.biology.common.populations import PopulationElement
+from skcomplex.systems.general.rewriting import (
+    AffineSpec,
+    GeometrySpec,
+    ModuleSpec,
+    PatchElement,
+    ProductionLaw,
+    PrototileSpec,
+    SubstitutionLaw,
+    WordElement,
+)
+from skcomplex.systems.general.rewriting._module_spec import Letters
+from skcomplex.systems.general.rewriting._patch_structure_spec import PatchStructureSpec
+from skcomplex.systems.general.rewriting._rewriting_compiler import RewritingCompiler
+from skcomplex.systems.general.rewriting._word_structure_spec import WordStructureSpec
 
 X = symbol('x')
 

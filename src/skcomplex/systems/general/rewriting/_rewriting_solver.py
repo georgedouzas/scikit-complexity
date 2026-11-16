@@ -5,18 +5,20 @@
 
 import numpy as np
 
-from ...components.laws import ProductionLaw, SubstitutionLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
-from ...enums import FormKind, OrderKind
-from ...errors import SolverError
-from ...types import Array
-from ..backends import SupportSpec
-from ..problems import PatchStructureSpec, RunStateSpec, WordStructureSpec
-from ..problems._patch_kernel import PatchKernel
-from ..problems._rewriting_problem_spec import RewritingProblemSpec
-from ..problems._word_kernel import WordKernel
-from ._base import BaseSolver
-from ._structure_state_spec import _StructureStateSpec
+from ....core.components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
+from ....core.engine.backends import SupportSpec
+from ....core.engine.problems import RunStateSpec
+from ....core.engine.solvers import BaseSolver, StructureStateSpec
+from ....core.enums import FormKind, OrderKind
+from ....core.errors import SolverError
+from ....core.types import Array
+from ._patch_kernel import PatchKernel
+from ._patch_structure_spec import PatchStructureSpec
+from ._production import ProductionLaw
+from ._rewriting_problem_spec import RewritingProblemSpec
+from ._substitution import SubstitutionLaw
+from ._word_kernel import WordKernel
+from ._word_structure_spec import WordStructureSpec
 
 
 class RewritingSolver(BaseSolver[RewritingProblemSpec]):
@@ -26,13 +28,19 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
     components are their symbol, prototile, or label counts and sizes. Stochastic productions draw from the simulation's
     random stream.
 
+    Unlike `IterationSolver`, which applies a map to a state vector of fixed size, it rewrites structures that grow.
+    Choose it for a system of words or patches.
+
+    It appears in many fields. It grows plants in botany, fractal curves and tilings in mathematics, and the
+    Thue-Morse sequence in computer science.
+
     Examples:
         >>> from skcomplex.core.components.spaces import DiscreteTime
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.laws import ProductionLaw
-        >>> from skcomplex.core.engine.solvers import RewritingSolver
-        >>> from skcomplex.core.components.elements import WordElement
+        >>> from skcomplex.systems.general.rewriting import ProductionLaw
+        >>> from skcomplex.systems.general.rewriting import RewritingSolver
+        >>> from skcomplex.systems.general.rewriting import WordElement
         >>> class AlgaeElement(WordElement):
         ...     def _get_laws(self, namespace):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
@@ -130,4 +138,4 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
                 reporters[f'{path}.length'] = structure.get_length()
                 reporters[f'{path}.area'] = structure.get_area()
         self.events_ = []
-        self.snapshot_ = _StructureStateSpec(dict(self.structures_), reporters)
+        self.snapshot_ = StructureStateSpec(dict(self.structures_), reporters)
