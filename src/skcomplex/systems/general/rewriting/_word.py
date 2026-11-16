@@ -8,9 +8,11 @@ from typing import Annotated
 
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace
+from ....core.engine.compile import BaseCompiler
 from ....core.errors import RewritingError
 from ....core.specs import StateSpec, VisualSpec
 from ._geometry_spec import GeometrySpec
+from . import _rewriting_compiler
 from ._geometry_visual import GeometryVisual
 from ._module_spec import Letters
 
@@ -107,3 +109,7 @@ class WordElement(Element):
         if isinstance(self.max_size, bool) or not isinstance(self.max_size, int) or self.max_size < 1:
             error_msg = f'The maximum size of {self.label} must be a positive integer, but it is {self.max_size!r}.'
             raise RewritingError(error_msg)
+
+    def _get_compiler(self) -> BaseCompiler:
+        """Return the rewriting compiler, which compiles every word of a system to a kernel."""
+        return _rewriting_compiler.RewritingCompiler()

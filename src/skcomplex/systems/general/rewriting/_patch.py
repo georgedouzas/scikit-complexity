@@ -8,9 +8,11 @@ from typing import Annotated
 
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace
+from ....core.engine.compile import BaseCompiler
 from ....core.errors import RewritingError
 from ....core.specs import StateSpec, VisualSpec
 from ._affine_spec import AffineSpec
+from . import _rewriting_compiler
 from ._geometry_visual import GeometryVisual
 from ._prototile_spec import PrototileSpec
 
@@ -108,3 +110,7 @@ class PatchElement(Element):
                 error_msg = f'The patch {self.label} has a tile of the unknown prototile {name!r}.'
                 raise RewritingError(error_msg)
             placement._check()
+
+    def _get_compiler(self) -> BaseCompiler:
+        """Return the rewriting compiler, which compiles every patch of a system to a kernel."""
+        return _rewriting_compiler.RewritingCompiler()

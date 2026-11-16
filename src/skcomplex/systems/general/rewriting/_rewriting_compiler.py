@@ -19,19 +19,17 @@ from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, Layou
 from ....core.enums import FormKind, VariableKind
 from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
 from ....core.specs import EntrySpec, VisualSpec
+from . import _patch, _word
 from ._parameters_spec import _ParametersSpec
-from ._patch import PatchElement
 from ._patch_kernel import PatchKernel
 from ._production import ProductionLaw
 from ._rewriting_problem_spec import RewritingProblemSpec
 from ._rewriting_solver import RewritingSolver
 from ._substitution import SubstitutionLaw
-from ._word import WordElement
 from ._word_kernel import WordKernel
 
 LAWS_OF = {'sequence': ProductionLaw, 'tiling': SubstitutionLaw}
 PRODUCTION_LAWS = (ProductionLaw, SubstitutionLaw)
-STRUCTURES = {WordElement: 'sequence', PatchElement: 'tiling'}
 
 
 type Production = ProductionLaw | SubstitutionLaw
@@ -194,7 +192,7 @@ class RewritingCompiler(BaseCompiler):
             error_msg = f'{type(element).__name__} {path!r} is rewritten by {expected.__name__}s, but got {wrong[0]!r}.'
             raise RewritingError(error_msg)
         kernel: WordKernel | PatchKernel
-        if isinstance(element, WordElement):
+        if isinstance(element, _word.WordElement):
             kernel = WordKernel(
                 path,
                 element,
@@ -202,7 +200,7 @@ class RewritingCompiler(BaseCompiler):
                 parameters,
                 values,
             )
-        elif isinstance(element, PatchElement):
+        elif isinstance(element, _patch.PatchElement):
             kernel = PatchKernel(
                 path,
                 element,
@@ -230,7 +228,8 @@ class RewritingCompiler(BaseCompiler):
         """
         if not isinstance(element_type, type):
             return None
-        return next((kind for base, kind in STRUCTURES.items() if issubclass(element_type, base)), None)
+        structures = {_word.WordElement: 'sequence', _patch.PatchElement: 'tiling'}
+        return next((kind for base, kind in structures.items() if issubclass(element_type, base)), None)
 
     @staticmethod
     def _compile_rewriting(system: CompositeSystem) -> 'RewritingProblemSpec':

@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 
 import numpy as np
@@ -11,10 +13,10 @@ from sage.all__sagemath_symbolics import Expression
 
 from ....core.engine.problems import BaseKernel, BaseProblemSpec, RunStateSpec
 from ....core.errors import RewritingError
+from . import _patch
 from ._affine_spec import AffineSpec
 from ._base_structure_spec import BaseStructureSpec
 from ._parameters_spec import _ParametersSpec
-from ._patch import PatchElement
 from ._patch_structure_spec import PatchStructureSpec
 from ._substitution import SubstitutionLaw
 from ._word_kernel import IDENTIFIER
@@ -54,7 +56,7 @@ class PatchKernel(BaseKernel):
     def __init__(
         self,
         path: str,
-        patch: PatchElement,
+        patch: _patch.PatchElement,
         substitutions: Sequence[SubstitutionLaw],
         parameters: _ParametersSpec,
     ) -> None:

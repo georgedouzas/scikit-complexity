@@ -43,8 +43,9 @@ system from, and the column "Engine" names what compiles and runs them.
 | control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
 `simulate` compiles a system into the problem of its form and runs it. You never name the compiler of a form that the
-library ships. A system of operator elements compiles with the operator compiler, a system of words or patches with
-the rewriting compiler, and every other system with the pass compiler. A pass is one step of that compiler, and it
+library ships. An element can name the compiler of its system, as the words and patches of
+`skcomplex.systems.general.rewriting` name the rewriting compiler. A system of operator elements compiles with the
+operator compiler, and every other system with the pass compiler. A pass is one step of that compiler, and it
 lowers each law to the problem of its form, such as a right-hand side of an ordinary differential equation.
 
 A package of your own can bring a form of its own. Its compiler derives from `BaseCompiler` of
