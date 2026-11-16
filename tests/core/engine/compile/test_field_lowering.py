@@ -22,7 +22,7 @@ from skcomplex.core.components.laws.utils import (
     laplacian,
     shifted,
 )
-from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, MeshSpace, NetworkSpace, PhaseSpace
+from skcomplex.core.components.spaces import AxisSpec, CellComplexSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -459,7 +459,7 @@ def test_inverse_helmholtz_converges_on_an_l_shaped_mesh():
         solution = np.sin(np.pi * mesh.p[0]) * np.sin(np.pi * mesh.p[1])
         rate = _rate(
             lambda s: inverse_helmholtz(s.u, 1),
-            MeshSpace(mesh.p, mesh.t),
+            CellComplexSpace(points=mesh.p, cells=mesh.t),
             {'u': -(2 * np.pi**2 + 1) * solution},
             discretization='finite-element',
             boundary={'u': ('fixed', 0.0)},

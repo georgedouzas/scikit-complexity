@@ -10,7 +10,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.spaces import MeshSpace
+from ...components.spaces import CellComplexSpace
 from ...errors import ValidationError
 from ..enums import ComplexComponentKind
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
@@ -67,7 +67,7 @@ class MeshVisual(BaseVisual):
     def _log_mesh(
         recording: rr.RecordingStream,
         path: str,
-        mesh: MeshSpace,
+        mesh: CellComplexSpace,
         values: npt.NDArray[np.float64],
         colors: npt.NDArray[np.uint8],
     ) -> None:
@@ -75,7 +75,7 @@ class MeshVisual(BaseVisual):
 
         The triangle mesh has the values as its height.
         """
-        nodes, cells = mesh.positions_, np.asarray(mesh.cells)
+        nodes, cells = mesh.positions_, mesh.cells_
         if mesh.n_dim_ != SURFACE_DIMENSION:
             recording.log(path, rr.Points3D(nodes, colors=colors))
             return
@@ -99,11 +99,11 @@ class MeshVisual(BaseVisual):
 
         Raises:
             ValidationError:
-                The element does not lie on a mesh space.
+                The element does not lie on a mesh.
         """
         mesh = getattr(element.element, 'space', None)
-        if not isinstance(mesh, MeshSpace):
-            error_msg = f'The element {element.path} does not lie on a mesh space. Draw it with another visual.'
+        if not isinstance(mesh, CellComplexSpace) or not mesh._is_mesh():
+            error_msg = f'The element {element.path} does not lie on a mesh. Draw it with another visual.'
             raise ValidationError(error_msg)
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:

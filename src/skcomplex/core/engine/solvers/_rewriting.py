@@ -6,7 +6,7 @@
 import numpy as np
 
 from ...components.laws import ProductionLaw, SubstitutionLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...types import Array
@@ -47,7 +47,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={DiscreteTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={ProductionLaw, SubstitutionLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )

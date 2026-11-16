@@ -33,7 +33,6 @@ from ...components.spaces import (
     ContinuousTime,
     DiscreteTime,
     LatticeSpace,
-    MeshSpace,
     NetworkSpace,
 )
 from ...enums import FormKind, NoiseKind, OrderKind
@@ -126,7 +125,7 @@ class CoSimulationSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime, DiscreteTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={
                 RateLaw,
                 FluxLaw,

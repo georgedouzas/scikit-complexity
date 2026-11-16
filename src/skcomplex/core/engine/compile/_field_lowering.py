@@ -17,7 +17,7 @@ from scipy.ndimage import convolve, map_coordinates
 from scipy.signal import oaconvolve
 from scipy.sparse import csr_matrix, diags, identity
 from scipy.sparse.linalg import factorized
-from skfem import Basis, ElementTetP1, ElementTriP1, asm
+from skfem import Basis, ElementTetP1, ElementTriP1, MeshTet, MeshTri, asm
 from skfem.models.poisson import laplace, mass
 
 from ...components.elements import FieldElement
@@ -27,9 +27,9 @@ from ...components.laws.utils._operators import COLLISION_COSINE, COLLISION_SPEE
 from ...components.laws.utils._phase import COORDINATE_PREFIX
 from ...components.spaces import (
     AdjacencyNeighborhood,
+    CellComplexSpace,
     LatticeNeighborhood,
     LatticeSpace,
-    MeshSpace,
     NetworkSpace,
     PhaseSpace,
     SimplexSpace,
@@ -497,7 +497,9 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             )
             raise ValidationError(error_msg)
         space = next(iter(spaces.values()))
-        if not isinstance(space, LatticeSpace | NetworkSpace):
+        if not isinstance(space, LatticeSpace | NetworkSpace) or (
+            isinstance(space, CellComplexSpace) and space._is_mesh()
+        ):
             error_msg = (
                 f'A law of {self.spec.owner} applies a stencil to {expression}, which lives on a mesh. Use the '
                 'finite-element discretization.'
@@ -938,7 +940,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if isinstance(space, NetworkSpace) and given is not None:
             error_msg = f'A law of {self.spec.owner} inverts on a network with a boundary. Give the inversion none.'
             raise ValidationError(error_msg)
-        if isinstance(space, MeshSpace):
+        if isinstance(space, CellComplexSpace) and space._is_mesh():
             apply = self._get_mesh_inverse(space, screening, kind, value)
         elif isinstance(space, NetworkSpace):
             apply = self._get_network_inverse(space, screening)
@@ -1180,7 +1182,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 f'A law of {self.spec.owner} takes the {name} of a finite element field, which takes Laplacians only.'
             )
             raise ValidationError(error_msg)
-        if not isinstance(place.space, MeshSpace):
+        if not isinstance(place.space, CellComplexSpace) or not place.space._is_mesh():
             error_msg = f'A law of {self.spec.owner} uses a finite element field, which needs a mesh.'
             raise ValidationError(error_msg)
         matrix = self._get_mesh_laplacian(place.space)
@@ -1723,7 +1725,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
     @staticmethod
     def _get_mesh_inverse(
-        space: MeshSpace,
+        space: CellComplexSpace,
         screening: float,
         kind: str,
         fill: object,
@@ -1810,14 +1812,14 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         nodes = np.frombuffer(points).reshape(shape)
         elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
-        space = MeshSpace(nodes, elements)
-        basis = Basis(space.prepare().mesh_, ElementTriP1() if shape[0] == PLANE else ElementTetP1())
+        mesh = (MeshTri if shape[0] == PLANE else MeshTet)(nodes, elements)
+        basis = Basis(mesh, ElementTriP1() if shape[0] == PLANE else ElementTetP1())
         stiffness = asm(laplace, basis).tocsr()
         lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
         return stiffness, lumped
 
     @staticmethod
-    def _get_mesh_matrices(space: MeshSpace) -> tuple[csr_matrix, npt.NDArray[np.float64]]:
+    def _get_mesh_matrices(space: CellComplexSpace) -> tuple[csr_matrix, npt.NDArray[np.float64]]:
         """Return the stiffness matrix and lumped mass of the linear elements of a mesh.
 
         Args:
@@ -1833,7 +1835,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return FieldLowering._get_cached_mesh_matrices(points.tobytes(), cells.tobytes(), points.shape, cells.shape)
 
     @staticmethod
-    def _get_mesh_laplacian(space: MeshSpace) -> csr_matrix:
+    def _get_mesh_laplacian(space: CellComplexSpace) -> csr_matrix:
         """Return the discrete Laplacian of linear elements with lumped mass.
 
         It is `-M^-1 K`, as a sparse matrix.

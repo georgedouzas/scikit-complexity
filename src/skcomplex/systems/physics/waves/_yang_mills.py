@@ -10,7 +10,7 @@ import itertools
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import partial
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -239,7 +239,7 @@ def _rectangles_of(space: CellComplexSpace, extents: tuple[int, int], first: int
 
     The frame comes first and the sites next.
     """
-    shape = space.space.shape_
+    shape = cast(LatticeSpace, space.space).shape_
     faces = np.flatnonzero(np.all(space.face_planes_ == (first, second), axis=1))
     corners = np.asarray([space.hyperedges_[face][0] for face in faces], dtype=np.intp)
     flat = np.zeros((sums.shape[0], int(np.prod(shape))))
@@ -256,7 +256,7 @@ def _get_paths(space: CellComplexSpace, moves: Sequence[tuple[int, int]]) -> tup
 
     A step is forward 1 or backward -1.
     """
-    place = space.space
+    place = cast(LatticeSpace, space.space)
     sites = np.arange(place.size_).reshape(place.shape_)
     forward = np.stack([np.roll(sites, -1, axis=axis).ravel() for axis in range(place.n_dim_)])
     backward = np.stack([np.roll(sites, 1, axis=axis).ravel() for axis in range(place.n_dim_)])
@@ -304,7 +304,7 @@ def _matrix_polyakov(space: CellComplexSpace, values: Array, group: MatrixGroupS
 
     The loops wind along the last axis.
     """
-    place = space.space
+    place = cast(LatticeSpace, space.space)
     last = place.n_dim_ - 1
     traces = _get_traces(values, group, *_get_paths(space, [(last, 1)] * place.shape_[last]))
     return np.abs(traces.mean(axis=1))
@@ -315,13 +315,13 @@ def _wilson(space: CellComplexSpace, values: Array, extents: tuple[int, int]) ->
     sums = (space.incidences_[1] @ values.T).T
     planes = np.unique(space.face_planes_, axis=0).reshape(-1, LOOP_AXES)
     loops = [_rectangles_of(space, extents, int(first), int(second), sums) for first, second in planes]
-    axes = tuple(range(1, space.space.n_dim_ + 1))
+    axes = tuple(range(1, cast(LatticeSpace, space.space).n_dim_ + 1))
     return np.mean([np.cos(loop).mean(axis=axes) for loop in loops], axis=0)
 
 
 def _polyakov(space: CellComplexSpace, values: Array) -> Array:
     """Return the mean cosine of the sums of the link angles along the last axis."""
-    place = space.space
+    place = cast(LatticeSpace, space.space)
     last = place.n_dim_ - 1
     links = np.flatnonzero(space.link_axes_ == last)
     flat = np.zeros((values.shape[0], place.size_))

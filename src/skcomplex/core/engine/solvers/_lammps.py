@@ -22,7 +22,7 @@ from sage.sets.real_set import RealSet
 
 from ...components.interactions import BaseInteraction, PairInteraction
 from ...components.laws import BoundaryLaw, ConstraintLaw, FluxLaw, NoiseLaw, RateLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...enums import FormKind, NoiseKind, OrderKind, VariableKind
 from ...errors import BackendError, SolverError
@@ -146,7 +146,7 @@ class LammpsSolver(ExternalSolver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={RateLaw, FluxLaw, NoiseLaw, ConstraintLaw, BoundaryLaw},
             noise=frozenset({NoiseKind.DIAGONAL}),
             orders=frozenset({OrderKind.INTEGER}),

@@ -11,7 +11,7 @@ from skcomplex.core.analysis import spectrum
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian
-from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace
+from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
@@ -92,7 +92,11 @@ def test_field_takes_the_boundaries_of_its_space():
 def test_field_draws_an_image_on_a_lattice_and_a_mesh_on_a_mesh():
     """Test that the default visual of a field depends on its space."""
     grid = skfem.MeshTri.init_tensor(np.linspace(0, 1, 3), np.linspace(0, 1, 3))
-    spaces = {'image': LatticeSpace((3, 3)), 'mesh': MeshSpace(grid.p, grid.t), 'sites': NetworkSpace(nx.path_graph(3))}
+    spaces = {
+        'image': LatticeSpace((3, 3)),
+        'mesh': CellComplexSpace(points=grid.p, cells=grid.t),
+        'sites': NetworkSpace(nx.path_graph(3)),
+    }
     for kind, space in spaces.items():
         field = FieldElement('f', element=ConservedElement, space=space.prepare()).prepare()
         assert field.default_visual_.kind == kind

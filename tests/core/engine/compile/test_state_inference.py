@@ -17,7 +17,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import laplacian, neighbors
-from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, MeshSpace, NetworkSpace
+from skcomplex.core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
@@ -290,7 +290,7 @@ def test_get_declared_spreads_heat_on_a_mesh():
     for n in (9, 17):
         grid = skfem.MeshTri.init_tensor(np.linspace(0, 1, n), np.linspace(0, 1, n))
         heat = np.cos(np.pi * grid.p[0]) * np.cos(np.pi * grid.p[1])
-        plate = Element('plate', values={'u': heat}, space=MeshSpace(grid.p, grid.t))
+        plate = Element('plate', values={'u': heat}, space=CellComplexSpace(points=grid.p, cells=grid.t))
         system = System(elements=[plate], interactions=[Diffusion('heat', D=0.1)]).prepare()
         last = system.simulate(until=0.5, dt=0.005).get_values('plate.u')[-1]
         errors.append(np.abs(last - heat * np.exp(-2 * np.pi**2 * 0.1 * 0.5)).max())

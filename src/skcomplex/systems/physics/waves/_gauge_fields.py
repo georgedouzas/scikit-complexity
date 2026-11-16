@@ -9,7 +9,7 @@ The module covers angle links sampled by the Wilson action, and lattice Maxwell 
 from collections.abc import Mapping, Sequence
 from functools import partial
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 import scipy.sparse
@@ -285,7 +285,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
                 f'charge per site of its {space.size_} sites, of total 0.'
             )
             raise ValidationError(error_msg)
-        place = space.space
+        place = cast(LatticeSpace, space.space)
         sources = space.edges_[None][0]
         along_last = space.link_axes_ == place.n_dim_ - 1
         first = np.unravel_index(sources, place.shape_)[0]

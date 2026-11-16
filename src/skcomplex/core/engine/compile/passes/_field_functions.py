@@ -15,7 +15,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, FluxLaw
 from ....components.laws.utils._phase import COORDINATE_PREFIX
-from ....components.spaces import LatticeSpace, MeshSpace, PhaseSpace, SimplexSpace
+from ....components.spaces import CellComplexSpace, LatticeSpace, PhaseSpace, SimplexSpace
 from ....enums import VariableKind
 from ....errors import PipelineError, ValidationError
 from ....types import Array, VectorFunction
@@ -130,7 +130,11 @@ class FieldFunctionsPass(BasePass):
         values: list[npt.NDArray[np.float64]] = []
         for block in blocks:
             place = block.node.component
-            if not isinstance(place, FieldElement) or not isinstance(place.space, MeshSpace):
+            if (
+                not isinstance(place, FieldElement)
+                or not isinstance(place.space, CellComplexSpace)
+                or not place.space._is_mesh()
+            ):
                 continue
             if place.discretization != 'finite-element':
                 error_msg = f'Field {block.node.path} lives on a mesh, which needs the finite-element discretization.'

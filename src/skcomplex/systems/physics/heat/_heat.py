@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.spaces import LatticeSpace, MeshSpace
+from ....core.components.spaces import CellComplexSpace, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import IMEXEulerSolver
 from ....core.specs import ParameterSpec, StateSpec
@@ -207,7 +207,7 @@ class HeatLShapeSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the components of the system, built from its model parameters."""
         grid = skfem.MeshTri.init_lshaped().refined(self.refine)
-        mesh = MeshSpace(grid.p, grid.t)
+        mesh = CellComplexSpace(points=grid.p, cells=grid.t)
         return CompositeSystem(
             self.label,
             elements=[

@@ -67,8 +67,8 @@ operators of space, such as the Laplacian. `LocalRuleInteraction` reads a `BallN
 neighbours. `CellComplexSpace`, `PhaseSpace`, and `SimplexSpace` build on a lattice.
 
 **Limits and errors.** Every site has the same pattern of neighbours, so an irregular pattern of links needs a
-`NetworkSpace`, and an irregular domain needs a `MeshSpace`. The boundary is one of three names, and `prepare` raises a
-`ValidationError` for any other.
+`NetworkSpace`, and an irregular domain needs a `CellComplexSpace` of the points and cells of a mesh. The boundary is
+one of three names, and `prepare` raises a `ValidationError` for any other.
 
 ```python continuation
 from skcomplex.core.errors import ValidationError
@@ -271,9 +271,9 @@ and its [API entry][skcomplex.core.components.spaces.ContinuousSpace].
 
 ## CellComplexSpace
 
-A `CellComplexSpace` adds the links between the sites of a lattice or a network and the faces that the links bound,
-each with an orientation. Cells of degree 0 are sites, of degree 1 links, and of degree 2 faces. In a lattice gauge
-theory of physics the states live on the links of a lattice.
+A `CellComplexSpace` adds the links between the sites of a lattice, a network, or a mesh and the faces that the links
+bound, each with an orientation. Cells of degree 0 are sites, of degree 1 links, and of degree 2 faces. In a lattice
+gauge theory of physics the states live on the links of a lattice.
 
 ```python
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
@@ -301,18 +301,84 @@ CellComplexSpace(NetworkSpace(ring)).prepare().hyperedges_
 
 Without given faces, the space takes a minimum cycle basis, here the triangles `(0, 1, 2)` and `(0, 2, 3)`.
 
+A mesh of triangles or tetrahedra is a cell complex too, built from the points and cells of a scikit-fem mesh. Its
+nodes hold the members of a field, its edges are the sides of the cells, and its faces their triangles. Here heat
+leaves an L-shaped machine part whose walls are held at zero.
+
+```python continuation
+from typing import Annotated
+
+import skfem
+
+from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import laplacian
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.specs import ParameterSpec, StateSpec
+
+
+class DiffusionElement(Element):
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label,
+        *,
+        u: Annotated[float, StateSpec()] = 0.0,
+        D: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        super().__init__(label)
+        self.u = u
+        self.D = D
+
+    def _get_laws(self, namespace):
+        return [RateLaw(namespace.u, namespace.D * laplacian(namespace.u))]
+
+
+shape = skfem.MeshTri.init_lshaped().refined(1)
+walls = {'u': ('fixed', 0.0)}
+bracket = FieldElement(
+    'bracket',
+    element=DiffusionElement,
+    space=CellComplexSpace(points=shape.p, cells=shape.t),
+    values={'u': 1.0},
+    boundary=walls,
+    discretization='finite-element',
+)
+simulate(CompositeSystem(elements=[bracket]), until=1, dt=0.5).get_values('bracket.u').max(axis=1).round(3).tolist()
+```
+
+The hottest node falls from 1 to 0.013 after half a time unit, and after one unit it rounds to 0.
+
+In hydrology the same class holds a block of an aquifer cut into tetrahedra, through which groundwater seeps.
+
+```python continuation
+import numpy as np
+
+block = skfem.MeshTet.init_tensor(*[np.linspace(0.0, 1.0, 3)] * 3)
+aquifer = CellComplexSpace(points=block.p, cells=block.t).prepare()
+aquifer.size_, aquifer.n_dim_
+```
+
+The block has 27 nodes in three dimensions.
+
 **How the engine runs it.** The space is a network whose edges are the oriented links and whose hyperedges are the
 oriented faces. The law utilities `exterior_derivative`, `codifferential`, and `hodge_star` read its incidence
 matrices and its Hodge stars, the ratios of dual to primal cell volumes, so the laws of discrete exterior calculus
-compile to sparse products.
+compile to sparse products. A field on a mesh takes the finite-element discretization. Its stiffness and mass
+matrices come from scikit-fem, so `laplacian(u)` becomes a sparse product, and the boundary values hold at the nodes
+of `boundary_nodes_`.
 
 **How it combines.** A `GroupElement` or a `FieldElement` with `on='edges'` holds a state per link, and one with
 `on='hyperedges'` a state per face. A `CofaceNeighborhood` reads the faces around each link, and
-`SamplingInteraction` samples the links of a gauge field.
+`SamplingInteraction` samples the links of a gauge field. A `FieldElement` with `discretization='finite-element'`
+holds a field on the nodes of a mesh, with the same laws as on a lattice.
 
-**Limits and errors.** It derives from a square lattice or a network, and it has no layers. Cells of degree 3 take
-part in incidence only, since a group lives on sites, edges, or hyperedges. A triangular lattice raises a
-`SpaceError` in `prepare`.
+**Limits and errors.** It takes exactly one source, a square lattice, a network, or the points and cells of a mesh,
+and it has no layers. Cells of degree 3 take part in incidence only, since a group lives on sites, edges, or
+hyperedges. A mesh does not change during a run, and a field on it needs the finite-element discretization. A
+triangular lattice raises a `SpaceError` in `prepare`.
 
 ```python continuation
 from skcomplex.core.errors import SpaceError
@@ -337,6 +403,18 @@ class GaugeLatticeSpace(CellComplexSpace):
 
 
 len(GaugeLatticeSpace(4).prepare().hyperedges_)
+```
+
+Another builds the mesh of its domain, such as an L-shaped plate refined a given number of times.
+
+```python continuation
+class PlateSpace(CellComplexSpace):
+    def __init__(self, refinements=2, *, label='plate'):
+        plate = skfem.MeshTri.init_lshaped().refined(refinements)
+        super().__init__(points=plate.p, cells=plate.t, label=label)
+
+
+PlateSpace(1).prepare().size_
 ```
 
 See its [fact sheet](../../../components/spaces.md#cellcomplexspace)
@@ -478,108 +556,6 @@ StrategySpace(10).prepare().shape_
 
 See its [fact sheet](../../../components/spaces.md#simplexspace)
 and its [API entry][skcomplex.core.components.spaces.SimplexSpace].
-
-## MeshSpace
-
-A `MeshSpace` is an unstructured mesh of triangles or tetrahedra, built with scikit-fem, whose nodes hold the members
-of a field. Here heat leaves an L-shaped machine part whose walls are held at zero.
-
-```python
-from typing import Annotated
-
-import skfem
-
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import laplacian
-from skcomplex.core.components.spaces import MeshSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-
-
-class DiffusionElement(Element):
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        super().__init__(label)
-        self.u = u
-        self.D = D
-
-    def _get_laws(self, namespace):
-        return [RateLaw(namespace.u, namespace.D * laplacian(namespace.u))]
-
-
-shape = skfem.MeshTri.init_lshaped().refined(1)
-walls = {'u': ('fixed', 0.0)}
-bracket = FieldElement(
-    'bracket', element=DiffusionElement, space=MeshSpace(shape.p, shape.t), values={'u': 1.0}, boundary=walls,
-    discretization='finite-element',
-)
-simulate(CompositeSystem(elements=[bracket]), until=1, dt=0.5).get_values('bracket.u').max(axis=1).round(3).tolist()
-```
-
-The hottest node falls from 1 to 0.013 after half a time unit, and after one unit it rounds to 0.
-
-In hydrology the same class holds a block of an aquifer cut into tetrahedra, through which groundwater seeps.
-
-```python continuation
-import numpy as np
-
-block = skfem.MeshTet.init_tensor(*[np.linspace(0.0, 1.0, 3)] * 3)
-aquifer = MeshSpace(block.p, block.t).prepare()
-aquifer.size_, aquifer.n_dim_
-```
-
-The block has 27 nodes in three dimensions.
-
-**How the engine runs it.** The field takes the finite-element discretization. Its stiffness and mass matrices come
-from scikit-fem, so `laplacian(u)` becomes a sparse product, and the boundary values hold at the nodes of
-`boundary_nodes_`. The implicit methods of `ScipyODESolver` integrate the stiff system.
-
-**How it combines.** A `FieldElement` with `discretization='finite-element'` is its usual partner, and the laws are
-the same as on a lattice.
-
-**Limits and errors.** Only fields live on a mesh, and the mesh does not change during a run. A boundary condition
-is a name or a pair `('fixed', value)`, and the field raises a `ValidationError` in `prepare` for a bare number.
-
-```python continuation
-from skcomplex.core.errors import ValidationError
-
-try:
-    FieldElement(
-        'bracket', element=DiffusionElement, space=MeshSpace(shape.p, shape.t), boundary={'u': 0.0},
-        discretization='finite-element',
-    ).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message reads "Unknown boundary '0.0' of bracket.u. Use 'periodic', 'zero-flux', or ('fixed', value)." The fix is
-`('fixed', 0.0)`.
-
-**A field realization.** A field builds the mesh of its domain, such as an L-shaped plate refined a given number of
-times.
-
-```python continuation
-class PlateSpace(MeshSpace):
-    def __init__(self, refinements=2, *, label='plate'):
-        plate = skfem.MeshTri.init_lshaped().refined(refinements)
-        super().__init__(plate.p, plate.t, label=label)
-
-
-PlateSpace(1).prepare().size_
-```
-
-See its [fact sheet](../../../components/spaces.md#meshspace)
-and its [API entry][skcomplex.core.components.spaces.MeshSpace].
 
 ## CayleySpace
 

@@ -5,7 +5,7 @@
 
 
 from ...components.laws import BoundaryLaw, ConstraintLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
 from ...enums import FormKind, NoiseKind, OrderKind
 from ...types import Array
 from ..backends import SupportSpec
@@ -50,7 +50,7 @@ class RenewalSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={JumpLaw, RateLaw, FluxLaw, NoiseLaw, ConstraintLaw, BoundaryLaw},
             noise=frozenset({NoiseKind.DIAGONAL}),
             orders=frozenset({OrderKind.INTEGER}),

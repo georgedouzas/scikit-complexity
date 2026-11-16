@@ -79,7 +79,7 @@ flowchart TD
     A{Where do the members sit?} -->|on a grid of cells| B[LatticeSpace]
     A -->|on the nodes of a network| C[NetworkSpace]
     A -->|anywhere, moving freely| D[ContinuousSpace]
-    A -->|on an irregular domain| E[MeshSpace]
+    A -->|on an irregular domain| E[CellComplexSpace]
     A -->|over a position and a trait| F[PhaseSpace]
     B --> G[BallNeighborhood]
     C --> H[AdjacencyNeighborhood]
@@ -91,7 +91,7 @@ flowchart TD
 | on a grid of cells | [`LatticeSpace`](spaces.md#latticespace) | [`BallNeighborhood`](spaces.md#ballneighborhood), the cells within a radius |
 | on the nodes of a network | [`NetworkSpace`](spaces.md#networkspace) | [`AdjacencyNeighborhood`](spaces.md#adjacencyneighborhood), the nodes joined by an edge |
 | anywhere, moving freely | [`ContinuousSpace`](spaces.md#continuousspace) | [`RadiusNeighborhood`](spaces.md#radiusneighborhood), the members within a distance |
-| on an irregular domain | [`MeshSpace`](spaces.md#meshspace) | the cells of the mesh |
+| on an irregular domain | [`CellComplexSpace`](spaces.md#cellcomplexspace) of a mesh | the nodes that share a cell |
 | over a position and a trait | [`PhaseSpace`](spaces.md#phasespace) | the classes at the same position |
 
 A `GroupElement` takes the space as `space=...` and `on='sites'`, and a group on the links of a network takes

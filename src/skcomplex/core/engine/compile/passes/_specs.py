@@ -28,7 +28,6 @@ from ....components.spaces import (
     CellComplexSpace,
     ContinuousSpace,
     LatticeSpace,
-    MeshSpace,
     NetworkSpace,
     PhaseSpace,
 )
@@ -881,7 +880,10 @@ class SpecsPass(BasePass):
         place = component if isinstance(component, FieldElement) and edges is None and others is None else None
         spread = (
             place is not None
-            and isinstance(place.space, LatticeSpace | MeshSpace)
+            and (
+                isinstance(place.space, LatticeSpace)
+                or (isinstance(place.space, CellComplexSpace) and place.space._is_mesh())
+            )
             and not (isinstance(node.component, BaseInteraction) and node.component._get_layer() is not None)
         )
         if (
