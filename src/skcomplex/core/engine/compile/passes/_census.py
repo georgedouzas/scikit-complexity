@@ -23,7 +23,6 @@ from ....components.laws import (
     CascadeLaw,
     ConstraintLaw,
     EventLaw,
-    ExtremalLaw,
     JumpLaw,
     LocalRuleLaw,
     MatchLaw,
@@ -343,7 +342,7 @@ class CensusPass(BasePass):
             isinstance(law, CascadeLaw) and not law._get_targets()
         ):
             return spec.owner
-        lattice = isinstance(law, CascadeLaw | LocalRuleLaw | ExtremalLaw | SampleLaw)
+        lattice = isinstance(law, CascadeLaw | LocalRuleLaw | SampleLaw)
         target = law._get_targets()[0] if lattice else CensusPass._get_changed_target(spec, law)
         return spec._get_target_references(target)[0].entry.name.rpartition('.')[0]
 

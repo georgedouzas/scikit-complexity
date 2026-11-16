@@ -19,7 +19,6 @@ from ._dataset_spec import DatasetSpec
 from ._dissipator import DissipatorLaw
 from ._draw_spec import DrawSpec
 from ._event import EventLaw
-from ._extremal import ExtremalLaw
 from ._flux import FluxLaw
 from ._generator import GeneratorLaw
 from ._gradient_step import GradientStepLaw
@@ -64,7 +63,6 @@ __all__: list[str] = [
     'DissipatorLaw',
     'DrawSpec',
     'EventLaw',
-    'ExtremalLaw',
     'FluxLaw',
     'GeneratorLaw',
     'GradientStepLaw',

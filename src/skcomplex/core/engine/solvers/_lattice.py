@@ -5,7 +5,7 @@
 
 import math
 
-from ...components.laws import ArrayUpdateLaw, BoundaryLaw, CascadeLaw, ExtremalLaw, LocalRuleLaw, UpdateLaw
+from ...components.laws import ArrayUpdateLaw, BoundaryLaw, CascadeLaw, LocalRuleLaw, UpdateLaw
 from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...types import Array
@@ -18,9 +18,8 @@ from ._solver import Solver
 class LatticeSolver(Solver):
     """A solver that applies every lattice law once per step.
 
-    The laws are local rules, drives, cascades, and extremal laws. Steps apply in the order the laws are declared, and
-    the boundary laws apply after every step. Cascades record their size, duration, and area as events, and extremal
-    laws record the site and the value of every application.
+    The laws are local rules, drives, and cascades. Steps apply in the order the laws are declared, and the boundary
+    laws apply after every step. Cascades record their size, duration, and area as events.
 
     Examples:
         >>> import numpy as np
@@ -41,7 +40,7 @@ class LatticeSolver(Solver):
         return SupportSpec(
             time={DiscreteTime},
             space={LatticeSpace, NetworkSpace},
-            laws={LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
+            laws={LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, UpdateLaw, BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -77,7 +76,5 @@ class LatticeSolver(Solver):
                 result = item.run(current).values_
                 if isinstance(result, _CascadeRecordSpec):
                     self.locator_.records.append(result)
-                elif isinstance(result, list):
-                    self.locator_.records.extend(result)
             state = self._get_bounded(float(step + 1), state, p)
         return state

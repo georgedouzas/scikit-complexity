@@ -10,7 +10,6 @@ from ...components.laws import (
     BoundaryLaw,
     CascadeLaw,
     EventLaw,
-    ExtremalLaw,
     FluxLaw,
     LinearProgramLaw,
     LocalRuleLaw,
@@ -27,11 +26,10 @@ KERNEL_FREE_LAWS = (
     LocalRuleLaw,
     ArrayUpdateLaw,
     CascadeLaw,
-    ExtremalLaw,
     SampleLaw,
     FluxLaw,
     LinearProgramLaw,
     ObjectiveLaw,
 )
-LATTICE_LAWS = (LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, ExtremalLaw, SampleLaw)
+LATTICE_LAWS = (LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, SampleLaw)
 AGENT_LAWS = (RuleLaw,)
