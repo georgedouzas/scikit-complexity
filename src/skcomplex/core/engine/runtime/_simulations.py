@@ -554,7 +554,7 @@ class Simulation(BaseConfig[None, float]):
 
     @staticmethod
     def _get_named_compiler(system: CompositeSystem) -> object:
-        """Return the compiler the first element of a system tree names, or `None` when none names one."""
+        """Return the compiler the first element of a system tree names, or `None`."""
         for element in system.elements:
             named = element._get_compiler()
             if named is not None:
