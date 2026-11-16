@@ -1873,6 +1873,8 @@ def _relative_imports(path: Path) -> set[Path]:
         if not isinstance(node, ast.ImportFrom) or node.level == 0:
             continue
         target = path.parents[node.level - 1].joinpath(*(node.module or '').split('.'))
+        modules = {target / f'{alias.name}.py' for alias in node.names} if node.module is None else set()
+        found |= {module for module in modules if module.is_file()}
         if target.with_suffix('.py').is_file():
             found.add(target.with_suffix('.py'))
         elif (target / '__init__.py').is_file():

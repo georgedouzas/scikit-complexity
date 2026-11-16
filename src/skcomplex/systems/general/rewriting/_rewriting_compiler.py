@@ -41,8 +41,8 @@ class RewritingCompiler(BaseCompiler):
     The backend, the solver, and the initial state do not change a problem of the rewriting form.
 
     Unlike the pass compiler of the core, which lowers laws to the equations of a form, it compiles each word or patch
-    to a kernel of its own and names `RewritingSolver` as the solver of its problems. Choose it for a system of words
-    or patches.
+    to a kernel of its own and names `RewritingSolver` as the solver of its problems. Choose it when a system holds
+    words or patches.
 
     It appears in many fields. It compiles the L-systems of botany, the fractals of mathematics, and the substitution
     sequences of computer science.

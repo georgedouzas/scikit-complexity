@@ -9,7 +9,6 @@ from collections.abc import Callable
 import numpy as np
 
 from ...components.laws import (
-    BilinearLaw,
     BoundaryLaw,
     ConstraintLaw,
     EventLaw,
@@ -24,6 +23,7 @@ from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...types import Array
 from ..backends import SupportSpec
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._steps import step_count
 from ..types import Interpolant
 from ._base import BaseSolver

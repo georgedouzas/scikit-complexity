@@ -241,7 +241,7 @@ relax.state
 
 The block returns `'x'`, the state of the gas that the relaxation changes. The encounters of the classes at one
 position are the recipe [`EncounterInteraction`](../core_components/general.md#encounterinteraction) of the general
-realizations, which writes them as bilinear laws of the core.
+realizations, which writes them as rate laws of the `bilinear` form of the core.
 
 ## Collisions
 

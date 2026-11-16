@@ -9,7 +9,6 @@ algebraic equation. Elements, interactions, and systems return laws, and the com
 
 from ._array_update import ArrayUpdateLaw
 from ._base import BaseLaw
-from ._bilinear import BilinearLaw
 from ._boundary import BoundaryLaw
 from ._call_spec import CallSpec
 from ._cascade import CascadeLaw
@@ -50,7 +49,6 @@ __all__: list[str] = [
     'EDGE_KINDS',
     'ArrayUpdateLaw',
     'BaseLaw',
-    'BilinearLaw',
     'BoundaryLaw',
     'CallSpec',
     'CascadeLaw',

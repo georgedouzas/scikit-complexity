@@ -29,7 +29,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
     random stream.
 
     Unlike `IterationSolver`, which applies a map to a state vector of fixed size, it rewrites structures that grow.
-    Choose it for a system of words or patches.
+    Choose it when a system holds words or patches.
 
     It appears in many fields. It grows plants in botany, fractal curves and tilings in mathematics, and the
     Thue-Morse sequence in computer science.

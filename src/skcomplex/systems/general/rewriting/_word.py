@@ -11,8 +11,8 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.compile import BaseCompiler
 from ....core.errors import RewritingError
 from ....core.specs import StateSpec, VisualSpec
-from ._geometry_spec import GeometrySpec
 from . import _rewriting_compiler
+from ._geometry_spec import GeometrySpec
 from ._geometry_visual import GeometryVisual
 from ._module_spec import Letters
 
@@ -111,5 +111,5 @@ class WordElement(Element):
             raise RewritingError(error_msg)
 
     def _get_compiler(self) -> BaseCompiler:
-        """Return the rewriting compiler, which compiles every word of a system to a kernel."""
+        """Return the rewriting compiler, which compiles words and patches."""
         return _rewriting_compiler.RewritingCompiler()

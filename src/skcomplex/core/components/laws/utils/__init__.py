@@ -8,6 +8,7 @@ operators of fields. The helpers that only the compiler reads stay in the privat
 # License: MIT
 
 from ._agents import matches, transfer
+from ._bilinear import bilinear
 from ._cells import codifferential, exterior_derivative, hodge_star
 from ._components import components
 from ._conditions import both, either, mod, where
@@ -62,6 +63,7 @@ __all__: list[str] = [
     'advection',
     'antisymmetric_part',
     'bernoulli',
+    'bilinear',
     'both',
     'categorical',
     'circular_mean',

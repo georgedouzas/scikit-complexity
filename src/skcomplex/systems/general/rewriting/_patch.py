@@ -11,8 +11,8 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.compile import BaseCompiler
 from ....core.errors import RewritingError
 from ....core.specs import StateSpec, VisualSpec
-from ._affine_spec import AffineSpec
 from . import _rewriting_compiler
+from ._affine_spec import AffineSpec
 from ._geometry_visual import GeometryVisual
 from ._prototile_spec import PrototileSpec
 
@@ -112,5 +112,5 @@ class PatchElement(Element):
             placement._check()
 
     def _get_compiler(self) -> BaseCompiler:
-        """Return the rewriting compiler, which compiles every patch of a system to a kernel."""
+        """Return the rewriting compiler, which compiles words and patches."""
         return _rewriting_compiler.RewritingCompiler()

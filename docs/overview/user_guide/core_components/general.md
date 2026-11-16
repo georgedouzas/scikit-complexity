@@ -483,7 +483,8 @@ simulate(cells, until=10.0, dt=5.0).get_values('tumour.x').round(3).tolist()
 
 The tumour falls to 0.368 at time 5 and to 0.135 at time 10, which is `exp(-2)`.
 
-**How the engine runs it.** The interaction lowers to a [`BilinearLaw`](laws.md#bilinearlaw), a rate that is a sum
+**How the engine runs it.** The interaction returns a [`RateLaw`](laws.md#ratelaw) whose rate is the
+[`bilinear`](../build_a_custom_system/kinetic_systems_of_active_particles.md#the-bilinear-form) form of the core, a sum
 of products of the two densities, which the compiler evaluates as arrays over the classes. A proliferative outcome adds
 a candidate at class `i`, and with a `cross_section` the rate is the collision integral of kinetic theory, evaluated
 by a fast spectral method.
@@ -492,7 +493,7 @@ by a fast spectral method.
 [`PhaseSpace`](spaces.md#phasespace), where encounters pair classes at the same position. Without a field the
 encounter is a linear redistribution between classes.
 
-**Limits and errors.** The bilinear law needs a lattice of classes. A conservative encounter moves candidates by a
+**Limits and errors.** The bilinear form needs a lattice of classes. A conservative encounter moves candidates by a
 kernel, so `prepare` raises a `ValidationError` without one.
 
 ```python continuation
@@ -2230,8 +2231,9 @@ on them.
 
 **A component the engine handles by type.** A law that a kernel lowers goes to the core under a mathematical name.
 [`GroupingInteraction`](interactions.md#groupinginteraction) stays in the core, since a compile pass lowers it by type
-to kernels over random groups, and economics and social science both form groups. `BilinearLaw` is in the core
-because the compiler names it, while `EncounterInteraction`, which only builds bilinear laws, is a recipe.
+to kernels over random groups, and economics and social science both form groups. The operator `bilinear` is in the
+core because the compiler lowers it, while `EncounterInteraction`, which only builds rate laws of bilinear forms, is a
+recipe.
 
 **A recipe of several fields.** An agent rule that economics and social science both use goes to a concept subpackage
 of `skcomplex.systems.general`. `ChoiceInteraction` returns only laws the core already runs, and the oligopoly markets
@@ -2245,10 +2247,10 @@ family `avalanches` of the physics `common` package, under the physics name `Top
 
 ```python
 from skcomplex.core.components.interactions import GroupingInteraction, HyperedgeInteraction
-from skcomplex.core.components.laws import BilinearLaw
+from skcomplex.core.components.laws.utils import bilinear
 from skcomplex.systems.general.agents import ChoiceInteraction
 
-components = [HyperedgeInteraction, GroupingInteraction, BilinearLaw, ChoiceInteraction]
+components = [HyperedgeInteraction, GroupingInteraction, bilinear, ChoiceInteraction]
 [component.__module__.rsplit('.', 1)[0] for component in components]
 ```
 

@@ -6,7 +6,6 @@
 
 from ...components.laws import (
     ArrayUpdateLaw,
-    BilinearLaw,
     BoundaryLaw,
     CascadeLaw,
     EventLaw,
@@ -19,6 +18,7 @@ from ...components.laws import (
     SampleLaw,
     TransferLaw,
 )
+from ..problems._bilinear_law import BilinearLaw
 
 FORMLESS_LAWS = (BoundaryLaw, EventLaw, BilinearLaw, FluxLaw, LinearProgramLaw, ObjectiveLaw)
 KERNEL_FREE_LAWS = (

@@ -10,7 +10,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components.elements import FieldElement
-from ....components.laws import BaseLaw, BilinearLaw
+from ....components.laws import BaseLaw
 from ....components.laws.utils import coordinate
 from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import PhaseSpace
@@ -19,6 +19,7 @@ from ....types import Indices
 from ..._utils import symbols_of
 from ...backends import BaseBackend
 from ...enums import ReadKind
+from ...problems._bilinear_law import BilinearLaw
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._encounter_kernel import EncounterKernel
 from ...problems._reference_spec import ReferenceSpec

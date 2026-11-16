@@ -8,7 +8,6 @@ from dataclasses import replace
 
 from ...components.laws import (
     ArrayUpdateLaw,
-    BilinearLaw,
     BoundaryLaw,
     CascadeLaw,
     ConstraintLaw,
@@ -40,6 +39,7 @@ from ...components.spaces import (
 from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import ValidationError
 from ...types import VectorFunction
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
