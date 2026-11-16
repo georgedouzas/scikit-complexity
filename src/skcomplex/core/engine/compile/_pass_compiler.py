@@ -1431,7 +1431,11 @@ class PassCompiler(BaseCompiler):
         operands = call.operands()
         places = {id(fields[str(item)]): fields[str(item)] for item in operands[0].variables() if str(item) in fields}
         if name in LOCAL_OPERATORS:
-            unsupported = [place for place in places.values() if not place.space._supports_operator(name)]
+            unsupported = [
+                place
+                for place in places.values()
+                if place.space is not None and not place.space._supports_operator(name)
+            ]
             return PassCompiler._place_issue(record, name, unsupported[0]) if unsupported else None
         if len({id(place.space) for place in places.values()}) > 1:
             message = f'The {law} applies {name} to {operands[0]}, which reads fields of more than one space.'
@@ -1459,7 +1463,7 @@ class PassCompiler(BaseCompiler):
         """
         law = PassCompiler._get_law_name(record)
         space = place.space
-        if name in LOCAL_OPERATORS and not space._supports_operator(name):
+        if name in LOCAL_OPERATORS and space is not None and not space._supports_operator(name):
             message = (
                 f'The {law} applies {name} to a field on {type(space).__name__}, whose cells only take finite-volume '
                 'fluxes.'

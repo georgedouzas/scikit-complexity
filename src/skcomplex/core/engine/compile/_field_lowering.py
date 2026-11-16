@@ -749,7 +749,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
     def _get_discretized(self, name: str, operands: list[object], place: FieldElement) -> Expression:
         """Return a local operator or inversion lowered for its field's discretization."""
-        if not place.space._supports_operator(name):
+        if place.space is not None and not place.space._supports_operator(name):
             error_msg = (
                 f'A law of {self.spec.owner} applies {name} to a field on {type(place.space).__name__}, whose cells '
                 'only take finite-volume fluxes, reductions, and integrals. Write the transport as a flux of the '
