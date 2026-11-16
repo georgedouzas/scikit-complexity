@@ -17,7 +17,6 @@ from ...components.laws import (
     BoundaryLaw,
     ConstraintLaw,
     EventLaw,
-    FluxLaw,
     LinearProgramLaw,
     RateLaw,
     TransferLaw,
@@ -138,7 +137,6 @@ class ScipyODESolver(Solver):
             laws={
                 LinearProgramLaw,
                 RateLaw,
-                FluxLaw,
                 ConstraintLaw,
                 EventLaw,
                 BoundaryLaw,

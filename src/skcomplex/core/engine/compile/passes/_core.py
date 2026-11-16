@@ -11,6 +11,7 @@ from ._check_fractional_noise import CheckFractionalNoisePass
 from ._collect import CollectPass
 from ._compile_encounters import CompileEncountersPass
 from ._complex import LowerComplexPass
+from ._conservation_laws import ConservationLawsPass
 from ._conserved_noise import ConservedNoisePass
 from ._declare_renewals import DeclareRenewalsPass
 from ._draws import DrawsPass
@@ -65,6 +66,7 @@ PASSES: tuple[type[BasePass], ...] = (
     LayoutPass,
     SpecsPass,
     CollectPass,
+    ConservationLawsPass,
     LowerComplexPass,
     MarkovPass,
     RowsPass,

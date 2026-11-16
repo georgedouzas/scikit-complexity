@@ -11,7 +11,6 @@ from ...components.laws import (
     CascadeLaw,
     EventLaw,
     ExtremalLaw,
-    FluxLaw,
     LinearProgramLaw,
     LocalRuleLaw,
     ObjectiveLaw,
@@ -19,8 +18,9 @@ from ...components.laws import (
     SampleLaw,
     TransferLaw,
 )
+from ._flux_law import _FluxLaw
 
-FORMLESS_LAWS = (BoundaryLaw, EventLaw, BilinearLaw, FluxLaw, LinearProgramLaw, ObjectiveLaw)
+FORMLESS_LAWS = (BoundaryLaw, EventLaw, BilinearLaw, _FluxLaw, LinearProgramLaw, ObjectiveLaw)
 KERNEL_FREE_LAWS = (
     TransferLaw,
     BilinearLaw,
@@ -29,7 +29,7 @@ KERNEL_FREE_LAWS = (
     CascadeLaw,
     ExtremalLaw,
     SampleLaw,
-    FluxLaw,
+    _FluxLaw,
     LinearProgramLaw,
     ObjectiveLaw,
 )

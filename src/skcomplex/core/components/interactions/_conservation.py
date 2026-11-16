@@ -12,28 +12,24 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec
-from .._tags import Tags
 from ..base import BaseComponent
-from ..laws import BaseLaw, FluxLaw, RateLaw
+from ..laws import BaseLaw, RateLaw
 from ..laws.utils import divergence
 from ..spaces import BaseSpace
 from ._base import RATE_DOMAINS
 from ._interaction import Interaction
-
-LIMITERS = ('minmod', 'van-leer', None)
-RIEMANN_SOLVERS = ('rusanov', 'godunov', None)
 
 
 class ConservationInteraction(Interaction):
     """An interaction that changes a field by the divergence of a flux and a source.
 
     It gives the conservation law `du/dt + divergence(flux) = source` of a state `u` of a field. The flux is one
-    expression for a field of one dimension, or one per dimension. On a finite-volume field the interaction lowers to a
-    flux law with a slope limiter and a numerical flux, and on other fields to the rate `-divergence(flux)`, which the
-    field discretizes by its own operators. Without a source the total of the state on a periodic field stays constant.
-    Several conservation laws on one field form one system, whose numerical flux reads the wave speeds of all of them. A
-    flux or a source function takes a namespace with the field as `target`, the time `t`, and the parameters a subclass
-    declares.
+    expression for a field of one dimension, or one per dimension. It returns the rate `-divergence(flux)`, which a
+    finite-volume field computes by the differences of the flux between cells under its scheme, with a slope limiter
+    and a numerical flux, and other fields discretize by their own operators. Without a source the total of the state
+    on a periodic field stays constant. Several conservation laws on one field form one system, whose numerical flux
+    reads the wave speeds of all of them. A flux or a source function takes a namespace with the field as `target`, the
+    time `t`, and the parameters a subclass declares.
 
     Unlike `RateInteraction`, which gives the rate of a state directly, it writes the rate as the divergence of a flux,
     so the scheme keeps the total and captures shocks. Choose it when an amount moves through space without being
@@ -58,20 +54,13 @@ class ConservationInteraction(Interaction):
         source:
             A function of the namespace that returns the source, or `None` for none.
 
-        limiter:
-            The slope limiter of the reconstruction, `'minmod'`, `'van-leer'`, or `None` for first order.
-
-        riemann:
-            The numerical flux of a finite-volume field, `'rusanov'` or `'godunov'`, the exact solver for one state, or
-            `None` for the divergence of the flux on a field of another discretization.
-
         sources:
             The paths of other elements the flux and the source read, as the namespaces `sources`. A field over the
             position lattice of a target on a phase space is read broadcast along the class axes.
 
     Raises:
         ValidationError:
-            The state is not a name, a function is not callable, or the limiter or the numerical flux is unknown.
+            The state is not a name, or a function is not callable.
 
     Examples:
         >>> from typing import Annotated
@@ -97,16 +86,7 @@ class ConservationInteraction(Interaction):
         50.0
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (FluxLaw, RateLaw)
-
-    def _get_tags(self) -> Tags:
-        """Return the tags of a flux with a Riemann solver or of a rate.
-
-        A source adds a rate.
-        """
-        transport = (FluxLaw,) if self._get_argument('riemann') is not None else (RateLaw,)
-        source = () if self._get_argument('source') is None else (RateLaw,)
-        return self._get_variant_tags((*transport, *source))
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
 
     def __init__(
         self,
@@ -116,8 +96,6 @@ class ConservationInteraction(Interaction):
         state: str = 'u',
         flux: Callable[[SimpleNamespace], object] | None = None,
         source: Callable[[SimpleNamespace], object] | None = None,
-        limiter: str | None = 'minmod',
-        riemann: str | None = 'rusanov',
         sources: Annotated[Sequence[str], RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = (),
     ) -> None:
         super().__init__(label)
@@ -125,14 +103,10 @@ class ConservationInteraction(Interaction):
         self.state = state
         self.flux = flux
         self.source = source
-        self.limiter = limiter
-        self.riemann = riemann
         self.sources = sources
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an invalid state, function, or scheme.
-
-        It raises it for a state that is not a name, a function that is not callable, or an unknown scheme.
+        """Raise an error for a state that is no name or a function that is not callable.
 
         Args:
             context:
@@ -140,8 +114,7 @@ class ConservationInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The type declares states, the state is not a name, a function is not callable, or the limiter or the
-                numerical flux is unknown.
+                The type declares states, the state is not a name, or a function is not callable.
         """
         super()._prepare(context)
         if not isinstance(self.state, str) or not self.state.isidentifier():
@@ -152,12 +125,6 @@ class ConservationInteraction(Interaction):
             if value is not None and not callable(value):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace.'
                 raise ValidationError(error_msg)
-        if self.limiter not in LIMITERS:
-            error_msg = f'Unknown limiter {self.limiter!r} of {self.label!r}. Use minmod, van-leer, or None.'
-            raise ValidationError(error_msg)
-        if self.riemann not in RIEMANN_SOLVERS:
-            error_msg = f'Unknown numerical flux {self.riemann!r} of {self.label!r}. Use rusanov, godunov, or None.'
-            raise ValidationError(error_msg)
 
     def _get_flux(self, namespace: SimpleNamespace) -> object:
         """Return the flux, or `None` for none.
@@ -175,10 +142,8 @@ class ConservationInteraction(Interaction):
         if flux is None:
             return []
         state = getattr(self._get_member(namespace, 'target'), self.state)
-        if self.riemann is None:
-            components = list(flux) if isinstance(flux, FreeModuleElement | list | tuple) else [flux]
-            return [RateLaw(state, -divergence(components))]
-        return [FluxLaw(state, flux, limiter=self.limiter, riemann=self.riemann)]
+        components = list(flux) if isinstance(flux, FreeModuleElement | list | tuple) else [flux]
+        return [RateLaw(state, -divergence(components))]
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the laws of the divergence of the flux and the rate of the source.
@@ -189,7 +154,7 @@ class ConservationInteraction(Interaction):
 
         Returns:
             laws:
-                The flux law, and the rate law of the source when there is one.
+                The rate law of the divergence of the flux, and the rate law of the source when there is one.
         """
         laws = self._get_transport_laws(namespace)
         if self.source is not None:

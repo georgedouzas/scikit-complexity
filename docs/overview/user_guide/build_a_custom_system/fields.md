@@ -134,9 +134,10 @@ The argument `discretization` of `FieldElement` chooses how space is discretized
   operator, so `laplacian(u)` is exact for smooth fields. `inverse_helmholtz(u)` solves Poisson equations.
   `symmetry={'u': (None, 'odd')}` keeps a state odd or even along an axis, which represents walls on a doubled lattice.
   `LatticeSpace(spacing=(dx, dy))` sets a spacing per axis.
-- `'finite-volume'` fields take a [`FluxLaw`](../core_components/laws.md#fluxlaw) per state, the conservation law
-  `du/dt + divergence(flux) = 0`. They update with MUSCL reconstruction, minmod or van Leer limiters, and Rusanov or
-  exact Godunov fluxes. `SSPRKSolver` steps them by the CFL condition and by the stability limit of their Laplacian
+- `'finite-volume'` fields read a rate `RateLaw(u, -divergence(flux))` of a state as the conservation law
+  `du/dt + divergence(flux) = 0`, and its other terms as sources. They update with MUSCL reconstruction, minmod or van
+  Leer limiters, and Rusanov or exact Godunov fluxes, which the
+  [`FiniteVolumeSpec`](../core_components/elements.md#fieldelement) of the field chooses. `SSPRKSolver` steps them by the CFL condition and by the stability limit of their Laplacian
   rates at the current parameters, and it conserves their totals.
 - `'finite-element'` fields live on a [`CellComplexSpace`](../core_components/spaces.md#cellcomplexspace) of the
   points and cells of a scikit-fem mesh, such as `CellComplexSpace(points=grid.p, cells=grid.t)` for

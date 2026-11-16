@@ -14,7 +14,6 @@ from ...components.laws import (
     BoundaryLaw,
     ConstraintLaw,
     EventLaw,
-    FluxLaw,
     JumpLaw,
     LinearProgramLaw,
     LocalRuleLaw,
@@ -127,7 +126,6 @@ class CoSimulationSolver(Solver):
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={
                 RateLaw,
-                FluxLaw,
                 NoiseLaw,
                 ConstraintLaw,
                 JumpLaw,

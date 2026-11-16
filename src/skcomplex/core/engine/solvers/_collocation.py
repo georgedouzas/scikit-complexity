@@ -8,7 +8,7 @@ import math
 import numpy as np
 from scipy.optimize import Bounds, minimize
 
-from ...components.laws import ConstraintLaw, FluxLaw, RateLaw
+from ...components.laws import ConstraintLaw, RateLaw
 from ...components.spaces import ContinuousTime
 from ...enums import OrderKind
 from ...errors import SolverError, ValidationError
@@ -117,7 +117,7 @@ class CollocationSolver(OptimalControlSolver):
         return SupportSpec(
             time={ContinuousTime},
             space={None},
-            laws={RateLaw, FluxLaw, ConstraintLaw},
+            laws={RateLaw, ConstraintLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

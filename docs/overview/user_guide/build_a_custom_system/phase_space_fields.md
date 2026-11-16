@@ -70,8 +70,8 @@ The function `coordinate(name)` returns the coordinate, along a named axis, of t
 the drift `[coordinate('v'), 0]`, and acceleration by a force `F` is the drift `[0, F]`. A law that reads a coordinate
 of a group whose space lacks that axis fails `simulate` with the issue `law-space`.
 
-Finite-volume fields stream on a phase space, and so do finite-difference and spectral fields built with
-`riemann=None`. Spectral derivatives need the axis to be periodic.
+Finite-volume, finite-difference, and spectral fields all stream on a phase space. Spectral derivatives need the axis to
+be periodic.
 
 ## Moments and mean fields
 

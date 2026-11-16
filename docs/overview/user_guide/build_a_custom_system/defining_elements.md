@@ -289,7 +289,7 @@ Python with a `BackendWarning`. This table lists the laws that take a function, 
 | `JumpLaw` | `rate`, and each value of `changes` | `f(t, values)` or `CallSpec` |
 | `JumpLaw` on a clock of waiting times | `waiting` | `f(rng, size=, t=, **values)` |
 | `EventLaw` | `guard`, and each value of `reset` | `f(t, values)` or `CallSpec(f, relative=True)` |
-| `FluxLaw` | `speed` | `f(t, values)`, which gives the wave speed of the Rusanov flux |
+| `FiniteVolumeSpec` | `speed` | `f(t, values)`, which gives the wave speed of the Rusanov flux |
 | `TransitionLaw` | `matrix` | `f(t, values)` or `CallSpec(f, relative=True)` |
 | `reduction(function, expression)` | `function` | `f(array)` of the values of the members |
 | `Observable` | `function` | `f(t, values)` |
@@ -377,8 +377,9 @@ each says so when given a function.
   the highest derivative.
 - [`GeneratorLaw`](../core_components/laws.md#generatorlaw) and
   [`DissipatorLaw`](../core_components/laws.md#dissipatorlaw) build quantum operators from symbols.
-- A [`FluxLaw`](../core_components/laws.md#fluxlaw) takes the derivative of its flux, for the wave speeds and for the critical points of the Godunov flux, so
-  a function goes in `speed=` or in a `RateLaw`.
+- A conservation law `RateLaw(u, -divergence(flux))` on a finite-volume field takes the derivative of its flux, for the
+  wave speeds and for the critical points of the Godunov flux, so a function goes in the `speed` of the
+  [`FiniteVolumeSpec`](../core_components/elements.md#fieldelement) of the field.
 - A crossing, a matrix, and a jump change read no delays.
 - A reset of a renewal stays symbolic, because it shares its draws with the waiting time.
 

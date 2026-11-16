@@ -13,7 +13,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.components.elements import FieldElement
+from ....core.components.elements import FieldElement, FiniteVolumeSpec
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import convolve, coordinate, cumulative_integral, displacement, reduce_axes, where
 from ....core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseSpace
@@ -51,20 +51,13 @@ class SizeGrowthInteraction(ConservationInteraction):
         source:
             A function of the namespace that returns the source, or `None` for none.
 
-        limiter:
-            The slope limiter of the reconstruction of a finite-volume field, `'minmod'`, `'van-leer'`, or `None`.
-
-        riemann:
-            The numerical flux of a finite-volume field, `'rusanov'` or `'godunov'`, or `None` for the divergence of
-            the flux on a field of another discretization.
-
         sources:
             The paths of other elements the drift and the source read, as the namespaces `sources`. A field over the
             position lattice of a target on a phase space is read broadcast along the class axes.
 
     Raises:
         ValidationError:
-            The state is not a name, a function is not callable, or the limiter or the numerical flux is unknown.
+            The state is not a name, or a function is not callable.
 
     Examples:
         >>> from typing import Annotated
@@ -99,8 +92,6 @@ class SizeGrowthInteraction(ConservationInteraction):
         state: str = 'u',
         drift: Callable[[SimpleNamespace], object] | None = None,
         source: Callable[[SimpleNamespace], object] | None = None,
-        limiter: str | None = 'minmod',
-        riemann: str | None = 'rusanov',
         sources: Sequence[str] = (),
     ) -> None:
         super().__init__(
@@ -108,16 +99,12 @@ class SizeGrowthInteraction(ConservationInteraction):
             target=target,
             state=state,
             source=source,
-            limiter=limiter,
-            riemann=riemann,
             sources=sources,
         )
         self.drift = drift
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an invalid state, drift, or scheme.
-
-        It raises it for a state that is not a name, a drift that is not callable, or an unknown scheme.
+        """Raise an error for a state that is not a name or a drift that is not callable.
 
         Args:
             context:
@@ -125,8 +112,7 @@ class SizeGrowthInteraction(ConservationInteraction):
 
         Raises:
             ValidationError:
-                The type declares states, the state is not a name, a function is not callable, or the limiter or the
-                numerical flux is unknown.
+                The type declares states, the state is not a name, or a function is not callable.
         """
         super()._prepare(context)
         if not callable(self.drift):
@@ -259,6 +245,7 @@ class ForestSizeStructureSystem(BaseSystem):
             space=space,
             values={'x': start},
             discretization='finite-volume',
+            scheme=FiniteVolumeSpec(limiter=None),
         )
         h = coordinate('h')
         growth = 1 - h / self.top
@@ -280,7 +267,6 @@ class ForestSizeStructureSystem(BaseSystem):
             target='forest',
             state='x',
             drift=lambda s: [0, light(s) * growth],
-            limiter=None,
         )
         demographics = RateInteraction('demography', target='forest', state='x', rate=demography)
         return CompositeSystem(self.label, elements=[forest], interactions=[grow, demographics])

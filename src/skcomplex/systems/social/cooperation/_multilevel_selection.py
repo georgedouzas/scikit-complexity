@@ -14,7 +14,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, tanh
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.components.elements import FieldElement
+from ....core.components.elements import FieldElement, FiniteVolumeSpec
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import coordinate, integral_transform, integration_variable
 from ....core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseSpace, SimplexSpace
@@ -66,20 +66,13 @@ class SelectionDriftInteraction(ConservationInteraction):
         source:
             A function of the namespace that returns the source, or `None` for none.
 
-        limiter:
-            The slope limiter of the reconstruction of a finite-volume field, `'minmod'`, `'van-leer'`, or `None`.
-
-        riemann:
-            The numerical flux of a finite-volume field, `'rusanov'` or `'godunov'`, or `None` for the divergence of
-            the flux on a field of another discretization.
-
         sources:
             The paths of other elements the drift and the source read, as the namespaces `sources`. A field over the
             position lattice of a target on a phase space is read broadcast along the class axes.
 
     Raises:
         ValidationError:
-            The state is not a name, a function is not callable, or the limiter or the numerical flux is unknown.
+            The state is not a name, or a function is not callable.
 
     Examples:
         >>> from typing import Annotated
@@ -114,8 +107,6 @@ class SelectionDriftInteraction(ConservationInteraction):
         state: str = 'u',
         drift: Callable[[SimpleNamespace], object] | None = None,
         source: Callable[[SimpleNamespace], object] | None = None,
-        limiter: str | None = 'minmod',
-        riemann: str | None = 'rusanov',
         sources: Sequence[str] = (),
     ) -> None:
         super().__init__(
@@ -123,16 +114,12 @@ class SelectionDriftInteraction(ConservationInteraction):
             target=target,
             state=state,
             source=source,
-            limiter=limiter,
-            riemann=riemann,
             sources=sources,
         )
         self.drift = drift
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an invalid state, drift, or scheme.
-
-        It raises it for a state that is not a name, a drift that is not callable, or an unknown scheme.
+        """Raise an error for a state that is not a name or a drift that is not callable.
 
         Args:
             context:
@@ -140,8 +127,7 @@ class SelectionDriftInteraction(ConservationInteraction):
 
         Raises:
             ValidationError:
-                The type declares states, the state is not a name, a function is not callable, or the limiter or the
-                numerical flux is unknown.
+                The type declares states, the state is not a name, or a function is not callable.
         """
         super()._prepare(context)
         if not callable(self.drift):
@@ -336,13 +322,13 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
             space=space,
             values={'x': np.ones((1, self.cells))},
             discretization='finite-volume',
+            scheme=FiniteVolumeSpec(limiter=None),
         )
         within = SelectionDriftInteraction(
             'within',
             target='groups',
             state='x',
             drift=lambda _: [0, z * (1 - z) * advantage],
-            limiter=None,
         )
         between = RateInteraction(
             'between',
@@ -466,13 +452,13 @@ class TwoLevelReplicatorSystem(BaseSystem):
             space=space,
             values={'x': np.ones((1, self.cells))},
             discretization='finite-volume',
+            scheme=FiniteVolumeSpec(limiter=None),
         )
         within = SelectionDriftInteraction(
             'within',
             target='groups',
             state='x',
             drift=lambda _: [0, z * (1 - z) * advantage],
-            limiter=None,
         )
         between = RateInteraction(
             'between',
@@ -635,9 +621,10 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
             space=space,
             values={'x': 2.0 * (space.prepare().volumes_ > 0)},
             discretization='finite-volume',
+            scheme=FiniteVolumeSpec(limiter=None),
         )
         drift = self._get_simplex_drift(payoffs)
-        within = SelectionDriftInteraction('within', target='groups', state='x', drift=lambda _: drift, limiter=None)
+        within = SelectionDriftInteraction('within', target='groups', state='x', drift=lambda _: drift)
         between = RateInteraction(
             'between',
             target='groups',

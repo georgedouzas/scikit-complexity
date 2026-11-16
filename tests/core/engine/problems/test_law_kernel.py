@@ -7,9 +7,9 @@ import pytest
 from sage.all__sagemath_symbolics import SR, ZZ
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.laws import CallSpec, FluxLaw, JumpLaw, RateLaw, TransitionLaw, UpdateLaw
-from skcomplex.core.components.laws.utils import reduction, total
+from skcomplex.core.components.elements import Element, FieldElement, FiniteVolumeSpec, GroupElement
+from skcomplex.core.components.laws import CallSpec, JumpLaw, RateLaw, TransitionLaw, UpdateLaw
+from skcomplex.core.components.laws.utils import divergence, reduction, total
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
@@ -366,42 +366,26 @@ class BurgersElement(Element):
 
     def _get_laws(self, s):
         """Return the flux."""
-        return [FluxLaw(s.u, s.u**2 / 2)]
+        return [RateLaw(s.u, -divergence([s.u**2 / 2]))]
 
 
-class SpeedElement(BurgersElement):
-    """Cell of a Burgers field, with its wave speed from a function."""
-
-    def _get_laws(self, s):
-        """Return the flux."""
-        return [FluxLaw(s.u, s.u**2 / 2, speed=_burgers_speed)]
-
-
-def _burgers(element):
-    """Return the final values of a Burgers field."""
+def _burgers(scheme):
+    """Return the final values of a Burgers field under a finite-volume scheme."""
     n = 40
     centers = (np.arange(n) + 0.5) * 2 * np.pi / n
     field = FieldElement(
         'line',
-        element=element,
+        element=BurgersElement,
         space=LatticeSpace(n, spacing=2 * np.pi / n),
         values={'u': 1.0 + 0.5 * np.sin(centers)},
         discretization='finite-volume',
+        scheme=scheme,
     )
     return np.asarray(
         simulate(CompositeSystem(elements=[field]), until=0.5, dt=0.5, solver=SSPRKSolver()).get_values('line.u'),
     )[-1]
 
 
-def test_flux_law_speed_function_equals_the_eigenvalues():
+def test_scheme_speed_function_equals_the_eigenvalues():
     """Test that a wave speed given as a function gives the run of the same speed from the Jacobian."""
-    assert _burgers(SpeedElement) == pytest.approx(_burgers(BurgersElement), abs=1e-9)
-
-
-def test_flux_law_rejects_a_function_as_a_flux_or_a_speed_of_godunov():
-    """Test that a flux says it is symbolic only and names the callable alternative."""
-    u = SR.var('u')
-    with pytest.raises(ValidationError, match=r'symbolic only.*speed='):
-        FluxLaw(u, lambda t, values: values['u'], riemann='godunov').prepare()
-    with pytest.raises(ValidationError, match='takes no `speed`'):
-        FluxLaw(u, u**2 / 2, riemann='godunov', speed=lambda t, values: values['u']).prepare()
+    assert _burgers(FiniteVolumeSpec(speed=_burgers_speed)) == pytest.approx(_burgers(None), abs=1e-9)

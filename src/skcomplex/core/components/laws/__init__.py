@@ -20,7 +20,6 @@ from ._dissipator import DissipatorLaw
 from ._draw_spec import DrawSpec
 from ._event import EventLaw
 from ._extremal import ExtremalLaw
-from ._flux import FluxLaw
 from ._generator import GeneratorLaw
 from ._jump import JumpLaw
 from ._linear_objective_spec import LinearObjectiveSpec
@@ -63,7 +62,6 @@ __all__: list[str] = [
     'DrawSpec',
     'EventLaw',
     'ExtremalLaw',
-    'FluxLaw',
     'GeneratorLaw',
     'JumpLaw',
     'Letters',

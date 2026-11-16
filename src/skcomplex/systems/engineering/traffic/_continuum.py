@@ -13,7 +13,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, erf, exp, oo, pi, sqrt, tanh
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
+from ....core.components.elements import Element, FieldElement, FiniteVolumeSpec
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian, shifted
 from ....core.components.spaces import LatticeSpace
@@ -256,9 +256,10 @@ class LighthillWhithamRichardsSystem(BaseSystem):
             boundary={'rho': 'zero-flux'},
             values=values,
             discretization='finite-volume',
+            scheme=FiniteVolumeSpec(riemann='godunov'),
         )
         flux = self._get_lighthill_whitham_richards_flux
-        density = ConservationInteraction('density', target='road', state='rho', flux=flux, riemann='godunov')
+        density = ConservationInteraction('density', target='road', state='rho', flux=flux)
         return CompositeSystem(self.label, elements=[road], interactions=[density])
 
 

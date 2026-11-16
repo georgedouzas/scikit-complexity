@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import SR, Expression, I, matrix, solve
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.elements import FieldElement
-from ....components.laws import BaseLaw, FluxLaw
+from ....components.laws import BaseLaw
 from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import CellComplexSpace, LatticeSpace, PhaseSpace, SimplexSpace
 from ....enums import VariableKind
@@ -33,6 +33,7 @@ from ...problems._reference_spec import ReferenceSpec
 from ...problems._symmetry_spec import SymmetrySpec
 from .._base import BasePass
 from .._compilation import Compilation
+from .._flux_law import _FluxLaw
 
 PAIR = 2
 
@@ -100,10 +101,10 @@ class FieldFunctionsPass(BasePass):
         They come from the flux laws of all its components. The flux laws of one field, from its element and from any
         interaction, form one system, whose wave speeds come from the Jacobian of all its fluxes.
         """
-        found: dict[str, list[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]]] = {}
+        found: dict[str, list[tuple[_FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]]] = {}
         for spec, laws in specs:
             for law in laws:
-                if not isinstance(law, FluxLaw):
+                if not isinstance(law, _FluxLaw):
                     continue
                 reference = spec._get_target_references(law._get_targets()[0])[0]
                 owner = reference.entry.name.rpartition('.')[0]
@@ -287,7 +288,7 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _get_canonical(
-        laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
+        laws: Sequence[tuple[_FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
         owner: str,
     ) -> tuple[list[list[Expression]], list[Expression], list[ReferenceSpec]]:
         """Return the flux components in shared symbols, the state symbols, and parameters.
@@ -299,7 +300,7 @@ class FieldFunctionsPass(BasePass):
         """
         names = [reference.entry.name for _, reference, _ in laws]
         if len(set(names)) != len(names):
-            error_msg = f'Two flux laws conserve the same state of {owner}. Give one flux per state.'
+            error_msg = f'Two conservation laws transport the same state of {owner}. Give one flux per state.'
             raise ValidationError(error_msg)
         states = [SR.var(f'_volume_state_{index}') for index in range(len(names))]
         parameters: dict[tuple[str, int, object, int], tuple[Expression, ReferenceSpec]] = {}
@@ -378,7 +379,7 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _get_function_speeds(
-        laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
+        laws: Sequence[tuple[_FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
         parameters: Sequence[ReferenceSpec],
         n_dim: int,
         owner: str,
@@ -589,7 +590,7 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _compile_volumes(
-        laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
+        laws: Sequence[tuple[_FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
         place: FieldElement,
         owner: str,
         declarations: DeclarationsSpec,

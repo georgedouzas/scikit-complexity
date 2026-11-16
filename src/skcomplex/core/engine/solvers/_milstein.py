@@ -6,7 +6,7 @@
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, ConstraintLaw, EventLaw, FluxLaw, NoiseLaw, RateLaw, TransferLaw
+from ...components.laws import BoundaryLaw, ConstraintLaw, EventLaw, NoiseLaw, RateLaw, TransferLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
 from ...enums import NoiseKind, OrderKind
 from ...types import Array
@@ -45,7 +45,7 @@ class MilsteinSolver(SDESolver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, ConstraintLaw, EventLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            laws={RateLaw, ConstraintLaw, EventLaw, BoundaryLaw, TransferLaw, NoiseLaw},
             noise=frozenset({NoiseKind.DIAGONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )

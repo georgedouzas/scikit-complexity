@@ -389,9 +389,10 @@ totals
 
 The total stays 50.0 under each of the three interactions.
 
-- `ConservationInteraction(target, state, flux, source=None, limiter='minmod', riemann='rusanov')` conserves a state of
-  a finite-volume field under a flux and a source. The flux laws of one field form one system. With `riemann=None`, it
-  lowers to the divergence of the flux on spectral and finite-difference fields.
+- `ConservationInteraction(target, state, flux, source=None)` conserves a state of a field under a flux and a source,
+  with the rate `-divergence(flux)`. A finite-volume field computes it by the differences of the flux between cells,
+  under the limiter and numerical flux of its `FiniteVolumeSpec`, and the conservation laws of one field form one
+  system. Spectral and finite-difference fields discretize the divergence by their own operators.
 - A drift `a` carries a state as the flux `a u` of a `ConservationInteraction`.
 - Diffusion is the rate `D laplacian(u)` of a `RateInteraction`, the divergence of the flux `-D gradient(u)`, which keeps
   the total of a periodic field. Physics names these forms by the subclasses `AdvectionInteraction` and

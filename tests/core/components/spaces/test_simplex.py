@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element, FieldElement, FiniteVolumeSpec
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, moment
 from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, SimplexSpace
@@ -116,13 +116,13 @@ def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> N
         space=space,
         values={'x': start},
         discretization='finite-volume',
+        scheme=FiniteVolumeSpec(limiter=None),
     )
     flow = ConservationInteraction(
         'flow',
         target='groups',
         state='x',
         flux=lambda s: [component * s.target.x for component in replicator_drift(s)],
-        limiter=None,
     )
     trajectory = simulate(CompositeSystem(elements=[groups], interactions=[flow]), until=2.0, dt=0.5, solver=solver)
     final = trajectory.get_values('groups.x')[-1].reshape(space.shape_)

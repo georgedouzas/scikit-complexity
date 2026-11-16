@@ -21,7 +21,7 @@ from skfem import Basis, ElementTetP1, ElementTriP1, MeshTet, MeshTri, asm
 from skfem.models.poisson import laplace, mass
 
 from ...components.elements import FieldElement
-from ...components.laws import BaseLaw, BoundaryLaw, FluxLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...components.laws.utils import coordinate, displacement, integration_variable, where
 from ...components.laws.utils._operators import COLLISION_COSINE, COLLISION_SPEED, INVERSION_BOUNDARIES
 from ...components.laws.utils._phase import COORDINATE_PREFIX
@@ -50,6 +50,7 @@ from ..problems._neighbor_read_spec import _NeighborReadSpec
 from ..problems._reference_spec import ReferenceSpec
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
+from ._flux_law import _FluxLaw
 
 OPERATOR_NAMES = (
     'laplacian',
@@ -168,7 +169,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         result: list[BaseLaw] = []
         for law in inputs or []:
-            if isinstance(law, FluxLaw) and self._get_law_has_operators(law):
+            if isinstance(law, _FluxLaw) and self._get_law_has_operators(law):
                 result.append(
                     BasePass._get_replaced(law, flux=[self._lower(SR(item)) for item in self._get_components(law)]),
                 )
@@ -752,7 +753,8 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if isinstance(place.space, SimplexSpace):
             error_msg = (
                 f'A law of {self.spec.owner} applies {name} to a field on a simplex, which only takes finite-volume '
-                'fluxes, reductions, and integrals. Write the transport as a flux of the finite-volume discretization.'
+                'fluxes, reductions, and integrals. Write the transport as `-divergence(flux)` on a finite-volume '
+                'field.'
             )
             raise ValidationError(error_msg)
         if place.discretization == 'spectral':
@@ -1393,7 +1395,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return guess
 
     @staticmethod
-    def _get_components(law: FluxLaw) -> list[object]:
+    def _get_components(law: _FluxLaw) -> list[object]:
         """Return the flux of every dimension of a flux law."""
         return list(law.flux) if isinstance(law.flux, FreeModuleElement | list | tuple) else [law.flux]
 
@@ -1403,7 +1405,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
         The flux of a flux law counts as its value.
         """
-        if isinstance(law, FluxLaw):
+        if isinstance(law, _FluxLaw):
             return any(FieldLowering._has_operators(SR(item)) for item in FieldLowering._get_components(law))
         return FieldLowering._has_operators(getattr(law, 'value', None))
 

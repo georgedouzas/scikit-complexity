@@ -12,7 +12,7 @@ from scipy.sparse import csr_matrix, diags, identity
 from scipy.sparse.linalg import SuperLU, splu
 
 from ...components.elements import FieldElement
-from ...components.laws import BoundaryLaw, FluxLaw, LinearProgramLaw, RateLaw, TransferLaw
+from ...components.laws import BoundaryLaw, LinearProgramLaw, RateLaw, TransferLaw
 from ...components.spaces import (
     CayleySpace,
     CellComplexSpace,
@@ -71,7 +71,7 @@ class SplitSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
-            laws={LinearProgramLaw, RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
+            laws={LinearProgramLaw, RateLaw, BoundaryLaw, TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

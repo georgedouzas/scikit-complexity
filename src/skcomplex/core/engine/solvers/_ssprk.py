@@ -7,7 +7,7 @@ import math
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, FluxLaw, RateLaw, TransferLaw
+from ...components.laws import BoundaryLaw, RateLaw, TransferLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
@@ -65,7 +65,7 @@ class SSPRKSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
+            laws={RateLaw, BoundaryLaw, TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

@@ -13,6 +13,7 @@ from ...errors import ValidationError
 from ...specs import StateSpec, TensorSpec, VisualSpec
 from ..spaces import BaseSpace, CellComplexSpace, LatticeSpace, NetworkSpace
 from ._base import BaseElement
+from ._finite_volume_spec import FiniteVolumeSpec
 from ._group import GroupElement
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
@@ -65,8 +66,13 @@ class FieldElement(GroupElement):
             - `'finite-difference'`: stencils on a lattice and the graph Laplacian on a network.
             - `'spectral'`: products of Fourier modes on a periodic lattice, with the two-thirds rule, which drops the
               highest modes so that their products create no false ones.
-            - `'finite-volume'`: averages over cells that change by the differences of the `FluxLaw`s of the states.
+            - `'finite-volume'`: averages over cells. A rate `-divergence(flux)` of a state is a conservation law,
+              whose cells change by the differences of the flux between them under the scheme of `scheme`.
             - `'finite-element'`: stiffness and mass matrices assembled on a `CellComplexSpace` of points and cells.
+
+        scheme:
+            The limiter, numerical flux, and wave speed of a finite-volume field, or `None` for the minmod limiter and
+            the Rusanov flux. Fields of other discretizations take none.
 
         symmetry:
             The parity of each state by name along every axis of a periodic lattice, `'odd'`, `'even'`, or `None`, which
@@ -130,12 +136,18 @@ class FieldElement(GroupElement):
         boundary: Mapping[str, object] | None = None,
         values: Mapping[str, object] | None = None,
         discretization: str = 'finite-difference',
+        scheme: FiniteVolumeSpec | None = None,
         symmetry: Mapping[str, Sequence[object]] | None = None,
     ) -> None:
         super().__init__(label, element=element, values=values, space=space, on='sites')
         self.boundary = boundary
         self.discretization = discretization
+        self.scheme = scheme
         self.symmetry = symmetry
+
+    def _get_scheme(self) -> FiniteVolumeSpec:
+        """Return the scheme of a finite-volume field, the default one without a scheme."""
+        return FiniteVolumeSpec() if self.scheme is None else self.scheme
 
     def _get_tensor_of(self, state: str) -> TensorSpec | None:
         """Return the independent components of a tensor state of the element.
@@ -203,6 +215,14 @@ class FieldElement(GroupElement):
         if self.discretization not in DISCRETIZATIONS:
             error_msg = f'Unknown discretization {self.discretization!r} of {self.label}. Use one of {DISCRETIZATIONS}.'
             raise ValidationError(error_msg)
+        if self.scheme is not None:
+            if not isinstance(self.scheme, FiniteVolumeSpec) or self.discretization != 'finite-volume':
+                error_msg = (
+                    f'The scheme of {self.label} is {self.scheme!r}. Give a `FiniteVolumeSpec` to a field with '
+                    "discretization='finite-volume'."
+                )
+                raise ValidationError(error_msg)
+            self.scheme._check()
         for state in self.boundary or {}:
             try:
                 kind, _ = self._get_boundary(state)
