@@ -14,7 +14,6 @@ from skcomplex.core.components.interactions import (
     BaseInteraction,
     CouplingInteraction,
     CrossingInteraction,
-    GradientInteraction,
     GroupingInteraction,
     HyperedgeInteraction,
     Interaction,
@@ -52,6 +51,7 @@ from skcomplex.systems.general.agents import (
     ImitationInteraction,
     MovementInteraction,
 )
+from skcomplex.systems.general.gradients import GradientInteraction
 from skcomplex.systems.general.matching import MatchingInteraction
 from skcomplex.systems.general.reactions import ReactionInteraction
 from skcomplex.systems.physics.common.avalanches import TopplingInteraction

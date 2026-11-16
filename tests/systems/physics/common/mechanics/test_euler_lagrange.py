@@ -1,4 +1,4 @@
-"""Test the `_euler_lagrange` module of `skcomplex.core.components.interactions`."""
+"""Test the `_euler_lagrange` module of `skcomplex.systems.physics.common.mechanics`."""
 
 from types import SimpleNamespace
 from typing import Annotated
@@ -9,7 +9,6 @@ from sage.all__sagemath_symbolics import cos, sin, var
 from scipy.linalg import expm
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import EulerLagrangeInteraction
 from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.systems import CompositeSystem
@@ -17,6 +16,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.systems.physics.common.mechanics import EulerLagrangeInteraction
 
 DAMPING, FORCE, OMEGA = 0.3, 0.5, 1.3
 

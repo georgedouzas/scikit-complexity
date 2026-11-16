@@ -508,6 +508,108 @@ The message reads "The conservative encounter 'exchange' moves candidates by a k
 
 See its [API entry][skcomplex.systems.general.kinetics].
 
+## GradientInteraction
+
+A `GradientInteraction` takes a potential, one scalar function of the states, and moves every state down its
+gradient. Here a particle in the double well `U = (x^2 - 1)^2 / 4` slides from 0.5 to the bottom of the well at 1.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.components.elements import Element
+from skcomplex.systems.general.gradients import GradientInteraction
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.specs import StateSpec
+
+
+class AmountElement(Element):
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.x = x
+
+
+well = GradientInteraction('well', target='particle', potential=lambda s: (s.target.x**2 - 1) ** 2 / 4)
+landscape = CompositeSystem(elements=[AmountElement('particle', x=0.5)], interactions=[well])
+simulate(landscape, until=10, dt=5.0).get_values('particle.x').round(3).tolist()
+```
+
+The particle reaches 1.0 by the fifth unit of time and stays there.
+
+The same class fits the two weights of a model by descending its loss, the squared distance to the values 1 and -2.
+
+```python continuation
+class ModelElement(Element):
+    def __init__(
+        self, label, *, a: Annotated[float, StateSpec()] = 0.0, b: Annotated[float, StateSpec()] = 0.0
+    ):
+        super().__init__(label)
+        self.a = a
+        self.b = b
+
+
+loss = lambda s: (s.target.a - 1) ** 2 + (s.target.b + 2) ** 2
+descent = GradientInteraction('descent', target='model', states=('a', 'b'), potential=loss)
+trajectory = simulate(CompositeSystem(elements=[ModelElement('model')], interactions=[descent]), until=5, dt=5.0)
+round(float(trajectory.get_values('model.a')[-1]), 3), round(float(trajectory.get_values('model.b')[-1]), 3)
+```
+
+The weights reach 1.0 and -2.0, the minimum of the loss.
+
+**How the engine runs it.** The interaction differentiates the potential symbolically and returns one rate law per
+moving state, `-dU/dx` divided by the divisor. On a state of order 1 this is a gradient flow, and on a state of order
+2 it is Newton's law with the force `-dU/dx`. `ScipyODESolver` integrates the rates.
+
+```python continuation
+[law.__name__ for law in descent.law_classes]
+```
+
+The interaction emits rate laws.
+
+**How it combines.** The role `target` binds an element or a group, and `sources` names the elements the potential
+reads without moving them, such as the position of a fixed charge. Several gradient interactions on one state add
+their forces. On a `FieldElement`, with `variational=True`, the potential is the density of a functional and the field
+follows the Allen-Cahn equation, and `conserved=True` gives the Cahn-Hilliard equation.
+
+**Limits and errors.** One potential gives every rate, so a force that is not the gradient of a potential, such as
+friction, needs a `RateInteraction`. The potential must be a function, and `prepare` raises a `ValidationError`
+otherwise.
+
+```python continuation
+from skcomplex.core.errors import ValidationError
+
+try:
+    GradientInteraction('well', target='particle', potential=1.0).prepare()
+except ValidationError as error:
+    message = str(error)
+message
+```
+
+The message reads "The potential of 'well' is 1.0. Give a function of the namespace." The fix is a function, such as
+`lambda s: s.target.x**2 / 2`.
+
+**A field realization.** A field fixes the potential and names its parameters, such as a spring of stiffness `k`.
+
+```python continuation
+from skcomplex.core.specs import ParameterSpec
+
+
+class SpringInteraction(GradientInteraction):
+    def __init__(self, label, *, target, k: Annotated[float, ParameterSpec()] = 1.0):
+        super().__init__(label, target=target, potential=lambda s: s.k * s.target.x**2 / 2)
+        self.k = k
+
+
+spring = SpringInteraction('spring', target='particle', k=2.0)
+relaxation = CompositeSystem(elements=[AmountElement('particle', x=1.0)], interactions=[spring])
+round(float(simulate(relaxation, until=1, dt=1.0).get_values('particle.x')[-1]), 3)
+```
+
+The particle relaxes from 1 to 0.135 in one unit of time, which is `exp(-2)`.
+
+See its [API entry][skcomplex.systems.general.gradients]
+and its [API entry][skcomplex.core.components.interactions.GradientInteraction].
+
 ## DynamicalSystem
 
 A `DynamicalSystem` is a set of states and the equations that evolve them, rates in continuous time or next values in

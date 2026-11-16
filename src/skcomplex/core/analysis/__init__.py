@@ -57,7 +57,6 @@ from ._spectrum import SpectrumResult, spectrum
 from ._stability import StabilityResult, stability
 from ._surrogates import SurrogateTestResult, surrogate_test
 from ._symbolic import SymbolicResult, symbolic
-from ._symmetry_spec import SymmetrySpec
 
 __all__: list[str] = [
     'AlignmentResult',
@@ -113,7 +112,6 @@ __all__: list[str] = [
     'StabilityResult',
     'SurrogateTestResult',
     'SymbolicResult',
-    'SymmetrySpec',
     'alignment',
     'applicable_analyses',
     'autocatalytic_sets',

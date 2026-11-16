@@ -14,12 +14,13 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, GradientInteraction, Interaction, RateInteraction
+from ....core.components.interactions import BaseInteraction, Interaction, RateInteraction
 from ....core.components.laws import BaseLaw, EventLaw, RateLaw
 from ....core.components.laws.utils import derivative
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.gradients import GradientInteraction
 from ..common.mechanics import PendulumElement, PendulumInteraction, ReflectionInteraction
 from ..common.particles import (
     ConstantForceInteraction,

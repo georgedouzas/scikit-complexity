@@ -10,14 +10,14 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...enums import ElementKind
-from ...errors import ValidationError
-from ...specs import RoleSpec
-from ..base import BaseComponent
-from ..laws import BaseLaw, ConstraintLaw
-from ..laws.utils import derivative
-from ..spaces import BaseSpace
-from ._interaction import Interaction
+from .....core.components.base import BaseComponent
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, ConstraintLaw
+from .....core.components.laws.utils import derivative
+from .....core.components.spaces import BaseSpace
+from .....core.enums import ElementKind
+from .....core.errors import ValidationError
+from .....core.specs import RoleSpec
 
 
 class EulerLagrangeInteraction(Interaction):
@@ -67,7 +67,7 @@ class EulerLagrangeInteraction(Interaction):
         >>> from typing import Annotated
         >>> from sage.all__sagemath_symbolics import cos
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import EulerLagrangeInteraction
+        >>> from skcomplex.systems.physics.common.mechanics import EulerLagrangeInteraction
         >>> from skcomplex.core.components.laws.utils import derivative
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec

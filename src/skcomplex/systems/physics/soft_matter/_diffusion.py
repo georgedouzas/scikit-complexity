@@ -17,13 +17,14 @@ from sage.all__sagemath_symbolics import SR, Expression, cos, exp, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BaseInteraction, GradientInteraction, RateInteraction
+from ....core.components.interactions import BaseInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, BoundaryLaw
 from ....core.components.laws.utils import pulse_train, where
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ...general.gradients import GradientInteraction
 from ..common.particles import (
     POINTS,
     BrownianParticleElement,

@@ -39,7 +39,7 @@ system from, and the column "Engine" names what compiles and runs them.
 | kinetics | [`BilinearLaw`](../core_components/laws.md#bilinearlaw), `moment` | the encounter passes, `KineticSolver` |
 | fractional | `StateSpec(order=...)` in `(0, 1)`, [`NoiseLaw`](../core_components/laws.md#noiselaw)`(..., hurst=)` | the fractional passes, `FractionalABMSolver`, `GrunwaldLetnikovSolver`, `FractionalEulerMaruyamaSolver` |
 | topology | `TopologyRequestSpec` | the topology passes |
-| particles | `StateSpec(vector=True, order=2)`, [`GradientInteraction`](../core_components/interactions.md#gradientinteraction), [`PairInteraction`](../core_components/interactions.md#pairinteraction) | `VelocityVerletSolver`, `Yoshida4Solver`, `LammpsSolver` |
+| particles | `StateSpec(vector=True, order=2)`, [`GradientInteraction`](../core_components/general.md#gradientinteraction), [`PairInteraction`](../core_components/interactions.md#pairinteraction) | `VelocityVerletSolver`, `Yoshida4Solver`, `LammpsSolver` |
 | control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
 `simulate` compiles a system into the problem of its form and runs it. You never name the compiler of a form that the

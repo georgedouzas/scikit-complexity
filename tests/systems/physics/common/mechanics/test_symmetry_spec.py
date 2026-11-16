@@ -1,9 +1,9 @@
-"""Test the `_symmetry_spec` module of `skcomplex.core.analysis`."""
+"""Test the `_symmetry_spec` module of `skcomplex.systems.physics.common.mechanics`."""
 
 import pytest
 
-from skcomplex.core.analysis import SymmetrySpec
 from skcomplex.core.errors import ValidationError
+from skcomplex.systems.physics.common.mechanics import SymmetrySpec
 
 
 @pytest.mark.parametrize(

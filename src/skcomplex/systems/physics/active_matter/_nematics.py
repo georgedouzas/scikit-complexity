@@ -19,7 +19,7 @@ from sage.structure.element import Matrix
 
 from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import ConservationInteraction, GradientInteraction
+from ....core.components.interactions import ConservationInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import (
     advection,
@@ -38,6 +38,7 @@ from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import TensorShapeError, ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ...general.gradients import GradientInteraction
 
 GEL_ORDERS = ('nematic', 'polar')
 NEMATIC_BOX = 10.0

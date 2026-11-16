@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import CrossingInteraction, HamiltonianInteraction, RateInteraction
+from ....core.components.interactions import CrossingInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative, periodic_guard
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -24,6 +24,7 @@ from ....core.errors import ParameterError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
+from ..common.mechanics import HamiltonianInteraction
 from ..common.oscillators import StuartLandauElement
 
 SPRINGS = ('tangent', 'linear')

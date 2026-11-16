@@ -13,12 +13,12 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression
 
 from .....core.components.base import BaseComponent
-from .....core.components.interactions import GradientInteraction
 from .....core.components.laws import RateLaw
 from .....core.components.laws.utils import derivative
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
+from ....general.gradients import GradientInteraction
 
 N_STATES = 2
 

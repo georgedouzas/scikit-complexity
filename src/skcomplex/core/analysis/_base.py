@@ -12,6 +12,7 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
+from .. import systems
 from ..components import Tags
 from ..components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..components.systems import BaseSystem, CompositeSystem
@@ -220,6 +221,8 @@ def _composite(source: Source) -> Source:
         source:
             The prepared composite `CompositeSystem` of a system that builds its components, or the source itself.
     """
+    if isinstance(source, systems.BaseSystem):
+        return source._get_composite()
     if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         return source.prepare().system_
     return source
@@ -777,6 +780,8 @@ def _read_system(source: object) -> CompositeSystem | BaseProblemSpec:
     """
     if isinstance(source, Trajectory):
         return source.problem
+    if isinstance(source, systems.BaseSystem):
+        return source._get_composite()
     if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         return source.prepare().system_
     if isinstance(source, CompositeSystem | BaseProblemSpec):

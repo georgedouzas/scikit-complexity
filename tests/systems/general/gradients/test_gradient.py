@@ -1,4 +1,4 @@
-"""Test the `_gradient` module of `skcomplex.core.components.interactions`."""
+"""Test the `_gradient` module of `skcomplex.systems.general.gradients`."""
 
 from types import SimpleNamespace
 from typing import Annotated
@@ -9,7 +9,6 @@ from sage.all__sagemath_symbolics import oo, var
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.interactions import GradientInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import gradient, laplacian
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
@@ -18,6 +17,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.systems.general.gradients import GradientInteraction
 
 KAPPA = 0.5
 

@@ -13,16 +13,15 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.structure.element import Matrix
 from sage.symbolic.operators import add_vararg, mul_vararg
 
-from ...enums import ElementKind
-from ...errors import ValidationError
-from ...specs import RoleSpec
-from ..base import BaseComponent
-from ..laws import BaseLaw, RateLaw
-from ..laws.utils import laplacian, partial
-from ..laws.utils._tensors import distribute_operators
-from ..spaces import BaseSpace
-from ..types import Target
-from ._interaction import Interaction
+from ....core.components.base import BaseComponent
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import distribute_operators, laplacian, partial
+from ....core.components.spaces import BaseSpace
+from ....core.components.types import Target
+from ....core.enums import ElementKind
+from ....core.errors import ValidationError
+from ....core.specs import RoleSpec
 
 
 class GradientInteraction(Interaction):
@@ -84,7 +83,7 @@ class GradientInteraction(Interaction):
         ...     def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
         ...         self.x = x
-        >>> from skcomplex.core.components.interactions import GradientInteraction
+        >>> from skcomplex.systems.general.gradients import GradientInteraction
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> well = GradientInteraction('well', target='walker', states='x', potential=lambda s: s.target.x**2 / 2)

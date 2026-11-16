@@ -15,12 +15,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import GradientInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ETDRK4Solver
 from ....core.specs import ParameterSpec, StateSpec
+from ...general.gradients import GradientInteraction
 
 
 class MarangoniLayerElement(Element):

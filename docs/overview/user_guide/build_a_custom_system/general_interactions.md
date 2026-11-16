@@ -35,9 +35,9 @@ below, then follow the link to its subsection.
 - Change a state continuously by a rate, towards a goal, or with noise: [`RateInteraction`](../core_components/interactions.md#rateinteraction), in
   [Rates and relaxation](#rates-and-relaxation).
 - Move states down a potential, or write the mechanics of a Lagrangian or a Hamiltonian:
-  [`GradientInteraction`](../core_components/interactions.md#gradientinteraction),
-  [`EulerLagrangeInteraction`](../core_components/interactions.md#eulerlagrangeinteraction), and
-  [`HamiltonianInteraction`](../core_components/interactions.md#hamiltonianinteraction), in [Gradients and mechanics](#gradients-and-mechanics).
+  [`GradientInteraction`](../core_components/general.md#gradientinteraction),
+  [`EulerLagrangeInteraction`][skcomplex.systems.physics.common.mechanics], and
+  [`HamiltonianInteraction`][skcomplex.systems.physics.common.mechanics], in [Gradients and mechanics](#gradients-and-mechanics).
 - Evolve a metric by the Einstein equations, or move a particle along its geodesics: the physics classes in
   [Curved spacetimes](#curved-spacetimes).
 - Conserve, carry, or spread a quantity over a field:
@@ -193,7 +193,7 @@ Here a state moves down a potential through a `GradientInteraction`. On a state 
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import GradientInteraction
+from skcomplex.systems.general.gradients import GradientInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -236,110 +236,92 @@ The point starts at 1.0 and reaches -1.0 after half a period `pi` of the harmoni
 gives the variational or conserved dynamics of a field. The divisor is a name, a function of the member, or a mapping
 of one divisor per state.
 
-When you know the Lagrangian of a mechanical system, the kinetic minus the potential energy, an
-`EulerLagrangeInteraction` writes its equations of motion. Here a pendulum swings from the angle 0.1.
+An interaction states Newton's or Hamilton's equations directly as rate laws written in Sage. Here a pendulum swings
+from the angle 0.1 under the law `q'' = -sin q`.
 
 ```python
-from typing import Annotated
-
-from sage.all__sagemath_symbolics import cos
+from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import EulerLagrangeInteraction
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class AngleElement(Element):
-    def __init__(self, label, *, q: Annotated[float, StateSpec(order=2)] = 0.1, q_d1: float = 0.0):
+class Swing(Interaction):
+    def __init__(self, label, *, target: Role = 'bob'):
         super().__init__(label)
-        self.q = q
-        self.q_d1 = q_d1
+        self.target = target
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        q = s.target.q
+        self.laws_ = [RateLaw(q.diff(s.t, 2), -sin(q))]
 
 
-lagrangian = lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q)
-swing = EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=lagrangian)
-system = CompositeSystem(elements=[AngleElement('bob')], interactions=[swing])
-round(float(simulate(system, until=3.2, dt=0.01).get_values('bob.q')[-1]), 2)
+pendulum = System(elements=[Element('bob', values={'q': 0.1})], interactions=[Swing('swing')]).prepare()
+round(float(pendulum.simulate(until=3.2, dt=0.01).get_values('bob.q')[-1]), 2)
 ```
 
 The angle is -0.1 at the time 3.2, close to half the small-swing period `2 pi`.
 
-`EulerLagrangeInteraction(target, states, lagrangian, dissipation=None, forcing=None)` writes the equations of motion
-of a Lagrangian, with a Rayleigh dissipation and a generalized forcing. The equations of one coordinate from several
-interactions add, so a coupling is an interaction whose Lagrangian holds only the coupling energy.
-
-When you know the Hamiltonian, the total energy in coordinates and momenta, a `HamiltonianInteraction` writes
-Hamilton's equations. Here a planet circles a sun.
+Hamilton's equations `q' = dH/dp` and `p' = -dH/dq` are two rate laws per canonical pair. Here a planet circles a sun
+under the Hamiltonian `H = (px^2 + py^2) / 2 - 1 / r`.
 
 ```python
-from typing import Annotated
-
 from sage.all__sagemath_symbolics import sqrt
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import HamiltonianInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine.solvers import Yoshida4Solver
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class PlanetElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-        px: Annotated[float, StateSpec()] = 0.0,
-        py: Annotated[float, StateSpec()] = 1.0,
-    ):
+class Gravity(Interaction):
+    def __init__(self, label, *, target: Role = 'planet'):
         super().__init__(label)
-        self.x = x
-        self.y = y
-        self.px = px
-        self.py = py
+        self.target = target
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        x, y, px, py, t = s.target.x, s.target.y, s.target.px, s.target.py, s.t
+        r3 = sqrt(x**2 + y**2) ** 3
+        self.laws_ = [
+            RateLaw(x.diff(t), px),
+            RateLaw(y.diff(t), py),
+            RateLaw(px.diff(t), -x / r3),
+            RateLaw(py.diff(t), -y / r3),
+        ]
 
 
-def kepler(s):
-    return (s.target.px**2 + s.target.py**2) / 2 - 1 / sqrt(s.target.x**2 + s.target.y**2)
-
-
-coordinates, momenta = ('x', 'y'), ('px', 'py')
-gravity = HamiltonianInteraction('gravity', target='sun', coordinates=coordinates, momenta=momenta, hamiltonian=kepler)
-system = CompositeSystem(elements=[PlanetElement('sun')], interactions=[gravity])
-trajectory = simulate(system, until=6.2832, solver=Yoshida4Solver(dt=0.01), dt=1.0)
-round(float(trajectory.get_values('sun.x')[-1]), 6)
+planet = Element('planet', values={'x': 1.0, 'y': 0.0, 'px': 0.0, 'py': 1.0})
+system = System(elements=[planet], interactions=[Gravity('gravity')], solver=Yoshida4Solver(dt=0.01)).prepare()
+round(float(system.simulate(until=6.2832, dt=1.0).get_values('planet.x')[-1]), 6)
 ```
 
 The planet returns to `x = 1.0` after one period `2 pi` of its circular orbit.
 
-`HamiltonianInteraction(target, coordinates='q', momenta='p', hamiltonian=None)` writes Hamilton's equations
-`q' = dH/dp` and `p' = -dH/dq` as rate laws of canonical coordinates and momenta. These are states of order 1, and
-they may be angles. The rates of one state add, so the Hamiltonians of separate interactions sum.
+The [solver](../glossary.md#solver) `Yoshida4Solver` integrates a separable Hamiltonian at fourth order by three
+velocity Verlet steps. It first splits the states into two blocks whose rates read only the other block. It keeps the
+energy bounded over long runs. The mechanics family `skcomplex.systems.physics.common.mechanics` writes these laws
+from a Lagrangian or a Hamiltonian with its `EulerLagrangeInteraction` and `HamiltonianInteraction`.
 
-The [solver](../glossary.md#solver) `Yoshida4Solver` integrates a separable Hamiltonian at fourth order by three velocity Verlet steps. It first splits the
-states into two blocks whose rates read only the other block. It keeps the energy bounded over long runs.
-
-`invariants` computes Poisson brackets over the canonical pairs. It decides whether expressions given as
-`Observable`s are conserved, and checks a `SymmetrySpec` against the Hamiltonian or the Lagrangian, with its
-Noether charge, the quantity that a continuous symmetry conserves.
+`invariants` decides whether expressions given as `Observable`s are conserved by the equations of any system.
 
 ```python continuation
 from skcomplex.core.analysis import invariants
 from skcomplex.core.components import Observable
-from skcomplex.core.analysis import SymmetrySpec
 
-momentum = Observable('angular_momentum', lambda s: s.sun.x * s.sun.py - s.sun.y * s.sun.px)
-rotation = SymmetrySpec('rotation', lambda s: {'sun.x': -s.sun.y, 'sun.y': s.sun.x})
-invariants(system, expressions=[momentum]).conserved, invariants(system, kind='symmetry', symmetry=rotation).charge
+momentum = Observable('angular_momentum', lambda s: s.planet.x * s.planet.py - s.planet.y * s.planet.px)
+invariants(system, expressions=[momentum]).conserved
 ```
 
-The angular momentum is conserved, and the charge of the rotation is `py_sun*x_sun - px_sun*y_sun`, the same angular
-momentum.
+The angular momentum is conserved. The mechanics family adds `poisson_brackets`, the brackets over the canonical
+pairs, and `noether`, which checks a symmetry against the Hamiltonian or the Lagrangian and gives its Noether charge,
+the quantity that a continuous symmetry conserves.
 
 ### Curved spacetimes
 

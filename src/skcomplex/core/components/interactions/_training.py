@@ -34,7 +34,7 @@ class TrainingInteraction(Interaction):
     - `'rmsprop'`: the learning rate and `beta2`, the decay of its mean squared gradient.
     - `'adam'`: the learning rate, `beta1`, and `beta2`.
 
-    Unlike `GradientInteraction`, which moves states down a potential in the time of the system, it fits parameters of
+    Unlike a gradient flow, which moves states down a potential in the time of the system, it fits parameters of
     another system to data, one epoch per step. Choose it when a component of the model learns from data during the run.
 
     It appears in many fields. A recurrent neural network learns to predict a time series, an echo state network fits

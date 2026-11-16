@@ -78,7 +78,7 @@ The trained rate is 0.8, the rate of the data, and the loss of the last epoch is
 
 `TrainingInteraction` returns one [`GradientStepLaw`](../core_components/laws.md#gradientsteplaw), of
 `skcomplex.core.components.laws`, which differs from
-[`GradientInteraction`](../core_components/interactions.md#gradientinteraction).
+[`GradientInteraction`](../core_components/general.md#gradientinteraction).
 
 - `GradientInteraction` moves the states of its target down the gradient of a potential, in the own time of the
   system, and compiles to rate laws.

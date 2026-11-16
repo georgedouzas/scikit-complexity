@@ -7,8 +7,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import SimpleNamespace
 
-from ..errors import ValidationError
-from ..specs._base_spec import BaseSpec
+from .....core.errors import ValidationError
+from .....core.specs import BaseSpec
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,7 @@ class SymmetrySpec(BaseSpec):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import vector
-        >>> from skcomplex.core.analysis import SymmetrySpec
+        >>> from skcomplex.systems.physics.common.mechanics import SymmetrySpec
         >>> rotation = SymmetrySpec('rotation', lambda s: {'body.q': vector([-s.body.q[1], s.body.q[0]])})
         >>> rotation.label
         'rotation'

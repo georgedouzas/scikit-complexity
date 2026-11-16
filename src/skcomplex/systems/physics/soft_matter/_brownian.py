@@ -14,10 +14,11 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, GradientInteraction, RateInteraction
+from ....core.components.interactions import BaseInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, BoundaryLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec
+from ...general.gradients import GradientInteraction
 from ..common.particles import DoubleWellElement
 
 

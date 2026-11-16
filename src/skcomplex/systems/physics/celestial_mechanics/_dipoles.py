@@ -13,10 +13,10 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, sqrt
 
 from ....core.components.elements import Element
-from ....core.components.interactions import EulerLagrangeInteraction
 from ....core.components.laws.utils import derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..common.mechanics import EulerLagrangeInteraction
 
 
 class DipoleChargeElement(Element):

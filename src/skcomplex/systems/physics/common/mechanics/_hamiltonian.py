@@ -10,14 +10,14 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import SR, Expression, vector
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...enums import ElementKind
-from ...errors import ValidationError
-from ...specs import RoleSpec
-from ..base import BaseComponent
-from ..laws import BaseLaw, RateLaw
-from ..spaces import BaseSpace
-from ..types import Target
-from ._interaction import Interaction
+from .....core.components.base import BaseComponent
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, RateLaw
+from .....core.components.spaces import BaseSpace
+from .....core.components.types import Target
+from .....core.enums import ElementKind
+from .....core.errors import ValidationError
+from .....core.specs import RoleSpec
 
 
 class HamiltonianInteraction(Interaction):
@@ -61,7 +61,7 @@ class HamiltonianInteraction(Interaction):
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import HamiltonianInteraction
+        >>> from skcomplex.systems.physics.common.mechanics import HamiltonianInteraction
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
