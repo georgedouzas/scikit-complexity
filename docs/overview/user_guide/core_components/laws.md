@@ -1298,124 +1298,6 @@ The message reads "A generator takes an operator built from local operators, but
 See its [fact sheet](../../../components/laws.md#generatorlaw)
 and its [API entry][skcomplex.core.components.laws.GeneratorLaw].
 
-## GradientStepLaw
-
-A `GradientStepLaw` takes optimizer steps on the parameters of a nested system, so that a component of a model learns
-from data during the run. One step of the outer system is one epoch, and `TrainingInteraction` returns the law. Here the
-factor `a` of the map `x' = a x` is fitted to a series that decays by 0.8 per step.
-
-```python
-from typing import Annotated
-
-import numpy as np
-
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import TrainingInteraction
-from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.components.laws import DatasetSpec
-from skcomplex.core.components import Observable
-
-
-class ScaleElement(Element):
-    law_classes = (UpdateLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        a: Annotated[float, ParameterSpec(adaptive=True)] = 0.5,
-        observed: Annotated[float, ParameterSpec()] = 0.0,
-    ):
-        super().__init__(label)
-        self.x = x
-        self.a = a
-        self.observed = observed
-
-    def _get_laws(self, namespace):
-        return [UpdateLaw(namespace.x, namespace.a * namespace.x)]
-
-
-def squared_error(namespace):
-    return (namespace.unit.x - namespace.unit.observed) ** 2
-
-
-decay = CompositeSystem('decay', elements=[ScaleElement('unit')], time=DiscreteTime())
-training = TrainingInteraction(
-    'fit',
-    system='decay',
-    trained=['unit.a'],
-    loss=Observable('error', squared_error),
-    data=DatasetSpec({'unit.observed': 0.8 ** np.arange(1, 11)[np.newaxis]}),
-    learning_rate=0.05,
-    batch_size=1,
-)
-fitting = CompositeSystem('fitting', systems=[decay], interactions=[training], time=DiscreteTime())
-trajectory = simulate(fitting, until=100, random_state=0)
-round(float(trajectory.get_values('decay/unit.a')[-1]), 3)
-```
-
-After 100 epochs the factor moves from 0.5 to 0.8, the decay of the data. A real study fits noisy data over more
-epochs and checks the loss on held-out sequences.
-
-The same law fits the interest of a deposit to the balances of ten years that grew by 4 percent a year.
-
-```python continuation
-balances = 1.04 ** np.arange(1, 11)[np.newaxis]
-deposit = CompositeSystem('deposit', elements=[ScaleElement('unit', a=1.0)], time=DiscreteTime())
-interest = TrainingInteraction(
-    'fit',
-    system='deposit',
-    trained=['unit.a'],
-    loss=Observable('error', squared_error),
-    data=DatasetSpec({'unit.observed': balances}),
-    learning_rate=0.01,
-    batch_size=1,
-)
-fitting = CompositeSystem('fitting', systems=[deposit], interactions=[interest], time=DiscreteTime())
-trajectory = simulate(fitting, until=100, random_state=0)
-round(float(trajectory.get_values('deposit/unit.a')[-1]), 3)
-```
-
-The yearly factor reaches 1.04.
-
-**How the engine runs it.** The law needs discrete time, and the outer system has the learning form, which
-`GradientDescentSolver` runs. In an epoch the solver shuffles the sequences of the dataset into batches. For each batch
-it runs the nested system over every sequence, averages the loss over the steps, and changes the trained parameters by
-the gradient of that mean. JAX computes the gradient exactly by automatic differentiation of the runs.
-
-**How it combines.** The trained parameters are declared `ParameterSpec(adaptive=True)` in the nested system, which
-stays an ordinary system that runs and is analysed alone. The metrics of the law are observables recorded at the end of
-every epoch.
-
-**Limits and errors.** The nested system must be written as symbolic laws, so that JAX can differentiate its runs. The
-optimizer is one of `'sgd'`, `'momentum'`, `'rmsprop'`, and `'adam'`, and the interaction raises a `ValidationError`
-for any other name.
-
-```python continuation
-from skcomplex.core.errors import ValidationError
-
-try:
-    TrainingInteraction(
-        'fit', system='decay', trained=['unit.a'], loss=training.loss, data=training.data, optimizer='newton'
-    ).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message says that the optimizer `'newton'` of `'fit'` is not supported and lists the four that are.
-
-**A field realization.** A field of machine learning names the nested system a recurrent network and the trained
-parameters its weights, and a reservoir computer trains only its readout.
-
-See its [fact sheet](../../../components/laws.md#gradientsteplaw)
-and its [API entry][skcomplex.core.components.laws.GradientStepLaw].
-
 ## JumpLaw
 
 A `JumpLaw` is a random event that changes states by whole amounts. With `rate`, events arrive as a Poisson process of
@@ -1741,110 +1623,6 @@ states of resting, excited, and refractory cells as one table rule.
 
 See its [fact sheet](../../../components/laws.md#localrulelaw)
 and its [API entry][skcomplex.core.components.laws.LocalRuleLaw].
-
-## MatchLaw
-
-A `MatchLaw` pairs the members of one or two groups of agents at every step, and the rules of the step act on the
-pairs. Here 5 buyers meet 3 sellers in a market, paired at random, and each trade counts a deal for both.
-
-```python
-from typing import Annotated
-
-import numpy as np
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import MatchLaw, RuleLaw
-from skcomplex.core.components.laws.utils import matches
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class TraderElement(Element):
-    def __init__(self, label, *, deals: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.deals = deals
-
-
-class MarketInteraction(Interaction):
-    law_classes = (MatchLaw, RuleLaw)
-
-    def _get_laws(self, namespace):
-        return [MatchLaw('buyers', 'sellers', label='trades'), RuleLaw(self.trade)]
-
-    def trade(self, system):
-        for buyer, seller in matches(system, 'trades'):
-            buyer.deals += 1
-            seller.deals += 1
-
-
-market = CompositeSystem(
-    elements=[
-        GroupElement('buyers', element=TraderElement, size=5, variable=True),
-        GroupElement('sellers', element=TraderElement, size=3, variable=True),
-    ],
-    interactions=[MarketInteraction('market')],
-)
-trajectory = simulate(market, until=4, random_state=0)
-np.asarray(trajectory.get_agents('buyers', 4).values['deals']).tolist()
-```
-
-After four steps the buyers hold 1, 3, 4, 2, and 2 deals. That is 12 deals, three per step, since each seller trades
-once per step.
-
-The same law pairs the members of one group, as birds pair in a model of mating. Seven birds form three pairs, and one
-bird stays alone.
-
-```python continuation
-class CourtshipInteraction(Interaction):
-    law_classes = (MatchLaw, RuleLaw)
-
-    def _get_laws(self, namespace):
-        return [MatchLaw('birds', None, label='pairs'), RuleLaw(self.mate)]
-
-    def mate(self, system):
-        for first, second in matches(system, 'pairs'):
-            first.deals += 1
-            second.deals += 1
-
-
-flock = CompositeSystem(
-    elements=[GroupElement('birds', element=TraderElement, size=7, variable=True)],
-    interactions=[CourtshipInteraction('courtship')],
-)
-np.asarray(simulate(flock, until=1, random_state=0).get_agents('birds', 1).values['deals']).tolist()
-```
-
-Six birds count one pairing, and the fifth bird counts none.
-
-**How the engine runs it.** The law needs discrete time, and a system with it is agent based, so `MesaSolver` runs it.
-The pairing runs as a rule of the step, before the rules of its phase, and stores the pairs, which
-`matches(system, label)` reads.
-
-**How it combines.** It pairs agents for `RuleLaw`s, which act on the pairs. A `pairing` function gives a stable
-matching, an order book, or an auction, and a `PartnerSpec` chooses partners within reach or among neighbours.
-`TransferInteraction` and `GroupingInteraction` return match laws.
-
-**Limits and errors.** A member takes at most `capacity` pairs per step, a positive whole number.
-
-```python continuation
-from skcomplex.core.errors import ValidationError
-
-try:
-    MatchLaw('buyers', 'sellers', capacity=0).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message reads "The match 'match' has capacity 0. Give a positive integer."
-
-**A field realization.** The market above is a realization of economics. A labour market matches workers with firms
-by a `pairing` function, and a school choice model matches students with schools.
-
-See its [fact sheet](../../../components/laws.md#matchlaw)
-and its [API entry][skcomplex.core.components.laws.MatchLaw].
 
 ## NoiseLaw
 
@@ -2226,12 +2004,56 @@ float(sum(cash)), float(max(cash))
 
 After 50 steps the total is still 100, and the richest trader holds 18, nearly twice the even share.
 
+A rule of an interaction pairs agents with `pairs` of `skcomplex.core.components.laws.utils` and acts on the pairs.
+Here 5 buyers meet 3 sellers in a market, paired at random, and each trade counts a deal for both.
+
+```python continuation
+import numpy as np
+
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws.utils import pairs
+
+
+class DealerElement(Element):
+    def __init__(self, label, *, deals: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.deals = deals
+
+
+class MarketInteraction(Interaction):
+    law_classes = (RuleLaw,)
+
+    def _get_laws(self, namespace):
+        return [RuleLaw(self.trade)]
+
+    def trade(self, system):
+        for buyer, seller in pairs(system.get_agents('buyers'), system.get_agents('sellers'), system.rng):
+            buyer.deals += 1
+            seller.deals += 1
+
+
+market = CompositeSystem(
+    elements=[
+        GroupElement('buyers', element=DealerElement, size=5, variable=True),
+        GroupElement('sellers', element=DealerElement, size=3, variable=True),
+    ],
+    interactions=[MarketInteraction('market')],
+)
+trajectory = simulate(market, until=4, random_state=0)
+np.asarray(trajectory.get_agents('buyers', 4).values['deals']).tolist()
+```
+
+After four steps the buyers hold 1, 3, 4, 2, and 2 deals. That is 12 deals, three per step, since each seller trades
+once per step. With `None` as the second group the members of one group pair among themselves, as birds pair in a
+model of mating, a `PartnerSpec` picks partners within reach, by score, or among neighbours, and a function gives a
+stable matching, an order book, or an auction.
+
 **How the engine runs it.** The law needs discrete time, and a system with rules is agent based. `MesaSolver` runs
 one Mesa step per unit of time and activates every agent in random order. A rule of an element receives the agent and
 the system, and a rule of an interaction receives the system.
 
-**How it combines.** An element whose laws include rules is an agent. Rules read the pairs of a `MatchLaw`, order
-themselves by `phase` within a step, and run beside `UpdateLaw`s of other components. The system gives a rule its random
+**How it combines.** An element whose laws include rules is an agent. Rules pair agents with `pairs`, order themselves
+by `phase` within a step, and run beside `UpdateLaw`s of other components. The system gives a rule its random
 generator `system.rng` and the agents of other groups.
 
 **Limits and errors.** A rule runs arbitrary Python, so the compiler can neither lower nor differentiate it. The
@@ -2250,7 +2072,8 @@ message
 The message reads "The function of a rule must be callable, but it is 'graze'." The fix is the method itself,
 `RuleLaw(self.graze)`.
 
-**A field realization.** The sheep above are a realization of ecology, and the traders one of economics.
+**A field realization.** The sheep above are a realization of ecology, and the traders and the market ones of
+economics.
 
 See its [fact sheet](../../../components/laws.md#rulelaw)
 and its [API entry][skcomplex.core.components.laws.RuleLaw].

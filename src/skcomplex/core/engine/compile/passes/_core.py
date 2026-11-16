@@ -56,7 +56,6 @@ from ._split_requests import SplitRequestsPass
 from ._topology_functions import TopologyFunctionsPass
 from ._topology_problem import TopologyProblemPass
 from ._towards import TowardsPass
-from ._unpack_matches import UnpackMatchesPass
 from ._unpack_renewals import UnpackRenewalsPass
 
 PASSES: tuple[type[BasePass], ...] = (
@@ -91,7 +90,6 @@ PASSES: tuple[type[BasePass], ...] = (
     FlowsProblemPass,
     BoundaryLawsPass,
     AgentsPass,
-    UnpackMatchesPass,
     SetRulesApartPass,
     AgentsProblemPass,
     LatticeProblemPass,

@@ -12,7 +12,7 @@ import numpy as np
 import scipy.sparse
 from jax.scipy.special import logsumexp
 
-from ...components.laws import ConstraintLaw, GradientStepLaw, RateLaw, UpdateLaw
+from ...components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from ...components.spaces import ContinuousTime, DiscreteTime
 from ...enums import FormKind, OrderKind
 from ...errors import BackendError, ValidationError
@@ -268,7 +268,7 @@ class JaxBackend(BaseBackend):
         return SupportSpec(
             time={ContinuousTime, DiscreteTime},
             space={None},
-            laws={ConstraintLaw, GradientStepLaw, RateLaw, UpdateLaw},
+            laws={ConstraintLaw, RateLaw, UpdateLaw},
             noise=frozenset(),
             orders=frozenset({OrderKind.INTEGER}),
         )

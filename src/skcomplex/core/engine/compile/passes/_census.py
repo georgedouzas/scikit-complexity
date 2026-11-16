@@ -26,7 +26,6 @@ from ....components.laws import (
     ExtremalLaw,
     JumpLaw,
     LocalRuleLaw,
-    MatchLaw,
     NoiseLaw,
     RateLaw,
     RuleLaw,
@@ -292,7 +291,7 @@ class CensusPass(BasePass):
             return CensusPass._get_renewal_group(spec, RenewalLaw(law.waiting, law.reset))
         if isinstance(law, RenewalLaw):
             return CensusPass._get_renewal_group(spec, law)
-        if isinstance(law, RuleLaw | MatchLaw):
+        if isinstance(law, RuleLaw):
             paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
             return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
         if TopologyKernel._request_of(law) is not None:

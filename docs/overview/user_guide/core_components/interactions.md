@@ -1900,16 +1900,11 @@ round(float(simulate(fitting, until=100, random_state=0).get_values('account/uni
 
 The factor reaches 1.01. A real study would hold out part of the data and record a metric on it with `metrics`.
 
-**How the engine runs it.** The interaction returns a gradient step law. `GradientDescentSolver` unrolls the nested
-system over each batch of sequences with JAX, differentiates the loss with respect to the trained parameters, and
-takes one step of the optimizer. The trajectory records the trained parameters under their paths in the nested
-system, such as `account/unit.a`, and the mean loss of each epoch as `fit/loss`.
-
-```python continuation
-[law.__name__ for law in fit.law_classes]
-```
-
-The interaction emits a gradient step law.
+**How the engine runs it.** The interaction states no laws of its own. The compiler finds it in the system, and
+`GradientDescentSolver` reads its settings, unrolls the nested system over each batch of sequences with JAX,
+differentiates the loss with respect to the trained parameters, and takes one step of the optimizer. The trajectory
+records the trained parameters under their paths in the nested system, such as `account/unit.a`, and the mean loss of
+each epoch as `fit/loss`.
 
 **How it combines.** The role `system` binds a nested system, which runs, is analysed, and is drawn alone before or
 after training. The hyperparameters of the optimizer, such as `learning_rate`, are parameters of the interaction, so a

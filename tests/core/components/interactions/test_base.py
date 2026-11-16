@@ -25,6 +25,7 @@ from skcomplex.core.components.interactions import (
     RateInteraction,
     SamplingInteraction,
     TopologyInteraction,
+    TrainingInteraction,
     TransferInteraction,
     TransitionInteraction,
 )
@@ -595,9 +596,12 @@ def test_every_core_interaction_declares_its_roles():
 
 
 def test_every_core_interaction_with_laws_lists_them():
-    """Test that every interaction of the core lists its laws, apart from the bases a subclass writes laws for."""
+    """Test that every interaction of the core lists its laws.
+
+    The bases a subclass writes laws for and the training, whose solver reads its settings, state none.
+    """
     bases = {BaseInteraction, Interaction, NeighborInteraction, PairInteraction, HyperedgeInteraction}
-    for kind in set(_interaction_classes()) - bases:
+    for kind in set(_interaction_classes()) - bases - {TrainingInteraction}:
         assert kind.law_classes, kind.__name__
 
 

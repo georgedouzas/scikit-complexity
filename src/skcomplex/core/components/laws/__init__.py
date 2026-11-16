@@ -22,13 +22,11 @@ from ._event import EventLaw
 from ._extremal import ExtremalLaw
 from ._flux import FluxLaw
 from ._generator import GeneratorLaw
-from ._gradient_step import GradientStepLaw
 from ._jump import JumpLaw
 from ._linear_objective_spec import LinearObjectiveSpec
 from ._linear_program import LinearProgramLaw
 from ._linear_rule_spec import LinearRuleSpec
 from ._local_rule import LocalRuleLaw
-from ._match import MatchLaw
 from ._module_spec import Letters, ModuleSpec
 from ._move_spec import MoveSpec
 from ._noise import NoiseLaw
@@ -67,14 +65,12 @@ __all__: list[str] = [
     'ExtremalLaw',
     'FluxLaw',
     'GeneratorLaw',
-    'GradientStepLaw',
     'JumpLaw',
     'Letters',
     'LinearObjectiveSpec',
     'LinearProgramLaw',
     'LinearRuleSpec',
     'LocalRuleLaw',
-    'MatchLaw',
     'ModuleSpec',
     'MoveSpec',
     'NoiseLaw',

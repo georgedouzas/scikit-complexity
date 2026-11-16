@@ -15,7 +15,7 @@ from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
 from .._observable_spec import Observable
 from ..base import BaseComponent
-from ..laws import BaseLaw, DatasetSpec, GradientStepLaw
+from ..laws import BaseLaw, DatasetSpec
 from ..spaces import BaseSpace
 from ._interaction import Interaction
 
@@ -33,6 +33,9 @@ class TrainingInteraction(Interaction):
     - `'momentum'`: the learning rate and `momentum`.
     - `'rmsprop'`: the learning rate and `beta2`, the decay of its mean squared gradient.
     - `'adam'`: the learning rate, `beta1`, and `beta2`.
+
+    It states no laws of its own. The compiler finds the training in the system and `GradientDescentSolver` reads its
+    settings, so the update of every epoch is the step of the optimizer on the trained parameters.
 
     Unlike a gradient flow, which moves states down a potential in the time of the system, it fits parameters of
     another system to data, one epoch per step. Choose it when a component of the model learns from data during the run.
@@ -101,7 +104,7 @@ class TrainingInteraction(Interaction):
 
     draws = True
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (GradientStepLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = ()
 
     def __init__(
         self,
@@ -193,16 +196,6 @@ class TrainingInteraction(Interaction):
         self.data._check()
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the gradient-step law of the training."""
+        """Return no laws, since the solver reads the settings of the training."""
         del namespace
-        law = GradientStepLaw(
-            self.trained,
-            self.loss,
-            self.data,
-            self.optimizer,
-            self.batch_size,
-            truncation=self.truncation,
-            metrics=self.metrics,
-            label=self.label,
-        )
-        return [law]
+        return []

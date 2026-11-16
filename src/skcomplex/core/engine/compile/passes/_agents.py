@@ -8,7 +8,7 @@ import re
 
 from ....components.elements import BaseElement, GroupElement
 from ....components.interactions import BaseInteraction
-from ....components.laws import MatchLaw, RuleLaw
+from ....components.laws import RuleLaw
 from ....enums import VariableKind
 from ..._utils import bound_labels, declarations_of, probe_laws
 from ...problems._node_spec import _NodeSpec
@@ -82,7 +82,7 @@ class AgentsPass(BasePass):
         bound = {
             path
             for node, laws in interactions
-            if laws is None or not all(isinstance(law, RuleLaw | MatchLaw) for law in laws)
+            if laws is None or not all(isinstance(law, RuleLaw) for law in laws)
             for path in AgentsPass._get_bound_paths(node)
         }
         return agents | {node.path for node in passive if node.path not in bound}

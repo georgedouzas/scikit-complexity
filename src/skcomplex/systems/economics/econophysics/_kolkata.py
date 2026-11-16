@@ -17,7 +17,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction
-from ....core.components.laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
@@ -183,7 +183,7 @@ class RestaurantsInteraction(GroupingInteraction):
         'state'
     """
 
-    law_classes = (MatchLaw, RuleLaw, UpdateLaw)
+    law_classes = (RuleLaw, UpdateLaw)
 
     reports: ClassVar[tuple[str, ...]] = ('utilization',)
 

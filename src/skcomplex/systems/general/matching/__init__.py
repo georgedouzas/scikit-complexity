@@ -1,6 +1,6 @@
 """Define the matching of requesters with providers that several fields share.
 
-A matching pairs requesters with providers by a rule spec, through the match law of the core.
+A matching pairs requesters with providers by a rule spec, through the pairs of the core.
 """
 
 from ._batch_matching_spec import BatchMatchingSpec

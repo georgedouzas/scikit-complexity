@@ -76,14 +76,13 @@ The trained rate is 0.8, the rate of the data, and the loss of the last epoch is
 - The interaction binds the inner system through its role `system`.
 - The outer system runs under `DiscreteTime()`, one step per epoch.
 
-`TrainingInteraction` returns one [`GradientStepLaw`](../core_components/laws.md#gradientsteplaw), of
-`skcomplex.core.components.laws`, which differs from
-[`GradientInteraction`](../core_components/general.md#gradientinteraction).
+`TrainingInteraction` states no laws of its own, since `GradientDescentSolver` reads its settings, and it differs
+from [`GradientInteraction`](../core_components/general.md#gradientinteraction).
 
 - `GradientInteraction` moves the states of its target down the gradient of a potential, in the own time of the
   system, and compiles to rate laws.
-- `GradientStepLaw` takes optimizer steps on the adaptive parameters of a nested system once per epoch. It follows the
-  gradient of a loss over unrolled runs of that system, computed by automatic differentiation with JAX.
+- `TrainingInteraction` takes optimizer steps on the adaptive parameters of a nested system once per epoch. It follows
+  the gradient of a loss over unrolled runs of that system, computed by automatic differentiation with JAX.
 
 ## The components of training
 

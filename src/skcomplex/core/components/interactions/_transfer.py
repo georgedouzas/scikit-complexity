@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar, cast
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -14,8 +14,8 @@ from ...enums import BoundaryKind, ElementKind, ScheduleKind
 from ...errors import SimulationError, ValidationError
 from ...specs import RoleSpec
 from .._tags import Tags
-from ..laws import BaseLaw, MatchLaw, PartnerSpec, RuleLaw, Sink, Source, TransferLaw
-from ..laws.utils import shift_member, where
+from ..laws import BaseLaw, PartnerSpec, RuleLaw, Sink, Source, TransferLaw
+from ..laws.utils import pairs, shift_member, where
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, Pairing, SystemViewProtocol
 from ._interaction import Interaction
@@ -195,7 +195,7 @@ class TransferInteraction(Interaction):
         4.0
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw, TransferLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, TransferLaw)
 
     def _get_tags(self) -> Tags:
         """Return the tags of the rules of the agent form or of the transfers.
@@ -538,14 +538,19 @@ class TransferInteraction(Interaction):
                 laws += [self._get_law(paired, leg, self.reverse_rate, True) for leg in self._get_legs()]
         return laws
 
-    def _get_pairing(self) -> MatchLaw:
-        """Return the law of the pairs of the pairing.
+    def _get_pairs_of(
+        self,
+        left: Sequence[AgentViewProtocol],
+        right: Sequence[AgentViewProtocol],
+        system: SystemViewProtocol,
+    ) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
+        """Return the pairs of the pairing between agents of both sides.
 
         Its capacity for a function is `partners`, or 1 without it.
         """
         pairing = self.pairing
         spec = NAMED_PARTNERS[pairing] if isinstance(pairing, str) else pairing
-        return MatchLaw(self.source, self.target, spec, capacity=self.partners or 1)
+        return list(pairs(left, right, system.rng, spec, capacity=self.partners or 1))
 
     def _get_pairs(self, system: SystemViewProtocol) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
         """Return the pairs of source and target agents of one step in random order."""
@@ -553,15 +558,11 @@ class TransferInteraction(Interaction):
         targets = sources if self.source == self.target else system.get_agents(self._get_role('target'))
         if self.fallback is not None and not any(target.alive for target in targets):
             targets = system.get_agents(self._get_role('fallback'))
-        pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
         if self.pairing == 'members':
-            pairs = list(zip(sources, targets, strict=False))
+            found = list(zip(sources, targets, strict=False))
         else:
-            pairs = cast(
-                list[tuple[AgentViewProtocol, AgentViewProtocol]],
-                self._get_pairing().get_pairs(sources, targets, system.rng),
-            )
-        return [pairs[int(index)] for index in system.rng.permutation(len(pairs))]
+            found = self._get_pairs_of(sources, targets, system)
+        return [found[int(index)] for index in system.rng.permutation(len(found))]
 
     def _evaluate(
         self,
@@ -606,8 +607,7 @@ class TransferInteraction(Interaction):
         role = self._get_role('source' if self.actor == 'target' else 'target')
         if callable(self.pairing) or isinstance(self.pairing, PartnerSpec):
             others = [other for other in system.get_agents(role) if other is not agent]
-            pairs = self._get_pairing().get_pairs([agent], others, system.rng)
-            return [cast(AgentViewProtocol, partner) for _, partner in pairs]
+            return [partner for _, partner in self._get_pairs_of([agent], others, system)]
         if self.pairing == 'cell':
             groups = set(system.get_groups(role))
             others = [other for other in agent.get_agents_here() if other.group in groups]
