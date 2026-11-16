@@ -8,6 +8,7 @@ from ._base import BaseElement
 from ._declared import DeclaredElement
 from ._element import Element
 from ._field import FieldElement
+from ._finite_volume_spec import FiniteVolumeSpec
 from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
 from ._group import GroupElement
 from ._patch import PatchElement
@@ -20,6 +21,7 @@ __all__: list[str] = [
     'DeclaredElement',
     'Element',
     'FieldElement',
+    'FiniteVolumeSpec',
     'GeometrySpec',
     'GroupElement',
     'PatchElement',

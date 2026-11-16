@@ -615,8 +615,6 @@ class DryActiveNematicsSystem(BaseSystem):
             target='nematic',
             state='rho',
             flux=flux,
-            limiter=None,
-            riemann=None,
         )
         return CompositeSystem(self.label, elements=[nematic], interactions=[energy, transport])
 

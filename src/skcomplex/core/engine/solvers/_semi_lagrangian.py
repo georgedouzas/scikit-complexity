@@ -9,7 +9,7 @@ import numpy as np
 import scipy.fft
 from scipy.ndimage import map_coordinates
 
-from ...components.laws import FluxLaw, RateLaw
+from ...components.laws import RateLaw
 from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
@@ -83,7 +83,7 @@ class SemiLagrangianSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={PhaseSpace, LatticeSpace},
-            laws={FluxLaw, RateLaw},
+            laws={RateLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

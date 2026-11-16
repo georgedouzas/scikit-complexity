@@ -15,7 +15,7 @@ from sklearn.base import clone
 
 from ...components import Observable
 from ...components.interactions import TrainingInteraction
-from ...components.laws import ConstraintLaw, GradientStepLaw, RateLaw, UpdateLaw
+from ...components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from ...components.spaces import DiscreteTime
 from ...components.systems import CompositeSystem
 from ...enums import FormKind
@@ -66,9 +66,6 @@ class _LearningCompiler(BaseCompiler):
         training_:
             The training interaction of the prepared system.
 
-        law_:
-            The gradient-step law it returns.
-
         inner_:
             The problem of the nested system, or `None` before it compiles.
 
@@ -83,7 +80,6 @@ class _LearningCompiler(BaseCompiler):
     """
 
     training_: TrainingInteraction | None
-    law_: GradientStepLaw
     inner_: ProblemSpec | None
     backend_: JaxBackend
     step_: TracedFunction
@@ -120,12 +116,10 @@ class _LearningCompiler(BaseCompiler):
         issues = []
         if not isinstance(system.time, DiscreteTime):
             given = type(system.time).__name__ if system.time is not None else 'no time'
-            message = f'The GradientStepLaw of {training.label} needs DiscreteTime, one step per epoch, not {given}.'
+            message = f'The training {training.label} needs DiscreteTime, one step per epoch, not {given}.'
             issues.append(IssueSpec('law-time', training.label, message, 'Declare `DiscreteTime()` for the system.'))
         if self.solver is not None and self._get_form_of(type(self.solver)) != FormKind.LEARNING:
-            message = (
-                f'The solver {type(self.solver).__name__} does not run GradientStepLaw. Use GradientDescentSolver.'
-            )
+            message = f'The solver {type(self.solver).__name__} does not train. Use GradientDescentSolver.'
             fix = 'Pass `solver=GradientDescentSolver()`, or no solver.'
             issues.append(IssueSpec('solver-unsupported', system.label, message, fix, error=SolverError))
         return issues
@@ -426,7 +420,6 @@ class _LearningCompiler(BaseCompiler):
             training.prepare()
         except ValidationError as error:
             return [self._get_issue_of(error, training.label, 'value', 'Correct the training interaction.')]
-        self.law_ = next(item for item in training.run(SimpleNamespace()).laws_ if isinstance(item, GradientStepLaw))
         issues = self._get_setting_issues(system, training)
         trained = self._find_system(system, training.system)
         if trained is None:
@@ -497,7 +490,7 @@ class _LearningCompiler(BaseCompiler):
             inner=problem,
             trained_system=training.system,
             training=training.label,
-            law=self.law_,
+            interaction=training,
             trained=trained,
             hyperparameters=hyperparameters,
             step=step,

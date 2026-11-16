@@ -7,7 +7,7 @@ operators of fields. The helpers that only the compiler reads stay in the privat
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ._agents import matches, transfer
+from ._agents import transfer
 from ._cells import codifferential, exterior_derivative, hodge_star
 from ._components import components
 from ._conditions import both, either, mod, where
@@ -31,6 +31,7 @@ from ._operators import (
     shifted,
     upwind,
 )
+from ._pairs import pairs
 from ._paths import shortest_paths
 from ._phase import coordinate, maximum_entropy, reduce_axes
 from ._pointwise import clip, hill, logistic, sign, stop_gradient
@@ -99,7 +100,6 @@ __all__: list[str] = [
     'local_operator',
     'log_sum_exp',
     'logistic',
-    'matches',
     'maximum',
     'maximum_entropy',
     'mean',
@@ -109,6 +109,7 @@ __all__: list[str] = [
     'neighbors',
     'normal',
     'operator_product',
+    'pairs',
     'partial',
     'periodic_guard',
     'pulse',

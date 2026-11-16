@@ -7,9 +7,9 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.laws import FluxLaw, RateLaw
-from skcomplex.core.components.laws.utils import laplacian
+from skcomplex.core.components.elements import Element, FieldElement, FiniteVolumeSpec
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import divergence, laplacian
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -37,7 +37,7 @@ def test_numerical_fluxes_conserve(riemann):
 
         def _get_laws(self, s):
             """Return the laws of the shock element."""
-            return [FluxLaw(s.u, s.u**2 / 2, riemann=riemann)]
+            return [RateLaw(s.u, -divergence([s.u**2 / 2]))]
 
     initial = 1.5 + np.sin((np.arange(100) + 0.5) * 2 * math.pi / 100)
     line = FieldElement(
@@ -46,6 +46,7 @@ def test_numerical_fluxes_conserve(riemann):
         space=LatticeSpace(100, spacing=2 * math.pi / 100),
         values={'u': initial},
         discretization='finite-volume',
+        scheme=FiniteVolumeSpec(riemann=riemann),
     )
     values = simulate(CompositeSystem(elements=[line]), until=2.0, dt=2.0, solver=SSPRKSolver()).states[-1]
     assert values.sum() == pytest.approx(initial.sum(), rel=1e-12)
@@ -54,7 +55,7 @@ def test_numerical_fluxes_conserve(riemann):
 
 def _viscous_burgers_laws(s):
     """Return the Burgers flux and its viscous Laplacian."""
-    return [FluxLaw(s.u, s.u**2 / 2), RateLaw(s.u, s.nu * laplacian(s.u))]
+    return [RateLaw(s.u, -divergence([s.u**2 / 2])), RateLaw(s.u, s.nu * laplacian(s.u))]
 
 
 def test_viscous_burgers_respects_diffusive_limit():

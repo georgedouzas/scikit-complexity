@@ -1,11 +1,10 @@
-"""Define the helpers of agent rules, transfers and the pairs of a step."""
+"""Define the transfers of agent rules."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 
 from ....errors import ValidationError
-from ...types import SystemViewProtocol
 
 
 def transfer(source: object, sink: object, amount: float, state: str, sink_state: str | None = None) -> None:
@@ -52,21 +51,3 @@ def transfer(source: object, sink: object, amount: float, state: str, sink_state
     source_value, sink_value = getattr(source, state), getattr(sink, target)
     setattr(source, state, source_value - amount)
     setattr(sink, target, sink_value + amount)
-
-
-def matches(system: SystemViewProtocol, label: str = 'match') -> list[tuple[object, object]]:
-    """Return the pairs a matching law stored for the current step.
-
-    Args:
-        system:
-            The system view a rule receives.
-
-        label:
-            The label of the matching law.
-
-    Returns:
-        pairs:
-            The pairs of agents, or none before the law runs.
-    """
-    pairs = system.storage.get(f'match:{label}', ())
-    return list(pairs) if isinstance(pairs, list | tuple) else []

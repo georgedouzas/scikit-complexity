@@ -6,7 +6,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from ...components.laws import GradientStepLaw
+from ...components.interactions import TrainingInteraction
 from ..types import TracedFunction
 from ._base_problem_spec import BaseProblemSpec
 from ._problem_spec import ProblemSpec
@@ -29,10 +29,10 @@ class LearningProblemSpec(BaseProblemSpec):
             The path of the nested system that trains.
 
         training:
-            The path of the interaction that returns the law.
+            The path of the training interaction.
 
-        law:
-            The gradient-step law.
+        interaction:
+            The training interaction, whose optimizer, dataset, batches, truncation, and metrics the solver reads.
 
         trained:
             The names of the trained parameters in the states of the inner problem, in the order of the states.
@@ -61,7 +61,7 @@ class LearningProblemSpec(BaseProblemSpec):
     inner: ProblemSpec | None = field(default=None, repr=False)
     trained_system: str = ''
     training: str = ''
-    law: GradientStepLaw | None = field(default=None, repr=False)
+    interaction: TrainingInteraction | None = field(default=None, repr=False)
     trained: tuple[str, ...] = ()
     hyperparameters: Mapping[str, str] = field(default_factory=dict)
     step: TracedFunction | None = field(default=None, repr=False)

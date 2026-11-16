@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.laws import FluxLaw, RateLaw
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -148,30 +148,6 @@ def test_dam_break_conserves_water():
     values = simulate(ShallowWaterSystem().prepare().system_, until=0.5, dt=0.05).get_values('channel.h')
     assert values[-1].sum() == pytest.approx(values[0].sum(), rel=1e-12)
     assert 1.0 - 1e-9 <= values[-1].min() <= values[-1].max() <= 2.0 + 1e-9
-
-
-def test_fluxes_need_finite_volume_field():
-    """Test that flux laws on a finite-difference field are rejected."""
-
-    class ShockElement(Element):
-        """Shock element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            u: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.u = u
-
-        def _get_laws(self, s):
-            """Return the laws of the shock element."""
-            return [FluxLaw(s.u, s.u**2 / 2)]
-
-    system = CompositeSystem(elements=[FieldElement('line', element=ShockElement, space=LatticeSpace(10))])
-    with pytest.raises(ValidationError, match='finite-volume'):
-        PassCompiler().prepare(system).run()
 
 
 def test_mesh_fields_stream_as_meshes(tmp_path):

@@ -788,16 +788,16 @@ int(np.argmax(pollutant[0])), int(np.argmax(pollutant[-1])), round(float(polluta
 
 The peak moves from cell 8 to cell 20, a distance of 3 in 2 units of time, and the total stays 7.0809.
 
-**How the engine runs it.** On a finite-volume field the interaction lowers to a flux law. The scheme reconstructs the
-state in each cell with a slope limiter, computes the flux between cells with a numerical flux such as that of
-Rusanov, and gives every cell the rate of what enters minus what leaves. On a field of another discretization it
-lowers to the rate `-divergence(flux)`, which the field discretizes by its own operators.
+**How the engine runs it.** The interaction returns the rate `-divergence(flux)`. A finite-volume field reads it as a
+conservation law: the scheme of its `FiniteVolumeSpec` reconstructs the state in each cell with a slope limiter,
+computes the flux between cells with a numerical flux such as that of Rusanov, and gives every cell the rate of what
+enters minus what leaves. A field of another discretization computes the divergence by its own operators.
 
 ```python continuation
 [law.__name__ for law in advection.law_classes]
 ```
 
-The interaction emits a flux law on a finite-volume field and a rate law on any other.
+The interaction emits a rate law on any field.
 
 **How it combines.** The role `target` binds a `FieldElement`, and `sources` names other elements the flux reads,
 such as a velocity field. Several conservation laws on one field form one system, such as the Euler equations of a
@@ -805,21 +805,21 @@ gas, and their numerical flux reads the wave speeds of all of them. A `RateInter
 reaction or a decay.
 
 **Limits and errors.** The interaction needs a field on a lattice, and it conserves the total only on a periodic field
-or with no flux through the boundaries. The limiter must be `'minmod'`, `'van-leer'`, or `None`, and `prepare` raises
-a `ValidationError` otherwise.
+or with no flux through the boundaries. The flux is a function of the namespace, and `prepare` raises a
+`ValidationError` otherwise.
 
 ```python continuation
 from skcomplex.core.errors import ValidationError
 
 try:
-    ConservationInteraction('traffic', target='road', flux=lambda s: s.target.u, limiter='superbee').prepare()
+    ConservationInteraction('traffic', target='road', flux='quadratic').prepare()
 except ValidationError as error:
     message = str(error)
 message
 ```
 
-The message reads "Unknown limiter 'superbee' of 'traffic'. Use minmod, van-leer, or None." The fix is
-`limiter='van-leer'` or the default `'minmod'`.
+The message reads "The flux of 'traffic' is 'quadratic'. Give a function of the namespace." The fix is a function such
+as `flux=lambda s: s.target.u * (1 - s.target.u)`.
 
 **A field realization.** A field fixes the flux and names its parameter, such as a road on which cars drive at most at
 the speed `v` on an empty road.
@@ -1900,16 +1900,11 @@ round(float(simulate(fitting, until=100, random_state=0).get_values('account/uni
 
 The factor reaches 1.01. A real study would hold out part of the data and record a metric on it with `metrics`.
 
-**How the engine runs it.** The interaction returns a gradient step law. `GradientDescentSolver` unrolls the nested
-system over each batch of sequences with JAX, differentiates the loss with respect to the trained parameters, and
-takes one step of the optimizer. The trajectory records the trained parameters under their paths in the nested
-system, such as `account/unit.a`, and the mean loss of each epoch as `fit/loss`.
-
-```python continuation
-[law.__name__ for law in fit.law_classes]
-```
-
-The interaction emits a gradient step law.
+**How the engine runs it.** The interaction states no laws of its own. The compiler finds it in the system, and
+`GradientDescentSolver` reads its settings, unrolls the nested system over each batch of sequences with JAX,
+differentiates the loss with respect to the trained parameters, and takes one step of the optimizer. The trajectory
+records the trained parameters under their paths in the nested system, such as `account/unit.a`, and the mean loss of
+each epoch as `fit/loss`.
 
 **How it combines.** The role `system` binds a nested system, which runs, is analysed, and is drawn alone before or
 after training. The hyperparameters of the optimizer, such as `learning_rate`, are parameters of the interaction, so a

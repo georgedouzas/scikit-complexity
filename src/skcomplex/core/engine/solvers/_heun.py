@@ -10,7 +10,6 @@ from ...components.laws import (
     BoundaryLaw,
     ConstraintLaw,
     EventLaw,
-    FluxLaw,
     LinearProgramLaw,
     NoiseLaw,
     RateLaw,
@@ -55,7 +54,7 @@ class HeunSolver(SDESolver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
-            laws={LinearProgramLaw, RateLaw, FluxLaw, ConstraintLaw, EventLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            laws={LinearProgramLaw, RateLaw, ConstraintLaw, EventLaw, BoundaryLaw, TransferLaw, NoiseLaw},
             noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},
             orders=frozenset({OrderKind.INTEGER}),
         )

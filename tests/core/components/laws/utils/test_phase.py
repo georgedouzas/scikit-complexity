@@ -95,7 +95,6 @@ def test_coordinate_lowers_on_numpy_and_numba(backend: object) -> None:
         target='gas',
         state='x',
         flux=lambda s: [coordinate('v') * s.target.x, 0],
-        riemann=None,
     )
     grow = RateInteraction('g', target='gas', state='x', rate=lambda s: coordinate('v') * s.target.x)
     system = CompositeSystem(elements=[gas], interactions=[stream, grow])
@@ -316,7 +315,6 @@ def test_landau_damping_decays_at_the_linear_rate() -> None:
         target='gas',
         state='x',
         flux=lambda s: [component * s.target.x for component in potential_force(s)],
-        riemann=None,
     )
     observables = [Observable('energy', electric_energy, group='gas')]
     system = CompositeSystem(elements=[field], interactions=[drift])

@@ -1463,12 +1463,13 @@ class PassCompiler(BaseCompiler):
         """
         law = PassCompiler._get_law_name(record)
         space = place.space
-        if name in LOCAL_OPERATORS and space is not None and not space._supports_operator(name):
+        flux = name == 'partial' and place.discretization == 'finite-volume'
+        if name in LOCAL_OPERATORS and space is not None and not space._supports_operator(name) and not flux:
             message = (
                 f'The {law} applies {name} to a field on {type(space).__name__}, whose cells only take finite-volume '
                 'fluxes.'
             )
-            fix = 'Write the transport as a flux of the finite-volume discretization.'
+            fix = 'Write the transport as `-divergence(flux)` on a finite-volume field.'
             return IssueSpec('law-space', record.path, message, fix)
         if name == 'integral_transform' and not isinstance(space, PhaseSpace):
             message = (

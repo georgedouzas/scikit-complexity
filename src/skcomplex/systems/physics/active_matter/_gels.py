@@ -247,8 +247,6 @@ class ActiveViscoelasticGelSystem(BaseSystem):
             target='gel',
             state='c',
             drift=self._transport,
-            limiter=None,
-            riemann=None,
         )
         diffusion = DiffusivityInteraction('diffusion', target='gel', state='c', coefficient=self._get_diffusion)
         displacement = RateInteraction('displacement', target='gel', state='u', rate=self._transport)

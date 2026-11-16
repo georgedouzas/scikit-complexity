@@ -337,8 +337,52 @@ river = FieldElement('river', element=DiffusionElement, space=channel, values={'
 simulate(CompositeSystem(elements=[river]), until=10, dt=10.0).get_values('river.u').round(2).tolist()
 ```
 
+On a field with `discretization='finite-volume'`, a rate `-divergence(flux)` is a conservation law. The density of
+cars on a road has the flux `ρ (1 - ρ)` of Lighthill, Whitham, and Richards. Here light traffic at density 0.2 runs into
+a jam at density 0.9.
+
+```python continuation
+import numpy as np
+
+from skcomplex.core.components.elements import FiniteVolumeSpec
+from skcomplex.core.components.laws.utils import divergence
+from skcomplex.core.engine.solvers import SSPRKSolver
+
+
+class TrafficElement(Element):
+    law_classes = (RateLaw,)
+
+    def __init__(self, label, *, rho: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.rho = rho
+
+    def _get_laws(self, namespace):
+        return [RateLaw(namespace.rho, -divergence([namespace.rho * (1 - namespace.rho)]))]
+
+
+density = np.where(np.arange(50) < 25, 0.2, 0.9)
+road = FieldElement(
+    'road',
+    element=TrafficElement,
+    space=LatticeSpace(50, spacing=0.1),
+    values={'rho': density},
+    discretization='finite-volume',
+    scheme=FiniteVolumeSpec(riemann='godunov'),
+)
+cars = simulate(CompositeSystem(elements=[road]), until=1, dt=1.0, solver=SSPRKSolver()).get_values('road.rho')
+cars.sum(axis=1).round(6).tolist(), int(np.argmax(np.diff(cars[-1])))
+```
+
+The number of cars stays 27.5, and the back of the jam moves from cell 24 to cell 23. The shock travels backwards at
+the speed `1 - 0.2 - 0.9 = -0.1`, one cell of length 0.1 in one unit of time. The `FiniteVolumeSpec` of the field
+chooses the scheme: the slope limiter `limiter` of the reconstruction in each cell, the numerical flux `riemann`
+between cells, here the exact Godunov flux, and an optional wave speed `speed`. Without a scheme the field takes the
+minmod limiter and the Rusanov flux, and the wave speeds come from the derivative of the flux.
+
 **How the engine runs it.** The compiler turns each operator of space into a stencil of the space: the Laplacian of a
-lattice reads the neighbours of each site, and that of a network reads the edges. The boundary conditions replace the
+lattice reads the neighbours of each site, and that of a network reads the edges. On a finite-volume field the
+divergence of a flux becomes the differences of the numerical flux between cells, which `SSPRKSolver` steps by the CFL
+condition while it keeps the total. The boundary conditions replace the
 values beyond the edges of a lattice. The result is one large system of ordinary differential equations, which a
 solver for stiff fields can integrate.
 

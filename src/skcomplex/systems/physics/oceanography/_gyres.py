@@ -216,8 +216,6 @@ class DoubleGyreSystem(BaseSystem):
             state='zeta',
             drift=self._get_velocity,
             source=self._get_beta_drift,
-            limiter=None,
-            riemann=None,
         )
         wind = RateInteraction('wind', target='basin', state='zeta', rate=self._get_wind)
         viscosity = DiffusivityInteraction('viscosity', target='basin', state='zeta', coefficient=self._get_viscosity)

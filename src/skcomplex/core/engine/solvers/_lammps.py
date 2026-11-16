@@ -21,7 +21,7 @@ from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ...components.interactions import BaseInteraction, PairInteraction
-from ...components.laws import BoundaryLaw, ConstraintLaw, FluxLaw, NoiseLaw, RateLaw
+from ...components.laws import BoundaryLaw, ConstraintLaw, NoiseLaw, RateLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...enums import FormKind, NoiseKind, OrderKind, VariableKind
@@ -147,7 +147,7 @@ class LammpsSolver(ExternalSolver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, NoiseLaw, ConstraintLaw, BoundaryLaw},
+            laws={RateLaw, NoiseLaw, ConstraintLaw, BoundaryLaw},
             noise=frozenset({NoiseKind.DIAGONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )

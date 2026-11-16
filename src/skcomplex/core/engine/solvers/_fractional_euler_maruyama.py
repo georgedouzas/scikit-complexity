@@ -10,7 +10,7 @@ import numpy.typing as npt
 import scipy.fft
 import scipy.linalg
 
-from ...components.laws import BoundaryLaw, ConstraintLaw, EventLaw, FluxLaw, NoiseLaw, RateLaw, TransferLaw
+from ...components.laws import BoundaryLaw, ConstraintLaw, EventLaw, NoiseLaw, RateLaw, TransferLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
 from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import SolverError, ValidationError
@@ -90,7 +90,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, ConstraintLaw, EventLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            laws={RateLaw, ConstraintLaw, EventLaw, BoundaryLaw, TransferLaw, NoiseLaw},
             noise=frozenset({NoiseKind.DIAGONAL, NoiseKind.FRACTIONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )

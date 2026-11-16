@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar, cast
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 
@@ -13,9 +13,9 @@ from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import BaseSpec, RoleSpec
 from .._tags import Tags
-from ..laws import BaseLaw, MatchLaw, PartnerSpec, RuleLaw, UpdateLaw
+from ..laws import BaseLaw, PartnerSpec, RuleLaw, UpdateLaw
 from ..laws._reduction_spec import _ReductionSpec
-from ..laws.utils import both, count, maximum, mean, minimum, total, variance
+from ..laws.utils import both, count, maximum, mean, minimum, pairs, total, variance
 from ..laws.utils._reductions import reductions_in
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, Pairing, SystemViewProtocol
@@ -147,7 +147,7 @@ class GroupingInteraction(Interaction):
         [1.0, 1.0, 1.0]
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw, UpdateLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
 
     def _get_tags(self) -> Tags:
         """Return the tags of the agent-form rules or of the symbolic grouping updates."""
@@ -319,10 +319,8 @@ class GroupingInteraction(Interaction):
 
         A selection of partners or a function gives the partners.
         """
-        law = MatchLaw(self.target, pairing=pairing, capacity=self.capacity or 1)
         groups: dict[int, list[AgentViewProtocol]] = {}
-        for first, second in law.get_pairs(agents, agents, system.rng):
-            member, partner = cast(AgentViewProtocol, first), cast(AgentViewProtocol, second)
+        for member, partner in pairs(agents, None, system.rng, pairing, capacity=self.capacity or 1):
             groups.setdefault(member.id, [member]).append(partner)
         return list(groups.values())
 

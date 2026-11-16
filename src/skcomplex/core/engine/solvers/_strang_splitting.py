@@ -9,7 +9,7 @@ from dataclasses import replace
 import numpy as np
 from sklearn.base import clone
 
-from ...components.laws import BilinearLaw, FluxLaw, RateLaw
+from ...components.laws import BilinearLaw, RateLaw
 from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
@@ -94,7 +94,7 @@ class StrangSplittingSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={PhaseSpace, LatticeSpace},
-            laws={FluxLaw, RateLaw, BilinearLaw},
+            laws={RateLaw, BilinearLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -168,7 +168,7 @@ class StrangSplittingSolver(Solver):
         plain = replace(problem, accelerated=None, jacobian=None, sources=None)
         transport = replace(plain, drift=self._get_flux_differences)
         collision = replace(plain, drift=problem.sources, volumes=(), linear=())
-        self.transport_ = self._get_inner(self.transport, FluxLaw, self.dt / 2, transport)
+        self.transport_ = self._get_inner(self.transport, RateLaw, self.dt / 2, transport)
         self.collision_ = self._get_inner(self.collision, RateLaw, self.dt, collision)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:

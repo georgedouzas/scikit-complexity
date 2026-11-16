@@ -11,7 +11,8 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 
-from ...components.laws import GradientStepLaw
+from ...components.interactions import TrainingInteraction
+from ...components.laws import UpdateLaw
 from ...components.spaces import DiscreteTime
 from ...enums import FormKind, OptimizerKind, OrderKind
 from ...errors import SolverError, ValidationError
@@ -94,11 +95,11 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
-        """Return the discrete time of epochs and the gradient-step law."""
+        """Return the discrete time of epochs and the updates of the trained parameters."""
         return SupportSpec(
             time={DiscreteTime},
             space={None},
-            laws={GradientStepLaw},
+            laws={UpdateLaw},
             noise=frozenset(),
             orders=frozenset({OrderKind.INTEGER}),
         )
@@ -108,21 +109,21 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         """Return that the solver advances in whole epochs."""
         return True
 
-    def _get_law(self) -> GradientStepLaw:
-        """Return the gradient-step law of the problem."""
-        law = self.problem_.law
-        if law is None:
-            error_msg = 'The learning problem holds no gradient-step law. Compile a system that trains.'
+    def _get_training(self) -> TrainingInteraction:
+        """Return the training interaction of the problem."""
+        training = self.problem_.interaction
+        if training is None:
+            error_msg = 'The learning problem holds no training interaction. Compile a system that trains.'
             raise SolverError(error_msg)
-        return law
+        return training
 
     def _get_optimizer(self) -> tuple[optax.GradientTransformation, dict[str, str]]:
-        """Return the Optax optimizer of the law and the names of its hyperparameters.
+        """Return the Optax optimizer of the training and the names of its hyperparameters.
 
-        The optimizer reads its hyperparameters from the state of the law. The names map every hyperparameter of the
-        Optax optimizer to the parameter of the training that sets it.
+        The optimizer reads its hyperparameters from the state of the training. The names map every hyperparameter of
+        the Optax optimizer to the parameter of the training that sets it.
         """
-        name = self._get_law().optimizer
+        name = self._get_training().optimizer
         names = {'learning_rate': 'learning_rate'}
         if name == OptimizerKind.MOMENTUM:
             names['momentum'] = 'momentum'
@@ -160,17 +161,17 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
 
         The values are flattened per step.
         """
-        law, inner = self._get_law(), self.problem_.inner
+        training, inner = self._get_training(), self.problem_.inner
         if inner is None:
             error_msg = 'The learning problem holds no inner problem. Compile a system that trains.'
             raise SolverError(error_msg)
-        data = law.data
+        data = training.data
         slices = tuple(inner.parameters.locate(path)[1] for path in data.values)
         values = tuple(
             np.asarray(array, dtype=float).reshape(data.sequences, data.steps, -1) for array in data.values.values()
         )
         given = data.weights if isinstance(data.weights, Mapping) else {'loss': data.weights}
-        labels = ['loss', *(item.label for item in law.metrics)]
+        labels = ['loss', *(item.label for item in training.metrics)]
         ones = np.ones((data.sequences, data.steps))
         weights = {
             label: np.asarray(given[label], dtype=float) if given.get(label) is not None else ones for label in labels
@@ -205,17 +206,19 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         It takes the trained parameters and the values of the sequence. The function returns one row per inner step and
         one column per measure, the loss first.
         """
-        law, problem = self._get_law(), self.problem_
+        training, problem = self._get_training(), self.problem_
         inner = problem.inner
         if inner is None:
             error_msg = 'The learning problem holds no inner problem. Compile a system that trains.'
             raise SolverError(error_msg)
         indices, slices = self._get_inner_indices(), self._get_data()[0]
-        measures = [problem.measures['loss'], *(problem.measures[item.label] for item in law.metrics)]
-        steps = law.data.steps
-        ends = np.arange(1.0, steps + 1) if law.data.times is None else np.asarray(law.data.times, dtype=float)
+        measures = [problem.measures['loss'], *(problem.measures[item.label] for item in training.metrics)]
+        steps = training.data.steps
+        ends = (
+            np.arange(1.0, steps + 1) if training.data.times is None else np.asarray(training.data.times, dtype=float)
+        )
         starts = np.concatenate([[0.0], ends[:-1]])
-        truncation = law.truncation
+        truncation = training.truncation
         x0, p0 = jnp.asarray(inner.initial_state), jnp.asarray(inner.initial_parameters)
 
         def unroll(theta: TracedArray, sequence: tuple[TracedArray, ...]) -> TracedArray:
@@ -265,10 +268,10 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
 
         When given, the loss of the epoch is used.
         """
-        law, path = self._get_law(), self.problem_.training
+        training, path = self._get_training(), self.problem_.training
         _, values, weights = self._get_data()
         measured = np.asarray(self._measures(theta, tuple(jnp.asarray(item) for item in values)))
-        labels = ['loss', *(item.label for item in law.metrics)]
+        labels = ['loss', *(item.label for item in training.metrics)]
         means = {
             label: float(np.sum(weights[label] * measured[..., column]) / np.sum(weights[label]))
             for column, label in enumerate(labels)
@@ -316,11 +319,11 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
 
         The mean batch loss is returned.
         """
-        law = self._get_law()
-        order = self.rng_.permutation(law.data.sequences)
+        training = self._get_training()
+        order = self.rng_.permutation(training.data.sequences)
         losses = []
-        for start in range(0, len(order), law.batch_size):
-            rows = order[start : start + law.batch_size]
+        for start in range(0, len(order), training.batch_size):
+            rows = order[start : start + training.batch_size]
             batch = (tuple(jnp.asarray(item[rows]) for item in values), jnp.asarray(weights[rows]))
             self.theta_, self.optimizer_state_, value = self._update(self.theta_, self.optimizer_state_, batch)
             losses.append(float(value))

@@ -277,7 +277,6 @@ class KuramotoSivashinskySystem(BaseSystem):
             target='line',
             state='u',
             flux=lambda s: s.target.u**2 / 2,
-            riemann=None,
         )
         linear = RateInteraction(
             'linear',
@@ -319,7 +318,6 @@ def _get_flow_interactions(buoyant: bool) -> list[Interaction]:
         target='flow',
         state='omega',
         drift=lambda s: _velocity(s.target.omega),
-        riemann=None,
     )
     if not buoyant:
         viscosity = DiffusivityInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.nu)
@@ -340,7 +338,6 @@ def _get_flow_interactions(buoyant: bool) -> list[Interaction]:
             state='theta',
             drift=lambda s: _velocity(s.target.omega),
             source=lambda s: _velocity(s.target.omega)[1],
-            riemann=None,
         ),
         DiffusivityInteraction('conduction', target='flow', state='theta', coefficient=1.0),
     ]

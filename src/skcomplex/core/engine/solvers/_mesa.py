@@ -21,7 +21,7 @@ from scipy import stats
 from shapely import Point, Polygon, STRtree
 
 from ...components.elements import BaseElement, GroupElement
-from ...components.laws import BaseLaw, BoundaryLaw, DrawSpec, MatchLaw, RuleLaw, TransferLaw
+from ...components.laws import BaseLaw, BoundaryLaw, DrawSpec, RuleLaw, TransferLaw
 from ...components.spaces import (
     BaseSpace,
     ContinuousSpace,
@@ -1070,7 +1070,7 @@ class MesaSolver(ExternalSolver):
         return SupportSpec(
             time={DiscreteTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace},
-            laws={RuleLaw, BoundaryLaw, TransferLaw, MatchLaw},
+            laws={RuleLaw, BoundaryLaw, TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

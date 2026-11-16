@@ -1665,8 +1665,8 @@ accept a wage above theirs. The same interaction with `transfers=(('money', -1),
 worker for every match, and the section [A market in two phases](#a-market-in-two-phases) below runs a market over
 several rounds.
 
-**How the engine runs it.** It returns a [`MatchLaw`](laws.md#matchlaw), the primitive of the core that pairs two
-groups, and a `RuleLaw` that settles the matches. The matching runs once per round of its phase, runs the algorithm of
+**How the engine runs it.** It returns a [`RuleLaw`](laws.md#rulelaw) that pairs the two groups with `pairs`, the
+primitive of the core that pairs agents, and settles the matches. The matching runs once per round of its phase, runs the algorithm of
 its rule on the offers, and reports `<label>.value`, the clearing value weighted by quantity, `<label>.volume`, and
 `<label>.unmatched`. With `('money', -1)` the value times the quantity moves from the requester to the provider, and
 with `('goods', 1)` the quantity moves back, so the totals stay the same. `on_match(match, system)` adds any other

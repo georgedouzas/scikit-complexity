@@ -11,7 +11,8 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
-from skcomplex.core.components.laws import FluxLaw
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import divergence
 from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -60,9 +61,12 @@ class CyclicElement(Element):
         self.u4 = u4
 
     def _get_laws(self, s):
-        """Return one flux law per state, the Burgers flux plus the next state."""
+        """Return one conservation law per state, the Burgers flux plus the next state."""
         states = [s.u0, s.u1, s.u2, s.u3, s.u4]
-        return [FluxLaw(state, state**2 / 2 + states[(index + 1) % N_STATES] / 2) for index, state in enumerate(states)]
+        return [
+            RateLaw(state, -divergence([state**2 / 2 + states[(index + 1) % N_STATES] / 2]))
+            for index, state in enumerate(states)
+        ]
 
 
 def _volume(system):

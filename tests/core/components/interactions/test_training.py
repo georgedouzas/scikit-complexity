@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components import Observable
 from skcomplex.core.components.interactions import TrainingInteraction
-from skcomplex.core.components.laws import DatasetSpec, GradientStepLaw
+from skcomplex.core.components.laws import DatasetSpec
 from skcomplex.core.enums import OptimizerKind
 from skcomplex.core.errors import ValidationError
 
@@ -49,12 +49,9 @@ def test_check_trained_data_and_metrics(arguments):
         training.prepare()
 
 
-def test_run_returns_the_gradient_step_law():
-    """Test that the training returns one gradient-step law with its arguments."""
-    laws = _training(truncation=1).prepare().run(SimpleNamespace()).laws_
-    assert len(laws) == 1
-    assert isinstance(laws[0], GradientStepLaw)
-    assert (laws[0].trained, laws[0].truncation, laws[0].optimizer) == (['readout.W'], 1, 'adam')
+def test_run_states_no_laws():
+    """Test that the training states no laws, since the solver reads its settings."""
+    assert _training(truncation=1).prepare().run(SimpleNamespace()).laws_ == []
 
 
 def test_get_params_lists_the_hyperparameters():
