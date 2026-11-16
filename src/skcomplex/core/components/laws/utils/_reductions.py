@@ -19,7 +19,6 @@ from ....types import AnyArray
 from ...spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
-    LatticeNeighborhood,
     LayerSpec,
     MemoryNeighborhood,
     NearestNeighborhood,
@@ -741,24 +740,28 @@ def neighbors(
     Examples:
         >>> from sage.all__sagemath_symbolics import sin, var
         >>> from skcomplex.core.components.laws.utils import neighbors
-        >>> from skcomplex.core.components.spaces import BallNeighborhood, RadiusNeighborhood
+        >>> from skcomplex.core.components.spaces import LatticeNeighborhood, RadiusNeighborhood
         >>> neighbors(sin(var('theta_other')), over=RadiusNeighborhood(1.0), reduce='mean')
         neighbors(sin(theta_other), over=RadiusNeighborhood(radius=1.0), reduce='mean')
         >>> neighbors(var('strategy_other'), reduce='argmax', weight=var('payoff_other'))
         neighbors(strategy_other, reduce='argmax', weight=payoff_other)
-        >>> values = neighbors(var('spin'), BallNeighborhood(metric='manhattan'), reduce='each')
+        >>> values = neighbors(var('spin'), LatticeNeighborhood(((0, 1), (1, 0))), reduce='each')
         >>> len(values), values[0]
-        (4, neighbor(spin, 0))
+        (2, neighbor(spin, 0))
     """
     if reduce == 'each':
-        if isinstance(over, LatticeNeighborhood):
-            size = len(over.prepare().offsets_)
-        elif isinstance(over, MemoryNeighborhood):
-            size = len(over.prepare().elements_)
+        items: tuple[object, ...] | None
+        if isinstance(over, MemoryNeighborhood):
+            items = over.prepare().elements_
         else:
-            error_msg = f"The reduction 'each' reads a lattice or a memory neighbourhood, not {over!r}."
+            items = over._get_offsets() if isinstance(over, BaseNeighborhood) else None
+        if items is None:
+            error_msg = (
+                f"The reduction 'each' reads a neighbourhood whose offsets are known before its lattice, such as a "
+                f'LatticeNeighborhood, or a memory neighbourhood, not {over!r}.'
+            )
             raise ValidationError(error_msg)
-        return vector(SR, [NEIGHBOR(expression, index) for index in range(size)])
+        return vector(SR, [NEIGHBOR(expression, index) for index in range(len(items))])
     if reduce == 'circular-mean':
         sines = neighbors(sin(SR(expression)), over, 'sum', weight)
         return arctan2(sines, neighbors(cos(SR(expression)), over, 'sum', weight))

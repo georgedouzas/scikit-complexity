@@ -384,12 +384,12 @@ import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import ArrayUpdateLaw, CascadeLaw, LocalRuleLaw
-from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
-cross = BallNeighborhood(metric='manhattan', center='first')
+cross = RadiusNeighborhood(1, metric='manhattan', center=True)
 
 
 def drop(values, *, random):
@@ -1684,7 +1684,7 @@ The same law runs Conway's Game of Life on a torus of 8 by 8 cells. A glider mov
 every four steps.
 
 ```python continuation
-from skcomplex.core.components.spaces import BallNeighborhood
+from skcomplex.core.components.spaces import LatticeNeighborhood, RadiusNeighborhood
 from skcomplex.core.components.laws import OuterTotalisticSpec
 
 life = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
@@ -1698,7 +1698,7 @@ class LifeElement(Element):
         self.alive = alive
 
     def _get_laws(self, namespace):
-        return [LocalRuleLaw(namespace.alive, BallNeighborhood(), life)]
+        return [LocalRuleLaw(namespace.alive, RadiusNeighborhood(1, metric='chebyshev'), life)]
 
 
 glider = np.zeros((8, 8))
@@ -1727,7 +1727,7 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.errors import ValidationError
 
 try:
-    LocalRuleLaw(var('cell'), BallNeighborhood(), life, schedule='parallel').prepare()
+    LocalRuleLaw(var('cell'), RadiusNeighborhood(1, metric='chebyshev'), life, schedule='parallel').prepare()
 except ValidationError as error:
     message = str(error)
 message
@@ -2270,13 +2270,13 @@ from sage.all__sagemath_symbolics import ZZ
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import SampleLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
 
-nearest = BallNeighborhood(metric='manhattan')
+nearest = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
 
 
 class SpinElement(Element):

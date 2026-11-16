@@ -18,21 +18,20 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
-    BallNeighborhood,
     BaseNeighborhood,
-    LatticeNeighborhood,
     LatticeSpace,
     NetworkSpace,
+    RadiusNeighborhood,
 )
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 from ..common.avalanches import SandpileCellElement, TopplingInteraction
 
-NEAREST = BallNeighborhood(metric='manhattan', center='first')
+NEAREST = RadiusNeighborhood(1, metric='manhattan', center=True)
 BURNING = 2
-SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
-    'triangular': BallNeighborhood(metric='hexagonal', center='first'),
+SITE_NEIGHBORHOODS: dict[str, RadiusNeighborhood | AdjacencyNeighborhood] = {
+    'triangular': RadiusNeighborhood(1, metric='hexagonal', center=True),
     'graph': AdjacencyNeighborhood(center=True),
 }
 MANNA_THRESHOLD = 2

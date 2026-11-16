@@ -484,8 +484,8 @@ The quote rises from 1.0 to 1.5 and to 2.0, where the signal `2 - x` vanishes, a
 `PriceAdjustmentInteraction`, with an additive stepping and an agent form.
 
 A cellular automaton updates each cell from the cells around it by a fixed rule. A `LocalRuleInteraction` runs one,
-and here its [`BallNeighborhood`](../core_components/spaces.md#ballneighborhood) takes the two nearest cells. The helper `run` below places
-a row of five cells and runs one interaction on it.
+and here its [`RadiusNeighborhood`](../core_components/spaces.md#radiusneighborhood) takes the two nearest cells. The helper `run`
+below places a row of five cells and runs one interaction on it.
 
 ```python
 from typing import Annotated
@@ -494,7 +494,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
+from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
@@ -518,7 +518,7 @@ parity = LocalRuleInteraction(
     target='cells',
     state='c',
     rule=TotalisticSpec({1: 1}),
-    neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
+    neighborhood=RadiusNeighborhood(1, metric='manhattan'),
 )
 run(parity, np.eye(5)[2], 1).states[-1].tolist()
 ```

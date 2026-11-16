@@ -13,7 +13,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec
 from ....core.types import Array
@@ -123,7 +123,7 @@ class ElementaryAutomatonSystem(BaseSystem):
                     target='cells',
                     state='alive',
                     rule=Wolfram(self.rule),
-                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
+                    neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
                 ),
             ],
         )
@@ -215,7 +215,7 @@ class GameOfLifeSystem(BaseSystem):
                     target='cells',
                     state='alive',
                     rule=life(self.born, self.survive),
-                    neighborhood=BallNeighborhood(),
+                    neighborhood=RadiusNeighborhood(1, metric='chebyshev'),
                 ),
             ],
         )
@@ -296,7 +296,7 @@ class LangtonsAntSystem(BaseSystem):
                     target='cells',
                     state=('color', 'ant'),
                     rule=self._get_ant_rule,
-                    neighborhood=BallNeighborhood(metric='manhattan', center='first'),
+                    neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
                     reads=('color', 'ant'),
                 ),
             ],

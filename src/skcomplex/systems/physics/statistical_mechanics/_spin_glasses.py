@@ -18,13 +18,13 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.spins import SpinSamplingInteraction
 
-NEAREST = BallNeighborhood(metric='manhattan')
+NEAREST = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
 
 
 class BondSpinElement(Element):
@@ -176,7 +176,7 @@ class BondSamplingInteraction(SpinSamplingInteraction):
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import BondSamplingInteraction
         >>> BondSamplingInteraction('sampling', target='spins').neighborhood
-        BallNeighborhood(metric='manhattan')
+        LatticeNeighborhood(offsets=((-1, 0), (0, -1), (0, 1), (1, 0)))
     """
 
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:

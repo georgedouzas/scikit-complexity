@@ -15,7 +15,7 @@ import numpy as np
 
 from .....core.components.interactions import NeighborInteraction
 from .....core.components.laws import ArrayUpdateLaw, BaseLaw, CascadeLaw, LocalRuleLaw
-from .....core.components.spaces import BallNeighborhood, BaseNeighborhood, BaseSpace, LatticeNeighborhood
+from .....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, RadiusNeighborhood
 from .....core.enums import ElementKind
 from .....core.errors import ValidationError
 from .....core.specs import BaseSpec, RoleSpec
@@ -119,7 +119,10 @@ class TopplingInteraction(NeighborInteraction):
         """
         if self.mode != 'random':
             return
-        if self.neighborhood is not None and not isinstance(self.neighborhood, LatticeNeighborhood):
+        if self.neighborhood is not None and not isinstance(
+            self.neighborhood,
+            LatticeNeighborhood | RadiusNeighborhood,
+        ):
             error_msg = (
                 f'The random cascade reads the neighbourhood {self.neighborhood!r}. Give it a lattice neighbourhood.'
             )
@@ -174,15 +177,17 @@ class TopplingInteraction(NeighborInteraction):
 
         return relax
 
-    def _scatter(self, neighborhood: LatticeNeighborhood, threshold: float, share: float) -> Callable[..., Array]:
+    def _scatter(self, neighborhood: BaseNeighborhood, threshold: float, share: float) -> Callable[..., Array]:
         """Return the drive that passes parcels of relaxing members to random neighbours.
 
-        Every relaxing member passes its parcels to neighbours drawn at random.
+        Every relaxing member passes its parcels to neighbours drawn at random, among the offsets of the neighbourhood
+        in the dimensions of the lattice.
         """
-        steps = np.array([offset for offset in neighborhood.prepare().offsets_ if any(offset)])
         parcels = round(threshold / share)
 
         def scatter(values: Array, *, random: np.random.Generator) -> Array:
+            offsets = neighborhood._get_offsets(values.ndim) or ()
+            steps = np.array([offset for offset in offsets if any(offset)])
             relaxing = np.argwhere(values >= threshold)
             following = values.copy()
             following[tuple(relaxing.T)] -= threshold
@@ -210,8 +215,8 @@ class TopplingInteraction(NeighborInteraction):
         drive = [] if self.drive is None else [ArrayUpdateLaw(value, self.drive)]
         neighborhood = self.neighborhood
         if neighborhood is None:
-            neighborhood = BallNeighborhood(metric='manhattan', center='first')
-        if self.mode == 'random' and isinstance(neighborhood, LatticeNeighborhood):
+            neighborhood = RadiusNeighborhood(1, metric='manhattan', center=True)
+        if self.mode == 'random':
             relax: list[BaseLaw] = [ArrayUpdateLaw(value, self._scatter(neighborhood, threshold, share))]
         else:
             relax = [LocalRuleLaw(value, neighborhood, self._relax(threshold, share))]

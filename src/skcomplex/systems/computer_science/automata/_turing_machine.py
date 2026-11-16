@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import NN, ZZ
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import StateSpec
@@ -187,7 +187,7 @@ class TuringMachineSystem(BaseSystem):
                     target='tape',
                     state=('symbol', 'head'),
                     rule=self._get_turing_rule(actions),
-                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
+                    neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
                     reads=('symbol', 'head'),
                 ),
             ],

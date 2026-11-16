@@ -28,12 +28,12 @@ from ....core.components.interactions import SamplingInteraction
 from ....core.components.laws import ArrayUpdateLaw, BaseLaw
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
-    BallNeighborhood,
     BaseNeighborhood,
     BaseSpace,
     DiscreteTime,
     LatticeSpace,
     NetworkSpace,
+    RadiusNeighborhood,
 )
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
@@ -670,12 +670,12 @@ class CellularPottsSystem(BaseSystem):
             first, second = space.edges_[None]
             weights = np.asarray([weight for *_, weight in space.graph.edges(data='weight', default=1.0)], dtype=float)
             return np.concatenate([first, second]), np.concatenate([second, first]), np.concatenate([weights, weights])
-        neighborhood = BallNeighborhood(metric='hexagonal') if space.geometry == 'triangular' else BallNeighborhood()
+        neighborhood = RadiusNeighborhood(1, metric='hexagonal' if space.geometry == 'triangular' else 'chebyshev')
         coordinates = np.indices(space.shape_).reshape(2, -1)
         sites = np.arange(space.size_)
         pairs = [
             (sites, np.ravel_multi_index(tuple(coordinates + np.asarray(offset)[:, None]), space.shape_, mode='wrap'))
-            for offset in neighborhood.prepare().offsets_
+            for offset in neighborhood._get_offsets(space.n_dim_) or ()
         ]
         first, second = (np.concatenate(items) for items in zip(*pairs, strict=True))
         return first, second, np.ones(first.size)

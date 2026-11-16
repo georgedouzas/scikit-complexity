@@ -42,10 +42,10 @@ class SampleLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import SampleLaw
-        >>> from skcomplex.core.components.spaces import BallNeighborhood
+        >>> from skcomplex.core.components.spaces import RadiusNeighborhood
         >>> from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
         >>> spin = var('spin')
-        >>> cross = BallNeighborhood(metric='manhattan')
+        >>> cross = RadiusNeighborhood(1, metric='manhattan')
         >>> law = SampleLaw(ObjectiveSpec(-spin, cross), MoveSpec(spin), SamplerSpec('glauber', 2.0))
         >>> law.prepare().targets_
         (spin,)

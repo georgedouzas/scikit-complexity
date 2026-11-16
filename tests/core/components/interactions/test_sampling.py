@@ -13,11 +13,11 @@ from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws import PartnerSpec
 from skcomplex.core.components.laws.utils import exterior_derivative, neighbors
 from skcomplex.core.components.spaces import (
-    BallNeighborhood,
     CellComplexSpace,
     CofaceNeighborhood,
     DiscreteTime,
     LatticeSpace,
+    RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -242,7 +242,7 @@ def test_run_cooling_reduces_accepted_moves() -> None:
         width=0.5,
         intensity=1 / 5.0,
         schedule='colored',
-        neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
+        neighborhood=RadiusNeighborhood(1, metric='manhattan'),
         cooling=_geometric,
     )
     candidates = GroupElement('candidates', element=CandidateElement, space=LatticeSpace((200,)), on='sites')

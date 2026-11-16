@@ -25,7 +25,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, SamplingInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BallNeighborhood, BaseSpace, DiscreteTime, LatticeSpace
+from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.components.types import SystemViewProtocol
 from ....core.enums import ElementKind
@@ -598,7 +598,7 @@ class EvolutionaryOptimisersSystem(BaseSystem):
                 width=width,
                 intensity=1 / temperature,
                 schedule='colored',
-                neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
+                neighborhood=RadiusNeighborhood(1, metric='manhattan'),
                 cooling=lambda t: COOLED ** (t / generations),
             )
             for state in ('x', 'y')

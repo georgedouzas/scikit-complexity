@@ -53,7 +53,7 @@ class LocalRuleInteraction(Interaction):
             The table, the totalistic rule, or the function.
 
         neighborhood:
-            The ordered neighbourhood of every cell, such as `BallNeighborhood(metric='manhattan', center='first')`.
+            The ordered neighbourhood of every cell, such as `RadiusNeighborhood(1, metric='manhattan', center=True)`.
 
         reads:
             The names of the states whose neighbourhoods a function reads, or `None` for the states it sets.
@@ -70,10 +70,10 @@ class LocalRuleInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.core.components.interactions import LocalRuleInteraction
-        >>> from skcomplex.core.components.spaces import BallNeighborhood
+        >>> from skcomplex.core.components.spaces import RadiusNeighborhood
         >>> from skcomplex.core.components.laws import TotalisticSpec
         >>> parity = TotalisticSpec({1: 1, 3: 1})
-        >>> around = BallNeighborhood(metric='manhattan', n_dim=1, center='first')
+        >>> around = RadiusNeighborhood(1, metric='manhattan', center=True)
         >>> rule = LocalRuleInteraction('parity', target='cells', state='cell', rule=parity, neighborhood=around)
         >>> rule.schedule
         'synchronous'

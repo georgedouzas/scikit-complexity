@@ -4,15 +4,19 @@ import pytest
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.laws import ArrayUpdateLaw, CascadeLaw, LocalRuleLaw
-from skcomplex.core.components.spaces import BallNeighborhood
+from skcomplex.core.components.spaces import RadiusNeighborhood
 from skcomplex.core.errors import ValidationError
 
 
 def test_cascade_targets_the_states_of_the_laws_that_relax():
     """Test that a cascade targets the states the laws that relax the lattice change, each once in order."""
     height, grains = var('height grains')
-    topple = LocalRuleLaw((height, grains), BallNeighborhood(metric='manhattan', center='first'), lambda z, *n: (z, z))
-    settle = LocalRuleLaw(height, BallNeighborhood(metric='manhattan', center='first'), lambda z, *n: z)
+    topple = LocalRuleLaw(
+        (height, grains),
+        RadiusNeighborhood(1, metric='manhattan', center=True),
+        lambda z, *n: (z, z),
+    )
+    settle = LocalRuleLaw(height, RadiusNeighborhood(1, metric='manhattan', center=True), lambda z, *n: z)
     drop = ArrayUpdateLaw(height, lambda values, *, random: values + 1)
     law = CascadeLaw([drop], [topple, settle], lambda *values: True).prepare()
     assert law.targets_ == (height, grains)
@@ -23,7 +27,7 @@ def test_cascade_checks_every_law_it_holds():
     height = var('height')
     settle = LocalRuleLaw(
         height,
-        BallNeighborhood(metric='manhattan', center='first'),
+        RadiusNeighborhood(1, metric='manhattan', center=True),
         lambda z, *n: z,
         schedule='parallel',
     )

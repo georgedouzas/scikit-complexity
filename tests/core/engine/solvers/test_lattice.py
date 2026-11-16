@@ -21,9 +21,9 @@ from skcomplex.core.components.laws import (
 )
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
-    BallNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
+    RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
@@ -98,16 +98,18 @@ def _rule_30(n_steps, size):
 
 def test_moore_neighbourhood_wraps_on_torus():
     """Test that the Moore neighbours of a corner of a periodic 10 x 10 lattice wrap across both edges."""
-    neighbours = LatticeSpace((10, 10)).prepare()._get_neighbors(0, BallNeighborhood().prepare())
+    neighbours = LatticeSpace((10, 10)).prepare()._get_neighbors(0, RadiusNeighborhood(1, metric='chebyshev').prepare())
     assert sorted(neighbours.tolist()) == [1, 9, 10, 11, 19, 90, 91, 99]
 
 
 def test_fixed_and_reflecting_edges():
     """Test that fixed edges read the fill value and reflecting edges read the mirror image."""
     fixed_space = LatticeSpace((5,), boundary='fixed').prepare()
-    assert fixed_space._get_neighbors(0, BallNeighborhood(n_dim=1, center='inline').prepare()).tolist() == [0, 1]
+    assert fixed_space._get_neighbors(0, LatticeNeighborhood(((-1,), (0,), (1,))).prepare()).tolist() == [0, 1]
     reflecting_space = LatticeSpace((5,), boundary='reflecting').prepare()
-    assert reflecting_space._get_neighbors(0, BallNeighborhood(2, n_dim=1, center='inline').prepare())[:2].tolist() == [
+    assert reflecting_space._get_neighbors(0, LatticeNeighborhood(((-2,), (-1,), (0,), (1,), (2,))).prepare())[
+        :2
+    ].tolist() == [
         1,
         0,
     ]
@@ -156,10 +158,10 @@ def test_fixed_and_reflecting_edges():
 
 def test_neighborhoods_are_ordered():
     """Test the order and the sizes of the built-in neighbourhoods."""
-    assert BallNeighborhood(center='first').prepare().offsets_[0] == (0, 0)
-    assert len(BallNeighborhood(2).prepare().offsets_) == 24
-    assert len(BallNeighborhood(2, metric='manhattan').prepare().offsets_) == 12
-    assert len(BallNeighborhood(n_dim=3).prepare().offsets_) == 26
+    assert RadiusNeighborhood(1, metric='chebyshev', center=True)._get_offsets(2)[0] == (0, 0)
+    assert len(RadiusNeighborhood(2, metric='chebyshev')._get_offsets(2)) == 24
+    assert len(RadiusNeighborhood(2, metric='manhattan')._get_offsets(2)) == 12
+    assert len(RadiusNeighborhood(1, metric='chebyshev')._get_offsets(3)) == 26
     with pytest.raises(ValidationError, match='same number of dimensions'):
         LatticeNeighborhood(((0, 1), (1,))).prepare()
 
@@ -205,7 +207,7 @@ def test_table_and_totalistic_rules():
 
         def _get_laws(self, s):
             """Return the laws of the parity element."""
-            return [LocalRuleLaw(s.bit, BallNeighborhood(n_dim=1, center='inline'), TotalisticSpec({1: 1, 3: 1}))]
+            return [LocalRuleLaw(s.bit, LatticeNeighborhood(((-1,), (0,), (1,))), TotalisticSpec({1: 1, 3: 1}))]
 
     ring = CompositeSystem(
         elements=[
@@ -311,7 +313,12 @@ def test_checkerboard_needs_bipartite_neighbourhood():
         def _get_laws(self, s):
             """Return the laws of the cell element."""
             return [
-                LocalRuleLaw(s.alive, BallNeighborhood(), lambda *values: values[0], schedule='checkerboard'),
+                LocalRuleLaw(
+                    s.alive,
+                    RadiusNeighborhood(1, metric='chebyshev'),
+                    lambda *values: values[0],
+                    schedule='checkerboard',
+                ),
             ]
 
     system = CompositeSystem(
@@ -326,7 +333,7 @@ def test_unknown_schedule_is_rejected():
     with pytest.raises(ValidationError, match='synchronous'):
         LocalRuleLaw(
             None,
-            BallNeighborhood(n_dim=1, center='inline'),
+            LatticeNeighborhood(((-1,), (0,), (1,))),
             lambda *values: values[0],
             schedule='parallel',
         ).prepare()
@@ -396,7 +403,7 @@ def test_relaxation_records_avalanches():
                     relax=[
                         LocalRuleLaw(
                             s.height,
-                            BallNeighborhood(n_dim=1, center='inline'),
+                            LatticeNeighborhood(((-1,), (0,), (1,))),
                             lambda left, height, right: height - 2 * (height >= 2) + (left >= 2) + (right >= 2),
                         ),
                     ],
@@ -465,7 +472,7 @@ def test_local_rule_needs_lattice_group():
 
 def test_monte_carlo_energy_change_is_symbolic():
     """Test that a flip move of an Ising energy changes the energy by `2 J s sum(neighbours)`."""
-    nearest = BallNeighborhood(metric='manhattan')
+    nearest = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
 
     class SpinElement(Element):
         """Spin element."""
@@ -571,7 +578,7 @@ def _pile(activity, evaluated):
             return [
                 CascadeLaw(
                     drive=[ArrayUpdateLaw(s.height, drop)],
-                    relax=[LocalRuleLaw(s.height, BallNeighborhood(metric='manhattan', center='first'), topple)],
+                    relax=[LocalRuleLaw(s.height, RadiusNeighborhood(1, metric='manhattan', center=True), topple)],
                     stable=lambda heights: bool((heights < 4).all()),
                     activity=activity,
                     label='avalanche',

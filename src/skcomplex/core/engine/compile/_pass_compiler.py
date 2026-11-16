@@ -1649,6 +1649,44 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
+    def _get_distance_issue(
+        name: str,
+        record: _CensusRecordSpec,
+        node: _NodeSpec,
+        over: BaseNeighborhood,
+    ) -> IssueSpec | None:
+        """Return the issue of a reduction over distances in a continuous space.
+
+        The members need a position, the distances are euclidean, and a cone needs a direction. It is `None` without an
+        issue.
+        """
+        states = declarations_of(node.component_type, VariableKind.STATE)
+        if NeighborhoodKernel._get_position_state(states) is None:
+            message = (
+                f'The {name} reduces over {over!r}, which measures distances between positions, but '
+                f'{record.owner} declares no vector position state.'
+            )
+            fix = "Declare the position with `StateSpec(vector=True, role='position')`."
+            return IssueSpec('law-domain', record.path, message, fix)
+        if isinstance(over, RadiusNeighborhood) and over.metric != 'euclidean':
+            message = (
+                f'The {name} reduces over {over!r}, which measures {over.metric} distances, but a continuous space '
+                'measures euclidean ones.'
+            )
+            fix = "Use `metric='euclidean'` in a continuous space, or place the members on a lattice."
+            return IssueSpec('law-domain', record.path, message, fix)
+        if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
+            try:
+                NeighborhoodKernel._get_cone_direction(over, states, getattr(record.space, 'n_dim_', 0))
+            except ValidationError as error:
+                fix = (
+                    "Declare the position of order 2, `StateSpec(vector=True, order=2, role='position')`, or "
+                    "name a direction state, such as `RadiusNeighborhood(r, angle=angle, direction='theta')`."
+                )
+                return IssueSpec('law-domain', record.path, f'The {name}: {error}', fix)
+        return None
+
+    @staticmethod
     def _get_neighborhood_issues(records: list[_CensusRecordSpec], nodes: list[_NodeSpec]) -> list[IssueSpec]:
         """Return the unoffered neighbourhood reductions and the cones without a direction.
 
@@ -1684,24 +1722,9 @@ class PassCompiler(BaseCompiler):
                 node = by_path.get(record.owner)
                 if node is None or not isinstance(record.space, ContinuousSpace) or over is None:
                     continue
-                states = declarations_of(node.component_type, VariableKind.STATE)
-                if NeighborhoodKernel._get_position_state(states) is None:
-                    message = (
-                        f'The {name} reduces over {over!r}, which measures distances between positions, but '
-                        f'{record.owner} declares no vector position state.'
-                    )
-                    fix = "Declare the position with `StateSpec(vector=True, role='position')`."
-                    issues.append(IssueSpec('law-domain', record.path, message, fix))
-                    continue
-                if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
-                    try:
-                        NeighborhoodKernel._get_cone_direction(over, states, getattr(record.space, 'n_dim_', 0))
-                    except ValidationError as error:
-                        fix = (
-                            "Declare the position of order 2, `StateSpec(vector=True, order=2, role='position')`, or "
-                            "name a direction state, such as `RadiusNeighborhood(r, angle=angle, direction='theta')`."
-                        )
-                        issues.append(IssueSpec('law-domain', record.path, f'The {name}: {error}', fix))
+                issue = PassCompiler._get_distance_issue(name, record, node, over)
+                if issue is not None:
+                    issues.append(issue)
         return issues
 
     @staticmethod

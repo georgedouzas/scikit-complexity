@@ -101,7 +101,7 @@ def test_neighborhood_kernel_get_lattice_rows():
 def test_neighborhood_kernel_get_default_neighborhood():
     """Test `NeighborhoodKernel._get_default_neighborhood` on a small case."""
     lattice = LatticeSpace((4, 4)).prepare()
-    assert len(NeighborhoodKernel._get_default_neighborhood(lattice).prepare().offsets_) == 8
+    assert len(NeighborhoodKernel._get_default_neighborhood(lattice)._get_offsets(2)) == 8
     cayley = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=1).prepare()
     assert NeighborhoodKernel._get_default_neighborhood(cayley).elements == ('a', 'a^-1', 'b', 'b^-1')
 
@@ -131,5 +131,6 @@ def test_neighborhood_kernel_get_spaces_of():
     """Test `NeighborhoodKernel._get_spaces_of` on a small case."""
     assert (
         str(NeighborhoodKernel._get_spaces_of(RadiusNeighborhood(1.0)))
-        == "(<class 'skcomplex.core.components.spaces._continuous.ContinuousSpace'>,)"
+        == "(<class 'skcomplex.core.components.spaces._continuous.ContinuousSpace'>, "
+        "<class 'skcomplex.core.components.spaces._lattice.LatticeSpace'>)"
     )

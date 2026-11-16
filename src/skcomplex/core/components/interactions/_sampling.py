@@ -15,7 +15,7 @@ from ...errors import ValidationError
 from ...specs import BaseSpec, ParameterSpec, RoleSpec
 from .._tags import Tags
 from ..laws import ArrayUpdateLaw, BaseLaw, MoveSpec, ObjectiveSpec, SampleLaw, SamplerSpec
-from ..spaces import BallNeighborhood, BaseNeighborhood, BaseSpace
+from ..spaces import BaseNeighborhood, BaseSpace, RadiusNeighborhood
 from ._interaction import Interaction
 
 MOVES = (MoveKind.FLIP, MoveKind.RANDOM_VALUE, MoveKind.ROTATE, MoveKind.GAUSSIAN, MoveKind.CLUSTER)
@@ -246,7 +246,7 @@ class SamplingInteraction(Interaction):
         """
         target = getattr(self._get_member(namespace, 'target'), self.state)
         declared = getattr(self, self._get_parameter('objective'))
-        over = BallNeighborhood(metric='manhattan') if self.neighborhood is None else self.neighborhood
+        over = RadiusNeighborhood(1, metric='manhattan') if self.neighborhood is None else self.neighborhood
         objective = ObjectiveSpec(declared(namespace), over)
         intensity = self._get_intensity(namespace)
         if self.cooling is not None:

@@ -33,11 +33,11 @@ from ....components.laws import (
 from ....components.laws.utils._reductions import neighborhoods_in
 from ....components.spaces import (
     AdjacencyNeighborhood,
+    BaseNeighborhood,
     BaseSpace,
     CayleySpace,
     CellComplexSpace,
     CofaceNeighborhood,
-    LatticeNeighborhood,
     LatticeSpace,
     MemoryNeighborhood,
     NetworkSpace,
@@ -269,35 +269,32 @@ class LatticeProblemPass(BasePass):
         return found
 
     @staticmethod
-    def _get_center_columns(neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood) -> int:
+    def _get_center_columns(neighborhood: BaseNeighborhood, space: BaseSpace) -> int:
         """Return the number of columns of a neighbourhood that read the site itself."""
         if isinstance(neighborhood, AdjacencyNeighborhood):
             return int(neighborhood.center)
         if isinstance(neighborhood, MemoryNeighborhood):
             return sum(element.strip() in {'', '1'} for element in neighborhood.prepare().elements_)
-        return sum(not any(offset) for offset in neighborhood.prepare().offsets_)
+        return sum(not any(offset) for offset in neighborhood._get_offsets(space.n_dim_) or ())
 
     @staticmethod
     def _check_checkerboard(
         space: BaseSpace,
-        neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
+        neighborhood: BaseNeighborhood,
         owner: str,
     ) -> LatticeSpace:
         """Return the square lattice of a checkerboard update.
 
         An error is raised when neighbours change together.
         """
-        if (
-            not isinstance(space, LatticeSpace)
-            or space.geometry != 'square'
-            or not isinstance(neighborhood, LatticeNeighborhood)
-        ):
+        offsets = neighborhood._get_offsets(space.n_dim_) if isinstance(space, LatticeSpace) else None
+        if not isinstance(space, LatticeSpace) or space.geometry != 'square' or offsets is None:
             error_msg = (
                 f"{owner} uses a checkerboard schedule, which needs a square lattice. Use the 'colored' schedule, "
                 'which updates the classes of a proper coloring of the neighbour graph in turn.'
             )
             raise ValidationError(error_msg)
-        odd = all(sum(offset) % 2 for offset in neighborhood.prepare().offsets_)
+        odd = all(sum(offset) % 2 for offset in offsets)
         even = space.boundary != 'periodic' or all(size % 2 == 0 for size in space.shape_)
         if not (odd and even):
             error_msg = (
@@ -353,7 +350,7 @@ class LatticeProblemPass(BasePass):
     def _schedule_classes(
         schedule: str,
         space: BaseSpace,
-        neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
+        neighborhood: BaseNeighborhood,
         table: Indices,
         owner: str,
     ) -> tuple[Indices, ...]:
@@ -382,14 +379,10 @@ class LatticeProblemPass(BasePass):
         return all(item.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for item in parameters)
 
     @staticmethod
-    def _get_degrees_of(
-        table: Indices,
-        neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
-    ) -> Array:
+    def _get_degrees_of(table: Indices, neighborhood: BaseNeighborhood, space: BaseSpace) -> Array:
         """Return the number of real neighbours of every site, besides the site itself."""
-        return ((table != table.shape[0]).sum(axis=1) - LatticeProblemPass._get_center_columns(neighborhood)).astype(
-            float,
-        )
+        centers = LatticeProblemPass._get_center_columns(neighborhood, space)
+        return ((table != table.shape[0]).sum(axis=1) - centers).astype(float)
 
     @staticmethod
     def _get_extremal_source(
@@ -478,7 +471,7 @@ class LatticeProblemPass(BasePass):
     @staticmethod
     def _get_index_table(
         space: BaseSpace,
-        neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
+        neighborhood: BaseNeighborhood,
         owner: str,
     ) -> Indices:
         """Return the neighbour table of a lattice or a network.
@@ -763,7 +756,7 @@ class LatticeProblemPass(BasePass):
             stochastic=law.stochastic,
             arguments=LatticeProblemPass._get_keywords(context, function) if function is not None else _ArgumentsSpec(),
             fused=context.fused and lookup is not None and law.schedule == 'synchronous',
-            degrees=LatticeProblemPass._get_degrees_of(table, law.over) if reads_degree else None,
+            degrees=LatticeProblemPass._get_degrees_of(table, law.over, space) if reads_degree else None,
             classes=LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
             translations=translations,
         ).prepare()
@@ -953,7 +946,10 @@ class LatticeProblemPass(BasePass):
         """
         owner = f'The Monte Carlo laws of {context.owner}'
         over = objective.over
-        if not isinstance(over, LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood):
+        if not isinstance(over, BaseNeighborhood) or (
+            over._get_offsets(target.space.n_dim_) is None
+            and not isinstance(over, AdjacencyNeighborhood | MemoryNeighborhood)
+        ):
             error_msg = (
                 f'{owner} sum over a {type(over).__name__}. Sum over a lattice, adjacency, or memory neighbourhood.'
             )
