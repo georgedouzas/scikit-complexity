@@ -1955,7 +1955,7 @@ examples to read, and the gallery example of each system runs it.
 
 - `TopplingInteraction` drives the members of a lattice and relaxes every member at or above a threshold, as in
   `SandpileSystem` of `skcomplex.systems.physics.criticality`. The section
-  [Cascades](../build_a_custom_system/lattice_systems.md#cascades) writes a cascade with the core `CascadeLaw`.
+  [Cascades](../build_a_custom_system/lattice_systems.md#cascades) writes a cascade with the core operator `relax`.
 - `SimplexSpace` holds a density over the frequencies of several types, which sum to at most one, as in
   `TrimorphicMultilevelSelectionSystem` of `skcomplex.systems.social.cooperation`. The section
   [Simplex domains](../build_a_custom_system/phase_space_fields.md#simplex-domains) runs it.

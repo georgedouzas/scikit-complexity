@@ -114,8 +114,8 @@ max(event.size for event in trajectory.events)
 
 Over 2000 steps of the drive on a grid of 20 by 20, the largest avalanche has the size 613.
 
-A [`CascadeLaw(drive, relax, stable)`](../core_components/laws.md#cascadelaw) separates the slow drive from the fast
-cascade. Every step applies the drive laws once, and the relax laws until `stable` holds. Each cascade is recorded
+An `UpdateLaw` whose value is [`relax(state, rules, stable, drive=...)`](../core_components/laws.md#relax) separates
+the slow drive from the fast cascade. Every step applies the drive laws once, and the rules until `stable` holds. Each cascade is recorded
 among the events of the [trajectory](../glossary.md#trajectory) with its size, duration, and area. `activity` marks the
 sites that count as updates, such as the toppling sites of a sandpile.
 

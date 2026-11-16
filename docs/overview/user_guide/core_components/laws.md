@@ -80,7 +80,7 @@ holds.
 function once per step with the array of the state, shaped like the lattice or with one row per edge, and the array it
 returns becomes the state. The keyword `random` is the generator of the run, so a fixed `random_state` repeats the run.
 
-**How it combines.** It is the drive of a `CascadeLaw`, which adds grains before the lattice relaxes, and it runs in
+**How it combines.** It is the drive of a relaxation, `relax(..., drive=...)`, which adds grains before the lattice relaxes, and it runs in
 the same step as `LocalRuleLaw`s on other states. A function that names `time` reads the time of the step, and one
 that names `space` reads the space of the group.
 
@@ -371,11 +371,12 @@ the reflection of a diffusing particle at the walls of a channel.
 See its [fact sheet](../../../components/laws.md#boundarylaw)
 and its [API entry][skcomplex.core.components.laws.BoundaryLaw].
 
-## CascadeLaw
+## relax
 
-A `CascadeLaw` drives a lattice once per step and then relaxes it until it is stable, so one step holds a whole
-avalanche. In the sandpile of Bak, Tang, and Wiesenfeld, a site with 4 grains or more topples and passes one grain to
-each of its four neighbours, and grains that fall off the edge leave the pile.
+The function `relax` of `skcomplex.core.components.laws.utils` is the operator of a relaxation. An `UpdateLaw` whose
+value is `relax(state, rules, stable, drive=...)` drives a lattice once per step and then relaxes it until it is
+stable, so one step holds a whole avalanche. In the sandpile of Bak, Tang, and Wiesenfeld, a site with 4 grains or more
+topples and passes one grain to each of its four neighbours, and grains that fall off the edge leave the pile.
 
 ```python
 from typing import Annotated
@@ -383,7 +384,8 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import ArrayUpdateLaw, CascadeLaw, LocalRuleLaw
+from skcomplex.core.components.laws import ArrayUpdateLaw, LocalRuleLaw, UpdateLaw
+from skcomplex.core.components.laws.utils import relax
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -403,16 +405,15 @@ def topple(z, *around):
 
 
 class SandpileElement(Element):
-    law_classes = (CascadeLaw,)
-
     def __init__(self, label, *, height: Annotated[float, StateSpec()] = 0.0):
         super().__init__(label)
         self.height = height
 
     def _get_laws(self, namespace):
         drive = ArrayUpdateLaw(namespace.height, drop)
-        relax = LocalRuleLaw(namespace.height, cross, topple)
-        return [CascadeLaw([drive], [relax], lambda z: bool((z < 4).all()), label='avalanche')]
+        rule = LocalRuleLaw(namespace.height, cross, topple)
+        relaxed = relax(namespace.height, rule, lambda z: bool((z < 4).all()), drive=drive)
+        return [UpdateLaw(namespace.height, relaxed, label='avalanche')]
 
 
 pile = GroupElement('pile', element=SandpileElement, space=LatticeSpace((6, 6), boundary='fixed'), on='sites')
@@ -422,8 +423,9 @@ len(trajectory.events), max(event.size for event in trajectory.events)
 
 In 300 steps the pile records 91 avalanches, and the largest updates 114 sites.
 
-The same law runs the earthquake model of Olami, Feder, and Christensen. The drive loads every site of a fault until
-the most stressed one reaches 1. A site at 1 or above slips to 0 and passes a fifth of its stress to each neighbour.
+The same operator runs the earthquake model of Olami, Feder, and Christensen. The drive loads every site of a fault
+until the most stressed one reaches 1. A site at 1 or above slips to 0 and passes a fifth of its stress to each
+neighbour.
 
 ```python continuation
 def load(values, *, random):
@@ -435,16 +437,15 @@ def slip(z, *around):
 
 
 class FaultElement(Element):
-    law_classes = (CascadeLaw,)
-
     def __init__(self, label, *, stress: Annotated[float, StateSpec()] = 0.0):
         super().__init__(label)
         self.stress = stress
 
     def _get_laws(self, namespace):
         drive = ArrayUpdateLaw(namespace.stress, load)
-        relax = LocalRuleLaw(namespace.stress, cross, slip)
-        return [CascadeLaw([drive], [relax], lambda z: bool((z < 1.0).all()), label='earthquake')]
+        rule = LocalRuleLaw(namespace.stress, cross, slip)
+        relaxed = relax(namespace.stress, rule, lambda z: bool((z < 1.0).all()), drive=drive)
+        return [UpdateLaw(namespace.stress, relaxed, label='earthquake')]
 
 
 stress = np.random.default_rng(0).random((6, 6))
@@ -457,13 +458,86 @@ len(quakes), max(event.size for event in quakes)
 
 Every step triggers one earthquake, so 200 steps record 200 events, and the largest updates 66 sites.
 
-**How the engine runs it.** The law needs discrete time and a lattice or a network. The lattice solver applies the
-drive laws once, then applies the relax laws again and again until `stable` holds. Each cascade that changes the
-lattice becomes an event in `trajectory.events` with its size, the number of site updates, its duration, the number of
-iterations, and its area, the number of distinct sites updated.
+In a forest, fire spreads in one step from a burning tree to the trees beside it. A tree is 1, a burning tree 2, and
+ash 0. Lightning strikes a random site, and the fire burns until no tree is alight.
 
-**How it combines.** Its drive laws are `ArrayUpdateLaw`s or `LocalRuleLaw`s, and its relax laws are `LocalRuleLaw`s,
-or `ArrayUpdateLaw`s for a relaxation that sends parcels to random neighbours. The argument `activity` counts the sites
+```python continuation
+def strike(values, *, random):
+    following = values.copy()
+    site = tuple(random.integers(values.shape))
+    following[site] = np.where(following[site] == 1.0, 2.0, following[site])
+    return following
+
+
+def burn(z, *around):
+    alight = sum(neighbour == 2.0 for neighbour in around) > 0
+    return np.where(z == 2.0, 0.0, np.where((z == 1.0) & alight, 2.0, z))
+
+
+class ForestElement(Element):
+    def __init__(self, label, *, tree: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.tree = tree
+
+    def _get_laws(self, namespace):
+        rule = LocalRuleLaw(namespace.tree, cross, burn)
+        drive = ArrayUpdateLaw(namespace.tree, strike)
+        relaxed = relax(namespace.tree, rule, lambda z: bool((z < 2.0).all()), drive=drive)
+        return [UpdateLaw(namespace.tree, relaxed, label='fire')]
+
+
+forest = GroupElement('forest', element=ForestElement, space=LatticeSpace((8, 8), boundary='fixed'), on='sites')
+fires = simulate(CompositeSystem(elements=[forest]), until=1, dt=1, random_state=0).events
+fires[0].area
+```
+
+The first strike burns the whole forest, so the fire reaches all 64 sites.
+
+In neuronal avalanches, a neuron whose potential reaches 1 fires, falls to 0, and passes a half of a unit to each
+neighbour. The drive raises the potential of one neuron of a line, and `activity` counts the neurons that fire.
+
+```python continuation
+line = LatticeNeighborhood(((-1,), (0,), (1,)))
+
+
+def charge(values, *, random):
+    return values + 0.3 * (np.arange(values.size) == random.integers(values.size))
+
+
+def fire(left, value, right):
+    return value * (value < 1.0) + 0.5 * (left >= 1.0) + 0.5 * (right >= 1.0)
+
+
+class NeuronElement(Element):
+    def __init__(self, label, *, potential: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.potential = potential
+
+    def _get_laws(self, namespace):
+        relaxed = relax(
+            namespace.potential,
+            LocalRuleLaw(namespace.potential, line, fire),
+            lambda v: bool((v < 1.0).all()),
+            drive=ArrayUpdateLaw(namespace.potential, charge),
+            activity=lambda v: v >= 1.0,
+        )
+        return [UpdateLaw(namespace.potential, relaxed, label='avalanche')]
+
+
+neurons = GroupElement('neurons', element=NeuronElement, space=LatticeSpace(20, boundary='fixed'), on='sites')
+bursts = simulate(CompositeSystem(elements=[neurons]), until=500, dt=500, random_state=0).events
+len(bursts) > 0, all(event.size >= event.area for event in bursts)
+```
+
+The line fires in bursts, and every burst fires at least as many times as it has distinct neurons.
+
+**How the engine runs it.** The relaxation needs discrete time and a lattice or a network. The lattice solver applies
+the drive laws once, then applies the rules again and again until `stable` holds. Each cascade that changes the lattice
+becomes an event in `trajectory.events`, named by the label of the update law, with its size, the number of site
+updates, its duration, the number of iterations, and its area, the number of distinct sites updated.
+
+**How it combines.** Its drive laws are `ArrayUpdateLaw`s or `LocalRuleLaw`s, and its rules are `LocalRuleLaw`s, or
+`ArrayUpdateLaw`s for a relaxation that sends parcels to random neighbours. The argument `activity` counts the sites
 that topple, in place of the sites that change.
 
 **Limits and errors.** The relaxation must end. A condition `stable` that never holds stops the step after
@@ -476,8 +550,9 @@ from skcomplex.core.errors import SolverError
 class StuckElement(SandpileElement):
     def _get_laws(self, namespace):
         drive = ArrayUpdateLaw(namespace.height, drop)
-        relax = LocalRuleLaw(namespace.height, cross, topple)
-        return [CascadeLaw([drive], [relax], lambda z: bool((z < 0).all()), max_iterations=50)]
+        rule = LocalRuleLaw(namespace.height, cross, topple)
+        relaxed = relax(namespace.height, rule, lambda z: bool((z < 0).all()), drive=drive, max_iterations=50)
+        return [UpdateLaw(namespace.height, relaxed)]
 
 
 stuck = GroupElement('stuck', element=StuckElement, space=LatticeSpace((3, 3), boundary='fixed'), on='sites')
@@ -491,11 +566,9 @@ message
 The message reads "The cascade stuck is not stable after 50 iterations. Check its stability condition or raise
 max_iterations." The condition `z < 0` never holds for heights, and the fix is `z < 4`.
 
-**A field realization.** The two elements above are realizations of the sandpile and of seismology. A field also wraps
-the drive and the relaxation in one interaction, with the threshold and the share as its arguments.
-
-See its [fact sheet](../../../components/laws.md#cascadelaw)
-and its [API entry][skcomplex.core.components.laws.CascadeLaw].
+**A field realization.** The elements above are realizations of the sandpile, of seismology, of forest fires, and of
+neuronal avalanches. A field also wraps the drive and the relaxation in one interaction, with the threshold and the
+share as its arguments, as `TopplingInteraction` does for the physics packages.
 
 ## EventLaw
 
@@ -1608,7 +1681,7 @@ run as lookups, which the Numba backend fuses into one compiled loop. The schedu
 `'random-site'`, `'checkerboard'`, and `'colored'` update the sites one at a time or one class at a time.
 
 **How it combines.** A rule may read several states and set several targets together. `LocalRuleInteraction` returns
-it from an interaction, and a `CascadeLaw` uses it to relax a lattice.
+it from an interaction, and `relax` uses it to relax a lattice.
 
 **Limits and errors.** The rule reads a fixed neighbourhood of each cell, so a change of the whole array at once needs
 an `ArrayUpdateLaw`. An unknown schedule raises a `ValidationError` from `prepare`.

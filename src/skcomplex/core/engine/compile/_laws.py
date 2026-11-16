@@ -8,7 +8,6 @@ from ...components.laws import (
     ArrayUpdateLaw,
     BilinearLaw,
     BoundaryLaw,
-    CascadeLaw,
     EventLaw,
     FluxLaw,
     LinearProgramLaw,
@@ -18,6 +17,7 @@ from ...components.laws import (
     SampleLaw,
     TransferLaw,
 )
+from ._relaxation_law import RelaxationLaw
 
 FORMLESS_LAWS = (BoundaryLaw, EventLaw, BilinearLaw, FluxLaw, LinearProgramLaw, ObjectiveLaw)
 KERNEL_FREE_LAWS = (
@@ -25,11 +25,11 @@ KERNEL_FREE_LAWS = (
     BilinearLaw,
     LocalRuleLaw,
     ArrayUpdateLaw,
-    CascadeLaw,
+    RelaxationLaw,
     SampleLaw,
     FluxLaw,
     LinearProgramLaw,
     ObjectiveLaw,
 )
-LATTICE_LAWS = (LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, SampleLaw)
+LATTICE_LAWS = (LocalRuleLaw, ArrayUpdateLaw, RelaxationLaw, SampleLaw)
 AGENT_LAWS = (RuleLaw,)

@@ -17,7 +17,6 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....components.laws import (
     ArrayUpdateLaw,
     BaseLaw,
-    CascadeLaw,
     LinearRuleSpec,
     LocalRuleLaw,
     MoveSpec,
@@ -60,6 +59,7 @@ from .._compilation import Compilation
 from .._issue_spec import IssueSpec
 from .._lattice_context_spec import _LatticeContextSpec
 from .._laws import LATTICE_LAWS
+from .._relaxation_law import RelaxationLaw
 from ._cells import DEGREES
 
 COLORING_STRATEGY = 'largest_first'
@@ -211,7 +211,7 @@ class LatticeProblemPass(BasePass):
             return LatticeProblemPass._compile_rule(law, context)
         if isinstance(law, ArrayUpdateLaw):
             return LatticeProblemPass._compile_drive(law, context)
-        if isinstance(law, CascadeLaw):
+        if isinstance(law, RelaxationLaw):
             return LatticeProblemPass._compile_cascade(law, context)
         if isinstance(law, SampleLaw):
             return LatticeProblemPass._get_monte_carlo_step(spec, law, context)
@@ -721,7 +721,7 @@ class LatticeProblemPass(BasePass):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _compile_cascade(law: CascadeLaw, context: _LatticeContextSpec) -> CascadeKernel:
+    def _compile_cascade(law: RelaxationLaw, context: _LatticeContextSpec) -> CascadeKernel:
         """Return a cascade compiled for its lattice.
 
         Args:

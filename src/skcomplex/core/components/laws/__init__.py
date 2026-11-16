@@ -13,7 +13,6 @@ from ._base import BaseLaw
 from ._bilinear import BilinearLaw
 from ._boundary import BoundaryLaw
 from ._call_spec import CallSpec
-from ._cascade import CascadeLaw
 from ._constraint import ConstraintLaw
 from ._dataset_spec import DatasetSpec
 from ._dissipator import DissipatorLaw
@@ -57,7 +56,6 @@ __all__: list[str] = [
     'BilinearLaw',
     'BoundaryLaw',
     'CallSpec',
-    'CascadeLaw',
     'ConstraintLaw',
     'DatasetSpec',
     'DissipatorLaw',

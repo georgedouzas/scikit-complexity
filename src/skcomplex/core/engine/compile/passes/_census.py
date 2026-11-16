@@ -20,7 +20,6 @@ from ....components.laws import (
     BaseLaw,
     BoundaryLaw,
     CallSpec,
-    CascadeLaw,
     ConstraintLaw,
     EventLaw,
     JumpLaw,
@@ -36,6 +35,7 @@ from ....components.laws import (
 from ....components.laws.utils import laplacian, shifted
 from ....components.laws.utils._operators import _OperatorFunction
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
+from ....components.laws.utils._relaxations import relaxation_of
 from ....components.laws.utils._tensors import distribute_operators
 from ....components.spaces import CellComplexSpace, LatticeSpace
 from ....components.systems import CompositeSystem
@@ -59,6 +59,7 @@ from .._compilation import Compilation
 from .._field_lowering import FieldLowering
 from .._observables import ObservableEvaluator
 from .._observer import Observer
+from .._relaxation_law import RelaxationLaw
 from .._renewal_law import RenewalLaw
 from ._cells import DEGREES
 from ._hyperedges import HYPEREDGE_LAWS, HyperedgeTables
@@ -339,10 +340,10 @@ class CensusPass(BasePass):
         if owner is not None:
             return owner
         if isinstance(law, TransferLaw | ConstraintLaw | EventLaw) or (
-            isinstance(law, CascadeLaw) and not law._get_targets()
+            isinstance(law, RelaxationLaw) and not law._get_targets()
         ):
             return spec.owner
-        lattice = isinstance(law, CascadeLaw | LocalRuleLaw | SampleLaw)
+        lattice = isinstance(law, RelaxationLaw | LocalRuleLaw | SampleLaw)
         target = law._get_targets()[0] if lattice else CensusPass._get_changed_target(spec, law)
         return spec._get_target_references(target)[0].entry.name.rpartition('.')[0]
 
@@ -754,6 +755,21 @@ class CensusPass(BasePass):
                 raise TensorSymmetryError(error_msg)
 
     @staticmethod
+    def _get_relaxation(law: BaseLaw) -> BaseLaw:
+        """Return the relaxation law of an update law of a relaxation, or the law itself."""
+        relaxation = relaxation_of(law.value) if isinstance(law, UpdateLaw) else None
+        if relaxation is None:
+            return law
+        return RelaxationLaw(
+            relaxation.drive,
+            relaxation.rules,
+            relaxation.stable,
+            relaxation.max_iterations,
+            relaxation.activity,
+            label=law.label,
+        )
+
+    @staticmethod
     def _get_component_rates(spec: KernelSpec, law: BaseLaw) -> list[BaseLaw]:
         """Return a rate law on a tensor or vector state as one rate per component.
 
@@ -884,7 +900,7 @@ class CensusPass(BasePass):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
         split = [item for law in laws for item in CensusPass._get_component_rates(spec, law)]
-        declared = [law.prepare(spec.owner) for law in split]
+        declared = [CensusPass._get_relaxation(law).prepare(spec.owner) for law in split]
         if spec.hyperedge is not None:
             declared = CensusPass._get_hyperedge_laws(spec, declared)
         searched = spec.pairs is not None and spec.edges is None

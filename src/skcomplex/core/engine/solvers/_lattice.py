@@ -5,7 +5,7 @@
 
 import math
 
-from ...components.laws import ArrayUpdateLaw, BoundaryLaw, CascadeLaw, LocalRuleLaw, UpdateLaw
+from ...components.laws import ArrayUpdateLaw, BoundaryLaw, LocalRuleLaw, UpdateLaw
 from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...types import Array
@@ -18,8 +18,8 @@ from ._solver import Solver
 class LatticeSolver(Solver):
     """A solver that applies every lattice law once per step.
 
-    The laws are local rules, drives, and cascades. Steps apply in the order the laws are declared, and the boundary
-    laws apply after every step. Cascades record their size, duration, and area as events.
+    The laws are local rules, drives, and relaxations. Steps apply in the order the laws are declared, and the boundary
+    laws apply after every step. Relaxations record the size, duration, and area of every cascade as events.
 
     Examples:
         >>> import numpy as np
@@ -40,7 +40,7 @@ class LatticeSolver(Solver):
         return SupportSpec(
             time={DiscreteTime},
             space={LatticeSpace, NetworkSpace},
-            laws={LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, UpdateLaw, BoundaryLaw},
+            laws={LocalRuleLaw, ArrayUpdateLaw, UpdateLaw, BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

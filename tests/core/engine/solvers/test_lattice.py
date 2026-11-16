@@ -9,7 +9,6 @@ from sage.all__sagemath_symbolics import ZZ
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import (
     ArrayUpdateLaw,
-    CascadeLaw,
     LocalRuleLaw,
     MoveSpec,
     ObjectiveSpec,
@@ -18,8 +17,9 @@ from skcomplex.core.components.laws import (
     SamplerSpec,
     TableSpec,
     TotalisticSpec,
+    UpdateLaw,
 )
-from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.laws.utils import neighbors, relax
 from skcomplex.core.components.spaces import (
     LatticeNeighborhood,
     LatticeSpace,
@@ -398,17 +398,19 @@ def test_relaxation_records_avalanches():
         def _get_laws(self, s):
             """Return the laws of the pile element."""
             return [
-                CascadeLaw(
-                    drive=[ArrayUpdateLaw(s.height, lambda height, *, random: height + (np.arange(height.size) == 2))],
-                    relax=[
+                UpdateLaw(
+                    s.height,
+                    relax(
+                        s.height,
                         LocalRuleLaw(
                             s.height,
                             LatticeNeighborhood(((-1,), (0,), (1,))),
                             lambda left, height, right: height - 2 * (height >= 2) + (left >= 2) + (right >= 2),
                         ),
-                    ],
-                    stable=lambda height: bool((height < 2).all()),
-                    activity=lambda height: height >= 2,
+                        lambda height: bool((height < 2).all()),
+                        drive=ArrayUpdateLaw(s.height, lambda z, *, random: z + (np.arange(z.size) == 2)),
+                        activity=lambda height: height >= 2,
+                    ),
                 ),
             ]
 
@@ -446,11 +448,14 @@ def test_relaxation_without_end_raises():
         def _get_laws(self, s):
             """Return the laws of the restless element."""
             return [
-                CascadeLaw(
-                    [],
-                    [LocalRuleLaw(s.value, LatticeNeighborhood(((0,),)), lambda value: value + 1)],
-                    lambda _: False,
-                    10,
+                UpdateLaw(
+                    s.value,
+                    relax(
+                        s.value,
+                        LocalRuleLaw(s.value, LatticeNeighborhood(((0,),)), lambda value: value + 1),
+                        lambda _: False,
+                        max_iterations=10,
+                    ),
                 ),
             ]
 
@@ -576,11 +581,15 @@ def _pile(activity, evaluated):
         def _get_laws(self, s):
             """Return the laws of the pile element."""
             return [
-                CascadeLaw(
-                    drive=[ArrayUpdateLaw(s.height, drop)],
-                    relax=[LocalRuleLaw(s.height, RadiusNeighborhood(1, metric='manhattan', center=True), topple)],
-                    stable=lambda heights: bool((heights < 4).all()),
-                    activity=activity,
+                UpdateLaw(
+                    s.height,
+                    relax(
+                        s.height,
+                        LocalRuleLaw(s.height, RadiusNeighborhood(1, metric='manhattan', center=True), topple),
+                        lambda heights: bool((heights < 4).all()),
+                        drive=ArrayUpdateLaw(s.height, drop),
+                        activity=activity,
+                    ),
                     label='avalanche',
                 ),
             ]
