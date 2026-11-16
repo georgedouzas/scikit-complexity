@@ -8,8 +8,8 @@ import numpy as np
 import qutip
 from qutip.solver import solver_base
 
-from ...errors import SolverError
-from ...types import Array
+from .....core.errors import SolverError
+from .....core.types import Array
 from ._operator import OperatorSolver
 
 MAX_SEED = 2**32
@@ -45,14 +45,12 @@ class JumpTrajectoriesSolver(OperatorSolver):
         >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import CC, SR
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.components import Observable
-        >>> from skcomplex.core.engine.problems import HilbertSpec
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.engine.solvers import JumpTrajectoriesSolver
+        >>> from skcomplex.systems.physics.common.quantum import DissipatorLaw, HilbertSpec, JumpTrajectoriesSolver
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
         >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})

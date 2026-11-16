@@ -1,9 +1,9 @@
-"""Test the `_generator` module of `skcomplex.core.components.laws`."""
+"""Test the `_generator` module of `skcomplex.systems.physics.common.quantum`."""
 
 import pytest
 
-from skcomplex.core.components.laws import GeneratorLaw
 from skcomplex.core.errors import ValidationError
+from skcomplex.systems.physics.common.quantum import GeneratorLaw
 
 
 def test_check_names_generators_as_symbolic_only():

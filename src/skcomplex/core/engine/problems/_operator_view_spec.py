@@ -13,7 +13,7 @@ import numpy.typing as npt
 from ...components.elements import Element
 from ...errors import ValidationError
 from ...specs._base_spec import BaseSpec
-from ._hilbert_spec import HilbertSpec
+from ..types import HilbertSpaceProtocol
 from ._local_operator_spec import LocalOperatorSpec
 
 NORM_TOLERANCE = 1e-8
@@ -39,7 +39,7 @@ class _OperatorViewSpec(BaseSpec):
 
     element: Element
     state: str
-    space: HilbertSpec
+    space: HilbertSpaceProtocol
 
     @property
     def label(self) -> str:

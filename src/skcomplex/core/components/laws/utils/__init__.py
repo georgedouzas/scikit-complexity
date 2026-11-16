@@ -16,7 +16,7 @@ from ._delays import distributed_delay
 from ._draws import bernoulli, categorical, draw, normal, uniform
 from ._history import delayed, derivative, lag, residence
 from ._integrals import cumulative_integral, integral_transform, integration_variable
-from ._local_operators import dagger, local_operator, operator_product
+from ._local_operators import dagger, has_operator, local_operator, operator_product
 from ._moments import moment
 from ._operators import (
     advection,
@@ -86,6 +86,7 @@ __all__: list[str] = [
     'either',
     'exterior_derivative',
     'gradient',
+    'has_operator',
     'hill',
     'hodge_star',
     'hyperedges',

@@ -12,10 +12,10 @@ from ._base_record_spec import BaseRecordSpec
 from ._base_structure_spec import BaseStructureSpec
 from ._compiled_element_spec import CompiledElementSpec
 from ._frame_spec import FrameSpec
-from ._hilbert_spec import HilbertSpec
 from ._layout_spec import LayoutSpec
 from ._local_operator_spec import LocalOperatorSpec
 from ._network_snapshot_spec import NetworkSnapshotSpec
+from ._operator_kernel import OperatorKernel
 from ._operator_problem_spec import OperatorProblemSpec
 from ._operator_spec import OperatorSpec
 from ._patch_structure_spec import PatchStructureSpec
@@ -34,10 +34,10 @@ __all__: list[str] = [
     'BaseStructureSpec',
     'CompiledElementSpec',
     'FrameSpec',
-    'HilbertSpec',
     'LayoutSpec',
     'LocalOperatorSpec',
     'NetworkSnapshotSpec',
+    'OperatorKernel',
     'OperatorProblemSpec',
     'OperatorSpec',
     'PatchStructureSpec',

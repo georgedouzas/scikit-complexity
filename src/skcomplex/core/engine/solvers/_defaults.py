@@ -10,7 +10,6 @@ from ._fractional_abm import FractionalABMSolver
 from ._gillespie import GillespieSolver
 from ._gradient_descent import GradientDescentSolver
 from ._lattice import LatticeSolver
-from ._lindblad import LindbladSolver
 from ._maps import IterationSolver
 from ._mesa import MesaSolver
 from ._monte_carlo import MonteCarloSolver
@@ -29,7 +28,6 @@ DEFAULT_SOLVERS: dict[FormKind, type[BaseSolver]] = {
     FormKind.LATTICE: LatticeSolver,
     FormKind.MONTE_CARLO: MonteCarloSolver,
     FormKind.AGENT: MesaSolver,
-    FormKind.OPERATOR: LindbladSolver,
     FormKind.REWRITING: RewritingSolver,
     FormKind.LEARNING: GradientDescentSolver,
     FormKind.STATIC: RootSolver,

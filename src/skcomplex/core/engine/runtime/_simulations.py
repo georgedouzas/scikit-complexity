@@ -28,7 +28,6 @@ from ..compile import BaseCompiler
 from ..compile._observables import ObservableEvaluator
 from ..compile._pass_compiler import PassCompiler
 from ..compile._rewriting_compiler import RewritingCompiler
-from ..compile.passes._operator_compiler import OperatorCompiler
 from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec, RunStateSpec
 from ..problems._draw_recorder import DrawRecorder
 from ..solvers import (
@@ -533,8 +532,8 @@ class Simulation(BaseConfig[None, float]):
 
         Returns:
             compiler:
-                The compiler an element of the system names, the operator compiler for a system of operator elements,
-                the rewriting compiler for a system of words or patches, or `None` for any other system.
+                The compiler an element of the system names, the rewriting compiler for a system of words or
+                patches, or `None` for any other system.
 
         Raises:
             ValidationError:
@@ -546,8 +545,6 @@ class Simulation(BaseConfig[None, float]):
                 error_msg = f'An element of {system.label} names {named!r} as its compiler, which is not a compiler.'
                 raise ValidationError(error_msg)
             return named
-        if OperatorCompiler._contains_operator(system):
-            return OperatorCompiler()
         if RewritingCompiler._is_rewriting(system):
             return RewritingCompiler()
         return None
@@ -616,7 +613,7 @@ class Simulation(BaseConfig[None, float]):
                 The form of the problem has no default solver.
         """
         form = problem.form
-        if not isinstance(form, FormKind):
+        if not isinstance(form, FormKind) or (form not in DEFAULT_SOLVERS and form != FormKind.COUPLED):
             error_msg = f'The {form} form has no default solver. Give a solver, or a compiler that names one.'
             raise ValidationError(error_msg)
         if form == FormKind.COUPLED:

@@ -18,11 +18,11 @@ import scipy.sparse as sp
 
 from .....core.analysis.types import Source
 from .....core.components.systems import BaseSystem, CompositeSystem
-from .....core.engine.compile import OperatorCompiler
 from .....core.engine.problems import BaseProblemSpec, OperatorProblemSpec, RunStateSpec
 from .....core.engine.runtime import Trajectory
 from .....core.errors import AnalysisError, ParameterError
 from .....core.types import Array
+from ._compiler import QuantumCompiler
 from ._sector_spec import SectorSpec
 
 KINDS = ('spectrum', 'ground-state', 'purity', 'entanglement')
@@ -142,12 +142,10 @@ def operator_measures(
         >>> from typing import Annotated
         >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import CC, SR
-        >>> from skcomplex.systems.physics.common.quantum import operator_measures
+        >>> from skcomplex.systems.physics.common.quantum import GeneratorLaw, HilbertSpec, operator_measures
         >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.laws import GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.problems import HilbertSpec
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
@@ -272,7 +270,7 @@ def _read_system(source: object) -> CompositeSystem | BaseProblemSpec:
 
 def _operator_problem(system: CompositeSystem | BaseProblemSpec) -> OperatorProblemSpec:
     """Return the operator problem of a system, compiling it when needed."""
-    problem = system if isinstance(system, BaseProblemSpec) else OperatorCompiler().prepare(system).run().problem_
+    problem = system if isinstance(system, BaseProblemSpec) else QuantumCompiler().prepare(system).run().problem_
     if not isinstance(problem, OperatorProblemSpec):
         error_msg = f'The system compiles to the {problem.form} form, but the analysis needs operator elements.'
         raise AnalysisError(error_msg)

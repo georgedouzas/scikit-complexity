@@ -9,8 +9,9 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
-from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
+from .....core.errors import ValidationError
+from .....core.specs._base_spec import BaseSpec
+from ._compiler import QuantumCompiler
 
 
 @dataclass(frozen=True)
@@ -19,7 +20,8 @@ class HilbertSpec(BaseSpec):
 
     It holds the local operators its laws build generators from. An element that takes a `HilbertSpec` and declares a
     complex state, a `StateSpec` over `CC` or `CC^dimension`, is a subsystem. Its laws read every local operator by
-    name, and a group of such elements is the tensor product of its members' spaces, in member order.
+    name, and a group of such elements is the tensor product of its members' spaces, in member order. The space names
+    `QuantumCompiler`, so a system of such elements compiles to a quantum problem by itself.
 
     Args:
         dimension:
@@ -37,7 +39,7 @@ class HilbertSpec(BaseSpec):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.problems import HilbertSpec
+        >>> from skcomplex.systems.physics.common.quantum import HilbertSpec
         >>> spec = HilbertSpec(2, {'z': (np.diag([1.0, -1.0]), True)}, basis={'up': 0, 'down': 1})
         >>> spec.basis['down']
         1
@@ -47,6 +49,10 @@ class HilbertSpec(BaseSpec):
     operators: Mapping[str, tuple[npt.ArrayLike, bool]] = field(default_factory=dict)
     basis: Mapping[str, int] = field(default_factory=dict)
     display: str | None = 'z'
+
+    def _get_compiler(self) -> QuantumCompiler:
+        """Return the compiler of the systems whose elements take the space."""
+        return QuantumCompiler()
 
     def _check(self) -> None:
         """Raise an error for a dimension, operator, basis state, or display that misfits.

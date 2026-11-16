@@ -17,14 +17,14 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import BaseInteraction, Interaction
-from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw, RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import laplacian, local_operator
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.problems import HilbertSpec
 from ....core.engine.solvers import ETDRK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..common.quantum import DissipatorLaw, GeneratorLaw, HilbertSpec
 
 FORMULATIONS = ('fields', 'operators')
 

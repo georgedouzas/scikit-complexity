@@ -5,11 +5,10 @@ import pytest
 import rerun.blueprint as rrb
 from scipy.special import jv
 
-from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import ExpectationVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems.physics.common.quantum import operator_measures
+from skcomplex.systems.physics.common.quantum import QuantumCompiler, operator_measures
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement, _get_spin_space
 
@@ -59,7 +58,7 @@ def test_quantum_heisenberg_rejects_unknown_options(values, message):
 def test_quantum_heisenberg_streams_a_light_cone(tmp_path):
     """Test that the chain logs a space-time image of the local magnetisation as its primary view."""
     system = QuantumHeisenbergSystem(initial='domain_wall', boundary='open')
-    problem = OperatorCompiler().prepare(system.prepare().system_).run().problem_
+    problem = QuantumCompiler().prepare(system.prepare().system_).run().problem_
     blueprint = RerunObserver(blueprint='default').prepare(problem).blueprint_
     first = blueprint.root_container.contents[0]
     assert isinstance(first, rrb.Container | rrb.Spatial2DView)

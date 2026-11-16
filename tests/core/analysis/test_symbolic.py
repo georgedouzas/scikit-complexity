@@ -17,7 +17,6 @@ from skcomplex.core.components.laws.utils import derivative, lag
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
@@ -33,6 +32,7 @@ from skcomplex.systems.physics.common.particles import (
     HarmonicPotentialInteraction,
     MassPointElement,
 )
+from skcomplex.systems.physics.common.quantum import QuantumCompiler
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 
 from ...conftest import CallableGrowthInteraction, HoldingElement
@@ -427,7 +427,7 @@ def test_symbolic_refuses_rewriting_systems_with_an_analysis_error():
 def test_hamiltonian_prints_operators_and_equations_refuse():
     """Test that an operator system prints its Hamiltonian and has no state equations."""
     system = QuantumHeisenbergSystem(n_sites=2, boundary='open').prepare().system_
-    problem = OperatorCompiler().prepare(system).run().problem_
+    problem = QuantumCompiler().prepare(system).run().problem_
     hamiltonian = symbolic(problem, kind='hamiltonian').hamiltonian
     assert {'J_exchange', 'delta_exchange', 'h_field'} <= {str(variable) for variable in hamiltonian.variables()}
     assert 'local_operator(psi_chain_0, x)*local_operator(psi_chain_1, x)' in str(hamiltonian)

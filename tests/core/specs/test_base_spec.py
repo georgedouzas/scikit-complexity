@@ -10,9 +10,9 @@ from skcomplex.core.components import Observable
 from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, RequirementSpec, SamplerSpec, TopologyRequestSpec
 from skcomplex.core.components.spaces import ContinuousTime, RadiusNeighborhood, ScheduleSpec
 from skcomplex.core.engine.compile import PhasesScheduleSpec
-from skcomplex.core.engine.problems import HilbertSpec
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.systems.physics.common.quantum import HilbertSpec
 
 
 def test_specs_are_frozen_records():

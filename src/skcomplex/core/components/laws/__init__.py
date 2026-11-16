@@ -15,11 +15,9 @@ from ._boundary import BoundaryLaw
 from ._call_spec import CallSpec
 from ._constraint import ConstraintLaw
 from ._dataset_spec import DatasetSpec
-from ._dissipator import DissipatorLaw
 from ._draw_spec import DrawSpec
 from ._event import EventLaw
 from ._flux import FluxLaw
-from ._generator import GeneratorLaw
 from ._gradient_step import GradientStepLaw
 from ._jump import JumpLaw
 from ._linear_objective_spec import LinearObjectiveSpec
@@ -58,11 +56,9 @@ __all__: list[str] = [
     'CallSpec',
     'ConstraintLaw',
     'DatasetSpec',
-    'DissipatorLaw',
     'DrawSpec',
     'EventLaw',
     'FluxLaw',
-    'GeneratorLaw',
     'GradientStepLaw',
     'JumpLaw',
     'Letters',

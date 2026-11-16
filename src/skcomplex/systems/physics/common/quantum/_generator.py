@@ -7,11 +7,10 @@ from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...errors import ValidationError
-from ..spaces import ContinuousTime
-from ._base import BaseLaw
-from ._requirement_spec import RequirementSpec
-from .utils._local_operators import has_operator
+from .....core.components.laws import BaseLaw, RequirementSpec
+from .....core.components.laws.utils import has_operator
+from .....core.components.spaces import ContinuousTime
+from .....core.errors import ValidationError
 
 
 class GeneratorLaw(BaseLaw):
@@ -35,7 +34,7 @@ class GeneratorLaw(BaseLaw):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import SR, var
-        >>> from skcomplex.core.components.laws import GeneratorLaw
+        >>> from skcomplex.systems.physics.common.quantum import GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> z = local_operator(SR.symbol('q'), SR.symbol('z'))
         >>> GeneratorLaw(var('h') * z).prepare().run({'h': 0.5}).value_

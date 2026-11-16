@@ -375,8 +375,8 @@ each says so when given a function.
 
 - [`ConstraintLaw`](../core_components/laws.md#equationlaw) is solved symbolically, so a function goes in a `RateLaw` of
   the highest derivative.
-- [`GeneratorLaw`](../core_components/laws.md#generatorlaw) and
-  [`DissipatorLaw`](../core_components/laws.md#dissipatorlaw) build quantum operators from symbols.
+- `GeneratorLaw` and `DissipatorLaw` of the [quantum package](quantum_systems.md) build quantum operators from
+  symbols.
 - A [`FluxLaw`](../core_components/laws.md#fluxlaw) takes the derivative of its flux, for the wave speeds and for the critical points of the Godunov flux, so
   a function goes in `speed=` or in a `RateLaw`.
 - A crossing, a matrix, and a jump change read no delays.

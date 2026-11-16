@@ -19,20 +19,17 @@ from ._heun import HeunSolver
 from ._horizon_error import HorizonError
 from ._imex2 import IMEX2Solver
 from ._imex_euler import IMEXEulerSolver
-from ._jump_trajectories import JumpTrajectoriesSolver
 from ._kinetics import KineticSolver
 from ._l1 import L1Solver
 from ._lammps import LammpsSolver
 from ._lammps_fix_spec import LammpsFixSpec
 from ._lattice import LatticeSolver
-from ._lindblad import LindbladSolver
 from ._maps import IterationSolver
 from ._mesa import AgentView, MesaSolver, SystemView
 from ._metropolis import MetropolisSolver
 from ._milstein import MilsteinSolver
 from ._minimize import MinimizeSolver
 from ._monte_carlo import MonteCarloSolver
-from ._operator import OperatorSolver
 from ._optimal_control import OptimalControlSolver
 from ._pontryagin import PontryaginSolver
 from ._renewal import RenewalSolver
@@ -47,7 +44,6 @@ from ._split import SplitSolver
 from ._ssprk import SSPRKSolver
 from ._step_spec import StepSpec
 from ._strang_splitting import StrangSplittingSolver
-from ._unitary import UnitarySolver
 from ._velocity_verlet import VelocityVerletSolver
 from ._yoshida4 import Yoshida4Solver
 
@@ -73,19 +69,16 @@ __all__: list[str] = [
     'IMEX2Solver',
     'IMEXEulerSolver',
     'IterationSolver',
-    'JumpTrajectoriesSolver',
     'KineticSolver',
     'L1Solver',
     'LammpsFixSpec',
     'LammpsSolver',
     'LatticeSolver',
-    'LindbladSolver',
     'MesaSolver',
     'MetropolisSolver',
     'MilsteinSolver',
     'MinimizeSolver',
     'MonteCarloSolver',
-    'OperatorSolver',
     'OptimalControlSolver',
     'PontryaginSolver',
     'RK4Solver',
@@ -101,7 +94,6 @@ __all__: list[str] = [
     'StepSpec',
     'StrangSplittingSolver',
     'SystemView',
-    'UnitarySolver',
     'VelocityVerletSolver',
     'Yoshida4Solver',
 ]
