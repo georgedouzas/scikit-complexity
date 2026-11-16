@@ -5,6 +5,7 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
+from typing import Protocol, runtime_checkable
 
 import jax
 import numpy.typing as npt
@@ -57,3 +58,33 @@ type Declared = dict[str, tuple[str, Observable]]
 type Number = RingElement | int | float | complex
 type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
 type SpectralBlock = tuple[IntTuple, list[Indices], ComplexArray]
+
+
+@runtime_checkable
+class HilbertSpaceProtocol(Protocol):
+    """A protocol of the state space of a subsystem that the operator compiler reads.
+
+    A field package defines the space, and the space names the compiler of its systems.
+    """
+
+    @property
+    def dimension(self) -> int:
+        """The dimension of the space."""
+
+    @property
+    def operators(self) -> Mapping[str, tuple[npt.ArrayLike, bool]]:
+        """The matrix of every local operator by name and whether it is Hermitian."""
+
+    @property
+    def basis(self) -> Mapping[str, int]:
+        """The index of every basis state by label."""
+
+    @property
+    def display(self) -> str | None:
+        """The operator whose expectation visuals show for a group, or `None`."""
+
+    def _check(self) -> None:
+        """Raise an error for a dimension, an operator, or a basis state that misfits."""
+
+    def _get_compiler(self) -> object:
+        """Return the compiler of the systems of the space."""

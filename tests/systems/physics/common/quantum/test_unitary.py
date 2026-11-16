@@ -9,18 +9,23 @@ from sage.all__sagemath_symbolics import CC
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
-from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.problems import HilbertSpec
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import JumpTrajectoriesSolver, UnitarySolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
-from skcomplex.systems.physics.common.quantum import QUBIT, QubitElement
+from skcomplex.systems.physics.common.quantum import (
+    QUBIT,
+    DissipatorLaw,
+    GeneratorLaw,
+    HilbertSpec,
+    JumpTrajectoriesSolver,
+    QubitElement,
+    UnitarySolver,
+)
 
-from ....conftest import SpinElement
+from .....conftest import SpinElement
 
 OMEGA = 2.0
 GAMMA = 0.5

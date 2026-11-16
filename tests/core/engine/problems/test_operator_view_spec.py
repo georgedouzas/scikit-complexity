@@ -6,9 +6,8 @@ import pytest
 import qutip
 
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
-from skcomplex.core.engine.problems import HilbertSpec
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems.physics.common.quantum import ModeElement, QubitElement, mode_space
+from skcomplex.systems.physics.common.quantum import HilbertSpec, ModeElement, QubitElement, mode_space
 
 from ....conftest import SpinElement, _spin_space
 

@@ -40,13 +40,14 @@ def test_kernel_search_and_printer_bases_are_configurable():
 
 
 def test_public_problems_are_the_bases_frames_and_two_forms():
-    """The bases, the problems of the shared pass core and the operator form, the frames, and values are public."""
+    """The bases, the problems of the shared pass core and the operator form, its kernel, and the frames are public."""
     expected = {
         'BaseKernel',
         'BasePrinter',
         'BaseProblemSpec',
         'BaseSearch',
         'FrameSpec',
+        'OperatorKernel',
         'OperatorProblemSpec',
         'ProblemSpec',
     }

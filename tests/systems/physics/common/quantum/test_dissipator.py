@@ -1,11 +1,11 @@
-"""Test the `_dissipator` module of `skcomplex.core.components.laws`."""
+"""Test the `_dissipator` module of `skcomplex.systems.physics.common.quantum`."""
 
 import pytest
 
-from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.errors import ValidationError
+from skcomplex.systems.physics.common.quantum import DissipatorLaw, GeneratorLaw
 
 
 def test_check_names_dissipators_as_symbolic_only():

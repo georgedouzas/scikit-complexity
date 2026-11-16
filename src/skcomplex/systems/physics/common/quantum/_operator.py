@@ -12,17 +12,17 @@ import qutip
 import scipy.sparse as sp
 from qutip.solver import solver_base
 
-from ...components.laws import DissipatorLaw, GeneratorLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
-from ...enums import FormKind, OrderKind
-from ...errors import SolverError
-from ...types import Array
-from ..backends import SupportSpec
-from ..compile.passes._operator_compiler import DEFAULT_MAX_DIMENSION
-from ..problems import RunStateSpec
-from ..problems._operator_kernel import OperatorKernel
-from ..problems._operator_problem_spec import OperatorProblemSpec
-from ._base import BaseSolver
+from .....core.components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from .....core.engine.backends import SupportSpec
+from .....core.engine.problems import OperatorKernel, OperatorProblemSpec, RunStateSpec
+from .....core.engine.solvers import BaseSolver
+from .....core.enums import FormKind, OrderKind
+from .....core.errors import SolverError
+from .....core.types import Array
+from ._dissipator import DissipatorLaw
+from ._generator import GeneratorLaw
+
+MAX_DIMENSION = 2**20
 
 
 class OperatorSolver(BaseSolver[OperatorProblemSpec]):
@@ -72,7 +72,7 @@ class OperatorSolver(BaseSolver[OperatorProblemSpec]):
         atol: float = 1e-12,
         rtol: float = 1e-10,
         nsteps: int = 100_000,
-        max_dimension: int = DEFAULT_MAX_DIMENSION,
+        max_dimension: int = MAX_DIMENSION,
         *,
         random_state: int | np.random.Generator | None = None,
         until: float = math.inf,

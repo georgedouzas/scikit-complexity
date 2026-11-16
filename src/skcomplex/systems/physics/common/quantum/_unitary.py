@@ -7,8 +7,8 @@
 import qutip
 from qutip.solver import solver_base
 
-from ...types import Array
-from ..problems._operator_problem_spec import OperatorProblemSpec
+from .....core.engine.problems import OperatorProblemSpec
+from .....core.types import Array
 from ._operator import OperatorSolver
 
 
@@ -34,14 +34,12 @@ class UnitarySolver(OperatorSolver):
         >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import CC, SR
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.components import Observable
-        >>> from skcomplex.core.engine.problems import HilbertSpec
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.engine.solvers import UnitarySolver
+        >>> from skcomplex.systems.physics.common.quantum import GeneratorLaw, HilbertSpec, UnitarySolver
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
         >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})

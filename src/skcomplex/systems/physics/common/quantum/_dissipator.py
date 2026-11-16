@@ -7,11 +7,10 @@ from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ...errors import ValidationError
-from ..spaces import ContinuousTime
-from ._base import BaseLaw
-from ._requirement_spec import RequirementSpec
-from .utils._local_operators import has_operator
+from .....core.components.laws import BaseLaw, RequirementSpec
+from .....core.components.laws.utils import has_operator
+from .....core.components.spaces import ContinuousTime
+from .....core.errors import ValidationError
 
 
 class DissipatorLaw(BaseLaw):
@@ -39,7 +38,7 @@ class DissipatorLaw(BaseLaw):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import SR, var
-        >>> from skcomplex.core.components.laws import DissipatorLaw
+        >>> from skcomplex.systems.physics.common.quantum import DissipatorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> minus = local_operator(SR.symbol('q'), SR.symbol('minus'))
         >>> DissipatorLaw(minus, 2 * var('gamma')).prepare().run({'gamma': 0.05}).value_

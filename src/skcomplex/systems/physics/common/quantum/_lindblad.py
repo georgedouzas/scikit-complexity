@@ -7,14 +7,14 @@
 import qutip
 from qutip.solver import solver_base
 
-from ...types import Array
+from .....core.types import Array
 from ._operator import OperatorSolver
 
 
 class LindbladSolver(OperatorSolver):
     """A solver of the Lindblad master equation with the `MESolver` of QuTiP.
 
-    Pure closed systems are solved with `SESolver`. It is the default solver of the operator form. A system without
+    Pure closed systems are solved with `SESolver`. It is the default solver of quantum systems. A system without
     dissipators that starts in a pure state follows the linear evolution `dx/dt = -i H x`, which is the master equation
     without dissipators.
 
@@ -36,14 +36,12 @@ class LindbladSolver(OperatorSolver):
         >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import CC, SR
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.components import Observable
-        >>> from skcomplex.core.engine.problems import HilbertSpec
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.engine.solvers import LindbladSolver
+        >>> from skcomplex.systems.physics.common.quantum import DissipatorLaw, HilbertSpec, LindbladSolver
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
         >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})

@@ -4,8 +4,8 @@ import pytest
 
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.solvers import LindbladSolver
 from skcomplex.core.errors import SolverError
+from skcomplex.systems.physics.common.quantum import LindbladSolver
 
 
 def test_operator_solvers_reject_classical_problems():

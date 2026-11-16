@@ -15,7 +15,7 @@ dagger = _OperatorFunction('dagger', nargs=1)
 
 
 def local_operator(subsystem: object, name: object) -> Expression:
-    """Return the operator of a name of the `HilbertSpec` of a subsystem.
+    """Return the operator of a name of the Hilbert space of a subsystem.
 
     It acts on that subsystem alone. Operators do not commute, so a product of operators is written with
     `operator_product` and an adjoint with `dagger`, both kept unevaluated until the compiler lowers them to matrices.
@@ -27,7 +27,7 @@ def local_operator(subsystem: object, name: object) -> Expression:
             The symbol of the state of the subsystem, such as `namespace.psi`.
 
         name:
-            The name of the operator in the `HilbertSpec`, such as `'z'`, or its symbol.
+            The name of the operator in the Hilbert space, such as `'z'`, or its symbol.
 
     Returns:
         operator:

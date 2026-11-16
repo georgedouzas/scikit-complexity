@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, MapInteraction, RateInteraction
-from skcomplex.core.components.laws import GeneratorLaw, RateLaw, RuleLaw, UpdateLaw
+from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import (
     BaseSpace,
@@ -27,12 +27,11 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.problems import HilbertSpec
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import UnitarySolver
 from skcomplex.core.errors import RoleElementError, TagError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.epidemiology import SIRSystem
+from skcomplex.systems.physics.common.quantum import GeneratorLaw, HilbertSpec, UnitarySolver
 
 PAULI = HilbertSpec(
     2,
