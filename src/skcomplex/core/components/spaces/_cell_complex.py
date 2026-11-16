@@ -1,4 +1,4 @@
-"""Define the space of the cells of a lattice or network, with oriented incidence."""
+"""Define the space of the oriented cells of a lattice, network, or mesh."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,6 +11,7 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 import scipy.sparse
+import skfem
 import xgi
 
 from ...errors import SpaceError, ValidationError
@@ -24,15 +25,24 @@ LOWEST_DIMENSION = 2
 CUBE_DIMENSION = 3
 TRIANGLE_NODES = 3
 PLAQUETTE_ROWS = 4
+MESH_DIMENSIONS = (2, 3)
+ARRAY_RANK = 2
+TETRAHEDRON_SIGNS = (1.0, -1.0, 1.0, -1.0)
 
 
 class CellComplexSpace(NetworkSpace):
-    """A space of the sites, links, and faces of a lattice or network, oriented.
+    """A space of the sites, links, and faces of a lattice, network, or mesh, oriented.
 
     A cell complex holds cells of several degrees: sites, the links between them, and the faces that the links bound.
     Its nodes are the sites or nodes of the space it derives from, its edges the oriented links, and its hyperedges the
     oriented faces in cyclic node order. Every group and neighbourhood of a network space applies to it, so groups on
     its edges and hyperedges hold states on links and faces. It has no layers.
+
+    It derives from a `LatticeSpace` or a `NetworkSpace`, or it is built from the points and cells of an unstructured
+    mesh of triangles or tetrahedra, such as the `p` and `t` arrays of `skfem.MeshTri.init_lshaped().refined(3)`. A
+    mesh fits domains of any shape, and its nodes hold the members of finite element fields. Its edges are the sides of
+    the cells and its faces their triangles, each oriented by increasing node number. The tetrahedra of a mesh in 3D
+    are its cells of degree 3.
 
     The links of a lattice are numbered by direction and then by site, and point along the positive direction of their
     axis. The faces are numbered by plane and then by site, with planes `(0, 1), (0, 2), ...` in increasing order, and
@@ -41,18 +51,30 @@ class CellComplexSpace(NetworkSpace):
     hyperedges take their incidence from `xgi.linalg.hodge_matrix.boundary_matrix`.
 
     Unlike `NetworkSpace`, which knows nodes and edges, it also knows faces and the orientation of each cell, so states
-    on links can have a circulation. Choose it when a state lives on links or faces, as in discrete exterior calculus.
+    on links can have a circulation. Choose it when a state lives on links or faces, as in discrete exterior calculus,
+    or when a partial differential equation on an irregular domain is solved by finite elements.
 
     It appears in many fields. Lattice gauge theories hold angles on the links of a lattice, discrete exterior calculus
-    models flows on meshes, and the Hodge decomposition splits the flows of a network into gradient and cyclic parts.
+    models flows on meshes, the Hodge decomposition splits the flows of a network into gradient and cyclic parts, and
+    heat flows through a machine part meshed into triangles.
 
     Args:
         space:
-            The `LatticeSpace` or the `NetworkSpace` the cells derive from.
+            The `LatticeSpace` or the `NetworkSpace` the cells derive from, or `None` for a mesh of `points` and
+            `cells`.
+
+        points:
+            The coordinates of the nodes of a mesh, one column per node and one row per dimension, or `None` for a
+            complex that derives from `space`.
+
+        cells:
+            The node indices of every triangle or tetrahedron of a mesh, one column per cell, or `None` for a complex
+            that derives from `space`.
 
         faces:
             The faces of a network: `None` for a minimum cycle basis, `'hyperedges'` for the hyperedges of the network,
-            `'cliques'` for its cliques up to `dimension`, or a sequence of node cycles. A lattice takes `None`.
+            `'cliques'` for its cliques up to `dimension`, or a sequence of node cycles. A lattice and a mesh take
+            `None`.
 
         dimension:
             The highest degree of the cells. Cells of degree 3 take part in incidence and topology only, since a group
@@ -62,6 +84,17 @@ class CellComplexSpace(NetworkSpace):
             The name of the space in its system, such as `'grid'`.
 
     Attributes:
+        mesh_:
+            The scikit-fem mesh of the points and cells, a `MeshTri` in 2D or a `MeshTet` in 3D, or `None` for a
+            complex that derives from a space.
+
+        cells_:
+            The node indices of every triangle or tetrahedron of a mesh, one column per cell, and empty for a complex
+            that derives from a space.
+
+        boundary_nodes_:
+            The indices of the nodes on the boundary of a mesh, and empty for a complex that derives from a space.
+
         incidences_:
             The oriented incidence of every degree `k` as a SciPy CSR array with entries of 1 and -1, with one row per
             cell of degree `k + 1` and one column per cell of degree `k`, so `incidences_[k + 1] @ incidences_[k]` is 0.
@@ -96,9 +129,18 @@ class CellComplexSpace(NetworkSpace):
             A face uses a pair of nodes that the graph does not join, the network has a loop, or the lattice is not
             square.
 
+        ValidationError:
+            Neither or both of a space and a mesh are given, or the points or cells of a mesh do not fit.
+
     Examples:
         >>> import networkx as nx
+        >>> import numpy as np
+        >>> import skfem
         >>> from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
+        >>> grid = skfem.MeshTri.init_tensor(np.linspace(0, 1, 5), np.linspace(0, 1, 4))
+        >>> mesh = CellComplexSpace(points=grid.p, cells=grid.t).prepare()
+        >>> mesh.size_, mesh.n_dim_, mesh.positions_.shape, len(mesh.hyperedges_)
+        (20, 2, (20, 2), 24)
         >>> square = CellComplexSpace(LatticeSpace((8, 8))).prepare()
         >>> [matrix.shape for matrix in square.incidences_]
         [(128, 64), (64, 128)]
@@ -120,14 +162,18 @@ class CellComplexSpace(NetworkSpace):
 
     def __init__(
         self,
-        space: LatticeSpace | NetworkSpace,
+        space: LatticeSpace | NetworkSpace | None = None,
         *,
+        points: npt.ArrayLike | None = None,
+        cells: npt.ArrayLike | None = None,
         faces: str | Sequence[Sequence[object]] | None = None,
         dimension: int = LOWEST_DIMENSION,
         label: str = 'space',
     ) -> None:
         super().__init__(nx.Graph(), label=label)
         self.space = space
+        self.points = points
+        self.cells = cells
         self.faces = faces
         self.dimension = dimension
 
@@ -539,6 +585,123 @@ class CellComplexSpace(NetworkSpace):
         signs[rows, slots] = columns.data
         return table, signs
 
+    def _is_mesh(self) -> bool:
+        """Check whether the complex is a mesh of points and cells.
+
+        A complex that derives from a lattice or a network is not.
+        """
+        return self.points is not None
+
+    def _check_source(self) -> None:
+        """Raise an error unless exactly one of a space and a mesh is given.
+
+        A mesh is given by both its points and its cells.
+        """
+        derived = self.space is not None and self.points is None and self.cells is None
+        meshed = self.space is None and self.points is not None and self.cells is not None
+        if derived or meshed:
+            return
+        error_msg = (
+            f'The cell complex {self.label!r} takes either a space or the points and cells of a mesh. Give '
+            '`CellComplexSpace(space)` or `CellComplexSpace(points=p, cells=t)`.'
+        )
+        raise ValidationError(error_msg)
+
+    def _check_points(self, points: Array) -> None:
+        """Raise an error for points that are not two or three rows of coordinates.
+
+        There is one column per node.
+        """
+        if points.ndim != ARRAY_RANK or points.shape[0] not in MESH_DIMENSIONS:
+            error_msg = (
+                f'The points of the cell complex {self.label!r} have the shape {points.shape}. Give two or three '
+                'rows, one per coordinate, with one column per node.'
+            )
+            raise ValidationError(error_msg)
+
+    def _check_cells(self, cells: npt.NDArray[np.integer], points: Array) -> None:
+        """Raise an error for cells that are not columns of node indices of the points.
+
+        A cell has one node more than the points have coordinates.
+        """
+        rows = points.shape[0] + 1
+        problem = None
+        if cells.ndim != ARRAY_RANK:
+            problem = f'have the shape {cells.shape}, but they must be a two-dimensional array'
+        elif cells.dtype.kind not in 'iu':
+            problem = f'hold values of the type {cells.dtype}, but they must hold integers'
+        elif cells.shape[0] != rows:
+            problem = f'have {cells.shape[0]} rows, but a mesh in {points.shape[0]}D needs {rows} rows'
+        elif cells.shape[1] == 0:
+            problem = 'hold no cell, but they must be nonempty'
+        elif cells.min() < 0 or cells.max() >= points.shape[1]:
+            index = cells.min() if cells.min() < 0 else cells.max()
+            problem = f'hold the index {index}, but the mesh has {points.shape[1]} points'
+        if problem is not None:
+            error_msg = (
+                f'The cells of the cell complex {self.label!r} {problem}. Give one column of node indices per cell.'
+            )
+            raise ValidationError(error_msg)
+
+    def _get_mesh_simplices(self, corners: Indices, size: int) -> Indices:
+        """Return the distinct simplices of a number of nodes in the cells of a mesh.
+
+        Each simplex is a column of increasing node indices, and the columns come in lexicographic order.
+        """
+        groups = [corners[list(nodes)] for nodes in itertools.combinations(range(corners.shape[0]), size)]
+        return np.unique(np.concatenate(groups, axis=1), axis=1)
+
+    def _get_tetrahedron_incidence(self, corners: Indices, triangles: Indices) -> scipy.sparse.csr_array:
+        """Return the incidence of the triangles and the tetrahedra of a mesh.
+
+        A tetrahedron of increasing nodes has the alternating signs of the triangles that leave out each node.
+        """
+        index = {tuple(face): number for number, face in enumerate(triangles.T.tolist())}
+        rows, columns, signs = [], [], []
+        for left, sign in enumerate(TETRAHEDRON_SIGNS):
+            kept = np.delete(corners, left, axis=0)
+            rows.append(np.arange(corners.shape[1], dtype=np.intp))
+            columns.append(np.asarray([index[tuple(face)] for face in kept.T.tolist()], dtype=np.intp))
+            signs.append(np.full(corners.shape[1], sign))
+        shape = (corners.shape[1], triangles.shape[1])
+        return self._get_sparse(np.concatenate(rows), np.concatenate(columns), np.concatenate(signs), shape)
+
+    def _prepare_mesh(self) -> None:
+        """Set the graph, the faces, the incidence, and the scikit-fem mesh of a mesh."""
+        if self.faces is not None:
+            error_msg = f'The cell complex {self.label!r} of a mesh takes no faces, which the cells give.'
+            raise SpaceError(error_msg)
+        points = np.asarray(self.points, dtype=float)
+        cells = np.asarray(self.cells)
+        self._check_points(points)
+        self._check_cells(cells, points)
+        kind = skfem.MeshTri if points.shape[0] == LOWEST_DIMENSION else skfem.MeshTet
+        mesh = kind(points, cells.astype(np.int64))
+        self.mesh_: skfem.Mesh | None = mesh
+        self.cells_: Indices = cells.astype(np.intp)
+        self.boundary_nodes_: Indices = np.asarray(mesh.boundary_nodes(), dtype=np.intp)
+        corners = np.sort(self.cells_, axis=0)
+        links = self._get_mesh_simplices(corners, 2)
+        triangles = self._get_mesh_simplices(corners, TRIANGLE_NODES)
+        graph = nx.Graph()
+        graph.add_nodes_from(range(points.shape[1]))
+        graph.add_edges_from(links.T.tolist())
+        nx.set_node_attributes(graph, dict(enumerate(points.T)), 'pos')
+        self.graph = graph
+        sources, targets = NetworkSpace._get_edges(self, graph)
+        faces = [tuple(face) for face in triangles.T.tolist()]
+        self.hyperedges = faces
+        self.incidences_ = (
+            self._get_edge_incidence(sources, targets),
+            self._get_cycle_incidence(faces, sources, targets),
+        )
+        if self.dimension >= CUBE_DIMENSION and points.shape[0] == CUBE_DIMENSION:
+            self.incidences_ = (*self.incidences_, self._get_tetrahedron_incidence(corners, triangles))
+        self.stars_ = (np.ones(points.shape[1]), np.ones(sources.size), np.ones(len(faces)))
+        self.boundaries_, self.boundary_signs_ = self._get_boundary_tables(faces, sources, targets)
+        self.link_axes_ = np.empty(0, dtype=np.intp)
+        self.face_planes_ = np.empty((0, 2), dtype=np.intp)
+
     def _get_edges(self, graph: nx.Graph) -> tuple[Indices, Indices]:
         """Return the source and target of every link or edge.
 
@@ -551,9 +714,9 @@ class CellComplexSpace(NetworkSpace):
     def _prepare(self, context: None = None) -> None:
         """Set the graph, the hyperedges, and the incidence of the cells, then the network.
 
-        It first raises an error for a space, faces, or a dimension the complex cannot take, and preparing the space
+        It first raises an error for a source, faces, or a dimension the complex cannot take, and preparing the space
         checks the space. It then sets the attributes of the network, whose base checks the label and the graph it
-        derived.
+        derived. A mesh has as many dimensions as its points have coordinates.
 
         Args:
             context:
@@ -561,11 +724,32 @@ class CellComplexSpace(NetworkSpace):
 
         Raises:
             SpaceError:
-                The space is neither a square lattice nor a network, a lattice is given faces, a face uses a pair of
-                nodes that the graph does not join, or the network has a loop.
+                The space is neither a square lattice nor a network, a lattice or a mesh is given faces, a face uses a
+                pair of nodes that the graph does not join, or the network has a loop.
 
             ValidationError:
-                The dimension is below 2, or the faces are not known.
+                Neither or both of a space and a mesh are given, the points or cells of a mesh do not fit, the
+                dimension is below 2, or the faces are not known.
+        """
+        self._check_source()
+        if self.dimension < LOWEST_DIMENSION:
+            error_msg = f'The dimension of a cell complex is {self.dimension!r}. Give 2 or more.'
+            raise ValidationError(error_msg)
+        if self._is_mesh():
+            self._prepare_mesh()
+        else:
+            self._prepare_derived()
+        super()._prepare(context)
+        if self._is_mesh():
+            self.n_dim_ = int(self.positions_.shape[1])
+        tables = [self._get_coface_tables(matrix) for matrix in self.incidences_]
+        self.cofaces_ = tuple(table for table, _ in tables)
+        self.orientations_ = tuple(signs for _, signs in tables)
+
+    def _prepare_derived(self) -> None:
+        """Set the graph, the faces, and the incidence of a lattice or network.
+
+        It first raises an error for a space or faces the complex cannot take.
         """
         if not isinstance(self.space, LatticeSpace | NetworkSpace):
             error_msg = f'A cell complex derives from a lattice or a network space, not {self.space!r}.'
@@ -573,18 +757,14 @@ class CellComplexSpace(NetworkSpace):
         if isinstance(self.space, LatticeSpace) and (self.space.geometry != 'square' or self.faces is not None):
             error_msg = 'A cell complex of a lattice takes a square lattice and no faces, which the lattice gives.'
             raise SpaceError(error_msg)
-        if self.dimension < LOWEST_DIMENSION:
-            error_msg = f'The dimension of a cell complex is {self.dimension!r}. Give 2 or more.'
-            raise ValidationError(error_msg)
         if isinstance(self.faces, str) and self.faces not in FACES:
             error_msg = f'Unknown faces {self.faces!r}. Use None, one of {", ".join(FACES)}, or a sequence of cycles.'
             raise ValidationError(error_msg)
+        self.mesh_ = None
+        self.cells_ = np.empty((0, 0), dtype=np.intp)
+        self.boundary_nodes_ = np.empty(0, dtype=np.intp)
         place = self.space.prepare()
         if isinstance(place, LatticeSpace):
             self._prepare_lattice(place)
         else:
             self._prepare_network(place)
-        super()._prepare(context)
-        tables = [self._get_coface_tables(matrix) for matrix in self.incidences_]
-        self.cofaces_ = tuple(table for table, _ in tables)
-        self.orientations_ = tuple(signs for _, signs in tables)

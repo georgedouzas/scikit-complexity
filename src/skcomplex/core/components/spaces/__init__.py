@@ -23,7 +23,6 @@ from ._lattice import LatticeSpace
 from ._lattice_neighborhood import LatticeNeighborhood
 from ._layer_spec import LayerSpec
 from ._memory import MemoryNeighborhood
-from ._mesh import MeshSpace
 from ._nearest import NearestNeighborhood
 from ._network import NetworkSpace
 from ._phase import PhaseSpace
@@ -51,7 +50,6 @@ __all__: list[str] = [
     'LatticeSpace',
     'LayerSpec',
     'MemoryNeighborhood',
-    'MeshSpace',
     'NearestNeighborhood',
     'NetworkSpace',
     'PhaseSpace',

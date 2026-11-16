@@ -55,7 +55,6 @@ from ...components.spaces import (
     ContinuousTime,
     DiscreteTime,
     LatticeSpace,
-    MeshSpace,
     NetworkSpace,
     PhaseSpace,
     RadiusNeighborhood,
@@ -121,7 +120,7 @@ TIME_CLASSES: dict[type, str] = {
     DiscreteTime: 'DiscreteTime()',
     StaticTime: 'StaticTime()',
 }
-OWN_NEIGHBORHOOD = (LatticeSpace, NetworkSpace, CayleySpace, MeshSpace)
+OWN_NEIGHBORHOOD = (LatticeSpace, NetworkSpace, CayleySpace)
 REPLACEMENTS = {
     DomainKind.CATEGORICAL: 'a jump, transition, or update law',
     DomainKind.INTEGER: 'a jump or update law',

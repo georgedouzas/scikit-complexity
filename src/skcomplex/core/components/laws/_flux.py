@@ -6,7 +6,7 @@
 from typing import ClassVar
 
 from ...errors import ValidationError
-from ..spaces import ContinuousTime, LatticeSpace, MeshSpace
+from ..spaces import CellComplexSpace, ContinuousTime, LatticeSpace
 from ..types import Target
 from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
@@ -85,7 +85,7 @@ class FluxLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires: continuous time on a lattice or a mesh."""
-        return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace, MeshSpace))
+        return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace, CellComplexSpace))
 
     def _prepare(self, context: str | None = None) -> None:
         """Raise an error for an unknown limiter or numerical flux, or a bad flux or speed.

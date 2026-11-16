@@ -138,10 +138,10 @@ The argument `discretization` of `FieldElement` chooses how space is discretized
   `du/dt + divergence(flux) = 0`. They update with MUSCL reconstruction, minmod or van Leer limiters, and Rusanov or
   exact Godunov fluxes. `SSPRKSolver` steps them by the CFL condition and by the stability limit of their Laplacian
   rates at the current parameters, and it conserves their totals.
-- `'finite-element'` fields live on a [`MeshSpace`](../core_components/spaces.md#meshspace) of the points and cells of
-  a scikit-fem mesh, such as `MeshSpace(grid.p, grid.t)` for `grid = skfem.MeshTri.init_lshaped().refined(3)`. Their
-  stiffness and mass matrices come from scikit-fem, and their boundary values can be functions of the coordinates. They
-  stream to Rerun as colored meshes.
+- `'finite-element'` fields live on a [`CellComplexSpace`](../core_components/spaces.md#cellcomplexspace) of the
+  points and cells of a scikit-fem mesh, such as `CellComplexSpace(points=grid.p, cells=grid.t)` for
+  `grid = skfem.MeshTri.init_lshaped().refined(3)`. Their stiffness and mass matrices come from scikit-fem, and their
+  boundary values can be functions of the coordinates. They stream to Rerun as colored meshes.
 
 A stiff equation has rates that decay on very different time scales, so explicit steps must follow the fastest one.
 Implicit and exponential steps do not. The compiler splits the rate of every field into a linear part with constant

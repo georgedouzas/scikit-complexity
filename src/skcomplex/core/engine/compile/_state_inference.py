@@ -17,7 +17,7 @@ from ...components.base import BaseComponent
 from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement
 from ...components.laws import BaseLaw, ConstraintLaw, JumpLaw, NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
 from ...components.laws.utils import derivative, lag
-from ...components.spaces import LatticeSpace, MeshSpace, NetworkSpace
+from ...components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...errors import ValidationError
 from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec
@@ -291,8 +291,9 @@ class _StateInference:
                 variable=True,
             )
             return [nodes, edges]
-        if isinstance(element.space, LatticeSpace | NetworkSpace | MeshSpace):
-            discretization = 'finite-element' if isinstance(element.space, MeshSpace) else 'finite-difference'
+        if isinstance(element.space, LatticeSpace | NetworkSpace):
+            mesh = isinstance(element.space, CellComplexSpace) and element.space._is_mesh()
+            discretization = 'finite-element' if mesh else 'finite-difference'
             field = FieldElement(
                 element.label,
                 element=DeclaredElement,

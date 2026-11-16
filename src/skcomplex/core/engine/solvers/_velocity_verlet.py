@@ -10,7 +10,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ...components.laws import BoundaryLaw, ConstraintLaw, FluxLaw, RateLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...types import Array
@@ -72,7 +72,7 @@ class VelocityVerletSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={RateLaw, FluxLaw, ConstraintLaw, BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )

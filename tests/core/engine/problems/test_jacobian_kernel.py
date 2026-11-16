@@ -24,7 +24,7 @@ from skcomplex.core.components.laws.utils import (
     variance,
     where,
 )
-from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, MeshSpace
+from skcomplex.core.components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._field_lowering import FieldLowering
@@ -209,7 +209,7 @@ def _reactive_mesh(refine=2):
     plate = FieldElement(
         'plate',
         element=ReactiveHeatElement,
-        space=MeshSpace(grid.p, grid.t),
+        space=CellComplexSpace(points=grid.p, cells=grid.t),
         boundary={'u': ('fixed', 0.5)},
         discretization='finite-element',
     )
@@ -238,7 +238,7 @@ def test_mesh_pattern():
     problem = PassCompiler().prepare(_reactive_mesh()).run().problem_
     pattern = problem.jacobian.get_pattern().toarray()
     grid = skfem.MeshTri.init_lshaped().refined(2)
-    stiffness = FieldLowering._get_mesh_laplacian(MeshSpace(grid.p, grid.t)).toarray() != 0
+    stiffness = FieldLowering._get_mesh_laplacian(CellComplexSpace(points=grid.p, cells=grid.t)).toarray() != 0
     free = np.setdiff1d(np.arange(problem.initial_state.size), problem.constrained)
     assert problem.constrained.size
     assert not pattern[problem.constrained].any()

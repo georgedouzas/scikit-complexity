@@ -11,7 +11,7 @@ from sage.structure.element import Matrix
 
 from ...errors import ValidationError
 from ...specs import StateSpec, TensorSpec, VisualSpec
-from ..spaces import BaseSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ..spaces import BaseSpace, CellComplexSpace, LatticeSpace, NetworkSpace
 from ._base import BaseElement
 from ._group import GroupElement
 
@@ -66,7 +66,7 @@ class FieldElement(GroupElement):
             - `'spectral'`: products of Fourier modes on a periodic lattice, with the two-thirds rule, which drops the
               highest modes so that their products create no false ones.
             - `'finite-volume'`: averages over cells that change by the differences of the `FluxLaw`s of the states.
-            - `'finite-element'`: stiffness and mass matrices assembled on a `MeshSpace`.
+            - `'finite-element'`: stiffness and mass matrices assembled on a `CellComplexSpace` of points and cells.
 
         symmetry:
             The parity of each state by name along every axis of a periodic lattice, `'odd'`, `'even'`, or `None`, which
@@ -126,7 +126,7 @@ class FieldElement(GroupElement):
         label: str,
         *,
         element: type[BaseElement],
-        space: LatticeSpace | NetworkSpace | MeshSpace,
+        space: LatticeSpace | NetworkSpace,
         boundary: Mapping[str, object] | None = None,
         values: Mapping[str, object] | None = None,
         discretization: str = 'finite-difference',
@@ -172,7 +172,8 @@ class FieldElement(GroupElement):
             'reflecting': 'zero-flux',
             'fixed': ('fixed', getattr(self.space, 'fill', 0.0)),
         }
-        edges = 'reflecting' if isinstance(self.space, MeshSpace) else getattr(self.space, 'boundary', 'periodic')
+        mesh = isinstance(self.space, CellComplexSpace) and self.space._is_mesh()
+        edges = 'reflecting' if mesh else getattr(self.space, 'boundary', 'periodic')
         condition = (self.boundary or {}).get(state, default.get(edges, 'periodic'))
         if isinstance(condition, tuple | list):
             tensor = self._get_tensor_of(state)
@@ -218,5 +219,5 @@ class FieldElement(GroupElement):
             return
         if isinstance(self.space, LatticeSpace):
             self.default_visual_ = VisualSpec('image')
-        elif isinstance(self.space, MeshSpace):
+        elif isinstance(self.space, CellComplexSpace) and self.space._is_mesh():
             self.default_visual_ = VisualSpec('mesh')

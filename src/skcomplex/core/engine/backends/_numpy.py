@@ -34,7 +34,6 @@ from ...components.spaces import (
     ContinuousTime,
     DiscreteTime,
     LatticeSpace,
-    MeshSpace,
     NetworkSpace,
     StaticTime,
 )
@@ -73,7 +72,7 @@ class NumpyBackend(BaseBackend):
         """
         return SupportSpec(
             time={ContinuousTime, DiscreteTime, StaticTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={
                 BoundaryLaw,
                 EventLaw,
