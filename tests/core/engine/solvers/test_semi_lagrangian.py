@@ -20,7 +20,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SemiLagrangianSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import StateSpec
-from skcomplex.systems.social.common.simplices import SimplexSpace
+from skcomplex.systems.social.cooperation import SimplexSpace
 
 
 class AmountElement(Element):

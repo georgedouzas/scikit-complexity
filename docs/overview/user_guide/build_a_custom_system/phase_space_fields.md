@@ -174,7 +174,7 @@ The functions of the block follow these rules.
 
 This section holds a density over the frequencies of three strategies, which sum to one. A simplex is the set of
 points whose coordinates are nonnegative and sum to at most one. The space `SimplexSpace` of
-`skcomplex.systems.social.common.simplices` is a phase space whose class axes are the free frequencies of a simplex,
+`skcomplex.systems.social.cooperation` is a phase space whose class axes are the free frequencies of a simplex,
 each on `[0, 1]` with the same number of cells. `TrimorphicMultilevelSelectionSystem` holds groups of cooperators,
 defectors, and punishers on such a space, with a uniform density of two on the 2-simplex, a triangle of area one half,
 so the integral is one.

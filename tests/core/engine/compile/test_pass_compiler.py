@@ -105,7 +105,7 @@ from skcomplex.systems.physics.common.particles import (
 )
 from skcomplex.systems.physics.common.quantum import QubitElement
 from skcomplex.systems.physics.statistical_mechanics import ParticleSiteElement, ZeroRangeHopInteraction
-from skcomplex.systems.social.common.simplices import SimplexSpace
+from skcomplex.systems.social.cooperation import SimplexSpace
 
 from ....conftest import CallableGrowthInteraction, HoldingElement, NodeElement, _correlated, _summed, _weighted
 from .conftest import PairElement

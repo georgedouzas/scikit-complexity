@@ -20,7 +20,7 @@ from skcomplex.core.engine.solvers import SSPRKSolver, StepSpec
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import StateSpec
 from skcomplex.systems.physics.fluids import BurgersSystem, ShallowWaterSystem
-from skcomplex.systems.social.common.simplices import SimplexSpace
+from skcomplex.systems.social.cooperation import SimplexSpace
 
 N_STATES = 5
 DAM_SPEED_UP = 15.0
