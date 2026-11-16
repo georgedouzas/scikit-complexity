@@ -9,7 +9,6 @@ from collections.abc import Callable, Sequence
 from dataclasses import replace
 
 import networkx as nx
-import numba
 import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression
@@ -18,8 +17,6 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....components.laws import (
     ArrayUpdateLaw,
     BaseLaw,
-    CascadeLaw,
-    ExtremalLaw,
     LinearRuleSpec,
     LocalRuleLaw,
     MoveSpec,
@@ -52,24 +49,23 @@ from ...problems._cascade_kernel import CascadeKernel
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._drive_kernel import DriveKernel
 from ...problems._expression_printer import ExpressionPrinter
-from ...problems._extremal_kernel import ExtremalKernel
 from ...problems._kernel_spec import KernelSpec
 from ...problems._lattice_state_spec import _LatticeStateSpec
 from ...problems._lookup_spec import _LookupSpec
 from ...problems._monte_carlo_kernel import MonteCarloKernel
 from ...problems._rule_kernel import RuleKernel
-from ...problems._source_loader import SourceLoader
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._issue_spec import IssueSpec
 from .._lattice_context_spec import _LatticeContextSpec
 from .._laws import LATTICE_LAWS
+from .._relaxation_law import RelaxationLaw
 from ._cells import DEGREES
 
 COLORING_STRATEGY = 'largest_first'
 
 
-type LatticeStep = RuleKernel | DriveKernel | CascadeKernel | MonteCarloKernel | ExtremalKernel
+type LatticeStep = RuleKernel | DriveKernel | CascadeKernel | MonteCarloKernel
 type LoweredObjective = tuple[
     Indices,
     tuple[Indices, ...],
@@ -83,7 +79,7 @@ type LoweredObjective = tuple[
 class LatticeProblemPass(BasePass):
     """A pass that adds the steps of lattice laws.
 
-    They are local rules, drives, cascades, extremal updates, and Monte Carlo sampling.
+    They are local rules, drives, cascades, and Monte Carlo sampling.
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -215,10 +211,8 @@ class LatticeProblemPass(BasePass):
             return LatticeProblemPass._compile_rule(law, context)
         if isinstance(law, ArrayUpdateLaw):
             return LatticeProblemPass._compile_drive(law, context)
-        if isinstance(law, CascadeLaw):
+        if isinstance(law, RelaxationLaw):
             return LatticeProblemPass._compile_cascade(law, context)
-        if isinstance(law, ExtremalLaw):
-            return LatticeProblemPass._compile_extremal(law, context)
         if isinstance(law, SampleLaw):
             return LatticeProblemPass._get_monte_carlo_step(spec, law, context)
         return None
@@ -231,7 +225,7 @@ class LatticeProblemPass(BasePass):
     ) -> tuple[LatticeStep, ...]:
         """Return the steps of lattice laws in declaration order.
 
-        They are local rules, drives, cascades, extremal laws, and samples.
+        They are local rules, drives, cascades, and samples.
         """
         steps: list[LatticeStep] = []
         for spec, laws in specs:
@@ -367,106 +361,10 @@ class LatticeProblemPass(BasePass):
         return ()
 
     @staticmethod
-    def _compiles_in_numba(rule: Callable[..., object]) -> bool:
-        """Check whether a rule takes its arguments by position or keyword only.
-
-        This is the form Numba compiles.
-        """
-        try:
-            parameters = inspect.signature(rule).parameters.values()
-        except (TypeError, ValueError):
-            return False
-        return all(item.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for item in parameters)
-
-    @staticmethod
     def _get_degrees_of(table: Indices, neighborhood: BaseNeighborhood, space: BaseSpace) -> Array:
         """Return the number of real neighbours of every site, besides the site itself."""
         centers = LatticeProblemPass._get_center_columns(neighborhood, space)
         return ((table != table.shape[0]).sum(axis=1) - centers).astype(float)
-
-    @staticmethod
-    def _get_extremal_source(
-        targets: tuple[_LatticeStateSpec, ...],
-        key: _LatticeStateSpec,
-        maximum: bool,
-        arguments: _ArgumentsSpec,
-    ) -> str:
-        """Return the source of the compiled loop of the applications of an extremal law."""
-        values = ', '.join(f'x[{state.start} + sites]' for state in targets)
-        keywords = ''.join(
-            f', {name}=p[{start}]' if size == 1 else f', {name}=p[{start}:{start + size}][sites]'
-            for name, start, size in zip(arguments.names, arguments.starts, arguments.sizes, strict=True)
-        )
-        if len(targets) == 1:
-            assign = f'        x[{targets[0].start} + sites] = result\n'
-        else:
-            assign = ''.join(
-                f'        x[{state.start} + sites] = result[{index}]\n' for index, state in enumerate(targets)
-            )
-        return (
-            'def loop(x, p, rng, members, counts, repeat, sites_out, values_out):\n'
-            '    for application in range(repeat):\n'
-            f'        keys = x[{key.start}:{key.start + key.size}]\n'
-            f'        best = keys.{"max" if maximum else "min"}()\n'
-            '        ties = np.flatnonzero(keys == best)\n'
-            '        site = ties[rng.integers(0, ties.size)] if ties.size > 1 else ties[0]\n'
-            '        sites = members[site, : counts[site]]\n'
-            '        random = rng.random(sites.size)\n'
-            f'        result = rule({values}, random=random{keywords})\n'
-            f'{assign}'
-            '        sites_out[application] = site\n'
-            '        values_out[application] = best\n'
-        )
-
-    @staticmethod
-    def _get_extremal_loop(
-        rule: Callable[..., object],
-        targets: tuple[_LatticeStateSpec, ...],
-        key: _LatticeStateSpec,
-        maximum: bool,
-        arguments: _ArgumentsSpec,
-    ) -> Callable[..., None] | None:
-        """Return the compiled loop of the applications of an extremal law.
-
-        It is `None` when Numba cannot compile it.
-        """
-        if not LatticeProblemPass._compiles_in_numba(rule):
-            return None
-        source = 'import numpy as np\n\n\n' + LatticeProblemPass._get_extremal_source(targets, key, maximum, arguments)
-        functions = {'rule': numba.njit(error_model='numpy')(rule)}
-        module = SourceLoader('skcomplex_loops', functions).prepare().run(source).module_
-        loop = numba.njit(module.loop)
-        end = max(state.start + state.size for state in (*targets, key))
-        width = max((start + size for start, size in zip(arguments.starts, arguments.sizes, strict=True)), default=1)
-        try:
-            loop(
-                np.zeros(end),
-                np.zeros(width),
-                np.random.default_rng(0),
-                np.zeros((1, 1), dtype=np.intp),
-                np.zeros(1, dtype=np.intp),
-                0,
-                np.zeros(0, dtype=np.intp),
-                np.zeros(0),
-            )
-        except numba.core.errors.NumbaError:
-            return None
-        return loop
-
-    @staticmethod
-    def _get_extremal_members(table: Indices) -> tuple[Indices, Indices]:
-        """Return every site followed by its real neighbours, and their counts.
-
-        The neighbours have no duplicates and are padded with -1.
-        """
-        size, width = table.shape
-        members = np.full((size, width + 1), -1, dtype=np.intp)
-        counts = np.zeros(size, dtype=np.intp)
-        for site in range(size):
-            unique = list(dict.fromkeys([site, *(int(item) for item in table[site] if item != size)]))
-            members[site, : len(unique)] = unique
-            counts[site] = len(unique)
-        return members, counts
 
     @staticmethod
     def _get_index_table(
@@ -823,7 +721,7 @@ class LatticeProblemPass(BasePass):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _compile_cascade(law: CascadeLaw, context: _LatticeContextSpec) -> CascadeKernel:
+    def _compile_cascade(law: RelaxationLaw, context: _LatticeContextSpec) -> CascadeKernel:
         """Return a cascade compiled for its lattice.
 
         Args:
@@ -848,55 +746,6 @@ class LatticeProblemPass(BasePass):
             law.stable,
             max_iterations=int(law.max_iterations),
             activity=law.activity,
-        ).prepare()
-
-    @staticmethod
-    def _compile_extremal(law: ExtremalLaw, context: _LatticeContextSpec) -> ExtremalKernel:
-        """Return an extremal law compiled for its lattice or network.
-
-        Args:
-            law:
-                The extremal law.
-
-            context:
-                The lattice states and symbols of its component.
-
-        Returns:
-            extremal:
-                The compiled law, with a compiled loop on the Numba backend when Numba compiles the rule.
-
-        Raises:
-            ValidationError:
-                The targets and the key are not states of one lattice, or the neighbourhood does not fit it.
-        """
-        owner = f'The extremal law of {context.owner}'
-        targets = tuple(
-            LatticeProblemPass._get_lattice_state(context, item, 'An extremal law') for item in law._get_targets()
-        )
-        key = LatticeProblemPass._get_lattice_state(context, law._get_key(), 'An extremal law')
-        if len({id(state.space) for state in (*targets, key)}) > 1:
-            error_msg = f'{owner} reads and updates states of different lattices.'
-            raise ValidationError(error_msg)
-        members, counts = LatticeProblemPass._get_extremal_members(
-            LatticeProblemPass._get_index_table(key.space, law.over, owner),
-        )
-        arguments = LatticeProblemPass._get_keywords(context, law.rule)
-        maximum = law.extremum == 'max'
-        loop = (
-            LatticeProblemPass._get_extremal_loop(law.rule, targets, key, maximum, arguments) if context.fused else None
-        )
-        return ExtremalKernel(
-            law.label or context.owner,
-            context.owner,
-            targets,
-            key,
-            members,
-            counts=counts,
-            rule=law.rule,
-            arguments=arguments,
-            maximum=maximum,
-            repeat=int(law.repeat),
-            loop=loop,
         ).prepare()
 
     @staticmethod

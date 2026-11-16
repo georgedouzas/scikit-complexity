@@ -48,6 +48,7 @@ from ._reductions import (
     total,
     variance,
 )
+from ._relaxations import relax
 from ._signals import periodic_guard, pulse, pulse_train, ramp, series, step
 from ._tensors import (
     antisymmetric_part,
@@ -114,6 +115,7 @@ __all__: list[str] = [
     'ramp',
     'reduce_axes',
     'reduction',
+    'relax',
     'residence',
     'series',
     'shift_member',

@@ -114,8 +114,8 @@ max(event.size for event in trajectory.events)
 
 Over 2000 steps of the drive on a grid of 20 by 20, the largest avalanche has the size 613.
 
-A [`CascadeLaw(drive, relax, stable)`](../core_components/laws.md#cascadelaw) separates the slow drive from the fast
-cascade. Every step applies the drive laws once, and the relax laws until `stable` holds. Each cascade is recorded
+An `UpdateLaw` whose value is [`relax(state, rules, stable, drive=...)`](../core_components/laws.md#relax) separates
+the slow drive from the fast cascade. Every step applies the drive laws once, and the rules until `stable` holds. Each cascade is recorded
 among the events of the [trajectory](../glossary.md#trajectory) with its size, duration, and area. `activity` marks the
 sites that count as updates, such as the toppling sites of a sandpile.
 
@@ -282,7 +282,7 @@ graph stays ordered too.
 
 - `AdjacencyNeighborhood(center=False)` pads the neighbours of every node to the largest degree with the `fill` value
   of the network.
-- Local rules, drives, relaxations, Monte Carlo laws, and extremal laws run on graphs as on lattices.
+- Local rules, drives, relaxations, and Monte Carlo laws run on graphs as on lattices.
 - Lookup rules on graphs take the totalistic forms. A function rule that names the keyword `degree` receives the
   number of real neighbours of every site.
 - The padded table grows with the largest degree. Graphs with hubs of very high degree, beyond scale-free graphs of
@@ -417,8 +417,8 @@ This section names two tools of the graph example that work on every lattice.
 
 This section acts at each step on the site with the worst or best value. In the Bak-Sneppen model of evolution, the
 least fit species of a ring is replaced together with its two neighbours, and each gets a new random fitness. An
-[`ExtremalLaw`](../core_components/laws.md#extremallaw) finds the site and applies the rule `renew` to it and its
-neighbours, here 100 times per step for 100 steps.
+`UpdateLaw` writes it with two reductions: a species renews when the smallest fitness of the ring is its own or that of
+a neighbour, and keeps its fitness otherwise. Every step is one extinction.
 
 ```python
 from typing import Annotated
@@ -426,45 +426,50 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import ExtremalLaw
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import minimum, neighbors, uniform, where
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
-
-def renew(fitness, random):
-    return random
+BESIDE = LatticeNeighborhood(((-1,), (1,)))
 
 
 class SpeciesElement(Element):
+    law_classes = (UpdateLaw,)
+    draws = True
+
     def __init__(self, label, *, fitness: Annotated[float, StateSpec()] = 0.5):
         super().__init__(label)
         self.fitness = fitness
 
     def _get_laws(self, s):
-        return [ExtremalLaw(s.fitness, LatticeNeighborhood(((-1,), (1,))), renew, repeat=100, label='extinction')]
+        around = neighbors(s.other.fitness, over=BESIDE, reduce='min')
+        renewed = minimum(s.fitness, around) == minimum(s.fitness)
+        return [UpdateLaw(s.fitness, where(renewed, uniform('fitness'), s.fitness), label='extinction')]
 
 
 fitness = np.random.default_rng(0).random(100)
 space = LatticeSpace(100)
 members = GroupElement('ring', element=SpeciesElement, space=space, on='sites', values={'fitness': fitness})
 ring = CompositeSystem(elements=[members])
-trajectory = simulate(ring, until=100, dt=10, random_state=0)
-len(trajectory.events), trajectory.events[0].label
+trajectory = simulate(ring, until=1, dt=1, random_state=0)
+changed = np.flatnonzero(trajectory.states[1] != trajectory.states[0])
+changed.tolist(), int(np.argmin(fitness))
 ```
 
-The run records 10000 events, one per application, each with the label `'extinction'`.
+The first step changes three sites, the least fit species, at the site the second value names, and its two
+neighbours.
 
-`ExtremalLaw(targets, over, rule, key=None, extremum='min', repeat=1)` finds the site with the smallest or largest
-value of a key state. It breaks ties with the random stream of the run, and applies
-`rule(*values, random, **parameters)` to the site and its real neighbours, `repeat` times per step.
-
-- Every application is recorded among the events of the trajectory as an `ExtremalRecord` with its time, site, and
-  extremal value.
-- On the Numba backend, the applications of a step run in one compiled loop when Numba compiles the rule. The rule
-  then takes its arguments by position or keyword, with no keyword-only arguments.
-- Both backends give the same events.
+- `minimum(s.fitness)` reduces over the whole group, and `neighbors(s.other.fitness, over=BESIDE, reduce='min')` over
+  the neighbours of every member. Comparing the two finds the members whose neighbourhood holds the extremum, so the
+  update needs no index of the extremal site. A largest value takes `maximum` and `reduce='max'`.
+- On a network, `AdjacencyNeighborhood()` gives the neighbours of every node, and an isolated node renews only when it
+  holds the extremum itself.
+- Ties of the extremum renew every tied member with its neighbours. Uniform draws make them vanishingly rare.
+- One extinction per step makes time count the extinctions, and `dt` sets how many of them a recorded frame skips.
+  `BakSneppenSystem` of `skcomplex.systems.biology.evolution` runs the ready-made model on a ring or a graph.
 
 ## Viewing lattices and ready-made lattice systems
 

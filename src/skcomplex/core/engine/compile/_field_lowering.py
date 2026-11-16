@@ -27,12 +27,12 @@ from ...components.laws.utils._operators import COLLISION_COSINE, COLLISION_SPEE
 from ...components.laws.utils._phase import COORDINATE_PREFIX
 from ...components.spaces import (
     AdjacencyNeighborhood,
+    BaseSpace,
     CellComplexSpace,
     LatticeNeighborhood,
     LatticeSpace,
     NetworkSpace,
     PhaseSpace,
-    SimplexSpace,
 )
 from ...errors import ValidationError
 from ...types import Array, Indices, IntTuple
@@ -749,10 +749,11 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
     def _get_discretized(self, name: str, operands: list[object], place: FieldElement) -> Expression:
         """Return a local operator or inversion lowered for its field's discretization."""
-        if isinstance(place.space, SimplexSpace):
+        if place.space is not None and not place.space._supports_operator(name):
             error_msg = (
-                f'A law of {self.spec.owner} applies {name} to a field on a simplex, which only takes finite-volume '
-                'fluxes, reductions, and integrals. Write the transport as a flux of the finite-volume discretization.'
+                f'A law of {self.spec.owner} applies {name} to a field on {type(place.space).__name__}, whose cells '
+                'only take finite-volume fluxes, reductions, and integrals. Write the transport as a flux of the '
+                'finite-volume discretization.'
             )
             raise ValidationError(error_msg)
         if place.discretization == 'spectral':
@@ -1408,12 +1409,13 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return FieldLowering._has_operators(getattr(law, 'value', None))
 
     @staticmethod
-    def _get_volumes(space: object) -> npt.NDArray[np.float64] | float:
-        """Return the fraction of the volume of every cell inside a simplex domain.
+    def _get_volumes(space: BaseSpace) -> npt.NDArray[np.float64] | float:
+        """Return the fraction of the volume of every cell inside the domain of a space.
 
-        Outside a simplex space, the fraction is one.
+        A space of whole cells gives one.
         """
-        return space.volumes_ if isinstance(space, SimplexSpace) else 1.0
+        volumes = space._get_volumes()
+        return 1.0 if volumes is None else volumes
 
     @staticmethod
     def _get_over_positions(

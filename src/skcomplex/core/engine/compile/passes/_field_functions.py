@@ -15,7 +15,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, FluxLaw
 from ....components.laws.utils._phase import COORDINATE_PREFIX
-from ....components.spaces import CellComplexSpace, LatticeSpace, PhaseSpace, SimplexSpace
+from ....components.spaces import CellComplexSpace, LatticeSpace, PhaseSpace
 from ....enums import VariableKind
 from ....errors import PipelineError, ValidationError
 from ....types import Array, VectorFunction
@@ -692,6 +692,6 @@ class FieldFunctionsPass(BasePass):
                 FieldFunctionsPass._get_function_speeds(laws, parameters, n_dim, owner)
                 or FieldFunctionsPass._compile_speeds(columns, states, printer, owner)
             ),
-            volumes=space.volumes_ if isinstance(space, SimplexSpace) else None,
-            apertures=space.apertures_ if isinstance(space, SimplexSpace) else (),
+            volumes=space._get_volumes(),
+            apertures=space._get_apertures(),
         ).prepare()

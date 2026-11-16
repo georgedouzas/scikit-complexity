@@ -14,7 +14,8 @@ from typing import Annotated, ClassVar
 import numpy as np
 
 from .....core.components.interactions import NeighborInteraction
-from .....core.components.laws import ArrayUpdateLaw, BaseLaw, CascadeLaw, LocalRuleLaw
+from .....core.components.laws import ArrayUpdateLaw, BaseLaw, LocalRuleLaw, UpdateLaw
+from .....core.components.laws.utils import relax
 from .....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, RadiusNeighborhood
 from .....core.enums import ElementKind
 from .....core.errors import ValidationError
@@ -80,7 +81,7 @@ class TopplingInteraction(NeighborInteraction):
         'redistribute'
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CascadeLaw, ArrayUpdateLaw, LocalRuleLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw, ArrayUpdateLaw, LocalRuleLaw)
 
     def _get_draws(self) -> bool:
         """Return whether the cascade draws.
@@ -200,7 +201,7 @@ class TopplingInteraction(NeighborInteraction):
         return scatter
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the cascade of the state of the target, with the drive.
+        """Return the update of the state of the target, driven and relaxed until stable.
 
         Args:
             namespace:
@@ -217,15 +218,14 @@ class TopplingInteraction(NeighborInteraction):
         if neighborhood is None:
             neighborhood = RadiusNeighborhood(1, metric='manhattan', center=True)
         if self.mode == 'random':
-            relax: list[BaseLaw] = [ArrayUpdateLaw(value, self._scatter(neighborhood, threshold, share))]
+            rules: list[BaseLaw] = [ArrayUpdateLaw(value, self._scatter(neighborhood, threshold, share))]
         else:
-            relax = [LocalRuleLaw(value, neighborhood, self._relax(threshold, share))]
-        return [
-            CascadeLaw(
-                drive=drive,
-                relax=relax,
-                stable=lambda values: bool((values < threshold).all()),
-                activity=lambda values: values >= threshold,
-                label=self.label,
-            ),
-        ]
+            rules = [LocalRuleLaw(value, neighborhood, self._relax(threshold, share))]
+        relaxation = relax(
+            value,
+            rules,
+            lambda values: bool((values < threshold).all()),
+            drive=drive,
+            activity=lambda values: values >= threshold,
+        )
+        return [UpdateLaw(value, relaxation, label=self.label)]

@@ -13,13 +13,11 @@ from ._base import BaseLaw
 from ._bilinear import BilinearLaw
 from ._boundary import BoundaryLaw
 from ._call_spec import CallSpec
-from ._cascade import CascadeLaw
 from ._constraint import ConstraintLaw
 from ._dataset_spec import DatasetSpec
 from ._dissipator import DissipatorLaw
 from ._draw_spec import DrawSpec
 from ._event import EventLaw
-from ._extremal import ExtremalLaw
 from ._flux import FluxLaw
 from ._generator import GeneratorLaw
 from ._gradient_step import GradientStepLaw
@@ -58,13 +56,11 @@ __all__: list[str] = [
     'BilinearLaw',
     'BoundaryLaw',
     'CallSpec',
-    'CascadeLaw',
     'ConstraintLaw',
     'DatasetSpec',
     'DissipatorLaw',
     'DrawSpec',
     'EventLaw',
-    'ExtremalLaw',
     'FluxLaw',
     'GeneratorLaw',
     'GradientStepLaw',

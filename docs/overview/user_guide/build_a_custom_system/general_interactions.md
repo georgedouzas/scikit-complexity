@@ -511,8 +511,8 @@ The rule turns on a cell whose neighbourhood holds exactly one live cell. The si
 `LocalRuleInteraction(target, state, rule, neighborhood)` runs a cellular automaton from a rule table, a totalistic
 rule, or a function of the ordered neighbourhood.
 
-A cascade, which relaxes every member at or above a threshold until none is left, is a
-[`CascadeLaw`](../core_components/laws.md#cascadelaw) of the core, in
+A cascade, which relaxes every member at or above a threshold until none is left, is an `UpdateLaw` whose value is
+the operator [`relax`](../core_components/laws.md#relax) of the core, in
 [Cascades](lattice_systems.md#cascades). Physics names the cascade of a sandpile `TopplingInteraction`, as in
 `SandpileSystem` of `skcomplex.systems.physics.criticality`.
 

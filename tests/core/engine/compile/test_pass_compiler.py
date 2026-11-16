@@ -64,7 +64,6 @@ from skcomplex.core.components.spaces import (
     MemoryNeighborhood,
     NetworkSpace,
     PhaseSpace,
-    SimplexSpace,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import domain_of, symbol
@@ -106,6 +105,7 @@ from skcomplex.systems.physics.common.particles import (
 )
 from skcomplex.systems.physics.common.quantum import QubitElement
 from skcomplex.systems.physics.statistical_mechanics import ParticleSiteElement, ZeroRangeHopInteraction
+from skcomplex.systems.social.cooperation import SimplexSpace
 
 from ....conftest import CallableGrowthInteraction, HoldingElement, NodeElement, _correlated, _summed, _weighted
 from .conftest import PairElement

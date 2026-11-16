@@ -16,11 +16,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, ExtremalLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.laws.utils import minimum, neighbors, uniform, where
 from ....core.components.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import NumbaBackend
 from ....core.specs import StateSpec, VisualSpec
-from ....core.types import Array
 
 SPECIES_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
     'ring': LatticeNeighborhood(((-1,), (1,))),
@@ -33,8 +34,11 @@ class SpeciesElement(Element):
 
     The fitness depends on the neighbours of the species.
 
-    Every update replaces the fitness of the least fit species and of its neighbours by new uniform random numbers, and
-    is recorded as an `extinction` event with the replaced species and its fitness. One step holds `updates` updates.
+    Every step is one extinction. The least fit species of the group and its neighbours take new fitnesses, drawn
+    uniformly from the unit interval, and every other species keeps its fitness. A species renews when the smallest
+    fitness of the group lies in its neighbourhood or is its own, so the update needs no index of the least fit species.
+    Ties of the smallest fitness, which uniform draws make vanishingly rare, renew every tied species with its
+    neighbours.
 
     Args:
         label:
@@ -43,44 +47,32 @@ class SpeciesElement(Element):
         fitness:
             The initial fitness.
 
-        updates:
-            The number of updates per step.
-
         neighbors:
             `'ring'` for the two neighbours on a ring or `'graph'` for the neighbours of a node.
 
     Examples:
         >>> from skcomplex.systems.biology.evolution import SpeciesElement
-        >>> SpeciesElement('species').updates
-        200
+        >>> SpeciesElement('species').neighbors
+        'ring'
     """
 
     visual = VisualSpec('image', {'states': ('fitness',), 'low': 0.0, 'high': 1.0, 'history': 256})
-    law_classes = (ExtremalLaw,)
-
-    @staticmethod
-    def _renew(fitness: Array, random: Array) -> Array:
-        """Return new fitnesses for the least fit species and its neighbours.
-
-        The fitnesses are drawn uniformly from the unit interval.
-        """
-        return random
+    law_classes = (UpdateLaw,)
+    draws = True
 
     def __init__(
         self,
         label: str,
         *,
         fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        updates: int = 200,
         neighbors: str = 'ring',
     ) -> None:
         super().__init__(label)
         self.fitness = fitness
-        self.updates = updates
         self.neighbors = neighbors
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the extremal update of the least fit species and its neighbours.
+        """Return the update that renews the least fit species and its neighbours.
 
         Args:
             s:
@@ -90,8 +82,9 @@ class SpeciesElement(Element):
             laws:
                 The laws of the component.
         """
-        neighborhood = SPECIES_NEIGHBORHOODS[self.neighbors]
-        return [ExtremalLaw(s.fitness, neighborhood, SpeciesElement._renew, repeat=self.updates, label='extinction')]
+        around = neighbors(s.other.fitness, over=SPECIES_NEIGHBORHOODS[self.neighbors], reduce='min')
+        renewed = minimum(s.fitness, around) == minimum(s.fitness)
+        return [UpdateLaw(s.fitness, where(renewed, uniform('fitness'), s.fitness), label='extinction')]
 
 
 class BakSneppenSystem(BaseSystem):
@@ -100,8 +93,8 @@ class BakSneppenSystem(BaseSystem):
     Its fitnesses self-organise above a critical value in avalanches of extinction.
 
     On a ring the fitnesses gather above the critical value 0.667, and the minimum fitness rises towards it through
-    avalanches of every size. The system has the fitnesses `species.fitness`, and `extinction` events with the site and
-    the minimum fitness of every update.
+    avalanches of every size. Every step is one extinction, so time counts the extinctions. The system has the
+    fitnesses `species.fitness`.
 
     Args:
         size:
@@ -109,9 +102,6 @@ class BakSneppenSystem(BaseSystem):
 
         graph:
             The graph whose nodes are the species, or `None` for a ring.
-
-        updates:
-            The number of updates per step, or `None` for one update per species.
 
         random_state:
             The seed or generator of the initial fitnesses.
@@ -121,29 +111,28 @@ class BakSneppenSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.evolution import BakSneppenSystem
-        >>> BakSneppenSystem(50).prepare().system_.elements[0].values['updates']
-        50
+        >>> BakSneppenSystem(50).prepare().system_.elements[0].values['neighbors']
+        'ring'
     """
 
     field = 'biology/evolution'
     topics = ('lattice', 'network', 'self-organized criticality', 'extremal dynamics', 'stochastic')
     references = ('Bak and Sneppen 1993', 'Gros 2015', 'Jensen 2023')
-    until = 2000
-    dt = 10
+    until = 400_000
+    dt = 2_000
+    backend = NumbaBackend()
 
     def __init__(
         self,
         size: int = 200,
         *,
         graph: nx.Graph | None = None,
-        updates: int | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.size = size
         self.graph = graph
-        self.updates = updates
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
@@ -157,7 +146,6 @@ class BakSneppenSystem(BaseSystem):
             space=space,
             values={
                 'fitness': fitness,
-                'updates': count if self.updates is None else self.updates,
                 'neighbors': 'ring' if self.graph is None else 'graph',
             },
             on='sites',

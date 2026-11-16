@@ -64,7 +64,7 @@ The grid has 6 sites in the shape `(2, 3)`, and the first row sits at `(0, 0)`, 
 **How it combines.** A `GroupElement` with `on='sites'` holds one member per site, and a `FieldElement` adds the
 operators of space, such as the Laplacian. `LocalRuleInteraction` reads a `RadiusNeighborhood` or a
 `LatticeNeighborhood` around each site, and `CouplingInteraction` and `SamplingInteraction` read the nearest
-neighbours. `CellComplexSpace`, `PhaseSpace`, and `SimplexSpace` build on a lattice.
+neighbours. `CellComplexSpace` and `PhaseSpace` build on a lattice.
 
 **Limits and errors.** Every site has the same pattern of neighbours, so an irregular pattern of links needs a
 `NetworkSpace`, and an irregular domain needs a `CellComplexSpace` of the points and cells of a mesh. The boundary is
@@ -455,8 +455,9 @@ The 80 sites have a periodic position axis, from the ring of the lattice, and a 
 for streaming. Moments such as the density at each position, `moment(u, 0, axes=('v',))`, reduce over the class axes.
 
 **How it combines.** The usual partners are a `FieldElement` with the finite-volume discretization, a
-`ConservationInteraction` for streaming and forces, and a `RateInteraction` for collisions. `SimplexSpace` is a phase
-space whose class axes are frequencies.
+`ConservationInteraction` for streaming and forces, and a `RateInteraction` for collisions. A phase space whose class
+axes are frequencies that sum to at most one, as in `TrimorphicMultilevelSelectionSystem` of
+`skcomplex.systems.social.cooperation`, cuts the cells along its slanted face.
 
 **Limits and errors.** The number of sites is the product of the sizes of all axes, so it grows fast. The argument
 `limit` guards memory, and `prepare` raises a `PhaseSpaceTooLargeError` above it.
@@ -488,74 +489,6 @@ VelocitySpace(8, 16).prepare().shape_
 
 See its [fact sheet](../../../components/spaces.md#phasespace)
 and its [API entry][skcomplex.core.components.spaces.PhaseSpace].
-
-## SimplexSpace
-
-A `SimplexSpace` is a phase space whose class axes are frequencies that are nonnegative and sum to at most one. The
-last frequency is one minus the others, so two axes hold the shares of three types. In evolutionary game theory a
-population is spread over the shares of three strategies.
-
-```python
-from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
-from skcomplex.core.components.spaces import AxisSpec
-
-shares = [AxisSpec('rock', 4, 0.0, 1.0), AxisSpec('paper', 4, 0.0, 1.0)]
-strategies = SimplexSpace(LatticeSpace((1,)), shares).prepare()
-strategies.volumes_[0].tolist()
-```
-
-Each entry is the fraction of a cell inside the simplex. Cells below the slanted face are whole, cells along it are
-cut in half, and cells beyond it are empty.
-
-In population genetics the frequencies of three alleles of one gene, two of them free, fill the same triangle. With
-three free frequencies the simplex is a tetrahedron of four alleles.
-
-```python continuation
-alleles = [AxisSpec(name, 4, 0.0, 1.0) for name in ('a', 'b', 'c')]
-tetrahedron = SimplexSpace(LatticeSpace((1,)), alleles).prepare()
-tetrahedron.shape_, round(float(tetrahedron.volumes_.sum()), 3)
-```
-
-The 64 cells hold a volume of 10.667 cells, one sixth of the cube, which is the volume of the tetrahedron.
-
-**How the engine runs it.** Finite-volume fluxes pass only through the open part of each face, given by `apertures_`,
-and change a cell by its volume, so the total is conserved and no density enters the empty cells. Moments and other
-reductions over the class axes weight each cell by its volume.
-
-**How it combines.** A `FieldElement` with the finite-volume discretization holds the density, and a
-`ConservationInteraction` moves it over the frequencies, as replicator dynamics do.
-
-**Limits and errors.** Local operators such as `laplacian` do not apply on a simplex. The class axes run over `[0, 1]`
-with the same number of cells, and `prepare` raises a `ValidationError` otherwise.
-
-```python continuation
-from skcomplex.core.errors import ValidationError
-
-try:
-    SimplexSpace(LatticeSpace((1,)), [AxisSpec('x', 4, 0.0, 1.0), AxisSpec('y', 5, 0.0, 1.0)]).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message says that the class axes of a simplex space are intervals on `[0, 1]` with the same number of cells, and
-lists the axes it was given. The fix is 4 cells, or 5, on both axes.
-
-**A field realization.** A field names the frequencies, such as the shares of the three strategies of a game at one
-place.
-
-```python continuation
-class StrategySpace(SimplexSpace):
-    def __init__(self, cells=20, *, label='strategies'):
-        axes = [AxisSpec('rock', cells, 0.0, 1.0), AxisSpec('paper', cells, 0.0, 1.0)]
-        super().__init__(LatticeSpace((1,)), axes, label=label)
-
-
-StrategySpace(10).prepare().shape_
-```
-
-See its [fact sheet](../../../components/spaces.md#simplexspace)
-and its [API entry][skcomplex.core.components.spaces.SimplexSpace].
 
 ## CayleySpace
 

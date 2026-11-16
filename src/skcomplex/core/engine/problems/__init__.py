@@ -11,7 +11,6 @@ from ._base_problem_spec import BaseProblemSpec
 from ._base_record_spec import BaseRecordSpec
 from ._base_structure_spec import BaseStructureSpec
 from ._compiled_element_spec import CompiledElementSpec
-from ._extremal_record_spec import ExtremalRecordSpec
 from ._frame_spec import FrameSpec
 from ._hilbert_spec import HilbertSpec
 from ._layout_spec import LayoutSpec
@@ -34,7 +33,6 @@ __all__: list[str] = [
     'BaseSearch',
     'BaseStructureSpec',
     'CompiledElementSpec',
-    'ExtremalRecordSpec',
     'FrameSpec',
     'HilbertSpec',
     'LayoutSpec',

@@ -1,4 +1,4 @@
-"""Test triangular lattices, lattice laws on graphs, neighbour sums, colored schedules, and extremal updates."""
+"""Test triangular lattices, lattice laws on graphs, neighbour sums, and colored schedules."""
 
 import itertools
 from typing import Annotated
@@ -12,7 +12,6 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import (
-    ExtremalLaw,
     LinearRuleSpec,
     LocalRuleLaw,
     MoveSpec,
@@ -34,8 +33,7 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.problems import ExtremalRecordSpec, FrameSpec
-from skcomplex.core.engine.problems._extremal_kernel import ExtremalKernel
+from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver, SiteVisual
 from skcomplex.core.errors import ValidationError
@@ -97,28 +95,6 @@ class GraphLifeElement(LifeElement):
     def _get_laws(self, s):
         """Return the Game of Life rule on the adjacent nodes."""
         return [LocalRuleLaw(s.alive, AdjacencyNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
-
-
-def _renew(value, random):
-    """Return new uniform values."""
-    return random
-
-
-class FitnessElement(Element):
-    """Fitness element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        value: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.value = value
-
-    def _get_laws(self, s):
-        """Return the laws of the fitness element."""
-        return [ExtremalLaw(s.value, LatticeNeighborhood(((-1,), (1,))), _renew, repeat=7, label='update')]
 
 
 def _ising_magnetization(trajectory):
@@ -468,117 +444,6 @@ def test_checkerboard_rejected_where_it_does_not_apply(space):
         PassCompiler().prepare(
             CompositeSystem(elements=[GroupElement('spins', element=FlipElement, space=space, on='sites')]),
         ).run()
-
-
-def test_extremal_changes_only_the_neighbourhood():
-    """Test that one extremal update on a ring of 100 changes the minimum and its two neighbours only."""
-
-    class OnceElement(Element):
-        """Once element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            value: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.value = value
-
-        def _get_laws(self, s):
-            """Return the laws of the once element."""
-            return [ExtremalLaw(s.value, LatticeNeighborhood(((-1,), (0,), (1,))), _renew)]
-
-    values = np.random.default_rng(0).random(100)
-    trajectory = simulate(
-        CompositeSystem(
-            elements=[
-                GroupElement(
-                    'ring',
-                    element=OnceElement,
-                    space=LatticeSpace(100),
-                    values={'value': values},
-                    on='sites',
-                ),
-            ],
-        ),
-        until=1,
-        dt=1,
-    )
-    site = int(np.argmin(values))
-    changed = np.flatnonzero(trajectory.states[-1] != values)
-    assert sorted(changed.tolist()) == sorted([(site - 1) % 100, site, (site + 1) % 100])
-    (event,) = trajectory.events
-    assert event == ExtremalRecordSpec('ring', 1.0, site, float(values[site]))
-
-
-def test_extremal_maximum_and_ties():
-    """Test that an extremal law on the largest value breaks ties among equal values with the random stream."""
-
-    class TopElement(Element):
-        """Top element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            value: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.value = value
-
-        def _get_laws(self, s):
-            """Return the laws of the top element."""
-            return [ExtremalLaw(s.value, AdjacencyNeighborhood(), _renew, extremum='max', repeat=20)]
-
-    system = CompositeSystem(
-        elements=[
-            GroupElement(
-                'nodes',
-                element=TopElement,
-                space=NetworkSpace(nx.path_graph(10)),
-                values={'value': np.full(10, 2.0)},
-                on='sites',
-            ),
-        ],
-    )
-    events = simulate(system, until=1, dt=1, random_state=0).events
-    assert events[0].value == 2.0
-    assert all(event.value <= 2.0 for event in events)
-    with pytest.raises(ValidationError, match='extremum'):
-        ExtremalLaw(None, AdjacencyNeighborhood(), _renew, extremum='median').prepare()
-
-
-def test_extremal_runs_are_reproducible_across_backends():
-    """Test that two runs on the NumPy and two on the Numba backend give identical lattices and events."""
-    values = np.random.default_rng(1).random(50)
-    runs = []
-    for backend in (NumpyBackend, NumpyBackend, NumbaBackend, NumbaBackend):
-        system = CompositeSystem(
-            elements=[
-                GroupElement(
-                    'ring',
-                    element=FitnessElement,
-                    space=LatticeSpace(50),
-                    values={'value': values},
-                    on='sites',
-                ),
-            ],
-        )
-        trajectory = simulate(system, until=20, dt=1, backend=backend(), random_state=7)
-        runs.append((trajectory.get_values('ring.value'), trajectory.events))
-    system = CompositeSystem(
-        elements=[
-            GroupElement('ring', element=FitnessElement, space=LatticeSpace(50), values={'value': values}, on='sites'),
-        ],
-    )
-    compiled = PassCompiler(backend=NumbaBackend()).prepare(system).run().problem_
-    assert isinstance(compiled.lattice[0], ExtremalKernel)
-    assert compiled.lattice[0].loop is not None
-    for states, events in runs[1:]:
-        assert np.array_equal(states, runs[0][0])
-        assert events == runs[0][1]
-    assert len(runs[0][1]) == 140
 
 
 def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
