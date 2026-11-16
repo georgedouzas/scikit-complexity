@@ -35,7 +35,7 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 
 ## 4. Field-specific components leave the core
 
-- [ ] 4.1 Merge `MeshSpace` into `CellComplexSpace` and `BallNeighborhood` into `RadiusNeighborhood`, moving the engine code that keys on the merged classes. Verify with the tests of both and of the systems that use them.
+- [x] 4.1 Merge `MeshSpace` into `CellComplexSpace` and `BallNeighborhood` into `RadiusNeighborhood`, moving the engine code that keys on the merged classes. Verify with the tests of both and of the systems that use them.
 - [ ] 4.2 Move `DissipatorLaw` and the quantum generator to `skcomplex.systems.physics.common.quantum` with the solver that lowers them, built on the public engine bases. Verify with the moved tests under `tests/systems/physics/common/quantum`.
 - [ ] 4.3 Move `CascadeLaw` to `skcomplex.systems.physics.common.criticality`, `ProductionLaw`, `SubstitutionLaw`, `WordElement`, and `PatchElement` to `skcomplex.systems.general.rewriting`, and `BilinearLaw` to `skcomplex.systems.general.kinetics`, each with its solver. Verify with the moved tests of each package.
 - [ ] 4.4 Move `MatchLaw` to `skcomplex.systems.general.matching` and `GradientStepLaw` to the learning package, both as `UpdateLaw` recipes, and the finite-volume scheme of `FluxLaw` to the fluids package as a solver setting. Verify with the moved tests.

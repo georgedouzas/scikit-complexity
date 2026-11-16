@@ -198,8 +198,11 @@ every kind where adding means something: rates, noises, jump channels, and const
 | `MatchLaw` | `skcomplex.systems.general`, as an `UpdateLaw` |
 | `GradientStepLaw` | the learning package, as an `UpdateLaw` |
 
-A field law that needs engine support of its own moves with that support: the field package brings a solver built on
-the public engine bases. `prepare` chooses the compiler by itself, so `compiler` is no longer a setting users give. The engine core keys only on the seven
+A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
+`UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,
+such as the Lindblad equation, finite volumes, Cayley graphs, or rewriting, moves with that support: the field package
+brings a solver built on the public engine bases. A space answers what the engine asks through methods of `BaseSpace`,
+such as its cell volumes and the operators it supports. `prepare` chooses the compiler by itself, so `compiler` is no longer a setting users give. The engine core keys only on the seven
 kinds and never names a class of the systems packages.
 
 ### 5. The system is the estimator
