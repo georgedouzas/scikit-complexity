@@ -533,13 +533,37 @@ class Simulation(BaseConfig[None, float]):
 
         Returns:
             compiler:
-                The operator compiler for a system of operator elements, the rewriting compiler for a system of words
-                or patches, or `None` for any other system.
+                The compiler an element of the system names, the operator compiler for a system of operator elements,
+                the rewriting compiler for a system of words or patches, or `None` for any other system.
+
+        Raises:
+            ValidationError:
+                An element names something that is not a compiler.
         """
+        named = Simulation._get_named_compiler(system)
+        if named is not None:
+            if not isinstance(named, BaseCompiler):
+                error_msg = f'An element of {system.label} names {named!r} as its compiler, which is not a compiler.'
+                raise ValidationError(error_msg)
+            return named
         if OperatorCompiler._contains_operator(system):
             return OperatorCompiler()
         if RewritingCompiler._is_rewriting(system):
             return RewritingCompiler()
+        return None
+
+    @staticmethod
+    def _get_named_compiler(system: CompositeSystem) -> object:
+        """Return the compiler the first element of a system tree names, or `None` when none names one."""
+        for element in system.elements:
+            named = element._get_compiler()
+            if named is not None:
+                return named
+        for child in system.systems:
+            if isinstance(child, CompositeSystem):
+                named = Simulation._get_named_compiler(child)
+                if named is not None:
+                    return named
         return None
 
     def _check_report(self, compiler: BaseCompiler) -> None:

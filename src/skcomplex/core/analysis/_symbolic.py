@@ -32,12 +32,15 @@ from sage.structure.parent import Parent
 from sage.symbolic.assumptions import assume, forget
 
 from ..components.laws.utils._operators import _OperatorFunction
+from ..components.systems import CompositeSystem
 from ..engine._utils import components_of, domain_of
+from ..engine.compile import BaseCompiler
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.compile._rewriting_compiler import RewritingCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._operator_problem_spec import OperatorProblemSpec
 from ..engine.problems._transfer_network_spec import TransferNetworkSpec
+from ..engine.runtime._simulations import Simulation
 from ..enums import DataKind, FormKind
 from ..errors import AnalysisError, ConservationError
 from ..types import Array, ComplexArray
@@ -342,7 +345,15 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
             'and analyse its trajectory instead.'
         )
         raise AnalysisError(error_msg)
-    compiled = system if isinstance(system, BaseProblemSpec) else PassCompiler().prepare(system).run().problem_
+    compiled = (
+        system if isinstance(system, BaseProblemSpec) else _get_compiler_of(system).prepare(system).run().problem_
+    )
+    if not isinstance(compiled, ProblemSpec | OperatorProblemSpec):
+        error_msg = (
+            f'The system compiles to the {compiled.form} form, which has no equations. Simulate it and analyse its '
+            'trajectory instead.'
+        )
+        raise AnalysisError(error_msg)
     if kind == 'hamiltonian':
         operators = _operator_problem(compiled)
         return SymbolicResult(operators, hamiltonian=operators.generator_operator)
@@ -358,6 +369,12 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
     if kind == 'solve':
         return SymbolicResult(problem, solutions=_solve(problem, use_initial_state=use_initial_state))
     return SymbolicResult(problem, inflows=_conservation(problem))
+
+
+def _get_compiler_of(system: CompositeSystem) -> BaseCompiler:
+    """Return the compiler an element of a system names, or the general one."""
+    named = Simulation._get_named_compiler(system)
+    return named if isinstance(named, BaseCompiler) else PassCompiler()
 
 
 def _operator_problem(problem: BaseProblemSpec) -> OperatorProblemSpec:
