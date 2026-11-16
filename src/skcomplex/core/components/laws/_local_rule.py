@@ -90,9 +90,9 @@ class LocalRuleLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import LocalRuleLaw
         >>> from skcomplex.core.components.laws import LinearRuleSpec, TotalisticSpec
-        >>> from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
+        >>> from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
         >>> cell = var('cell')
-        >>> box = BallNeighborhood(n_dim=1, center='inline')
+        >>> box = LatticeNeighborhood(((-1,), (0,), (1,)))
         >>> LocalRuleLaw(cell, box, TotalisticSpec({2: 1})).prepare().targets_
         (cell,)
         >>> parity = LocalRuleLaw(cell, box, TotalisticSpec(lambda total: total % 2)).prepare()
@@ -159,20 +159,22 @@ class LocalRuleLaw(BaseLaw):
         convert = getattr(self.rule, 'get_table', None)
         return convert() if not callable(self.rule) and callable(convert) else self.rule
 
-    def _get_neighborhood(self) -> BaseNeighborhood:
-        """Return the neighbourhood the rule reads.
+    def _get_neighborhood(self, space: BaseSpace) -> BaseNeighborhood:
+        """Return the neighbourhood the rule reads on a prepared space.
 
-        For an outer totalistic rule, the site itself comes first.
+        A neighbourhood with lattice offsets becomes the list of its offsets on the space. For an outer totalistic
+        rule, the site itself comes first.
         """
-        if not isinstance(self._get_rule(), OuterTotalisticSpec):
-            return self.over
-        if isinstance(self.over, MemoryNeighborhood):
+        outer = isinstance(self._get_rule(), OuterTotalisticSpec)
+        if outer and isinstance(self.over, MemoryNeighborhood):
             return MemoryNeighborhood((IDENTITY, *self.over.elements))
-        if not isinstance(self.over, LatticeNeighborhood):
+        offsets = self.over._get_offsets(space.n_dim_)
+        if offsets is None and outer:
             error_msg = f'A run reads an outer totalistic rule on offsets or a memory set, not on {self.over!r}.'
             raise ValidationError(error_msg)
-        offsets = self.over.prepare().offsets_
-        return LatticeNeighborhood(((0,) * len(offsets[0]), *offsets))
+        if offsets is None:
+            return self.over
+        return LatticeNeighborhood(((0,) * len(offsets[0]), *offsets) if outer else offsets)
 
     def _get_table(self, space: BaseSpace, values: npt.NDArray[np.generic]) -> IntArray:
         """Return the neighbour table.
@@ -190,7 +192,7 @@ class LocalRuleLaw(BaseLaw):
             table:
                 One row per site and one column per neighbour, with leading axes of the configurations when translated.
         """
-        neighborhood = self._get_neighborhood()
+        neighborhood = self._get_neighborhood(space)
         if not isinstance(neighborhood, StateTranslationNeighborhood):
             return space._get_index_table(neighborhood)
         translations = space._get_translation_table(neighborhood)

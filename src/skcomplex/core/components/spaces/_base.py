@@ -13,6 +13,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import SpaceError
+from ...types import IntTuple
 from .._tags import Tags
 from ..base import BaseComponent
 
@@ -25,7 +26,7 @@ class BaseNeighborhood(BaseComponent[None, SimpleNamespace]):
     returns no laws.
 
     Unlike `BaseSpace`, which places members, it selects some of them around one member. Choose it when a new rule for
-    choosing neighbours is needed, and choose an existing neighbourhood, such as `BallNeighborhood`, otherwise.
+    choosing neighbours is needed, and choose an existing neighbourhood, such as `RadiusNeighborhood`, otherwise.
 
     It appears in every field through its subclasses, such as the eight cells around a site of a lattice, the contacts
     of a person in a network, and the birds within sight of a bird in a flock.
@@ -41,6 +42,19 @@ class BaseNeighborhood(BaseComponent[None, SimpleNamespace]):
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return no laws, since a neighbourhood only tells laws which members they read."""
         return []
+
+    def _get_offsets(self, n_dim: int | None = None) -> tuple[IntTuple, ...] | None:
+        """Return the lattice offsets of the neighbourhood, none by default.
+
+        Args:
+            n_dim:
+                The number of dimensions of the lattice, or `None` when no lattice is known yet.
+
+        Returns:
+            offsets:
+                The offsets in the order laws read them, or `None` for a neighbourhood that has none.
+        """
+        return None
 
     def _prepare(self, context: None = None) -> None:
         """Leave the neighbourhood as it is, since it has nothing to prepare by default."""

@@ -11,7 +11,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw, TableSpec, TotalisticSpec
-from skcomplex.core.components.spaces import BallNeighborhood, CayleySpace, MemoryNeighborhood
+from skcomplex.core.components.spaces import CayleySpace, LatticeNeighborhood, MemoryNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SpaceTooLargeError, ValidationError
@@ -109,7 +109,7 @@ def test_cayley_space_index_table_needs_a_memory_set():
     """Test that a neighbourhood of offsets and a word of unknown generators are rejected on a Cayley space."""
     space = CayleySpace(PermutationGroup([[(1, 2)]])).prepare()
     with pytest.raises(ValidationError, match='memory set'):
-        space._get_index_table(BallNeighborhood(n_dim=1, center='inline'))
+        space._get_index_table(LatticeNeighborhood(((-1,), (0,), (1,))))
     with pytest.raises(ValidationError, match='not a generator'):
         space._get_index_table(MemoryNeighborhood(('z',)))
 

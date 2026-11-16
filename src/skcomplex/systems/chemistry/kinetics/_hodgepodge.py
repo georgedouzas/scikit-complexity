@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
@@ -171,7 +171,7 @@ class HodgepodgeSystem(BaseSystem):
                     target='cells',
                     state='level',
                     rule=self._infect,
-                    neighborhood=BallNeighborhood(center='first'),
+                    neighborhood=RadiusNeighborhood(1, metric='chebyshev', center=True),
                 ),
             ],
         )

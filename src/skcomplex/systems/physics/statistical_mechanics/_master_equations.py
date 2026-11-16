@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, JumpLaw, LocalRuleLaw
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ....core.types import Array
@@ -85,7 +85,7 @@ class MicrostateElement(Element):
         return [
             LocalRuleLaw(
                 s.P,
-                BallNeighborhood(n_dim=1, center='inline'),
+                LatticeNeighborhood(((-1,), (0,), (1,))),
                 MicrostateElement._get_master_step,
                 reads=(s.P, s.U),
             ),

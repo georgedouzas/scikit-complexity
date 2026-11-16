@@ -3,7 +3,12 @@
 import networkx as nx
 import pytest
 
-from skcomplex.core.components.spaces import AdjacencyNeighborhood, BallNeighborhood, LatticeSpace, NetworkSpace
+from skcomplex.core.components.spaces import (
+    AdjacencyNeighborhood,
+    LatticeNeighborhood,
+    LatticeSpace,
+    NetworkSpace,
+)
 from skcomplex.core.errors import ValidationError
 
 
@@ -40,10 +45,15 @@ def test_lattice_space_reads_the_neighbours_of_its_own_neighbourhood():
     triangular = LatticeSpace((3, 3), geometry='triangular').prepare()
     assert fixed._get_neighbors(0).tolist() == [1]
     assert len(LatticeSpace((3, 3)).prepare()._get_neighbors(4)) == 8
-    box = BallNeighborhood(n_dim=1, center='inline')
+    box = LatticeNeighborhood(((-1,), (0,), (1,)))
     assert LatticeSpace(5).prepare()._get_neighbors(0, box).tolist() == [4, 0, 1]
-    assert triangular._get_default_neighborhood().prepare().offsets_ == (
-        BallNeighborhood(metric='hexagonal').prepare().offsets_
+    assert triangular._get_default_neighborhood()._get_offsets(2) == (
+        (0, 1),
+        (1, 0),
+        (1, -1),
+        (0, -1),
+        (-1, 0),
+        (-1, 1),
     )
     assert (triangular.metric_, fixed.metric_, LatticeSpace(5).prepare().metric_) == (
         'hexagonal',
@@ -55,14 +65,14 @@ def test_lattice_space_reads_the_neighbours_of_its_own_neighbourhood():
 def test_lattice_space_ball_keeps_the_site_inline():
     """Test that the ball an analysis reads is the Chebyshev ball with the site in its lexicographic place."""
     ball = LatticeSpace((3, 3), geometry='triangular').prepare()._get_ball(1).prepare()
-    assert ball.offsets_ == BallNeighborhood(center='inline').prepare().offsets_
+    assert ball.offsets_ == ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 0), (0, 1), (1, -1), (1, 0), (1, 1))
 
 
 def test_lattice_space_reflects_at_reflecting_edges():
     """Test that a reflecting lattice reads the mirror image of the box outside it."""
     space = LatticeSpace(4, boundary='reflecting').prepare()
-    assert space._get_index_table(BallNeighborhood(n_dim=1, center='inline'))[:, 0].tolist() == [0, 0, 1, 2]
-    assert space._get_index_table(BallNeighborhood(n_dim=1, center='inline'))[:, 2].tolist() == [1, 2, 3, 3]
+    assert space._get_index_table(LatticeNeighborhood(((-1,), (0,), (1,))))[:, 0].tolist() == [0, 0, 1, 2]
+    assert space._get_index_table(LatticeNeighborhood(((-1,), (0,), (1,))))[:, 2].tolist() == [1, 2, 3, 3]
 
 
 def test_lattice_space_rejects_neighbourhoods_it_cannot_read():
@@ -71,7 +81,7 @@ def test_lattice_space_rejects_neighbourhoods_it_cannot_read():
     with pytest.raises(ValidationError, match='lattice neighbourhood'):
         space._get_index_table(AdjacencyNeighborhood())
     with pytest.raises(ValidationError, match='dimension'):
-        space._get_index_table(BallNeighborhood(n_dim=1, center='inline'))
+        space._get_index_table(LatticeNeighborhood(((-1,), (0,), (1,))))
 
 
 def test_lattice_space_balls_and_neighbour_pairs():

@@ -39,7 +39,7 @@ This section computes the next value of a cell from the values of its neighbours
 Conway's Game of Life is one. A dead cell with three live neighbours comes alive, and a live cell with two or three
 live neighbours stays alive. A [`LocalRuleLaw`](../core_components/laws.md#localrulelaw) holds the state it changes,
 the neighbourhood it reads, and the rule. Here the neighbourhood is the
-[`BallNeighborhood`](../core_components/spaces.md#ballneighborhood) of the eight surrounding cells, and the rule is an
+[`RadiusNeighborhood`](../core_components/spaces.md#radiusneighborhood) of the eight surrounding cells, and the rule is an
 outer totalistic rule, which reads the cell and the sum of its neighbours. A glider of five live cells starts in the
 corner of a periodic grid of 20 by 20.
 
@@ -51,7 +51,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
@@ -64,7 +64,7 @@ class LifeElement(Element):
         self.alive = alive
 
     def _get_laws(self, s):
-        return [LocalRuleLaw(s.alive, BallNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
+        return [LocalRuleLaw(s.alive, RadiusNeighborhood(1, metric='chebyshev'), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
 
 
 glider = np.zeros((20, 20))
@@ -80,10 +80,11 @@ After four steps the configuration equals the glider moved one cell down and one
 
 `LocalRuleLaw(targets, over, rule)` reads the values of the neighbourhood in a fixed order.
 
-- `BallNeighborhood(radius, metric=...)`, the Chebyshev, Manhattan, or hexagonal ball, or
-  [`LatticeNeighborhood(offsets)`](../core_components/spaces.md#latticeneighborhood) gives the offsets of the
-  neighbours. `center` leaves the site out, puts it first, or keeps it `'inline'`, in its lexicographic place, which is
-  the order of the rule numbers of Wolfram.
+- `RadiusNeighborhood(radius, metric=...)`, the Euclidean, Chebyshev, Manhattan, or hexagonal ball in the dimensions
+  of the lattice, or [`LatticeNeighborhood(offsets)`](../core_components/spaces.md#latticeneighborhood) gives the
+  offsets of the neighbours. `center=True` puts the site first. A neighbourhood in an order of its own, such as the
+  left neighbour, the cell, and the right neighbour of the rule numbers of Wolfram, lists its offsets in a
+  `LatticeNeighborhood`.
 - A rule is a `TableSpec` of patterns, a `TotalisticSpec` or `OuterTotalisticSpec` rule, a rule code whose `table()`
   returns a table, or a function of NumPy arrays, one per neighbour. A function also receives the parameters it names
   and, for stochastic rules, uniform random numbers.
@@ -134,13 +135,13 @@ from sage.all__sagemath_symbolics import ZZ
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import SampleLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
 
-nearest = BallNeighborhood(metric='manhattan')
+nearest = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
 
 
 class SpinElement(Element):
@@ -191,7 +192,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
@@ -207,7 +208,7 @@ class BurnElement(Element):
         self.fire = fire
 
     def _get_laws(self, s):
-        return [LocalRuleLaw(s.fire, BallNeighborhood(metric='hexagonal', center='first'), spread)]
+        return [LocalRuleLaw(s.fire, RadiusNeighborhood(1, metric='hexagonal', center=True), spread)]
 
 
 fire = np.zeros((40, 40))
@@ -223,7 +224,7 @@ The burning sites number 1, 7, 19, and 37 after zero to three steps, the hexagon
 - `LatticeSpace(shape, geometry='triangular')` keeps integer coordinates on a skewed grid, so every boundary works as
   on a square lattice.
 - It places site `(i, j)` at `(j + i / 2, i sqrt(3) / 2)` in the plane, which the fitted `positions_` give.
-- `BallNeighborhood(metric='hexagonal')` holds the six neighbours counterclockwise from 0 degrees, so direction `k + 3`
+- `RadiusNeighborhood(1, metric='hexagonal')` holds the six neighbours counterclockwise from 0 degrees, so direction `k + 3`
   modulo 6 is opposite to direction `k`, as lattice gases need.
 - The cells of the sites are the hexagons of a hexagonal tiling.
 

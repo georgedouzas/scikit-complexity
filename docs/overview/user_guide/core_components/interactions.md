@@ -1401,7 +1401,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
+from skcomplex.core.components.spaces import DiscreteTime, LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
@@ -1418,7 +1418,7 @@ board = np.zeros((5, 5))
 board[2, 1:4] = 1.0
 cells = GroupElement('board', element=CellElement, space=LatticeSpace((5, 5)), on='sites', values={'c': board.ravel()})
 life = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}, default=0)
-rule = LocalRuleInteraction('life', target='board', state='c', rule=life, neighborhood=BallNeighborhood())
+rule = LocalRuleInteraction('life', target='board', state='c', rule=life, neighborhood=RadiusNeighborhood(1, metric='chebyshev'))
 game = CompositeSystem(elements=[cells], interactions=[rule], time=DiscreteTime())
 [np.flatnonzero(frame).tolist() for frame in simulate(game, until=2).get_values('board.c')]
 ```
@@ -1436,7 +1436,7 @@ moves = {(1, 1, 1): 1, (1, 1, 0): 0, (1, 0, 1): 1, (1, 0, 0): 1}
 patterns = moves | {(0, 1, 1): 1, (0, 1, 0): 0, (0, 0, 1): 0, (0, 0, 0): 0}
 cars = {'c': [1, 1, 0, 1, 0, 0, 0, 0]}
 road = GroupElement('road', element=CellElement, space=LatticeSpace(8), on='sites', values=cars)
-around = BallNeighborhood(metric='manhattan', n_dim=1, center='inline')
+around = LatticeNeighborhood(((-1,), (0,), (1,)))
 traffic = LocalRuleInteraction('traffic', target='road', state='c', rule=TableSpec(patterns), neighborhood=around)
 ring = CompositeSystem(elements=[road], interactions=[traffic], time=DiscreteTime())
 simulate(ring, until=3).get_values('road.c').astype(int).tolist()
@@ -1457,7 +1457,7 @@ the cells in turns.
 The interaction emits a local rule law.
 
 **How it combines.** The role `target` binds a group on the sites of a lattice or the nodes of a network, and the
-`neighborhood`, such as `BallNeighborhood`, gives the ordered neighbours. A rule can be a `TableSpec`, a
+`neighborhood`, such as `RadiusNeighborhood`, gives the ordered neighbours. A rule can be a `TableSpec`, a
 `TotalisticSpec` of the sum of the neighbourhood, an `OuterTotalisticSpec`, or a function of arrays that sets several
 states together.
 
@@ -1475,7 +1475,7 @@ except ValidationError as error:
 message
 ```
 
-The message says that the neighbourhood of the local rule `life` is `'moore'`. The fix is `BallNeighborhood()`, the
+The message says that the neighbourhood of the local rule `life` is `'moore'`. The fix is `RadiusNeighborhood(1, metric='chebyshev')`, the
 Moore neighbourhood of the eight surrounding cells.
 
 **A field realization.** A field fixes the rule and the neighbourhood, such as the Game of Life.
@@ -1483,7 +1483,7 @@ Moore neighbourhood of the eight surrounding cells.
 ```python continuation
 class LifeInteraction(LocalRuleInteraction):
     def __init__(self, label, *, target):
-        super().__init__(label, target=target, state='c', rule=life, neighborhood=BallNeighborhood())
+        super().__init__(label, target=target, state='c', rule=life, neighborhood=RadiusNeighborhood(1, metric='chebyshev'))
 
 
 LifeInteraction('life', target='board').get_params()

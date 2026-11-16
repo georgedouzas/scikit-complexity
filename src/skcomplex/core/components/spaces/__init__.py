@@ -10,7 +10,6 @@ once.
 
 from ._adjacency import AdjacencyNeighborhood
 from ._axis_spec import AxisSpec
-from ._ball import BallNeighborhood
 from ._base import BaseNeighborhood, BaseSpace, BaseTime
 from ._cayley import CayleySpace
 from ._cell_complex import CellComplexSpace
@@ -35,7 +34,6 @@ from ._static_time import StaticTime
 __all__: list[str] = [
     'AdjacencyNeighborhood',
     'AxisSpec',
-    'BallNeighborhood',
     'BaseNeighborhood',
     'BaseSpace',
     'BaseTime',

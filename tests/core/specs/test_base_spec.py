@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components import Observable
 from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, RequirementSpec, SamplerSpec, TopologyRequestSpec
-from skcomplex.core.components.spaces import BallNeighborhood, ContinuousTime, ScheduleSpec
+from skcomplex.core.components.spaces import ContinuousTime, RadiusNeighborhood, ScheduleSpec
 from skcomplex.core.engine.compile import PhasesScheduleSpec
 from skcomplex.core.engine.problems import HilbertSpec
 from skcomplex.core.errors import ValidationError
@@ -39,7 +39,7 @@ def test_requirement_and_visual_specs_hold_their_fields():
 def test_monte_carlo_specs_check_their_kinds():
     """Test that an energy has nothing to check, and that moves, samplers, and schedules must be known."""
     spin = var('spin')
-    assert ObjectiveSpec(-spin, BallNeighborhood(metric='manhattan')).expression == -spin
+    assert ObjectiveSpec(-spin, RadiusNeighborhood(1, metric='manhattan')).expression == -spin
     assert MoveSpec(spin, 'rotate', width=0.5).width == 0.5
     assert MoveSpec(spin, 'gaussian', width=0.5).kind == 'gaussian'
     assert MoveSpec(spin, 'function', function=lambda values, random: values).kind == 'function'

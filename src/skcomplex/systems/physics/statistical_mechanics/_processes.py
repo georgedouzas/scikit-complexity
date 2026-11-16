@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, LocalRuleLaw, RuleLaw, Sink, Source
 from ....core.components.laws.utils import bernoulli
-from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
+from ....core.components.spaces import DiscreteTime, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -88,7 +88,7 @@ class ContactSiteElement(Element):
         return [
             LocalRuleLaw(
                 s.infected,
-                BallNeighborhood(metric='manhattan', center='first'),
+                RadiusNeighborhood(1, metric='manhattan', center=True),
                 ContactSiteElement._spread,
                 stochastic=True,
             ),
@@ -193,7 +193,7 @@ class PercolationSiteElement(Element):
                 The laws of the component.
         """
         return [
-            LocalRuleLaw(s.cover, BallNeighborhood(metric='manhattan', center='first'), PercolationSiteElement._burn),
+            LocalRuleLaw(s.cover, RadiusNeighborhood(1, metric='manhattan', center=True), PercolationSiteElement._burn),
         ]
 
     @staticmethod
@@ -408,7 +408,7 @@ class Q2rSystem(BaseSystem):
             target='spins',
             state=('spin', 'phase'),
             rule=self._flip_without_cost,
-            neighborhood=BallNeighborhood(metric='manhattan', n_dim=len(shape), center='first'),
+            neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
         )
         return CompositeSystem(self.label, elements=[group], interactions=[flip])
 

@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction, MapInteraction
 from ....core.components.laws import TotalisticSpec
-from ....core.components.spaces import BallNeighborhood, LatticeSpace, NetworkSpace
+from ....core.components.spaces import LatticeSpace, NetworkSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
@@ -345,7 +345,7 @@ class MajorityRuleSystem(BaseSystem):
                     target='voters',
                     state='opinion',
                     rule=TotalisticSpec(self._is_majority),
-                    neighborhood=BallNeighborhood(center='first'),
+                    neighborhood=RadiusNeighborhood(1, metric='chebyshev', center=True),
                 ),
             ],
         )

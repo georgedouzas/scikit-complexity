@@ -17,7 +17,6 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws import TotalisticSpec
 from ....core.components.spaces import (
-    BallNeighborhood,
     CayleySpace,
     LatticeNeighborhood,
     LatticeSpace,
@@ -473,7 +472,7 @@ class LinearRingAutomatonSystem(BaseSystem):
                     target='cells',
                     state='value',
                     rule=self._get_laplacian,
-                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
+                    neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
                 ),
             ],
         )
@@ -535,7 +534,7 @@ class SubshiftsSystem(BaseSystem):
             target='cells',
             state='alive',
             rule=self._get_golden_move,
-            neighborhood=BallNeighborhood(n_dim=1, center='inline'),
+            neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
             schedule='random-sequential',
             stochastic=True,
         )

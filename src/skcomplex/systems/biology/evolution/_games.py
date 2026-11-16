@@ -16,13 +16,13 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import total
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec
 from ....core.types import Array
 from ..common.populations import ReplicatorInteraction
 
-NEAREST = BallNeighborhood(metric='manhattan')
+NEAREST = RadiusNeighborhood(1, metric='manhattan')
 STRATEGIES = 3
 
 

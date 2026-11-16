@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec
@@ -197,7 +197,7 @@ class HighlifeSystem(BaseSystem):
                     target='cells',
                     state='alive',
                     rule=life(born, survive),
-                    neighborhood=BallNeighborhood(),
+                    neighborhood=RadiusNeighborhood(1, metric='chebyshev'),
                 ),
             ],
         )
@@ -297,7 +297,7 @@ class NoisyAutomataSystem(BaseSystem):
                     target='cells',
                     state='alive',
                     rule=self._get_noisy_rule(self.rule),
-                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
+                    neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
                     stochastic=True,
                 ),
             ],
@@ -381,7 +381,7 @@ class DiffusionAutomatonSystem(BaseSystem):
                     target='cells',
                     state='level',
                     rule=self._diffuse,
-                    neighborhood=BallNeighborhood(metric='manhattan', center='first'),
+                    neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
                 ),
             ],
         )

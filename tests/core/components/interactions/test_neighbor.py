@@ -14,8 +14,8 @@ from skcomplex.core.components.laws import ArrayUpdateLaw, CascadeLaw, JumpLaw, 
 from skcomplex.core.components.laws.utils import delayed, mean
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
-    BallNeighborhood,
     DiscreteTime,
+    LatticeNeighborhood,
     LatticeSpace,
     LayerSpec,
     NetworkSpace,
@@ -532,7 +532,7 @@ class GrainsElement(Element):
 class PileElement(GrainsElement):
     """Pile of grains on the sites of a lattice, which topples over its neighbours."""
 
-    neighborhood: ClassVar[object] = BallNeighborhood(n_dim=1, center='inline')
+    neighborhood: ClassVar[object] = LatticeNeighborhood(((-1,), (0,), (1,)))
 
     def _get_laws(self, s):
         """Return the sandpile of the element's own heights."""

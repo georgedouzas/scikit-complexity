@@ -17,7 +17,7 @@ class LatticeNeighborhood(BaseNeighborhood):
     Each offset is a vector of integers from a site to a neighbour, and the site itself is the zero offset when it is
     included. The order of the offsets is the order in which a local rule receives the values.
 
-    Unlike `BallNeighborhood`, which builds its offsets from a radius, it takes any list of offsets. Choose it when a
+    Unlike `RadiusNeighborhood`, which builds its offsets from a radius, it takes any list of offsets. Choose it when a
     neighbourhood has an irregular shape, or an order of its own, such as a cell and its two neighbours from left to
     right.
 
@@ -45,9 +45,12 @@ class LatticeNeighborhood(BaseNeighborhood):
         super().__init__(label)
         self.offsets = offsets
 
-    def _get_offsets(self) -> tuple[IntTuple, ...]:
-        """Return the offsets as tuples of integers."""
-        return tuple(tuple(int(step) for step in np.atleast_1d(offset)) for offset in self.offsets)
+    def _get_offsets(self, n_dim: int | None = None) -> tuple[IntTuple, ...]:
+        """Return the offsets as tuples of integers.
+
+        They fix their own number of dimensions.
+        """
+        return self.prepare().offsets_
 
     def _prepare(self, context: None = None) -> None:
         """Set `offsets_`, the offsets as tuples of integers.
@@ -55,7 +58,8 @@ class LatticeNeighborhood(BaseNeighborhood):
         It first raises an error for offsets of different numbers of dimensions.
         """
         super()._prepare(context)
-        if len({len(offset) for offset in self._get_offsets()}) > 1:
+        offsets = tuple(tuple(int(step) for step in np.atleast_1d(offset)) for offset in self.offsets)
+        if len({len(offset) for offset in offsets}) > 1:
             error_msg = 'Every offset of a neighbourhood has the same number of dimensions.'
             raise ValidationError(error_msg)
-        self.offsets_ = self._get_offsets()
+        self.offsets_ = offsets

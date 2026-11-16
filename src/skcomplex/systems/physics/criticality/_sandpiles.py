@@ -19,7 +19,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import draw, either, where
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import DeclaredVariableSpec, RoleSpec, StateSpec
 from ....core.types import Array
@@ -95,7 +95,7 @@ class ToppleInteraction(LocalRuleInteraction):
             target=target,
             state='height',
             rule=self._get_topple,
-            neighborhood=BallNeighborhood(metric='manhattan', center='first'),
+            neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
         )
         self.threshold = threshold
 

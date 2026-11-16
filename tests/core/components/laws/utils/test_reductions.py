@@ -36,9 +36,9 @@ from skcomplex.core.components.laws.utils._reductions import (
     reductions_in,
 )
 from skcomplex.core.components.spaces import (
-    BallNeighborhood,
     ContinuousSpace,
     DiscreteTime,
+    LatticeNeighborhood,
     LatticeSpace,
     NearestNeighborhood,
     NetworkSpace,
@@ -234,8 +234,16 @@ def _minimum_image(difference, side):
 
 def test_neighbors_keeps_the_values_at_lattice_offsets():
     """Test that a lattice neighbourhood without a reduction gives the values at every offset, for local energies."""
-    values = neighbors(var('spin'), BallNeighborhood(metric='manhattan'), reduce='each')
+    cross = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
+    values = neighbors(var('spin'), cross, reduce='each')
     assert [str(item) for item in values] == [f'neighbor(spin, {index})' for index in range(4)]
+    assert len(neighbors(var('spin'), RadiusNeighborhood(1, metric='hexagonal'), reduce='each')) == 6
+
+
+def test_neighbors_each_needs_offsets_known_before_the_lattice():
+    """Test that the values at every offset need a neighbourhood whose offsets do not wait for a lattice."""
+    with pytest.raises(ValidationError, match='known before its lattice'):
+        neighbors(var('spin'), RadiusNeighborhood(1, metric='manhattan'), reduce='each')
 
 
 def test_neighbors_rejects_an_unknown_reduction():
@@ -306,7 +314,7 @@ def test_reduction_over_a_lattice_leaves_out_sites_outside_fixed_edges(backend):
     """Test that a sum over a von Neumann neighbourhood of a fixed lattice sums the neighbours inside the lattice."""
     values = np.arange(12.0).reshape(3, 4)
     space = LatticeSpace((3, 4), boundary='fixed')
-    given = {'y': values, 'over': BallNeighborhood(metric='manhattan')}
+    given = {'y': values, 'over': RadiusNeighborhood(1, metric='manhattan')}
     system = CompositeSystem(
         elements=[GroupElement('g', element=ReducingElement, space=space, values=given, on='sites')],
     )
@@ -1090,7 +1098,7 @@ def test_hyperedges_over_a_neighbourhood_keeps_it():
     ('arguments', 'match'),
     [
         ({'over': RadiusNeighborhood(1.0)}, 'size of 2 or more'),
-        ({'size': 3, 'over': BallNeighborhood(metric='manhattan')}, 'continuous space'),
+        ({'size': 3, 'over': LatticeNeighborhood(((0, 1), (1, 0)))}, 'continuous space'),
     ],
 )
 def test_hyperedges_over_a_neighbourhood_needs_a_size_and_a_metric_neighbourhood(arguments, match):

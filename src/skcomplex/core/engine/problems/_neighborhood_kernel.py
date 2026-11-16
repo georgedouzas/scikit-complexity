@@ -46,7 +46,8 @@ from ._static_search import StaticSearch
 SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
     ((LatticeNeighborhood, MemoryNeighborhood), (LatticeSpace, CayleySpace)),
-    ((RadiusNeighborhood, NearestNeighborhood, DelaunayNeighborhood), (ContinuousSpace,)),
+    (RadiusNeighborhood, (ContinuousSpace, LatticeSpace)),
+    ((NearestNeighborhood, DelaunayNeighborhood), (ContinuousSpace,)),
     (CofaceNeighborhood, (CellComplexSpace,)),
 )
 PLANE = 2
@@ -456,7 +457,7 @@ class NeighborhoodKernel(BaseKernel):
         return indptr, others[order].astype(np.intp), edges[order].astype(np.intp)
 
     @staticmethod
-    def _get_lattice_rows(space: BaseSpace, neighborhood: LatticeNeighborhood | MemoryNeighborhood) -> Pairs:
+    def _get_lattice_rows(space: BaseSpace, neighborhood: BaseNeighborhood) -> Pairs:
         """Return the neighbours of every site of a space in CSR form.
 
         They come in neighbourhood order, without outside sites.
@@ -466,7 +467,7 @@ class NeighborhoodKernel(BaseKernel):
                 The prepared lattice or other space of sites.
 
             neighborhood:
-                The neighbourhood of offsets, or the memory set of a group space.
+                The neighbourhood with lattice offsets, or the memory set of a group space.
 
         Returns:
             rows:
@@ -480,7 +481,7 @@ class NeighborhoodKernel(BaseKernel):
     @staticmethod
     def _get_default_neighborhood(
         space: object,
-    ) -> AdjacencyNeighborhood | LatticeNeighborhood | MemoryNeighborhood | None:
+    ) -> BaseNeighborhood | None:
         """Return the neighbourhood that a reduction without one reads.
 
         It is a network's graph, or a lattice's or group's own.
@@ -640,9 +641,15 @@ class NeighborhoodKernel(BaseKernel):
                 return EdgeRowSearch(source, target, active, rows, directed, center=over.center).prepare()
             NeighborhoodKernel._check_rows(space, rows)
             return StaticSearch(*NeighborhoodKernel._get_network_rows(space, over)).prepare()
-        if isinstance(over, LatticeNeighborhood | MemoryNeighborhood) and isinstance(space, BaseSpace):
+        if isinstance(space, LatticeSpace | CayleySpace):
             NeighborhoodKernel._check_rows(space, rows)
             return StaticSearch(*NeighborhoodKernel._get_lattice_rows(space, over)).prepare()
+        if isinstance(over, RadiusNeighborhood) and over.metric != 'euclidean':
+            error_msg = (
+                f'The neighbourhood {over!r} measures {over.metric} distances, but a continuous space measures '
+                'euclidean ones.'
+            )
+            raise ValidationError(error_msg)
         position = NeighborhoodKernel._get_position_state(states)
         if position is None or not isinstance(space, ContinuousSpace):
             error_msg = (

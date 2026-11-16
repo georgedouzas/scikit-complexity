@@ -16,7 +16,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
@@ -24,7 +24,7 @@ from ....core.types import Array
 DIRECTIONS = 6
 CHANNELS = tuple(f'n{direction}' for direction in range(DIRECTIONS))
 SITE = LatticeNeighborhood(((0, 0),))
-TRIANGULAR = BallNeighborhood(metric='hexagonal')
+TRIANGULAR = RadiusNeighborhood(1, metric='hexagonal')
 VELOCITIES = np.column_stack(
     [np.cos(np.arange(DIRECTIONS) * np.pi / 3), np.sin(np.arange(DIRECTIONS) * np.pi / 3)],
 )

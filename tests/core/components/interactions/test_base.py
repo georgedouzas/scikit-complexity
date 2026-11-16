@@ -31,12 +31,12 @@ from skcomplex.core.components.interactions import (
 from skcomplex.core.components.laws import PartnerSpec, RateLaw, TopologyRequestSpec
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
-    BallNeighborhood,
     BaseSpace,
     ContinuousSpace,
     ContinuousTime,
     DiscreteTime,
     LatticeSpace,
+    RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -73,7 +73,7 @@ RENAMED = {
         lambda role: {
             'state': 'x',
             'rule': lambda *values: 1.0 - values[0],
-            'neighborhood': BallNeighborhood(metric='manhattan'),
+            'neighborhood': RadiusNeighborhood(1, metric='manhattan'),
         },
         True,
     ),

@@ -26,10 +26,10 @@ from skcomplex.core.components.laws import (
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
-    BallNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
     NetworkSpace,
+    RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
@@ -62,7 +62,7 @@ class BurnElement(Element):
         return [
             LocalRuleLaw(
                 s.fire,
-                BallNeighborhood(metric='hexagonal', center='first'),
+                RadiusNeighborhood(1, metric='hexagonal', center=True),
                 lambda *values: np.max(values, axis=0),
             ),
         ]
@@ -82,7 +82,13 @@ class LifeElement(Element):
 
     def _get_laws(self, s):
         """Return the Game of Life rule on the Moore neighbourhood."""
-        return [LocalRuleLaw(s.alive, BallNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
+        return [
+            LocalRuleLaw(
+                s.alive,
+                RadiusNeighborhood(1, metric='chebyshev'),
+                OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}),
+            ),
+        ]
 
 
 class GraphLifeElement(LifeElement):
@@ -136,7 +142,7 @@ def test_triangular_neighbours_wrap_on_torus_at_unit_distance():
     space = LatticeSpace((10, 10), geometry='triangular').prepare()
     neighbours = [
         tuple(np.unravel_index(site, space.shape_))
-        for site in space._get_neighbors(0, BallNeighborhood(metric='hexagonal'))
+        for site in space._get_neighbors(0, RadiusNeighborhood(1, metric='hexagonal'))
     ]
     assert len(set(neighbours)) == 6
     assert {(0, 9), (9, 0), (9, 1)} <= set(neighbours)
@@ -151,7 +157,7 @@ def test_triangular_neighbours_wrap_on_torus_at_unit_distance():
 def test_triangular_opposite_directions_return_to_start():
     """Test that a step in direction k and a step in direction k + 3 return to the starting site."""
     space = LatticeSpace((7, 9), geometry='triangular').prepare()
-    table = space._get_index_table(BallNeighborhood(metric='hexagonal'))
+    table = space._get_index_table(RadiusNeighborhood(1, metric='hexagonal'))
     for site in range(space.size_):
         for k in range(6):
             assert table[table[site, k], (k + 3) % 6] == site
@@ -189,13 +195,13 @@ def test_network_index_table_pads_with_size():
     table = space._get_index_table(AdjacencyNeighborhood(center=True))
     assert table.tolist() == [[0, 1, 2, 3], [1, 0, 4, 4], [2, 0, 4, 4], [3, 0, 4, 4]]
     with pytest.raises(ValidationError, match='adjacency neighbourhood'):
-        space._get_neighbors(0, BallNeighborhood())
+        space._get_neighbors(0, RadiusNeighborhood(1, metric='chebyshev'))
 
 
 def test_grid_graph_matches_square_lattice():
     """Test that a glider gives the same configurations on a periodic lattice and on its Moore graph for 40 steps."""
     lattice = LatticeSpace((20, 20)).prepare()
-    table = lattice._get_index_table(BallNeighborhood())
+    table = lattice._get_index_table(RadiusNeighborhood(1, metric='chebyshev'))
     graph = nx.Graph()
     graph.add_nodes_from(range(lattice.size_))
     graph.add_edges_from((site, int(other)) for site, row in enumerate(table) for other in row)
@@ -413,8 +419,8 @@ def test_colored_schedule_partitions_triangular_lattice():
             return [
                 SampleLaw(
                     ObjectiveSpec(
-                        -s.spin * sum(neighbors(s.spin, BallNeighborhood(metric='hexagonal'), reduce='each')),
-                        BallNeighborhood(metric='hexagonal'),
+                        -s.spin * sum(neighbors(s.spin, RadiusNeighborhood(1, metric='hexagonal'), reduce='each')),
+                        RadiusNeighborhood(1, metric='hexagonal'),
                     ),
                     MoveSpec(s.spin),
                     SamplerSpec('metropolis', 1 / s.temperature, schedule='colored'),
@@ -438,7 +444,9 @@ def test_colored_schedule_partitions_triangular_lattice():
 @pytest.mark.parametrize('space', [LatticeSpace((6, 6), geometry='triangular'), NetworkSpace(nx.cycle_graph(6))])
 def test_checkerboard_rejected_where_it_does_not_apply(space):
     """Test that the checkerboard schedule on a triangular lattice or a graph names the law and the colored schedule."""
-    neighborhood = BallNeighborhood(metric='hexagonal') if isinstance(space, LatticeSpace) else AdjacencyNeighborhood()
+    neighborhood = (
+        RadiusNeighborhood(1, metric='hexagonal') if isinstance(space, LatticeSpace) else AdjacencyNeighborhood()
+    )
 
     class FlipElement(Element):
         """Flip element."""
@@ -479,7 +487,7 @@ def test_extremal_changes_only_the_neighbourhood():
 
         def _get_laws(self, s):
             """Return the laws of the once element."""
-            return [ExtremalLaw(s.value, BallNeighborhood(n_dim=1, center='inline'), _renew)]
+            return [ExtremalLaw(s.value, LatticeNeighborhood(((-1,), (0,), (1,))), _renew)]
 
     values = np.random.default_rng(0).random(100)
     trajectory = simulate(
@@ -636,8 +644,14 @@ def test_life_simulation_agrees_with_the_run_of_its_law():
     rule = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
     space = LatticeSpace((5, 5))
     cells = GroupElement('cells', element=OnOffElement, space=space, values={'alive': start}, on='sites')
-    life = LocalRuleInteraction('life', target='cells', state='alive', rule=rule, neighborhood=BallNeighborhood())
+    life = LocalRuleInteraction(
+        'life',
+        target='cells',
+        state='alive',
+        rule=rule,
+        neighborhood=RadiusNeighborhood(1, metric='chebyshev'),
+    )
     trajectory = simulate(CompositeSystem(elements=[cells], interactions=[life]), until=1, dt=1)
-    law = LocalRuleLaw(var('alive'), BallNeighborhood(), rule).prepare()
+    law = LocalRuleLaw(var('alive'), RadiusNeighborhood(1, metric='chebyshev'), rule).prepare()
     image = law.run({'space': space, 'alive': start.astype(int)}).value_
     np.testing.assert_array_equal(trajectory.get_values('cells.alive')[-1].astype(int), image)

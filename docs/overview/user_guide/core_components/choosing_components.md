@@ -81,14 +81,14 @@ flowchart TD
     A -->|anywhere, moving freely| D[ContinuousSpace]
     A -->|on an irregular domain| E[CellComplexSpace]
     A -->|over a position and a trait| F[PhaseSpace]
-    B --> G[BallNeighborhood]
+    B --> G[RadiusNeighborhood]
     C --> H[AdjacencyNeighborhood]
     D --> I[RadiusNeighborhood]
 ```
 
 | Leaf | Space | Who neighbours whom |
 | --- | --- | --- |
-| on a grid of cells | [`LatticeSpace`](spaces.md#latticespace) | [`BallNeighborhood`](spaces.md#ballneighborhood), the cells within a radius |
+| on a grid of cells | [`LatticeSpace`](spaces.md#latticespace) | [`RadiusNeighborhood`](spaces.md#radiusneighborhood), the cells within a radius |
 | on the nodes of a network | [`NetworkSpace`](spaces.md#networkspace) | [`AdjacencyNeighborhood`](spaces.md#adjacencyneighborhood), the nodes joined by an edge |
 | anywhere, moving freely | [`ContinuousSpace`](spaces.md#continuousspace) | [`RadiusNeighborhood`](spaces.md#radiusneighborhood), the members within a distance |
 | on an irregular domain | [`CellComplexSpace`](spaces.md#cellcomplexspace) of a mesh | the nodes that share a cell |

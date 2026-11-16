@@ -390,7 +390,7 @@ universes, where they are decidable: periodic configurations on a torus or a fin
 It does not decide them on infinite groups. A cellular automaton is a `CompositeSystem` with a
 [`LocalRuleInteraction`](../core_components/interactions.md#localruleinteraction), and the analysis reads the system.
 The first system is the Game of Life on a torus of 6 by 6 cells, whose rule a
-[`BallNeighborhood`](../core_components/spaces.md#ballneighborhood) of the eight surrounding cells reads.
+[`RadiusNeighborhood`](../core_components/spaces.md#radiusneighborhood) of the eight surrounding cells reads.
 
 ```python
 from typing import Annotated
@@ -402,7 +402,7 @@ from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
@@ -422,7 +422,7 @@ def cellular_automaton(space, neighborhood, rule):
 
 
 life_rule = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
-life = cellular_automaton(LatticeSpace((6, 6)), BallNeighborhood(), life_rule)
+life = cellular_automaton(LatticeSpace((6, 6)), RadiusNeighborhood(1, metric='chebyshev'), life_rule)
 automaton(life, kind='surjective').surjective
 ```
 

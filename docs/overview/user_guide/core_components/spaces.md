@@ -36,12 +36,12 @@ live when exactly one of its two neighbours is live, and a single live cell grow
 
 ```python continuation
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime
+from skcomplex.core.components.spaces import DiscreteTime, LatticeNeighborhood, RadiusNeighborhood
 from skcomplex.core.components.laws import TotalisticSpec
 
 start = {'variables': {'c': DeclaredVariableSpec(0.0, StateSpec())}, 'c': [0, 0, 0, 1, 0, 0, 0]}
 cells = GroupElement('cells', element=DeclaredElement, space=LatticeSpace(7), on='sites', values=start)
-pair = BallNeighborhood(metric='manhattan', n_dim=1)
+pair = RadiusNeighborhood(1, metric='manhattan')
 rule = LocalRuleInteraction('rule', target='cells', state='c', rule=TotalisticSpec({1: 1}), neighborhood=pair)
 automaton = CompositeSystem(elements=[cells], interactions=[rule], time=DiscreteTime())
 simulate(automaton, until=2).get_values('cells.c').astype(int).tolist()
@@ -62,7 +62,7 @@ grid.size_, grid.shape_, grid.positions_[:3].tolist()
 The grid has 6 sites in the shape `(2, 3)`, and the first row sits at `(0, 0)`, `(0, 1)`, and `(0, 2)`.
 
 **How it combines.** A `GroupElement` with `on='sites'` holds one member per site, and a `FieldElement` adds the
-operators of space, such as the Laplacian. `LocalRuleInteraction` reads a `BallNeighborhood` or a
+operators of space, such as the Laplacian. `LocalRuleInteraction` reads a `RadiusNeighborhood` or a
 `LatticeNeighborhood` around each site, and `CouplingInteraction` and `SamplingInteraction` read the nearest
 neighbours. `CellComplexSpace`, `PhaseSpace`, and `SimplexSpace` build on a lattice.
 
@@ -641,107 +641,6 @@ issubclass(LatticeSpace, BaseSpace), issubclass(ContinuousSpace, BaseSpace)
 See its [fact sheet](../../../components/spaces.md#basespace)
 and its [API entry][skcomplex.core.components.spaces.BaseSpace].
 
-## BallNeighborhood
-
-A `BallNeighborhood` takes the lattice offsets within a radius under a metric. The Manhattan metric of radius 1 gives
-the four sites of the von Neumann neighbourhood, and the Chebyshev metric the eight of the Moore neighbourhood. In a
-sandpile a site with four grains or more topples, sends one grain to each of its four neighbours, and grains that
-leave the grid are lost.
-
-```python
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
-
-
-def topple(height, *neighbours):
-    return height - 4 * (height >= 4) + sum(neighbour >= 4 for neighbour in neighbours)
-
-
-grains = {'variables': {'h': DeclaredVariableSpec(0.0, StateSpec())}, 'h': [0, 0, 0, 0, 4, 0, 0, 0, 0]}
-board = LatticeSpace((3, 3), boundary='fixed')
-pile = GroupElement('pile', element=DeclaredElement, space=board, on='sites', values=grains)
-cross = BallNeighborhood(metric='manhattan', center='first')
-toppling = LocalRuleInteraction('toppling', target='pile', state='h', rule=topple, neighborhood=cross)
-sandpile = CompositeSystem(elements=[pile], interactions=[toppling], time=DiscreteTime())
-simulate(sandpile, until=1).get_values('pile.h')[-1].reshape(3, 3).tolist()
-```
-
-With `center='first'` the rule receives the site itself before its four neighbours. The centre topples, and each of
-its four neighbours gains one grain.
-
-In a model of opinions each person reads the eight people around them on a grid, as in the voter model. Under a
-majority rule a person takes the opinion of more than half of them, and keeps their own on a tie.
-
-```python continuation
-import numpy as np
-
-
-def majority(opinion, *neighbours):
-    votes = sum(neighbours)
-    return np.where(votes > 4, 1.0, np.where(votes < 4, 0.0, opinion))
-
-
-camps = [1, 1, 0, 0] * 4
-camps[5] = 0
-voters = {'variables': {'o': DeclaredVariableSpec(0.0, StateSpec())}, 'o': camps}
-people = GroupElement('people', element=DeclaredElement, space=LatticeSpace((4, 4)), on='sites', values=voters)
-moore = BallNeighborhood(center='first')
-vote = LocalRuleInteraction('vote', target='people', state='o', rule=majority, neighborhood=moore)
-opinions = simulate(CompositeSystem(elements=[people], interactions=[vote], time=DiscreteTime()), until=1)
-opinions.get_values('people.o')[-1].reshape(4, 4).astype(int).tolist()
-```
-
-The person at site 5, alone in their camp, joins the camp of the left half after one step.
-
-**How the engine runs it.** `prepare` lists the offsets in `offsets_`, in lexicographic order for the Manhattan and
-Chebyshev metrics and ring by ring for the hexagonal one. The space turns them into a table of the neighbour of every
-site in every slot, and the rule receives the values in that order.
-
-```python continuation
-cross.prepare().offsets_
-```
-
-The site comes first, at `(0, 0)`, and its four neighbours follow in lexicographic order.
-
-**How it combines.** It is the neighbourhood of `LocalRuleInteraction`, of `SamplingInteraction`, and of the
-`neighbors` reduction on a `LatticeSpace`. Its offsets have the dimension of the lattice.
-
-**Limits and errors.** A ball is symmetric, so a neighbourhood of one direction needs a `LatticeNeighborhood`. Its
-`n_dim` must match the lattice, and the run raises a `ValidationError` when it does not.
-
-```python continuation
-from skcomplex.core.errors import ValidationError
-
-line = GroupElement('line', element=DeclaredElement, space=LatticeSpace(5), on='sites', values=grains | {'h': 0.0})
-toppling = LocalRuleInteraction('toppling', target='line', state='h', rule=topple, neighborhood=BallNeighborhood())
-try:
-    simulate(CompositeSystem(elements=[line], interactions=[toppling], time=DiscreteTime()), until=1)
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message says that the neighbourhood has offsets of dimension 2, but the lattice has 1 dimension. The fix is
-`BallNeighborhood(n_dim=1)`.
-
-**A field realization.** A field names the ball it reads, such as the von Neumann neighbourhood of a sandpile.
-
-```python continuation
-class VonNeumannNeighborhood(BallNeighborhood):
-    def __init__(self, *, label='von_neumann'):
-        super().__init__(1, metric='manhattan', label=label)
-
-
-len(VonNeumannNeighborhood().prepare().offsets_)
-```
-
-See its [fact sheet](../../../components/spaces.md#ballneighborhood)
-and its [API entry][skcomplex.core.components.spaces.BallNeighborhood].
-
 ## LatticeNeighborhood
 
 A `LatticeNeighborhood` takes any list of lattice offsets, in the order a rule receives their values. Rule 90 of an
@@ -784,8 +683,8 @@ The pulse of two cells moves one cell to the right at each step.
 table of the neighbour of every site at every offset, following its boundary, and the rule receives one array per
 offset.
 
-**How it combines.** It fills the same places as `BallNeighborhood`: `LocalRuleInteraction`, `SamplingInteraction`,
-and the `neighbors` reduction on a `LatticeSpace`.
+**How it combines.** It fills the same places as `RadiusNeighborhood` on a lattice: `LocalRuleInteraction`,
+`SamplingInteraction`, and the `neighbors` reduction on a `LatticeSpace`.
 
 **Limits and errors.** Every offset has the number of dimensions of the lattice, and `prepare` raises a
 `ValidationError` for offsets of different lengths.
@@ -892,7 +791,7 @@ message
 ```
 
 The message says that a lattice reads a lattice neighbourhood of offsets, but was given an `AdjacencyNeighborhood`.
-The fix is a `BallNeighborhood` on a lattice, or a `NetworkSpace` for the adjacency.
+The fix is a `RadiusNeighborhood` on a lattice, or a `NetworkSpace` for the adjacency.
 
 **A field realization.** A field names the layer it reads, such as the household of each person in an epidemic.
 
@@ -1001,9 +900,9 @@ and its [API entry][skcomplex.core.components.spaces.CofaceNeighborhood].
 
 ## RadiusNeighborhood
 
-A `RadiusNeighborhood` takes the members of a continuous space within a distance of each member, so the number of
-neighbours varies. In the Vicsek model birds align with the flockmates they see within a range. Here each bird counts
-the birds within one unit.
+A `RadiusNeighborhood` takes the members within a distance of each member under a metric. In a continuous space they are
+the members whose positions lie within the radius, so the number of neighbours varies. In the Vicsek model birds align
+with the flockmates they see within a range. Here each bird counts the birds within one unit.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement, GroupElement
@@ -1044,12 +943,74 @@ simulate(system, until=1).get_values('flock.seen')[-1].tolist()
 
 The first atom now reaches three others, the atom at `x = 9.8` among them, and that atom reaches the first.
 
-**How the engine runs it.** At every evaluation the engine finds the pairs of members within the radius from their
-current position states, so the neighbours follow the members as they move. An `angle` below `pi` keeps only the
-neighbours inside a cone around the direction of each member, a field of view.
+On a lattice it takes the offsets within the radius under the metric, in as many dimensions as the lattice has. The
+Manhattan metric of radius 1 gives the four sites of the von Neumann neighbourhood, and the Chebyshev metric the eight
+of the Moore neighbourhood. In a sandpile a site with four grains or more topples, sends one grain to each of its four
+neighbours, and grains that leave the grid are lost.
 
-**How it combines.** It is the neighbourhood of `CouplingInteraction`, of the `neighbors` reduction, and of the
-hyperedges of a continuous space. Its partners are groups with a vector position state on a `ContinuousSpace`.
+```python
+from skcomplex.core.components.elements import DeclaredElement, GroupElement
+from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.core.components.spaces import DiscreteTime, LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+
+
+def topple(height, *neighbours):
+    return height - 4 * (height >= 4) + sum(neighbour >= 4 for neighbour in neighbours)
+
+
+grains = {'variables': {'h': DeclaredVariableSpec(0.0, StateSpec())}, 'h': [0, 0, 0, 0, 4, 0, 0, 0, 0]}
+board = LatticeSpace((3, 3), boundary='fixed')
+pile = GroupElement('pile', element=DeclaredElement, space=board, on='sites', values=grains)
+cross = RadiusNeighborhood(1, metric='manhattan', center=True)
+toppling = LocalRuleInteraction('toppling', target='pile', state='h', rule=topple, neighborhood=cross)
+sandpile = CompositeSystem(elements=[pile], interactions=[toppling], time=DiscreteTime())
+simulate(sandpile, until=1).get_values('pile.h')[-1].reshape(3, 3).tolist()
+```
+
+With `center=True` the rule receives the site itself before its four neighbours. The centre topples, and each of
+its four neighbours gains one grain.
+
+In a model of opinions each person reads the eight people around them on a grid, as in the voter model. Under a
+majority rule a person takes the opinion of more than half of them, and keeps their own on a tie.
+
+```python continuation
+import numpy as np
+
+
+def majority(opinion, *neighbours):
+    votes = sum(neighbours)
+    return np.where(votes > 4, 1.0, np.where(votes < 4, 0.0, opinion))
+
+
+camps = [1, 1, 0, 0] * 4
+camps[5] = 0
+voters = {'variables': {'o': DeclaredVariableSpec(0.0, StateSpec())}, 'o': camps}
+people = GroupElement('people', element=DeclaredElement, space=LatticeSpace((4, 4)), on='sites', values=voters)
+moore = RadiusNeighborhood(1, metric='chebyshev', center=True)
+vote = LocalRuleInteraction('vote', target='people', state='o', rule=majority, neighborhood=moore)
+opinions = simulate(CompositeSystem(elements=[people], interactions=[vote], time=DiscreteTime()), until=1)
+opinions.get_values('people.o')[-1].reshape(4, 4).astype(int).tolist()
+```
+
+The person at site 5, alone in their camp, joins the camp of the left half after one step.
+
+
+**How the engine runs it.** In a continuous space, at every evaluation the engine finds the pairs of members within the
+radius from their current position states, so the neighbours follow the members as they move. An `angle` below `pi`
+keeps only the neighbours inside a cone around the direction of each member, a field of view. On a lattice the engine
+asks for the offsets in the dimensions of the lattice, in lexicographic order for the Euclidean, Manhattan, and
+Chebyshev metrics and ring by ring for the hexagonal one, with the site first when `center` is set. The lattice turns
+them into a table of the neighbour of every site in every slot, and a rule receives the values in that order. The
+sandpile rule above receives the site first, at `(0, 0)`, and its four neighbours in lexicographic order.
+
+**How it combines.** It is the neighbourhood of `CouplingInteraction`, of `LocalRuleInteraction`, of
+`SamplingInteraction`, of the `neighbors` reduction, and of the hyperedges of a continuous space. Its partners are
+groups with a vector position state on a `ContinuousSpace`, or groups on the sites of a `LatticeSpace`. A neighbourhood
+of one direction, or of an order of its own, such as a cell and its two neighbours from left to right, needs a
+`LatticeNeighborhood`.
 
 **Limits and errors.** The radius is positive, and `prepare` raises a `ValidationError` otherwise.
 
@@ -1430,9 +1391,9 @@ and its [API entry][skcomplex.core.components.spaces.StateTranslationNeighborhoo
 from it, and the space that reads it decides which kinds it accepts.
 
 ```python
-from skcomplex.core.components.spaces import BallNeighborhood, BaseNeighborhood, RadiusNeighborhood
+from skcomplex.core.components.spaces import BaseNeighborhood, LatticeNeighborhood, RadiusNeighborhood
 
-issubclass(BallNeighborhood, BaseNeighborhood), issubclass(RadiusNeighborhood, BaseNeighborhood)
+issubclass(LatticeNeighborhood, BaseNeighborhood), issubclass(RadiusNeighborhood, BaseNeighborhood)
 ```
 
 See its [fact sheet](../../../components/spaces.md#baseneighborhood)

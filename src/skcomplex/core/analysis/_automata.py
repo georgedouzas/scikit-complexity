@@ -334,7 +334,7 @@ def automaton(
         >>> from skcomplex.core.analysis import automaton
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import LocalRuleInteraction
-        >>> from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
+        >>> from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec, SubshiftSpec
         >>> from skcomplex.core.components.laws import TableSpec, TotalisticSpec
@@ -351,7 +351,7 @@ def automaton(
         >>> shift = build(8, TableSpec({(1,): 1}), LatticeNeighborhood(((1,),)))
         >>> automaton(shift).injective
         True
-        >>> majority = build(5, TotalisticSpec(lambda total: total >= 2), BallNeighborhood(n_dim=1, center='inline'))
+        >>> majority = build(5, TotalisticSpec(lambda total: total >= 2), LatticeNeighborhood(((-1,), (0,), (1,))))
         >>> automaton(majority, kind='garden-of-eden').pattern.tolist()
         [0, 0, 1, 0, 1]
         >>> class GoldenCellElement(Element):
@@ -694,7 +694,7 @@ def _get_table(automaton: _AutomatonSpec, space: BaseSpace) -> Indices:
 
     The table includes the sites outside it.
     """
-    return _fitted(space)._get_index_table(automaton.law._get_neighborhood())
+    return _fitted(space)._get_index_table(automaton.law._get_neighborhood(_fitted(space)))
 
 
 def _step(automaton: _AutomatonSpec, configuration: npt.ArrayLike, space: BaseSpace | None = None) -> IntArray:
@@ -885,7 +885,8 @@ def _ball_neighborhood(automaton: _AutomatonSpec, radius: int) -> Reach:
 
     It is a box of offsets or a ball of group elements.
     """
-    if isinstance(automaton.space, LatticeSpace) and not isinstance(automaton.law.over, LatticeNeighborhood):
+    reach = automaton.law._get_neighborhood(_fitted(automaton.space))
+    if isinstance(automaton.space, LatticeSpace) and not isinstance(reach, LatticeNeighborhood):
         error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
         raise AnalysisError(error_msg)
     ball = automaton.space._get_ball(radius)
@@ -989,7 +990,7 @@ def _get_reach(automaton: _AutomatonSpec) -> Reach:
 
     It is made of offsets or of group elements.
     """
-    reach = automaton.law._get_neighborhood()
+    reach = automaton.law._get_neighborhood(_fitted(automaton.space))
     if not isinstance(reach, LatticeNeighborhood | MemoryNeighborhood):
         error_msg = f'An automaton reads offsets or a memory set, not {reach!r}.'
         raise AnalysisError(error_msg)
@@ -1099,11 +1100,12 @@ def _get_polynomial(automaton: _AutomatonSpec) -> LaurentPolynomial:
     It is its symbol on `Z^d`.
     """
     rule = _get_linear_rule(automaton)
-    if not isinstance(automaton.law.over, LatticeNeighborhood):
+    reach = automaton.law._get_neighborhood(_fitted(automaton.space))
+    if not isinstance(reach, LatticeNeighborhood):
         error_msg = 'A Laurent polynomial describes a linear automaton on a lattice, with offsets.'
         raise AnalysisError(error_msg)
     field = rule.sage_field
-    offsets = automaton.law.over.prepare().offsets_
+    offsets = reach.prepare().offsets_
     ring = LaurentPolynomialRing(field, [f'x{axis}' for axis in range(len(offsets[0]))])
     terms = (
         field(QQ(coefficient)) * np.prod([variable**step for variable, step in zip(ring.gens(), offset, strict=True)])
