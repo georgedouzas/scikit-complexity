@@ -17,12 +17,13 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.components.elements import FieldElement
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import coordinate, integral_transform, integration_variable
-from ....core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseSpace, SimplexSpace
+from ....core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import VisualSpec
 from ..common.kinetics import ActivityDensityElement
+from ..common.simplices import SimplexSpace
 
 PAIRWISE_VICTORIES = ('fermi', 'local', 'tullock')
 TRIMORPHIC_VICTORIES = ('defectors', 'payoff')

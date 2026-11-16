@@ -70,7 +70,9 @@ class BaseSpace(BaseComponent[None, SimpleNamespace]):
     the neighbour of every site in every slot of a neighbourhood, `_translation_table` the sites a group space reads at
     the products of a site and a group element, `_ball` the neighbourhood within a radius, `_neighbor_pairs` the pairs
     of neighbouring sites, and `_default_neighborhood` the neighbourhood that `_get_neighbors` reads when none is given.
-    A space without sites, such as a continuous one, answers none of them.
+    A space without sites, such as a continuous one, answers none of them. Every space also answers what the engine
+    asks of its cells: `_get_volumes` gives the fraction of every cell inside the domain, `_get_apertures` the open
+    fraction of every face, and `_supports_operator` whether a field on it takes an operator, such as `laplacian`.
 
     Unlike `BaseElement`, it holds no states, only the structure that members sit on. Choose it when members live on a
     new kind of structure, and choose `LatticeSpace`, `NetworkSpace`, or `ContinuousSpace` otherwise.
@@ -216,6 +218,35 @@ class BaseSpace(BaseComponent[None, SimpleNamespace]):
         """
         error_msg = f'{type(self).__name__} has no sites, so it has no neighbour pairs.'
         raise SpaceError(error_msg)
+
+    def _get_volumes(self) -> npt.NDArray[np.float64] | None:
+        """Return the fraction of every cell inside the domain, or `None` for whole cells.
+
+        Every cell is whole by default. A space whose domain cuts its cells, such as a simplex, returns the fractions.
+        """
+        return None
+
+    def _get_apertures(self) -> tuple[npt.NDArray[np.float64], ...]:
+        """Return the open fraction of every face along every axis, empty for open faces.
+
+        Every face is open by default.
+        """
+        return ()
+
+    def _supports_operator(self, name: str) -> bool:
+        """Check whether a field on the space takes an operator.
+
+        Every space takes every operator by default.
+
+        Args:
+            name:
+                The name of the operator, such as `'laplacian'`.
+
+        Returns:
+            supported:
+                Whether a law may apply the operator to a field on the space.
+        """
+        return True
 
     def _get_neighbors(self, site: int, neighborhood: BaseNeighborhood | None = None) -> npt.NDArray[np.intp]:
         """Return the sites around a site inside the space.

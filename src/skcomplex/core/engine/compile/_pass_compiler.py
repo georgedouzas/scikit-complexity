@@ -58,7 +58,6 @@ from ...components.spaces import (
     NetworkSpace,
     PhaseSpace,
     RadiusNeighborhood,
-    SimplexSpace,
     StaticTime,
 )
 from ...components.systems import CompositeSystem
@@ -1432,8 +1431,8 @@ class PassCompiler(BaseCompiler):
         operands = call.operands()
         places = {id(fields[str(item)]): fields[str(item)] for item in operands[0].variables() if str(item) in fields}
         if name in LOCAL_OPERATORS:
-            simplex = [place for place in places.values() if isinstance(place.space, SimplexSpace)]
-            return PassCompiler._place_issue(record, name, simplex[0]) if simplex else None
+            unsupported = [place for place in places.values() if not place.space._supports_operator(name)]
+            return PassCompiler._place_issue(record, name, unsupported[0]) if unsupported else None
         if len({id(place.space) for place in places.values()}) > 1:
             message = f'The {law} applies {name} to {operands[0]}, which reads fields of more than one space.'
             return IssueSpec('operator-spaces', record.path, message, 'Apply the operator to the states of one field.')
@@ -1460,8 +1459,11 @@ class PassCompiler(BaseCompiler):
         """
         law = PassCompiler._get_law_name(record)
         space = place.space
-        if isinstance(space, SimplexSpace) and name in LOCAL_OPERATORS:
-            message = f'The {law} applies {name} to a field on a simplex, which only takes finite-volume fluxes.'
+        if name in LOCAL_OPERATORS and not space._supports_operator(name):
+            message = (
+                f'The {law} applies {name} to a field on {type(space).__name__}, whose cells only take finite-volume '
+                'fluxes.'
+            )
             fix = 'Write the transport as a flux of the finite-volume discretization.'
             return IssueSpec('law-space', record.path, message, fix)
         if name == 'integral_transform' and not isinstance(space, PhaseSpace):

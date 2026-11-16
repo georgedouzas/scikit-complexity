@@ -7,8 +7,10 @@ import numpy as np
 import numpy.typing as npt
 from scipy.stats import irwinhall
 
-from ...errors import ValidationError
-from ._phase import PhaseSpace
+from .....core.components.spaces import PhaseSpace
+from .....core.errors import ValidationError
+
+DISCRETIZED_OPERATORS = ('laplacian', 'partial', 'upwind', 'inverse_helmholtz')
 
 
 class SimplexSpace(PhaseSpace):
@@ -52,8 +54,8 @@ class SimplexSpace(PhaseSpace):
             The product has more sites than the limit.
 
     Examples:
-        >>> from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
-        >>> from skcomplex.core.components.spaces import AxisSpec
+        >>> from skcomplex.core.components.spaces import AxisSpec, LatticeSpace
+        >>> from skcomplex.systems.social.common.simplices import SimplexSpace
         >>> axes = [AxisSpec('x', 10, 0.0, 1.0), AxisSpec('y', 10, 0.0, 1.0)]
         >>> space = SimplexSpace(LatticeSpace((1,)), axes).prepare()
         >>> space.shape_, float(space.volumes_.sum())
@@ -91,6 +93,22 @@ class SimplexSpace(PhaseSpace):
             fraction = self._get_fraction(cells - grid[axis] - others, dimensions - 1)
             apertures.append(np.reshape(fraction, (*positions, *fraction.shape)))
         self.apertures_ = tuple(apertures)
+
+    def _get_volumes(self) -> npt.NDArray[np.float64]:
+        """Return the fraction of the volume of every cell inside the simplex."""
+        return self.volumes_
+
+    def _get_apertures(self) -> tuple[npt.NDArray[np.float64], ...]:
+        """Return the fraction of every face inside the simplex along every axis."""
+        return self.apertures_
+
+    def _supports_operator(self, name: str) -> bool:
+        """Check whether a field on the simplex takes an operator.
+
+        The partial cells along the slanted face take finite-volume fluxes, reductions, and integrals, but no local
+        operator of finite differences, such as `laplacian`, nor a spectral inversion.
+        """
+        return name not in DISCRETIZED_OPERATORS
 
     @staticmethod
     def _get_fraction(room: npt.NDArray[np.int_], dimensions: int) -> npt.NDArray[np.float64]:

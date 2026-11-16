@@ -27,7 +27,6 @@ from ._network import NetworkSpace
 from ._phase import PhaseSpace
 from ._radius import RadiusNeighborhood
 from ._schedule_spec import ScheduleSpec
-from ._simplex import SimplexSpace
 from ._state_translation import StateTranslationNeighborhood
 from ._static_time import StaticTime
 
@@ -53,7 +52,6 @@ __all__: list[str] = [
     'PhaseSpace',
     'RadiusNeighborhood',
     'ScheduleSpec',
-    'SimplexSpace',
     'StateTranslationNeighborhood',
     'StaticTime',
 ]

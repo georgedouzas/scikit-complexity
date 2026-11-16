@@ -1,4 +1,4 @@
-"""Test simplex spaces, phase spaces whose class axes are the free frequencies of a simplex."""
+"""Test the `_simplex` module of `skcomplex.systems.social.common.simplices`."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,12 +15,13 @@ from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, moment
-from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, SimplexSpace
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec
+from skcomplex.systems.social.common.simplices import SimplexSpace
 
 SIZE = 12
 

@@ -1956,6 +1956,10 @@ examples to read, and the gallery example of each system runs it.
 - `TopplingInteraction` drives the members of a lattice and relaxes every member at or above a threshold, as in
   `SandpileSystem` of `skcomplex.systems.physics.criticality`. The section
   [Cascades](../build_a_custom_system/lattice_systems.md#cascades) writes a cascade with the core `CascadeLaw`.
+- `SimplexSpace` of `skcomplex.systems.social.common.simplices` holds a density over the frequencies of several
+  types, which sum to at most one, as in `TrimorphicMultilevelSelectionSystem` of
+  `skcomplex.systems.social.cooperation`. The section
+  [Simplex domains](../build_a_custom_system/phase_space_fields.md#simplex-domains) runs it.
 - `PolicyRuleInteraction` sets parameters once per round of its phase from what happened in the round, as in
   `BrockHommesSystem` of `skcomplex.systems.economics.markets`. A plain `Interaction` that returns
   `RuleLaw(self.act, phase=...)` does the same, as the clerk of the market above shows.
