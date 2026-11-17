@@ -12,7 +12,6 @@ escapes over the barrier to infinity once its energy exceeds it, so the phase pl
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import ParticleInAWellSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'particle_in_a_well'
 
 system = ParticleInAWellSystem(x=1.0, v=0.5, k=2.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=25, dt=0.1, observers=[observer])
+trajectory = system.prepare().simulate(until=25, dt=0.1, observers=[observer])
 
 # %%
 # Trapped and escaping orbits
@@ -34,9 +33,9 @@ energy = grid_v**2 / 2 + 2 * grid_x**2 * np.exp(-grid_x)
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.contour(grid_x, grid_v, energy, levels=[8 * np.exp(-2)], colors='black', linestyles='--')
 for speed in [0.2, 0.5, 0.8, 0.9]:
-    run = simulate(ParticleInAWellSystem(x=1.0, v=speed, k=2.0), until=25, dt=0.02)
+    run = ParticleInAWellSystem(x=1.0, v=speed, k=2.0).prepare().simulate(until=25, dt=0.02)
     position = np.ravel(run.get_values('particle.x'))
-    velocity = np.ravel(run.get_values('particle.x_d1'))
+    velocity = np.ravel(run.get_values("particle.x'"))
     inside = position < 6
     ax.plot(position[inside], velocity[inside], label=f'v0 = {speed}')
 ax.set_xlim(-1.0, 6.0)

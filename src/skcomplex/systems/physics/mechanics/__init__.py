@@ -5,7 +5,7 @@ The package covers pendulums, oscillators, friction, projectiles, collisions, ro
 
 from ..common.mechanics import PendulumElement, PendulumInteraction
 from ..common.particles import HarmonicForceInteraction
-from ._accelerators import BeamBeamMapSystem, FrictionOscillatorSystem
+from ._accelerators import BeamBeamInteraction, BeamBeamMapSystem, FrictionOscillatorSystem, StickSlipInteraction
 from ._mechanics import (
     BouncingBallElement,
     BouncingBallSystem,
@@ -50,12 +50,13 @@ from ._rotations import (
     RotatingSwingInteraction,
     RotatingSwingSystem,
 )
-from ._springs import TwoMassSpringDamperSystem
+from ._springs import ElasticLinkInteraction, TwoMassSpringDamperSystem
 from ._wells import ExponentialWellInteraction, ParticleInAWellSystem
 
 __all__: list[str] = [
     'BallisticPendulumElement',
     'BallisticPendulumSystem',
+    'BeamBeamInteraction',
     'BeamBeamMapSystem',
     'BouncingBallElement',
     'BouncingBallSystem',
@@ -72,6 +73,7 @@ __all__: list[str] = [
     'DoublePendulumSystem',
     'DrivenDampedOscillatorSystem',
     'ElasticCollisionInteraction',
+    'ElasticLinkInteraction',
     'ExponentialWellInteraction',
     'FrictionOscillatorSystem',
     'GimballedGyroscopeSystem',
@@ -98,6 +100,7 @@ __all__: list[str] = [
     'RotatingSwingElement',
     'RotatingSwingInteraction',
     'RotatingSwingSystem',
+    'StickSlipInteraction',
     'SupportSpringInteraction',
     'TwoMassSpringDamperSystem',
 ]

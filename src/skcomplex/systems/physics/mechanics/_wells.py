@@ -6,22 +6,27 @@ The module holds a particle in the one-dimensional well `k x² e^-x`.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec
-from ..common.particles import MassPointElement, PotentialEnergyInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
-class ExponentialWellInteraction(PotentialEnergyInteraction):
+class ExponentialWellInteraction(Interaction):
     """Potential `k x² e^-x` on a particle in one dimension.
 
-    The potential has a well at `x = 0` behind a barrier at `x = 2`.
+    The potential has a well at `x = 0` behind a barrier at `x = 2`. The particle of mass `m` follows
+    `m x'' = -k (2 x - x²) e^-x`.
 
     Args:
         label:
@@ -39,29 +44,31 @@ class ExponentialWellInteraction(PotentialEnergyInteraction):
         2.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        target: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 2.0,
     ) -> None:
-        super().__init__(label, target=target)
+        super().__init__(label)
+        self.target = target
         self.k = k
 
-    def _get_potential(self, s: SimpleNamespace) -> Expression:
-        """Return `k x² e^-x`.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the acceleration of the particle, the force `-dU/dx` over its mass.
 
         Args:
-            s:
-                The namespace of the symbols the energy can use.
-
-        Returns:
-            energy:
-                The potential energy as a symbolic expression.
+            context:
+                The namespace of the particle, the time `t`, and the parameters.
         """
-        position = s.target.x[0]
-        return s.k * position**2 * exp(-position)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            force = -context.k * (2 * x - x**2) * exp(-x)
+            self.laws_ = [RateLaw(x.diff(context.t, 2), force / context.target.m)]
 
 
 class ParticleInAWellSystem(BaseSystem):
@@ -114,11 +121,17 @@ class ParticleInAWellSystem(BaseSystem):
         self.k = k
         self.m = m
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a particle moving without friction in the potential `U(x) = k x² e^-x`."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a particle moving without friction in the potential `U(x) = k x² e^-x`.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[MassPointElement('particle', x=self.x, x_d1=self.v, m=self.m)],
+            elements=[Element('particle', values={'x': self.x, 'm': self.m})],
             interactions=[ExponentialWellInteraction('well', target='particle', k=self.k)],
-            space=ContinuousSpace(n_dim=1),
         )
+        self.initial_state_ = {"particle.x'": self.v}
