@@ -14,7 +14,6 @@ stops. The escape times draw bands that wrap ever closer around the set as the r
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.fractals import MandelbrotSystem
 
@@ -23,7 +22,7 @@ WINDOW = (-2.2, 0.8, -1.2, 1.2)
 
 system = MandelbrotSystem(shape=(240, 300), window=WINDOW)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Escape times and the area of the set

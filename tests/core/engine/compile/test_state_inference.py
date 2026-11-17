@@ -561,3 +561,18 @@ def test_get_declared_makes_every_value_of_an_agent_group_a_state():
     assert system.states_ == ('walkers.x', 'walkers.speed')
     trajectory = system.simulate(until=3)
     assert trajectory.get_values('walkers.count').tolist() == [3.0, 3.0, 2.0, 1.0]
+
+
+class Points(Element):
+    """Element whose points `z` are annotated as `object`, since they may be one number or an array."""
+
+    def __init__(self, label: str, *, z: object = 0.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.z = z
+
+
+def test_get_declared_reads_the_kind_of_a_value_annotated_as_object_from_the_value():
+    """Test that complex points of an element class whose argument is annotated `object` are complex states."""
+    points = Points('point', z=np.array([0.1 + 0.1j, 0.2 - 0.1j]), size=2)
+    system = System(elements=[points], interactions=[Julia('julia', target='point', c=0.0)]).prepare()
+    assert system.simulate(until=1, dt=1).get_values('point.z')[-1] == pytest.approx([0.02j, 0.03 - 0.04j])

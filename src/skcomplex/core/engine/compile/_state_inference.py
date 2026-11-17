@@ -158,7 +158,8 @@ class _StateInference:
         """Return the domain of a value from its annotation or its Python type.
 
         A value without an annotation, such as one given through `values`, takes the domain of its type, so `3` is an
-        integer and `0.5 + 1j` is complex.
+        integer and `0.5 + 1j` is complex. The annotation `object` says nothing of the kind, so a value annotated so,
+        such as a point that may be one number or an array of complex numbers, also takes the domain of its type.
         """
         if get_origin(annotation) is not None and get_args(annotation):
             for item in get_args(annotation)[1:]:
@@ -167,7 +168,7 @@ class _StateInference:
                 if hasattr(item, '__contains__') and not isinstance(item, str):
                     return item
             annotation = get_args(annotation)[0]
-        annotated = isinstance(annotation, type) and annotation is not inspect.Parameter.empty
+        annotated = isinstance(annotation, type) and annotation not in {inspect.Parameter.empty, object}
         kind = annotation if annotated else type(value)
         if kind is bool:
             return BOOLEAN

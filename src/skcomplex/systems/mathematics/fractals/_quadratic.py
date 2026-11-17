@@ -8,19 +8,22 @@ The module covers the Mandelbrot set, the filled Julia sets, and their inverse i
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import CC, NN, oo, sqrt
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import sqrt
 
-from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import bernoulli, where
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from .types import Window
 
 MANDELBROT_WINDOW: Window = (-2.2, 0.8, -1.2, 1.2)
@@ -28,19 +31,43 @@ JULIA_WINDOW: Window = (-1.6, 1.6, -1.2, 1.2)
 
 
 class InverseJuliaPointElement(Element):
-    """Point of the inverse iteration of `z -> z² + omega`.
+    """Points of the inverse iteration of `z -> z² + omega`, each with its point `z`.
 
-    The point moves to a square root of `z - omega` drawn at random.
-
-    The point moves to `+√(z - omega)` with probability `p` and to `-√(z - omega)` otherwise, with the principal
-    square root.
+    An `InverseJuliaInteraction` moves every point to a square root of `z - omega` drawn at random.
 
     Args:
         label:
-            The label of the element or the group.
+            The label of the points.
 
         z:
-            The initial point.
+            The initial point, one per member or shared.
+
+        size:
+            The number of points, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractals import InverseJuliaPointElement
+        >>> InverseJuliaPointElement('point', z=0.5j).z
+        0.5j
+    """
+
+    def __init__(self, label: str, *, z: object = 0.5, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.z = z
+
+
+class InverseJuliaInteraction(Interaction):
+    """Move of a point to a random square root of `z - omega`.
+
+    The point moves to `+√(z - omega)` with probability `p` and to `-√(z - omega)` otherwise, with the principal square
+    root, drawn anew at every step for every member of a bound group.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The points whose value `z` the interaction moves.
 
         omega:
             The constant of the quadratic map.
@@ -49,46 +76,40 @@ class InverseJuliaPointElement(Element):
             The probability of the positive square root.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.fractals import InverseJuliaPointElement
-        >>> InverseJuliaPointElement('point', p=0.3).p
+        >>> from skcomplex.systems.mathematics.fractals import InverseJuliaInteraction
+        >>> InverseJuliaInteraction('inverse', p=0.3).p
         0.3
     """
 
-    draws = True
-
     law_classes = (UpdateLaw,)
+    draws = True
 
     def __init__(
         self,
         label: str,
         *,
-        z: Annotated[object, StateSpec(domain=CC)] = 0.5,
-        omega: Annotated[object, ParameterSpec(domain=CC)] = 0.0,
-        p: Annotated[object, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.5,
+        target: Role = 'points',
+        omega: complex = 0.0,
+        p: float = 0.5,
     ) -> None:
         super().__init__(label)
-        self.z = z
+        self.target = target
         self.omega = omega
         self.p = p
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the move to the square root drawn in the step.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [UpdateLaw(s.z, (2 * bernoulli('branch', s.p) - 1) * sqrt(s.z - s.omega))]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the move to the square root drawn in the step as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            z = context.target.z
+            root = sqrt(z - context.omega)
+            self.laws_: list[BaseComponent] = [UpdateLaw(z, (2 * bernoulli('branch', context.p) - 1) * root)]
 
 
 class QuadraticMapElement(Element):
-    """Complex quadratic map `z' = z^2 + c` with a count of its steps.
+    """Points of the complex quadratic map `z' = z^2 + c`, each with a count `n` of its steps.
 
-    The map runs while `|z|` stays within the escape radius.
+    A `QuadraticMapInteraction` iterates the points while they stay within the escape radius.
 
     Args:
         label:
@@ -103,8 +124,8 @@ class QuadraticMapElement(Element):
         c:
             The constant of the map.
 
-        radius:
-            The escape radius.
+        space:
+            The space with one point per site, or `None` for one point.
 
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import QuadraticMapElement
@@ -114,40 +135,59 @@ class QuadraticMapElement(Element):
 
     visual = VisualSpec('image', {'states': ('n',), 'low': 0.0})
 
-    law_classes = (UpdateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        z: Annotated[object, StateSpec(domain=CC)] = 0.0,
-        n: Annotated[object, StateSpec(domain=NN)] = 0.0,
-        c: Annotated[object, ParameterSpec(domain=CC)] = 0.0,
-        radius: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        z: object = 0.0,
+        n: int = 0,
+        c: object = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.z = z
         self.n = n
         self.c = c
+
+
+class QuadraticMapInteraction(Interaction):
+    """Iteration of `z' = z^2 + c` with a count of the steps within the escape radius.
+
+    The point stays once `|z|` exceeds the escape radius, and the count `n` stops at its escape time.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The points whose values `z` and `n` the map sets.
+
+        radius:
+            The escape radius.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractals import QuadraticMapInteraction
+        >>> QuadraticMapInteraction('escape', radius=3.0).radius
+        3.0
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'plane', radius: float = 2.0) -> None:
+        super().__init__(label)
+        self.target = target
         self.radius = radius
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next point and the next count.
-
-        The point stays once it escaped.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [
-            UpdateLaw(s.z, where(abs(s.z) <= s.radius, s.z**2 + s.c, s.z)),
-            UpdateLaw(s.n, s.n + where(abs(s.z) <= s.radius, 1, 0)),
-        ]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next point and the next count as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            z, n, c = context.target.z, context.target.n, context.target.c
+            inside = abs(z) <= context.radius
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(z, where(inside, z**2 + c, z)),
+                UpdateLaw(n, n + where(inside, 1, 0)),
+            ]
 
 
 class MandelbrotSystem(BaseSystem):
@@ -173,9 +213,15 @@ class MandelbrotSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import MandelbrotSystem
-        >>> MandelbrotSystem((3, 3), window=(-1, 1, -1, 1)).prepare().system_.elements[0].values['c'][1].tolist()
+        >>> MandelbrotSystem((3, 3), window=(-1, 1, -1, 1)).prepare().system_.elements[0].c[3:6].tolist()
         [(-1+0j), 0j, (1+0j)]
     """
 
@@ -198,18 +244,24 @@ class MandelbrotSystem(BaseSystem):
         return real[np.newaxis, :] + 1j * imaginary[:, np.newaxis]
 
     @staticmethod
-    def _get_escape_field(label: str, shape: Sequence[int], z: object, c: object, radius: float) -> CompositeSystem:
-        """Return the field of the quadratic map over a lattice.
+    def _get_escape_system(
+        label: str,
+        shape: Sequence[int],
+        z: object,
+        c: object,
+        radius: float,
+    ) -> System:
+        """Return the system of the quadratic map over a lattice.
 
-        The field comes from the initial points and the constants.
+        The system comes from the initial points and the constants, given as arrays of the shape of the lattice or as
+        one shared value, and read row by row as one value per site.
         """
         space = LatticeSpace(tuple(int(item) for item in shape))
-        values = {'z': z, 'c': c, 'radius': radius}
-        return CompositeSystem(
+        z, c = (np.ravel(value) if np.ndim(value) else value for value in (z, c))
+        return System(
             label,
-            elements=[
-                FieldElement('plane', element=QuadraticMapElement, space=space, values=values),
-            ],
+            elements=[QuadraticMapElement('plane', z=z, c=c, space=space)],
+            interactions=[QuadraticMapInteraction('escape', target='plane', radius=radius)],
         )
 
     def __init__(
@@ -219,16 +271,25 @@ class MandelbrotSystem(BaseSystem):
         window: Window = MANDELBROT_WINDOW,
         radius: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.window = window
         self.radius = radius
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the points of the window and their escape."""
+        super()._prepare(context)
         points = MandelbrotSystem._get_plane(self.shape, self.window)
-        return MandelbrotSystem._get_escape_field(self.label, self.shape, np.zeros_like(points), points, self.radius)
+        self.system_ = MandelbrotSystem._get_escape_system(
+            self.label,
+            self.shape,
+            np.zeros_like(points),
+            points,
+            self.radius,
+        )
 
 
 class JuliaSystem(BaseSystem):
@@ -257,9 +318,15 @@ class JuliaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import JuliaSystem
-        >>> JuliaSystem(0.0, (3, 3), window=(-1, 1, -1, 1)).prepare().system_.elements[0].values['z'][0].tolist()
+        >>> JuliaSystem(0.0, (3, 3), window=(-1, 1, -1, 1)).prepare().system_.elements[0].z[:3].tolist()
         [(-1+1j), 1j, (1+1j)]
     """
 
@@ -277,17 +344,20 @@ class JuliaSystem(BaseSystem):
         window: Window = JULIA_WINDOW,
         radius: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.c = c
         self.shape = shape
         self.window = window
         self.radius = radius
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the starting points of the window and their escape."""
+        super()._prepare(context)
         points = MandelbrotSystem._get_plane(self.shape, self.window)
-        return MandelbrotSystem._get_escape_field(self.label, self.shape, points, complex(self.c), self.radius)
+        self.system_ = MandelbrotSystem._get_escape_system(self.label, self.shape, points, complex(self.c), self.radius)
 
 
 class InverseJuliaSystem(BaseSystem):
@@ -317,9 +387,15 @@ class InverseJuliaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import InverseJuliaSystem
-        >>> InverseJuliaSystem(0.0, n_points=10).prepare().system_.elements[0].prepare().size_
+        >>> InverseJuliaSystem(0.0, n_points=10).prepare().system_.elements[0].size
         10
     """
 
@@ -337,19 +413,23 @@ class InverseJuliaSystem(BaseSystem):
         n_points: int = 5000,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.omega = omega
         self.p = p
         self.n_points = n_points
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the points and their random inverse map."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         start = rng.uniform(-1.0, 1.0, self.n_points) + 1j * rng.uniform(-1.0, 1.0, self.n_points)
-        values = {'z': start, 'omega': complex(self.omega), 'p': self.p}
-        return CompositeSystem(
+        inverse = InverseJuliaInteraction('inverse', target='points', omega=complex(self.omega), p=self.p)
+        self.system_ = System(
             self.label,
-            elements=[GroupElement('points', element=InverseJuliaPointElement, size=self.n_points, values=values)],
+            elements=[InverseJuliaPointElement('points', z=start, size=self.n_points)],
+            interactions=[inverse],
         )
