@@ -10,10 +10,10 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, FieldElement, FiniteVolumeSpec
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate
-from skcomplex.core.components.spaces import AxisSpec, LatticeNeighborhood, LatticeSpace, PhaseSpace
+from skcomplex.core.components.spaces import AxisSpec, FiniteVolumeSpec, LatticeNeighborhood, LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -195,3 +195,12 @@ def test_transport_conserves_total_through_interval_edges() -> None:
     final = trajectory.get_values('gas.x')[-1]
     assert abs(final.sum() / 32 - 1.0) < 1e-12
     assert final[-1] > 1.5
+
+
+def test_phase_space_takes_the_discretization_of_its_position() -> None:
+    """Test that a phase space takes the discretization, the scheme, and the edges of its position lattice."""
+    scheme = FiniteVolumeSpec(riemann='godunov')
+    position = LatticeSpace(4, boundary={'x': 'zero-flux'}, discretization='finite-volume', scheme=scheme)
+    space = PhaseSpace(position, [AxisSpec('v', 2, -1.0, 1.0)]).prepare()
+    assert (space.discretization, space.scheme, space.boundary) == ('finite-volume', scheme, {'x': 'zero-flux'})
+    assert space.axes_periodic_ == (True, False)

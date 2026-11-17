@@ -260,7 +260,11 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             kind, value = place._get_boundary(variable, reference.column)
         else:
             kind, value = (
-                'periodic' if getattr(place.space, 'boundary', 'periodic') == 'periodic' else 'zero-flux',
+                (
+                    'zero-flux'
+                    if isinstance(place.space, LatticeSpace) and place.space._get_edges() != 'periodic'
+                    else 'periodic'
+                ),
                 0.0,
             )
         key = (id(place), kind, value, offset)
@@ -807,7 +811,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         Chains of operators are composed.
         """
         space = place.space
-        if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
+        if not isinstance(space, LatticeSpace) or space._get_edges() != 'periodic':
             error_msg = f'A law of {self.spec.owner} uses a spectral field, which needs a periodic lattice.'
             raise ValidationError(error_msg)
         if name == 'upwind':

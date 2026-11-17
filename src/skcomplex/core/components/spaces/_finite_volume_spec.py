@@ -43,7 +43,7 @@ class FiniteVolumeSpec(BaseSpec):
             checks it.
 
     Examples:
-        >>> from skcomplex.core.components.elements import FiniteVolumeSpec
+        >>> from skcomplex.core.components.spaces import FiniteVolumeSpec
         >>> FiniteVolumeSpec(riemann='godunov').limiter
         'minmod'
     """

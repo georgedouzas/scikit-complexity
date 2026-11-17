@@ -107,3 +107,24 @@ def test_neighbor_pairs_list_lattice_and_network_bonds():
     assert LatticeSpace(3, boundary='fixed').prepare()._get_neighbor_pairs() == [(0, 1), (1, 2)]
     assert len(LatticeSpace((2, 3)).prepare()._get_neighbor_pairs()) == 9
     assert NetworkSpace(nx.path_graph(3)).prepare()._get_neighbor_pairs() == [(0, 1), (1, 2)]
+
+
+@pytest.mark.parametrize(
+    ('space', 'message'),
+    [
+        (LatticeSpace(4, discretization='finite-element'), 'Unknown discretization'),
+        (LatticeSpace(4, boundary=['u']), 'Unknown lattice boundary'),
+    ],
+)
+def test_lattice_space_checks_how_a_field_on_it_becomes_numbers(space, message):
+    """Test that a lattice rejects a discretization it has no operators for and a boundary of the wrong kind."""
+    with pytest.raises(ValidationError, match=message):
+        space.prepare()
+
+
+def test_lattice_space_with_the_edge_of_each_state_joins_its_members_periodically():
+    """Test that a lattice whose boundary names the edge of a state joins the neighbours of its members periodically."""
+    space = LatticeSpace(5, boundary={'u': ('fixed', 1.0)}, discretization='spectral').prepare()
+    box = LatticeNeighborhood(((-1,), (0,), (1,)))
+    assert space.periodic_
+    assert space._get_neighbors(0, box).tolist() == [4, 0, 1]

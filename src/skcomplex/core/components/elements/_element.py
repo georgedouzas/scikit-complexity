@@ -6,11 +6,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import ClassVar
 
 from ...errors import ValidationError
 from ...specs import ConnectorSpec, ParameterSpec, StateSpec
+from .._tags import Tags
 from ..base import BaseComponent
 from ..spaces import BaseSpace, NetworkSpace
 from ._base import BaseElement
@@ -145,6 +147,16 @@ class Element(BaseElement):
                 )
                 raise ValidationError(error_msg)
         self._check_on()
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the element, with the tags of its space when it has one.
+
+        A field on a phase space thus asks for a solver that supports phase spaces, as a group on it does.
+        """
+        tags = super()._get_tags()
+        if not isinstance(self.space, BaseSpace):
+            return tags
+        return replace(tags, space=self.space.get_tags().space)
 
     def _check_on(self) -> None:
         """Raise an error for an `on` that names no part of a network space.

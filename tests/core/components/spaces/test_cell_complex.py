@@ -231,6 +231,7 @@ def test_loop_of_a_network_raises_a_space_error():
         ({'points': GRID.p}, ValidationError),
         ({'space': LatticeSpace((3, 3)), 'points': GRID.p, 'cells': GRID.t}, ValidationError),
         ({'points': GRID.p, 'cells': GRID.t, 'faces': [(0, 1, 2)]}, SpaceError),
+        ({'points': GRID.p, 'cells': GRID.t, 'boundary': 'fixed'}, ValidationError),
     ],
 )
 def test_check_rejects_arguments_the_complex_cannot_take(arguments, error):

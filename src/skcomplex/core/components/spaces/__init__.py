@@ -17,6 +17,7 @@ from ._continuous import ContinuousSpace
 from ._continuous_time import ContinuousTime
 from ._delaunay import DelaunayNeighborhood
 from ._discrete_time import DiscreteTime
+from ._finite_volume_spec import FiniteVolumeSpec
 from ._lattice import LatticeSpace
 from ._lattice_neighborhood import LatticeNeighborhood
 from ._layer_spec import LayerSpec
@@ -39,6 +40,7 @@ __all__: list[str] = [
     'ContinuousTime',
     'DelaunayNeighborhood',
     'DiscreteTime',
+    'FiniteVolumeSpec',
     'LatticeNeighborhood',
     'LatticeSpace',
     'LayerSpec',

@@ -14,7 +14,7 @@ from scipy.special import ive
 
 from skcomplex.core.analysis import alignment, displacement
 from skcomplex.core.components.base import BaseComponent
-from skcomplex.core.components.elements import Element
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
     BoundaryLaw,
@@ -24,20 +24,22 @@ from skcomplex.core.components.laws import (
     TopologyRequestSpec,
     UpdateLaw,
 )
-from skcomplex.core.components.laws.utils import bernoulli, components, laplacian, neighbors, where
+from skcomplex.core.components.laws.utils import bernoulli, components, divergence, laplacian, neighbors, where
 from skcomplex.core.components.spaces import (
     BaseSpace,
     CellComplexSpace,
     ContinuousSpace,
     DiscreteTime,
+    FiniteVolumeSpec,
     LatticeSpace,
     NetworkSpace,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.engine.solvers import ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role
+from skcomplex.core.specs import Role, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
 
@@ -782,3 +784,94 @@ def test_get_declared_puts_one_member_on_every_hyperedge():
     system = System(elements=[nodes, groups], interactions=[Majority('majority')]).prepare()
     last = system.simulate(until=0.5, dt=0.01).get_values('nodes.x')[-1]
     assert last == pytest.approx([1.0 + 2.0 * np.exp(-1.0), 1.0 - np.exp(-1.0), 1.0 - np.exp(-1.0), 5.0], abs=1e-5)
+
+
+class HeatSiteElement(Element):
+    """Site of the old API whose state `u` diffuses."""
+
+    def __init__(self, label: str, *, u: Annotated[object, StateSpec()] = 0.0) -> None:
+        super().__init__(label)
+        self.u = u
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the diffusion of `u`."""
+        return [RateLaw(s.u, laplacian(s.u))]
+
+
+class BurgersSiteElement(HeatSiteElement):
+    """Site of the old API whose state `u` is carried by the Burgers flux."""
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the Burgers transport of `u`."""
+        return [RateLaw(s.u, -divergence([s.u**2 / 2]))]
+
+
+class Transport(Interaction):
+    """Diffusion of the state `u` of a field, or its transport by the Burgers flux."""
+
+    def __init__(self, label: str, *, target: Role = 'rod', flux: bool = False) -> None:
+        super().__init__(label)
+        self.target = target
+        self.flux = flux
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate of `u`."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            u = context.target.u
+            self.laws_: list[BaseComponent] = [
+                RateLaw(u.diff(context.t), -divergence([u**2 / 2]) if self.flux else laplacian(u)),
+            ]
+
+
+SITES = 16
+WAVE = 1.0 + 0.5 * np.sin(2 * np.pi * np.arange(SITES) / SITES) + np.eye(SITES)[3]
+FIELDS = {
+    'zero-flux': ({'boundary': {'u': 'zero-flux'}}, False, RK4Solver(dt=0.01)),
+    'fixed': ({'boundary': {'u': ('fixed', 2.0)}}, False, RK4Solver(dt=0.01)),
+    'periodic': ({'boundary': {'u': 'periodic'}}, False, RK4Solver(dt=0.01)),
+    'spectral': ({'discretization': 'spectral'}, False, ETDRK4Solver(dt=0.01)),
+    'symmetry': ({'discretization': 'spectral', 'symmetry': {'u': ('odd',)}}, False, ETDRK4Solver(dt=0.01)),
+    'finite-volume': ({'discretization': 'finite-volume'}, True, SSPRKSolver()),
+    'godunov': (
+        {'discretization': 'finite-volume', 'scheme': FiniteVolumeSpec(limiter='van-leer', riemann='godunov')},
+        True,
+        SSPRKSolver(),
+    ),
+}
+
+
+@pytest.mark.parametrize('name', list(FIELDS))
+def test_field_on_a_lattice_runs_as_the_field_element_of_its_settings(name):
+    """Test that the discretization, edges, symmetry, and scheme of a lattice give the field of the old API."""
+    settings, flux, solver = FIELDS[name]
+    values = WAVE - WAVE[::-1] if 'symmetry' in settings else WAVE
+    old = FieldElement(
+        'rod',
+        element=BurgersSiteElement if flux else HeatSiteElement,
+        space=LatticeSpace(SITES, spacing=0.5),
+        values={'u': values},
+        **settings,
+    )
+    old_values = simulate(CompositeSystem(elements=[old]), until=0.5, dt=0.25, solver=solver).get_values('rod.u')
+    rod = Element('rod', values={'u': values}, space=LatticeSpace(SITES, spacing=0.5, **settings))
+    system = System(elements=[rod], interactions=[Transport('transport', flux=flux)], solver=solver).prepare()
+    np.testing.assert_array_equal(system.simulate(until=0.5, dt=0.25).get_values('rod.u'), old_values)
+
+
+def test_field_on_a_mesh_runs_as_the_finite_element_field_of_its_fixed_edges():
+    """Test that the fixed edge of a state on a mesh, a function of the coordinates, gives the field of the old API."""
+    grid = skfem.MeshTri.init_lshaped().refined(1)
+    edge = ('fixed', lambda x, y: x + y)
+    old = FieldElement(
+        'rod',
+        element=HeatSiteElement,
+        space=CellComplexSpace(points=grid.p, cells=grid.t),
+        boundary={'u': edge},
+        discretization='finite-element',
+    )
+    solver = IMEXEulerSolver(dt=0.05)
+    old_values = simulate(CompositeSystem(elements=[old]), until=0.5, dt=0.25, solver=solver).get_values('rod.u')
+    rod = Element('rod', values={'u': 0.0}, space=CellComplexSpace(points=grid.p, cells=grid.t, boundary={'u': edge}))
+    system = System(elements=[rod], interactions=[Transport('transport')], solver=solver).prepare()
+    np.testing.assert_array_equal(system.simulate(until=0.5, dt=0.25).get_values('rod.u'), old_values)

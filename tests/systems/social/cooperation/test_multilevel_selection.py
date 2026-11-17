@@ -9,10 +9,10 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import Element, FieldElement, FiniteVolumeSpec
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, moment
-from skcomplex.core.components.spaces import AxisSpec, LatticeSpace
+from skcomplex.core.components.spaces import AxisSpec, FiniteVolumeSpec, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver

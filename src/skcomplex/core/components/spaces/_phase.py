@@ -23,7 +23,8 @@ class PhaseSpace(LatticeSpace):
     Each site is one position paired with one value on every extra axis, called a class axis. A class axis is a range
     cut into equal cells, such as velocities from -6 to 6, and its edges are closed for an interval or joined for a
     periodic axis. The position axes come first, so the sites of one position come one after the other, and they keep
-    the boundary of the position lattice.
+    the boundary of the position lattice. A field on it takes the discretization, the scheme, and the symmetry of the
+    position lattice, such as `LatticeSpace(64, discretization='finite-volume')`.
 
     Unlike `LatticeSpace`, whose sites are positions alone, it adds axes of a trait, so a density can vary over position
     and trait together. Choose it when a kinetic equation follows a distribution over position and a trait.
@@ -88,6 +89,9 @@ class PhaseSpace(LatticeSpace):
             position.shape,
             geometry=position.geometry,
             boundary=position.boundary,
+            discretization=position.discretization,
+            scheme=position.scheme,
+            symmetry=position.symmetry,
             fill=position.fill,
             spacing=position.spacing,
             label=label,
@@ -145,7 +149,7 @@ class PhaseSpace(LatticeSpace):
         They are those of the position lattice or those of the class axis.
         """
         if axis < self.position.n_dim_:
-            return self.boundary
+            return self._get_edges()
         return 'periodic' if self.axes[axis - self.position.n_dim_].periodic else 'reflecting'
 
     def _copy_with_edges(self, boundary: str, fill: float) -> PhaseSpace:

@@ -13,7 +13,7 @@ from sklearn.base import clone
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw, RateLaw, RuleLaw
-from skcomplex.core.components.spaces import ContinuousSpace, NetworkSpace
+from skcomplex.core.components.spaces import AxisSpec, ContinuousSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -327,3 +327,10 @@ def test_prepare_keeps_a_state_of_its_own_named_on():
             self.on = on
 
     assert SwitchElement('switch', on=0.0).prepare().on == 0.0
+
+
+def test_element_on_a_space_has_the_tags_of_its_space():
+    """Test that an element on a phase space asks for a solver of phase spaces, and one without a space for none."""
+    space = PhaseSpace(LatticeSpace(4), [AxisSpec('v', 2, -1.0, 1.0)])
+    assert Element('gas', values={'x': 1.0}, space=space).get_tags().space == frozenset({'phase space'})
+    assert not Element('ball', values={'x': 1.0}).get_tags().space

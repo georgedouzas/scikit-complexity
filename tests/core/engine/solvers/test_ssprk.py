@@ -7,10 +7,10 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, FieldElement, FiniteVolumeSpec
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import divergence, laplacian
-from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.components.spaces import FiniteVolumeSpec, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import (

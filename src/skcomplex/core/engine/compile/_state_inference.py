@@ -444,6 +444,37 @@ class _StateInference:
             groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, record.law.members)))
         return groups
 
+    @staticmethod
+    def _get_field(label: str, space: LatticeSpace | NetworkSpace, values: Mapping[str, object]) -> FieldElement:
+        """Return the field of declared members on a space, discretized as the space says.
+
+        A lattice gives its discretization, the edge of each state, the symmetry, and the finite-volume scheme, such as
+        `LatticeSpace(64, discretization='spectral')`. A mesh is solved by finite elements with the edge of each state
+        it gives, and a network by finite differences.
+        """
+        if isinstance(space, LatticeSpace):
+            return FieldElement(
+                label,
+                element=DeclaredElement,
+                space=space,
+                values=values,
+                discretization=space.discretization,
+                boundary=space.boundary if isinstance(space.boundary, Mapping) else None,
+                symmetry=space.symmetry,
+                scheme=space.scheme,
+            )
+        mesh = isinstance(space, CellComplexSpace) and space._is_mesh()
+        boundary = space.boundary if isinstance(space, CellComplexSpace) else None
+        discretization = 'finite-element' if mesh else 'finite-difference'
+        return FieldElement(
+            label,
+            element=DeclaredElement,
+            space=space,
+            values=values,
+            discretization=discretization,
+            boundary=boundary,
+        )
+
     def _get_declared_elements(
         self,
         element: Element,
@@ -520,16 +551,7 @@ class _StateInference:
             )
             return [group]
         if isinstance(element.space, LatticeSpace | NetworkSpace) and element.size is None:
-            mesh = isinstance(element.space, CellComplexSpace) and element.space._is_mesh()
-            discretization = 'finite-element' if mesh else 'finite-difference'
-            field = FieldElement(
-                element.label,
-                element=DeclaredElement,
-                space=element.space,
-                values=values,
-                discretization=discretization,
-            )
-            return [field]
+            return [self._get_field(element.label, element.space, values)]
         group = GroupElement(
             element.label,
             element=DeclaredElement,

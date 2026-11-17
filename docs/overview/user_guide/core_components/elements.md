@@ -412,7 +412,7 @@ a jam at density 0.9.
 ```python continuation
 import numpy as np
 
-from skcomplex.core.components.elements import FiniteVolumeSpec
+from skcomplex.core.components.spaces import FiniteVolumeSpec
 from skcomplex.core.components.laws.utils import divergence
 from skcomplex.core.engine.solvers import SSPRKSolver
 

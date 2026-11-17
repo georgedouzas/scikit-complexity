@@ -61,8 +61,11 @@ grid.size_, grid.shape_, grid.positions_[:3].tolist()
 
 The grid has 6 sites in the shape `(2, 3)`, and the first row sits at `(0, 0)`, `(0, 1)`, and `(0, 2)`.
 
-**How it combines.** A `GroupElement` with `on='sites'` holds one member per site, and a `FieldElement` adds the
-operators of space, such as the Laplacian. `LocalRuleInteraction` reads a `RadiusNeighborhood` or a
+**How it combines.** A `GroupElement` with `on='sites'` holds one member per site, and an `Element` with `space=`
+holds a field, whose laws read the operators of space, such as the Laplacian. The lattice says how a field on it becomes
+numbers: `discretization` is `'finite-difference'`, `'spectral'`, or `'finite-volume'`, `scheme` is the
+`FiniteVolumeSpec` of a finite-volume field, `symmetry` keeps a state odd or even along an axis, and `boundary` may give
+the edge of each state, such as `LatticeSpace(64, discretization='spectral', boundary={'T': ('fixed', 0.0)})`. `LocalRuleInteraction` reads a `RadiusNeighborhood` or a
 `LatticeNeighborhood` around each site, and `CouplingInteraction` and `SamplingInteraction` read the nearest
 neighbours. `CellComplexSpace` and `PhaseSpace` build on a lattice.
 
@@ -80,8 +83,8 @@ except ValidationError as error:
 message
 ```
 
-The message reads "Unknown lattice boundary 'open'. Use one of periodic, fixed, reflecting." The fix is
-`boundary='fixed'` for edges that read the value `fill`.
+The message reads "Unknown lattice boundary 'open'. Use one of periodic, fixed, reflecting, or the edge of each
+state, such as {'T': ('fixed', 0.0)}." The fix is `boundary='fixed'` for edges that read the value `fill`.
 
 **A field realization.** A field fixes the shape and the boundary of its lattice, such as the grid of a forest fire
 whose edges do not burn.
@@ -306,47 +309,33 @@ nodes hold the members of a field, its edges are the sides of the cells, and its
 leaves an L-shaped machine part whose walls are held at zero.
 
 ```python continuation
-from typing import Annotated
-
 import skfem
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class DiffusionElement(Element):
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec()] = 1.0,
-    ):
+class Conduction(Interaction):
+    def __init__(self, label, *, target: Role = 'bracket', D=1.0):
         super().__init__(label)
-        self.u = u
+        self.target = target
         self.D = D
 
-    def _get_laws(self, namespace):
-        return [RateLaw(namespace.u, namespace.D * laplacian(namespace.u))]
+    def _prepare(self, s):
+        super()._prepare(s)
+        u = s.target.u
+        self.laws_ = [RateLaw(u.diff(s.t), s.D * laplacian(u))]
 
 
 shape = skfem.MeshTri.init_lshaped().refined(1)
-walls = {'u': ('fixed', 0.0)}
-bracket = FieldElement(
-    'bracket',
-    element=DiffusionElement,
-    space=CellComplexSpace(points=shape.p, cells=shape.t),
-    values={'u': 1.0},
-    boundary=walls,
-    discretization='finite-element',
-)
-simulate(CompositeSystem(elements=[bracket]), until=1, dt=0.5).get_values('bracket.u').max(axis=1).round(3).tolist()
+mesh = CellComplexSpace(points=shape.p, cells=shape.t, boundary={'u': ('fixed', 0.0)})
+bracket = Element('bracket', values={'u': 1.0}, space=mesh)
+system = System(elements=[bracket], interactions=[Conduction('conduction')]).prepare()
+system.simulate(until=1, dt=0.5).get_values('bracket.u').max(axis=1).round(3).tolist()
 ```
 
 The hottest node falls from 1 to 0.013 after half a time unit, and after one unit it rounds to 0.
@@ -367,17 +356,17 @@ The block has 27 nodes in three dimensions.
 oriented faces. The law utilities `exterior_derivative`, `codifferential`, and `hodge_star` read its incidence
 matrices and its Hodge stars, the ratios of dual to primal cell volumes, so the laws of discrete exterior calculus
 compile to sparse products. A field on a mesh takes the finite-element discretization. Its stiffness and mass
-matrices come from scikit-fem, so `laplacian(u)` becomes a sparse product, and the boundary values hold at the nodes
-of `boundary_nodes_`.
+matrices come from scikit-fem, so `laplacian(u)` becomes a sparse product, and the fixed values of the argument
+`boundary` hold at the nodes of `boundary_nodes_`. A state without a fixed value has zero flux through the edge.
 
 **How it combines.** A `GroupElement` or a `FieldElement` with `on='edges'` holds a state per link, and one with
 `on='hyperedges'` a state per face. A `CofaceNeighborhood` reads the faces around each link, and
-`SamplingInteraction` samples the links of a gauge field. A `FieldElement` with `discretization='finite-element'`
-holds a field on the nodes of a mesh, with the same laws as on a lattice.
+`SamplingInteraction` samples the links of a gauge field. An `Element` with `space=` a mesh holds a field on its
+nodes, with the same laws as on a lattice.
 
 **Limits and errors.** It takes exactly one source, a square lattice, a network, or the points and cells of a mesh,
 and it has no layers. Cells of degree 3 take part in incidence only, since a group lives on sites, edges, or
-hyperedges. A mesh does not change during a run, and a field on it needs the finite-element discretization. A
+hyperedges. A mesh does not change during a run, and a field on it is solved by finite elements. A
 triangular lattice raises a `SpaceError` in `prepare`.
 
 ```python continuation

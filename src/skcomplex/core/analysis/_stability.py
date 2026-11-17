@@ -509,7 +509,7 @@ def _single_field(system: CompositeSystem) -> tuple[FieldElement, LatticeSpace, 
         error_msg = 'The dispersion relation takes a system of one field on a lattice.'
         raise AnalysisError(error_msg)
     field = fields[0]
-    if not isinstance(field.space, LatticeSpace) or field.space.boundary != 'periodic':
+    if not isinstance(field.space, LatticeSpace) or field.space._get_edges() != 'periodic':
         error_msg = f'The field {field.label} is not on a periodic lattice, so its modes are not Fourier modes.'
         raise AnalysisError(error_msg)
     interactions = _bound_interactions(system, field)

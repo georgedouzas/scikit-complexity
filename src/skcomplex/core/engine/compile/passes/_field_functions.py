@@ -181,7 +181,7 @@ class FieldFunctionsPass(BasePass):
             if not isinstance(place, FieldElement) or not place.symmetry:
                 continue
             space = place.space
-            if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
+            if not isinstance(space, LatticeSpace) or space._get_edges() != 'periodic':
                 error_msg = f'Field {block.node.path} declares symmetries, which need a periodic lattice.'
                 raise ValidationError(error_msg)
             for variable, parities, column in FieldFunctionsPass._get_component_parities(place.symmetry):

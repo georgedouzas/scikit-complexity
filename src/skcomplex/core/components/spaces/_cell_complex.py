@@ -4,7 +4,7 @@
 # License: MIT
 
 import itertools
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import ClassVar
 
 import networkx as nx
@@ -79,6 +79,12 @@ class CellComplexSpace(NetworkSpace):
         dimension:
             The highest degree of the cells. Cells of degree 3 take part in incidence and topology only, since a group
             lives on sites, edges, or hyperedges.
+
+        boundary:
+            The edge of each state of a field on a mesh by name, `'zero-flux'` for an insulated wall or
+            `('fixed', value)` for a wall held at a value, a number or a function of the node coordinates, such as
+            `{'u': ('fixed', 0.0)}`. A state without one has zero flux through the edge. A field on a mesh is solved by
+            finite elements, and a field on a complex that derives from a space by finite differences.
 
         label:
             The name of the space in its system, such as `'grid'`.
@@ -168,6 +174,7 @@ class CellComplexSpace(NetworkSpace):
         cells: npt.ArrayLike | None = None,
         faces: str | Sequence[Sequence[object]] | None = None,
         dimension: int = LOWEST_DIMENSION,
+        boundary: Mapping[str, object] | None = None,
         label: str = 'space',
     ) -> None:
         super().__init__(nx.Graph(), label=label)
@@ -176,6 +183,7 @@ class CellComplexSpace(NetworkSpace):
         self.cells = cells
         self.faces = faces
         self.dimension = dimension
+        self.boundary = boundary
 
     def _get_lattice_links(self, place: LatticeSpace) -> tuple[Indices, Indices, Indices]:
         """Return the source and target of every link of a lattice, and the link table.
@@ -729,11 +737,17 @@ class CellComplexSpace(NetworkSpace):
 
             ValidationError:
                 Neither or both of a space and a mesh are given, the points or cells of a mesh do not fit, the
-                dimension is below 2, or the faces are not known.
+                dimension is below 2, the faces are not known, or the boundary is not a mapping.
         """
         self._check_source()
         if self.dimension < LOWEST_DIMENSION:
             error_msg = f'The dimension of a cell complex is {self.dimension!r}. Give 2 or more.'
+            raise ValidationError(error_msg)
+        if self.boundary is not None and not isinstance(self.boundary, Mapping):
+            error_msg = (
+                f'The boundary of a cell complex is {self.boundary!r}. Give the edge of each state, such as '
+                "{'u': ('fixed', 0.0)}."
+            )
             raise ValidationError(error_msg)
         if self._is_mesh():
             self._prepare_mesh()

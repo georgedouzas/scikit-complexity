@@ -1485,7 +1485,7 @@ class PassCompiler(BaseCompiler):
                 f'The {law} uses a {verb}, which needs a lattice space, but the field lives on {type(space).__name__}.'
             )
             return IssueSpec('law-space', record.path, message, 'Give the field a lattice space.')
-        periodic = isinstance(space, LatticeSpace) and space.boundary == 'periodic'
+        periodic = isinstance(space, LatticeSpace) and space._get_edges() == 'periodic'
         if place.discretization == 'spectral' and name in {'convolve', 'inverse_helmholtz'} and not periodic:
             message = f'The {law} applies the spectral {name} on a lattice without periodic edges.'
             fix = "Give the lattice periodic edges, or use the 'finite-difference' discretization."

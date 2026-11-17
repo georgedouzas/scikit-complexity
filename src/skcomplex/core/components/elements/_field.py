@@ -11,9 +11,8 @@ from sage.structure.element import Matrix
 
 from ...errors import ValidationError
 from ...specs import StateSpec, TensorSpec, VisualSpec
-from ..spaces import BaseSpace, CellComplexSpace, LatticeSpace, NetworkSpace
+from ..spaces import BaseSpace, CellComplexSpace, FiniteVolumeSpec, LatticeSpace, NetworkSpace
 from ._base import BaseElement
-from ._finite_volume_spec import FiniteVolumeSpec
 from ._group import GroupElement
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
@@ -185,7 +184,11 @@ class FieldElement(GroupElement):
             'fixed': ('fixed', getattr(self.space, 'fill', 0.0)),
         }
         mesh = isinstance(self.space, CellComplexSpace) and self.space._is_mesh()
-        edges = 'reflecting' if mesh else getattr(self.space, 'boundary', 'periodic')
+        edges = 'periodic'
+        if mesh:
+            edges = 'reflecting'
+        elif isinstance(self.space, LatticeSpace):
+            edges = self.space._get_edges()
         condition = (self.boundary or {}).get(state, default.get(edges, 'periodic'))
         if isinstance(condition, tuple | list):
             tensor = self._get_tensor_of(state)

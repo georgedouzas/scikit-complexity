@@ -15,10 +15,10 @@ from sage.all__sagemath_symbolics import Expression, erf, exp, oo, pi, sqrt, tan
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, FieldElement, FiniteVolumeSpec
+from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian, shifted
-from ....core.components.spaces import LatticeSpace
+from ....core.components.spaces import FiniteVolumeSpec, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SSPRKSolver
 from ....core.specs import ParameterSpec, StateSpec

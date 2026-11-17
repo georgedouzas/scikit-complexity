@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import itertools
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import ClassVar
 
 import numpy as np
@@ -16,6 +16,7 @@ from ...enums import BoundaryKind
 from ...errors import ValidationError
 from ._base import BaseNeighborhood, BaseSpace
 from ._continuous import AXES
+from ._finite_volume_spec import FiniteVolumeSpec
 from ._lattice_neighborhood import LatticeNeighborhood
 from ._radius import RadiusNeighborhood
 
@@ -24,6 +25,7 @@ GEOMETRIES = ('square', 'triangular')
 SQUARE_METRICS = ('chebyshev', 'manhattan')
 TRIANGULAR_ROW_HEIGHT = float(np.sqrt(3.0) / 2)
 TRIANGULAR_DIMENSIONS = 2
+DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume')
 
 
 class LatticeSpace(BaseSpace):
@@ -47,8 +49,34 @@ class LatticeSpace(BaseSpace):
             `'square'` for the integer lattice or `'triangular'` for the triangular lattice in two dimensions.
 
         boundary:
-            `'periodic'` to join opposite edges, `'fixed'` to read the value `fill` outside the box, or `'reflecting'`
-            to read the mirror image of the box outside it.
+            The edges of the lattice, or the edge of each state of a field on it by name.
+
+            - `'periodic'`: opposite edges join, as on a ring or a torus.
+            - `'fixed'`: the value `fill` is read outside the box.
+            - `'reflecting'`: the mirror image of the box is read outside it.
+            - A mapping such as `{'T': ('fixed', 0.0), 'c': 'zero-flux'}`: each named state of a field takes
+              `'periodic'`, `'zero-flux'` for an insulated wall, or `('fixed', value)` for a wall held at a value,
+              and the other states and the neighbours of members join periodically.
+
+        discretization:
+            How the operators of a field on the lattice, such as `laplacian`, become numbers.
+
+            - `'finite-difference'`: stencils of neighbouring sites.
+            - `'spectral'`: products of Fourier modes on a periodic lattice, with the two-thirds rule, which drops the
+              highest modes so that their products create no false ones.
+            - `'finite-volume'`: averages over cells, so a rate `-divergence(flux)` of a state is a conservation law
+              solved with the scheme of `scheme`.
+
+        scheme:
+            The limiter, numerical flux, and wave speed of a finite-volume field, or `None` for the minmod limiter and
+            the Rusanov flux.
+
+        symmetry:
+            The parity of each state of a field by name along every axis of a periodic lattice, `'odd'`, `'even'`, or
+            `None`, which the rates keep exactly, such as `{'T': ('even', 'odd')}`. A lattice twice as long as a
+            domain along an axis, with states odd or even about its middle, stands for walls there, such as the
+            free-slip walls of convection. A vector or tensor state takes one such sequence for its first component,
+            or one sequence per component.
 
         fill:
             The value read outside a lattice with fixed edges.
@@ -86,6 +114,28 @@ class LatticeSpace(BaseSpace):
         (200, 2, (10, 20))
         >>> LatticeSpace((2, 2), geometry='triangular').prepare().positions_.round(3).tolist()
         [[0.0, 0.0], [1.0, 0.0], [0.5, 0.866], [1.5, 0.866]]
+
+        A rod of 5 sites whose temperature is held at zero at both ends loses its heat through them.
+
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import RateLaw
+        >>> from skcomplex.core.components.laws.utils import laplacian
+        >>> from skcomplex.core.specs import Role
+        >>> from skcomplex.core.systems import System
+        >>> class Conduction(Interaction):
+        ...     def __init__(self, label, *, target: Role = 'rod'):
+        ...         super().__init__(label)
+        ...         self.target = target
+        ...
+        ...     def _prepare(self, s):
+        ...         super()._prepare(s)
+        ...         self.laws_ = [RateLaw(s.target.T.diff(s.t), laplacian(s.target.T))]
+        >>> space = LatticeSpace(5, boundary={'T': ('fixed', 0.0)})
+        >>> rod = Element('rod', values={'T': [0.0, 0.0, 1.0, 0.0, 0.0]}, space=space)
+        >>> trajectory = System(elements=[rod], interactions=[Conduction('heat')]).prepare().simulate(until=20, dt=10)
+        >>> trajectory.get_values('rod.T').sum(axis=1).round(3).tolist()
+        [1.0, 0.085, 0.006]
     """
 
     space_tags: ClassVar[tuple[str, ...]] = ('lattice',)
@@ -95,7 +145,10 @@ class LatticeSpace(BaseSpace):
         shape: Sequence[int] | int,
         *,
         geometry: str = 'square',
-        boundary: str = 'periodic',
+        boundary: str | Mapping[str, object] = 'periodic',
+        discretization: str = 'finite-difference',
+        scheme: FiniteVolumeSpec | None = None,
+        symmetry: Mapping[str, Sequence[object]] | None = None,
         fill: float = 0.0,
         spacing: float | Sequence[float] = 1.0,
         metric: str | None = None,
@@ -106,6 +159,9 @@ class LatticeSpace(BaseSpace):
         self.shape = shape
         self.geometry = geometry
         self.boundary = boundary
+        self.discretization = discretization
+        self.scheme = scheme
+        self.symmetry = symmetry
         self.fill = fill
         self.spacing = spacing
         self.metric = metric
@@ -123,9 +179,13 @@ class LatticeSpace(BaseSpace):
                 f'A lattice has a positive number of sites along every dimension, but its shape is {self.shape}.'
             )
             raise ValidationError(error_msg)
-        if self.boundary not in BOUNDARIES:
-            error_msg = f'Unknown lattice boundary {self.boundary!r}. Use one of {", ".join(BOUNDARIES)}.'
+        if not isinstance(self.boundary, Mapping) and self.boundary not in BOUNDARIES:
+            error_msg = (
+                f'Unknown lattice boundary {self.boundary!r}. Use one of {", ".join(BOUNDARIES)}, or the edge of each '
+                "state, such as {'T': ('fixed', 0.0)}."
+            )
             raise ValidationError(error_msg)
+        self._check_field()
         if self.geometry not in GEOMETRIES:
             error_msg = f'Unknown lattice geometry {self.geometry!r}. Use one of {", ".join(GEOMETRIES)}.'
             raise ValidationError(error_msg)
@@ -147,7 +207,7 @@ class LatticeSpace(BaseSpace):
             rows, columns = coordinates.T
             coordinates = np.column_stack([columns + rows / 2, rows * TRIANGULAR_ROW_HEIGHT])
         self.positions_ = coordinates * np.asarray(self.spacings_)
-        self.periodic_ = self.boundary == 'periodic'
+        self.periodic_ = self._get_edges() == 'periodic'
         self.default_visual_ = 'image' if self.geometry == 'square' else 'sites'
         if self.metric is not None:
             self.metric_ = self.metric
@@ -166,9 +226,37 @@ class LatticeSpace(BaseSpace):
             )
             raise ValidationError(error_msg)
 
+    def _check_field(self) -> None:
+        """Raise an error for an unknown discretization or a misplaced scheme.
+
+        A scheme goes only with the finite-volume discretization. The field on the lattice checks the edge of each of
+        its states.
+        """
+        if self.discretization not in DISCRETIZATIONS:
+            error_msg = (
+                f'Unknown discretization {self.discretization!r} of a lattice. Use one of {", ".join(DISCRETIZATIONS)}.'
+            )
+            raise ValidationError(error_msg)
+        if self.scheme is None:
+            return
+        if not isinstance(self.scheme, FiniteVolumeSpec) or self.discretization != 'finite-volume':
+            error_msg = (
+                f'The scheme of a lattice is {self.scheme!r}. Give a `FiniteVolumeSpec` to a lattice with '
+                "discretization='finite-volume'."
+            )
+            raise ValidationError(error_msg)
+        self.scheme._check()
+
+    def _get_edges(self) -> str:
+        """Return the edges of the lattice.
+
+        They join periodically when the boundary names the edge of each state.
+        """
+        return 'periodic' if isinstance(self.boundary, Mapping) else str(self.boundary)
+
     def _get_axis_boundary(self, axis: int) -> str:
         """Return the edges of an axis, the one boundary of the lattice."""
-        return self.boundary
+        return self._get_edges()
 
     def _copy_with_edges(self, boundary: str, fill: float) -> LatticeSpace:
         """Return the sites of the lattice with other edges.

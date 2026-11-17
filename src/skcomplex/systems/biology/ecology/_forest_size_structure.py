@@ -13,10 +13,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.components.elements import FieldElement, FiniteVolumeSpec
+from ....core.components.elements import FieldElement
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import convolve, coordinate, cumulative_integral, displacement, reduce_axes, where
-from ....core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseSpace
+from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace, PhaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError

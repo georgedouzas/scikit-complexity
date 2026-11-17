@@ -282,7 +282,7 @@ class LatticeProblemPass(BasePass):
             )
             raise ValidationError(error_msg)
         odd = all(sum(offset) % 2 for offset in offsets)
-        even = space.boundary != 'periodic' or all(size % 2 == 0 for size in space.shape_)
+        even = space._get_edges() != 'periodic' or all(size % 2 == 0 for size in space.shape_)
         if not (odd and even):
             error_msg = (
                 f'{owner} uses a checkerboard schedule, which needs neighbours on the other sublattice and even sizes '

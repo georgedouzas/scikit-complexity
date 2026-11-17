@@ -7,10 +7,10 @@ import pytest
 from sage.all__sagemath_symbolics import SR, ZZ
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import Element, FieldElement, FiniteVolumeSpec, GroupElement
+from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.laws import CallSpec, JumpLaw, RateLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import divergence, reduction, total
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.components.spaces import DiscreteTime, FiniteVolumeSpec, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
