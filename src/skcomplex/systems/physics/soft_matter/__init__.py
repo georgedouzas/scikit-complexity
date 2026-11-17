@@ -33,7 +33,7 @@ from ._diffusion import (
     ScaledWalkerElement,
     SpeckleFieldInteraction,
 )
-from ._friction import FrictionalBlockElement, ShakenSpringBlockSystem
+from ._friction import FrictionalBlockElement, ShakenFrictionInteraction, ShakenSpringBlockSystem
 from ._ratchets import (
     FlashingRatchetSystem,
     FlashingSawtoothInteraction,
@@ -85,6 +85,7 @@ __all__: list[str] = [
     'ScaledBrownianMotionSystem',
     'ScaledNoiseInteraction',
     'ScaledWalkerElement',
+    'ShakenFrictionInteraction',
     'ShakenSpringBlockSystem',
     'SpeckleFieldInteraction',
     'StochasticResonanceSystem',
