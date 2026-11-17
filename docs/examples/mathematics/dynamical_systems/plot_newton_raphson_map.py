@@ -18,7 +18,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import scaling
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import NewtonRaphsonMapSystem
 
@@ -56,9 +55,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(NewtonRaphsonMapSystem(x=-0.5, y=0.02), until=30, observers=[observer])
+trajectory = NewtonRaphsonMapSystem(x=-0.5, y=0.02).prepare().simulate(30, observers=[observer])
 starts = [(-0.5, 0.02), (-0.5, -0.02), (0.3, 0.55), (0.3, 0.45), (0.3, -0.55), (0.3, -0.45)]
-orbits = [simulate(NewtonRaphsonMapSystem(x=x, y=y), until=30) for x, y in starts]
+orbits = [NewtonRaphsonMapSystem(x=x, y=y).prepare().simulate(30) for x, y in starts]
 labels = basins(SIZE)
 palette = np.array([[230, 90, 60], [70, 160, 220], [250, 200, 60]], dtype=np.uint8)
 observer.recording_.log('basins', rr.Image(palette[labels]), static=True)

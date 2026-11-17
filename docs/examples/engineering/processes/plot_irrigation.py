@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.processes import IrrigationSystem
 
@@ -34,7 +33,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=5)
-trajectory = simulate(IrrigationSystem(), observers=[observer])
+trajectory = IrrigationSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Groundwater as a buffer

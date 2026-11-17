@@ -6,7 +6,7 @@ The module covers pendulums, oscillators, projectiles, and collisions.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -21,6 +21,8 @@ from ....core.components.interactions import BaseInteraction, Interaction, RateI
 from ....core.components.laws import BaseLaw, EventLaw, RateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
 from ..common.mechanics import LagrangianInteraction, ReflectionInteraction
 from ..common.particles import (
@@ -172,6 +174,9 @@ class HangingBallElement(Element):
         length:
             The length of the string.
 
+        values:
+            Further values by name, such as an initial velocity named with a prime, or `None`.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import HangingBallElement
         >>> HangingBallElement('ball', rest=0.5).rest
@@ -186,8 +191,9 @@ class HangingBallElement(Element):
         rest: float = 0.0,
         g: float = 9.81,
         length: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values)
         self.x = x
         self.rest = rest
         self.g = g
@@ -400,10 +406,17 @@ class ProjectileSystem(systems.BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import ProjectileSystem
-        >>> ProjectileSystem(speed=5.0, angle=90.0).prepare().initial_state_
-        {"ball.x'": 0.0, "ball.y'": 5.0}
+        >>> trajectory = ProjectileSystem(speed=5.0, angle=90.0).prepare().simulate(until=0.1)
+        >>> float(trajectory.get_values("ball.x'")[0]), float(trajectory.get_values("ball.y'")[0])
+        (0.0, 5.0)
     """
 
     field = 'physics/mechanics'
@@ -420,8 +433,10 @@ class ProjectileSystem(systems.BaseSystem):
         mass: float = 1.0,
         drag: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.speed = speed
         self.angle = angle
         self.mass = mass
@@ -438,19 +453,16 @@ class ProjectileSystem(systems.BaseSystem):
         """
         super()._prepare(context)
         radians = np.radians(self.angle)
+        speeds = [round(float(self.speed * trig(radians)), 12) for trig in (np.cos, np.sin)]
         interactions = [
             UniformGravityInteraction('gravity', target='ball'),
             LinearDragInteraction('drag', target='ball', gamma=self.drag, coordinates=('x', 'y')),
         ]
         self.system_ = systems.System(
             self.label,
-            elements=[Element('ball', values={'x': 0.0, 'y': 0.0, 'm': self.mass})],
+            elements=[Element('ball', values={'x': 0.0, 'y': 0.0, "x'": speeds[0], "y'": speeds[1], 'm': self.mass})],
             interactions=interactions,
         )
-        self.initial_state_ = {
-            "ball.x'": round(float(self.speed * np.cos(radians)), 12),
-            "ball.y'": round(float(self.speed * np.sin(radians)), 12),
-        }
 
 
 class HarmonicOscillatorSystem(BaseSystem):
@@ -543,6 +555,12 @@ class PendulumSystem(systems.BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import PendulumSystem
         >>> trajectory = PendulumSystem(theta=0.1).prepare().simulate(until=1.0, dt=1.0)
@@ -565,8 +583,10 @@ class PendulumSystem(systems.BaseSystem):
         g: float = 9.81,
         l: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.theta = theta
         self.omega = omega
         self.m = m
@@ -581,13 +601,12 @@ class PendulumSystem(systems.BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        bob = Element('bob', values={'theta': self.theta, 'm': self.m, 'g': self.g, 'l': self.l})
+        bob = Element('bob', values={'theta': self.theta, "theta'": self.omega, 'm': self.m, 'g': self.g, 'l': self.l})
         self.system_ = systems.System(
             self.label,
             elements=[bob],
             interactions=[PendulumSwingInteraction('swing', target='bob')],
         )
-        self.initial_state_ = {"bob.theta'": self.omega}
 
 
 class DrivenDampedOscillatorSystem(BaseSystem):
@@ -777,6 +796,12 @@ class NewtonsCradleSystem(systems.BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import NewtonsCradleSystem
         >>> len(NewtonsCradleSystem(n_balls=3).prepare().system_.interactions)
@@ -799,8 +824,10 @@ class NewtonsCradleSystem(systems.BaseSystem):
         length: float = 1.0,
         g: float = 9.81,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_balls = n_balls
         self.speed = speed
         self.diameter = diameter
@@ -824,6 +851,7 @@ class NewtonsCradleSystem(systems.BaseSystem):
                 rest=index * spacing,
                 g=self.g,
                 length=self.length,
+                values={"x'": self.speed if index == 0 else 0.0},
             )
             for index in range(self.n_balls)
         ]
@@ -840,7 +868,6 @@ class NewtonsCradleSystem(systems.BaseSystem):
             for index in range(self.n_balls - 1)
         ]
         self.system_ = systems.System(self.label, elements=elements, interactions=[*swings, *collisions])
-        self.initial_state_ = {"ball_0.x'": self.speed}
 
 
 class CircularBilliardSystem(BaseSystem):

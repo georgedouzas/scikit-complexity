@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import lyapunov
+from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.mathematics.dynamical_systems import (
     FiniteTimeBlowUpSystem,
@@ -12,6 +13,7 @@ from skcomplex.systems.mathematics.dynamical_systems import (
     LangfordSystem,
     LorenzSystem,
     NoseHooverSystem,
+    RosslerSystem,
     SprottJerkSystem,
     SprottMixedFlowSystem,
     ThomasSystem,
@@ -22,7 +24,7 @@ from ..conftest import _run
 
 def test_jerk_is_bounded():
     """Test that Sprott's jerk equation stays on its bounded attractor."""
-    x = simulate(SprottJerkSystem(), random_state=0).get_values('jerk.x')
+    x = SprottJerkSystem().prepare().simulate(random_state=0).get_values('jerk.x')
     assert np.all(np.isfinite(x))
     assert np.abs(x).max() < 10
 
@@ -85,3 +87,12 @@ def test_ikeda_rest_point_loses_stability_at_a_quarter_turn_of_delay():
     oscillating = _run(IkedaSystem(2.0, a=1.0, tau=2.0), 200, dt=0.1).get_values('ikeda.x')[-300:]
     assert oscillating.min() < np.pi - 1
     assert oscillating.max() > np.pi + 1
+
+
+def test_rossler_runs_on_the_backend_it_is_given():
+    """Test that the Rössler system given the Numba backend runs on it, with the trajectory of the default backend."""
+    system = RosslerSystem(backend=NumbaBackend()).prepare()
+    assert isinstance(system.backend_, NumbaBackend)
+    assert 'backend' in system.get_params()
+    numba = system.simulate(until=5.0).get_values('rossler.x')
+    assert numba == pytest.approx(RosslerSystem().prepare().simulate(until=5.0).get_values('rossler.x'), rel=1e-6)

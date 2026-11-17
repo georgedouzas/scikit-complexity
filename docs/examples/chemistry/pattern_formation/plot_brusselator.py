@@ -13,14 +13,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import spectrum
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
 
 SYSTEM = 'brusselator'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='cells/u')
-trajectory = simulate(BrusselatorSystem(random_state=0), observers=[observer])
+trajectory = BrusselatorSystem(random_state=0).prepare().simulate(observers=[observer])
 
 # %%
 # Pattern wavelength against the linear instability

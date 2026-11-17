@@ -6,17 +6,19 @@ The braking recovers energy, and the chargers are homopolar.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative, pulse_train, sign
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.mechanics import SpringDamperInteraction
@@ -420,8 +422,9 @@ class WheelRailContactSystem(BaseSystem):
         self.Mr = Mr
         self.Ms = Ms
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rail = RailSegmentElement(
             'rail',
             F=self.F,
@@ -440,4 +443,4 @@ class WheelRailContactSystem(BaseSystem):
             damping='br',
             divisor={'z': 'Mr', 'zs': 'Ms'},
         )
-        return CompositeSystem(self.label, elements=[rail], interactions=[pad])
+        self.system_ = System(self.label, elements=[rail], interactions=[pad])

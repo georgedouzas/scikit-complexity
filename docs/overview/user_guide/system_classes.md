@@ -30,21 +30,18 @@ parameters of their own.
 
 ```python
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
-from skcomplex.systems.general.dynamics import DynamicalSystem
 from skcomplex.systems.general.reactions import ReactionNetworkSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
-from skcomplex.systems.mathematics.dynamical_systems import HenonMapSystem
 
 (
     issubclass(SIRSystem, ReactionNetworkSystem),
-    issubclass(HenonMapSystem, DynamicalSystem),
     issubclass(ReactionNetworkSystem, BaseSystem),
     issubclass(CompositeSystem, BaseSystem),
 )
 ```
 
-All four checks return `True`. The epidemic is a reaction network, the map of Hénon is a dynamical system, and both
-general systems and the composite derive from `BaseSystem`.
+All three checks return `True`. The epidemic is a reaction network, and both general systems and the composite derive
+from `BaseSystem`.
 
 ## How a system class builds its components
 
@@ -115,9 +112,7 @@ This section shows how a field realization fills a general system. It takes the 
 names and gives the general system its components through hooks. `SIRSystem` subclasses `ReactionNetworkSystem`. It
 returns its compartments from `_get_species`, and its infection and recovery from `_get_interactions`. Epidemics and
 enzyme kinetics are both reaction networks with a product propensity, so they share the general realization and differ
-only in their field realizations. `HenonMapSystem` subclasses `DynamicalSystem` in discrete time. It returns its two
-states from `_get_states`, its parameters from `_get_parameters`, and its map from `_get_equations`, so its module
-defines no element class.
+only in their field realizations.
 
 ## Changing a ready-made system by subclassing it
 

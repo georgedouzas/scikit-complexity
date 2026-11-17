@@ -19,7 +19,8 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.laws.utils import both, where
 from ....core.components.spaces import BaseSpace
-from ....core.engine.solvers import RK4Solver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
@@ -188,6 +189,12 @@ class BeamBeamMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import BeamBeamMapSystem
         >>> BeamBeamMapSystem(nu=0.5).prepare().system_.interactions[0].nu
@@ -208,8 +215,10 @@ class BeamBeamMapSystem(BaseSystem):
         nu: float = 0.3,
         c: float = 0.05,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.nu = nu
@@ -273,6 +282,12 @@ class FrictionOscillatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import FrictionOscillatorSystem
         >>> FrictionOscillatorSystem(mu_k=0.1).prepare().system_.interactions[0].mu_k
@@ -298,8 +313,10 @@ class FrictionOscillatorSystem(BaseSystem):
         g: float = 1.0,
         v_stick: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.v = v
         self.m = m

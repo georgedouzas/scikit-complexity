@@ -46,7 +46,7 @@ def test_faraday_disk_charges_only_above_the_battery_voltage():
 
 def test_wheel_rail_response_is_periodic():
     """Test that the rail settles on a response with the period of the passing bogies."""
-    trajectory = simulate(WheelRailContactSystem().prepare().system_, until=60, dt=0.05)
+    trajectory = WheelRailContactSystem().prepare().system_.simulate(until=60, dt=0.05)
     rail = trajectory.get_values('rail.z')
     assert rail[-1] == pytest.approx(rail[-201], abs=1e-4)
     assert rail.max() > 0.1

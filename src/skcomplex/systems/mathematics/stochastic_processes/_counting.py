@@ -3,50 +3,83 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import JumpInteraction, MapInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.interactions import Interaction, MapInteraction
+from ....core.components.laws import JumpLaw
+from ....core.components.spaces import BaseSpace
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 
 
 class PoissonCounterElement(Element):
-    """Counter of the events of a Poisson process.
-
-    The counter has the rate of events it is counted at.
+    """Counters of the events of Poisson processes, one count per process.
 
     Args:
         label:
-            The label of the counter or the group.
+            The label of the counters.
 
         count:
-            The initial number of events.
+            The initial number of events, one per counter or shared.
 
-        rate:
-            The rate of events, which the jump of the counter reads.
+        size:
+            The number of counters, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import PoissonCounterElement
-        >>> PoissonCounterElement('counter', rate=2.0).rate
+        >>> PoissonCounterElement('counter', count=2.0).count
         2.0
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        count: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label)
+    def __init__(self, label: str, *, count: Annotated[float, NN] = 0.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
         self.count = count
+
+
+class PoissonEventsInteraction(Interaction):
+    """The events of a Poisson process, which add one to a count at the rate `rate`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The counters whose counts the events add to.
+
+        rate:
+            The rate of the events.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import PoissonEventsInteraction
+        >>> PoissonEventsInteraction('events', target='counters', rate=2.0).rate
+        2.0
+    """
+
+    law_classes = (JumpLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'counters', rate: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
         self.rate = rate
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the event that adds one to the count as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [JumpLaw(context.rate, {context.target.count: 1})]
 
 
 class BernoulliTrialView(AgentView):
@@ -107,7 +140,7 @@ class BernoulliTrialElement(Element):
         return BernoulliTrialView
 
 
-class BernoulliProcessSystem(BaseSystem):
+class BernoulliProcessSystem(OldBaseSystem):
     """Independent Bernoulli processes, one success or failure per step.
 
     Their success counts are binomial.
@@ -191,9 +224,15 @@ class PoissonProcessSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
-        >>> PoissonProcessSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> PoissonProcessSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -209,18 +248,18 @@ class PoissonProcessSystem(BaseSystem):
         *,
         rate: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_processes = n_processes
         self.rate = rate
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        counters = GroupElement(
-            'counters',
-            element=PoissonCounterElement,
-            size=self.n_processes,
-            values={'rate': self.rate},
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the counters and their events."""
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[PoissonCounterElement('counters', size=self.n_processes)],
+            interactions=[PoissonEventsInteraction('events', target='counters', rate=self.rate)],
         )
-        events = JumpInteraction('events', target='counters', changes={'count': 1}, rate=lambda s: s.target.rate)
-        return CompositeSystem(self.label, elements=[counters], interactions=[events])

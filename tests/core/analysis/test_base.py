@@ -38,6 +38,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, TagError, ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import BaseSystem
 from skcomplex.systems.biology.ecology import (
     GeneralizedLotkaVolterraSystem,
     LogisticGrowthSystem,
@@ -239,7 +240,11 @@ def test_snapshots_refuse_a_group_without_a_position_role():
 )
 def test_series_of_group_states(system, state):
     """Test that the scalar states of a group without positions are series, one column per member."""
-    trajectory = simulate(system(), until=1.0, random_state=0)
+    built = system()
+    if isinstance(built, BaseSystem):
+        trajectory = built.prepare().simulate(1.0, random_state=0)
+    else:
+        trajectory = simulate(built, until=1.0, random_state=0)
     series = _read_series(trajectory)
     np.testing.assert_array_equal(series.values, trajectory.get_values(state))
     assert series.labels[0] == f'{state}[0]'
@@ -248,7 +253,7 @@ def test_series_of_group_states(system, state):
 def test_series_leave_out_particles_and_jump_paths():
     """Test that a group of particles or of jump paths has no series, while a single jump state keeps one."""
     particles = simulate(RandomWalkWithMemorySystem(n_walkers=5), until=1.0, random_state=0)
-    paths = simulate(PoissonProcessSystem(n_processes=2), until=1.0, random_state=0)
+    paths = PoissonProcessSystem(n_processes=2).prepare().simulate(1.0, random_state=0)
     for trajectory in (particles, paths):
         with pytest.raises(AnalysisError, match='no scalar series'):
             _read_series(trajectory)

@@ -15,7 +15,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.robotics import SwarmtaxisSystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
 )
 system = SwarmtaxisSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, until=3000, dt=15, observers=[observer])
+trajectory = system.prepare().simulate(until=3000, dt=15, observers=[observer])
 
 # %%
 # Drift towards the beacon

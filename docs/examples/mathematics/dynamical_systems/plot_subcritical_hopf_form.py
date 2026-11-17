@@ -15,7 +15,6 @@ attractor it had before, a hysteresis loop.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import SubcriticalHopfFormSystem
 
@@ -30,8 +29,8 @@ def alpha_at(time):
 
 system = SubcriticalHopfFormSystem(x=1.0, alpha=-0.1)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-schedule = {'form.alpha': alpha_at}
-trajectory = simulate(system.prepare().system_, until=290, dt=1.0, observers=[observer], schedule=schedule)
+schedule = {'subcritical_hopf_form.alpha': alpha_at}
+trajectory = system.prepare().simulate(290, dt=1.0, observers=[observer], schedule=schedule)
 
 # %%
 # Amplitude along the sweep and the two attractors
@@ -45,7 +44,7 @@ alphas = np.linspace(-0.4, 0.2, 25)
 finals = {
     start: [
         np.hypot(
-            *simulate(SubcriticalHopfFormSystem(x=start, alpha=alpha), until=150, dt=1.0).states[-1],
+            *SubcriticalHopfFormSystem(x=start, alpha=alpha).prepare().simulate(150, dt=1.0).states[-1],
         )
         for alpha in alphas
     ]

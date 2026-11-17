@@ -51,6 +51,7 @@ from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
 from ...problems._node_spec import _NodeSpec
 from ...problems._pair_search import PairSearch
+from ...problems._problem_spec import ProblemSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._census_record_spec import _CensusRecordSpec
@@ -202,7 +203,7 @@ class CensusPass(BasePass):
         for spec in specs:
             component = CensusPass._get_component_of(block.node)
             for law in CensusPass._get_declared_laws(spec, component):
-                items = [item for target in law._get_targets() for item in components_of(target)]
+                items = [item for target in law._get_targets() for item in ProblemSpec._get_real_components_of(target)]
                 references = [spec.references.get(item) for item in items if isinstance(item, Expression)]
                 targets = tuple(dict.fromkeys(item.entry for item in references if item is not None))
                 targets = targets or CensusPass._get_equation_targets(spec, law)

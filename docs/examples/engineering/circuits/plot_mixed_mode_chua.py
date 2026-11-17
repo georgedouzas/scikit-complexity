@@ -12,8 +12,6 @@ spike, over and over: a mixed-mode oscillation.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.circuits import MixedModeChuaSystem
 
@@ -21,7 +19,7 @@ SYSTEM = 'mixed_mode_chua'
 
 system = MixedModeChuaSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, solver=ScipyODESolver(method='Radau'), observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Small, large, and mixed
@@ -31,7 +29,7 @@ trajectory = simulate(system, solver=ScipyODESolver(method='Radau'), observers=[
 
 fig, axes = plt.subplots(3, 1, figsize=(8, 6), sharex=True)
 for ax, c in zip(axes, [0.0, 0.00053, 0.00105], strict=True):
-    run = simulate(MixedModeChuaSystem(c=c), dt=0.25, solver=ScipyODESolver(method='Radau'))
+    run = MixedModeChuaSystem(c=c).prepare().simulate(dt=0.25)
     ax.plot(run.times, run.get_values('circuit.x'), linewidth=0.8)
     ax.set_ylabel('x')
     ax.set_title(f'c = {c}', fontsize=10)

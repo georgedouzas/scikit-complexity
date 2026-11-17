@@ -7,7 +7,7 @@ The module covers a rotating swing, balls on rotating rods, and a gyroscope in a
 # License: MIT
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -19,6 +19,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.mechanics import LagrangianInteraction
@@ -66,6 +68,9 @@ class GyroscopeElement(Element):
         A2:
             The moment of inertia of the outer ring about its axis.
 
+        values:
+            Further values by name, such as an initial velocity named with a prime, or `None`.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import GyroscopeElement
         >>> GyroscopeElement('gyroscope', C=3.0).C
@@ -85,8 +90,9 @@ class GyroscopeElement(Element):
         B1: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
         C1: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
         A2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values)
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -187,6 +193,9 @@ class RotatingSwingElement(Element):
         g:
             The gravitational acceleration.
 
+        values:
+            Further values by name, such as an initial velocity named with a prime, or `None`.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import RotatingSwingElement
         >>> RotatingSwingElement('swing', n_chairs=4.0).n_chairs
@@ -205,8 +214,9 @@ class RotatingSwingElement(Element):
         a: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         l: Annotated[float, RealSet.open(0, oo)] = 1.0,
         g: Annotated[float, RealSet.open(0, oo)] = 9.81,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values)
         self.phi = phi
         self.theta = theta
         self.J = J
@@ -467,10 +477,17 @@ class RotatingSwingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import RotatingSwingSystem
-        >>> RotatingSwingSystem(omega=1.0).prepare().initial_state_
-        {"swing.phi'": 1.0}
+        >>> trajectory = RotatingSwingSystem(omega=1.0).prepare().simulate(until=1.0)
+        >>> float(trajectory.get_values("swing.phi'")[0])
+        1.0
     """
 
     field = 'physics/mechanics'
@@ -493,8 +510,10 @@ class RotatingSwingSystem(BaseSystem):
         torque: float = 0.0,
         friction: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.omega = omega
         self.theta = theta
         self.n_chairs = n_chairs
@@ -523,10 +542,10 @@ class RotatingSwingSystem(BaseSystem):
             a=self.a,
             l=self.l,
             g=self.g,
+            values={"phi'": self.omega},
         )
         motion = RotatingSwingInteraction('motion', target='swing', torque=self.torque, friction=self.friction)
         self.system_ = System(self.label, elements=[swing], interactions=[motion])
-        self.initial_state_ = {"swing.phi'": self.omega}
 
 
 class RotatingBallsOnRodsSystem(BaseSystem):
@@ -555,6 +574,12 @@ class RotatingBallsOnRodsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import RotatingBallsOnRodsSystem
         >>> RotatingBallsOnRodsSystem(omega=2.0).prepare().system_.elements[0].H
@@ -575,8 +600,10 @@ class RotatingBallsOnRodsSystem(BaseSystem):
         beta: float = math.pi / 2,
         m: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.omega = omega
         self.r = r
         self.beta = beta
@@ -644,10 +671,17 @@ class GimballedGyroscopeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import GimballedGyroscopeSystem
-        >>> GimballedGyroscopeSystem(spin=10.0).prepare().initial_state_
-        {"gyroscope.gamma'": 10.0}
+        >>> trajectory = GimballedGyroscopeSystem(spin=10.0).prepare().simulate(until=0.1)
+        >>> float(trajectory.get_values("gyroscope.gamma'")[0])
+        10.0
     """
 
     field = 'physics/mechanics'
@@ -669,8 +703,10 @@ class GimballedGyroscopeSystem(BaseSystem):
         A2: float = 1.0,
         torque: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.spin = spin
         self.beta = beta
         self.A = A
@@ -698,7 +734,7 @@ class GimballedGyroscopeSystem(BaseSystem):
             B1=self.B1,
             C1=self.C1,
             A2=self.A2,
+            values={"gamma'": self.spin},
         )
         motion = GyroscopeInteraction('motion', target='gyroscope', torque=self.torque)
         self.system_ = System(self.label, elements=[gyroscope], interactions=[motion])
-        self.initial_state_ = {"gyroscope.gamma'": self.spin}

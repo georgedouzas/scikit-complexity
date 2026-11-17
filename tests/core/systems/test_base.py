@@ -1,13 +1,22 @@
 """Test the `_base` module of `skcomplex.core.systems`."""
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 
 import pytest
 from sklearn.base import clone
 
 from skcomplex.core.components import Observable
+from skcomplex.core.components.base import BaseComponent
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.spaces import BaseSpace
+from skcomplex.core.engine.backends import BaseBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import Trajectory
+from skcomplex.core.engine.solvers import BaseSolver, RK4Solver
 from skcomplex.core.errors import NotPreparedError
+from skcomplex.core.specs import Role
 from skcomplex.core.systems import BaseSystem, System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
@@ -17,8 +26,14 @@ class MeadowSystem(BaseSystem):
 
     until = 4.0
 
-    def __init__(self, label: str = 'system', r: float = 1.1) -> None:
-        super().__init__(label)
+    def __init__(
+        self,
+        label: str = 'system',
+        r: float = 1.1,
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
+    ) -> None:
+        super().__init__(label, solver=solver, backend=backend)
         self.r = r
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
@@ -70,7 +85,54 @@ def test_prepare_reaches_run() -> None:
 
 def test_clone_keeps_model_parameters() -> None:
     """Cloning a system keeps its model parameters."""
-    assert clone(MeadowSystem(r=0.7)).get_params() == {'label': 'system', 'r': 0.7}
+    assert clone(MeadowSystem(r=0.7)).get_params() == {'backend': 'auto', 'label': 'system', 'r': 0.7, 'solver': 'auto'}
+
+
+def test_get_params_lists_the_solver_and_the_backend() -> None:
+    """A ready-made system lists the solver and the backend among its parameters, and a clone keeps them."""
+    system = MeadowSystem(r=0.7, solver=RK4Solver(dt=0.01), backend=NumbaBackend())
+    params = system.get_params(deep=False)
+    assert isinstance(params['solver'], RK4Solver)
+    assert isinstance(params['backend'], NumbaBackend)
+    assert isinstance(clone(system).get_params()['backend'], NumbaBackend)
+
+
+def test_prepare_passes_the_solver_and_the_backend_to_the_built_system() -> None:
+    """The solver and the backend of a ready-made system reach the system it builds and the run."""
+    system = MeadowSystem(solver=RK4Solver(dt=0.01), backend=NumbaBackend()).prepare()
+    assert isinstance(system.solver_, RK4Solver)
+    assert isinstance(system.backend_, NumbaBackend)
+    assert isinstance(system.system_.backend, NumbaBackend)
+    numba = system.simulate(until=1.0).get_values('meadow/prey.x')
+    numpy = MeadowSystem(solver=RK4Solver(dt=0.01), backend=NumpyBackend()).prepare().simulate(until=1.0)
+    assert numba == pytest.approx(numpy.get_values('meadow/prey.x'), rel=1e-9)
+
+
+class TunedMeadowSystem(MeadowSystem):
+    """System of one meadow whose built system chooses its own solver."""
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the meadow with the RK4 solver."""
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            systems=[LotkaVolterraSystem(label='meadow', r=self.r)],
+            solver=RK4Solver(dt=0.01),
+        )
+
+
+def test_prepare_keeps_the_solver_of_the_built_system_for_auto() -> None:
+    """A ready-made system left at `'auto'` keeps the solver its built system chooses, and a given one wins."""
+    assert isinstance(TunedMeadowSystem().prepare().solver_, RK4Solver)
+    assert TunedMeadowSystem(solver=RK4Solver(dt=0.02)).prepare().solver_.dt == 0.02
+
+
+def test_set_params_changes_the_backend() -> None:
+    """Setting the backend of a prepared ready-made system asks to prepare it again."""
+    system = MeadowSystem().prepare().set_params(backend=NumbaBackend())
+    with pytest.raises(NotPreparedError, match='parameters backend'):
+        system.simulate(until=1.0)
+    assert isinstance(system.prepare().backend_, NumbaBackend)
 
 
 def test_prepare_exposes_what_the_built_system_learned() -> None:
@@ -82,27 +144,25 @@ def test_prepare_exposes_what_the_built_system_learned() -> None:
     assert system.solver_ is system.system_.solver_
 
 
-class StockedMeadowSystem(MeadowSystem):
-    """System of one Lotka-Volterra meadow whose initial prey is a model parameter."""
+class CountInteraction(Interaction):
+    """Interaction that adds one to a count at every step."""
 
-    def __init__(self, label: str = 'system', r: float = 1.1, prey: float = 40.0) -> None:
-        super().__init__(label, r)
-        self.prey = prey
+    law_classes = (UpdateLaw,)
 
-    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the meadow and its initial prey."""
+    def __init__(self, label: str, *, target: Role = 'counter') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next count as the law."""
         super()._prepare(context)
-        self.initial_state_ = {'meadow/prey.x': self.prey}
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target.n, context.target.n + 1)]
 
 
-def test_prepare_sets_initial_state_from_model_parameters() -> None:
-    """Initial values set in `_prepare` start a run that gives none, and a run that gives some uses those."""
-    system = StockedMeadowSystem(prey=12.0).prepare()
-    assert system.simulate(until=1.0).get_values('meadow/prey.x')[0] == pytest.approx(12.0)
-    other = system.simulate(until=1.0, initial_state={'meadow/prey.x': 5.0})
-    assert other.get_values('meadow/prey.x')[0] == pytest.approx(5.0)
-
-
-def test_prepare_sets_initial_state_to_tuned_one() -> None:
-    """A system that sets no initial values in `_prepare` takes its tuned ones."""
-    assert MeadowSystem().prepare().initial_state_ is None
+def test_get_tags_reads_the_domains_of_values_from_the_laws() -> None:
+    """The tags of a system whose element is given by values name the domains of the states its laws change."""
+    counter = Element('counter', values={'n': 0.0, 'step': 0.5})
+    tags = System(elements=[counter], interactions=[CountInteraction('count')]).get_tags()
+    assert tags.domains == {'real'}
+    assert tags.laws == {'update'}

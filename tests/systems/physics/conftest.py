@@ -40,8 +40,7 @@ def _run(
 ) -> Trajectory:
     """Return the trajectory of a system run to a time, or of its components under a schedule of their parameters."""
     if isinstance(system, PreparedSystem):
-        prepared = system.prepare()
-        prepared.system_.set_params(solver=solver).prepare(prepared.observables)
+        prepared = system.set_params(solver=solver).prepare()
         return prepared.simulate(until=until, dt=dt, observables=observables, schedule=schedule)
     if schedule is None:
         return simulate(system, until=until, dt=dt, solver=solver, observables=observables)

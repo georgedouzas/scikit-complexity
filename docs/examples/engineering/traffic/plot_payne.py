@@ -13,8 +13,6 @@ Greenshields law and the anticipation of drivers smooth it out, so the road retu
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.traffic import PayneSystem
 
@@ -22,7 +20,7 @@ SYSTEM = 'payne'
 
 system = PayneSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, dt=0.01, solver=SSPRKSolver(), observers=[observer])
+trajectory = system.prepare().simulate(dt=0.01, observers=[observer])
 
 # %%
 # Conservation and smoothing

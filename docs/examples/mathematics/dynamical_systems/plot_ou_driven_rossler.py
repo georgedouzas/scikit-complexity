@@ -10,8 +10,8 @@ in three dimensions, with the spikes of `z` that lift the trajectory out of the 
 # %%
 # The example builds `OUDrivenRosslerSystem` with the parameters `a = 0.2`, `b = 0.4`, and `c = 5.743` of Cestnik
 # and Martens, the correlation time `tau = 50`, and the noise amplitude `rho = 1.5`, so the control has the standard
-# deviation `rho / sqrt(2 tau) = 0.15`. The run of 600 time units uses the Numba backend. After the run, the trajectory
-# is logged once as a line in three dimensions, and the blueprint puts that view first, as the primary view.
+# deviation `rho / sqrt(2 tau) = 0.15`. After the run of 600 time units, the trajectory is logged once as a line in
+# three dimensions, and the blueprint puts that view first, as the primary view.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,8 +19,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import OUDrivenRosslerSystem
 
@@ -42,13 +40,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=25)
-trajectory = simulate(
-    OUDrivenRosslerSystem(rho=1.5),
-    until=600,
-    observers=[observer],
-    random_state=0,
-    backend=NumbaBackend(),
-)
+trajectory = OUDrivenRosslerSystem(rho=1.5).prepare().simulate(600, observers=[observer], random_state=0)
 points = np.column_stack([trajectory.get_values(f'rossler.{state}') for state in 'xyz'])[500:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.05, colors=[255, 170, 40]), static=True)
 observer.recording_.flush()
@@ -61,14 +53,14 @@ observer.recording_.flush()
 # controls, the diagram that Cestnik and Martens reconstruct from such data. The control should be Gaussian with the
 # standard deviation 0.15.
 
-long = simulate(OUDrivenRosslerSystem(rho=1.5), until=3000, random_state=1, backend=NumbaBackend())
+long = OUDrivenRosslerSystem(rho=1.5).prepare().simulate(3000, random_state=1)
 x, eta = long.get_values('rossler.x'), long.get_values('rossler.eta')
 peaks = find_peaks(x)[0]
 fig, (diagram, density) = plt.subplots(1, 2, figsize=(10, 4))
 diagram.plot(eta[peaks], x[peaks], '.', markersize=3, alpha=0.5, label='noisy control')
 for control in np.linspace(-0.3, 0.3, 13):
     fixed = OUDrivenRosslerSystem(eta=control, tau=1e9, rho=0.0)
-    held = simulate(fixed, until=800, dt=0.1, backend=NumbaBackend()).get_values('rossler.x')[3000:]
+    held = fixed.prepare().simulate(800, dt=0.1).get_values('rossler.x')[3000:]
     maxima = held[find_peaks(held)[0]]
     diagram.plot(np.full(maxima.size, control), maxima, 'k.', markersize=3)
 diagram.plot([], [], 'k.', label='fixed control')

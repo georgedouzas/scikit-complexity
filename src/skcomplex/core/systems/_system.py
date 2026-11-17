@@ -22,9 +22,8 @@ from ..engine.runtime import Trajectory, compile_problem
 from ..engine.solvers import BaseSolver
 from ..enums import FormKind
 from ..errors import ValidationError
-from ._base import BaseSystem
+from ._base import AUTO, BaseSystem
 
-AUTO = 'auto'
 SETTINGS = ('space', 'solver', 'backend')
 BACKENDS = (NumpyBackend, NumbaBackend, JaxBackend)
 
@@ -108,13 +107,11 @@ class System(BaseSystem):
             backend:
                 The backend that evaluates the compiled functions, or `'auto'` for the default one.
         """
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.elements = elements
         self.interactions = interactions
         self.systems = systems
         self.space = space
-        self.solver = solver
-        self.backend = backend
 
     def _get_components(self) -> list[BaseComponent]:
         """Return the elements, interactions, and nested systems, addressed by label."""
@@ -218,7 +215,9 @@ class System(BaseSystem):
         state_entries = list(states.entries) if states is not None else []
         parameter_entries = list(parameters.entries) if parameters is not None else []
         display = Trajectory._get_display_name
-        self.states_ = tuple(display(name) for entry in state_entries for name in entry.generic_names)
+        agents = [f'{group.path}.{name}' for group in getattr(problem, 'agents', ()) for name in group.states]
+        names = [display(name) for entry in state_entries for name in entry.generic_names]
+        self.states_ = tuple(dict.fromkeys([*names, *agents]))
         self.parameters_ = tuple(display(name) for entry in parameter_entries for name in entry.generic_names)
         symbols: Mapping[str, object] = getattr(problem, 'symbols', {})
         readable = {

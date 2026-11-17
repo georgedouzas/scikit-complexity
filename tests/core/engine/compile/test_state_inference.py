@@ -7,17 +7,18 @@ import networkx as nx
 import numpy as np
 import pytest
 import skfem
-from sage.all__sagemath_symbolics import abs_symbolic, oo, sin
+from sage.all__sagemath_symbolics import abs_symbolic, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 from scipy.linalg import expm
 from scipy.special import ive
 
+from skcomplex.core.analysis import displacement
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import ConstraintLaw, NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import laplacian, neighbors
-from skcomplex.core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
@@ -172,6 +173,32 @@ def test_get_declared_reads_lags():
     system = System(elements=[Economy('economy')], interactions=[Accelerator('samuelson')]).prepare()
     assert system.states_ == ('economy.y', 'economy.y[-1]', 'economy.y[-2]')
     assert system.equations_['economy.y[-1]'] == 'economy.y'
+
+
+def test_get_declared_starts_a_derivative_from_a_value():
+    """Test that a value named with a prime starts the derivative, as a ball thrown upwards at 3 m/s."""
+    ball = Element('ball', values={'x': 10.0, "x'": 3.0})
+    trajectory = System(elements=[ball], interactions=[Gravity('gravity')]).prepare().simulate(until=1.0, dt=0.5)
+    assert trajectory.get_values("ball.x'")[0] == pytest.approx(3.0)
+    assert trajectory.get_values('ball.x')[-1] == pytest.approx(10.0 + 3.0 - 9.81 / 2)
+
+
+def test_get_declared_starts_past_values_from_values():
+    """Test that values named with past indices start the lags, and a missing one is the value itself."""
+    economy = Element('economy', values={'y': 1.0, 'y[-2]': 0.5})
+    system = System(elements=[economy], interactions=[Accelerator('samuelson')]).prepare()
+    values = system.simulate(until=1, dt=1).get_values('economy.y')
+    assert values.tolist() == pytest.approx([1.0, 1 + 1.2 * 1.0 - 0.5 * 0.5])
+
+
+@pytest.mark.parametrize(
+    ('values', 'message'),
+    [({'x': 1.0, "z'": 1.0}, "no single value named 'z'"), ({'x': 1.0, "x''": 1.0}, "of 'x' at index 2")],
+)
+def test_get_declared_rejects_unread_starting_values(values, message):
+    """Test that a starting value of an unknown value, or of a derivative no law reads, raises an error."""
+    with pytest.raises(ValidationError, match=message):
+        System(elements=[Element('ball', values=values)], interactions=[Gravity('gravity')]).prepare()
 
 
 def test_get_declared_rejects_two_orders():
@@ -400,3 +427,137 @@ def test_get_declared_balances_the_currents_of_three_resistors():
     assert np.abs(into_node).max() < 1e-9
     assert v['a1'] == pytest.approx(10.0 * (1 + 0.5 * np.sin(trajectory.times)))
     assert np.abs(v['g']).max() < 1e-12
+
+
+class Walk(Interaction):
+    """Interaction that moves every coordinate of its target by Brownian steps of diffusion `D`."""
+
+    def __init__(self, label: str, *, target: Role = 'walkers', D: float = 0.5) -> None:
+        super().__init__(label)
+        self.target = target
+        self.D = D
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set a noise of variance `2 D` per unit time on `x`."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [NoiseLaw(context.target.x, sqrt(2 * context.D))]
+
+
+def test_get_declared_reads_a_value_named_after_an_axis_as_a_position():
+    """Test that walkers whose value `x` names the axis of a line diffuse with `msd = 2 D t`."""
+    walkers = Element('walkers', values={'x': 0.0}, size=400, space=ContinuousSpace(n_dim=1))
+    system = System(elements=[walkers], interactions=[Walk('walk', D=0.5)]).prepare()
+    trajectory = system.simulate(until=20.0, dt=0.1, random_state=0)
+    assert displacement(trajectory, dt=0.1).diffusion == pytest.approx(0.5, rel=0.15)
+
+
+def test_get_declared_places_one_walker_in_a_space_without_sites():
+    """Test that an element in a continuous space without a size is one walker whose position no law needs."""
+    walker = Element('walker', values={'x': 1.0, 'y': 2.0, 'm': 1.0}, space=ContinuousSpace(n_dim=2))
+    system = System(elements=[walker]).prepare()
+    assert system.states_ == ('walker.x[i]', 'walker.y[i]')
+    assert system.parameters_ == ('walker.m[i]',)
+
+
+class Growth(Interaction):
+    """Interaction that adds one node joined to one other node at every step."""
+
+    def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = None) -> None:
+        super().__init__(label, among=among, along=along)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the request of one new node as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(TopologyRequestSpec('add-node', edges=1, one=True), 1.0)]
+
+
+def test_get_declared_records_the_values_of_a_growing_network():
+    """Test that the degrees of the nodes of a growing network are a state recorded for every node at every step."""
+    graph = nx.path_graph(5)
+    degrees = np.array([degree for _, degree in graph.degree()], dtype=float)
+    nodes = Element('nodes', values={'k': degrees}, space=NetworkSpace(graph))
+    system = System(elements=[nodes], interactions=[Growth('growth')]).prepare()
+    assert system.states_ == ('nodes.k[i]',)
+    recorded = system.simulate(until=4, dt=1, random_state=0).get_values('nodes.k')
+    assert [int(np.count_nonzero(~np.isnan(frame))) for frame in recorded] == [5, 6, 7, 8, 9]
+    assert recorded[:, :5] == pytest.approx(np.tile(degrees, (5, 1)))
+
+
+class Count(Interaction):
+    """Interaction that adds one to a count at every step."""
+
+    def __init__(self, label: str, *, target: Role = 'counter') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next count as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target.n, context.target.n + 1)]
+
+
+def test_get_declared_reads_an_int_as_an_integer():
+    """Test that a count given as an `int` through `values` is an integer state."""
+    counter = Element('counter', values={'n': 0})
+    system = System(elements=[counter], interactions=[Count('count')])
+    assert system.get_tags().domains == {'integer'}
+    assert system.prepare().simulate(until=3, dt=1).get_values('counter.n') == pytest.approx([0, 1, 2, 3])
+
+
+class Julia(Interaction):
+    """Interaction of the map `z -> z**2 + c` of a Julia set."""
+
+    def __init__(self, label: str, *, target: Role = 'point', c: complex = -0.4 + 0.6j) -> None:
+        super().__init__(label)
+        self.target = target
+        self.c = c
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next point as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            z = context.target.z
+            self.laws_: list[BaseComponent] = [UpdateLaw(z, z**2 + context.c)]
+
+
+def test_get_declared_maps_a_complex_value():
+    """Test that a complex point of a Julia set follows `z -> z**2 + c` with a complex parameter `c`."""
+    point = Element('point', values={'z': 0.1 + 0.1j})
+    system = System(elements=[point], interactions=[Julia('julia', c=-0.4 + 0.6j)]).prepare()
+    assert system.parameters_ == ('julia.c.real', 'julia.c.imag')
+    expected = [0.1 + 0.1j]
+    for _ in range(3):
+        expected.append(expected[-1] ** 2 - 0.4 + 0.6j)
+    assert system.simulate(until=3, dt=1).get_values('point.z') == pytest.approx(expected)
+
+
+class Wander(Interaction):
+    """Interaction whose rule moves every member of its target by its speed."""
+
+    def __init__(self, label: str, *, target: Role = 'walkers') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the members as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.wander)]
+
+    def wander(self, agent: object, system: object) -> None:
+        """Move an agent by its speed, or remove it once it passes ten."""
+        agent.x += agent.speed
+        if agent.x > 10:
+            agent.remove()
+
+
+def test_get_declared_makes_every_value_of_an_agent_group_a_state():
+    """Test that a rule may change every value of its agents and remove them, so all are states of a variable group."""
+    walkers = Element('walkers', values={'x': 0.0, 'speed': [2.0, 4.0, 6.0]}, size=3)
+    system = System(elements=[walkers], interactions=[Wander('wander')]).prepare()
+    assert system.states_ == ('walkers.x', 'walkers.speed')
+    trajectory = system.simulate(until=3)
+    assert trajectory.get_values('walkers.count').tolist() == [3.0, 3.0, 2.0, 1.0]

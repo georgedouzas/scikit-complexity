@@ -18,7 +18,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import symbolic
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.fractional_dynamics import FractionalRelaxationSystem
 
@@ -45,8 +44,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(FractionalRelaxationSystem(order=0.6), observers=[observer])
-runs = {order: simulate(FractionalRelaxationSystem(order=order)) for order in ORDERS}
+trajectory = FractionalRelaxationSystem(order=0.6).prepare().simulate(observers=[observer])
+runs = {order: FractionalRelaxationSystem(order=order).prepare().simulate() for order in ORDERS}
 strips = [np.column_stack([10 * run.times, -100 * run.get_values('relaxation.x')]) for run in runs.values()]
 observer.recording_.log('orders', rr.LineStrips2D(strips, radii=0.8, colors=COLORS), static=True)
 observer.recording_.flush()
@@ -64,7 +63,7 @@ for (order, run), color in zip(runs.items(), COLORS, strict=True):
     solve = symbolic(FractionalRelaxationSystem(order=order), kind='solve', use_initial_state=True)
     solution = solve.solutions['relaxation.x'].rhs()
     symbols = {str(symbol): symbol for symbol in solution.variables()}
-    exact = [float(solution.subs({symbols['t']: time, symbols['lam_relaxation']: 1.0})) for time in times]
+    exact = [float(solution.subs({symbols['t']: time, symbols['lam_relaxation_law']: 1.0})) for time in times]
     ax.loglog(
         times,
         run.get_values('relaxation.x')[1:],

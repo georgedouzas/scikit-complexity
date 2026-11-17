@@ -18,11 +18,14 @@ from ..components import Observable, Tags
 from ..components.base import BaseComponent
 from ..components.systems import CompositeSystem
 from ..engine.backends import BaseBackend
+from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import BaseClock, BaseObserver, Trajectory, run_problem
 from ..engine.solvers import BaseSolver
 from ..errors import NotPreparedError
 
+AUTO = 'auto'
+SETTINGS = ('solver', 'backend')
 LEARNED = ('states_', 'parameters_', 'equations_', 'form_', 'solver_', 'backend_')
 
 
@@ -36,16 +39,15 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     attributes may tune the end time, the time between frames, the observables, the initial state, the invariants,
     and the schedule that `simulate` uses for the arguments a call leaves out.
 
+    A subclass also takes the settings `solver` and `backend`, as `System` does, and passes them on with the label,
+    as in `super().__init__(label, solver=solver, backend=backend)`. `prepare` gives them to `system_`, so
+    `RosslerSystem(backend=NumbaBackend())` runs on Numba, and `'auto'` keeps the ones `system_` chooses.
+
     Read more in the user guide, under Systems.
 
     Attributes:
         system_:
             The prepared `System` of the components built from the model parameters.
-
-        initial_state_:
-            The initial values that `simulate` uses when a call gives none, the tuned `initial_state` unless `_prepare`
-            sets them from the model parameters, such as `{"bob.theta'": self.omega}` for the initial angular velocity
-            of a pendulum.
 
     See Also:
         System: The system of components that every ready-made system builds.
@@ -70,7 +72,6 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     schedule: ClassVar[Mapping[str, Callable[[float], float | npt.ArrayLike]] | None] = None
 
     system_: BaseSystem
-    initial_state_: Mapping[str, object] | None
     states_: tuple[str, ...]
     parameters_: tuple[str, ...]
     equations_: dict[str, str]
@@ -81,14 +82,28 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     _problem: BaseProblemSpec
     _backend: BaseBackend | None
 
-    def __init__(self, label: str = 'system') -> None:
-        """Store the label of the system.
+    def __init__(
+        self,
+        label: str = 'system',
+        *,
+        solver: BaseSolver | str = AUTO,
+        backend: BaseBackend | str = AUTO,
+    ) -> None:
+        """Store the label and the settings of the system.
 
         Args:
             label:
                 The label of the system, which names it when it is nested in another one.
+
+            solver:
+                The solver of the problem, or `'auto'` for the one `system_` chooses.
+
+            backend:
+                The backend that evaluates the compiled functions, or `'auto'` for the one `system_` chooses.
         """
         super().__init__(label)
+        self.solver = solver
+        self.backend = backend
 
     def _get_composite(self) -> CompositeSystem:
         """Return the composite of the components that the engine compiles.
@@ -113,8 +128,12 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         return self._get_composite()._get_laws(namespace)
 
     def _get_tags(self) -> Tags:
-        """Return the tags derived from the components of the system."""
-        return self._get_composite()._get_tags()
+        """Return the tags derived from the components of the system.
+
+        The domains of an element given only by its values, such as `Element('ball', values={'x': 10.0})`, follow from
+        the laws that change them, so the states and parameters of such elements are inferred first.
+        """
+        return PassCompiler()._get_declared_system(self._get_composite())._get_tags()
 
     def _get_values(self) -> dict[str, object]:
         """Return the parameters of the system and of its components by name."""
@@ -143,16 +162,13 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Check the model parameters and set `system_`, the `System` of the components.
 
-        A subclass starts with `super()._prepare(context)`, which checks the label and sets `initial_state_` to the
-        tuned `initial_state`. A subclass whose initial values depend on its model parameters sets `initial_state_`
-        after it.
+        A subclass starts with `super()._prepare(context)`, which checks the label.
 
         Args:
             context:
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        self.initial_state_ = self.initial_state
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Set `laws_`, the laws of the system for a namespace of symbols.
@@ -180,7 +196,8 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         """
         super().prepare(self.observables if context is None else context)
         if self.system_ is not self:
-            self.system_.prepare(self.observables)
+            settings = {name: getattr(self, name) for name in SETTINGS if getattr(self, name) != AUTO}
+            self.system_.set_params(**settings).prepare(self.observables)
             for name in LEARNED:
                 setattr(self, name, getattr(self.system_, name))
         self._prepared_from = self._get_values()
@@ -215,8 +232,8 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
                 The time between frames, or `None` for the tuned one.
 
             initial_state:
-                Initial values by dotted state name, such as `{'ball.x': 20.0}`, or `None` for those of `initial_state_`
-                or the declared ones.
+                Initial values by dotted state name, such as `{'ball.x': 20.0}`, or `None` for the tuned or the declared
+                ones.
 
             random_state:
                 The seed or the generator of the random numbers of the run, or `None` for fresh entropy.
@@ -269,7 +286,7 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
             compiled,
             until=self.until if until is None else until,
             dt=self.dt if dt is None else dt,
-            initial_state=self.initial_state_ if initial_state is None else initial_state,
+            initial_state=self.initial_state if initial_state is None else initial_state,
             solver=prepared.solver_ if observables else None,
             backend=prepared._backend,
             observables=observables,

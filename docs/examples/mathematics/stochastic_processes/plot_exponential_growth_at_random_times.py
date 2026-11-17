@@ -16,7 +16,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import ExponentialGrowthAtRandomTimesSystem
 
@@ -30,11 +29,14 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(
-    ExponentialGrowthAtRandomTimesSystem(n_samples=2000),
-    dt=0.05,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    ExponentialGrowthAtRandomTimesSystem(n_samples=2000)
+    .prepare()
+    .simulate(
+        dt=0.05,
+        observers=[observer],
+        random_state=0,
+    )
 )
 x = trajectory.get_values('samples.x')
 for index in range(5):
@@ -53,7 +55,7 @@ observer.recording_.flush()
 
 fig, ax = plt.subplots(figsize=(6.5, 4.5))
 for mu, lam in ((1.0, 0.8), (1.0, 1.5), (1.0, 3.0)):
-    run = simulate(ExponentialGrowthAtRandomTimesSystem(n_samples=4000, mu=mu, lam=lam), random_state=0)
+    run = ExponentialGrowthAtRandomTimesSystem(n_samples=4000, mu=mu, lam=lam).prepare().simulate(random_state=0)
     values = np.sort(run.get_values('samples.x')[-1])
     survival = 1 - np.arange(values.size) / values.size
     (line,) = ax.loglog(values, survival, label=f'lam / mu = {lam / mu:g}')

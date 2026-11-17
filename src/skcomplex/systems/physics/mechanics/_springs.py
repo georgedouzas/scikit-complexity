@@ -18,6 +18,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.particles import LinearDragInteraction, RestoringForceInteraction
@@ -212,6 +214,12 @@ class TwoMassSpringDamperSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import TwoMassSpringDamperSystem
         >>> TwoMassSpringDamperSystem(l1=2.0).prepare().system_.interactions[0].center
@@ -243,8 +251,10 @@ class TwoMassSpringDamperSystem(BaseSystem):
         omega1: float = 1.0,
         omega2: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x1 = x1
         self.x2 = x2
         self.m1 = m1

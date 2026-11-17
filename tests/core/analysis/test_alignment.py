@@ -170,7 +170,7 @@ def test_alignment_reads_phases(system, state):
 
 def test_alignment_rejects_a_source_without_a_readable_kind():
     """Test that a trajectory with no agents, field, or series names the kinds read and the kinds held."""
-    trajectory = simulate(PoissonProcessSystem(n_processes=1), until=3.0, random_state=0)
+    trajectory = PoissonProcessSystem(n_processes=1).prepare().simulate(3.0, random_state=0)
     with pytest.raises(AnalysisError, match='reads agents, field, series, but the trajectory holds path'):
         _alignment('mean-vector', trajectory)
 

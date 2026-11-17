@@ -6,32 +6,60 @@ Birth-death processes give the number of customers waiting at a desk.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import NN
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import JumpInteraction
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import JumpLaw
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class QueueElement(Element):
-    """Queue at a desk, the number of customers waiting.
-
-    The queue has the rates of their arrivals and departures.
-
-    The jumps of the system read the rates: customers arrive at rate `arrival_rate` and leave at rate `service_rate`
-    while the queue is not empty.
+    """Queues at desks, each holding the number `n` of customers waiting.
 
     Args:
         label:
-            The label of the queue or the group.
+            The label of the queues.
 
         n:
-            The initial number of customers.
+            The initial number of customers, one per queue or shared.
+
+        size:
+            The number of queues, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import QueueElement
+        >>> QueueElement('desk', n=3.0).n
+        3.0
+    """
+
+    def __init__(self, label: str, *, n: Annotated[float, NN] = 0.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.n = n
+
+
+class ServiceInteraction(Interaction):
+    """The arrivals and departures of an M/M/1 queue.
+
+    Customers arrive at rate `arrival_rate` and leave at rate `service_rate` while the queue is not empty.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The queues whose customers arrive and leave.
 
         arrival_rate:
             The rate of arrivals.
@@ -40,23 +68,35 @@ class QueueElement(Element):
             The rate of departures from a queue that is not empty.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import QueueElement
-        >>> QueueElement('desk', arrival_rate=0.8).arrival_rate
+        >>> from skcomplex.systems.mathematics.stochastic_processes import ServiceInteraction
+        >>> ServiceInteraction('service', target='queues', arrival_rate=0.8).arrival_rate
         0.8
     """
+
+    law_classes = (JumpLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        n: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        arrival_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        service_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Role = 'queues',
+        arrival_rate: float = 0.5,
+        service_rate: float = 1.0,
     ) -> None:
         super().__init__(label)
-        self.n = n
+        self.target = target
         self.arrival_rate = arrival_rate
         self.service_rate = service_rate
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the arrival and the departure of a customer as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            n = context.target.n
+            self.laws_: list[BaseComponent] = [
+                JumpLaw(context.arrival_rate, {n: 1}),
+                JumpLaw(where(n > 0, context.service_rate, 0), {n: -1}),
+            ]
 
 
 class BirthDeathQueueSystem(BaseSystem):
@@ -85,9 +125,15 @@ class BirthDeathQueueSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import BirthDeathQueueSystem
-        >>> BirthDeathQueueSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> BirthDeathQueueSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -105,29 +151,26 @@ class BirthDeathQueueSystem(BaseSystem):
         service_rate: float = 1.0,
         n: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_queues = n_queues
         self.arrival_rate = arrival_rate
         self.service_rate = service_rate
         self.n = n
 
-    def _build_system(self) -> CompositeSystem:
-        """Return independent M/M/1 queues.
-
-        The queues are birth-death processes with constant arrival and service rates.
-        """
-        queue = GroupElement(
-            'queues',
-            element=QueueElement,
-            size=self.n_queues,
-            values={'n': self.n, 'arrival_rate': self.arrival_rate, 'service_rate': self.service_rate},
-        )
-        arrivals = JumpInteraction('arrivals', target='queues', changes={'n': 1}, rate=lambda s: s.target.arrival_rate)
-        departures = JumpInteraction(
-            'departures',
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the queues and their service."""
+        super()._prepare(context)
+        service = ServiceInteraction(
+            'service',
             target='queues',
-            changes={'n': -1},
-            rate=lambda s: where(s.target.n > 0, s.target.service_rate, 0),
+            arrival_rate=self.arrival_rate,
+            service_rate=self.service_rate,
         )
-        return CompositeSystem(self.label, elements=[queue], interactions=[arrivals, departures])
+        self.system_ = System(
+            self.label,
+            elements=[QueueElement('queues', n=self.n, size=self.n_queues)],
+            interactions=[service],
+        )

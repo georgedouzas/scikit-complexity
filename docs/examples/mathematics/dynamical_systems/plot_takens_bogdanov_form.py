@@ -17,7 +17,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import TakensBogdanovFormSystem
 
@@ -49,9 +48,9 @@ blueprint = rrb.Blueprint(
 )
 system = TakensBogdanovFormSystem(x=focus(-0.1) + 0.02, y=0.0, beta1=-0.1)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=8)
-trajectory = simulate(system, until=200, observers=[observer])
+trajectory = system.prepare().simulate(200, observers=[observer])
 saddle = (1 + np.sqrt(1 + 0.4)) / 2
-outside = simulate(TakensBogdanovFormSystem(x=saddle - 0.01, y=0.0, beta1=-0.1), until=60)
+outside = TakensBogdanovFormSystem(x=saddle - 0.01, y=0.0, beta1=-0.1).prepare().simulate(60)
 strips = [
     np.column_stack([100 * run.get_values('form.x'), -100 * run.get_values('form.y')]) for run in (trajectory, outside)
 ]
@@ -78,7 +77,7 @@ observer.recording_.flush()
 values = -np.linspace(0.005, 0.21, 21)
 amplitudes, periods = [], []
 for beta1 in values:
-    run = simulate(TakensBogdanovFormSystem(x=focus(beta1) + 0.02, y=0.0, beta1=beta1), until=600, dt=0.05)
+    run = TakensBogdanovFormSystem(x=focus(beta1) + 0.02, y=0.0, beta1=beta1).prepare().simulate(600, dt=0.05)
     x = run.get_values('form.x')[len(run.times) // 2 :]
     peaks = find_peaks(x)[0]
     amplitudes.append((x.max() - x.min()) / 2)

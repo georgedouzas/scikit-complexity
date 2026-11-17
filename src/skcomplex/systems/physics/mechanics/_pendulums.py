@@ -7,7 +7,7 @@ The module covers double, coupled, parametric, magnetic, and ballistic pendulums
 # License: MIT
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -23,6 +23,8 @@ from ....core.components.laws import EventLaw, RateLaw
 from ....core.components.laws.utils import derivative
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec, VisualSpec
 from ...general.mechanics import EulerLagrangeInteraction
@@ -62,6 +64,9 @@ class BallisticPendulumElement(Element):
         g:
             The gravitational acceleration.
 
+        values:
+            Further values by name, such as an initial velocity named with a prime, or `None`.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import BallisticPendulumElement
         >>> BallisticPendulumElement('pendulum', M=2.0).M
@@ -78,8 +83,9 @@ class BallisticPendulumElement(Element):
         M: Annotated[float, RealSet.open(0, oo)] = 1.0,
         l: Annotated[float, RealSet.open(0, oo)] = 1.0,
         g: Annotated[float, RealSet.open(0, oo)] = 9.81,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values)
         self.x = x
         self.theta = theta
         self.m = m
@@ -334,6 +340,9 @@ class ParametricPendulumElement(Element):
         l:
             The length of the rod.
 
+        values:
+            Further values by name, such as an initial velocity named with a prime, or `None`.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import ParametricPendulumElement
         >>> ParametricPendulumElement('swing', l=0.5).l
@@ -347,8 +356,9 @@ class ParametricPendulumElement(Element):
         theta: float = 0.1,
         g: Annotated[float, RealSet.open(0, oo)] = 9.81,
         l: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values)
         self.theta = theta
         self.g = g
         self.l = l
@@ -1035,6 +1045,12 @@ class CartPendulumSystem(systems.BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import CartPendulumSystem
         >>> CartPendulumSystem(m1=5.0).prepare().system_.elements[0].m1
@@ -1058,8 +1074,10 @@ class CartPendulumSystem(systems.BaseSystem):
         g: float = 9.81,
         F: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.theta = theta
         self.y = y
         self.m1 = m1
@@ -1122,6 +1140,12 @@ class ParametricPendulumSystem(systems.BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import ParametricPendulumSystem
         >>> ParametricPendulumSystem(epsilon=0.5).prepare().system_.interactions[0].epsilon
@@ -1146,8 +1170,10 @@ class ParametricPendulumSystem(systems.BaseSystem):
         c: float = 0.0,
         direction: str = 'vertical',
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.theta = theta
         self.omega = omega
         self.g = g
@@ -1173,9 +1199,8 @@ class ParametricPendulumSystem(systems.BaseSystem):
             c=self.c,
             direction=self.direction,
         )
-        swing = ParametricPendulumElement('swing', theta=self.theta, g=self.g, l=self.l)
+        swing = ParametricPendulumElement('swing', theta=self.theta, g=self.g, l=self.l, values={"theta'": self.omega})
         self.system_ = systems.System(self.label, elements=[swing], interactions=[motion])
-        self.initial_state_ = {"swing.theta'": self.omega}
 
 
 class MagneticPendulumSystem(systems.BaseSystem):
@@ -1211,6 +1236,12 @@ class MagneticPendulumSystem(systems.BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import MagneticPendulumSystem
         >>> len(MagneticPendulumSystem(n_magnets=4).prepare().system_.interactions)
@@ -1234,8 +1265,10 @@ class MagneticPendulumSystem(systems.BaseSystem):
         gamma: float = 1.0,
         d: float = 0.3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.n_magnets = n_magnets
@@ -1400,6 +1433,12 @@ class BallisticPendulumSystem(systems.BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import BallisticPendulumSystem
         >>> BallisticPendulumSystem(distance=2.0).prepare().system_.elements[0].x
@@ -1422,8 +1461,10 @@ class BallisticPendulumSystem(systems.BaseSystem):
         l: float = 1.0,
         g: float = 9.81,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.speed = speed
         self.distance = distance
         self.m = m
@@ -1439,7 +1480,15 @@ class BallisticPendulumSystem(systems.BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        pendulum = BallisticPendulumElement('pendulum', x=-self.distance, m=self.m, M=self.M, l=self.l, g=self.g)
+        pendulum = BallisticPendulumElement(
+            'pendulum',
+            x=-self.distance,
+            m=self.m,
+            M=self.M,
+            l=self.l,
+            g=self.g,
+            values={"x'": self.speed},
+        )
         self.system_ = systems.System(
             self.label,
             elements=[pendulum],
@@ -1448,7 +1497,6 @@ class BallisticPendulumSystem(systems.BaseSystem):
                 BulletImpactInteraction('impact', target='pendulum'),
             ],
         )
-        self.initial_state_ = {"pendulum.x'": self.speed}
 
 
 class HuygensClocksSystem(BaseSystem):

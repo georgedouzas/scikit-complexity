@@ -3,56 +3,97 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import JumpInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import JumpLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class PolyaUrnElement(Element):
-    """Urn of red and blue balls.
-
-    A drawn ball returns with `added` extra balls of its color.
-
-    The jumps of the system draw at rate 1, and a draw picks a color with probability proportional to its number of
-    balls, so the sequence of draws is that of Pólya's urn in discrete time.
+    """Urns of red and blue balls, counted by color.
 
     Args:
         label:
-            The label of the urn or the group.
+            The label of the urns.
 
         red:
-            The initial number of red balls.
+            The initial number of red balls, one per urn or shared.
 
         blue:
-            The initial number of blue balls.
+            The initial number of blue balls, one per urn or shared.
 
-        added:
-            The number of balls of the drawn color added after every draw.
+        size:
+            The number of urns, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import PolyaUrnElement
-        >>> PolyaUrnElement('urn', added=2).added
-        2
+        >>> PolyaUrnElement('urn', red=2.0).red
+        2.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        red: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        blue: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        added: int = 1,
+        red: Annotated[float, NN] = 1.0,
+        blue: Annotated[float, NN] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.red = red
         self.blue = blue
+
+
+class PolyaDrawInteraction(Interaction):
+    """The draws of Pólya's urn, where a drawn ball returns with `added` extra balls of its color.
+
+    The draws happen at rate 1, and a draw picks a color with probability proportional to its number of balls, so the
+    sequence of draws is that of Pólya's urn in discrete time.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The urns whose balls the draws add to.
+
+        added:
+            The number of balls of the drawn color added after every draw.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import PolyaDrawInteraction
+        >>> PolyaDrawInteraction('draws', target='urns', added=2).added
+        2
+    """
+
+    law_classes = (JumpLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'urns', added: int = 1) -> None:
+        super().__init__(label)
+        self.target = target
         self.added = added
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the draws of a red and of a blue ball as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            red, blue = context.target.red, context.target.blue
+            self.laws_: list[BaseComponent] = [
+                JumpLaw(red / (red + blue), {red: self.added}),
+                JumpLaw(blue / (red + blue), {blue: self.added}),
+            ]
 
 
 class PolyaUrnSystem(BaseSystem):
@@ -79,9 +120,15 @@ class PolyaUrnSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import PolyaUrnSystem
-        >>> PolyaUrnSystem(3).prepare().system_.elements[0].prepare().size_
+        >>> PolyaUrnSystem(3).prepare().system_.elements[0].size
         3
     """
 
@@ -99,31 +146,20 @@ class PolyaUrnSystem(BaseSystem):
         blue: int = 1,
         added: int = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_urns = n_urns
         self.red = red
         self.blue = blue
         self.added = added
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        urns = GroupElement(
-            'urns',
-            element=PolyaUrnElement,
-            size=self.n_urns,
-            values={'red': float(self.red), 'blue': float(self.blue), 'added': self.added},
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the urns and their draws."""
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[PolyaUrnElement('urns', red=float(self.red), blue=float(self.blue), size=self.n_urns)],
+            interactions=[PolyaDrawInteraction('draws', target='urns', added=self.added)],
         )
-        red_draws = JumpInteraction(
-            'red_draws',
-            target='urns',
-            changes={'red': self.added},
-            rate=lambda s: s.target.red / (s.target.red + s.target.blue),
-        )
-        blue_draws = JumpInteraction(
-            'blue_draws',
-            target='urns',
-            changes={'blue': self.added},
-            rate=lambda s: s.target.blue / (s.target.red + s.target.blue),
-        )
-        return CompositeSystem(self.label, elements=[urns], interactions=[red_draws, blue_draws])

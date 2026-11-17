@@ -14,7 +14,6 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import entropy, epsilon_machine
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import MarkovSourceSystem
 
@@ -29,7 +28,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(MarkovSourceSystem(transition=TRANSITION), until=299, observers=[observer], random_state=0)
+trajectory = MarkovSourceSystem(transition=TRANSITION).prepare().simulate(299, observers=[observer], random_state=0)
 
 # %%
 # Entropy rate
@@ -39,7 +38,7 @@ trajectory = simulate(MarkovSourceSystem(transition=TRANSITION), until=299, obse
 # run of 100000 symbols should drop from the entropy of single symbols to `h` at `m = 2` and stay there, since one
 # symbol of the past holds all the memory of the source.
 
-symbols = simulate(MarkovSourceSystem(transition=TRANSITION), until=100000, random_state=1)
+symbols = MarkovSourceSystem(transition=TRANSITION).prepare().simulate(100000, random_state=1)
 blocks = entropy(symbols.get_values('source.symbol').astype(int), kind='block', dimension=8)
 entropies = blocks.entropy[0]
 stationary = np.array([0.8, 0.2])

@@ -19,7 +19,7 @@ def test_bathtub_drains_then_holds():
 def test_cascade_classifier_fractional_extraction(n_stages, k, feed_stage):
     """Test that the share of the feed in the fine product matches Barsky's fractional extraction."""
     system = CascadeClassifierSystem(n_stages, k=k, feed_stage=feed_stage).prepare().system_
-    trajectory = simulate(system, until=400, dt=10.0)
+    trajectory = system.simulate(until=400, dt=10.0)
     fine = trajectory.get_values('fine.m')
     entry = (n_stages + 1) // 2 if feed_stage is None else feed_stage
     ratio = (1 - k) / k

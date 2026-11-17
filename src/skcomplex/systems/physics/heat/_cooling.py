@@ -18,6 +18,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
@@ -117,6 +119,12 @@ class CoolingCoffeeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.heat import CoolingCoffeeSystem
         >>> trajectory = CoolingCoffeeSystem(T=5.0).prepare().simulate(until=10.0)
@@ -137,8 +145,10 @@ class CoolingCoffeeSystem(BaseSystem):
         room: float = 20.0,
         k: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.T = T
         self.room = room
         self.k = k

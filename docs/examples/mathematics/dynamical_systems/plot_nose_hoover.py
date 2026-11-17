@@ -16,7 +16,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import NoseHooverSystem
 
@@ -39,10 +38,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
-trajectory = simulate(NoseHooverSystem(), observers=[observer])
+trajectory = NoseHooverSystem().prepare().simulate(observers=[observer])
 orbits = {}
 for name, y in STARTS.items():
-    trajectory = simulate(NoseHooverSystem(y=y))
+    trajectory = NoseHooverSystem(y=y).prepare().simulate()
     orbits[name] = np.column_stack([trajectory.get_values(f'oscillator.{state}') for state in 'xyz'])
     observer.recording_.log(
         f'orbits/{name}',
@@ -60,7 +59,7 @@ observer.recording_.flush()
 
 fig, axis = plt.subplots(figsize=(6, 5))
 for name, y in STARTS.items():
-    trajectory = simulate(NoseHooverSystem(y=y), until=2000, dt=0.02)
+    trajectory = NoseHooverSystem(y=y).prepare().simulate(2000, dt=0.02)
     x, y_values, z = (trajectory.get_values(f'oscillator.{state}') for state in 'xyz')
     crossing = np.flatnonzero((x[:-1] < 0) & (x[1:] >= 0))
     mean_square = np.mean(y_values**2)
