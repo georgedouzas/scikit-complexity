@@ -41,7 +41,11 @@ class RandomBranchMapElement(Element):
     """
 
     def __init__(
-        self, label: str, *, x: Annotated[object, RealSet.closed(0, 1)] = 0.5, size: int | None = None
+        self,
+        label: str,
+        *,
+        x: Annotated[object, RealSet.closed(0, 1)] = 0.5,
+        size: int | None = None,
     ) -> None:
         super().__init__(label, size=size)
         self.x = x
