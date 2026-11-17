@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.criticality import HexagonalForestFireSystem, MannaSandpileSystem, SandpileSystem
 
 from ...conftest import EventsObserver
@@ -19,7 +18,7 @@ def test_sandpile_avalanches_follow_power_law():
     8,000 grains, more than twice the grains that fill the pile to its critical density, between sizes 1 and 100.
     """
     observer = EventsObserver(lambda frame: (frame.get_lattice('pile.height') < 4).all())
-    simulate(SandpileSystem((40, 40)).prepare().system_, until=30_000, dt=1000, random_state=0, observers=[observer])
+    SandpileSystem((40, 40)).prepare().simulate(until=30_000, dt=1000, random_state=0, observers=[observer])
     sizes = np.asarray([event.size for event in observer.events_ if event.time > 8_000])
     assert observer.passed_
     assert sizes.max() > 1000
@@ -38,7 +37,7 @@ def test_forest_fire_burns_graph_by_distance():
     cover = np.ones(500)
     cover[0] = 2
     system = HexagonalForestFireSystem(graph=graph, growth=0.0, lightning=0.0, cover=cover)
-    covers = simulate(system, until=40, dt=1).get_values('forest.cover')
+    covers = system.prepare().simulate(until=40, dt=1).get_values('forest.cover')
     distances = nx.single_source_shortest_path_length(graph, 0)
     assert (covers == 2).any(axis=0).all()
     assert np.array_equal(np.argmax(covers == 2, axis=0), [distances[node] for node in graph.nodes])

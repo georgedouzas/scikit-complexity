@@ -59,7 +59,7 @@ def test_kepler_orbit_conserves_energy_and_momentum_and_follows_the_third_law():
 
 def test_kepler_orbit_records_its_energy_within_its_invariant_tolerance():
     """Test that the default run of the Kepler problem records its energy and passes its invariant check."""
-    trajectory = simulate(TwoBodyOrbitSystem(), random_state=0)
+    trajectory = TwoBodyOrbitSystem().prepare().simulate(random_state=0)
     energy = np.asarray(trajectory.get_values('planet.energy'), dtype=float)
     assert np.ptp(energy) < 1e-6
 
@@ -118,7 +118,7 @@ def test_restricted_three_body_defaults_are_chaotic():
 def test_sitnikov_conserves_energy_with_circular_primaries_and_stays_symmetric():
     """Test that the Sitnikov body conserves its energy above circular primaries and oscillates symmetrically."""
     trajectory = _run(SitnikovSystem(0.5), 30.0, 0.05)
-    z, speed = _series(trajectory, 'body.z', 'body.z_d1')
+    z, speed = _series(trajectory, 'body.z', "body.z'")
     energy = speed**2 / 2 - 1 / np.sqrt(z**2 + 0.25)
     assert np.abs(energy - energy[0]).max() < 1e-6
     assert z.min() == pytest.approx(-0.5, abs=1e-4)

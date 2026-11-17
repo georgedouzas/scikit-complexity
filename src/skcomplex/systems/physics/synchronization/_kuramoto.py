@@ -32,7 +32,7 @@ from ..common.oscillators import (
     PhaseOscillatorElement,
     PhaseRotationInteraction,
     SitedOscillatorElement,
-    StuartLandauElement,
+    StuartLandauInteraction,
     order_parameter,
 )
 
@@ -545,7 +545,7 @@ class NonlocalRingChimeraSystem(OldBaseSystem):
         )
 
 
-class OttAntonsenSystem(OldBaseSystem):
+class OttAntonsenSystem(BaseSystem):
     """The Ott-Antonsen equation for the order parameter of Kuramoto oscillators.
 
     The oscillators are infinitely many.
@@ -572,9 +572,15 @@ class OttAntonsenSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.synchronization import OttAntonsenSystem
-        >>> OttAntonsenSystem(K=3.0).prepare().system_.elements[0].kappa
+        >>> OttAntonsenSystem(K=3.0).prepare().system_.elements[0].values['kappa']
         1.5
     """
 
@@ -592,28 +598,34 @@ class OttAntonsenSystem(OldBaseSystem):
         Delta: float = 0.5,
         omega: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.r = r
         self.K = K
         self.Delta = Delta
         self.omega = omega
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Ott-Antonsen equation of the order parameter of Kuramoto oscillators.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the order parameter, a Stuart-Landau oscillator.
 
-        The oscillators are infinitely many.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        values = {
+            'x': self.r,
+            'y': 0.0,
+            'mu': self.K / 2 - self.Delta,
+            'omega': self.omega,
+            'beta': 0.0,
+            'kappa': self.K / 2,
+            'tau': 1.0,
+        }
+        self.system_ = System(
             self.label,
-            elements=[
-                StuartLandauElement(
-                    'field',
-                    x=self.r,
-                    y=0.0,
-                    mu=self.K / 2 - self.Delta,
-                    omega=self.omega,
-                    kappa=self.K / 2,
-                ),
-            ],
+            elements=[Element('field', values=values)],
+            interactions=[StuartLandauInteraction('flow', target='field')],
         )

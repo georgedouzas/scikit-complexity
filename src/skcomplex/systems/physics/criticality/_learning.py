@@ -6,39 +6,41 @@ The module holds the SK game of reinforcement learners on quenched random coupli
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import ZZ, exp, oo
+from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import total, uniform, where
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 
 class LearningAgentElement(Element):
-    """Agent of the SK game that plays an action of ±1 from a softmax policy.
+    """Agents of the SK game, each playing an action of ±1 from a softmax policy over its incentive to play +1.
 
-    The policy runs over its incentive to play +1.
-
-    The incentive follows the reinforcement rule `Q(t + 1) = (1 - alpha) Q(t) + alpha sum_j J_ij sigma_j(t)`, the
-    discounted reward of playing +1, and the agent plays `sigma = ±1` with probability `1 / (1 + exp(-+2 Q / T))`.
+    `SKReinforcementInteraction` updates the incentive `Q` with the memory `alpha` and draws the action `sigma` at the
+    temperature `T`.
 
     Args:
         label:
             The label of the agent or the group.
 
         sigma:
-            The initial action, -1 or 1.
+            The initial action, -1 or 1, or one action per agent.
 
         Q:
             The initial incentive.
@@ -49,8 +51,8 @@ class LearningAgentElement(Element):
         temperature:
             The exploration temperature `T` of the softmax policy.
 
-        couplings:
-            The coupling matrix `J`, one row and one column per agent.
+        size:
+            The number of agents, or `None` for one agent.
 
     Examples:
         >>> from skcomplex.systems.physics.criticality import LearningAgentElement
@@ -58,46 +60,70 @@ class LearningAgentElement(Element):
         0.5
     """
 
-    draws = True
-
-    law_classes = (UpdateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        sigma: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        Q: Annotated[float, StateSpec()] = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        couplings: npt.ArrayLike | None = None,
+        sigma: object = 1.0,
+        Q: object = 0.0,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        temperature: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.sigma = sigma
         self.Q = Q
         self.alpha = alpha
         self.temperature = temperature
+
+
+class SKReinforcementInteraction(Interaction):
+    """Reinforcement learning of the agents of the SK game.
+
+    Every step the incentive of an agent becomes `(1 - alpha) Q + alpha sum_j J_ij sigma_j`, with its memory `alpha`
+    and the quenched couplings `J`, and the agent plays `sigma = 1` with the softmax probability `1 / (1 + exp(-2 Q /
+    T))` at its temperature `T`, and `-1` otherwise. Both run in parallel. It is a market of traders who follow their
+    past gains, players of a repeated game, or neurons that learn from their inputs.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the agents, whose values are `sigma`, `Q`, `alpha`, and `temperature`.
+
+        couplings:
+            The coupling matrix `J`, one row and one column per agent, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.criticality import SKReinforcementInteraction
+        >>> SKReinforcementInteraction('learning', target='agents').target
+        'agents'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, couplings: npt.ArrayLike | None = None) -> None:
+        super().__init__(label)
+        self.target = target
         self.couplings = couplings
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reinforcement of the incentive and the softmax draw of the action.
-
-        Both run in parallel.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the reinforcement of the incentive and the softmax draw of the action.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the agents and the time `t`.
         """
-        reward = total(s.sigma, weights=self.couplings)
-        up = 1 / (1 + exp(-2 * s.Q / s.temperature))
-        return [
-            UpdateLaw(s.Q, (1 - s.alpha) * s.Q + s.alpha * reward),
-            UpdateLaw(s.sigma, where(uniform('u') < up, 1, -1)),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context.target
+            reward = total(s.sigma, weights=self.couplings)
+            up = 1 / (1 + exp(-2 * s.Q / s.temperature))
+            self.laws_ = [
+                UpdateLaw(s.Q, (1 - s.alpha) * s.Q + s.alpha * reward),
+                UpdateLaw(s.sigma, where(uniform('u') < up, 1, -1)),
+            ]
 
 
 class SKGameSystem(BaseSystem):
@@ -110,8 +136,8 @@ class SKGameSystem(BaseSystem):
     and plays from a softmax policy at the temperature `T` (Lesmana et al., Eqs. 1-3). All agents start with zero
     incentives, so their first actions are random, and update in parallel. At low temperature the agents freeze into one
     of many ordered states with a high collective reward, and at high temperature they explore noisily with a low one.
-    The system has the actions `agents.sigma`, the incentives `agents.Q`, and the coupling matrix in the values of the
-    group. Its standard observable `reward` is the mean reward per agent.
+    The system has the actions `agents.sigma`, the incentives `agents.Q`, and the coupling matrix `couplings` of its
+    interaction `learning`. Its standard observable `reward` is the mean reward per agent.
 
     Args:
         n_agents:
@@ -129,9 +155,15 @@ class SKGameSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.criticality import SKGameSystem
-        >>> couplings = SKGameSystem(10).prepare().system_.elements[0].values['couplings']
+        >>> couplings = SKGameSystem(10).prepare().system_.interactions[0].couplings
         >>> bool((couplings == couplings.T).all())
         True
     """
@@ -156,53 +188,38 @@ class SKGameSystem(BaseSystem):
         temperature: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.alpha = alpha
         self.temperature = temperature
         self.random_state = random_state
 
-    @staticmethod
-    def _get_observables(system: CompositeSystem) -> list[Observable]:
-        """Return the observable of the mean reward per agent of the SK game."""
-        agents = system.elements[0]
-        if not isinstance(agents, GroupElement) or agents.values is None:
-            error_msg = 'The SK game needs its first element to be the group of agents with their couplings.'
-            raise ValidationError(error_msg)
-        couplings = np.asarray(agents.values['couplings'], dtype=float)
-        return [
-            Observable(
-                'reward',
-                group='agents',
-                variable='sigma',
-                reduce=partial(SKGameSystem._get_reward, couplings=couplings),
-            ),
-        ]
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the agents and their learning, and the observable of the mean reward per agent.
 
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
+        The reward reads the couplings, so the observable is built with them unless observables are given.
 
-        The observables of the components are built from the model parameters.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        settings = super().get_run_settings()
-        settings['observables'] = tuple(self._get_observables(self._build_system()))
-        return settings
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_agents), (self.n_agents, self.n_agents)), 1)
-        agents = GroupElement(
+        couplings = upper + upper.T
+        agents = LearningAgentElement(
             'agents',
-            element=LearningAgentElement,
+            sigma=rng.choice([-1.0, 1.0], size=self.n_agents),
+            Q=0.0,
+            alpha=self.alpha,
+            temperature=self.temperature,
             size=self.n_agents,
-            values={
-                'sigma': rng.choice([-1.0, 1.0], size=self.n_agents),
-                'Q': 0.0,
-                'alpha': self.alpha,
-                'temperature': self.temperature,
-                'couplings': upper + upper.T,
-            },
         )
-        return CompositeSystem(self.label, elements=[agents])
+        learning = SKReinforcementInteraction('learning', target='agents', couplings=couplings)
+        self.system_ = System(self.label, elements=[agents], interactions=[learning])
+        if not self.observables_:
+            reward = partial(SKGameSystem._get_reward, couplings=couplings)
+            self.observables_ = (Observable('reward', group='agents', variable='sigma', reduce=reward),)

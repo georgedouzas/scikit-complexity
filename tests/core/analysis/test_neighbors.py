@@ -80,7 +80,7 @@ def test_like_neighbor_share_same_index_on_two_domains():
     """Test that a relaxed Schelling system and a quenched Ising lattice exceed 0.75, unlike random arrangements."""
     rng = np.random.default_rng(0)
     schelling = _schelling_grid(40)
-    quench = simulate(IsingSystem(size=64, temperature=1.0).prepare().system_, until=200, dt=1)
+    quench = IsingSystem(size=64, temperature=1.0).prepare().simulate(until=200, dt=1)
     ising = quench.get_lattice('spins.spin')[-1]
     for grid, empty in ((schelling, EMPTY), (ising, None)):
         assert _neighbors('like-share', grid, empty=empty).share[0] > 0.75

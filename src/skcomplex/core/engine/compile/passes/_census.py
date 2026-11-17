@@ -757,13 +757,20 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _get_relaxation(law: BaseLaw) -> BaseLaw:
-        """Return the relaxation law of an update law of a relaxation, or the law itself."""
+        """Return the relaxation law of an update law of a relaxation, or the law itself.
+
+        A rule of the relaxation that is an update law with a neighbourhood runs as the local rule it stands for.
+        """
         relaxation = relaxation_of(law.value) if isinstance(law, UpdateLaw) else None
         if relaxation is None:
             return law
+        rules = tuple(
+            rule._get_local_rule() if isinstance(rule, UpdateLaw) and rule.neighborhood is not None else rule
+            for rule in relaxation.rules
+        )
         return RelaxationLaw(
             relaxation.drive,
-            relaxation.rules,
+            rules,
             relaxation.stable,
             relaxation.max_iterations,
             relaxation.activity,

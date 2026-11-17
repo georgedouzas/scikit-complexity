@@ -175,7 +175,7 @@ def test_jump_path_of_an_array_of_states():
 
 def test_fields_of_a_lattice():
     """Test that the frames of a 64 by 64 Ising run of 100 frames have the lattice shape."""
-    trajectory = simulate(IsingSystem(size=64), until=99, random_state=0)
+    trajectory = IsingSystem(size=64).prepare().simulate(until=99, random_state=0)
     frames = _read_fields(trajectory, 'spins.spin')
     assert frames.shape == (100, 64, 64)
     np.testing.assert_array_equal(frames, trajectory.get_lattice('spins.spin'))

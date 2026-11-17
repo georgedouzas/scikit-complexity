@@ -37,6 +37,7 @@ from ._master_equations import (
 from ._maxwell_boltzmann import MaxwellBoltzmannResult, maxwell_boltzmann
 from ._percolation import ContinuumPercolationSystem, DiskElement
 from ._processes import (
+    ContactInfectionInteraction,
     ContactProcessSystem,
     ContactSiteElement,
     DiffusionLimitedAggregationSystem,
@@ -80,6 +81,7 @@ __all__: list[str] = [
     'BondSamplingInteraction',
     'BondSpinElement',
     'BranchingAnnihilationInteraction',
+    'ContactInfectionInteraction',
     'ContactProcessSystem',
     'ContactSiteElement',
     'ContinuumPercolationSystem',

@@ -50,7 +50,7 @@ def test_signature_analysis_of_a_jump_path():
 
 def test_signature_analysis_of_a_field():
     """Test that a field gives the structure factor of its last frame with a length."""
-    (signature,) = _signatures(simulate(IsingSystem(size=32), until=10, random_state=0))
+    (signature,) = _signatures(IsingSystem(size=32).prepare().simulate(until=10, random_state=0))
     assert signature.kind == 'field'
     assert signature.ylabel == 'S(k)'
     assert {'correlation length', 'peak wavelength'} & set(signature.values)

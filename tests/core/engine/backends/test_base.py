@@ -490,7 +490,12 @@ def test_velocity_verlet_needs_position_pairs():
 def test_backend_substituted_for_a_form_is_reported():
     """Test that a lattice system compiled with Numba warns that its form runs on NumPy, and records NumPy for it."""
     with pytest.warns(BackendWarning, match='lattice dynamics form runs on the numpy backend'):
-        problem = PassCompiler(backend=NumbaBackend()).prepare(ContactProcessSystem().prepare().system_).run().problem_
+        problem = (
+            PassCompiler(backend=NumbaBackend())
+            .prepare(ContactProcessSystem().prepare()._get_composite())
+            .run()
+            .problem_
+        )
     assert problem.backends['LATTICE'] == 'numpy'
 
 

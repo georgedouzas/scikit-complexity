@@ -4,19 +4,23 @@
 # License: MIT
 
 
+from collections.abc import Sequence
+
 import networkx as nx
 import numpy as np
 
-from ....core.components.elements import GroupElement
+from ....core import systems
+from ....core.components import Observable
 from ....core.components.spaces import AdjacencyNeighborhood, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement
 
 NODES = 400
 DEGREE = 4
 
 
-class GraphIsingSystem(BaseSystem):
+class GraphIsingSystem(systems.BaseSystem):
     """The Ising system on a graph.
 
     The system orders below a critical temperature set by the degrees of the nodes.
@@ -49,10 +53,16 @@ class GraphIsingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.physics.statistical_mechanics import GraphIsingSystem
-        >>> GraphIsingSystem(nx.cycle_graph(10)).prepare().system_.elements[0].prepare().size_
+        >>> GraphIsingSystem(nx.cycle_graph(10)).prepare().system_.elements[0].space.prepare().size_
         10
     """
 
@@ -73,8 +83,10 @@ class GraphIsingSystem(BaseSystem):
         sampler: str = 'metropolis',
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.temperature = temperature
         self.J = J
@@ -83,24 +95,27 @@ class GraphIsingSystem(BaseSystem):
         self.sampler = sampler
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Ising system on a graph.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the Ising spins on the nodes of a graph, all up or random at the start.
 
-        The system orders below a critical temperature set by the degrees of the nodes.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         if graph is None:
             graph = nx.random_regular_graph(DEGREE, NODES, seed=int(rng.integers(2**31)))
         size = graph.number_of_nodes()
         spins = np.ones(size) if self.initial == 'up' else rng.choice([-1.0, 1.0], size=size)
-        space = NetworkSpace(graph)
-        group = GroupElement(
+        group = IsingSpinElement(
             'spins',
-            element=IsingSpinElement,
-            space=space,
-            values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
-            on='sites',
+            spin=spins,
+            J=self.J,
+            h=self.h,
+            temperature=self.temperature,
+            space=NetworkSpace(graph),
         )
         sampling = IsingSamplingInteraction(
             'sampling',
@@ -109,4 +124,4 @@ class GraphIsingSystem(BaseSystem):
             schedule='colored',
             neighborhood=AdjacencyNeighborhood(),
         )
-        return CompositeSystem(self.label, elements=[group], interactions=[sampling])
+        self.system_ = systems.System(self.label, elements=[group], interactions=[sampling])

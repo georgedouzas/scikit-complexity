@@ -85,7 +85,7 @@ def test_bodies_visual_draws_double_pendulum():
 
 def test_bodies_visual_logs_outline_once():
     """Test that the outline of a billiard table is logged once as a static line strip."""
-    problem, frames = _frames(CircularBilliardSystem().prepare().system_, steps=3, dt=0.05)
+    problem, frames = _frames(CircularBilliardSystem().prepare()._get_composite(), steps=3, dt=0.05)
     circle = np.column_stack([np.cos(np.linspace(0, 2 * np.pi, 50)), np.sin(np.linspace(0, 2 * np.pi, 50))])
     logs = Logs()
     visual = BodiesVisual(('x', 'y'), outline=[circle], path=problem.elements[0].path, recording=logs).prepare(problem)
@@ -104,7 +104,7 @@ def test_bodies_visual_bounds_cover_rods_at_full_length():
 
 def test_bodies_visual_is_registered():
     """Test that a Rerun observer draws an element whose visual spec names `bodies` with the bodies visual."""
-    problem = simulate(CircularBilliardSystem().prepare().system_, until=0).problem
+    problem = CircularBilliardSystem().prepare().simulate(until=0).problem
     element = replace(problem.elements[0], visual=VisualSpec('bodies', {'positions': ('x', 'y')}))
     problem = replace(problem, elements=(element, *problem.elements[1:]))
     assert isinstance(RerunObserver().prepare(problem).visuals_[0], BodiesVisual)
@@ -112,7 +112,7 @@ def test_bodies_visual_is_registered():
 
 def test_bodies_visual_rejects_positions_of_wrong_shape():
     """Test that positions that are not pairs of coordinates raise a named error."""
-    problem, frames = _frames(CircularBilliardSystem().prepare().system_, steps=1, dt=0.05)
+    problem, frames = _frames(CircularBilliardSystem().prepare()._get_composite(), steps=1, dt=0.05)
     visual = BodiesVisual(lambda x, **_: np.array([x, x, x, x]), path=problem.elements[0].path, recording=Logs())
     with pytest.raises(ValidationError, match='pairs of coordinates'):
         visual.prepare(problem).run(frames[0])
@@ -120,7 +120,7 @@ def test_bodies_visual_rejects_positions_of_wrong_shape():
 
 def test_bodies_visual_draws_a_path_in_three_dimensions():
     """Test that a body with three coordinates is drawn as a 3D point with a 3D fading path in a 3D view."""
-    problem, frames = _frames(StormerProblemSystem().prepare().system_, steps=5, dt=0.02)
+    problem, frames = _frames(StormerProblemSystem().prepare()._get_composite(), steps=5, dt=0.02)
     logs = Logs()
     visual = BodiesVisual(('x', 'y', 'z'), path=problem.elements[0].path, recording=logs).prepare(problem)
     for frame in frames:

@@ -5,7 +5,6 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
@@ -14,13 +13,11 @@ from sage.all__sagemath_symbolics import SR, vector
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 
@@ -125,11 +122,7 @@ class Lorenz84Interaction(Interaction):
 
 
 class Lorenz96Element(Element):
-    """Ring of Lorenz-96 sites around a latitude circle.
-
-    The sites are advected by their neighbours, damped, and forced.
-
-    Every site follows `dx_i/dt = (x_{i+1} - x_{i-2}) x_{i-1} - x_i + F`, with the indices taken around the ring.
+    """Ring of Lorenz-96 sites around a latitude circle, with the values `x` of all sites.
 
     Args:
         label:
@@ -138,43 +131,58 @@ class Lorenz96Element(Element):
         x:
             The initial values of all sites.
 
+    Examples:
+        >>> from skcomplex.systems.physics.climate import Lorenz96Element
+        >>> Lorenz96Element('ring', x=[8.0, 8.0, 8.0, 8.0]).x
+        [8.0, 8.0, 8.0, 8.0]
+    """
+
+    def __init__(self, label: str, *, x: npt.ArrayLike = 8.0) -> None:
+        super().__init__(label)
+        self.x = x
+
+
+class Lorenz96Interaction(Interaction):
+    """Advection, damping, and forcing of the sites of a Lorenz-96 ring.
+
+    Every site follows `dx_i/dt = (x_{i+1} - x_{i-2}) x_{i-1} - x_i + F`, with the indices taken around the ring.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the ring, whose value `x` holds every site.
+
         F:
             The constant forcing.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import Lorenz96Element
-        >>> Lorenz96Element('ring').F
+        >>> from skcomplex.systems.physics.climate import Lorenz96Interaction
+        >>> Lorenz96Interaction('advection', target='ring').F
         8.0
     """
 
     law_classes = (RateLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 8.0,
-        F: Annotated[float, ParameterSpec()] = 8.0,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role, F: float = 8.0) -> None:
         super().__init__(label)
-        self.x = x
+        self.target = target
         self.F = F
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the advection, damping, and forcing of every site of the ring.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate of the values of all sites.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate law of the values of all sites.
+            context:
+                The namespace of the ring, the time `t`, and the forcing.
         """
-        x = s.x
-        n_sites = len(x)
-        rates = [(x[(i + 1) % n_sites] - x[i - 2]) * x[i - 1] - x[i] + s.F for i in range(n_sites)]
-        return [RateLaw(s.x, vector(SR, rates))]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            n_sites = len(x)
+            rates = [(x[(i + 1) % n_sites] - x[i - 2]) * x[i - 1] - x[i] + context.F for i in range(n_sites)]
+            self.laws_ = [RateLaw(x, vector(SR, rates))]
 
 
 class Lorenz84System(BaseSystem):
@@ -269,7 +277,7 @@ class Lorenz84System(BaseSystem):
         )
 
 
-class Lorenz96System(OldBaseSystem):
+class Lorenz96System(BaseSystem):
     """Lorenz-96 on a ring of sites around a latitude circle.
 
     Every site follows `dx_i/dt = (x_{i+1} - x_{i-2}) x_{i-1} - x_i + F`.
@@ -290,6 +298,12 @@ class Lorenz96System(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import Lorenz96System
         >>> Lorenz96System(6).prepare().system_.space.n_dim
@@ -309,19 +323,28 @@ class Lorenz96System(OldBaseSystem):
         F: float = 8.0,
         perturbation: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.F = F
         self.perturbation = perturbation
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a ring of sites, at the steady state but for the first one.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         values = np.full(self.n_sites, float(self.F))
         values[0] += self.perturbation
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[Lorenz96Element('ring', x=values, F=self.F)],
+            elements=[Lorenz96Element('ring', x=values)],
+            interactions=[Lorenz96Interaction('advection', target='ring', F=self.F)],
             space=ContinuousSpace(n_dim=self.n_sites),
         )
 

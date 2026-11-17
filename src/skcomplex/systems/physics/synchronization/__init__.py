@@ -9,7 +9,6 @@ from ._amplitude_death import (
     GlobalCouplingInteraction,
     HeterogeneousGlobalCouplingSystem,
     OscillatorDeathSystem,
-    StuartLandauInteraction,
 )
 from ._chaos import (
     AggregateAveragingInteraction,
@@ -89,7 +88,6 @@ __all__: list[str] = [
     'RosslerFlowInteraction',
     'RosslerOscillatorElement',
     'SimplexCouplingInteraction',
-    'StuartLandauInteraction',
     'SwarmalatorCouplingInteraction',
     'SwarmalatorElement',
     'SwarmalatorsSystem',

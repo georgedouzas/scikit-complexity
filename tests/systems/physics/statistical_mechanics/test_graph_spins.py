@@ -12,7 +12,7 @@ def test_graph_ising_orders_at_low_temperature():
     """Test that the Ising system on a random 4-regular graph of 1000 nodes orders at 1.0 and not at 6.0."""
     graph = nx.random_regular_graph(4, 1000, seed=0)
     result = sweep(
-        lambda temperature: GraphIsingSystem(graph, temperature=temperature, initial='up').prepare().system_,
+        lambda temperature: GraphIsingSystem(graph, temperature=temperature, initial='up'),
         {'temperature': [1.0, 6.0]},
         replicates=4,
         until=400,

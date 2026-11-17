@@ -14,7 +14,7 @@ from typing import Annotated, ClassVar
 import numpy as np
 
 from .....core.components.interactions import NeighborInteraction
-from .....core.components.laws import ArrayUpdateLaw, BaseLaw, LocalRuleLaw, UpdateLaw
+from .....core.components.laws import ArrayUpdateLaw, BaseLaw, UpdateLaw
 from .....core.components.laws.utils import relax
 from .....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, RadiusNeighborhood
 from .....core.enums import ElementKind
@@ -81,7 +81,7 @@ class TopplingInteraction(NeighborInteraction):
         'redistribute'
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw, ArrayUpdateLaw, LocalRuleLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw, ArrayUpdateLaw)
 
     def _get_draws(self) -> bool:
         """Return whether the cascade draws.
@@ -220,7 +220,7 @@ class TopplingInteraction(NeighborInteraction):
         if self.mode == 'random':
             rules: list[BaseLaw] = [ArrayUpdateLaw(value, self._scatter(neighborhood, threshold, share))]
         else:
-            rules = [LocalRuleLaw(value, neighborhood, self._relax(threshold, share))]
+            rules = [UpdateLaw(value, self._relax(threshold, share), neighborhood=neighborhood)]
         relaxation = relax(
             value,
             rules,

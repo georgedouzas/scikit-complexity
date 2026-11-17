@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, TransferInteraction
-from ....core.components.laws import BaseLaw, LocalRuleLaw, RuleLaw, Sink, Source
+from ....core.components.laws import BaseLaw, RuleLaw, Sink, Source, UpdateLaw
 from ....core.components.laws.utils import bernoulli
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem as OldBaseSystem
@@ -35,20 +35,17 @@ NEAREST = RadiusNeighborhood(1, metric='manhattan', center=True)
 
 
 class ContactSiteElement(Element):
-    """Site of the contact process.
+    """Sites of the contact process.
 
-    The site infects a neighbour at the rate `rate / 4` and recovers at rate 1.
-
-    One step is a time slice `tau`, in which an infected site recovers with probability `1 - exp(-tau)` and a
-    healthy site is infected with probability `1 - exp(-rate tau f)`, where `f` is the fraction of its infected
-    neighbours.
+    Every site is infected at 1 or healthy at 0, and holds the infection rate `rate` and the time slice `tau` of one
+    step, which `ContactInfectionInteraction` reads.
 
     Args:
         label:
-            The label of the site or the lattice group.
+            The label of the site or the lattice of sites.
 
         infected:
-            The initial state, 1 for infected and 0 for healthy.
+            The initial state, 1 for infected and 0 for healthy, or one state per site.
 
         rate:
             The infection rate.
@@ -56,48 +53,56 @@ class ContactSiteElement(Element):
         tau:
             The time slice of one step.
 
+        space:
+            The lattice of the sites, or `None` for one site.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ContactSiteElement
         >>> ContactSiteElement('site').rate
         3.0
     """
 
-    draws = True
-
-    law_classes = (LocalRuleLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        infected: object = 0.0,
+        rate: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 0.1,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.infected = infected
         self.rate = rate
         self.tau = tau
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the stochastic infection and recovery.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class ContactInfectionInteraction(Interaction):
+    """Infection and recovery of the contact process.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            LocalRuleLaw(
-                s.infected,
-                RadiusNeighborhood(1, metric='manhattan', center=True),
-                ContactSiteElement._spread,
-                stochastic=True,
-            ),
-        ]
+    A site infects a neighbour at the rate `rate / 4` and recovers at rate 1. One step is a time slice `tau`, in which
+    an infected site recovers with probability `1 - exp(-tau)` and a healthy site is infected with probability
+    `1 - exp(-rate tau f)`, where `f` is the fraction of its infected neighbours. It is an epidemic on a grid of
+    villages, the spread of a plant across a field, or a rumour among neighbours.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the sites, whose values are `infected`, `rate`, and `tau`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import ContactInfectionInteraction
+        >>> ContactInfectionInteraction('infection', target='lattice').target
+        'lattice'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
 
     @staticmethod
     def _spread(infected: Array, *around: Array, rate: float | Array, tau: float | Array, random: Array) -> Array:
@@ -106,6 +111,17 @@ class ContactSiteElement(Element):
         infects = random < -np.expm1(-rate * tau * share)
         recovers = random < -np.expm1(-tau)
         return np.where(infected == 1, np.where(recovers, 0.0, 1.0), np.where(infects, 1.0, 0.0))
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the stochastic infection and recovery of the sites.
+
+        Args:
+            context:
+                The namespace of the target and the time `t`.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target.infected, self._spread, neighborhood=NEAREST)]
 
 
 class ExclusionSiteElement(Element):
@@ -199,7 +215,7 @@ class FireSpreadInteraction(Interaction):
         'lattice'
     """
 
-    law_classes = (LocalRuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
@@ -223,7 +239,7 @@ class FireSpreadInteraction(Interaction):
         """
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_ = [LocalRuleLaw(context.target.cover, NEAREST, self._burn, label=self.label)]
+            self.laws_ = [UpdateLaw(context.target.cover, self._burn, neighborhood=NEAREST, label=self.label)]
 
 
 class Q2RSpinElement(Element):
@@ -283,7 +299,7 @@ class Q2RFlipInteraction(Interaction):
         'spins'
     """
 
-    law_classes = (LocalRuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
@@ -310,8 +326,8 @@ class Q2RFlipInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             sites = context.target
-            law = LocalRuleLaw((sites.spin, sites.phase), NEAREST, self._flip_without_cost, label=self.label)
-            self.laws_ = [law]
+            spin_and_phase = (sites.spin, sites.phase)
+            self.laws_ = [UpdateLaw(spin_and_phase, self._flip_without_cost, neighborhood=NEAREST, label=self.label)]
 
 
 class WalkerView(AgentView):
@@ -550,7 +566,7 @@ class SitePercolationSystem(BaseSystem):
         self.system_ = System(self.label, elements=[sites], interactions=[fire])
 
 
-class ContactProcessSystem(OldBaseSystem):
+class ContactProcessSystem(BaseSystem):
     """The contact process on a periodic lattice.
 
     The process survives above a critical infection rate near 1.65.
@@ -577,9 +593,15 @@ class ContactProcessSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ContactProcessSystem
-        >>> ContactProcessSystem((10, 10), rate=1.0).prepare().system_.elements[0].values['rate']
+        >>> ContactProcessSystem((10, 10), rate=1.0).prepare().system_.elements[0].rate
         1.0
     """
 
@@ -598,31 +620,35 @@ class ContactProcessSystem(OldBaseSystem):
         infected: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.rate = rate
         self.tau = tau
         self.infected = infected
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the contact process on a lattice, with random infected sites at the start.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         shape = tuple(self.shape)
         states = (np.random.default_rng(self.random_state).random(shape) < self.infected).astype(float)
-        space = LatticeSpace(shape)
-        return CompositeSystem(
-            self.label,
-            elements=[
-                GroupElement(
-                    'lattice',
-                    element=ContactSiteElement,
-                    space=space,
-                    values={'infected': states, 'rate': self.rate, 'tau': self.tau},
-                    on='sites',
-                ),
-            ],
+        lattice = ContactSiteElement(
+            'lattice',
+            infected=states.ravel(),
+            rate=self.rate,
+            tau=self.tau,
+            space=LatticeSpace(shape),
         )
+        infection = ContactInfectionInteraction('infection', target='lattice')
+        self.system_ = System(self.label, elements=[lattice], interactions=[infection])
 
 
 class TASEPSystem(OldBaseSystem):

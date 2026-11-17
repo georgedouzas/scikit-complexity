@@ -87,13 +87,16 @@ def _bursty_expression(rng: np.random.Generator, samples: int) -> np.ndarray:
 
 def test_moment_ratio_of_any_sample():
     """Test the moment ratio of the magnetisation samples of an Ising system and of the returns of a market system."""
-    ordered = simulate(
-        IsingSystem(size=16, temperature=1.5, initial='up').prepare().system_,
-        until=300,
-        dt=1,
-        random_state=0,
+    ordered = (
+        IsingSystem(size=16, temperature=1.5, initial='up')
+        .prepare()
+        .simulate(
+            until=300,
+            dt=1,
+            random_state=0,
+        )
     )
-    hot = simulate(IsingSystem(size=16, temperature=20.0).prepare().system_, until=300, dt=1, random_state=0)
+    hot = IsingSystem(size=16, temperature=20.0).prepare().simulate(until=300, dt=1, random_state=0)
     magnetisations = np.column_stack(
         [trajectory.get_lattice('spins.spin')[50:].mean(axis=(1, 2)) for trajectory in (ordered, hot)],
     )

@@ -16,11 +16,10 @@ class MonteCarloSolver(LatticeSolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.physics.statistical_mechanics import IsingSystem
         >>> from skcomplex.core.engine.solvers import MonteCarloSolver
         >>> from skcomplex.core.engine.solvers import StepSpec
-        >>> problem = simulate(IsingSystem(size=8, temperature=1.0), until=0).problem
+        >>> problem = IsingSystem(size=8, temperature=1.0).prepare().simulate(until=0).problem
         >>> stepper = MonteCarloSolver(random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 50.0)).state_
         >>> bool(abs(state.mean()) > 0.9)

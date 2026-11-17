@@ -105,7 +105,7 @@ def test_permutation_entropy_matches_previous_values():
 def test_permutation_entropy_of_fields_of_two_domains():
     """Test that a hot Ising lattice gives above 0.98 and a Gray-Scott pattern at least 0.1 less."""
     settings = {'dimension': (2, 2), 'ties': 'random', 'random_state': 0}
-    spins = simulate(IsingSystem(size=64, temperature=10.0), until=20, random_state=0)
+    spins = IsingSystem(size=64, temperature=10.0).prepare().simulate(until=20, random_state=0)
     hot = _entropy('permutation', spins, **settings)[-1]
     spots = GrayScottSystem().prepare().simulate(random_state=0)
     pattern = _entropy('permutation', spots, **settings)[-1]
@@ -142,7 +142,7 @@ def test_sample_entropy_of_white_noise():
 
 def test_sample_entropy_of_periodic_orbits_on_two_domains():
     """Test that the Van der Pol limit cycle and the logistic map at r = 3.2 give sample entropies below 0.05."""
-    trajectory = simulate(VanDerPolSystem().prepare().system_, until=100.0, dt=0.01)
+    trajectory = VanDerPolSystem().prepare().simulate(until=100.0, dt=0.01)
     cycle = trajectory.get_values('oscillator.x')[len(trajectory.times) // 2 :]
     assert _entropy('sample', cycle, dimension=2)[0] < 0.05
     assert _entropy('sample', _logistic(3.2, 3000), dimension=2)[0] < 0.05

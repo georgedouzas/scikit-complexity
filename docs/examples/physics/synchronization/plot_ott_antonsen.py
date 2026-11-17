@@ -12,7 +12,6 @@ The order parameter of infinitely many Kuramoto oscillators obeys one exact equa
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import OttAntonsenSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'ott_antonsen'
 
 system = OttAntonsenSystem(r=0.1, K=2.0, Delta=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=20, observers=[observer])
+trajectory = system.prepare().simulate(until=20, observers=[observer])
 
 # %%
 # Exact growth and the bifurcation diagram
@@ -36,7 +35,7 @@ exact = np.sqrt(final / (1 + (final / 0.1**2 - 1) * np.exp(-(2.0 - 1.0) * times)
 couplings = np.linspace(0.2, 5.0, 25)
 settled = []
 for coupling in couplings:
-    run = simulate(OttAntonsenSystem(r=0.1, K=coupling, Delta=0.5), until=200, dt=0.5)
+    run = OttAntonsenSystem(r=0.1, K=coupling, Delta=0.5).prepare().simulate(until=200, dt=0.5)
     settled.append(
         np.hypot(np.ravel(run.get_values('field.x'))[-1], np.ravel(run.get_values('field.y'))[-1]),
     )

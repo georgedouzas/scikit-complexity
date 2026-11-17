@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import DataCollapseResult, clusters, correlation, data_collapse, distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
@@ -84,9 +83,9 @@ def test_scaling_collapse_same_on_two_transitions(ising_magnetizations):
 @pytest.mark.slow
 def test_two_time_correlation_aging_on_two_domains():
     """Test that an Ising quench and the trap system age: correlations grow with the age and collapse on tau / t_w."""
-    system = IsingSystem(size=256, temperature=1.0, sampler='glauber').prepare().system_
+    system = IsingSystem(size=256, temperature=1.0, sampler='glauber').prepare()
     # One quench gives a ratio spread between 0.01 and 0.13 by seed, so the curves average four seeded quenches.
-    quenches = [simulate(system, until=400, dt=1, random_state=seed) for seed in range(4, 8)]
+    quenches = [system.simulate(until=400, dt=1, random_state=seed) for seed in range(4, 8)]
     runs = [quench.get_lattice('spins.spin') for quench in quenches]
     waiting, lags = [50, 100, 200], np.arange(0, 200)
     ising = correlation(np.stack(runs), kind='two-time', waiting=waiting, lags=lags)

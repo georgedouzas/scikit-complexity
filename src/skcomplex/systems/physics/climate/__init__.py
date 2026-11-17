@@ -37,6 +37,7 @@ from ._low_order import (
     Lorenz84Interaction,
     Lorenz84System,
     Lorenz96Element,
+    Lorenz96Interaction,
     Lorenz96System,
 )
 from ._net_energy import EnergyReturnSystem, EnergySectorElement
@@ -94,6 +95,7 @@ __all__: list[str] = [
     'Lorenz84Interaction',
     'Lorenz84System',
     'Lorenz96Element',
+    'Lorenz96Interaction',
     'Lorenz96System',
     'MitigatedForestGrowthInteraction',
     'MitigationInteraction',

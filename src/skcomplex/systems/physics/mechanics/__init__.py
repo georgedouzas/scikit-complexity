@@ -3,21 +3,21 @@
 The package covers pendulums, oscillators, friction, projectiles, collisions, rotating bodies, wells, and beam maps.
 """
 
-from ..common.mechanics import PendulumElement, PendulumInteraction
-from ..common.particles import HarmonicForceInteraction
 from ._accelerators import BeamBeamInteraction, BeamBeamMapSystem, FrictionOscillatorSystem, StickSlipInteraction
 from ._mechanics import (
     BouncingBallElement,
     BouncingBallSystem,
     CircularBilliardSystem,
     DiscBilliardElement,
+    DiscWallInteraction,
     DrivenDampedOscillatorSystem,
     ElasticCollisionInteraction,
+    FloorImpactInteraction,
+    FreeFlightInteraction,
     HangingBallElement,
     HangingSwingInteraction,
     HarmonicOscillatorSystem,
     NewtonsCradleSystem,
-    PendulumSwingInteraction,
     PendulumSystem,
     ProjectileSystem,
     UniformGravityInteraction,
@@ -56,7 +56,7 @@ from ._rotations import (
     RotatingSwingSystem,
     RotationInteraction,
 )
-from ._springs import ElasticLinkInteraction, PeriodicForceInteraction, TwoMassSpringDamperSystem
+from ._springs import ElasticLinkInteraction, TwoMassSpringDamperSystem
 from ._wells import ExponentialWellInteraction, ParticleInAWellSystem
 
 __all__: list[str] = [
@@ -76,6 +76,7 @@ __all__: list[str] = [
     'ClockPendulumInteraction',
     'CoupledPendulumsSystem',
     'DiscBilliardElement',
+    'DiscWallInteraction',
     'DoublePendulumElement',
     'DoublePendulumInteraction',
     'DoublePendulumSystem',
@@ -83,13 +84,14 @@ __all__: list[str] = [
     'ElasticCollisionInteraction',
     'ElasticLinkInteraction',
     'ExponentialWellInteraction',
+    'FloorImpactInteraction',
+    'FreeFlightInteraction',
     'FrictionOscillatorSystem',
     'GimballedGyroscopeSystem',
     'GyroscopeElement',
     'GyroscopeInteraction',
     'HangingBallElement',
     'HangingSwingInteraction',
-    'HarmonicForceInteraction',
     'HarmonicOscillatorSystem',
     'HuygensClocksSystem',
     'MagnetInteraction',
@@ -99,12 +101,8 @@ __all__: list[str] = [
     'ParametricPendulumInteraction',
     'ParametricPendulumSystem',
     'ParticleInAWellSystem',
-    'PendulumElement',
-    'PendulumInteraction',
     'PendulumSpringInteraction',
-    'PendulumSwingInteraction',
     'PendulumSystem',
-    'PeriodicForceInteraction',
     'ProjectileSystem',
     'RotatingBallElement',
     'RotatingBallsOnRodsSystem',

@@ -43,7 +43,7 @@ def test_site_percolation_burns_the_clusters_of_the_top_row(p, spans):
 @pytest.mark.parametrize(('rate', 'survives'), [(0.5, False), (4.0, True)])
 def test_contact_process_has_an_absorbing_transition(rate, survives):
     """Test that the infection dies out below the critical rate and persists above it."""
-    trajectory = simulate(ContactProcessSystem((32, 32), rate=rate), until=300, random_state=0)
+    trajectory = ContactProcessSystem((32, 32), rate=rate).prepare().simulate(until=300, random_state=0)
     assert (trajectory.get_lattice('lattice.infected')[-1].mean() > 0.3) == survives
 
 

@@ -11,7 +11,6 @@ limit cycle: a self-sustained oscillation of amplitude close to 2 that does not 
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.nonlinear_oscillators import VanDerPolSystem
 
@@ -19,7 +18,7 @@ SYSTEM = 'van_der_pol'
 
 system = VanDerPolSystem(x=0.1, v=0.0, mu=3.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Attraction to the limit cycle
@@ -29,10 +28,10 @@ trajectory = simulate(system, observers=[observer])
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for x, v in [(0.1, 0.0), (4.0, 6.0), (-3.0, -8.0)]:
-    run = simulate(VanDerPolSystem(x=x, v=v, mu=3.0), until=30, dt=0.02)
+    run = VanDerPolSystem(x=x, v=v, mu=3.0).prepare().simulate(until=30, dt=0.02)
     ax.plot(
         run.get_values('oscillator.x'),
-        run.get_values('oscillator.x_d1'),
+        run.get_values("oscillator.x'"),
         linewidth=1,
         label=f'x0 = {x}',
     )

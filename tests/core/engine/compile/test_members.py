@@ -277,12 +277,7 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
 def test_jump_at_member_offset_compiles_many_sites_fast():
     """Test that a zero-range process of 1000 sites compiles one group law and runs until 5 within 10 seconds."""
     start = time.perf_counter()
-    trajectory = simulate(
-        ZeroRangeProcessSystem(1000).prepare().system_,
-        until=5,
-        backend=NumbaBackend(),
-        random_state=0,
-    )
+    trajectory = ZeroRangeProcessSystem(1000, backend=NumbaBackend()).prepare().simulate(until=5, random_state=0)
     assert time.perf_counter() - start < 10
     assert len(trajectory.problem.interactions) == 1
     assert [channels.size for channels in trajectory.problem.jumps] == [1000, 1000]

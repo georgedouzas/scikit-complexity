@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.statistical_mechanics import (
     ASEPSystem,
     DissipativeZeroRangeSystem,
@@ -33,8 +32,8 @@ def tree_occupation_probabilities(*, n_levels, branches, nu, alpha, beta_ext, di
 def test_zero_range_process_condensation():
     """Test that above the critical density `1 / (b - 2)` one site holds the excess particles and below it none does."""
     for density in (3.0, 0.25):
-        system = ZeroRangeProcessSystem(50, density=density, b=4.0)
-        trajectory = simulate(system, until=20000, dt=100.0, random_state=0, backend=NumbaBackend())
+        system = ZeroRangeProcessSystem(50, density=density, b=4.0, backend=NumbaBackend())
+        trajectory = system.prepare().simulate(until=20000, dt=100.0, random_state=0)
         occupations = trajectory.get_values('sites.n')[50:]
         assert (occupations.sum(axis=1) == round(density * 50)).all()
         largest = occupations.max(axis=1).mean()

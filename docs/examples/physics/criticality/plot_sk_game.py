@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.criticality import SKGameSystem
 
@@ -34,7 +33,7 @@ blueprint = rrb.Blueprint(
 )
 system = SKGameSystem(temperature=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(system, until=200, dt=1, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=200, dt=1, observers=[observer], random_state=0)
 
 # %%
 # Freezing and exploration
@@ -46,11 +45,9 @@ trajectory = simulate(system, until=200, dt=1, observers=[observer], random_stat
 temperatures = np.geomspace(0.05, 5.0, 12)
 rewards, flips = [], []
 for temperature in temperatures:
-    run = SKGameSystem(temperature=temperature)
-    couplings = run.prepare().system_.elements[0].values['couplings']
-    actions = np.asarray(
-        simulate(run, until=150, dt=1, random_state=0).get_values('agents.sigma'),
-    )[-50:]
+    run = SKGameSystem(temperature=temperature).prepare()
+    couplings = run.system_.interactions[0].couplings
+    actions = np.asarray(run.simulate(until=150, dt=1, random_state=0).get_values('agents.sigma'))[-50:]
     rewards.append(np.einsum('ti,ij,tj->t', actions, couplings, actions).mean() / actions.shape[1])
     flips.append((actions[1:] != actions[:-1]).mean())
 
