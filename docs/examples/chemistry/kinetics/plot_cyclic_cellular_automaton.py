@@ -13,14 +13,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import correlation
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.kinetics import CyclicCellularAutomatonSystem
 
 SYSTEM = 'cyclic_cellular_automaton'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(CyclicCellularAutomatonSystem((128, 128), random_state=0), until=300, observers=[observer])
+trajectory = (
+    CyclicCellularAutomatonSystem((128, 128), random_state=0).prepare().simulate(until=300, observers=[observer])
+)
 
 # %%
 # Self-organization into spirals

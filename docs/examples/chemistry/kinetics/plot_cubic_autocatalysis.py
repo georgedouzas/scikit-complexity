@@ -13,14 +13,13 @@ Started with enough `B`, the reactor settles in the reacting state, where the re
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.kinetics import CubicAutocatalysisSystem
 
 SYSTEM = 'cubic_autocatalysis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(CubicAutocatalysisSystem(), observers=[observer])
+trajectory = CubicAutocatalysisSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Two basins of attraction
@@ -34,7 +33,7 @@ roots = np.roots([F + k, -F, F * (F + k)])
 fig, ax = plt.subplots(figsize=(6, 5))
 for a0 in np.linspace(0.05, 1.0, 6):
     for b0 in np.linspace(0.05, 1.0, 6):
-        run = simulate(CubicAutocatalysisSystem(a=a0, b=b0, F=F, k=k), until=800, dt=2.0)
+        run = CubicAutocatalysisSystem(a=a0, b=b0, F=F, k=k).prepare().simulate(until=800, dt=2.0)
         reacting = run.get_values('reactor.b')[-1] > 0.1
         ax.plot(
             run.get_values('reactor.a'),
