@@ -42,14 +42,17 @@ from ._ratchets import (
 )
 from ._rigid_bodies import (
     AnisotropicBrownianParticlesSystem,
+    AnisotropicDiffusionInteraction,
     AnisotropicParticleElement,
     DimerElement,
     RigidDimersSystem,
+    RigidRodInteraction,
 )
 from ._traps import BiasedTrapWalkSystem, TrapSiteElement
 
 __all__: list[str] = [
     'AnisotropicBrownianParticlesSystem',
+    'AnisotropicDiffusionInteraction',
     'AnisotropicParticleElement',
     'AnnealedTransientTimeMotionSystem',
     'BiasedTrapWalkSystem',
@@ -82,6 +85,7 @@ __all__: list[str] = [
     'OpticalTrapInteraction',
     'OpticalTrapSystem',
     'RigidDimersSystem',
+    'RigidRodInteraction',
     'ScaledBrownianMotionSystem',
     'ScaledNoiseInteraction',
     'ScaledWalkerElement',
