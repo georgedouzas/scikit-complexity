@@ -14,14 +14,13 @@ every node, and what was left was the solution.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import DNAComputationSystem
 
 SYSTEM = 'dna_computation'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(DNAComputationSystem(), observers=[observer], random_state=0)
+trajectory = DNAComputationSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The filters

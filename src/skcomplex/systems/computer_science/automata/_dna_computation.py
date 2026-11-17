@@ -19,10 +19,10 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ParameterError
 from ....core.specs import RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray, IntArray
 
 ADLEMAN_EDGES = (
@@ -255,11 +255,9 @@ class DNAComputationSystem(BaseSystem):
         self.end = end
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Adleman's DNA computation of a Hamiltonian path.
-
-        It runs by random ligation of edge oligos in a test tube.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tube of random edge oligos and their ligation."""
+        super()._prepare(context)
         nodes = {node for edge in self.edges for node in edge}
         if not self.edges or self.start not in nodes or self.end not in nodes:
             error_msg = f'The start {self.start!r} and the end {self.end!r} need to be nodes of a graph with links.'
@@ -268,7 +266,7 @@ class DNAComputationSystem(BaseSystem):
         paths = np.full((self.n_strands, len(nodes)), EMPTY)
         paths[:, :2] = np.asarray(self.edges)[rng.integers(len(self.edges), size=self.n_strands)]
         strands = GroupElement('strands', element=StrandElement, size=self.n_strands, values={'path': paths})
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[strands],
             interactions=[LigationInteraction('ligation', target='strands', edges=self.edges)],

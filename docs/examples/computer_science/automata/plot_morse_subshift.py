@@ -13,14 +13,13 @@ not sofic, whose words are the factors of the generations.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import MorseSubshiftSystem
 
 SYSTEM = 'morse_subshift'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(MorseSubshiftSystem(), until=12, observers=[observer])
+trajectory = MorseSubshiftSystem().prepare().simulate(until=12, observers=[observer])
 
 # %%
 # Factor complexity

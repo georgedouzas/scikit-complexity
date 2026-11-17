@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ParameterError
 from skcomplex.systems.computer_science.automata import LeniaSystem
 
@@ -33,7 +32,7 @@ def _centre(world):
 
 def test_lenia_update_is_equation_1():
     """Test that one step adds the growth map of the ring-kernel convolution over `T` and clips to `[0, 1]`."""
-    trajectory = simulate(LeniaSystem(), until=1, random_state=0)
+    trajectory = LeniaSystem().prepare().simulate(until=1, random_state=0)
     world = trajectory.get_lattice('world.A')
     expected = np.clip(world[0] + _growth(world[0], 13.0, 0.15, 0.015) / 10, 0, 1)
     np.testing.assert_allclose(world[1], expected, atol=1e-9)
@@ -41,7 +40,7 @@ def test_lenia_update_is_equation_1():
 
 def test_lenia_orbium_glides_with_a_steady_mass():
     """Test that Orbium keeps its mass near 71 while its centre of mass moves across the torus."""
-    trajectory = simulate(LeniaSystem(), until=60, random_state=0)
+    trajectory = LeniaSystem().prepare().simulate(until=60, random_state=0)
     world = trajectory.get_lattice('world.A')
     masses, centres = zip(*(_centre(frame) for frame in world[10:]), strict=True)
     assert np.ptp(masses) < 5
@@ -59,10 +58,10 @@ def test_lenia_expanded_universe_with_several_channels_and_kernels():
         (1, 0, 0.5, 3.0, (1.0,), 0.2, 0.05),
         (0, 1, 1.0, 1.0, (1.0,), 0.1, 0.02),
     ]
-    trajectory = simulate(
-        LeniaSystem(shape=(32, 32), initial=initial, R=6.0, channels=2, kernels=kernels),
-        until=1,
-        random_state=0,
+    trajectory = (
+        LeniaSystem(shape=(32, 32), initial=initial, R=6.0, channels=2, kernels=kernels)
+        .prepare()
+        .simulate(until=1, random_state=0)
     )
     first, second = trajectory.get_lattice('world.A'), trajectory.get_lattice('world.B')
     growth_a = (_growth(initial[0], 6.0, 0.15, 0.03) + 3 * _growth(initial[1], 3.0, 0.2, 0.05)) / 4
@@ -76,7 +75,7 @@ def test_lenia_runs_in_three_dimensions():
     rng = np.random.default_rng(1)
     initial = np.zeros((10, 10, 10))
     initial[3:7, 3:7, 3:7] = rng.random((4, 4, 4))
-    trajectory = simulate(LeniaSystem(shape=(10, 10, 10), initial=initial, R=3.0), until=2, random_state=0)
+    trajectory = LeniaSystem(shape=(10, 10, 10), initial=initial, R=3.0).prepare().simulate(until=2, random_state=0)
     world = trajectory.get_lattice('world.A')
     assert world.shape == (3, 10, 10, 10)
     assert world.min() >= 0

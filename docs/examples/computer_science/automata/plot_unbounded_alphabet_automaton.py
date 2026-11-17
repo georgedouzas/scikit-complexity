@@ -19,7 +19,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.special import comb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import UnboundedAlphabetAutomatonSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(UnboundedAlphabetAutomatonSystem(), observers=[observer])
+trajectory = UnboundedAlphabetAutomatonSystem().prepare().simulate(observers=[observer])
 values = trajectory.get_lattice('cells.value')
 logarithm = np.where(values > 0, np.log10(np.maximum(values, 1)) + 1, 0)
 start, steps_run = values.shape[1] // 2, values.shape[0] - 1

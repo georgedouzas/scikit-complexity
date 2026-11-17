@@ -8,18 +8,23 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN
 
 from ....core.components.elements import Element
-from ....core.specs import StateSpec
+from ....core.components.spaces import BaseSpace
 
 
 class PascalCellElement(Element):
     """Cell of an automaton over the nonnegative integers.
 
+    With `space`, the element holds one cell on every site.
+
     Args:
         label:
-            The label of the cell or the lattice group.
+            The label of the cells.
 
         value:
-            The initial value, a nonnegative integer.
+            The initial value, a nonnegative integer, or one value per cell.
+
+        space:
+            The space with one cell on every site, such as a lattice, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import PascalCellElement
@@ -31,7 +36,8 @@ class PascalCellElement(Element):
         self,
         label: str,
         *,
-        value: Annotated[float, StateSpec(domain=NN)] = 0,
+        value: Annotated[float, NN] = 0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.value = value

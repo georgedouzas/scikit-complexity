@@ -550,7 +550,7 @@ def test_large_game_of_life_runs_in_real_time(tmp_path):
     """Test that a 1000 x 1000 Game of Life on Numba sustains 30 steps per second while streaming images."""
     observer = RerunObserver('life', save_path=tmp_path / 'life.rrd')
     simulation = Simulation(
-        GameOfLifeSystem((1000, 1000)).prepare().system_,
+        GameOfLifeSystem((1000, 1000)).prepare().system_._get_composite(),
         dt=1,
         backend=NumbaBackend(),
         record=False,

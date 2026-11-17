@@ -14,14 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sage.all__sagemath_gap import SymmetricGroup
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import SelfIndexedShiftSystem
 
 SYSTEM = 'self_indexed_shift'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(SelfIndexedShiftSystem(radius=4, random_state=0), observers=[observer])
+trajectory = SelfIndexedShiftSystem(radius=4, random_state=0).prepare().simulate(observers=[observer])
 
 # %%
 # Truncation and equivariance
@@ -41,13 +40,13 @@ products[:, 0] = np.arange(space.size_)
 for site in range(1, space.size_):
     parent, letter = np.argwhere(space.generator_table_[:site] == site)[0]
     products[:, site] = space.generator_table_[products[:, parent], letter]
-start = finite.prepare().system_.elements[0].values['value']
-image = simulate(finite, until=1).get_values('cells.value')[-1]
+start = finite.prepare().system_.elements[0].value
+image = finite.prepare().simulate(until=1).get_values('cells.value')[-1]
 gaps = []
 for element in range(space.size_):
     inverse = int(np.flatnonzero(products[element] == 0)[0])
     moved = SelfIndexedShiftSystem(group=SymmetricGroup(4), radius=None, initial=start[products[inverse]])
-    moved_image = simulate(moved, until=1).get_values('cells.value')[-1]
+    moved_image = moved.prepare().simulate(until=1).get_values('cells.value')[-1]
     gaps.append(int((moved_image != image[products[inverse]]).sum()))
 fig, (truncation, equivariance) = plt.subplots(1, 2, figsize=(10, 4))
 truncation.plot(trajectory.times, lost, 'o-')

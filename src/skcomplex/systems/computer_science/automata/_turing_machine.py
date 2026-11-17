@@ -6,18 +6,22 @@ The head has an internal state.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import LocalRuleLaw
+from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.errors import ParameterError
-from ....core.specs import StateSpec
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 BUSY_BEAVER = {
@@ -30,24 +34,28 @@ BUSY_BEAVER = {
 }
 HALT = 'H'
 MOVES = {'L': -1, 'N': 0, 'R': 1}
+THREE_CELLS = LatticeNeighborhood(((-1,), (0,), (1,)))
 
 
 class TapeCellElement(Element):
     """Cell of the tape of a Turing machine.
 
-    It holds a symbol, and the internal state of the head on it or -1. The local rule of `TuringMachineSystem` lets the
-    head on a cell write the symbol of its action table, move one cell left or right, or stay, and take its next
-    internal state. A halted head keeps its cell and the tape stays unchanged.
+    It holds a symbol, and the internal state of the head on it or -1. A `TuringMachineInteraction` lets the head on a
+    cell write the symbol of its action table, move one cell left or right, or stay, and take its next internal state.
+    A halted head keeps its cell and the tape stays unchanged. With `space`, the element holds one cell on every site.
 
     Args:
         label:
-            The label of the cell or the lattice group.
+            The label of the cells.
 
         symbol:
-            The initial symbol.
+            The initial symbol, or one symbol per cell.
 
         head:
-            The internal state of the head on the cell, from 0, or -1 for no head.
+            The internal state of the head on the cell, from 0, or -1 for no head, or one value per cell.
+
+        space:
+            The space with one cell on every site, such as a lattice, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import TapeCellElement
@@ -59,12 +67,91 @@ class TapeCellElement(Element):
         self,
         label: str,
         *,
-        symbol: Annotated[float, StateSpec(domain=NN)] = 0,
-        head: Annotated[float, StateSpec(domain=ZZ)] = -1,
+        symbol: Annotated[float, NN] = 0,
+        head: Annotated[float, ZZ] = -1,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.symbol = symbol
         self.head = head
+
+
+class TuringMachineInteraction(Interaction):
+    """Head of a Turing machine that reads, writes, and moves on the cells of a tape.
+
+    The action table maps the internal state of the head and the symbol under it to the symbol it writes, its move
+    `'L'`, `'R'`, or `'N'`, and its next internal state, `'H'` to halt. Every step is a local rule on three cells: the
+    cell under the head takes the written symbol, and a cell takes the head that moves onto it.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells of the tape, whose states `symbol` and `head` the machine changes.
+
+        table:
+            The action table, or `None` for the three-state busy beaver.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import TuringMachineInteraction
+        >>> TuringMachineInteraction('machine', target='tape').table is None
+        True
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role = 'tape',
+        table: Mapping[tuple[str, int], tuple[int, str, str]] | None = None,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.table = table
+
+    def _get_rule(self) -> Callable[..., tuple[Array, Array]]:
+        """Return the local rule of the action table, which reads the symbols and heads of three cells."""
+        table = BUSY_BEAVER if self.table is None else self.table
+        states = sorted({state for state, _ in table})
+        halted = len(states)
+        symbols = 1 + max(max(symbol, write) for (_, symbol), (write, _, _) in table.items())
+        writes = np.zeros((halted + 1, symbols))
+        moves = np.zeros((halted + 1, symbols))
+        successors = np.full((halted + 1, symbols), float(halted))
+        for (state, symbol), (write, move, successor) in table.items():
+            row = states.index(state)
+            writes[row, symbol] = write
+            moves[row, symbol] = MOVES[move]
+            successors[row, symbol] = halted if successor == HALT else states.index(successor)
+        for symbol in range(symbols):
+            writes[halted, symbol] = symbol
+
+        def rule(*values: Array) -> tuple[Array, Array]:
+            symbol, head = values[:3], values[3:]
+            read = [cell.astype(int) for cell in symbol]
+            state = [np.where(cell >= 0, cell, halted).astype(int) for cell in head]
+            written = np.where(head[1] >= 0, writes[state[1], read[1]], symbol[1])
+            arrivals = (
+                (head[0], moves[state[0], read[0]] == 1, successors[state[0], read[0]]),
+                (head[1], moves[state[1], read[1]] == 0, successors[state[1], read[1]]),
+                (head[2], moves[state[2], read[2]] == -1, successors[state[2], read[2]]),
+            )
+            arrived = np.full(written.shape, -1.0)
+            for present, toward, successor in arrivals:
+                arrived = np.where((present >= 0) & toward, successor, arrived)
+            return written, arrived
+
+        return rule
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the step of the machine on three cells as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            states = (context.target.symbol, context.target.head)
+            self.laws_: list[BaseComponent] = [
+                LocalRuleLaw(states, THREE_CELLS, self._get_rule(), reads=states, label=self.label),
+            ]
 
 
 class TuringMachineSystem(BaseSystem):
@@ -99,7 +186,7 @@ class TuringMachineSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import TuringMachineSystem
-        >>> int(TuringMachineSystem(11).prepare().system_.elements[0].values['head'][5])
+        >>> int(TuringMachineSystem(11).prepare().system_.elements[0].head[5])
         0
     """
 
@@ -122,48 +209,9 @@ class TuringMachineSystem(BaseSystem):
         self.table = table
         self.start = start
 
-    @staticmethod
-    def _get_turing_rule(table: Mapping[tuple[str, int], tuple[int, str, str]]) -> Callable[..., tuple[Array, Array]]:
-        """Return the local rule of a Turing machine of an action table.
-
-        The rule reads the symbols and heads of three cells.
-        """
-        states = sorted({state for state, _ in table})
-        halted = len(states)
-        symbols = 1 + max(max(symbol, write) for (_, symbol), (write, _, _) in table.items())
-        writes = np.zeros((halted + 1, symbols))
-        moves = np.zeros((halted + 1, symbols))
-        successors = np.full((halted + 1, symbols), float(halted))
-        for (state, symbol), (write, move, successor) in table.items():
-            row = states.index(state)
-            writes[row, symbol] = write
-            moves[row, symbol] = MOVES[move]
-            successors[row, symbol] = halted if successor == HALT else states.index(successor)
-        for symbol in range(symbols):
-            writes[halted, symbol] = symbol
-
-        def rule(*values: Array) -> tuple[Array, Array]:
-            symbol, head = values[:3], values[3:]
-            read = [cell.astype(int) for cell in symbol]
-            state = [np.where(cell >= 0, cell, halted).astype(int) for cell in head]
-            written = np.where(head[1] >= 0, writes[state[1], read[1]], symbol[1])
-            arrivals = (
-                (head[0], moves[state[0], read[0]] == 1, successors[state[0], read[0]]),
-                (head[1], moves[state[1], read[1]] == 0, successors[state[1], read[1]]),
-                (head[2], moves[state[2], read[2]] == -1, successors[state[2], read[2]]),
-            )
-            arrived = np.full(written.shape, -1.0)
-            for present, toward, successor in arrivals:
-                arrived = np.where((present >= 0) & toward, successor, arrived)
-            return written, arrived
-
-        return rule
-
-    def _build_system(self) -> CompositeSystem:
-        """Return a Turing machine, a head that reads, writes, and moves on a tape.
-
-        The tape holds symbols. The head has an internal state.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a blank tape with the head on its middle cell and the machine."""
+        super()._prepare(context)
         actions = BUSY_BEAVER if self.table is None else self.table
         states = sorted({state for state, _ in actions})
         if self.start not in states or any(move not in MOVES for _, move, _ in actions.values()):
@@ -171,24 +219,8 @@ class TuringMachineSystem(BaseSystem):
             raise ParameterError(error_msg)
         head = np.full(self.size, -1.0)
         head[self.size // 2] = states.index(self.start)
-        tape = GroupElement(
-            'tape',
-            element=TapeCellElement,
-            space=LatticeSpace(self.size),
-            values={'head': head},
-            on='sites',
-        )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[tape],
-            interactions=[
-                LocalRuleInteraction(
-                    'machine',
-                    target='tape',
-                    state=('symbol', 'head'),
-                    rule=self._get_turing_rule(actions),
-                    neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
-                    reads=('symbol', 'head'),
-                ),
-            ],
+            elements=[TapeCellElement('tape', symbol=np.zeros(self.size), head=head, space=LatticeSpace(self.size))],
+            interactions=[TuringMachineInteraction('machine', target='tape', table=self.table)],
         )

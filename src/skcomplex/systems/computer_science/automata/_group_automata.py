@@ -6,22 +6,21 @@ The linear rule is the discrete Laplacian. The majority and parity rules run on 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable, Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import ZZ, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import ZZ
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.laws import TotalisticSpec
-from ....core.components.spaces import (
-    LatticeNeighborhood,
-    LatticeSpace,
-)
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, SubshiftSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import LocalRuleLaw, TotalisticSpec
+from ....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
+from ....core.specs import Role, StateSpec, SubshiftSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.automata import CayleySpace, MemoryNeighborhood
 from ._binary_cell import BinaryCellElement
@@ -32,6 +31,7 @@ GOLDEN_MEAN = SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))
 GRIGORCHUK_MEMORY = MemoryNeighborhood(('1', 'a', 'b', 'c', 'd'))
 LAMPLIGHTER_MEMORY = MemoryNeighborhood(('1', 'a', 'b'))
 FLIP_PROBABILITY = 0.5
+THREE_CELLS = LatticeNeighborhood(((-1,), (0,), (1,)))
 
 
 class GoldenCellElement(Element):
@@ -65,34 +65,209 @@ class GoldenCellElement(Element):
 class LaplacianCellElement(Element):
     """Cell of an automaton over the field of a prime number of elements.
 
-    An example is the discrete Laplacian on a ring.
+    An example is the discrete Laplacian on a ring. With `space`, the element holds one cell on every site.
 
     Args:
         label:
-            The label of the cell or the lattice group.
+            The label of the cells.
 
         value:
-            The initial value, an integer from 0 to `modulus - 1`.
+            The initial value, an integer from 0 to the size of the field minus 1, or one value per cell.
 
-        modulus:
-            The prime size of the field.
+        space:
+            The space with one cell on every site, such as a lattice, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LaplacianCellElement
-        >>> LaplacianCellElement('cell').modulus
-        3
+        >>> LaplacianCellElement('cell', value=2).value
+        2
     """
 
     def __init__(
         self,
         label: str,
         *,
-        value: Annotated[float, StateSpec(domain=ZZ)] = 0,
-        modulus: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
+        value: Annotated[float, ZZ] = 0,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space)
+        self.value = value
+
+
+class MajorityRuleInteraction(Interaction):
+    """Majority rule of binary cells on the sites of a group.
+
+    Every cell takes the value held by more than half of itself and its neighbours, and a tie keeps its value. Only the
+    neighbours inside the space count, so the cells on the boundary of a ball read fewer neighbours.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `alive` the rule updates.
+
+        neighborhood:
+            The neighbours of every cell, such as the generators of the group and their inverses.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import GeneratorNeighborhood, MajorityRuleInteraction
+        >>> rule = MajorityRuleInteraction('majority', target='cells', neighborhood=GeneratorNeighborhood(['a', 'b']))
+        >>> rule.neighborhood.generators
+        ['a', 'b']
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells', neighborhood: BaseNeighborhood | None = None) -> None:
+        super().__init__(label)
+        self.target = target
+        self.neighborhood = neighborhood
+
+    @staticmethod
+    def _get_majority(center: Array, *values: Array, degree: Array) -> Array:
+        """Return the value held by more than half of a cell and its neighbours, keeping it on a tie."""
+        total = center + np.sum(values, axis=0)
+        count = degree + 1
+        return np.where(2 * total > count, 1.0, np.where(2 * total < count, 0.0, center))
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the majority of every cell and its neighbours as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            alive = context.target.alive
+            self.laws_: list[BaseComponent] = [
+                LocalRuleLaw(alive, self.neighborhood, self._get_majority, label=self.label),
+            ]
+
+
+class ParityRuleInteraction(Interaction):
+    """Parity rule of binary cells, the sum modulo 2 of a cell and its neighbours.
+
+    It is a linear rule over the field of two elements, so a sum of configurations maps to the sum of their images.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `alive` the rule updates.
+
+        neighborhood:
+            The cell and its neighbours, such as a memory set of a group.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import ParityRuleInteraction
+        >>> from skcomplex.systems.computer_science.common.automata import MemoryNeighborhood
+        >>> memory = MemoryNeighborhood(('1', 'a', 'b'))
+        >>> ParityRuleInteraction('parity', target='cells', neighborhood=memory).neighborhood.elements
+        ('1', 'a', 'b')
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role = 'cells',
+        neighborhood: MemoryNeighborhood = LAMPLIGHTER_MEMORY,
     ) -> None:
         super().__init__(label)
-        self.value = value
+        self.target = target
+        self.neighborhood = neighborhood
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the parity of every cell and its neighbours as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            parity = TotalisticSpec({total: total % 2 for total in range(len(self.neighborhood.elements) + 1)})
+            alive = context.target.alive
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(alive, self.neighborhood, parity, label=self.label)]
+
+
+class LaplacianRuleInteraction(Interaction):
+    """Discrete Laplacian `x(g - 1) + x(g + 1) - 2 x(g)` of cells on a ring, modulo the size of a field.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `value` the rule updates.
+
+        modulus:
+            The prime size of the field.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import LaplacianRuleInteraction
+        >>> LaplacianRuleInteraction('laplacian', target='cells', modulus=5).modulus
+        5
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells', modulus: int = 3) -> None:
+        super().__init__(label)
+        self.target = target
         self.modulus = modulus
+
+    def _get_rule(self) -> Callable[[Array, Array, Array], Array]:
+        """Return the discrete Laplacian taken modulo the field size."""
+        modulus = self.modulus
+
+        def laplacian(left: Array, center: Array, right: Array) -> Array:
+            return (left + right - 2 * center) % modulus
+
+        return laplacian
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the Laplacian of every cell and its two neighbours as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            value = context.target.value
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, THREE_CELLS, self._get_rule(), label=self.label)]
+
+
+class GoldenMeanMoveInteraction(Interaction):
+    """Random flips of binary cells that never put two ones side by side.
+
+    Every step proposes to flip every cell, in a random order, with probability one half, and rejects the flips that
+    would put a one next to another one.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `alive` the flips change.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import GoldenMeanMoveInteraction
+        >>> GoldenMeanMoveInteraction('flips', target='cells').target
+        'cells'
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _get_move(left: Array, center: Array, right: Array, *, random: Array) -> Array:
+        """Return the cell flipped with probability one half, unless a 1 would sit next to another 1."""
+        flipped = np.where(random < FLIP_PROBABILITY, 1.0 - center, center)
+        blocked = (flipped == 1) & ((left == 1) | (right == 1))
+        return np.where(blocked, center, flipped)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the flips, one cell after the other, as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            alive = context.target.alive
+            self.laws_: list[BaseComponent] = [
+                LocalRuleLaw(
+                    alive,
+                    THREE_CELLS,
+                    self._get_move,
+                    schedule='random-sequential',
+                    stochastic=True,
+                    label=self.label,
+                ),
+            ]
 
 
 class FreeGroupAutomatonSystem(BaseSystem):
@@ -120,8 +295,8 @@ class FreeGroupAutomatonSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import FreeGroupAutomatonSystem
-        >>> FreeGroupAutomatonSystem(radius=3).prepare().system_.elements[0].prepare().size_
-        53
+        >>> FreeGroupAutomatonSystem(radius=3).prepare().simulate(until=1).get_values('cells.alive').shape
+        (2, 53)
     """
 
     field = 'computer_science/automata'
@@ -130,47 +305,6 @@ class FreeGroupAutomatonSystem(BaseSystem):
     until = 20
     dt = 1
     observables = (Observable('density', group='cells', variable='alive'),)
-
-    @staticmethod
-    def _get_majority(center: Array, *values: Array, degree: Array) -> Array:
-        """Return the value held by more than half of a cell and its neighbours.
-
-        Only the neighbours inside the space count, and a tie keeps the value.
-        """
-        total = center + np.sum(values, axis=0)
-        count = degree + 1
-        return np.where(2 * total > count, 1.0, np.where(2 * total < count, 0.0, center))
-
-    @staticmethod
-    def _get_random_cells(size: int, density: float, random_state: int | np.random.Generator | None) -> Array:
-        """Return cells that are 1 with a probability and 0 otherwise."""
-        return (np.random.default_rng(random_state).random(size) < density).astype(float)
-
-    @staticmethod
-    def _get_majority_system(
-        label: str,
-        space: CayleySpace,
-        memory: MemoryNeighborhood,
-        density: float,
-        random_state: int | np.random.Generator | None,
-    ) -> CompositeSystem:
-        """Return the majority automaton on a group space from random cells."""
-        cells = FreeGroupAutomatonSystem._get_random_cells(space.prepare().size_, density, random_state)
-        return CompositeSystem(
-            label,
-            elements=[
-                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': cells}, on='sites'),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'majority',
-                    target='cells',
-                    state='alive',
-                    rule=FreeGroupAutomatonSystem._get_majority,
-                    neighborhood=memory,
-                ),
-            ],
-        )
 
     def __init__(
         self,
@@ -187,15 +321,20 @@ class FreeGroupAutomatonSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _get_cells(self, space: BaseSpace) -> Array:
+        """Return cells that are 1 with the probability `density`, one per site of a prepared space."""
+        size = space.prepare().size_
+        return (np.random.default_rng(self.random_state).random(size) < self.density).astype(float)
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of random cells on a ball of the group and their majority rule."""
+        super()._prepare(context)
         space = CayleySpace(free_group(self.rank), ball=self.radius)
-        return FreeGroupAutomatonSystem._get_majority_system(
+        neighborhood = GeneratorNeighborhood(space.prepare().generators_)
+        self.system_ = System(
             self.label,
-            space,
-            GeneratorNeighborhood(space.prepare().generators_),
-            self.density,
-            self.random_state,
+            elements=[BinaryCellElement('cells', alive=self._get_cells(space), space=space)],
+            interactions=[MajorityRuleInteraction('majority', target='cells', neighborhood=neighborhood)],
         )
 
 
@@ -221,8 +360,8 @@ class LamplighterAutomatonSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LamplighterAutomatonSystem
-        >>> LamplighterAutomatonSystem(radius=3).prepare().system_.elements[0].prepare().size_
-        39
+        >>> LamplighterAutomatonSystem(radius=3).prepare().simulate(until=1).get_values('cells.alive').shape
+        (2, 39)
     """
 
     field = 'computer_science/automata'
@@ -245,25 +384,15 @@ class LamplighterAutomatonSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of random cells on a ball of the lamplighter group and their parity rule."""
+        super()._prepare(context)
         space = CayleySpace(lamplighter(), ball=self.radius)
-        cells = FreeGroupAutomatonSystem._get_random_cells(space.prepare().size_, self.density, self.random_state)
-        parity = TotalisticSpec({total: total % 2 for total in range(len(LAMPLIGHTER_MEMORY.elements) + 1)})
-        return CompositeSystem(
+        cells = (np.random.default_rng(self.random_state).random(space.prepare().size_) < self.density).astype(float)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': cells}, on='sites'),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'parity',
-                    target='cells',
-                    state='alive',
-                    rule=parity,
-                    neighborhood=LAMPLIGHTER_MEMORY,
-                ),
-            ],
+            elements=[BinaryCellElement('cells', alive=cells, space=space)],
+            interactions=[ParityRuleInteraction('parity', target='cells', neighborhood=LAMPLIGHTER_MEMORY)],
         )
 
 
@@ -288,8 +417,8 @@ class HeisenbergAutomatonSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import HeisenbergAutomatonSystem
-        >>> HeisenbergAutomatonSystem(radius=2).prepare().system_.elements[0].prepare().size_
-        17
+        >>> HeisenbergAutomatonSystem(radius=2).prepare().simulate(until=1).get_values('cells.alive').shape
+        (2, 17)
     """
 
     field = 'computer_science/automata'
@@ -312,15 +441,20 @@ class HeisenbergAutomatonSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _get_cells(self, space: BaseSpace) -> Array:
+        """Return cells that are 1 with the probability `density`, one per site of a prepared space."""
+        size = space.prepare().size_
+        return (np.random.default_rng(self.random_state).random(size) < self.density).astype(float)
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of random cells on a ball of the group and their majority rule."""
+        super()._prepare(context)
         space = CayleySpace(heisenberg(), ball=self.radius)
-        return FreeGroupAutomatonSystem._get_majority_system(
+        neighborhood = GeneratorNeighborhood(space.prepare().generators_)
+        self.system_ = System(
             self.label,
-            space,
-            GeneratorNeighborhood(space.prepare().generators_),
-            self.density,
-            self.random_state,
+            elements=[BinaryCellElement('cells', alive=self._get_cells(space), space=space)],
+            interactions=[MajorityRuleInteraction('majority', target='cells', neighborhood=neighborhood)],
         )
 
 
@@ -352,8 +486,8 @@ class BaumslagSolitarAutomatonSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import BaumslagSolitarAutomatonSystem
-        >>> BaumslagSolitarAutomatonSystem(radius=2).prepare().system_.elements[0].prepare().size_
-        17
+        >>> BaumslagSolitarAutomatonSystem(radius=2).prepare().simulate(until=1).get_values('cells.alive').shape
+        (2, 17)
     """
 
     field = 'computer_science/automata'
@@ -380,18 +514,20 @@ class BaumslagSolitarAutomatonSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the majority automaton on a ball of a Baumslag-Solitar group.
+    def _get_cells(self, space: BaseSpace) -> Array:
+        """Return cells that are 1 with the probability `density`, one per site of a prepared space."""
+        size = space.prepare().size_
+        return (np.random.default_rng(self.random_state).random(size) < self.density).astype(float)
 
-        The group is `BS(m, n)`, of exponential growth.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of random cells on a ball of the group and their majority rule."""
+        super()._prepare(context)
         space = CayleySpace(baumslag_solitar(self.m, self.n), ball=self.radius)
-        return FreeGroupAutomatonSystem._get_majority_system(
+        neighborhood = GeneratorNeighborhood(space.prepare().generators_)
+        self.system_ = System(
             self.label,
-            space,
-            GeneratorNeighborhood(space.prepare().generators_),
-            self.density,
-            self.random_state,
+            elements=[BinaryCellElement('cells', alive=self._get_cells(space), space=space)],
+            interactions=[MajorityRuleInteraction('majority', target='cells', neighborhood=neighborhood)],
         )
 
 
@@ -417,8 +553,8 @@ class LinearRingAutomatonSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LinearRingAutomatonSystem
-        >>> LinearRingAutomatonSystem(11).prepare().system_.elements[0].prepare().size_
-        11
+        >>> LinearRingAutomatonSystem(11).prepare().simulate(until=1).get_values('cells.value').shape
+        (2, 11)
     """
 
     field = 'computer_science/automata'
@@ -439,41 +575,15 @@ class LinearRingAutomatonSystem(BaseSystem):
         self.size = size
         self.modulus = modulus
 
-    @staticmethod
-    def _get_laplacian(left: Array, center: Array, right: Array, *, modulus: float) -> Array:
-        """Return the discrete Laplacian `x(g - 1) + x(g + 1) - 2 x(g)`.
-
-        It is taken modulo the field size.
-        """
-        return (left + right - 2 * center) % modulus
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the discrete Laplacian as a linear automaton on a ring.
-
-        It runs over the field of `modulus` elements.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a ring with a single 1 in the middle and the Laplacian."""
+        super()._prepare(context)
         values = np.zeros(self.size)
         values[self.size // 2] = 1.0
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'cells',
-                    element=LaplacianCellElement,
-                    space=LatticeSpace(self.size),
-                    values={'value': values, 'modulus': self.modulus},
-                    on='sites',
-                ),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'laplacian',
-                    target='cells',
-                    state='value',
-                    rule=self._get_laplacian,
-                    neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
-                ),
-            ],
+            elements=[LaplacianCellElement('cells', value=values, space=LatticeSpace(self.size))],
+            interactions=[LaplacianRuleInteraction('laplacian', target='cells', modulus=self.modulus)],
         )
 
 
@@ -496,8 +606,8 @@ class SubshiftsSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import SubshiftsSystem
-        >>> SubshiftsSystem(10).prepare().system_.elements[0].prepare().size_
-        10
+        >>> SubshiftsSystem(10).prepare().simulate(until=1).get_values('cells.alive').shape
+        (2, 10)
     """
 
     field = 'computer_science/automata'
@@ -516,31 +626,13 @@ class SubshiftsSystem(BaseSystem):
         super().__init__(label)
         self.size = size
 
-    @staticmethod
-    def _get_golden_move(left: Array, center: Array, right: Array, *, random: Array) -> Array:
-        """Return the cell flipped with probability one half.
-
-        The flip is refused when a 1 would sit next to another 1.
-        """
-        flipped = np.where(random < FLIP_PROBABILITY, 1.0 - center, center)
-        blocked = (flipped == 1) & ((left == 1) | (right == 1))
-        return np.where(blocked, center, flipped)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        flips = LocalRuleInteraction(
-            'flips',
-            target='cells',
-            state='alive',
-            rule=self._get_golden_move,
-            neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
-            schedule='random-sequential',
-            stochastic=True,
-        )
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of an empty ring of the golden mean shift and its random flips."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[GroupElement('cells', element=GoldenCellElement, space=LatticeSpace(self.size), on='sites')],
-            interactions=[flips],
+            interactions=[GoldenMeanMoveInteraction('flips', target='cells')],
         )
 
 
@@ -566,8 +658,8 @@ class GrigorchukAutomatonSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import GrigorchukAutomatonSystem
-        >>> GrigorchukAutomatonSystem(radius=3).prepare().system_.elements[0].prepare().size_
-        23
+        >>> GrigorchukAutomatonSystem(radius=3).prepare().simulate(until=1).get_values('cells.alive').shape
+        (2, 23)
     """
 
     field = 'computer_science/automata'
@@ -590,15 +682,18 @@ class GrigorchukAutomatonSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the majority automaton on a ball of the Grigorchuk group.
+    def _get_cells(self, space: BaseSpace) -> Array:
+        """Return cells that are 1 with the probability `density`, one per site of a prepared space."""
+        size = space.prepare().size_
+        return (np.random.default_rng(self.random_state).random(size) < self.density).astype(float)
 
-        The group has intermediate growth.
-        """
-        return FreeGroupAutomatonSystem._get_majority_system(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of random cells on a ball of the group and their majority rule."""
+        super()._prepare(context)
+        space = CayleySpace(grigorchuk_group(), ball=self.radius)
+        neighborhood = GRIGORCHUK_MEMORY
+        self.system_ = System(
             self.label,
-            CayleySpace(grigorchuk_group(), ball=self.radius),
-            GRIGORCHUK_MEMORY,
-            self.density,
-            self.random_state,
+            elements=[BinaryCellElement('cells', alive=self._get_cells(space), space=space)],
+            interactions=[MajorityRuleInteraction('majority', target='cells', neighborhood=neighborhood)],
         )

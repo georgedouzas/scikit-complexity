@@ -9,6 +9,7 @@ The diffusion is discrete.
 import itertools
 import re
 from collections.abc import Callable, Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -16,15 +17,19 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import LocalRuleLaw
+from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
+from ._automata import ELEMENTARY, VON_NEUMANN, LifeRuleInteraction
 from ._binary_cell import BinaryCellElement
-from ._codes import Wolfram, life
+from ._codes import Wolfram
 from ._pascal_cell import PascalCellElement
 
 LIFE_RULE = re.compile(r'^B(?P<born>[0-8]*)/S(?P<survive>[0-8]*)$')
@@ -32,66 +37,170 @@ PREDECESSORS = LatticeNeighborhood(((-1,), (0,)))
 
 
 class DiffusionCellElement(Element):
-    """Cell of a lattice with a content and the share of the difference it exchanges.
+    """Cell of a lattice with a nonnegative content.
 
-    The share of the difference is exchanged with each neighbour in a step.
+    A `DiscreteDiffusionInteraction` exchanges a share of the difference of contents with every neighbour. With `space`,
+    the element holds one cell on every site.
 
     Args:
         label:
-            The label of the cell or the lattice group.
+            The label of the cells.
 
         level:
-            The initial content.
+            The initial content, or one content per cell.
+
+        space:
+            The space with one cell on every site, such as a lattice, or `None` for one cell.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import DiffusionCellElement
+        >>> DiffusionCellElement('cell', level=2.0).level
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        level: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space)
+        self.level = level
+
+
+class NoisyRuleInteraction(Interaction):
+    """Elementary rule of a line of cells whose outputs are flipped at random.
+
+    Every cell takes the output of the elementary rule of its Wolfram number, and a uniform draw below `noise` flips
+    it. Without noise it is the elementary automaton, and at noise 1/2 every cell is a fair coin.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `alive` the rule updates.
+
+        rule:
+            The Wolfram number from 0 to 255.
+
+        noise:
+            The probability that the output of a cell is flipped in a step.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import NoisyRuleInteraction
+        >>> NoisyRuleInteraction('rule', target='cells', noise=0.1).noise
+        0.1
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells', rule: int = 18, noise: float = 0.01) -> None:
+        super().__init__(label)
+        self.target = target
+        self.rule = rule
+        self.noise = noise
+
+    def _get_rule(self) -> Callable[..., Array]:
+        """Return the elementary rule whose output a uniform draw below the noise flips."""
+        mapping = Wolfram(self.rule).get_table().mapping
+        outputs = np.array(
+            [mapping[(left, center, right)] for left, center, right in itertools.product((0, 1), repeat=3)],
+        )
+        noise = self.noise
+
+        def noisy(left: Array, center: Array, right: Array, *, random: Array) -> Array:
+            output = outputs[(4 * left + 2 * center + right).astype(int)]
+            return np.where(random < noise, 1 - output, output).astype(float)
+
+        return noisy
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the noisy local rule of the cells as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            alive = context.target.alive
+            self.laws_: list[BaseComponent] = [
+                LocalRuleLaw(alive, ELEMENTARY, self._get_rule(), stochastic=True, label=self.label),
+            ]
+
+
+class DiscreteDiffusionInteraction(Interaction):
+    """Discrete diffusion of the contents of cells, `c' = c + r Σ (c_neighbour - c)`.
+
+    Every cell exchanges the share `r` of the difference of contents with each of its four nearest neighbours, so the
+    total content is conserved on a torus.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `level` diffuses.
 
         r:
             The share of the difference with a neighbour exchanged in a step, below `1 / (2 d)` in `d` dimensions.
 
     Examples:
-        >>> from skcomplex.systems.computer_science.automata import DiffusionCellElement
-        >>> DiffusionCellElement('cell', r=0.2).r
+        >>> from skcomplex.systems.computer_science.automata import DiscreteDiffusionInteraction
+        >>> DiscreteDiffusionInteraction('diffusion', target='cells', r=0.2).r
         0.2
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        level: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role = 'cells', r: float = 0.1) -> None:
         super().__init__(label)
-        self.level = level
+        self.target = target
         self.r = r
 
+    def _get_rule(self) -> Callable[..., Array]:
+        """Return the content after the exchange of a share of the difference with every neighbour."""
+        r = self.r
 
-class NoisyElementaryCellElement(BinaryCellElement):
-    """Binary cell that holds the probability that its local rule output is flipped.
+        def diffuse(level: Array, *around: Array) -> Array:
+            return level + r * (sum(around) - len(around) * level)
+
+        return diffuse
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the exchange of contents as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            level = context.target.level
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(level, VON_NEUMANN, self._get_rule(), label=self.label)]
+
+
+class AdditiveRuleInteraction(Interaction):
+    """Additive rule over the nonnegative integers, `x'(n) = x(n - 1) + x(n)`.
+
+    From a single 1 the cells after `t` steps hold the binomial coefficients `C(t, k)`.
 
     Args:
         label:
-            The label of the cell or the lattice group.
+            The label of the interaction.
 
-        alive:
-            The initial value, 0 or 1.
-
-        noise:
-            The probability that the output of the rule is flipped.
+        target:
+            The cells whose state `value` the rule updates.
 
     Examples:
-        >>> from skcomplex.systems.computer_science.automata import NoisyElementaryCellElement
-        >>> NoisyElementaryCellElement('cell', noise=0.1).noise
-        0.1
+        >>> from skcomplex.systems.computer_science.automata import AdditiveRuleInteraction
+        >>> AdditiveRuleInteraction('addition', target='cells').target
+        'cells'
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        alive: float = 0,
-        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-    ) -> None:
-        super().__init__(label, alive=alive)
-        self.noise = noise
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _add(left: Array, center: Array) -> Array:
+        """Return the sum of a cell and its left neighbour."""
+        return left + center
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the sum with the left neighbour as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            value = context.target.value
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, PREDECESSORS, self._add, label=self.label)]
 
 
 class HighlifeSystem(BaseSystem):
@@ -126,8 +235,9 @@ class HighlifeSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import HighlifeSystem
-        >>> sorted(HighlifeSystem((10, 10), rule='B2/S').prepare().system_.interactions[0].rule.rule)
-        [(0, 2)]
+        >>> rule = HighlifeSystem((10, 10), rule='B2/S').prepare().system_.interactions[0]
+        >>> rule.born, rule.survive
+        ((2,), ())
     """
 
     field = 'computer_science/automata'
@@ -135,15 +245,6 @@ class HighlifeSystem(BaseSystem):
     references = ('Bell 1994', 'Charbonneau 2017', 'Downey 2018')
     until = 100
     dt = 1
-
-    @staticmethod
-    def _get_random_cells(
-        shape: Sequence[int],
-        density: float,
-        random_state: int | np.random.Generator | None,
-    ) -> Array:
-        """Return cells that are 1 with a probability and 0 otherwise."""
-        return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
 
     def __init__(
         self,
@@ -162,45 +263,28 @@ class HighlifeSystem(BaseSystem):
         self.initial = initial
         self.random_state = random_state
 
-    @staticmethod
-    def _parse_life_rule(rule: str) -> tuple[tuple[int, ...], tuple[int, ...]]:
-        """Return the birth and survival counts of a life-like rule.
-
-        The rule is in the notation `B36/S23`.
-        """
-        match = LIFE_RULE.match(rule.upper())
+    def _parse_life_rule(self) -> tuple[tuple[int, ...], tuple[int, ...]]:
+        """Return the birth and survival counts of the rule in the notation `B36/S23`."""
+        match = LIFE_RULE.match(self.rule.upper())
         if match is None:
-            error_msg = f'A life-like rule reads like `B36/S23`, with digits 0 to 8, but it is {rule!r}.'
+            error_msg = f'A life-like rule reads like `B36/S23`, with digits 0 to 8, but it is {self.rule!r}.'
             raise ParameterError(error_msg)
         return tuple(int(digit) for digit in match['born']), tuple(int(digit) for digit in match['survive'])
 
-    def _build_system(self) -> CompositeSystem:
-        """Return HighLife, `B36/S23`, or any other life-like automaton of the planar zoo.
+    def _get_cells(self) -> Array:
+        """Return the initial cells, given or alive with the probability `density`."""
+        if self.initial is not None:
+            return np.asarray(self.initial, dtype=float)
+        random = np.random.default_rng(self.random_state).random(tuple(self.shape))
+        return (random < self.density).astype(float)
 
-        The automaton is given by its rule and runs on a torus.
-        """
-        born, survive = self._parse_life_rule(self.rule)
-        values = (
-            HighlifeSystem._get_random_cells(self.shape, self.density, self.random_state)
-            if self.initial is None
-            else np.asarray(self.initial, dtype=float)
-        )
-        space = LatticeSpace(tuple(self.shape))
-        return CompositeSystem(
-            self.label,
-            elements=[
-                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': values}, on='sites'),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'rule',
-                    target='cells',
-                    state='alive',
-                    rule=life(born, survive),
-                    neighborhood=RadiusNeighborhood(1, metric='chebyshev'),
-                ),
-            ],
-        )
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the cells of a torus and their life-like rule."""
+        super()._prepare(context)
+        born, survive = self._parse_life_rule()
+        cells = BinaryCellElement('cells', alive=self._get_cells().ravel(), space=LatticeSpace(tuple(self.shape)))
+        rule = LifeRuleInteraction('rule', target='cells', born=born, survive=survive)
+        self.system_ = System(self.label, elements=[cells], interactions=[rule])
 
 
 class NoisyAutomataSystem(BaseSystem):
@@ -229,8 +313,8 @@ class NoisyAutomataSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import NoisyAutomataSystem
-        >>> NoisyAutomataSystem(184, size=11).prepare().system_.elements[0].prepare().size_
-        11
+        >>> NoisyAutomataSystem(184, size=11).prepare().simulate(until=3).get_values('cells.alive').shape
+        (4, 11)
     """
 
     field = 'computer_science/automata'
@@ -256,51 +340,14 @@ class NoisyAutomataSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    @staticmethod
-    def _get_noisy_rule(number: int) -> Callable[..., Array]:
-        """Return the elementary rule of a Wolfram number with noisy outputs.
-
-        A uniform draw below the noise flips its output.
-        """
-        mapping = Wolfram(number).get_table().mapping
-        outputs = np.array(
-            [mapping[(left, center, right)] for left, center, right in itertools.product((0, 1), repeat=3)],
-        )
-
-        def noisy(left: Array, center: Array, right: Array, *, noise: Array | float, random: Array) -> Array:
-            output = outputs[(4 * left + 2 * center + right).astype(int)]
-            return np.where(random < noise, 1 - output, output).astype(float)
-
-        return noisy
-
-    def _build_system(self) -> CompositeSystem:
-        """Return an elementary cellular automaton whose outputs are flipped at random.
-
-        The outputs are flipped with a small probability.
-        """
-        values = HighlifeSystem._get_random_cells((self.size,), self.density, self.random_state)
-        space = LatticeSpace(self.size)
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a ring of random cells and their noisy rule."""
+        super()._prepare(context)
+        values = (np.random.default_rng(self.random_state).random(self.size) < self.density).astype(float)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'cells',
-                    element=NoisyElementaryCellElement,
-                    space=space,
-                    values={'alive': values, 'noise': self.noise},
-                    on='sites',
-                ),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'rule',
-                    target='cells',
-                    state='alive',
-                    rule=self._get_noisy_rule(self.rule),
-                    neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
-                    stochastic=True,
-                ),
-            ],
+            elements=[BinaryCellElement('cells', alive=values, space=LatticeSpace(self.size))],
+            interactions=[NoisyRuleInteraction('rule', target='cells', rule=self.rule, noise=self.noise)],
         )
 
 
@@ -325,7 +372,7 @@ class DiffusionAutomatonSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import DiffusionAutomatonSystem
-        >>> float(DiffusionAutomatonSystem((20, 20), width=4).prepare().system_.elements[0].values['level'].sum())
+        >>> float(DiffusionAutomatonSystem((20, 20), width=4).prepare().system_.elements[0].level.sum())
         16.0
     """
 
@@ -348,42 +395,16 @@ class DiffusionAutomatonSystem(BaseSystem):
         self.r = r
         self.width = width
 
-    @staticmethod
-    def _diffuse(level: Array, *around: Array, r: Array | float) -> Array:
-        """Return the content after the exchange of a share of the difference.
-
-        The share of the difference is exchanged with every neighbour.
-        """
-        return level + r * (sum(around) - len(around) * level)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return a cellular automaton of diffusion, `c' = c + r Σ (c_neighbour - c)`.
-
-        It starts from a square of ones.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the cells, a central square of ones, and their diffusion."""
+        super()._prepare(context)
         level = np.zeros(tuple(self.shape))
         rows, columns = (self.shape[0] - self.width) // 2, (self.shape[1] - self.width) // 2
         level[rows : rows + self.width, columns : columns + self.width] = 1.0
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'cells',
-                    element=DiffusionCellElement,
-                    space=LatticeSpace(tuple(self.shape)),
-                    values={'level': level, 'r': self.r},
-                    on='sites',
-                ),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'diffusion',
-                    target='cells',
-                    state='level',
-                    rule=self._diffuse,
-                    neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
-                ),
-            ],
+            elements=[DiffusionCellElement('cells', level=level.ravel(), space=LatticeSpace(tuple(self.shape)))],
+            interactions=[DiscreteDiffusionInteraction('diffusion', target='cells', r=self.r)],
         )
 
 
@@ -406,7 +427,7 @@ class UnboundedAlphabetAutomatonSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import UnboundedAlphabetAutomatonSystem
-        >>> int(UnboundedAlphabetAutomatonSystem(9).prepare().system_.elements[0].values['value'].sum())
+        >>> int(UnboundedAlphabetAutomatonSystem(9).prepare().system_.elements[0].value.sum())
         1
     """
 
@@ -425,36 +446,13 @@ class UnboundedAlphabetAutomatonSystem(BaseSystem):
         super().__init__(label)
         self.size = size
 
-    @staticmethod
-    def _add(left: Array, center: Array) -> Array:
-        """Return the sum of a cell and its left neighbour."""
-        return left + center
-
-    def _build_system(self) -> CompositeSystem:
-        """Return an additive automaton over the nonnegative integers.
-
-        Its rule is `x'(n) = x(n - 1) + x(n)`. It starts from a single 1.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the cells, a single 1, and their additive rule."""
+        super()._prepare(context)
         value = np.zeros(self.size)
         value[self.size // 2] = 1.0
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'cells',
-                    element=PascalCellElement,
-                    space=LatticeSpace(self.size),
-                    values={'value': value},
-                    on='sites',
-                ),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'addition',
-                    target='cells',
-                    state='value',
-                    rule=self._add,
-                    neighborhood=PREDECESSORS,
-                ),
-            ],
+            elements=[PascalCellElement('cells', value=value, space=LatticeSpace(self.size))],
+            interactions=[AdditiveRuleInteraction('addition', target='cells')],
         )

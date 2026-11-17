@@ -10,14 +10,15 @@ blinkers, and gliders scattered over a mostly empty board.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import GameOfLifeSystem
 
 SYSTEM = 'game_of_life'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(GameOfLifeSystem(shape=(100, 100), density=0.3, random_state=0), until=200, observers=[observer])
+trajectory = (
+    GameOfLifeSystem(shape=(100, 100), density=0.3, random_state=0).prepare().simulate(until=200, observers=[observer])
+)
 
 # %%
 # Live cells over time
