@@ -11,7 +11,7 @@ from ..common.particles import (
 )
 from ._active_passive import ActivePassiveFlockingSystem, FlockingAgentElement
 from ._alignment import AligningActiveBrownianParticlesSystem, PolarAlignmentInteraction
-from ._cells import MotileCellElement, SzaboCellsSystem
+from ._cells import CellMotilityInteraction, MotileCellElement, SzaboCellsSystem
 from ._chemotaxis import ChemotaxisElement, ChemotaxisInteraction, KellerSegelSystem
 from ._collective import (
     CuckerSmaleAlignmentInteraction,
@@ -94,6 +94,7 @@ __all__: list[str] = [
     'BertinDrozGregoireSystem',
     'BinaryCollisionFlockingSystem',
     'BinaryCollisionsInteraction',
+    'CellMotilityInteraction',
     'ChemotaxisElement',
     'ChemotaxisInteraction',
     'ChiralActiveParticlesSystem',

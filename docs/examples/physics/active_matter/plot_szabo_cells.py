@@ -18,7 +18,6 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import SzaboCellsSystem
 
@@ -42,7 +41,7 @@ blueprint = rrb.Blueprint(
 )
 system = SzaboCellsSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], random_state=1)
+trajectory = system.set_params(backend=NumbaBackend()).prepare().simulate(observers=[observer], random_state=1)
 
 
 # %%
@@ -64,7 +63,7 @@ def order_of(trajectory, size):
 curves = {}
 for density in DENSITIES:
     settings = {'until': 40.0, 'random_state': 1}
-    trajectory = simulate(SzaboCellsSystem(n_cells=CELLS, density=density), **settings)
+    trajectory = SzaboCellsSystem(n_cells=CELLS, density=density).prepare().simulate(**settings)
     curves[density] = order_of(trajectory, np.sqrt(CELLS / density))
 finals = [curve[-20:].mean() for curve in curves.values()]
 
