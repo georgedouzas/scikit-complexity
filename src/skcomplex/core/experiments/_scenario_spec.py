@@ -8,8 +8,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from ..components.systems import CompositeSystem
 from ..specs._base_spec import BaseSpec
+from .types import AnySystem
 
 
 @dataclass(frozen=True)
@@ -28,7 +28,8 @@ class ScenarioSpec(BaseSpec):
             The name of the scenario.
 
         overrides:
-            A mapping from factory argument or dotted path to the value it takes before the run.
+            A mapping from a name `set_params` takes, such as `beta` or `growth__r`, or a dotted path, to the value it
+            takes before the run.
 
         schedule:
             The changes during the run, as `(time, dotted parameter path, value)`, applied from the first frame at or
@@ -46,4 +47,4 @@ class ScenarioSpec(BaseSpec):
     name: str = 'baseline'
     overrides: Mapping[str, object] | None = None
     schedule: Sequence[tuple[float, str, object]] = ()
-    system: CompositeSystem | None = None
+    system: AnySystem | None = None

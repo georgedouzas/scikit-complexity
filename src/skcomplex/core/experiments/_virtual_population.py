@@ -126,7 +126,7 @@ def virtual_population(
 
     Args:
         system:
-            The system, whose copies take the model parameters through `set_params`, or a factory of systems.
+            The system, whose clones take the parameters through `set_params`, or a factory of systems.
 
         bounds:
             A mapping from model parameter or dotted path to its `(low, high)` bounds or its SciPy prior.

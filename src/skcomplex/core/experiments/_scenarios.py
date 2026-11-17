@@ -33,7 +33,7 @@ def compare_scenarios(
 ) -> ExperimentResult:
     """Return the runs of every scenario of a system.
 
-    The scenarios share their random streams per replicate. A scenario overrides model parameters or dotted paths before
+    The scenarios share their random streams per replicate. A scenario overrides parameters or dotted paths before
     the run, changes parameters at given times, or replaces the system for structural changes. Every scenario of a
     replicate runs with the same random stream, so the scenarios differ only through what they change.
 
@@ -42,7 +42,7 @@ def compare_scenarios(
 
     Args:
         system:
-            The system, whose copies take model parameters through `set_params`, or a factory of systems, such as a
+            The system, whose clones take parameters through `set_params`, or a factory of systems, such as a
             system class, which takes them as keyword arguments.
 
         scenarios:

@@ -11,14 +11,13 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..engine.runtime import simulate
 from ..engine.solvers import BaseSolver
 from ..enums import CalibrationMethodKind, ExecutorKind
 from ..errors import ValidationError
 from ..types import Array
 from ._calibration import LOSSES, CalibrationResult, Summary, _check_priors, _series_of, calibrate
 from ._runs import _check_count, _check_source, _map_calls
-from ._utils import build_system
+from ._utils import build_system, simulate_system
 from .types import Bounds, Source
 
 POSTERIOR_METHODS = (CalibrationMethodKind.ABC_SMC, CalibrationMethodKind.MCMC, CalibrationMethodKind.VARIATIONAL)
@@ -96,7 +95,8 @@ def _calibrate_truth(
     """
     truth, seed = draw
     rng = np.random.default_rng(seed)
-    trajectory = simulate(build_system(source, truth), until=float(times.max()), dt=dt, solver=solver, random_state=rng)
+    system = build_system(source, truth, solver)
+    trajectory = simulate_system(system, float(times.max()), dt=dt, solver=solver, random_state=rng)
     names = list(paths) if paths is not None else list(_series_of(trajectory))
     data = {}
     for path in names:

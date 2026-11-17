@@ -16,9 +16,9 @@ from ..enums import DomainKind
 from ..errors import ValidationError
 from ._designs import _get_rows
 from ._replicate import _run_replicated
-from ._runs import _check_count, _check_source, _compile, _run_experiment
+from ._runs import _check_count, _check_source, _run_experiment
 from ._scenario_spec import ScenarioSpec
-from ._utils import build_system
+from ._utils import build_system, get_problem
 from .types import Row, Source
 
 INTEGER_KINDS = (DomainKind.INTEGER, DomainKind.BOOLEAN)
@@ -125,13 +125,12 @@ def basin_stability(
         error_msg = 'Basin stability needs the bounds of at least one initial state.'
         raise ValidationError(error_msg)
     _check_count('n', n)
-    states = _compile(build_system(system, {})).states
+    states = get_problem(build_system(system, {})).states
     integers = [path for path in bounds if states.has(path) and states.get_entry(path).kind in INTEGER_KINDS]
     rows = _get_rows(bounds, 'random', n, random_state, integers)
     if vectorized:
         values = {path: np.asarray([row[path] for row in rows], dtype=float) for path in bounds}
-        trajectory, composite = _run_replicated(system, values, until, dt, random_state)
-        problem = _compile(composite)
+        trajectory, problem = _run_replicated(system, values, until, dt, random_state)
         if not isinstance(problem, ProblemSpec):
             error_msg = f'A vectorised basin reads the members of a general problem, not of a {type(problem).__name__}.'
             raise ValidationError(error_msg)

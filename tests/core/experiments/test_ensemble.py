@@ -15,7 +15,9 @@ from skcomplex.core.engine.solvers import KineticSolver, ScipyODESolver
 from skcomplex.core.errors import TagError
 from skcomplex.core.experiments import ensemble
 from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.epidemiology import SIRSystem
+from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
 
 
 class AmountElement(Element):
@@ -107,3 +109,18 @@ def test_ensemble_of_a_deterministic_system_with_a_solver_that_draws():
     assert KineticSolver.draws
     with pytest.raises(TagError, match='randomness'):
         ensemble(system, replicates=2, until=1, solver=ScipyODESolver())
+
+
+def test_ensemble_prepares_once(monkeypatch):
+    """Test that an ensemble of 5 runs of a system prepares it once and simulates it with 5 streams."""
+    calls = []
+    prepare = System._prepare
+
+    def counted(self, context=None):
+        calls.append(self.label)
+        prepare(self, context)
+
+    monkeypatch.setattr(System, '_prepare', counted)
+    result = ensemble(PoissonProcessSystem(3), replicates=5, until=10, outputs=['counters.count'], random_state=0)
+    assert len(calls) == 1
+    assert len({tuple(series.ravel()) for series in result.get_series('counters.count')}) == 5

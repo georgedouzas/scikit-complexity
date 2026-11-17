@@ -244,7 +244,7 @@ def identifiability(
 
     Args:
         system:
-            The system, whose copies take the model parameters through `set_params`, or a factory of systems.
+            The system, whose clones take the parameters through `set_params`, or a factory of systems.
 
         data:
             A mapping from state or observable path to its observed `(times, values)`.

@@ -30,7 +30,7 @@ class SensitivityResult:
 
     Args:
         names:
-            The inputs, model parameters or dotted paths.
+            The inputs, names `set_params` takes or dotted paths.
 
         inputs:
             The values of the inputs of every run, one column per input.
@@ -110,11 +110,12 @@ def sensitivity(
 
     Args:
         system:
-            The system, whose copies take model parameters through `set_params`, or a factory of systems, such as a
+            The system, whose clones take parameters through `set_params`, or a factory of systems, such as a
             system class, which takes them as keyword arguments.
 
         bounds:
-            A pair `(low, high)` per input, a model parameter or a dotted path of a state or a parameter of a component.
+            A pair `(low, high)` per input, a name `set_params` takes or a dotted path of a state or a parameter of a
+            component.
 
         output:
             The state or observable path whose last value is the scalar output.
@@ -152,7 +153,7 @@ def sensitivity(
             The method is unknown or the output is not a name.
 
         ValidationError:
-            A bound is not a pair, or an input is no model parameter, state, or parameter.
+            A bound is not a pair, or an input is no parameter of the system and no state or parameter of a component.
 
     Examples:
         >>> from skcomplex.core.experiments import sensitivity

@@ -12,6 +12,7 @@ step, and the best value it has seen falls with time.
 import matplotlib.pyplot as plt
 
 from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.computer_science.evolutionary_computation import (
     EvolutionaryOptimisersSystem,
 )
@@ -24,15 +25,23 @@ trajectory = EvolutionaryOptimisersSystem().prepare().simulate(observers=[observ
 # %%
 # The best value against the generation
 # -------------------------------------
-# Every population optimiser runs from the same seed, and annealing, which cools geometrically, reports its best
-# value through the tracker of the lowest energy its candidates reach.
+# `sweep` runs every optimiser from the same initial candidates, with a random stream of its own spawned from
+# `random_state`, so the figure is the same on every build. Annealing, which cools geometrically, reports its best value
+# through the tracker of the lowest energy its candidates reach.
 
+
+def best(trajectory):
+    """Return the best value of every generation after the first frame."""
+    path = 'search.best' if 'search.best' in trajectory.names else 'tracker/record.best'
+    return trajectory.get_values(path)[1:]
+
+
+algorithms = ['differential-evolution', 'particle-swarm', 'annealing']
+optimisers = EvolutionaryOptimisersSystem(random_state=1)
+runs = sweep(optimisers, {'algorithm': algorithms}, until=100, outputs=[best], random_state=1)
 fig, ax = plt.subplots(figsize=(7, 4))
-for name in ('differential-evolution', 'particle-swarm'):
-    run = EvolutionaryOptimisersSystem(algorithm=name, random_state=1).prepare().simulate(until=100)
-    ax.semilogy(run.get_values('search.best')[1:] + 1e-12, label=name)
-annealing = EvolutionaryOptimisersSystem(algorithm='annealing', random_state=1).prepare().simulate(until=100)
-ax.semilogy(annealing.get_values('tracker/record.best')[1:] + 1e-12, label='annealing')
+for row in runs.rows:
+    ax.semilogy(row['best'] + 1e-12, label=row['algorithm'])
 ax.set_xlabel('generation')
 ax.set_ylabel('best value')
 ax.set_title('Search on the Rastrigin function')

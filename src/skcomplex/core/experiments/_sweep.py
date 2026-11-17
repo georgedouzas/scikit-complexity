@@ -35,10 +35,11 @@ def sweep(
 ) -> ExperimentResult:
     """Return the runs of a system over rows of values.
 
-    It is in the role of `validation_curve` of scikit-learn. A name without a dot is a model parameter, set on a copy of
-    the system with `set_params`, or passed to the factory. A dotted path names an initial state or a parameter of a
-    component, such as `population.x` or `growth.r`, which keeps its value for the whole run. The rows come from the
-    design:
+    It is in the role of `validation_curve` of scikit-learn. A name without a dot is a name `set_params` takes, such as
+    the model parameter `r` or the nested name `growth__r` of a `System`. Every value of it is set on a clone of the
+    system, which is prepared again, or passed to the factory. A dotted path names an initial state or a parameter of a
+    component, such as `population.x` or `growth.r`, which keeps its value for the whole run, and the rows that differ
+    only by dotted paths simulate one prepared clone. The rows come from the design:
 
     - `'grid'`: every combination of a sequence of values per name, the last name varying fastest.
     - `'random'`: `n` independent samples, uniform within a pair `(low, high)` or drawn from a SciPy distribution.
@@ -52,7 +53,7 @@ def sweep(
 
     Args:
         system:
-            The system, whose copies take model parameters through `set_params`, or a factory of systems, such as a
+            The system, whose clones take parameters through `set_params`, or a factory of systems, such as a
             system class, which takes them as keyword arguments.
 
         parameters:
@@ -104,8 +105,8 @@ def sweep(
 
     Raises:
         ValidationError:
-            The design is unknown, the values do not fit it, a name is no model parameter, state, or parameter, or a
-            setting is not valid.
+            The design is unknown, the values do not fit it, a name is no parameter of the system and no state or
+            parameter of a component, or a setting is not valid.
 
         ExperimentError:
             The system is a name, or the worker processes stop before finishing.
@@ -116,6 +117,14 @@ def sweep(
         >>> result = sweep(LogisticGrowthSystem(), {'r': [0.5, 1.0]}, until=5, outputs=['population.x'])
         >>> len(result.rows)
         2
+
+        A `System` takes the nested names of its components, and the system passed in is left unchanged:
+
+        >>> from skcomplex.core.systems import System
+        >>> system = System(systems=[LogisticGrowthSystem(label='meadow')])
+        >>> result = sweep(system, {'meadow__r': [0.5, 1.0]}, until=5, outputs=['meadow/population.x'])
+        >>> result.get_column('meadow__r').tolist(), system.get_params()['meadow__r']
+        ([0.5, 1.0], 1.0)
     """
     rows = _get_rows(parameters, design, n, random_state)
     return _run_experiment(

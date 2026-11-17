@@ -10,11 +10,19 @@ from ..components import Observable
 from ..engine.runtime import Trajectory
 from ..engine.solvers import BaseSolver
 from ..errors import TagError
+from ..systems import BaseSystem
 from ._results import ExperimentResult
 from ._runs import _check_source, _run_experiment
 from ._scenario_spec import ScenarioSpec
 from ._utils import build_system
-from .types import Output, Source
+from .types import AnySystem, Output, Source
+
+
+def _get_solver(system: AnySystem) -> object:
+    """Return the solver a system holds or tunes, or `'auto'` or `None` if none."""
+    if isinstance(system, BaseSystem):
+        return system.solver
+    return system.get_run_settings()['solver']
 
 
 def ensemble(
@@ -35,7 +43,8 @@ def ensemble(
 
     It is in the role of repeated cross-validation. The streams are spawned from `random_state`, so the runs of a
     stochastic system are independent and reproducible, and the result reads them as an ensemble, one row per run and
-    one column per common time. The system needs the randomness `stochastic`, or a solver that draws, such as
+    one column per common time. Only the random streams change, so the system is prepared once and simulated once per
+    stream. The system needs the randomness `stochastic`, or a solver that draws, such as
     `KineticSolver`, since the runs of a deterministic system by a deterministic solver repeat one another.
 
     It appears in many fields. It estimates the spread of the outcomes of a stochastic epidemic, of a weather forecast,
@@ -43,7 +52,7 @@ def ensemble(
 
     Args:
         system:
-            The system, whose copies take model parameters through `set_params`, or a factory of systems, such as a
+            The system, whose clones take parameters through `set_params`, or a factory of systems, such as a
             system class, which takes them as keyword arguments.
 
         replicates:
@@ -108,8 +117,8 @@ def ensemble(
         ...
         skcomplex.core.errors.TagError: ensemble needs the randomness stochastic, but SIRSystem has the randomness ...
     """
-    built = build_system(_check_source(system), {})
-    stepper = solver if solver is not None else built.get_run_settings()['solver']
+    built = build_system(_check_source(system), {}, solver)
+    stepper = solver if solver is not None else _get_solver(built)
     if built.get_tags().randomness == 'deterministic' and not getattr(stepper, 'draws', False):
         error_msg = (
             f'ensemble needs the randomness stochastic, but {type(built).__name__} has the randomness deterministic. '

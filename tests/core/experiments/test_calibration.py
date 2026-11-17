@@ -11,6 +11,7 @@ from skcomplex.core.experiments._calibration import _CalibrationObjective, _chec
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.economics.markets import BrockHommesSystem
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 from skcomplex.systems.social.opinion_dynamics import DeffuantSystem
 
 LOGISTIC_BOUNDS = {'r': (0.1, 2.0), 'K': (100.0, 1000.0)}
@@ -332,3 +333,13 @@ def test_predictive_band_covers_a_well_specified_model():
     assert 0.75 <= predictive['coverage'] <= 1
     assert np.all(predictive['q05']['population.x'] <= predictive['q95']['population.x'])
     assert predictive['q50']['population.x'].shape == (21,)
+
+
+def test_calibration_of_a_prepared_system_recovers_its_rate():
+    """Test that calibration fits the growth rate of the logistic map from its own run and keeps the user's system."""
+    times = np.arange(0.0, 9.0)
+    data = {'map.x': (times, LogisticMapSystem(r=2.6).prepare().simulate(8).get_values('map.x'))}
+    system = LogisticMapSystem(r=2.2)
+    result = calibrate(system, data, {'r': (2.0, 3.0)})
+    assert result.estimates['r'] == pytest.approx(2.6, abs=1e-4)
+    assert system.r == 2.2

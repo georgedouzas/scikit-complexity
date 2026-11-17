@@ -9,6 +9,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.errors import RoleElementError, ValidationError
+from skcomplex.core.experiments import sweep
 from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.neural_networks import (
@@ -23,11 +24,9 @@ STEPS = 26
 
 def _satisfiable_shares(n_weights: int) -> np.ndarray:
     """Return the share of 20 seeds that are satisfiable at every number of patterns."""
-    runs = [
-        PerceptronSatisfiabilitySystem(n_weights, random_state=seed).prepare().simulate(until=STEPS)
-        for seed in range(20)
-    ]
-    return np.mean([run.get_values('decide.satisfiable') for run in runs], axis=0)
+    seeds = {'random_state': list(range(20))}
+    result = sweep(PerceptronSatisfiabilitySystem(n_weights), seeds, until=STEPS, outputs=['decide.satisfiable'])
+    return result.get_series('decide.satisfiable').mean(axis=0)
 
 
 @pytest.mark.parametrize('n_weights', [15, 21])
