@@ -250,7 +250,8 @@ class OrdersPass(BasePass):
         """Return a law value with derivatives and lags replaced by companion symbols.
 
         When `highest` is given, derivatives of a state's own order become placeholders that map to the symbol of the
-        state's highest derivative, which an equation solves for.
+        state's highest derivative, which an equation solves for. A parameter is constant in time, so its derivatives
+        are zero, such as in `(m * v).diff(t)` for a constant mass `m`.
         """
         if isinstance(value, FreeModuleElement):
             return vector(OrdersPass._substitute(item, spec, orders, owner, highest) for item in value)
@@ -260,6 +261,9 @@ class OrdersPass(BasePass):
         for call in BasePass._get_calls_of(value, 'derivative'):
             item, degree = call.operands()
             reference = spec.references.get(item)
+            if reference is not None and not reference.is_state:
+                replacements[call] = SR(0)
+                continue
             order = orders.orders.get(reference.entry.name, 1) if reference is not None else 1
             if highest is not None and reference is not None and degree.is_integer() and int(degree) == order:
                 top = item if order == 1 else OrdersPass._get_companion_symbol(spec, item, f'_d{order - 1}')
@@ -269,9 +273,9 @@ class OrdersPass(BasePass):
                 continue
             if reference is None or not degree.is_integer() or not 0 < int(degree) < order:
                 error_msg = (
-                    f'{owner} uses {call}, but laws read derivatives of a state only below its declared order, here '
-                    f'{order}. Declare a higher order with `state(order=...)`, or state the highest derivative with an '
-                    '`ConstraintLaw`.'
+                    f'{owner} uses {call}, but laws read the derivatives of a state only below its declared order, '
+                    f'here {order}, the highest derivative its rate laws give. Give the state a rate law of a higher '
+                    'derivative, such as RateLaw(x.diff(t, 2), ...), or state the derivative with a ConstraintLaw.'
                 )
                 raise ValidationError(error_msg)
             replacements[call] = OrdersPass._get_companion_symbol(spec, item, f'_d{int(degree)}')
@@ -462,6 +466,14 @@ class OrdersPass(BasePass):
         return BasePass._get_replaced(law, value=value)
 
     @staticmethod
+    def _reads_derivatives(law: BaseLaw) -> bool:
+        """Return whether a value of a law reads a derivative, such as `derivative(x, 1)`."""
+        if isinstance(law, KERNEL_FREE_LAWS):
+            return False
+        values = [SR(item) for item in law._get_values() if isinstance(item, Expression)]
+        return any(BasePass._get_calls_of(value, 'derivative') for value in values)
+
+    @staticmethod
     def _copy_with_orders(
         spec: KernelSpec,
         laws: list[BaseLaw],
@@ -475,7 +487,8 @@ class OrdersPass(BasePass):
         for law in laws:
             if isinstance(law, RateLaw | NoiseLaw):
                 OrdersPass._check_order(law, spec, orders)
-        if not orders.orders and not orders.lags and not any(isinstance(law, ConstraintLaw) for law in laws):
+        lowered = any(isinstance(law, ConstraintLaw) or OrdersPass._reads_derivatives(law) for law in laws)
+        if not orders.orders and not orders.lags and not lowered:
             return list(laws)
         result: list[BaseLaw | _RelationSpec] = []
         for law in laws:

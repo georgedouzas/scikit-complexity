@@ -43,6 +43,14 @@ class ParameterSpec(BaseSpec):
             for a matrix with one row per member of the target and one column per member of the source, or `None` for
             a scalar. A role repeated k times gives a tensor of order k.
 
+        n_dim:
+            The number of components of a vector parameter, or of rows of a tensor parameter, such as `2` for the value
+            `[1.0, 2.0]`, or `None` for the number of dimensions of the enclosing space.
+
+        tensor:
+            The symmetry of a rank-2 tensor parameter, `'full'`, `'symmetric'`, `'antisymmetric'`, or `'traceless'`, or
+            `None` for a parameter that is no tensor. Laws read it as a Sage matrix.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
@@ -57,6 +65,8 @@ class ParameterSpec(BaseSpec):
     adaptive: bool = False
     bounds: tuple[float, float] | None = None
     shape: tuple[str, ...] | None = None
+    n_dim: int | None = None
+    tensor: str | None = None
 
     def _check(self) -> None:
         """Raise an error for an invalid parameter per role, bad bounds, or a bad shape.

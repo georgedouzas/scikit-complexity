@@ -10,6 +10,7 @@ from ._element import Element
 from ._field import FieldElement
 from ._finite_volume_spec import FiniteVolumeSpec
 from ._group import GroupElement
+from ._quantity import Quantity
 
 __all__: list[str] = [
     'BaseElement',
@@ -18,4 +19,5 @@ __all__: list[str] = [
     'FieldElement',
     'FiniteVolumeSpec',
     'GroupElement',
+    'Quantity',
 ]

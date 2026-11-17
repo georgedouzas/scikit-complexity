@@ -159,20 +159,48 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         """Return the numeric arguments of an interaction as parameters, by name.
 
         An argument annotated with a spec keeps its spec, and a role or a setting that is no number declares nothing.
-        An `int` is an integer, a `float` a real, and a `complex` a complex parameter, such as the `c` of `z**2 + c`.
-        The allowed values of an argument come from `Annotated`, as for the values of an element, such as
-        `k: Annotated[float, RealSet.open(0, oo)] = 1.0` for a positive rate.
+        An `int` is an integer, a `float` a real, and a `complex` a complex parameter, such as the `c` of `z**2 + c`. A
+        list or an array of numbers is a vector parameter of its length, such as the stiffness of a trap along each
+        axis, and a square matrix of numbers a matrix parameter. The allowed values of an argument come from
+        `Annotated`, as for the values of an element, such as `k: Annotated[float, RealSet.open(0, oo)] = 1.0` for a
+        positive rate. The parameters keep the order of the arguments.
         """
         if not self._is_preparing_laws():
             return {}
         specs = self._get_specs()
         allowed = self._get_allowed()
-        return {
-            name: DeclaredVariableSpec(value, ParameterSpec(domain=allowed.get(name, self._get_domain_of(value))))
-            for name, value in self.get_params(deep=False).items()
-            if name not in specs and name != 'label' and isinstance(value, int | float | complex)
-            if not isinstance(value, bool)
-        }
+        params = self.get_params(deep=False)
+        declared = {}
+        for name in inspect.signature(type(self)).parameters:
+            value = params.get(name)
+            if name in specs or name == 'label' or not self._is_numeric(value):
+                continue
+            vector, n_dim, tensor = self._get_shape_of(value)
+            first = np.asarray(value).ravel()[0].item() if vector or tensor else value
+            domain = allowed.get(name, self._get_domain_of(first))
+            spec = ParameterSpec(domain=domain, vector=vector, n_dim=n_dim, tensor=tensor)
+            declared[name] = DeclaredVariableSpec(self._get_matrix_entries(value, tensor), spec)
+        return declared
+
+    @staticmethod
+    def _is_numeric(value: object) -> bool:
+        """Return whether a value is a number, or a vector or a square matrix of numbers.
+
+        A boolean is no number. A vector or a matrix is a list or an array, so a tuple stays a setting, such as the
+        offsets of a stencil.
+        """
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, int | float | complex):
+            return True
+        if not isinstance(value, list | np.ndarray):
+            return False
+        try:
+            array = np.asarray(value)
+        except ValueError:
+            return False
+        numeric = np.issubdtype(array.dtype, np.number) and array.size > 0
+        return numeric and BaseInteraction._get_shape_of(array)[1] is not None
 
     @classmethod
     def _get_allowed(cls) -> dict[str, object]:
@@ -319,12 +347,16 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
     def _get_normalized(law: BaseComponent) -> BaseComponent:
         """Return a law on a derivative of order `k` as a law on the state of order `k`.
 
-        A rate law on the fractional derivative `fractional(x, alpha)` becomes a rate law on `x` of the order `alpha`.
+        A rate law on the fractional derivative `fractional(x, alpha)` becomes a rate law on `x` of the order `alpha`,
+        and a law on the derivatives of the components of a vector, such as `x.diff(t, 2)` for a position in the
+        plane, becomes a law on the vector of the order of its derivatives.
 
         Raises:
             ValidationError:
                 A fractional derivative is the target of a law other than a rate law, or of no state.
         """
+        if isinstance(law, RateLaw | NoiseLaw) and isinstance(law.target, FreeModuleElement):
+            return BaseInteraction._get_normalized_vector(law)
         if not isinstance(law, RateLaw | NoiseLaw) or not isinstance(law.target, Expression):
             return law
         found = fractional_of(law.target)
@@ -341,6 +373,23 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             return law if law.order is not None else clone(law).set_params(order=1)
         state, order = law.target.operands()
         return clone(law).set_params(target=state, order=int(order))
+
+    @staticmethod
+    def _get_normalized_vector(law: RateLaw | NoiseLaw) -> BaseComponent:
+        """Return a law on the derivatives of a vector as a law on the vector.
+
+        The derivatives of order `k` of the components, such as `x.diff(t, 2)`, give the vector the order `k`. A target
+        whose components are no derivatives of one order is kept as it is.
+        """
+        found = [
+            item.operands() if isinstance(item, Expression) and item.operator() is derivative else None
+            for item in law.target
+        ]
+        orders = {int(item[1]) for item in found if item is not None}
+        if not found or None in found or len(orders) != 1:
+            return law
+        states = vector(SR, [item[0] for item in found if item is not None])
+        return clone(law).set_params(target=states, order=orders.pop())
 
     def _get_laws_of(self, inputs: object) -> Sequence[BaseComponent]:
         """Return the laws for a namespace, from a clone prepared on it if needed."""

@@ -55,7 +55,9 @@ class Element(BaseElement):
         values:
             Values by name, such as `{'x': 10.0, 'm': 1.0}`, in place of a subclass that takes them as arguments. A
             derivative or a past value that a law reads starts from the value named with primes or a past index, such
-            as `{'x': 10.0, "x'": 3.0}` for a ball thrown upwards or `{'y': 1.0, 'y[-1]': 0.5}` for an economy.
+            as `{'x': 10.0, "x'": 3.0}` for a ball thrown upwards or `{'y': 1.0, 'y[-1]': 0.5}` for an economy. An
+            element with many members takes one starting value per member as an array, such as the velocities of a
+            gas.
 
         size:
             The number of members, each with its own values, such as `1000` molecules of a gas, or `None` for one.

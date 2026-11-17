@@ -582,11 +582,16 @@ class LayoutPass(BasePass):
     def _get_tensor_of(declaration: VariableSpec, space: BaseSpace | None) -> TensorSpec | None:
         """Return the independent components of a declared tensor state in its space.
 
-        It is `None` for any other state.
+        It is `None` for any other state. A tensor of a given number of rows, such as a matrix value, needs no space.
         """
-        if declaration.tensor is None or space is None:
+        if declaration.tensor is None:
             return None
-        tensor = TensorSpec(declaration.tensor, int(space.n_dim_))
+        if declaration.n_dim is not None:
+            tensor = TensorSpec(declaration.tensor, declaration.n_dim)
+        elif space is not None:
+            tensor = TensorSpec(declaration.tensor, int(space.n_dim_))
+        else:
+            return None
         tensor._check()
         return tensor
 
@@ -623,6 +628,9 @@ class LayoutPass(BasePass):
             return (declaration.domain.order,)
         if not declaration.vector and declaration.tensor is None:
             return ()
+        if declaration.n_dim is not None:
+            tensor = LayoutPass._get_tensor_of(declaration, space)
+            return (declaration.n_dim,) if tensor is None else (len(tensor.indices),)
         if space is None:
             error_msg = (
                 f'{name} is a vector or a tensor, so the system that holds it or one of its parents must have a space.'

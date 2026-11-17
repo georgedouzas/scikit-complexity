@@ -169,6 +169,8 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
             adaptive=spec.adaptive,
             bounds=spec.bounds,
             shape=spec.shape,
+            tensor=spec.tensor,
+            n_dim=spec.n_dim,
         )
     order = int(spec.order) if float(spec.order).is_integer() else float(spec.order)
     return VariableSpec(
@@ -186,6 +188,7 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
         tensor=spec.tensor,
         algebraic=spec.algebraic,
         group=spec.group,
+        n_dim=spec.n_dim,
     )
 
 
@@ -198,11 +201,27 @@ def _companions(name: str, variable: VariableSpec, default: object) -> dict[str,
     domain = CC if variable.domain is CC else RR
     for index in range(1, variable.derivatives + 1):
         value = variable.initial[index - 1] if index <= len(variable.initial) else 0.0
-        companion = VariableSpec(VariableKind.STATE, domain, variable.vector, derivative_of=name, index=index)
+        companion = VariableSpec(
+            VariableKind.STATE,
+            domain,
+            variable.vector,
+            derivative_of=name,
+            index=index,
+            tensor=variable.tensor,
+            n_dim=variable.n_dim,
+        )
         companions[f'{name}_d{index}'] = (companion, value)
     for index in range(1, variable.lags + 1):
         value = variable.initial[index - 1] if index <= len(variable.initial) else default
-        companion = VariableSpec(VariableKind.STATE, variable.domain, variable.vector, lag_of=name, index=index)
+        companion = VariableSpec(
+            VariableKind.STATE,
+            variable.domain,
+            variable.vector,
+            lag_of=name,
+            index=index,
+            tensor=variable.tensor,
+            n_dim=variable.n_dim,
+        )
         companions[f'{name}_lag{index}'] = (companion, value)
     return companions
 
