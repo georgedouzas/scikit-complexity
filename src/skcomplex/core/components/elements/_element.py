@@ -178,7 +178,7 @@ class Element(BaseElement):
         raise ValidationError(error_msg)
 
     def _get_hints(self) -> dict[str, object]:
-        """Return the type hint of every value argument by name, in the order of the arguments.
+        """Return the type hint of every value argument by name, in their order.
 
         The hints are the annotations of the arguments of the class, such as `Annotated[float, Quantity('energy')]`,
         from which the kind, the allowed values, the quantity, and the period of each value are read. A generic

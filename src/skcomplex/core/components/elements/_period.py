@@ -12,12 +12,18 @@ from ...specs._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class Period(BaseSpec):
-    """The period a value of an element wraps around, such as `2 * pi` for an angle.
+    """A period that a value of an element wraps around, such as `2 * pi` for an angle.
 
     It is written in `Annotated` beside the allowed values, such as `theta: Annotated[float, Period(2 * pi)] = 0.0`.
     The value is brought back within one period after every step, so the angle of a pendulum, the phase of a clock, or
     the heading of a bird stays on its circle. The analyses read a periodic value as a phase, or as a heading when its
     element moves in a space.
+
+    Unlike the allowed values in `Annotated`, which reject a value outside them, it brings a value back onto its
+    circle. Choose it when a value is an angle, so `0` and `2 * pi` are the same value.
+
+    It appears in many fields. The angle of a pendulum, the phase of a firefly, and the heading of a bird each wrap
+    around.
 
     Args:
         length:

@@ -263,6 +263,110 @@ would give.
 See its [fact sheet](../../../components/elements.md#element)
 and its [API entry][skcomplex.core.components.elements.Element].
 
+## Quantity
+
+A `Quantity` says what a value holds, such as money, water, or energy. It is written in `Annotated` beside the
+allowed values of the value. The total of a quantity changes only through flows in and out of the system, so the
+conservation monitor checks the total at every frame, and a plain rate law that changes the value is rejected. Here a
+tank drains into the ground, and the monitor follows the water that is left.
+
+```python
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from skcomplex.core.components.elements import Element, Quantity
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import Sink, TransferLaw
+from skcomplex.core.engine.runtime import ConservationObserver
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+
+class Tank(Element):
+    def __init__(self, label, level: Annotated[float, RealSet.closed_open(0, oo), Quantity('water')] = 10.0):
+        super().__init__(label)
+        self.level = level
+
+
+class Drain(Interaction):
+    def __init__(self, label, *, target: Role = 'tank', k: float = 0.5):
+        super().__init__(label)
+        self.target = target
+        self.k = k
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        level = s.target.level
+        self.laws_ = [TransferLaw(level, Sink('ground'), s.k * level, label='drained')]
+
+
+monitor = ConservationObserver()
+tank = System(elements=[Tank('tank')], interactions=[Drain('drain')]).prepare()
+tank.simulate(until=2.0, dt=1.0, observers=[monitor])
+round(monitor.totals_['water'], 3)
+```
+
+About 3.679 of the 10 units of water are left after two units of time. A value given through `values=` has no
+quantity, since it has no annotation.
+
+See its [API entry][skcomplex.core.components.elements.Quantity].
+
+## Period
+
+A `Period` says that a value wraps around, such as an angle or a phase. It is written in `Annotated`, as
+`theta: Annotated[float, Period(2 * pi)]`, and the value is brought back within one period around zero after every
+step. The analyses read a periodic value as a phase, or as a heading when its element moves in a space, so no further
+setting is needed. Here a clock turns at one radian per unit of time, and its hand stays on the circle.
+
+```python
+import math
+from typing import Annotated
+
+from skcomplex.core.components.elements import Element, Period
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+
+class Clock(Element):
+    def __init__(self, label, theta: Annotated[float, Period(2 * math.pi)] = 0.0, omega: float = 1.0):
+        super().__init__(label)
+        self.theta = theta
+        self.omega = omega
+
+
+class Turn(Interaction):
+    def __init__(self, label, *, target: Role = 'clock'):
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [RateLaw(s.target.theta.diff(s.t), s.target.omega)]
+
+
+clock = System(elements=[Clock('clock')], interactions=[Turn('turn')]).prepare()
+clock.simulate(until=5.0, dt=1.0).get_values('clock.theta').round(3).tolist()
+```
+
+The angle grows to 3.0, then goes on at -2.283 instead of 4.0, the same point of the circle. Two values of an angle
+that differ by a whole turn are one value, so the alignment of a group of such clocks reads them as phases.
+
+```python continuation
+from skcomplex.core.analysis import alignment
+
+clocks = System(elements=[Clock('clock')], interactions=[Turn('turn')]).prepare()
+alignment(clocks.simulate(until=5.0, dt=1.0), kind='mean-phase').phase.round(3).tolist()
+```
+
+The mean phase follows the hand around the circle. A period must be a positive number, so `Period(0)` is rejected
+when the system is prepared.
+
+See its [API entry][skcomplex.core.components.elements.Period].
+
 ## GroupElement
 
 A `GroupElement` holds many members of one element class, with one row per member in every state. Here three herds

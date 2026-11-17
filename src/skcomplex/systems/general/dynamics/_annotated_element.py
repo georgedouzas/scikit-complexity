@@ -10,13 +10,19 @@ from ....core.components.elements import Element, Quantity
 
 
 class AnnotatedElement(Element):
-    """An element of values by name, with the allowed values and the quantity of some of them.
+    """An element of values by name, with the allowed values and quantities of some.
 
     It holds what a class would write in `Annotated`, for values known only as data. The values
     `{'n': 40.0}` with `allowed={'n': RealSet.closed_open(0, oo)}` and `quantities={'n': 'people'}` are read as
     `n: Annotated[float, RealSet.closed_open(0, oo), Quantity('people')] = 40.0`, so a negative `n` is rejected and the
     conservation monitor follows the people. The generic systems that build one element from a mapping of states, such
     as `DynamicalSystem` and `StockFlowSystem`, build this element.
+
+    Unlike `Element`, whose subclass writes the allowed values and quantities in `Annotated` on its arguments, it takes
+    them as data. Choose it when the names of the values are known only when a system is built.
+
+    It appears in many fields. The stocks of a bathtub, the people of a diffusion of innovations, and the oil of an
+    economy are each its values.
 
     Args:
         label:
@@ -36,9 +42,14 @@ class AnnotatedElement(Element):
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
         >>> from skcomplex.systems.general.dynamics import AnnotatedElement
-        >>> element = AnnotatedElement('tank', values={'level': 1.0}, allowed={'level': RealSet.closed_open(0, oo)})
-        >>> list(element._get_hints())
-        ['level']
+        >>> from skcomplex.core.errors import ValidationError
+        >>> from skcomplex.core.systems import System
+        >>> tank = AnnotatedElement('tank', values={'level': -1.0}, allowed={'level': RealSet.closed_open(0, oo)})
+        >>> try:
+        ...     System(elements=[tank]).prepare()
+        ... except ValidationError as error:
+        ...     print(error)
+        tank.level = -1.0 is not in its domain [0, +oo).
     """
 
     def __init__(
@@ -54,9 +65,10 @@ class AnnotatedElement(Element):
         self.quantities = quantities
 
     def _get_hints(self) -> dict[str, object]:
-        """Return the hint of every value with allowed values or a quantity, as `Annotated` would write it.
+        """Return the hint of every value with allowed values or a quantity.
 
-        The arguments `allowed` and `quantities` describe the values, so they are no values themselves.
+        Each hint is what `Annotated` would write. The arguments `allowed` and `quantities` describe the values, so they
+        are no values themselves.
         """
         allowed, quantities = self.allowed or {}, self.quantities or {}
         hints: dict[str, object] = {}
