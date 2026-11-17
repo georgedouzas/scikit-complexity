@@ -3,24 +3,17 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.active_matter import SquirmerElement, SquirmerSlipInteraction, SquirmersSystem
 
 
 def _pair(beta, offset, until=8.0):
     """Return the positions and orientations of two squirmers that start along `x` at an offset."""
-    group = GroupElement(
-        'squirmers',
-        element=SquirmerElement,
-        size=2,
-        values={'x': [[0.0, 0.0, 0.0], offset], 'p': [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]},
-    )
+    squirmers = SquirmerElement('squirmers', x=[[0.0, 0.0, 0.0], offset], p=[[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]], size=2)
     slip = SquirmerSlipInteraction('slip', target='squirmers', B1=1.5, B2=1.5 * beta)
-    system = CompositeSystem(elements=[group], interactions=[slip], space=ContinuousSpace(n_dim=3))
-    trajectory = simulate(system, until=until, dt=0.5)
+    system = System(elements=[squirmers], interactions=[slip], space=ContinuousSpace(n_dim=3))
+    trajectory = system.prepare().simulate(until=until, dt=0.5)
     return trajectory.get_values('squirmers.x'), trajectory.get_values('squirmers.p')
 
 
@@ -54,7 +47,7 @@ def test_pullers_and_pushers_turn_in_opposite_senses():
 
 def test_suspension_keeps_unit_orientations_and_separated_spheres():
     """Test that the catalog suspension keeps unit orientations and the repulsion keeps spheres from overlapping."""
-    trajectory = simulate(SquirmersSystem(n_squirmers=8), until=20.0, random_state=0)
+    trajectory = SquirmersSystem(n_squirmers=8).prepare().simulate(until=20.0, random_state=0)
     orientations = trajectory.get_values('squirmers.p')
     positions = trajectory.get_values('squirmers.x')[-1]
     assert np.linalg.norm(orientations, axis=-1) == pytest.approx(1.0, abs=1e-3)
@@ -66,14 +59,10 @@ def test_repulsion_range_follows_the_current_radius():
     """Test that `set_params(radius=2.0)` widens the repulsion, so it pushes spheres 3 apart away from each other."""
 
     def gap(slip):
-        group = GroupElement(
-            'squirmers',
-            element=SquirmerElement,
-            size=2,
-            values={'x': [[0.0, 0.0, 0.0], [3.0, 0.0, 0.0]], 'p': [[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]]},
-        )
-        system = CompositeSystem(elements=[group], interactions=[slip], space=ContinuousSpace(n_dim=3))
-        positions = simulate(system, until=1.0, dt=0.5).get_values('squirmers.x')[-1]
+        x, p = [[0.0, 0.0, 0.0], [3.0, 0.0, 0.0]], [[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]]
+        squirmers = SquirmerElement('squirmers', x=x, p=p, size=2)
+        system = System(elements=[squirmers], interactions=[slip], space=ContinuousSpace(n_dim=3))
+        positions = system.prepare().simulate(until=1.0, dt=0.5).get_values('squirmers.x')[-1]
         return float(np.linalg.norm(positions[1] - positions[0]))
 
     slip = SquirmerSlipInteraction('slip', target='squirmers', B1=0.0, B2=0.0)
