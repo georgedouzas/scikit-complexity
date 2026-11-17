@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import OpticalTrapSystem
@@ -26,7 +25,7 @@ SYSTEM = 'optical_trap'
 system = OpticalTrapSystem(n_particles=500, k=(1.0, 0.25))
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-trajectory = simulate(system, until=25, solver=solver, observers=[observer], random_state=0)
+trajectory = system.set_params(solver=solver).prepare().simulate(until=25, observers=[observer], random_state=0)
 
 # %%
 # Equipartition calibrates the trap

@@ -7,7 +7,8 @@ from ._active_particle import POINTS, ActiveParticleElement
 from ._brownian_particle import BrownianParticleElement
 from ._constant_force import ConstantForceInteraction
 from ._damping import DampingInteraction
-from ._double_well import DoubleWellElement
+from ._double_well import DoubleWellElement, DoubleWellInteraction
+from ._friction_noise import FrictionNoiseInteraction
 from ._harmonic_force import HarmonicForceInteraction
 from ._harmonic_potential import HarmonicPotentialInteraction
 from ._lammps import LAMMPS_FIXES, LAMMPS_PAIRS
@@ -33,6 +34,8 @@ __all__: list[str] = [
     'ConstantForceInteraction',
     'DampingInteraction',
     'DoubleWellElement',
+    'DoubleWellInteraction',
+    'FrictionNoiseInteraction',
     'HarmonicForceInteraction',
     'HarmonicPotentialInteraction',
     'LangevinThermostatInteraction',

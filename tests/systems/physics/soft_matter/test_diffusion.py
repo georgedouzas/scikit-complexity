@@ -28,18 +28,13 @@ def test_brownian_motion_is_ballistic_then_diffusive():
 
 def test_optical_trap_holds_particles_with_the_thermal_variance():
     """Test that trapped particles have the variance `kT / k` along each axis, and that moving traps run."""
-    trajectory = simulate(
-        OpticalTrapSystem(1000).prepare().system_,
-        until=30,
-        dt=1,
-        solver=EulerMaruyamaSolver(dt=0.01),
-        random_state=0,
-    )
+    system = OpticalTrapSystem(1000).set_params(solver=EulerMaruyamaSolver(dt=0.01)).prepare()
+    trajectory = system.simulate(until=30, dt=1, random_state=0)
     positions = trajectory.get_values('beads.x')[10:]
     assert positions[..., 0].var() == pytest.approx(1.0, rel=0.1)
     assert positions[..., 1].var() == pytest.approx(4.0, rel=0.1)
     blinking = OpticalTrapSystem(100, blink_period=4.0, amplitude=(1.0, 0.0), frequency=0.1)
-    moving = simulate(blinking, until=10, dt=1, random_state=0)
+    moving = blinking.prepare().simulate(until=10, dt=1, random_state=0)
     assert np.isfinite(moving.get_values('beads.x')).all()
 
 
@@ -47,7 +42,8 @@ def test_kramers_escape_rate():
     """Test that particles hop between the wells at the Kramers rate within 25%."""
     D, size, until = 0.1, 200, 400
     solver = EulerMaruyamaSolver(dt=0.01)
-    trajectory = simulate(KramersEscapeSystem(size, D=D), until=until, dt=0.1, solver=solver, random_state=0)
+    system = KramersEscapeSystem(size, D=D).set_params(solver=solver).prepare()
+    trajectory = system.simulate(until=until, dt=0.1, random_state=0)
     positions = trajectory.get_values('particles.x')
     wells = np.sign(positions[0])
     hops = 0
@@ -63,15 +59,15 @@ def test_kramers_escape_rate():
 def test_multiplicative_noise_conventions_give_their_stationary_densities(noise, left):
     """Test that the fraction in the low-noise half follows the stationary density of each convention."""
     system = MultiplicativeNoiseSystem(500, s0=1.0, ds=1.0, L=10.0, convention=noise)
-    trajectory = simulate(system, until=400, dt=0.05, random_state=0)
+    trajectory = system.prepare().simulate(until=400, dt=0.05, random_state=0)
     positions = trajectory.get_values('particles.x')[2000:]
     assert (positions < 5).mean() == pytest.approx(left, abs=0.03)
 
 
 def test_scaled_brownian_motion_has_the_anomalous_exponent():
     """Test that the mean squared displacement of scaled Brownian motion grows as `t^alpha`."""
-    system = ScaledBrownianMotionSystem(4000, alpha=0.5)
-    trajectory = simulate(system, until=10, dt=0.1, solver=EulerMaruyamaSolver(dt=0.001), random_state=0)
+    system = ScaledBrownianMotionSystem(4000, alpha=0.5).set_params(solver=EulerMaruyamaSolver(dt=0.001)).prepare()
+    trajectory = system.simulate(until=10, dt=0.1, random_state=0)
     squared = (trajectory.get_values('walkers.x') ** 2).mean(axis=1)
     exponent = np.polyfit(np.log(trajectory.times[10:]), np.log(squared[10:]), 1)[0]
     assert exponent == pytest.approx(0.5, abs=0.05)
@@ -81,9 +77,8 @@ def test_speckle_field_traps_particles():
     """Test that particles diffuse freely without the speckle field and are trapped by a strong one."""
     coefficients = {}
     for strength in (0.0, 1000.0):
-        system = DiffusionInASpeckleFieldSystem(200, strength=strength)
-        solver = EulerMaruyamaSolver(dt=0.01)
-        trajectory = simulate(system, until=50, dt=1, solver=solver, random_state=0)
+        system = DiffusionInASpeckleFieldSystem(200, strength=strength, solver=EulerMaruyamaSolver(dt=0.01))
+        trajectory = system.prepare().simulate(until=50, dt=1, random_state=0)
         positions = trajectory.get_values('beads.x')
         coefficients[strength] = ((positions[-1] - positions[20]) ** 2).sum(axis=-1).mean() / (4 * 30)
     assert coefficients[0.0] == pytest.approx(1.0, rel=0.15)
@@ -92,8 +87,8 @@ def test_speckle_field_traps_particles():
 
 def test_speckle_field_defaults_give_anomalous_diffusion():
     """Test that the default field draws the particles in over several frames and lets them escape slowly."""
-    solver = EulerMaruyamaSolver(dt=0.01)
-    trajectory = simulate(DiffusionInASpeckleFieldSystem(), solver=solver, random_state=0)
+    system = DiffusionInASpeckleFieldSystem(solver=EulerMaruyamaSolver(dt=0.01))
+    trajectory = system.prepare().simulate(random_state=0)
     positions = np.asarray(trajectory.get_values('beads.x'))
     times = trajectory.times[21:] - trajectory.times[20]
     squared = ((positions[21:] - positions[20]) ** 2).sum(axis=-1).mean(axis=-1)

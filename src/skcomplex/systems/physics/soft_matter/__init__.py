@@ -16,18 +16,20 @@ from ._anomalous import (
     LevyWalkSystem,
     TransientWalkerElement,
 )
-from ._brownian import BrownianNearWallSystem, StochasticResonanceSystem, WallParticleElement
+from ._brownian import BrownianNearWallSystem, StochasticResonanceSystem, WallMobilityInteraction, WallParticleElement
 from ._colored_noise import ColoredNoiseLangevinSystem, ColoredNoiseParticleElement
 from ._coupled_traps import BlinkingTrapsInteraction, HydrodynamicallyCoupledTrapsSystem, TrappedSphereElement
 from ._diffusion import (
     BrownianMotionSystem,
     DiffusionInASpeckleFieldSystem,
     KramersEscapeSystem,
+    ModulatedNoiseInteraction,
     ModulatedParticleElement,
     MultiplicativeNoiseSystem,
     OpticalTrapInteraction,
     OpticalTrapSystem,
     ScaledBrownianMotionSystem,
+    ScaledNoiseInteraction,
     ScaledWalkerElement,
     SpeckleFieldInteraction,
 )
@@ -73,12 +75,14 @@ __all__: list[str] = [
     'LevyFlightSystem',
     'LevyWalkSystem',
     'LevyWalkerElement',
+    'ModulatedNoiseInteraction',
     'ModulatedParticleElement',
     'MultiplicativeNoiseSystem',
     'OpticalTrapInteraction',
     'OpticalTrapSystem',
     'RigidDimersSystem',
     'ScaledBrownianMotionSystem',
+    'ScaledNoiseInteraction',
     'ScaledWalkerElement',
     'ShakenSpringBlockSystem',
     'SpeckleFieldInteraction',
@@ -89,5 +93,6 @@ __all__: list[str] = [
     'TransientWalkerElement',
     'TrapSiteElement',
     'TrappedSphereElement',
+    'WallMobilityInteraction',
     'WallParticleElement',
 ]

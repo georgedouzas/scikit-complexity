@@ -15,7 +15,6 @@ walkers.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import ScaledBrownianMotionSystem
@@ -25,7 +24,7 @@ SYSTEM = 'scaled_brownian_motion'
 system = ScaledBrownianMotionSystem(n_particles=8, alpha=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-trajectory = simulate(system, solver=solver, dt=0.05, observers=[observer], random_state=0)
+trajectory = system.set_params(solver=solver).prepare().simulate(dt=0.05, observers=[observer], random_state=0)
 
 # %%
 # Anomalous mean squared displacement
@@ -36,7 +35,8 @@ trajectory = simulate(system, solver=solver, dt=0.05, observers=[observer], rand
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for alpha, color in ((0.5, 'tab:blue'), (1.5, 'tab:orange')):
-    run = simulate(ScaledBrownianMotionSystem(n_particles=2000, alpha=alpha), solver=solver, dt=0.05, random_state=1)
+    walkers = ScaledBrownianMotionSystem(n_particles=2000, alpha=alpha, solver=solver).prepare()
+    run = walkers.simulate(dt=0.05, random_state=1)
     times = run.times[1:]
     squared = np.mean(run.get_values('walkers.x')[1:] ** 2, axis=1)
     ax.loglog(times, squared, 'o', markersize=3, color=color, label=f'simulation, alpha = {alpha}')
