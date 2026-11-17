@@ -15,6 +15,7 @@ import numpy.typing as npt
 from ...enums import BoundaryKind
 from ...errors import ValidationError
 from ._base import BaseNeighborhood, BaseSpace
+from ._continuous import AXES
 from ._lattice_neighborhood import LatticeNeighborhood
 from ._radius import RadiusNeighborhood
 
@@ -68,6 +69,10 @@ class LatticeSpace(BaseSpace):
             The name of the space in its system, such as `'grid'`.
 
     Attributes:
+        axes_:
+            The names of the coordinates of a cell, such as `('x', 'y')` in two dimensions, which an agent's values of
+            the same names place it at.
+
         spacings_:
             The distance between neighbouring sites along every dimension.
 
@@ -130,6 +135,8 @@ class LatticeSpace(BaseSpace):
         self._check_metric()
         self.shape_ = tuple(int(size) for size in np.ravel(self.shape).tolist())
         self.n_dim_ = len(self.shape_)
+        many = self.n_dim_ > len(AXES)
+        self.axes_ = tuple(f'x{axis}' for axis in range(self.n_dim_)) if many else AXES[: self.n_dim_]
         self.size_ = int(np.prod(self.shape_))
         spacings = np.ravel(np.asarray(self.spacing, dtype=float))
         if spacings.size == 1:

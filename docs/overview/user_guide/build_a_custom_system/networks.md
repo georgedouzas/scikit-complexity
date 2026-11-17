@@ -856,7 +856,8 @@ of update and jump laws.
 The iteration and Gillespie steppers apply the requests between steps. A request that joins nodes draws the new ends
 with weights from `toward`. This is a module-level function of the namespace of a candidate node, such as `degree`
 above, which returns `neighbors(1)`. A request on a group that is not variable gets the validation issue
-`group-fixed`, and a full capacity raises `CapacityError`.
+`group-fixed`. A variable group without a `capacity` grows as it needs, and one whose given capacity fills raises
+`CapacityError`.
 
 Trajectories hold the values of absent members as NaN, and `trajectory.get_network(frame)` returns the nodes and edges
 present at a frame. Rerun draws the nodes present, and the edges at every frame where they change.

@@ -359,7 +359,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         prepared = clone(self)
         prepared.prepare(functional)
         return [
-            self._get_rule(law, roles)
+            self._get_rule(law, roles, functional)
             or self._get_local_rule(self._get_normalized(self._get_law_in_states(law, time, functions)))
             for law in prepared.laws_
         ]
@@ -376,19 +376,36 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             return law._get_local_rule()
         return law
 
-    def _get_rule(self, law: BaseComponent, roles: Mapping[str, object]) -> RuleLaw | None:
-        """Return the agent rule that an update law of a group states, or `None`.
+    def _get_rule(
+        self,
+        law: BaseComponent,
+        roles: Mapping[str, object],
+        system: SimpleNamespace | None = None,
+    ) -> RuleLaw | None:
+        """Return the rule of agents or of the system that an update law states, or `None`.
 
         An update law whose target is a bound group, such as `UpdateLaw(s.target, move)`, is an agent rule: its value
         is a function `move(agent, system)` that reads and changes one member, and every member runs it at each step.
+        An update law whose target is the namespace of the interaction itself, such as `UpdateLaw(s, brake)`, is a rule
+        of the whole system: its value is a function `brake(system)` that runs once per step after the agents' rules.
 
         Raises:
             ValidationError:
-                The target is a group but the value is no function of an agent and the system, or the target is a
-                namespace that no role binds.
+                The target is a group but the value is no function of an agent and the system, the target is the
+                namespace of the interaction but the value is no function of the system, or the target is a namespace
+                that no role binds.
         """
         if not isinstance(law, UpdateLaw) or not isinstance(law.target, SimpleNamespace):
             return None
+        if law.target is system:
+            rule = law.value
+            if not callable(rule) or not self._is_rule(rule, 1):
+                error_msg = (
+                    f'The update law of {self.label!r} on the whole system has the value {rule!r}. A rule of the '
+                    'system is a function of the system, such as def brake(system): ...'
+                )
+                raise ValidationError(error_msg)
+            return RuleLaw(rule, law.phase, label=law.label)
         role = next((name for name, item in roles.items() if item is law.target), None)
         if role is None:
             error_msg = (
@@ -406,10 +423,13 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         return RuleLaw(rule, law.phase, members=role, label=law.label)
 
     @staticmethod
-    def _is_rule(rule: Callable[..., object]) -> bool:
-        """Return whether a function takes two arguments, the agent and the system."""
+    def _is_rule(rule: Callable[..., object], arguments: int = 2) -> bool:
+        """Return whether a function takes a number of arguments, two by default.
+
+        The two are the agent and the system.
+        """
         try:
-            inspect.signature(rule).bind(None, None)
+            inspect.signature(rule).bind(*[None] * arguments)
         except (TypeError, ValueError):
             return False
         return True
@@ -762,6 +782,10 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     def _runs_on_edges(self) -> bool:
         """Return whether the laws run once per edge of a network, false by default."""
+        return False
+
+    def _runs_on_hyperedges(self) -> bool:
+        """Return whether the laws run once per hyperedge of a network, false by default."""
         return False
 
     def _get_layer(self) -> str | None:

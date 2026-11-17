@@ -894,11 +894,15 @@ class AgentView:
             SpaceError:
                 The location does not fit the space.
         """
-        space = self._stepper.problem_.agent_space
+        stepper = self._stepper
+        space = stepper.problem_.agent_space
         if isinstance(space, ContinuousSpace):
-            self._agent.position = self._stepper._get_position_of(location, space)
-            return
-        self._agent.cell = self._stepper._get_cell_at(location)
+            self._agent.position = stepper._get_position_of(location, space)
+        else:
+            self._agent.cell = stepper._get_cell_at(location)
+        positions = stepper._positions[stepper._get_spec_of(self._agent).path]
+        if positions:
+            stepper._set_positions(self._agent, positions)
 
     def remove(self) -> None:
         """Remove the agent from the system.
@@ -1186,6 +1190,7 @@ class MesaSolver(ExternalSolver):
             ]
             for spec in problem.agents
         }
+        self._positions = {spec.path: self._get_positions_of(spec, problem.agent_space) for spec in problem.agents}
         self._classes: dict[type, _CompiledAgentsSpec] = {}
         self._view_classes: dict[type, type[AgentView]] = {}
         self.members_: dict[int, mesa.Agent] = {}
@@ -1490,7 +1495,11 @@ class MesaSolver(ExternalSolver):
         for name in spec.states:
             value = values[name] if name in values else self._get_shared_default(defaults, name)
             setattr(agent, name, value)
-        self._place(agent, location)
+        positions = self._positions[spec.path]
+        place = self._get_place_of(agent, positions) if positions and location is None else location
+        self._place(agent, place)
+        if positions:
+            self._set_positions(agent, positions)
         self._recount(agent, 1)
         return agent
 
@@ -1704,10 +1713,64 @@ class MesaSolver(ExternalSolver):
                 counts[value] = counts.get(value, 0) + change
 
     def _write(self, agent: mesa.Agent, name: str, value: object) -> None:
-        """Set a state of an agent and keep the counts of its values."""
+        """Set a state of an agent and keep the counts of its values.
+
+        A state named after an axis of the space moves the agent there.
+        """
         self._recount(agent, -1, (name,))
         setattr(agent, name, value)
         self._recount(agent, 1, (name,))
+        positions = self._positions[self._get_spec_of(agent).path]
+        if name in positions:
+            self._place(agent, self._get_place_of(agent, positions))
+            self._set_positions(agent, positions)
+
+    @staticmethod
+    def _get_positions_of(spec: _CompiledAgentsSpec, space: BaseSpace | None) -> tuple[str, ...]:
+        """Return the states that place the agents of a group, or none.
+
+        They are named after the axes of its space and inferred as positions, such as `x` and `y` of an agent on a
+        plane or on the cells of a lattice, and only a group that has one for every axis is placed by them.
+        """
+        if not isinstance(space, ContinuousSpace | LatticeSpace):
+            return ()
+        axes = space.prepare().axes_
+        element = spec.element
+        declaring = element.get_declaring_element() if isinstance(element, GroupElement) else element
+        states = declarations_of(declaring, VariableKind.STATE)
+        placed = [
+            name
+            for name in axes
+            if getattr(states.get(name), 'role', None) == 'position' and not getattr(states.get(name), 'vector', False)
+        ]
+        return tuple(axes) if len(placed) == len(axes) else ()
+
+    def _get_place_of(self, agent: mesa.Agent, positions: Sequence[str]) -> object:
+        """Return the place the values of an agent named after the axes give.
+
+        On a lattice it is the cell of the rounded coordinates, wrapped around a periodic lattice.
+        """
+        space = self.problem_.agent_space
+        point = np.asarray([float(getattr(agent, name)) for name in positions])
+        if isinstance(space, ContinuousSpace):
+            return point % np.asarray(space.extent_) if space.periodic_ else point
+        assert isinstance(space, LatticeSpace)
+        cell = np.rint(point).astype(int)
+        return tuple(int(item) for item in (cell % np.asarray(space.shape_) if space.periodic_ else cell))
+
+    def _set_positions(self, agent: mesa.Agent, positions: Sequence[str]) -> None:
+        """Set the values of an agent named after the axes to its location.
+
+        The counts of the values are kept.
+        """
+        location = np.ravel(np.asarray(self._get_location_of(agent), dtype=float))
+        for name, coordinate in zip(positions, location, strict=True):
+            value = getattr(agent, name)
+            if float(value) == coordinate:
+                continue
+            self._recount(agent, -1, (name,))
+            setattr(agent, name, type(value)(coordinate) if isinstance(value, int | float) else coordinate)
+            self._recount(agent, 1, (name,))
 
     def _observe(self) -> None:
         """Add the scalar values of the observables of the run to their histories.

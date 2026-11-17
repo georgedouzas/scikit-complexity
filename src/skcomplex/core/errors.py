@@ -191,9 +191,26 @@ class SimulationError(SkcomplexError):
 class CapacityError(SimulationError):
     """An error for a topology change that needs more rows than a group holds.
 
-    A variable group on a network holds a fixed number of rows for its members, and a request to add more raises it.
-    Raise `capacity` of the network space.
+    A group given a `capacity` holds that many rows for its members, and a request to add more raises it. A group
+    without one grows as a Python list does, so it never raises it. Raise the capacity of the group, or leave it out.
     """
+
+    def __init__(self, message: str, *, path: str = '', rows: int = 0) -> None:
+        """Keep the path of the full group and its number of rows.
+
+        Args:
+            message:
+                The message.
+
+            path:
+                The path of the full group, such as `'nodes'`.
+
+            rows:
+                The number of rows the group holds.
+        """
+        super().__init__(message)
+        self.path = path
+        self.rows = rows
 
 
 class ExperimentError(SkcomplexError):

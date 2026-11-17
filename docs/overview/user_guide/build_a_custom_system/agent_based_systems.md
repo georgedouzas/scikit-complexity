@@ -158,6 +158,108 @@ An agent acts on its place through its own methods.
   and `agent.get_distance_to(other)` its length, or the number of hops on a network.
 - `agent.location` is its cell, node, or position, and `agent.id` its unique id.
 
+## Positions of agents
+
+The values of an agent named after the axes of its space are its location. On a
+[`ContinuousSpace`](../core_components/spaces.md#continuousspace) of two dimensions they are `x` and `y`, and on a
+[`LatticeSpace`](../core_components/spaces.md#latticespace) they are the coordinates of a cell, `x` along the first
+axis and `y` along the second. The agent starts where its values say, and a rule that changes them moves it. Here two
+walkers start at given points of a box of 50 by 50 and drift one unit to the right per step.
+
+```python
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+
+class Drift(Interaction):
+    def __init__(self, label, *, target: Role = 'walkers', step=1.0):
+        super().__init__(label)
+        self.target = target
+        self.step = step
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s.target, self.move)]
+
+    def move(self, agent, system):
+        agent.x += self.step
+
+
+plane = ContinuousSpace(extent=[50.0, 50.0])
+walkers = Element('walkers', values={'x': [22.7, 5.0], 'y': [1.5, 30.0]}, size=2, space=plane)
+trajectory = System(elements=[walkers], interactions=[Drift('drift')]).prepare().simulate(until=3, random_state=0)
+[trajectory.get_agents('walkers', step).locations.round(1).tolist() for step in (0, 3)]
+```
+
+The walkers start at `(22.7, 1.5)` and `(5.0, 30.0)` and end three units to the right, at `(25.7, 1.5)` and
+`(8.0, 30.0)`.
+
+- On a periodic space an agent that leaves one side enters the other, and its values wrap with it, so a car at cell 9
+  of a ring of 10 cells that moves one cell is at cell 0 with `x = 0`.
+- `agent.move_to(location)` moves an agent and sets its values to the new place.
+- An agent whose group has no values named after the axes, or that lives on a network, starts at a random place.
+
+## Rules of the whole system
+
+A rule may also act on the whole system once per step, such as a matching of riders and drivers or a braking event
+drawn for a whole road. Its law is [`UpdateLaw`](../core_components/laws.md#updatelaw)`(s, rule)`, whose target is the
+namespace of the interaction itself, and the rule is a function of the system alone, `rule(system)`. It runs once per
+step after the rules of the agents. Here three cars drive on a ring road of 30 cells, each speeding up by one cell per
+step up to three, and with probability 0.3 a step brings every car of the road to a halt.
+
+```python
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+
+class Drive(Interaction):
+    def __init__(self, label, *, target: Role = 'cars'):
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s.target, self.drive)]
+
+    def drive(self, car, system):
+        car.x += car.v
+        car.v = min(car.v + 1, 3)
+
+
+class Braking(Interaction):
+    def __init__(self, label, *, cars: Role = 'cars', p=0.3):
+        super().__init__(label)
+        self.cars = cars
+        self.p = p
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s, self.brake)]
+
+    def brake(self, system):
+        if system.rng.random() < self.p:
+            for car in system.get_agents('cars'):
+                car.v = 0
+
+
+cars = Element('cars', values={'x': [0, 10, 20], 'v': 0}, size=3, space=LatticeSpace(30))
+road = System(elements=[cars], interactions=[Drive('drive'), Braking('braking')]).prepare()
+trajectory = road.simulate(until=6, random_state=0)
+[trajectory.get_agents('cars', step).values['x'].tolist() for step in range(7)]
+```
+
+In this run the road brakes in the first, fourth, and fifth steps, so the cars, which start at the cells 0, 10, and
+20, end three cells further on, at 3, 13, and 23. Every car moves alike, since the braking is one
+event of the whole road and not a draw of each car.
+
 ## Activation and phases
 
 How agents take turns is a setting of the solver, given to the system as `solver=MesaSolver(activation=...)`.
