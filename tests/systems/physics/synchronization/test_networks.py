@@ -4,11 +4,9 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.synchronization import (
     CoupledMapLatticesOnNetworksSystem,
     KuramotoOnNetworksSystem,
@@ -24,19 +22,9 @@ def test_logistic_coupling_mixes_the_map_with_the_mean_map_of_the_neighbours():
     graph = nx.path_graph(3)
     graph.add_node(3)
     x = np.array([0.1, 0.3, 0.6, 0.2])
-    maps = GroupElement(
-        'maps',
-        element=LogisticNodeElement,
-        space=NetworkSpace(graph),
-        values={'x': x, 'r': 3.7, 'epsilon': 0.3},
-        on='sites',
-    )
-    system = CompositeSystem(
-        elements=[maps],
-        interactions=[LogisticCouplingInteraction('coupling', target='maps')],
-        time=DiscreteTime(),
-    )
-    values = simulate(system, until=1).get_values('maps.x')[-1]
+    maps = LogisticNodeElement('maps', x=x, r=3.7, epsilon=0.3, space=NetworkSpace(graph))
+    system = System(elements=[maps], interactions=[LogisticCouplingInteraction('coupling', target='maps')])
+    values = system.prepare().simulate(until=1).get_values('maps.x')[-1]
     f = 3.7 * x * (1 - x)
     neighbours = np.array([f[1], (f[0] + f[2]) / 2, f[1], 0.0])
     np.testing.assert_allclose(values, 0.7 * f + 0.3 * neighbours, atol=1e-12)
