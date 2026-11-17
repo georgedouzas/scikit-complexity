@@ -10,13 +10,11 @@ from collections.abc import Callable
 from types import MappingProxyType, SimpleNamespace
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 from scipy.optimize import brentq
 
 from ....core.components.spaces import LatticeSpace
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.types import Array
 from ...general.dynamics import ReactionDiffusionSystem
 from ...general.reactions import ReactionInteraction
@@ -71,7 +69,6 @@ class MinProteinSkeletonSystem(ReactionDiffusionSystem):
     references = ('Brauns and Marchetti 2024', 'Halatek and Frey 2018', 'Huang, Meir, and Wingreen 2003')
     until = 400.0
     dt = 4.0
-    solver = ScipyODESolver(method='BDF', jacobian='exact')
 
     def __init__(
         self,
@@ -82,13 +79,19 @@ class MinProteinSkeletonSystem(ReactionDiffusionSystem):
         total_E: float = 120.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.length = length
         self.total_D = total_D
         self.total_E = total_E
         self.random_state = random_state
+
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return ScipyODESolver(method='BDF', jacobian='exact')
 
     @staticmethod
     def _get_uniform_state(total_D: float, total_E: float) -> dict[str, float]:
@@ -118,25 +121,19 @@ class MinProteinSkeletonSystem(ReactionDiffusionSystem):
         """Return the periodic line of the sites."""
         return LatticeSpace(self.n_sites, spacing=self.length / self.n_sites)
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the uniform state with 1% of MinD moved between the cytosol and the membrane, and the rates."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the uniform state with 1% of MinD moved between the cytosol and the membrane."""
         rng = np.random.default_rng(self.random_state)
         uniform = self._get_uniform_state(self.total_D, self.total_E)
         values: dict[str, Array] = {name: np.full(self.n_sites, value) for name, value in uniform.items()}
         noise = 0.01 * uniform['md'] * rng.uniform(-1.0, 1.0, self.n_sites)
         values['md'] = values['md'] + noise
         values['cdt'] = values['cdt'] - noise
-        nonnegative = RealSet.closed_open(0, oo)
-        states = {name: DeclaredVariableSpec(value, StateSpec(domain=nonnegative)) for name, value in values.items()}
-        positive = ('Dm', 'Dc')
-        parameters = {
-            name: DeclaredVariableSpec(
-                value,
-                ParameterSpec(domain=RealSet.open(0, oo) if name in positive else nonnegative),
-            )
-            for name, value in RATES.items()
-        }
-        return {**states, **parameters}
+        return dict(values)
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the rates."""
+        return dict(RATES)
 
     def _get_equation_interactions(self) -> list[ReactionInteraction]:
         """Return the attachment, the recruitment, the release, and the nucleotide exchange."""

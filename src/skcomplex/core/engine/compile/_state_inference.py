@@ -140,10 +140,19 @@ class _StateInference:
 
     @staticmethod
     def _get_member_value(element: Element, name: str, value: object, count: int | None) -> object:
-        """Return the value of one member, checking an array holds one per member."""
+        """Return the value of one member, checking an array holds one per member.
+
+        On a lattice, an array of the shape of the lattice holds one value per site, such as the concentration of every
+        cell of a plate.
+        """
         array = np.asarray(value, dtype=object)
         if count is None or array.ndim == 0:
             return value
+        space = element.space
+        if isinstance(space, LatticeSpace) and element.size is None and len(space.prepare().shape_) > 1:
+            shape = tuple(space.shape_)
+            if array.shape[: len(shape)] == shape:
+                array = array.reshape(count, *array.shape[len(shape) :])
         if array.shape[0] != count:
             error_msg = (
                 f'Element {element.label!r} has {count} members but its value {name!r} has {array.shape[0]} entries. '

@@ -17,8 +17,9 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import ReactionDiffusionSystem
 from ...general.dynamics.types import Equations
 
@@ -229,7 +230,7 @@ class BarkleySystem(ReactionDiffusionSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.physiology import BarkleySystem
-        >>> BarkleySystem((20, 20), gamma=3.0).prepare().system_.elements[0].get_declaring_element().get_value('gamma')
+        >>> BarkleySystem((20, 20), gamma=3.0).prepare().system_.elements[0].values['gamma']
         3.0
     """
 
@@ -238,7 +239,6 @@ class BarkleySystem(ReactionDiffusionSystem):
     references = ('Barkley 1991', 'Datseris and Parlitz 2022')
     until = 400.0
     dt = 4.0
-    solver = RK4Solver(dt=0.2)
 
     def __init__(
         self,
@@ -251,8 +251,10 @@ class BarkleySystem(ReactionDiffusionSystem):
         epsilon: float = 0.02,
         gamma: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.shape: Sequence[int] = shape
         self.spacing = spacing
         self.d = d
@@ -260,6 +262,10 @@ class BarkleySystem(ReactionDiffusionSystem):
         self.b = b
         self.epsilon = epsilon
         self.gamma = gamma
+
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return RK4Solver(dt=0.2)
 
     def _get_element_label(self) -> str:
         """Return the label of the field of the sites."""
@@ -270,20 +276,17 @@ class BarkleySystem(ReactionDiffusionSystem):
         rows, columns = self.shape
         return LatticeSpace((rows, columns), boundary='reflecting', spacing=self.spacing)
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the excitation on one half, the recovery on the other, and the parameters."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the excitation on one half and the recovery on the other."""
         rows, columns = self.shape
         u, w = np.zeros(self.shape), np.zeros(self.shape)
         u[:, : columns // 2] = 1.0
         w[: rows // 2, :] = 1.0
-        return {
-            'u': DeclaredVariableSpec(u, StateSpec()),
-            'w': DeclaredVariableSpec(w, StateSpec()),
-            'a': DeclaredVariableSpec(self.a, ParameterSpec(domain=RealSet.open(0, oo))),
-            'b': DeclaredVariableSpec(self.b, ParameterSpec()),
-            'epsilon': DeclaredVariableSpec(self.epsilon, ParameterSpec(domain=RealSet.open(0, oo))),
-            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=RealSet.open(0, oo))),
-        }
+        return {'u': u, 'w': w}
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the kinetics."""
+        return {'a': self.a, 'b': self.b, 'epsilon': self.epsilon, 'gamma': self.gamma}
 
     def _get_equations(self) -> Equations:
         """Return the cubic excitation and its slow recovery."""

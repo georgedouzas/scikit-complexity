@@ -20,6 +20,7 @@ from ..components.laws import RateLaw
 from ..components.spaces import LatticeSpace
 from ..components.systems import CompositeSystem
 from ..engine._utils import bound_labels, components_of, declarations_of, default_of, symbol
+from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..enums import DataKind, FormKind, VariableKind
@@ -330,7 +331,8 @@ def stability(
         if not isinstance(source, CompositeSystem):
             error_msg = f'A dispersion relation is computed from a system, not from {type(source).__name__}.'
             raise AnalysisError(error_msg)
-        waves, magnitudes, growth_rates, frequencies, uniform = _dispersion_relation(source, at)
+        declared = PassCompiler()._get_declared_system(source)
+        waves, magnitudes, growth_rates, frequencies, uniform = _dispersion_relation(declared, at)
         return StabilityResult(
             system=source,
             wavenumbers=waves,
@@ -522,7 +524,7 @@ def _add_rate(rates: dict[str, Expression], names: dict[str, Expression], law: o
     Its Laplacians become eigenvalues, and an error is raised when it cannot be added.
     """
     targets = law._get_targets() if isinstance(law, RateLaw) else ()
-    target = next((name for name, item in names.items() if targets and targets[0] is item), None)
+    target = next((name for name, item in names.items() if targets and SR(targets[0]).is_trivially_equal(item)), None)
     if not isinstance(law, RateLaw) or target is None:
         error_msg = f'The dispersion relation takes rate laws of the states of {label}, but got {law!r}.'
         raise AnalysisError(error_msg)
