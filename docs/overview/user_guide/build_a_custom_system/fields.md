@@ -162,7 +162,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.biology.ecology import FisherKPPSystem
 
-stiff = simulate(FisherKPPSystem(length=400, D=1.0, spacing=0.05), until=5, dt=1.0, solver=ScipyODESolver(method='BDF'))
+stiff = FisherKPPSystem(length=400, D=1.0, spacing=0.05).set_params(solver=ScipyODESolver(method='BDF')).prepare().simulate(until=5, dt=1.0)
 pattern = ScipyODESolver(method='BDF').prepare(stiff.problem).jacobian_pattern_
 pattern.nnz, stiff.get_values('line.u')[-1].max().round(3)
 ```

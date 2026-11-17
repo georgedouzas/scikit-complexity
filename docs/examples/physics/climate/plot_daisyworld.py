@@ -13,7 +13,6 @@ star.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import DaisyworldSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'daisyworld'
 
 system = DaisyworldSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Temperature regulation across luminosities
@@ -35,7 +34,7 @@ luminosities = np.linspace(0.6, 1.6, 41)
 temperatures, whites, blacks = [], [], []
 for luminosity in luminosities:
     system_system = DaisyworldSystem(L=luminosity, white=0.05, black=0.05)
-    run = simulate(system_system, until=200, dt=1.0)
+    run = system_system.prepare().simulate(until=200, dt=1.0)
     temperatures.append(run.get_values('temperature')[-1] - 273.15)
     whites.append(run.get_values('planet.white')[-1])
     blacks.append(run.get_values('planet.black')[-1])

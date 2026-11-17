@@ -15,7 +15,7 @@ def _series_color(archetype):
 
 def test_scalars_visual_gives_states_distinct_colors():
     """Test that the white and black daisies of Daisyworld get distinct static series colors."""
-    problem, frame = _first_frame(DaisyworldSystem().prepare().system_)
+    problem, frame = _first_frame(DaisyworldSystem().prepare().system_._get_composite())
     logs = Logs()
     visual = ScalarsVisual(path=problem.elements[0].path, recording=logs).prepare(problem)
     visual.run(frame)

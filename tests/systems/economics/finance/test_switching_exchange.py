@@ -16,8 +16,8 @@ def test_kirman_exchange_rate_follows_eq_1_37_with_fundamentalists_only():
 
 def test_kirman_exchange_rate_is_bimodal_and_more_volatile_with_chartists():
     """Test that the fundamentalists are mostly near the extremes and that chartists make the rate volatile."""
-    system = KirmanExchangeRateSystem().prepare().system_
-    trajectory = _run(system, 40000, observables=KirmanExchangeRateSystem().get_run_settings()['observables'])
+    system = KirmanExchangeRateSystem()
+    trajectory = _run(system, 40000)
     share, deviation = trajectory.get_values('market.fundamentalists'), trajectory.get_values('market.x')
     assert np.mean((share < 0.2) | (share > 0.8)) > 0.5
     changes = np.abs(np.diff(deviation))

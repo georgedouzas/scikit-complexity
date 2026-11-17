@@ -1,32 +1,30 @@
 """Electrical realizations shared by the engineering packages.
 
-They are the connector of a pin and circuit components.
+They are circuit components that join the nodes of a circuit.
 """
 
 from ._components import (
-    ELECTRICAL,
-    CapacitorElement,
-    ChuaDiodeElement,
-    CurrentSourceElement,
-    DiodeElement,
-    GroundElement,
-    InductorElement,
-    OperationalAmplifierElement,
-    ResistorElement,
-    TwoPinElement,
-    VoltageSourceElement,
+    BranchInteraction,
+    CapacitorInteraction,
+    ChuaDiodeInteraction,
+    CurrentSourceInteraction,
+    DiodeInteraction,
+    GroundInteraction,
+    InductorInteraction,
+    OperationalAmplifierInteraction,
+    ResistorInteraction,
+    VoltageSourceInteraction,
 )
 
 __all__: list[str] = [
-    'ELECTRICAL',
-    'CapacitorElement',
-    'ChuaDiodeElement',
-    'CurrentSourceElement',
-    'DiodeElement',
-    'GroundElement',
-    'InductorElement',
-    'OperationalAmplifierElement',
-    'ResistorElement',
-    'TwoPinElement',
-    'VoltageSourceElement',
+    'BranchInteraction',
+    'CapacitorInteraction',
+    'ChuaDiodeInteraction',
+    'CurrentSourceInteraction',
+    'DiodeInteraction',
+    'GroundInteraction',
+    'InductorInteraction',
+    'OperationalAmplifierInteraction',
+    'ResistorInteraction',
+    'VoltageSourceInteraction',
 ]

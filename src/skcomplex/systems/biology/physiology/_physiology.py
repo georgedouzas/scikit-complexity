@@ -16,8 +16,9 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, hill
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import ReactionDiffusionSystem
 from ..common.excitable import FitzHughNagumoInteraction
 
@@ -126,7 +127,6 @@ class FitzhughNagumoSystem(ReactionDiffusionSystem):
     references = ('FitzHugh 1961', 'Nagumo, Arimoto, and Yoshizawa 1962', 'Gros 2015')
     until = 200.0
     dt = 2.0
-    solver = RK4Solver(dt=0.05)
 
     def __init__(
         self,
@@ -137,13 +137,19 @@ class FitzhughNagumoSystem(ReactionDiffusionSystem):
         b: float = 0.8,
         epsilon: float = 0.02,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.shape: Sequence[int] = shape
         self.D = D
         self.a = a
         self.b = b
         self.epsilon = epsilon
+
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return RK4Solver(dt=0.05)
 
     def _get_element_label(self) -> str:
         """Return the label of the field of the sites."""
@@ -154,13 +160,13 @@ class FitzhughNagumoSystem(ReactionDiffusionSystem):
         rows, columns = self.shape
         return LatticeSpace((rows, columns), boundary='reflecting')
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+    def _get_states(self) -> dict[str, object]:
         """Return the potential excited on the upper half and the recovery refractory on the left half."""
         rows, columns = self.shape
         u, v = np.full(self.shape, -1.2), np.full(self.shape, -0.62)
         u[: rows // 2, :] = 1.5
         v[:, : columns // 2] = 1.0
-        return {'u': DeclaredVariableSpec(u, StateSpec()), 'v': DeclaredVariableSpec(v, StateSpec())}
+        return {'u': u, 'v': v}
 
     def _get_equation_interactions(self) -> list[FitzHughNagumoInteraction]:
         """Return the FitzHugh-Nagumo kinetics of the potential and the recovery."""

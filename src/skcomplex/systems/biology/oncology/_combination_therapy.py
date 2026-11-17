@@ -18,9 +18,10 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -1691,7 +1692,7 @@ class HER2TargetedTherapySystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.oncology import HER2TargetedTherapySystem
-        >>> HER2TargetedTherapySystem(sigma=1.5).prepare().system_.elements[0].get_value('sigma')
+        >>> HER2TargetedTherapySystem(sigma=1.5).prepare().system_.elements[0].values['sigma']
         1.5
     """
 
@@ -1700,7 +1701,6 @@ class HER2TargetedTherapySystem(DynamicalSystem):
     references = (BOOK, 'Jarrett et al. 2019')
     until = 10.0
     dt = 0.02
-    solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
     def __init__(
         self,
@@ -1713,8 +1713,10 @@ class HER2TargetedTherapySystem(DynamicalSystem):
         t_p: float = 1.0,
         sigma: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.A = A
         self.antibody = antibody
         self.paclitaxel = paclitaxel
@@ -1723,28 +1725,36 @@ class HER2TargetedTherapySystem(DynamicalSystem):
         self.t_p = t_p
         self.sigma = sigma
 
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
+
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the states."""
         return 'tumour'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
-        nonnegative = RealSet.closed_open(0, oo)
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'A': DeclaredVariableSpec(self.A, StateSpec(domain=nonnegative)),
-            'Ab': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
-            'Pin': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
-            'r': DeclaredVariableSpec(0.83, ParameterSpec(domain=nonnegative)),
-            'kc': DeclaredVariableSpec(0.67, ParameterSpec(domain=RealSet.open(0, oo))),
-            'a1': DeclaredVariableSpec(2.51, ParameterSpec(domain=nonnegative)),
-            'a2': DeclaredVariableSpec(23.0, ParameterSpec(domain=nonnegative)),
-            'gamma_p': DeclaredVariableSpec(6.35, ParameterSpec(domain=nonnegative)),
-            'sigma': DeclaredVariableSpec(self.sigma, ParameterSpec(domain=nonnegative)),
-            'theta_ab': DeclaredVariableSpec(8.78, ParameterSpec(domain=nonnegative)),
-            'theta_r': DeclaredVariableSpec(1940000.0, ParameterSpec(domain=nonnegative)),
-            'alpha_p': DeclaredVariableSpec(0.68, ParameterSpec(domain=nonnegative)),
-            'antibody': DeclaredVariableSpec(self.antibody, ParameterSpec(domain=nonnegative)),
-            'paclitaxel': DeclaredVariableSpec(self.paclitaxel, ParameterSpec(domain=nonnegative)),
+            'A': self.A,
+            'Ab': 0.0,
+            'Pin': 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'r': 0.83,
+            'kc': 0.67,
+            'a1': 2.51,
+            'a2': 23.0,
+            'gamma_p': 6.35,
+            'sigma': self.sigma,
+            'theta_ab': 8.78,
+            'theta_r': 1940000.0,
+            'alpha_p': 0.68,
+            'antibody': self.antibody,
+            'paclitaxel': self.paclitaxel,
         }
 
     def _get_equations(self) -> Equations:

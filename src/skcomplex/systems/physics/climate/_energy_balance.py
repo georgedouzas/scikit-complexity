@@ -10,8 +10,7 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo, tanh
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression, tanh
 
 from ....core.components import Observable
 from ....core.components.elements import Element
@@ -21,7 +20,7 @@ from ....core.components.laws.utils import gradient, laplacian, where
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -496,7 +495,7 @@ class DaisyworldSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import DaisyworldSystem
-        >>> DaisyworldSystem(L=1.2).prepare().system_.elements[0].get_value('L')
+        >>> DaisyworldSystem(L=1.2).prepare().system_.elements[0].values['L']
         1.2
     """
 
@@ -515,8 +514,10 @@ class DaisyworldSystem(DynamicalSystem):
         L: float = 1.0,
         gamma: float = 0.3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.white = white
         self.black = black
         self.L = L
@@ -526,22 +527,27 @@ class DaisyworldSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'planet'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'white': DeclaredVariableSpec(self.white, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'black': DeclaredVariableSpec(self.black, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'L': DeclaredVariableSpec(self.L, ParameterSpec()),
-            'S': DeclaredVariableSpec(917.0, ParameterSpec()),
-            'sigma': DeclaredVariableSpec(5.67e-08, ParameterSpec()),
-            'q': DeclaredVariableSpec(2060000000.0, ParameterSpec()),
-            'p': DeclaredVariableSpec(1.0, ParameterSpec()),
-            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec()),
-            'k': DeclaredVariableSpec(0.003265, ParameterSpec()),
-            'optimum': DeclaredVariableSpec(295.5, ParameterSpec()),
-            'albedo_ground': DeclaredVariableSpec(0.5, ParameterSpec()),
-            'albedo_white': DeclaredVariableSpec(0.75, ParameterSpec()),
-            'albedo_black': DeclaredVariableSpec(0.25, ParameterSpec()),
+            'white': self.white,
+            'black': self.black,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'L': self.L,
+            'S': 917.0,
+            'sigma': 5.67e-08,
+            'q': 2060000000.0,
+            'p': 1.0,
+            'gamma': self.gamma,
+            'k': 0.003265,
+            'optimum': 295.5,
+            'albedo_ground': 0.5,
+            'albedo_white': 0.75,
+            'albedo_black': 0.25,
         }
 
     def _get_equations(self) -> Equations:

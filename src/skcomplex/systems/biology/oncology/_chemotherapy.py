@@ -16,7 +16,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, RateInteraction
 from ....core.components.laws.utils import clip, delayed
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -837,7 +839,7 @@ class DrugResistanceSwitchingSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.oncology import DrugResistanceSwitchingSystem
-        >>> DrugResistanceSwitchingSystem(alpha_m=0.0).prepare().system_.elements[0].get_value('alpha_m')
+        >>> DrugResistanceSwitchingSystem(alpha_m=0.0).prepare().system_.elements[0].values['alpha_m']
         0.0
     """
 
@@ -860,8 +862,10 @@ class DrugResistanceSwitchingSystem(DynamicalSystem):
         r2: float = 0.2,
         r3: float = 0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.S = S
         self.u = u
         self.m1 = m1
@@ -876,26 +880,30 @@ class DrugResistanceSwitchingSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'tumour'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
-        nonnegative = RealSet.closed_open(0, oo)
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'S': DeclaredVariableSpec(self.S, StateSpec(domain=nonnegative)),
-            'Rm': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
-            'Rp': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
-            'r1': DeclaredVariableSpec(1.0, ParameterSpec(domain=nonnegative)),
-            'r2': DeclaredVariableSpec(self.r2, ParameterSpec(domain=nonnegative)),
-            'r3': DeclaredVariableSpec(self.r3, ParameterSpec(domain=nonnegative)),
-            'b': DeclaredVariableSpec(1.0, ParameterSpec(domain=nonnegative)),
-            'm1': DeclaredVariableSpec(self.m1, ParameterSpec(domain=nonnegative)),
-            'm2': DeclaredVariableSpec(self.m2, ParameterSpec(domain=nonnegative)),
-            'alpha_m': DeclaredVariableSpec(self.alpha_m, ParameterSpec(domain=nonnegative)),
-            'alpha_p': DeclaredVariableSpec(self.alpha_p, ParameterSpec(domain=nonnegative)),
-            'm5': DeclaredVariableSpec(self.m5, ParameterSpec(domain=nonnegative)),
-            'a': DeclaredVariableSpec(1.0, ParameterSpec(domain=nonnegative)),
-            'am': DeclaredVariableSpec(0.0, ParameterSpec(domain=nonnegative)),
-            'ap': DeclaredVariableSpec(0.0, ParameterSpec(domain=nonnegative)),
-            'u': DeclaredVariableSpec(self.u, ParameterSpec(domain=nonnegative)),
+            'S': self.S,
+            'Rm': 0.0,
+            'Rp': 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'r1': 1.0,
+            'r2': self.r2,
+            'r3': self.r3,
+            'b': 1.0,
+            'm1': self.m1,
+            'm2': self.m2,
+            'alpha_m': self.alpha_m,
+            'alpha_p': self.alpha_p,
+            'm5': self.m5,
+            'a': 1.0,
+            'am': 0.0,
+            'ap': 0.0,
+            'u': self.u,
         }
 
     def _get_equations(self) -> Equations:

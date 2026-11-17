@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.engineering.mechatronics import VibratingTableSystem
 
 
@@ -11,7 +10,7 @@ def test_vibrating_table_settles_on_a_steady_vibration_close_to_the_linear_model
     """Test that the table vibrates steadily at the supply frequency, with nearly the amplitude of the linear model."""
     swings = []
     for linear in (False, True):
-        trajectory = simulate(VibratingTableSystem(linear=linear))
+        trajectory = VibratingTableSystem(linear=linear).prepare().simulate()
         times, x = trajectory.times, np.ravel(trajectory.get_values('shaker.x'))
         late = times > 20
         swing = [np.ptp(x[(times > start) & (times < start + 4)]) for start in (20, 28, 36)]

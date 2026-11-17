@@ -16,7 +16,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import delayed, hill, pulse
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -578,7 +580,7 @@ class SteerableFeedbackLoopSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.physiology import SteerableFeedbackLoopSystem
-        >>> SteerableFeedbackLoopSystem(tau=3.0).prepare().system_.elements[0].get_value('tau')
+        >>> SteerableFeedbackLoopSystem(tau=3.0).prepare().system_.elements[0].values['tau']
         3.0
     """
 
@@ -601,8 +603,10 @@ class SteerableFeedbackLoopSystem(DynamicalSystem):
         start: float = 20.0,
         duration: float = 20.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.v = v
         self.d = d
         self.K = K
@@ -617,18 +621,23 @@ class SteerableFeedbackLoopSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'loop'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'x': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'e': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed(0, 1))),
-            'v': DeclaredVariableSpec(self.v, ParameterSpec(domain=RealSet.open(0, oo))),
-            'd': DeclaredVariableSpec(self.d, ParameterSpec(domain=RealSet.open(0, oo))),
-            'K': DeclaredVariableSpec(self.K, ParameterSpec(domain=RealSet.open(0, oo))),
-            'n': DeclaredVariableSpec(self.n, ParameterSpec(domain=RealSet.open(0, oo))),
-            'T': DeclaredVariableSpec(self.T, ParameterSpec(domain=RealSet.open(0, oo))),
-            'tau': DeclaredVariableSpec(self.tau, ParameterSpec(domain=RealSet.open(0, oo))),
-            'steering': DeclaredVariableSpec(self.steering, ParameterSpec()),
+            'x': 0.0,
+            'e': 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'v': self.v,
+            'd': self.d,
+            'K': self.K,
+            'n': self.n,
+            'T': self.T,
+            'tau': self.tau,
+            'steering': self.steering,
         }
 
     def _get_equations(self) -> Equations:

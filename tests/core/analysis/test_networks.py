@@ -165,7 +165,7 @@ def test_centralities():
 
 def test_network_analysis_of_every_frame_of_a_trajectory():
     """Test that a network trajectory gives one summary per frame and that an ignored setting raises an error."""
-    trajectory = simulate(NetworkDiffusionSystem(), until=0.2, random_state=0)
+    trajectory = NetworkDiffusionSystem().prepare().simulate(until=0.2, random_state=0)
     summary = _network('summary', trajectory)
     assert summary.nodes.tolist() == [34] * len(trajectory.times)
     with pytest.raises(AnalysisError, match='does not read measure'):

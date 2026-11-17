@@ -24,7 +24,7 @@ from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -323,7 +323,7 @@ class DuffingSystem(DynamicalSystem):
 
     The oscillator is `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`.
 
-    The system has the displacement `duffing.x` of order 2 and its velocity `duffing.x_d1`.
+    The system has the displacement `duffing.x` of order 2 and its velocity `duffing.x'`.
 
     Args:
         x:
@@ -352,7 +352,7 @@ class DuffingSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import DuffingSystem
-        >>> DuffingSystem(gamma=0.3).prepare().system_.elements[0].get_value('gamma')
+        >>> DuffingSystem(gamma=0.3).prepare().system_.elements[0].values['gamma']
         0.3
     """
 
@@ -373,8 +373,10 @@ class DuffingSystem(DynamicalSystem):
         gamma: float = 0.5,
         omega: float = 1.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.x = x
         self.v = v
         self.delta = delta
@@ -387,22 +389,28 @@ class DuffingSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'duffing'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'x': DeclaredVariableSpec(self.x, StateSpec(order=2, initial=(self.v,))),
-            'delta': DeclaredVariableSpec(self.delta, ParameterSpec()),
-            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec()),
-            'beta': DeclaredVariableSpec(self.beta, ParameterSpec()),
-            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec()),
-            'omega': DeclaredVariableSpec(self.omega, ParameterSpec()),
+            'x': self.x,
+            "x'": self.v,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'delta': self.delta,
+            'alpha': self.alpha,
+            'beta': self.beta,
+            'gamma': self.gamma,
+            'omega': self.omega,
         }
 
     def _get_equations(self) -> Equations:
         """Return the components of the system, built from its model parameters."""
         return {
-            'x': lambda s: (
-                -s.target.delta * derivative(s.target.x, 1)
+            "x''": lambda s: (
+                -s.target.delta * s.target.x.diff(s.t)
                 - s.target.alpha * s.target.x
                 - s.target.beta * s.target.x**3
                 + s.target.gamma * cos(s.target.omega * s.t)

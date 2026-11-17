@@ -140,10 +140,19 @@ class _StateInference:
 
     @staticmethod
     def _get_member_value(element: Element, name: str, value: object, count: int | None) -> object:
-        """Return the value of one member, checking an array holds one per member."""
+        """Return the value of one member, checking an array holds one per member.
+
+        On a lattice, an array of the shape of the lattice holds one value per site, such as the concentration of every
+        cell of a plate.
+        """
         array = np.asarray(value, dtype=object)
         if count is None or array.ndim == 0:
             return value
+        space = element.space
+        if isinstance(space, LatticeSpace) and element.size is None and len(space.prepare().shape_) > 1:
+            shape = tuple(space.shape_)
+            if array.shape[: len(shape)] == shape:
+                array = array.reshape(count, *array.shape[len(shape) :])
         if array.shape[0] != count:
             error_msg = (
                 f'Element {element.label!r} has {count} members but its value {name!r} has {array.shape[0]} entries. '
@@ -278,12 +287,6 @@ class _StateInference:
         return lags
 
     @staticmethod
-    def _has_derivative(law: BaseLaw) -> bool:
-        """Return whether a law reads a derivative of a state."""
-        marker = derivative(SR.wild(0), SR.wild(1))
-        return any(isinstance(value, Expression) and bool(value.find(marker)) for value in law._get_values())
-
-    @staticmethod
     def _get_derivative_orders(law: BaseLaw, named: Mapping[str, str]) -> dict[str, int]:
         """Return the highest derivative a law reads of every value, by its dotted name.
 
@@ -325,8 +328,9 @@ class _StateInference:
     def _get_orders(compilation: Compilation) -> tuple[dict[str, float], dict[str, int]]:
         """Return the order and the past values of every value the laws use.
 
-        A value that only constraints without derivatives determine has order 0, as the potential of a circuit node
-        whose currents must balance, and a value that rate laws give a fractional derivative has its fractional order.
+        A value that only constraints determine has order 0, as the potential of a circuit node whose currents must
+        balance, also when a constraint reads derivatives of other values, as the back electromotive force of a motor
+        reads the speed of its rotor. A value that rate laws give a fractional derivative has its fractional order.
         A value whose derivative of order `k` a constraint reads has order `k` at least, as the charge of
         `L q'' + R q' + q / C == 0`.
         """
@@ -347,7 +351,7 @@ class _StateInference:
             names = [entry.name for entry in record.targets]
             if isinstance(law, ConstraintLaw) and law.target is not None and str(law.target) in named:
                 names.append(named[str(law.target)])
-                order = 1 if _StateInference._has_derivative(law) else 0
+                order = 0
             for name in names:
                 orders[name] = _StateInference._get_order(name, order, orders.get(name))
             if isinstance(law, ConstraintLaw):

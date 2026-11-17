@@ -3,58 +3,57 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from types import SimpleNamespace
 
 import networkx as nx
 
-from ....core.components.elements import BaseElement, DeclaredElement, FieldElement
-from ....core.components.interactions import BaseInteraction, CouplingInteraction
+from ....core.components.elements import BaseElement, Element
+from ....core.components.interactions import BaseInteraction
+from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import StateSpec
 from ._dynamical import DynamicalSystem
+from ._equation import EquationInteraction
 from .types import Equations, Noises
 
 
 class NetworkDynamicalSystem(DynamicalSystem):
     """A dynamical system with states on every node of a graph and coupled neighbours.
 
-    The states and parameters are those of a `DeclaredElement`, a member of a `FieldElement` on the `NetworkSpace` of
-    the graph. The equations are the local rates of every node. For every state with a coupling `g`, the rate of node
-    `i` gains `sum_j A_ij g(x_i, x_j)` over its neighbours `j`, a `CouplingInteraction` that reads node `i` as
-    `s.member` and its neighbour as `s.other`. An initial value is one number for every node or an array with one value
-    per node. The system runs in continuous time.
+    The states and parameters are the values of an element with one member on every node of the `NetworkSpace` of the
+    graph. The equations are the local rates of every node. For every state with a coupling `g`, the rate of node `i`
+    gains `sum_j g(x_i, x_j)` over its neighbours `j`, where `g` reads node `i` as `s.member` and its neighbour as
+    `s.other`. An initial value is one number for every node or an array with one value per node. The system runs in
+    continuous time.
 
     A subclass returns the graph from `_get_graph` and the couplings from `_get_coupling`, besides the hooks of
     `DynamicalSystem`.
 
-    Unlike `DynamicalSystem`, which holds one copy of its states, it puts one copy on every node, written with a
-    `FieldElement`, a `NetworkSpace`, and a `CouplingInteraction`. Choose it when identical units interact along the
-    edges of a graph.
+    Unlike `DynamicalSystem`, which holds one copy of its states, it puts one copy on every node of a network space and
+    sums the couplings over the neighbours. Choose it when identical units interact along the edges of a graph.
 
     It appears in many fields. Heat diffuses on a graph in mathematics, cells exchange ions through gap junctions in
     physiology, and oscillators synchronize on a network in physics.
 
     Attributes:
         system_:
-            The composite of the nodes, their equations, and their couplings built at the last `prepare`.
-
-        laws_:
-            The laws the system contributes for the namespace of its last run.
+            The `System` of the nodes, their equations, and their couplings built at the last `prepare`.
 
     Examples:
         Diffusion on a path of three nodes, which spreads the content of the first node evenly:
 
         >>> import networkx as nx
         >>> from skcomplex.systems.general.dynamics import NetworkDynamicalSystem
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> diffusion = NetworkDynamicalSystem(
         ...     nx.path_graph(3),
         ...     states={'u': [1.0, 0.0, 0.0]},
         ...     coupling={'u': lambda s: s.member.D * (s.other.u - s.member.u)},
         ...     parameters={'D': 1.0},
         ... )
-        >>> trajectory = simulate(diffusion, until=20.0, dt=1.0)
+        >>> trajectory = diffusion.prepare().simulate(until=20.0, dt=1.0)
         >>> [round(float(value), 3) for value in trajectory.get_values('nodes.u')[-1]]
         [0.333, 0.333, 0.333]
 
@@ -68,7 +67,7 @@ class NetworkDynamicalSystem(DynamicalSystem):
         ...     parameters={'tau': 10.0, 'g': 0.5},
         ...     element='cells',
         ... )
-        >>> trajectory = simulate(cells, until=5.0, dt=1.0)
+        >>> trajectory = cells.prepare().simulate(until=5.0, dt=1.0)
         >>> bool(trajectory.get_values('cells.v')[-1][1] > 0)
         True
     """
@@ -85,6 +84,8 @@ class NetworkDynamicalSystem(DynamicalSystem):
         convention: str = 'ito',
         element: str = 'nodes',
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
         """Store the graph, states, equations, couplings, and the rest of the data.
 
@@ -99,8 +100,8 @@ class NetworkDynamicalSystem(DynamicalSystem):
                 The local rate of every state by name, as a function of the namespace, or `None`.
 
             coupling:
-                The term `g(x_i, x_j)` of one neighbour for every coupled state by name, as a function of the
-                namespace of a `CouplingInteraction`, or `None`.
+                The term `g(x_i, x_j)` of one neighbour for every coupled state by name, as a function of a namespace
+                whose `member` holds the node and `other` its neighbour, or `None`.
 
             parameters:
                 The value of every parameter by name, or `None` for none.
@@ -116,6 +117,12 @@ class NetworkDynamicalSystem(DynamicalSystem):
 
             label:
                 The label of the system, which names it when it is nested in another one.
+
+            solver:
+                The solver of the problem, or `'auto'` for the one the system chooses.
+
+            backend:
+                The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
         """
         super().__init__(
             states,
@@ -125,6 +132,8 @@ class NetworkDynamicalSystem(DynamicalSystem):
             convention=convention,
             element=element,
             label=label,
+            solver=solver,
+            backend=backend,
         )
         self.graph = graph
         self.coupling = coupling
@@ -167,7 +176,7 @@ class NetworkDynamicalSystem(DynamicalSystem):
         """
         super()._check_equations()
         self._get_graph()
-        states = [name for name, variable in self._get_variables().items() if isinstance(variable.spec, StateSpec)]
+        states = self._get_state_names()
         unknown = [name for name in self._get_coupling() if name not in states]
         if unknown:
             error_msg = (
@@ -177,23 +186,29 @@ class NetworkDynamicalSystem(DynamicalSystem):
             raise ValidationError(error_msg)
 
     def _get_element(self) -> BaseElement:
-        """Return the field of the nodes whose members hold the states and the parameters."""
-        return FieldElement(
-            self._get_element_label(),
-            element=DeclaredElement,
-            space=NetworkSpace(self._get_graph()),
-            values={'variables': self._get_variables()},
-        )
+        """Return the element with one member on every node, which holds the values."""
+        values = {**self._get_states(), **self._get_parameters()}
+        return Element(self._get_element_label(), values=values, space=NetworkSpace(self._get_graph()))
 
-    def _get_coupling_interactions(self) -> list[CouplingInteraction]:
+    @staticmethod
+    def _get_neighbor_sum(coupling: Callable[[SimpleNamespace], object]) -> Callable[[SimpleNamespace], object]:
+        """Return the rate of a coupling, its term summed over the neighbours of a node."""
+        return lambda s: neighbors(coupling(SimpleNamespace(member=s.target, other=s.target.other, t=s.t)))
+
+    def _get_coupling_interactions(self) -> list[EquationInteraction]:
         """Return a coupling of neighbours for every coupled state.
 
         Each coupling is labelled `<state>_coupling`.
         """
         element = self._get_element_label()
         return [
-            CouplingInteraction(f'{state}_coupling', target=element, read=state, write=state, function=function)
-            for state, function in self._get_coupling().items()
+            EquationInteraction(
+                f'{state}_coupling',
+                target=element,
+                state=state,
+                equation=self._get_neighbor_sum(coupling),
+            )
+            for state, coupling in self._get_coupling().items()
         ]
 
     def _get_interactions(self) -> list[BaseInteraction]:

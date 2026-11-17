@@ -152,8 +152,10 @@ class MichaelisMentenSystem(ReactionNetworkSystem):
         k_catalysis: float = 0.1,
         stochastic: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.enzyme = enzyme
         self.substrate = substrate
         self.k_binding = k_binding
@@ -357,7 +359,6 @@ class ChemicalLangevinNetworkSystem(ReactionNetworkSystem):
     references = ('Michaelis and Menten 1913', 'Gillespie 2000')
     until = 50.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=1e-3)
 
     def __init__(
         self,
@@ -368,13 +369,19 @@ class ChemicalLangevinNetworkSystem(ReactionNetworkSystem):
         k_unbinding: float = 0.1,
         k_catalysis: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.enzyme = enzyme
         self.substrate = substrate
         self.k_binding = k_binding
         self.k_unbinding = k_unbinding
         self.k_catalysis = k_catalysis
+
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return EulerMaruyamaSolver(dt=1e-3)
 
     def _get_species(self) -> dict[str, float]:
         """Return the initial amounts of the enzyme, substrate, complex, and product."""

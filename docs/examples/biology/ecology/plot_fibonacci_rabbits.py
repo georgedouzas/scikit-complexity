@@ -12,14 +12,13 @@ Fibonacci numbers 1, 1, 2, 3, 5, 8, ... and grows by the golden ratio every mont
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import FibonacciRabbitsSystem
 
 SYSTEM = 'fibonacci_rabbits'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(FibonacciRabbitsSystem(pairs=1.0, previous=0.0), observers=[observer])
+trajectory = FibonacciRabbitsSystem(pairs=1.0, previous=0.0).prepare().simulate(observers=[observer])
 
 # %%
 # The golden ratio

@@ -18,7 +18,9 @@ from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import clip, series
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import StockFlowSystem
 from ...general.dynamics.types import FlowTable
 
@@ -130,7 +132,7 @@ class OilEconomySystem(StockFlowSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.resources import OilEconomySystem
-        >>> OilEconomySystem(resource=2000.0).prepare().system_.elements[0].get_value('resource')
+        >>> OilEconomySystem(resource=2000.0).prepare().system_.elements[0].values['resource']
         2000.0
     """
 
@@ -172,8 +174,10 @@ class OilEconomySystem(StockFlowSystem):
         lifetime: float = 20.0,
         price_table: Sequence[float] | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.resource = resource
         self.capital = capital
         self.price = price
@@ -195,16 +199,20 @@ class OilEconomySystem(StockFlowSystem):
         """Return the label of the element that holds the stocks."""
         return 'oil'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the stocks and the parameters with their specs."""
-        nonnegative = RealSet.closed_open(0, oo)
+    def _get_stocks(self) -> dict[str, object]:
+        """Return the initial value of every stock by name."""
         return {
-            'resource': DeclaredVariableSpec(self.resource, StateSpec(domain=nonnegative, quantity='oil')),
-            'capital': DeclaredVariableSpec(self.capital, StateSpec(domain=nonnegative, quantity='capital')),
-            'price': DeclaredVariableSpec(self.price, ParameterSpec(domain=RealSet.open(0, oo))),
-            'cost': DeclaredVariableSpec(self.cost, ParameterSpec(domain=nonnegative)),
-            'growth_goal': DeclaredVariableSpec(self.growth_goal, ParameterSpec(domain=nonnegative)),
-            'lifetime': DeclaredVariableSpec(self.lifetime, ParameterSpec(domain=RealSet.open(0, oo))),
+            'resource': self.resource,
+            'capital': self.capital,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'price': self.price,
+            'cost': self.cost,
+            'growth_goal': self.growth_goal,
+            'lifetime': self.lifetime,
         }
 
     def _get_flows(self) -> FlowTable:

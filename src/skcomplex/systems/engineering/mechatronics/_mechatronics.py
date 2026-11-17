@@ -16,58 +16,25 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import ConnectionInteraction, Interaction
-from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, Role, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.mechanics import EulerLagrangeInteraction
-from ..common.electrical import GroundElement, InductorElement, ResistorElement, TwoPinElement, VoltageSourceElement
+from ..common.electrical import (
+    BranchInteraction,
+    GroundInteraction,
+    InductorInteraction,
+    ResistorInteraction,
+    VoltageSourceInteraction,
+)
 from ..common.mechanics import SpringDamperInteraction
 
 POSITIVE = RealSet.open(0, oo)
-
-
-class ArmatureElement(TwoPinElement):
-    """Winding of a motor, a two-pin element.
-
-    Its voltage is given by the coupling with the inertia of the motor.
-
-    Args:
-        label:
-            The label of the element, unique among the components of its system.
-
-        p_v:
-            The potential of the positive pin.
-
-        p_i:
-            The current into the positive pin.
-
-        n_v:
-            The potential of the negative pin.
-
-        n_i:
-            The current into the negative pin.
-
-    Examples:
-        >>> from skcomplex.systems.engineering.mechatronics import ArmatureElement
-        >>> sorted(ArmatureElement.ports)
-        ['n', 'p']
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        p_v: object = 0.0,
-        p_i: object = 0.0,
-        n_v: object = 0.0,
-        n_i: object = 0.0,
-    ) -> None:
-        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
 
 
 class InertiaElement(Element):
@@ -175,60 +142,60 @@ class TireInteraction(Interaction):
         self.laws_: list[BaseComponent] = [RateLaw(wheel.diff(t, 2), force / getattr(context.target, self.mass))]
 
 
-class MotorCouplingInteraction(Interaction):
-    """Coupling of an armature and an inertia by a motor constant `k`.
+class MotorCouplingInteraction(BranchInteraction):
+    """Winding of a motor between the nodes `a` and `b` that drives an inertia with the motor constant `k`.
 
-    The voltage of the armature is the back electromotive force `k phi'`, and its current exerts the torque `k p_i` on
-    the angle, which adds to the Euler-Lagrange equation of the angle.
+    The voltage of the winding is the back electromotive force `k phi'` of the angle `phi` of the rotor, and its current
+    `i`, from `a` to `b`, exerts the torque `k i` on the angle, which adds to the Euler-Lagrange equation of the angle.
 
     Args:
         label:
             The label of the interaction, unique among the components of its system.
 
-        armature:
-            The path of the armature.
+        a:
+            The path of the node the current leaves.
 
-        inertia:
-            The path of the inertia.
+        b:
+            The path of the node the current enters.
+
+        winding:
+            The path of the element that holds the current `i` of the winding.
+
+        rotor:
+            The path of the inertia, whose angle is `phi`.
 
         k:
             The motor constant.
 
     Examples:
         >>> from skcomplex.systems.engineering.mechatronics import MotorCouplingInteraction
-        >>> MotorCouplingInteraction('motor', armature='winding', inertia='rotor', k=0.5).k
+        >>> MotorCouplingInteraction('motor', a='terminal', b='neutral', winding='winding', rotor='rotor', k=0.5).k
         0.5
     """
-
-    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        armature: Annotated[str, RoleSpec()],
-        inertia: Annotated[str, RoleSpec()],
-        k: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
+        a: Role,
+        b: Role,
+        winding: Role,
+        rotor: Role,
+        k: Annotated[float, POSITIVE] = 1.0,
     ) -> None:
-        super().__init__(label)
-        self.armature = armature
-        self.inertia = inertia
+        super().__init__(label, a=a, b=b)
+        self.winding = winding
+        self.rotor = rotor
         self.k = k
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the back electromotive force and the torque on the angle.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The equation laws of the coupling.
-        """
+    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the back electromotive force, the current into both balances, and the torque on the angle."""
+        i, phi = s.winding.i, s.rotor.phi
         return [
-            ConstraintLaw(s.armature.p_v - s.armature.n_v, s.k * derivative(s.inertia.phi, 1)),
-            ConstraintLaw(-s.k * s.armature.p_i, 0, target=s.inertia.phi),
+            ConstraintLaw(s.a.v - s.b.v, s.k * phi.diff(s.t), target=i),
+            ConstraintLaw(-i, 0, target=s.a.v),
+            ConstraintLaw(i, 0, target=s.b.v),
+            ConstraintLaw(-s.k * i, 0, target=phi),
         ]
 
 
@@ -239,8 +206,8 @@ def _get_speed_of_rotor(s: SimpleNamespace) -> Expression:
 
 
 def _get_current_of_winding(s: SimpleNamespace) -> Expression:
-    """Return the current of the armature."""
-    current: Expression = s.winding.p_i
+    """Return the current of the winding."""
+    current: Expression = s.winding.i
     return current
 
 
@@ -251,7 +218,7 @@ class DcMotorSystem(BaseSystem):
     resistor, an inductor, and the armature in series. The armature has the voltage `k phi'`, and its current exerts the
     torque `k i` on the angle of an inertia with viscous friction, so the angular velocity settles at
     `k V / (R b + k^2)`. The system has the angle `rotor.phi`, the angular velocity `rotor.phi_d1`, and the current
-    `winding.p_i`.
+    `winding.i`.
 
     Args:
         V:
@@ -336,18 +303,15 @@ class DcMotorSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[
-                VoltageSourceElement('source', V=self.V),
-                ResistorElement('resistor', R=self.R),
-                InductorElement('coil', L=self.L),
-                ArmatureElement('winding'),
-                GroundElement('ground'),
+                *[Element(name, values={'v': 0.0}) for name in ('supply', 'middle', 'terminal', 'neutral')],
+                *[Element(name, values={'i': 0.0}) for name in ('source', 'coil', 'winding', 'earth')],
                 InertiaElement('rotor', J=self.J, b=self.b),
             ],
             interactions=[
-                ConnectionInteraction('supply', members=['source', 'resistor'], ports=['p', 'p']),
-                ConnectionInteraction('series', members=['resistor', 'coil'], ports=['n', 'p']),
-                ConnectionInteraction('terminal', members=['coil', 'winding'], ports=['n', 'p']),
-                ConnectionInteraction('neutral', members=['winding', 'source', 'ground'], ports=['n', 'n', 'p']),
+                VoltageSourceInteraction('mains', a='supply', b='neutral', branch='source', V=self.V),
+                ResistorInteraction('resistor', a='supply', b='middle', R=self.R),
+                InductorInteraction('inductor', a='middle', b='terminal', branch='coil', L=self.L),
+                GroundInteraction('ground', node='neutral', branch='earth'),
                 EulerLagrangeInteraction(
                     'rotation',
                     target='rotor',
@@ -355,7 +319,14 @@ class DcMotorSystem(BaseSystem):
                     lagrangian=self._get_rotor_lagrangian,
                     dissipation=self._get_rotor_dissipation,
                 ),
-                MotorCouplingInteraction('motor', armature='winding', inertia='rotor', k=self.k),
+                MotorCouplingInteraction(
+                    'motor',
+                    a='terminal',
+                    b='neutral',
+                    winding='winding',
+                    rotor='rotor',
+                    k=self.k,
+                ),
             ],
         )
 

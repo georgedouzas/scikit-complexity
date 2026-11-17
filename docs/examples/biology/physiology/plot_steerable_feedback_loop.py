@@ -12,14 +12,13 @@ acting on the temperature receptors in fever, shifts the set point while it acts
 import matplotlib.pyplot as plt
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import SteerableFeedbackLoopSystem
 
 SYSTEM = 'steerable_feedback_loop'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-trajectory = simulate(SteerableFeedbackLoopSystem(), observers=[observer])
+trajectory = SteerableFeedbackLoopSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Set points and delay
@@ -32,7 +31,7 @@ def set_point(sensitivity):
     return brentq(lambda x: 2.0 / (1 + (x / sensitivity) ** 4) - x, 0.0, 3.0)
 
 
-delayed = simulate(SteerableFeedbackLoopSystem(tau=3.0))
+delayed = SteerableFeedbackLoopSystem(tau=3.0).prepare().simulate()
 fig, ax = plt.subplots(figsize=(8, 4.5))
 ax.plot(trajectory.times, trajectory.get_values('loop.x'), label='delay 0.5')
 ax.plot(delayed.times, delayed.get_values('loop.x'), alpha=0.6, label='delay 3')

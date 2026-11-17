@@ -15,7 +15,7 @@ settings.
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
-trajectory = simulate(SIRSystem())
+trajectory = SIRSystem().prepare().simulate()
 trajectory.get_values('I.x').max().round()
 ```
 
@@ -43,7 +43,7 @@ McKendrick (1927).
 
 ```python continuation
 system = SIRSystem()
-system.get_params(), system.get_tags().laws, system.get_run_settings()['until']
+system.get_params(), system.get_tags().laws, system.until
 ```
 
 The parameters are 990 susceptible, 10 infected, and 0 recovered people, the infection rate `beta = 0.0003`, the

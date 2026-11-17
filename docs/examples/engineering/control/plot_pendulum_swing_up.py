@@ -14,7 +14,6 @@ pendulum.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.control import PendulumSwingUpSystem
@@ -23,7 +22,7 @@ SYSTEM = 'pendulum_swing_up'
 
 system = PendulumSwingUpSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, solver=RK4Solver(dt=0.01), observers=[observer])
+trajectory = system.set_params(solver=RK4Solver(dt=0.01)).prepare().simulate(observers=[observer])
 
 # %%
 # Energy pumping
@@ -34,7 +33,7 @@ trajectory = simulate(system, solver=RK4Solver(dt=0.01), observers=[observer])
 # inverted position.
 
 omega = 1.5652475842498528
-theta, rate = trajectory.get_values('pendulum.theta'), trajectory.get_values('pendulum.theta_d1')
+theta, rate = trajectory.get_values('pendulum.theta'), trajectory.get_values("pendulum.theta'")
 energy = rate**2 / 2 - omega**2 * np.cos(theta)
 fig, (pumping, phase) = plt.subplots(1, 2, figsize=(10, 4))
 pumping.plot(trajectory.times, energy)

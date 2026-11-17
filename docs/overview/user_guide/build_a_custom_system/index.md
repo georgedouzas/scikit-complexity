@@ -121,7 +121,7 @@ class HareLynxSystem(ReactionNetworkSystem):
         }
 
 
-simulate(HareLynxSystem()).get_values('hares.x').round(1)[:6].tolist()
+HareLynxSystem().prepare().simulate().get_values('hares.x').round(1)[:6].tolist()
 ```
 
 The values match the composite system above. The class variables `until` and `dt` are tuned run settings, which

@@ -9,6 +9,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec
 from ...general.reactions import ReactionInteraction, ReactionNetworkSystem
 from ...general.reactions.types import Stoichiometry
@@ -303,8 +305,10 @@ class SIRSystem(ReactionNetworkSystem):
         gamma: float = 0.1,
         stochastic: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.susceptible = susceptible
         self.infected = infected
         self.recovered = recovered
@@ -383,8 +387,10 @@ class SISSystem(ReactionNetworkSystem):
         gamma: float = 0.1,
         stochastic: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.susceptible = susceptible
         self.infected = infected
         self.beta = beta
@@ -472,8 +478,10 @@ class SIRSSystem(ReactionNetworkSystem):
         xi: float = 0.02,
         stochastic: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.susceptible = susceptible
         self.infected = infected
         self.recovered = recovered
@@ -575,8 +583,10 @@ class ZombieOutbreakSystem(ReactionNetworkSystem):
         zeta: float = 0.0001,
         stochastic: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.susceptible = susceptible
         self.zombies = zombies
         self.removed = removed

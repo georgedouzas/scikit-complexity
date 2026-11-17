@@ -73,7 +73,7 @@ def test_signature_analysis_of_agents_without_motion():
 
 def test_signature_analysis_of_a_network():
     """Test that a network gives its degree distribution with its moments."""
-    signature = _signatures(simulate(NetworkDiffusionSystem(), until=0.5, random_state=0))[0]
+    signature = _signatures(NetworkDiffusionSystem().prepare().simulate(until=0.5, random_state=0))[0]
     assert signature.kind == 'network'
     assert signature.values['mean degree'] > 0
     assert 'clustering' in signature.values
