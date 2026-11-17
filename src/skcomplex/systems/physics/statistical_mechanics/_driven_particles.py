@@ -15,13 +15,11 @@ from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, TransferInteraction
 from ....core.components.laws import Source
 from ....core.components.laws.utils import where
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend, NumbaBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -377,7 +375,7 @@ class ZeroRangeHopsInteraction(TransferInteraction):
         return s.q * ZeroRangeHopInteraction._get_departure_rate(s.target.n, s.b)
 
 
-class ZeroRangeProcessSystem(OldBaseSystem):
+class ZeroRangeProcessSystem(BaseSystem):
     """The zero-range process on a ring.
 
     The process condenses above the critical density `1 / (b - 2)` for `b > 2`.
@@ -409,6 +407,12 @@ class ZeroRangeProcessSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ZeroRangeProcessSystem
         >>> system = ZeroRangeProcessSystem(10, density=2.0).prepare().system_
@@ -421,7 +425,6 @@ class ZeroRangeProcessSystem(OldBaseSystem):
     references = ('Evans and Hanney 2005', 'Bertin 2021')
     until = 2000.0
     dt = 10.0
-    backend = NumbaBackend()
 
     def __init__(
         self,
@@ -433,8 +436,10 @@ class ZeroRangeProcessSystem(OldBaseSystem):
         q: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.density = density
         self.b = b
@@ -451,20 +456,20 @@ class ZeroRangeProcessSystem(OldBaseSystem):
         sites = np.random.default_rng(random_state).integers(0, n_sites, n_particles)
         return np.bincount(sites, minlength=n_sites).astype(float)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the zero-range process on a ring, with the particles scattered on random sites, run on Numba.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         occupations = self._scatter(round(self.density * self.n_sites), self.n_sites, self.random_state)
-        sites = GroupElement(
-            'sites',
-            element=ParticleSiteElement,
-            space=LatticeSpace(self.n_sites),
-            values={'n': occupations},
-            on='sites',
-        )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[sites],
+            elements=[Element('sites', values={'n': occupations}, space=LatticeSpace(self.n_sites))],
             interactions=[ZeroRangeHopsInteraction('hops', sites='sites', p=self.p, q=self.q, b=self.b)],
+            backend=NumbaBackend(),
         )
 
 
