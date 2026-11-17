@@ -2,11 +2,11 @@
 
 from sage.all__sagemath_gap import libgap
 
-from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.systems.computer_science.automata import (
     grigorchuk_group,
     heisenberg,
 )
+from skcomplex.systems.computer_science.common.automata import CayleySpace, MemoryNeighborhood
 
 from .conftest import GRIGORCHUK_BALLS
 

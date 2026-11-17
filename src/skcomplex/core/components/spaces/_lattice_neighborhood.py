@@ -3,6 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
+from collections.abc import Hashable, Sequence
 
 import numpy as np
 
@@ -51,6 +54,26 @@ class LatticeNeighborhood(BaseNeighborhood):
         They fix their own number of dimensions.
         """
         return self.prepare().offsets_
+
+    def _join_slots(self, base: Hashable, slot: Hashable) -> IntTuple:
+        """Return the sum of an offset and the base offset it is read after.
+
+        Args:
+            base:
+                The offset read first, such as `(1, 0)`.
+
+            slot:
+                The offset read after it, such as `(0, -1)`.
+
+        Returns:
+            offset:
+                The sum of both, such as `(1, -1)`.
+        """
+        return tuple(int(step) for step in np.array(base, ndmin=1) + np.array(slot, ndmin=1))
+
+    def _get_from_slots(self, slots: Sequence[Hashable]) -> LatticeNeighborhood:
+        """Return the lattice neighbourhood of other offsets."""
+        return LatticeNeighborhood(tuple(tuple(int(step) for step in np.array(slot, ndmin=1)) for slot in slots))
 
     def _prepare(self, context: None = None) -> None:
         """Set `offsets_`, the offsets as tuples of integers.
