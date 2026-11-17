@@ -17,15 +17,18 @@ from pysat.formula import IDPool
 from pysat.solvers import Solver
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import BaseSpace, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import BaseSpace
 from ....core.components.types import SystemViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.enums import ElementKind
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 SENSES = ('at-least', 'at-most')
 
@@ -299,6 +302,12 @@ class PerceptronSatisfiabilitySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The number of weights is even, so a pattern can tie.
@@ -321,14 +330,17 @@ class PerceptronSatisfiabilitySystem(BaseSystem):
         load: float = 1.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_weights = n_weights
         self.load = load
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         if self.n_weights % 2 == 0:
             error_msg = (
                 f'perceptron_satisfiability has n_weights={self.n_weights!r}. Use an odd number, so no pattern ties.'
@@ -344,4 +356,4 @@ class PerceptronSatisfiabilitySystem(BaseSystem):
         ]
         weights = GroupElement('weights', element=BinaryWeightElement, size=self.n_weights)
         decide = SatisfiabilityInteraction('decide', target='weights', state='on', constraints=constraints)
-        return CompositeSystem(self.label, elements=[weights], interactions=[decide], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[weights], interactions=[decide])

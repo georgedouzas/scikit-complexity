@@ -16,15 +16,15 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.analysis import ReservoirResult, reservoir
+from ....core.components import Observable
 from ....core.components.elements import DeclaredElement, Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.laws.utils import lag
-from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.runtime import simulate
-from ....core.engine.solvers import ScipyODESolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 LORENZ_START = (-8.0, 8.0, 27.0)
@@ -119,6 +119,12 @@ class NextGenerationReservoirSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The result is not that of a next-generation reservoir.
@@ -151,8 +157,10 @@ class NextGenerationReservoirSystem(BaseSystem):
         samples: int = 403,
         step: float = 0.025,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.series = series
         self.result = result
         self.variables = variables
@@ -180,13 +188,12 @@ class NextGenerationReservoirSystem(BaseSystem):
             'y': lambda s: s.target.x * (rho - s.target.z) - s.target.y,
             'z': lambda s: s.target.x * s.target.y - beta * s.target.z,
         }
-        system = CompositeSystem(
+        system = System(
             elements=[LorenzFlowElement('flow')],
             interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
-            time=ContinuousTime(),
+            solver=ScipyODESolver(method='RK23', rtol=LORENZ_RTOL, atol=LORENZ_ATOL),
         )
-        solver = ScipyODESolver(method='RK23', rtol=LORENZ_RTOL, atol=LORENZ_ATOL)
-        trajectory = simulate(system, until=LORENZ_TRANSIENT + step * (samples - 1), solver=solver, dt=step)
+        trajectory = system.prepare().simulate(until=LORENZ_TRANSIENT + step * (samples - 1), dt=step)
         values: Array = np.column_stack(
             [np.asarray(trajectory.get_values(f'flow.{name}'), dtype=np.float64) for name in LORENZ_VARIABLES],
         )
@@ -263,11 +270,9 @@ class NextGenerationReservoirSystem(BaseSystem):
             dt=step,
         )
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a next-generation reservoir computer.
-
-        Its variables follow the ridge readout of their monomials.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         fitted = self.result or self._fit_reservoir(
             self.series,
             self.variables,
@@ -309,4 +314,4 @@ class NextGenerationReservoirSystem(BaseSystem):
             )
             for index, name in enumerate(names)
         ]
-        return CompositeSystem(self.label, elements=[element], interactions=maps, time=DiscreteTime())
+        self.system_ = System(self.label, elements=[element], interactions=maps)

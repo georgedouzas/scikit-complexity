@@ -8,12 +8,9 @@ import pytest
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleElementError, ValidationError
-from skcomplex.core.experiments import sweep
 from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.neural_networks import (
     CardinalitySpec,
     ClauseSpec,
@@ -26,10 +23,11 @@ STEPS = 26
 
 def _satisfiable_shares(n_weights: int) -> np.ndarray:
     """Return the share of 20 seeds that are satisfiable at every number of patterns."""
-    bounds = {'n_weights': [n_weights], 'random_state': list(range(20))}
-    outputs = ['decide.satisfiable']
-    result = sweep(PerceptronSatisfiabilitySystem, bounds, until=STEPS, outputs=outputs)
-    return result.get_series('decide.satisfiable').mean(axis=0)
+    runs = [
+        PerceptronSatisfiabilitySystem(n_weights, random_state=seed).prepare().simulate(until=STEPS)
+        for seed in range(20)
+    ]
+    return np.mean([run.get_values('decide.satisfiable') for run in runs], axis=0)
 
 
 @pytest.mark.parametrize('n_weights', [15, 21])
@@ -68,7 +66,7 @@ def _pattern_constraint(pattern: np.ndarray, output: int) -> CardinalitySpec:
     return CardinalitySpec(literals, (len(pattern) + 1) // 2)
 
 
-def _perceptron(size: int, count: int, seed: int) -> tuple[CompositeSystem, np.ndarray, np.ndarray]:
+def _perceptron(size: int, count: int, seed: int) -> tuple[System, np.ndarray, np.ndarray]:
     """Return a perceptron of Boolean weights that reveals random patterns, with the patterns and outputs."""
     rng = np.random.default_rng(seed)
     patterns = rng.choice([-1, 1], (count, size))
@@ -76,7 +74,7 @@ def _perceptron(size: int, count: int, seed: int) -> tuple[CompositeSystem, np.n
     constraints = [_pattern_constraint(pattern, int(output)) for pattern, output in zip(patterns, outputs, strict=True)]
     group = GroupElement('weights', element=WeightElement, size=size)
     decide = SatisfiabilityInteraction('decide', target='weights', state='on', constraints=constraints)
-    return CompositeSystem(elements=[group], interactions=[decide], time=DiscreteTime()), patterns, outputs
+    return System(elements=[group], interactions=[decide]), patterns, outputs
 
 
 def _holds(weights: np.ndarray, patterns: np.ndarray, outputs: np.ndarray) -> np.ndarray:
@@ -99,15 +97,15 @@ def test_prepare_compiler_real_state() -> None:
     """Test that a state that is not Boolean is reported by the role domain check with the role and the state."""
     group = GroupElement('weights', element=RealWeightElement, size=3)
     decide = SatisfiabilityInteraction('decide', target='weights', state='on', constraints=[ClauseSpec((1,))])
-    system = CompositeSystem(elements=[group], interactions=[decide], time=DiscreteTime())
+    system = System(elements=[group], interactions=[decide])
     with pytest.raises(RoleElementError, match='on'):
-        simulate(system, until=1)
+        system.prepare().simulate(until=1)
 
 
 def test_run_small_perceptron_matches_enumeration() -> None:
     """Test that the verdict of every step equals enumerating all weights and that assignments satisfy the patterns."""
     system, patterns, outputs = _perceptron(3, 8, 0)
-    trajectory = simulate(system, until=8, random_state=0)
+    trajectory = system.prepare().simulate(until=8, random_state=0)
     verdicts = trajectory.get_values('decide.satisfiable')
     candidates = [np.asarray(item) for item in itertools.product([-1, 1], repeat=3)]
     for step in range(1, 9):
@@ -124,8 +122,12 @@ def test_run_capacity_of_binary_perceptron() -> None:
     loads = []
     for seed in range(20):
         system, _, _ = _perceptron(21, 40, seed)
-        verdicts = simulate(system, until=40, random_state=seed).get_values(
-            'decide.satisfiable',
+        verdicts = (
+            system.prepare()
+            .simulate(until=40, random_state=seed)
+            .get_values(
+                'decide.satisfiable',
+            )
         )
         loads.append(int(np.argmax(verdicts[1:] == 0)) + 1)
     assert 0.7 <= np.mean(loads) / 21 <= 1.0
