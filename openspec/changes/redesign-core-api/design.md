@@ -110,6 +110,11 @@ class Particle(Element):
 - `Element(label, values={...})` covers elements without a class of their own, such as
   `Element('ball', values={'x': 10.0, 'm': 1.0})` or a model whose names come from a file, so `DeclaredElement` goes. A subclass adds named values as constructor arguments, and both kinds of value are
   inferred alike.
+- `on='edges'` or `on='hyperedges'` puts one member on every link or hyperedge of a network space instead of every
+  site, such as `Element('links', values={'sign': 1}, space=network, on='edges')` for the signed links of triadic
+  percolation. Interactions read them through the `along=` layer binding.
+- A group has no capacity. When rules or topology add members, the engine enlarges the arrays of the group as a Python
+  list grows, so a network may start empty and grow without a setting.
 - A value named after an axis of the element's space is a position, with no flag. In
   `Element('walker', values={'x': 0.0}, space=ContinuousSpace(...))` the value `x` is the position of the walker, which
   walks, particle analyses, and drawings read. `role` and the other flags of `StateSpec` go.
@@ -212,6 +217,14 @@ Two kinds of model need forms that the table above does not name yet.
   `UpdateLaw(s.target, move)` with `def move(agent, system): agent.x += system.rng.normal()`. Births and deaths are
   rules that add or remove members of the group, as a branching process does. The agent solver runs the rules, so
   `AgentView`, `form='agent'`, and `BirthDeathInteraction` go, and the activation schedule is a setting of that solver.
+- Rules of a whole system. A rule whose target is the namespace of the system itself, `UpdateLaw(s, rule)` with
+  `def rule(system): ...`, runs once per step after the rules of the agents, such as the matching of riders and
+  drivers or a braking event drawn for the whole road.
+- Positions of agents. The values of an agent named after the axes of its space are its location, which the agent
+  solver places it at and moves it to, on a continuous space and on the cells of a lattice alike.
+- Local rules. A function of a cell and its neighbours is an `UpdateLaw` with a neighbourhood binding, such as
+  `UpdateLaw(s.target.alive, life, neighbors=MooreNeighborhood())`, lowered to the same lookup tables and fused lattice
+  kernels as `LocalRuleLaw`, which then goes.
 - Fractional orders. A derivative of order `alpha` between 0 and 1 is the core operator `fractional(x, alpha)`, used as
   the target of a `RateLaw`, such as `RateLaw(fractional(s.target.x, 0.5), -s.k * s.target.x)` for anomalous
   relaxation. Sage has no such derivative, so the operator carries the order and the Caputo solver reads it.
@@ -264,6 +277,9 @@ private. Compiling it is the expensive step, so `prepare` does it once and every
 | `cross_val_score`, `GridSearchCV` | `ensemble`, `sweep`, `calibrate`, `sensitivity`, `basin_stability`, as functions |
 | `fit` calling `_fit` | every component's `prepare` calling its `_prepare`, which sets `laws_` on an interaction and `system_` on a ready-made system |
 
+- Each nested `System` keeps the time its own laws imply. A discrete child inside a continuous parent steps once per
+  unit of its time, as co-simulation does, so a controller that updates every second can drive a continuous plant, and
+  a training loop in epochs can hold a network that runs in steps. No time argument comes back.
 - `CompositeSystem` becomes `System`. A system holds a label, elements, interactions, nested systems, a space, a
   solver, and a backend, and nothing else. Time is inferred from the law kinds: rates flow in continuous time, updates
   step in discrete time, and objectives and constraints alone are static. An activation schedule of agents is a setting
