@@ -24,7 +24,11 @@ from ._collective import (
     TonerTuSystem,
 )
 from ._collisions import BinaryCollisionFlockingSystem, BinaryCollisionsInteraction, FlockerElement, FlockerView
-from ._deformable import DeformableActiveParticlesSystem, DeformableParticleElement
+from ._deformable import (
+    DeformableActiveParticlesSystem,
+    DeformableParticleElement,
+    ShapeVelocityCouplingInteraction,
+)
 from ._flocks import (
     CohesiveParticleElement,
     DelayedVicsekParticleElement,
@@ -128,6 +132,7 @@ __all__: list[str] = [
     'PropulsionStepInteraction',
     'RunAndTumbleSystem',
     'SelfPropulsionInteraction',
+    'ShapeVelocityCouplingInteraction',
     'SquirmerElement',
     'SquirmerSlipInteraction',
     'SquirmersSystem',
