@@ -7,34 +7,65 @@ A linear Langevin equation is driven by Ornstein-Uhlenbeck noise of finite corre
 # License: MIT
 
 import math
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import RateInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec
-from ..common.particles import RelaxationTimeInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class ColoredNoiseParticleElement(Element):
-    """Particle with the velocity `v`, driven by the noise `xi`.
-
-    The noise has the correlation time `tau`.
+    """Particles with the velocities `v`, driven by the noise `xi`.
 
     Args:
         label:
-            The label of the particle.
+            The label of the particles.
 
         v:
-            The initial velocity.
+            The initial velocity, one per particle or shared.
 
         xi:
-            The initial noise.
+            The initial noise, one per particle or shared.
+
+        size:
+            The number of particles, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import ColoredNoiseParticleElement
+        >>> ColoredNoiseParticleElement('particle', xi=0.5).xi
+        0.5
+    """
+
+    def __init__(self, label: str, *, v: object = 0.0, xi: object = 0.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.v = v
+        self.xi = xi
+
+
+class ColoredNoiseInteraction(Interaction):
+    """Friction and Ornstein-Uhlenbeck noise `xi` of finite correlation time on the velocity `v`.
+
+    The velocity follows `dv/dt = -gamma v + xi` and the noise `tau dxi = -xi dt + sqrt(2 D) dW`. It is a colloid in an
+    active bath, or a particle pushed by a fluctuating field with a memory.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particles.
 
         gamma:
             The friction coefficient.
@@ -46,27 +77,44 @@ class ColoredNoiseParticleElement(Element):
             The correlation time of the noise.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import ColoredNoiseParticleElement
-        >>> ColoredNoiseParticleElement('particle', tau=0.5).tau
+        >>> from skcomplex.systems.physics.soft_matter import ColoredNoiseInteraction
+        >>> ColoredNoiseInteraction('langevin', target='particles', tau=0.5).tau
         0.5
     """
+
+    law_classes = (RateLaw, NoiseLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        v: Annotated[float, StateSpec()] = 0.0,
-        xi: Annotated[float, StateSpec()] = 0.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        D: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
-        self.v = v
-        self.xi = xi
+        self.target = target
         self.gamma = gamma
         self.D = D
         self.tau = tau
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the velocity and the noise of the target, and the noise of the noise.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context, context.t
+            v, xi = s.target.v, s.target.xi
+            self.laws_ = [
+                RateLaw(v.diff(t), -s.gamma * v + xi),
+                RateLaw(xi.diff(t), -xi / s.tau),
+                NoiseLaw(xi, sqrt(2 * s.D) / s.tau),
+            ]
 
 
 class ColoredNoiseLangevinSystem(BaseSystem):
@@ -99,9 +147,15 @@ class ColoredNoiseLangevinSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import ColoredNoiseLangevinSystem
-        >>> ColoredNoiseLangevinSystem(10, tau=0.5).prepare().system_.elements[0].values['tau']
+        >>> ColoredNoiseLangevinSystem(10, tau=0.5).prepare().system_.interactions[0].tau
         0.5
     """
 
@@ -110,7 +164,6 @@ class ColoredNoiseLangevinSystem(BaseSystem):
     references = ('Bertin 2021', 'Hänggi and Jung 1995')
     until = 50.0
     dt = 0.1
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -121,37 +174,30 @@ class ColoredNoiseLangevinSystem(BaseSystem):
         tau: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.gamma = gamma
         self.D = D
         self.tau = tau
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return particles whose velocity is driven by Ornstein-Uhlenbeck noise `xi`.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of particles whose velocity is driven by Ornstein-Uhlenbeck noise.
 
-        The velocity follows `dv/dt = -gamma v + xi`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         noise = np.random.default_rng(self.random_state).normal(0.0, math.sqrt(self.D / self.tau), self.n_particles)
-        particles = GroupElement(
-            'particles',
-            element=ColoredNoiseParticleElement,
-            size=self.n_particles,
-            values={'xi': noise, 'gamma': self.gamma, 'D': self.D, 'tau': self.tau},
+        self.system_ = System(
+            self.label,
+            elements=[ColoredNoiseParticleElement('particles', xi=noise, size=self.n_particles)],
+            interactions=[
+                ColoredNoiseInteraction('langevin', target='particles', gamma=self.gamma, D=self.D, tau=self.tau),
+            ],
+            solver=EulerMaruyamaSolver(dt=0.01),
         )
-        drag = RateInteraction(
-            'drag',
-            target='particles',
-            state='v',
-            rate=lambda s: -s.target.gamma * s.target.v + s.target.xi,
-        )
-        noise = RelaxationTimeInteraction(
-            'noise',
-            target='particles',
-            state='xi',
-            time=lambda s: s.target.tau,
-            noise=lambda s: sqrt(2 * s.target.D) / s.target.tau,
-        )
-        return CompositeSystem(self.label, elements=[particles], interactions=[drag, noise])

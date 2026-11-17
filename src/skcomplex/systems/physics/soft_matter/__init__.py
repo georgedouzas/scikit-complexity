@@ -17,7 +17,7 @@ from ._anomalous import (
     TransientWalkerElement,
 )
 from ._brownian import BrownianNearWallSystem, StochasticResonanceSystem, WallMobilityInteraction, WallParticleElement
-from ._colored_noise import ColoredNoiseLangevinSystem, ColoredNoiseParticleElement
+from ._colored_noise import ColoredNoiseInteraction, ColoredNoiseLangevinSystem, ColoredNoiseParticleElement
 from ._coupled_traps import BlinkingTrapsInteraction, HydrodynamicallyCoupledTrapsSystem, TrappedSphereElement
 from ._diffusion import (
     BrownianMotionSystem,
@@ -57,6 +57,7 @@ __all__: list[str] = [
     'BrownianMotionSystem',
     'BrownianNearWallSystem',
     'BrownianParticleElement',
+    'ColoredNoiseInteraction',
     'ColoredNoiseLangevinSystem',
     'ColoredNoiseParticleElement',
     'ContinuousTimeRandomWalkSystem',
