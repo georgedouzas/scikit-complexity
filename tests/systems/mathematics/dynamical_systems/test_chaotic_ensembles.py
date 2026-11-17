@@ -30,17 +30,17 @@ def _assert_uniform(points):
 @pytest.mark.parametrize('a', [0.3, 0.8])
 def test_skew_tent_map_invariant_density_is_uniform(a):
     """Test that 10000 points iterated 200 steps fill every one of 20 bins within four binomial deviations."""
-    system = SkewTentMapSystem(ENSEMBLE_SIZE, a=a, random_state=1)
-    points = simulate(system, until=STEPS, dt=1).get_values('points.x')
+    system = SkewTentMapSystem(ENSEMBLE_SIZE, a=a, random_state=1).prepare()
+    points = system.simulate(STEPS, dt=1).get_values('points.x')
     assert np.ptp(points[0]) <= 0.01
     _assert_uniform(points[-1])
 
 
 def test_doubling_map_iterates_fractions_exactly():
     """Test that the doubling map follows `k' = 2k mod q` exactly well beyond the floating-point collapse."""
-    system = DoublingMapSystem(ENSEMBLE_SIZE, random_state=2).prepare().system_
-    denominator = int(system.elements[0].values['q'])
-    points = simulate(system, until=STEPS, dt=1).get_values('points.x')
+    system = DoublingMapSystem(ENSEMBLE_SIZE, random_state=2).prepare()
+    denominator = int(system.q)
+    points = system.simulate(STEPS, dt=1).get_values('points.x')
     numerators = [round(value * denominator) for value in points[0]]
     for _ in range(STEPS):
         numerators = [2 * numerator % denominator for numerator in numerators]

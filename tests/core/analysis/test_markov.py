@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import MarkovResult, markov
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
 
@@ -275,7 +274,7 @@ def test_stationary_distribution_of_a_path():
 
 def test_markov_analysis_reads_the_jump_path_of_a_trajectory():
     """Test that a trajectory of a jump process gives the transition matrix of its jump path."""
-    trajectory = simulate(PoissonProcessSystem(n_processes=1), until=30.0, random_state=0)
+    trajectory = PoissonProcessSystem(n_processes=1).prepare().simulate(30.0, random_state=0)
     matrix = _markov('transition-matrix', trajectory).transition_matrix
     np.testing.assert_allclose(matrix.sum(axis=1), 1)
 

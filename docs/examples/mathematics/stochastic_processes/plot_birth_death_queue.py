@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import BirthDeathQueueSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'birth_death_queue'
 
 system = BirthDeathQueueSystem(n_queues=3, arrival_rate=0.5, service_rate=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=59.8, dt=0.2, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(59.8, dt=0.2, observers=[observer], random_state=0)
 
 # %%
 # Stationary distribution
@@ -36,13 +35,8 @@ trajectory = simulate(system, until=59.8, dt=0.2, observers=[observer], random_s
 loads = np.array([0.2, 0.4, 0.5, 0.6, 0.8])
 occupations, means = {}, []
 for rho in loads:
-    run = simulate(
-        BirthDeathQueueSystem(n_queues=200, arrival_rate=rho),
-        until=2000,
-        dt=0.5,
-        random_state=1,
-        backend=NumbaBackend(),
-    )
+    queues = BirthDeathQueueSystem(n_queues=200, arrival_rate=rho).prepare().system_
+    run = queues.set_params(backend=NumbaBackend()).prepare().simulate(2000, dt=0.5, random_state=1)
     lengths = run.get_values('queues.n')[200:]
     counts = np.bincount(lengths.astype(int).ravel(), minlength=12)[:12]
     occupations[rho] = np.where(counts >= 100, counts / lengths.size, np.nan)

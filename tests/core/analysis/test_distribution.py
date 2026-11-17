@@ -128,7 +128,7 @@ def test_moments_of_absolute_samples_and_of_agent_speeds():
 
 def test_dispersion_index_of_poisson_and_bursty_production():
     """Test that Gillespie production counts give a dispersion index near 1 and bursty mRNA copies near 5."""
-    trajectory = simulate(PoissonProcessSystem(n_processes=1), until=50_000.0, random_state=0)
+    trajectory = PoissonProcessSystem(n_processes=1).prepare().simulate(50_000.0, random_state=0)
     counts = np.diff(trajectory.get_values('counters.count')[:, 0][::10])
     assert _distribution('dispersion-index', counts).index[0] == pytest.approx(1, abs=0.05)
     bursty = _bursty_expression(np.random.default_rng(0), 20_000)

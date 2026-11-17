@@ -7,14 +7,14 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem
+from skcomplex.core.components.systems import BaseSystem as OldBaseSystem
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.problems import ProblemSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import RegistryError, ValidationError
-from skcomplex.core.systems import BaseSystem as PreparedSystem
-from skcomplex.core.systems import System
+from skcomplex.core.systems import BaseSystem
 from skcomplex.systems import all_systems
 from skcomplex.systems._catalog import _SystemClasses
 from skcomplex.systems.biology.common.populations import (
@@ -54,21 +54,6 @@ def _undeclared_laws(system: CompositeSystem) -> list[str]:
         if interaction.get_requirements().laws and not isinstance(law, interaction.get_requirements().laws)
     ]
     return found + [item for child in system.systems for item in _undeclared_laws(child)]
-
-
-def _get_settings(system: BaseSystem | PreparedSystem) -> tuple[float | None, float | None]:
-    """Return the tuned end time and time between frames of a ready-made system."""
-    if isinstance(system, PreparedSystem):
-        return system.until, system.dt
-    settings = system.get_run_settings()
-    return settings['until'], settings['dt']
-
-
-def _simulate(system: BaseSystem | PreparedSystem, **arguments: object):
-    """Return the trajectory of a ready-made system, prepared and simulated when it is written on `prepare`."""
-    if isinstance(system, PreparedSystem):
-        return system.prepare().simulate(**arguments)
-    return simulate(system, **arguments)
 
 
 def test_run_settings_depend_on_the_model_parameters():
@@ -213,16 +198,23 @@ def test_simulate_uses_the_tuned_settings():
     [pytest.param(system, marks=pytest.mark.slow) if name in SLOW else system for name, system in all_systems()],
     ids=lambda system: system.__name__,
 )
-def test_system_conforms(system: type[BaseSystem], tmp_path: Path):
+def test_system_conforms(system: type[BaseSystem | OldBaseSystem], tmp_path: Path):
     """Test that a ready-made system is built, validated, compiled, simulated, logged, and cloned generically."""
     built = system()
-    tuned, step = _get_settings(built)
-    dt = step or 1.0
-    until = CONFORMANCE_FRAMES * dt if tuned is None else min(tuned, CONFORMANCE_FRAMES * dt)
     observer = RerunObserver(system.__name__, save_path=tmp_path / 'run.rrd')
-    trajectory = _simulate(built, until=until, observers=[observer], random_state=0)
+    if isinstance(built, BaseSystem):
+        dt = built.dt or 1.0
+        until = CONFORMANCE_FRAMES * dt if built.until is None else min(built.until, CONFORMANCE_FRAMES * dt)
+        trajectory = built.prepare().simulate(until, observers=[observer], random_state=0)
+        assert _undeclared_laws(built.system_._composite) == []
+    else:
+        settings = built.get_run_settings()
+        dt = settings['dt'] or 1.0
+        tuned = settings['until']
+        until = CONFORMANCE_FRAMES * dt if tuned is None else min(tuned, CONFORMANCE_FRAMES * dt)
+        trajectory = simulate(built, until=until, observers=[observer], random_state=0)
+        assert _undeclared_laws(built.system_) == []
     problem = trajectory.problem
-    assert _undeclared_laws(built.system_) == []
     assert observer.logged_frames_ == len(trajectory.times)
     for name in problem.states.names:
         assert len(trajectory.get_values(name)) == len(trajectory.times)
@@ -232,16 +224,18 @@ def test_system_conforms(system: type[BaseSystem], tmp_path: Path):
         )
     copy = clone(built)
     assert copy is not built
-    assert _simulate(copy, until=0, random_state=0).problem.states.names == problem.states.names
+    if isinstance(copy, BaseSystem):
+        assert copy.prepare().simulate(0, random_state=0).problem.states.names == problem.states.names
+    else:
+        assert simulate(copy, until=0, random_state=0).problem.states.names == problem.states.names
 
 
 @pytest.mark.parametrize('system', [system for _, system in all_systems()], ids=lambda system: system.__name__)
-def test_jacobian_pattern_holds_finite_differences(system: type[BaseSystem]):
+def test_jacobian_pattern_holds_finite_differences(system: type[BaseSystem | OldBaseSystem]):
     """Test that the Jacobian pattern of every system with an ODE form holds its finite differences at random states."""
     built = system()
-    if isinstance(built, PreparedSystem):
-        built = System(systems=[built], backend=NumpyBackend()).prepare()
-        problem = built.simulate(until=0, random_state=0).problem
+    if isinstance(built, BaseSystem):
+        problem = built.prepare().system_._problem
     else:
         problem = simulate(built, until=0, backend=NumpyBackend(), random_state=0).problem
     if not isinstance(problem, ProblemSpec) or problem.jacobian is None or problem.delays or problem.drift is None:
@@ -259,9 +253,13 @@ def test_seeded_runs_of_a_stochastic_system_repeat():
     gas = simulate(IdealGasSystem(), random_state=0).get_values('gas.x_d1')
     np.testing.assert_array_equal(gas, simulate(IdealGasSystem(), random_state=0).get_values('gas.x_d1'))
     assert not np.array_equal(gas, simulate(IdealGasSystem(random_state=None), random_state=0).get_values('gas.x_d1'))
-    counts = simulate(PoissonProcessSystem(), random_state=0).get_values('counters.count')
-    np.testing.assert_array_equal(counts, simulate(PoissonProcessSystem(), random_state=0).get_values('counters.count'))
-    assert not np.array_equal(counts, simulate(PoissonProcessSystem(), random_state=None).get_values('counters.count'))
+    counts = PoissonProcessSystem().prepare().simulate(random_state=0).get_values('counters.count')
+    np.testing.assert_array_equal(
+        counts, PoissonProcessSystem().prepare().simulate(random_state=0).get_values('counters.count'),
+    )
+    assert not np.array_equal(
+        counts, PoissonProcessSystem().prepare().simulate(random_state=None).get_values('counters.count'),
+    )
 
 
 def test_all_systems_lists_no_general_class():

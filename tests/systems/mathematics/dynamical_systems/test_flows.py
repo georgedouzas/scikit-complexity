@@ -22,7 +22,7 @@ from ..conftest import _run
 
 def test_jerk_is_bounded():
     """Test that Sprott's jerk equation stays on its bounded attractor."""
-    x = simulate(SprottJerkSystem(), random_state=0).get_values('jerk.x')
+    x = SprottJerkSystem().prepare().simulate(random_state=0).get_values('jerk.x')
     assert np.all(np.isfinite(x))
     assert np.abs(x).max() < 10
 

@@ -11,14 +11,13 @@ the previous one, and the state diverges at the finite time `t* = 1 / x0`: a sin
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import FiniteTimeBlowUpSystem
 
 SYSTEM = 'finite_time_blow_up'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(FiniteTimeBlowUpSystem(), until=0.99, dt=0.001, observers=[observer])
+trajectory = FiniteTimeBlowUpSystem().prepare().simulate(0.99, dt=0.001, observers=[observer])
 
 # %%
 # Approach to the singularity
@@ -30,7 +29,7 @@ trajectory = simulate(FiniteTimeBlowUpSystem(), until=0.99, dt=0.001, observers=
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for p in (1.5, 2.0, 3.0):
     singular = 1 / (p - 1)
-    trajectory = simulate(FiniteTimeBlowUpSystem(p=p), until=0.999 * singular, dt=singular / 2000)
+    trajectory = FiniteTimeBlowUpSystem(p=p).prepare().simulate(0.999 * singular, dt=singular / 2000)
     remaining = singular - trajectory.times
     (line,) = ax.loglog(remaining, trajectory.get_values('growth.x'), label=f'p = {p}')
     ax.loglog(remaining, ((p - 1) * remaining) ** (-1 / (p - 1)), ':', color='black')

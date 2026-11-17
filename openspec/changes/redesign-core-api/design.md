@@ -110,6 +110,13 @@ class Particle(Element):
 - `Element(label, values={...})` covers elements without a class of their own, such as
   `Element('ball', values={'x': 10.0, 'm': 1.0})` or a model whose names come from a file, so `DeclaredElement` goes. A subclass adds named values as constructor arguments, and both kinds of value are
   inferred alike.
+- A value named after an axis of the element's space is a position, with no flag. In
+  `Element('walker', values={'x': 0.0}, space=ContinuousSpace(...))` the value `x` is the position of the walker, which
+  walks, particle analyses, and drawings read. `role` and the other flags of `StateSpec` go.
+- A value of a group whose members are added or removed is a state even when no law changes it, since it grows and
+  shrinks with the group. The degree of each node of a growing network is recorded at every step for this reason.
+- A value given as an `int` is an integer, also when it comes through `values=`, and a complex value is a complex state
+  that a law may target like a real one, such as the `z` of a Julia set.
 - `visual=` leaves every element. An element class gives its default drawing in its class attribute, such as
   `visual = VisualSpec('phase_ring', {'phase': 'theta'})`, and a group or field draws like its member class. The
   visualisation observer draws chosen elements otherwise by path, such as
@@ -182,7 +189,7 @@ every kind where adding means something: rates, noises, jump channels, and const
 
 | Current law | New form |
 | --- | --- |
-| `RateLaw`, `GeneratorLaw` | `RateLaw`. The linear generator of quantum evolution is a `RateLaw` written with operators in the quantum package |
+| `RateLaw`, `GeneratorLaw` | `RateLaw`, and `GeneratorLaw` with `HilbertSpec` and a `QuantumCompiler` in the quantum package |
 | `NoiseLaw` | `NoiseLaw` |
 | `JumpLaw`, `TransferLaw`, `Source`, `Sink` | `JumpLaw` with a change mapping, where an empty side is a source or a sink |
 | `UpdateLaw`, `ArrayUpdateLaw`, `RuleLaw`, `LocalRuleLaw`, `TransitionLaw` | `UpdateLaw`, with a random draw for transitions and a neighbourhood binding for local rules |
@@ -190,13 +197,24 @@ every kind where adding means something: rates, noises, jump channels, and const
 | `CrossingLaw` | `EventLaw` |
 | `LinearProgramLaw` | `ObjectiveLaw` with `ConstraintLaw`, solved as a linear program when both are linear |
 | `SampleLaw` | `ObjectiveLaw` with a sampling solver |
-| `FluxLaw` | `RateLaw` with `divergence`, and the finite-volume scheme as a solver setting of the fluids package |
+| `FluxLaw` | `RateLaw(u, -divergence(flux))` on a finite-volume field, whose `FiniteVolumeSpec` holds the limiter and the Riemann solver. The scheme stays in the core |
 | `DissipatorLaw` | the quantum package, with its solver |
-| `CascadeLaw`, `ExtremalLaw` | the criticality package, with its solvers |
+| `CascadeLaw`, `ExtremalLaw` | `UpdateLaw(state, relax(rules, stable, drive=...))` with the core operator `relax`, and Bak-Sneppen as an `UpdateLaw` on the site where `argmin` falls |
 | `ProductionLaw`, `SubstitutionLaw` | the package of rewriting systems, with its solvers |
-| `BilinearLaw` | the package of kinetic models, with its solver |
-| `MatchLaw` | `skcomplex.systems.general`, as an `UpdateLaw` |
-| `GradientStepLaw` | the learning package, as an `UpdateLaw` |
+| `BilinearLaw` | `RateLaw(target, bilinear(rate, outcomes, first, second))` with the core operator `bilinear` |
+| `MatchLaw` | `pairs` of `laws.utils` inside an agent rule |
+| `GradientStepLaw` | an `UpdateLaw` recipe of the training interaction |
+
+Two kinds of model need forms that the table above does not name yet.
+
+- Agents. An agent is a member of a group element, and its behaviour is an interaction on that group whose `_prepare`
+  sets an `UpdateLaw` with a rule, a Python function that reads and changes one agent, such as
+  `UpdateLaw(s.target, move)` with `def move(agent, system): agent.x += system.rng.normal()`. Births and deaths are
+  rules that add or remove members of the group, as a branching process does. The agent solver runs the rules, so
+  `AgentView`, `form='agent'`, and `BirthDeathInteraction` go, and the activation schedule is a setting of that solver.
+- Fractional orders. A derivative of order `alpha` between 0 and 1 is the core operator `fractional(x, alpha)`, used as
+  the target of a `RateLaw`, such as `RateLaw(fractional(s.target.x, 0.5), -s.k * s.target.x)` for anomalous
+  relaxation. Sage has no such derivative, so the operator carries the order and the Caputo solver reads it.
 
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,
@@ -271,6 +289,10 @@ tuned run settings, and a constructor that stores its model parameters. Its hook
 `System` of its components, as `fit` calls `_fit`, and the public `prepare` compiles it. A ready-made class earns its place when it reparametrizes, such as
 `ProjectileSystem(speed, angle)`, which turns an angle into velocity components. A user who only wants to tune the
 parameters of parts builds a `System` and uses nested parameters, with no class.
+
+A ready-made system takes `solver=` and `backend=` like a `System` and passes them to `system_` when it prepares, such as
+`LorenzSystem(backend=NumbaBackend()).prepare().simulate(until=50)`. They are settings of the object, as scikit-learn
+keeps settings on the estimator, so `simulate` takes no solver.
 
 ### 7. What the core holds
 

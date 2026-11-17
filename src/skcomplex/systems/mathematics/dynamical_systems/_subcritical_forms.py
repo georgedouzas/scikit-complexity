@@ -6,17 +6,88 @@ The form has bistability and hysteresis.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
-from ...general.dynamics import DynamicalSystem
-from ...general.dynamics.types import Equations
+
+class SubcriticalHopfFormInteraction(Interaction):
+    """The laws of the subcritical Hopf normal form of the amplitude `z = x + iy`.
+
+    The amplitude follows `z' = (alpha + iω) z + (1 + iq) |z|² z - (gamma + is) |z|⁴ z`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The element whose real part `x` and imaginary part `y` the form moves.
+
+        alpha:
+            The bifurcation parameter `alpha`, the linear growth rate.
+
+        omega:
+            The angular frequency `ω` at small amplitude.
+
+        q:
+            The nonlinear frequency shift `q` of the cubic term.
+
+        gamma:
+            The stabilizing quintic coefficient `gamma`, positive.
+
+        s:
+            The nonlinear frequency shift `s` of the quintic term.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import SubcriticalHopfFormInteraction
+        >>> SubcriticalHopfFormInteraction('subcritical_hopf_form', target='form', alpha=0.1).alpha
+        0.1
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role = 'form',
+        alpha: float = -0.1,
+        omega: float = 1.0,
+        q: float = 0.0,
+        gamma: float = 1.0,
+        s: float = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.alpha = alpha
+        self.omega = omega
+        self.q = q
+        self.gamma = gamma
+        self.s = s
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the real and the imaginary part of the amplitude as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, y = context.target.x, context.target.y
+            radius = x**2 + y**2
+            real = context.alpha + radius - context.gamma * radius**2
+            imaginary = context.omega + context.q * radius - context.s * radius**2
+            self.laws_: list[BaseComponent] = [
+                RateLaw(x, real * x - imaginary * y),
+                RateLaw(y, imaginary * x + real * y),
+            ]
 
 
-class SubcriticalHopfFormSystem(DynamicalSystem):
+class SubcriticalHopfFormSystem(BaseSystem):
     """The subcritical Hopf normal form.
 
     A stable focus coexists with a stable limit cycle.
@@ -26,7 +97,7 @@ class SubcriticalHopfFormSystem(DynamicalSystem):
     of radius `r² = (1 + √(1 + 4 alpha gamma)) / (2 gamma)` exists for `alpha > -1 / (4 gamma)`, and an unstable cycle
     separates the two attractors while `alpha < 0`. A slow sweep of `alpha` up and down therefore jumps to the cycle at
     `alpha = 0` and falls back to the focus at `alpha = -1 / (4 gamma)`, a hysteresis loop. The system has the states
-    `form.x` and `form.y`.
+    `form.x` and `form.y`, and the parameters of the interaction `subcritical_hopf_form`.
 
     Args:
         x:
@@ -55,7 +126,7 @@ class SubcriticalHopfFormSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import SubcriticalHopfFormSystem
-        >>> SubcriticalHopfFormSystem(alpha=0.1).prepare().system_.elements[0].get_value('alpha')
+        >>> SubcriticalHopfFormSystem(alpha=0.1).prepare().system_.interactions[0].alpha
         0.1
     """
 
@@ -77,7 +148,7 @@ class SubcriticalHopfFormSystem(DynamicalSystem):
         s: float = 0.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.alpha = alpha
@@ -86,30 +157,20 @@ class SubcriticalHopfFormSystem(DynamicalSystem):
         self.gamma = gamma
         self.s = s
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'form'
-
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
-        return {
-            'x': DeclaredVariableSpec(self.x, StateSpec()),
-            'y': DeclaredVariableSpec(self.y, StateSpec()),
-            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec()),
-            'omega': DeclaredVariableSpec(self.omega, ParameterSpec()),
-            'q': DeclaredVariableSpec(self.q, ParameterSpec()),
-            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=RealSet.open(0, oo))),
-            's': DeclaredVariableSpec(self.s, ParameterSpec()),
-        }
-
-    def _get_equations(self) -> Equations:
-        """Return the rates of the real and the imaginary part of the amplitude."""
-        return {'x': lambda s: self._get_rates(s.target)[0], 'y': lambda s: self._get_rates(s.target)[1]}
-
-    @staticmethod
-    def _get_rates(form: SimpleNamespace) -> tuple[Expression, Expression]:
-        """Return the rates of the real and the imaginary part of the amplitude."""
-        radius = form.x**2 + form.y**2
-        real = form.alpha + radius - form.gamma * radius**2
-        imaginary = form.omega + form.q * radius - form.s * radius**2
-        return real * form.x - imaginary * form.y, imaginary * form.x + real * form.y
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the normal form and its laws."""
+        super()._prepare(context)
+        form = SubcriticalHopfFormInteraction(
+            'subcritical_hopf_form',
+            target='form',
+            alpha=self.alpha,
+            omega=self.omega,
+            q=self.q,
+            gamma=self.gamma,
+            s=self.s,
+        )
+        self.system_ = System(
+            self.label,
+            elements=[Element('form', values={'x': self.x, 'y': self.y})],
+            interactions=[form],
+        )

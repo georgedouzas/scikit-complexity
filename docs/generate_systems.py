@@ -22,6 +22,7 @@ from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.errors import AnalysisError
+from skcomplex.core.systems import BaseSystem as PreparedSystem
 
 DOCS = Path(str(files('gallery_tools'))).parent
 INVENTORY = DOCS / 'overview' / 'inventory.toml'
@@ -221,16 +222,23 @@ def _selection_lines(system: type[BaseSystem]) -> list[str]:
 
     It simulates it with its tuned run settings.
     """
+    run = (
+        [_import_line(system), '', f'trajectory = {system.__name__}().prepare().simulate()']
+        if issubclass(system, PreparedSystem)
+        else [
+            'from skcomplex.core.engine.runtime import simulate',
+            _import_line(system),
+            '',
+            f'trajectory = simulate({system.__name__}())',
+        ]
+    )
     return [
         '## Use this system',
         '',
         'The block imports the class and simulates the system with its default parameters and its tuned run settings.',
         '',
         '```python',
-        'from skcomplex.core.engine.runtime import simulate',
-        _import_line(system),
-        '',
-        f'trajectory = simulate({system.__name__}())',
+        *run,
         '```',
         '',
     ]

@@ -16,7 +16,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import HopfFormSystem
 
@@ -41,8 +40,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(HopfFormSystem(x=0.1), observers=[observer])
-outside = simulate(HopfFormSystem(x=1.0))
+trajectory = HopfFormSystem(x=0.1).prepare().simulate(observers=[observer])
+outside = HopfFormSystem(x=1.0).prepare().simulate()
 strips = [
     np.column_stack([100 * run.get_values('form.x'), -100 * run.get_values('form.y')]) for run in (trajectory, outside)
 ]
@@ -60,7 +59,7 @@ observer.recording_.flush()
 # with `a = -1`.
 
 rates = np.linspace(-0.2, 0.5, 15)
-amplitudes = [np.hypot(*simulate(HopfFormSystem(x=0.3, mu=mu), until=300).states[-1]) for mu in rates]
+amplitudes = [np.hypot(*HopfFormSystem(x=0.3, mu=mu).prepare().simulate(300).states[-1]) for mu in rates]
 fig, (plane, amplitude) = plt.subplots(1, 2, figsize=(10, 4.5))
 for strip, label in zip(strips, ('from inside', 'from outside'), strict=True):
     plane.plot(strip[:, 0] / 100, -strip[:, 1] / 100, label=label)

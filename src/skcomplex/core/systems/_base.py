@@ -18,6 +18,7 @@ from ..components import Observable, Tags
 from ..components.base import BaseComponent
 from ..components.systems import CompositeSystem
 from ..engine.backends import BaseBackend
+from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import BaseClock, BaseObserver, Trajectory, run_problem
 from ..engine.solvers import BaseSolver
@@ -107,8 +108,12 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         return self._get_composite()._get_laws(namespace)
 
     def _get_tags(self) -> Tags:
-        """Return the tags derived from the components of the system."""
-        return self._get_composite()._get_tags()
+        """Return the tags derived from the components of the system.
+
+        The domains of an element given only by its values, such as `Element('ball', values={'x': 10.0})`, follow from
+        the laws that change them, so the states and parameters of such elements are inferred first.
+        """
+        return PassCompiler()._get_declared_system(self._get_composite())._get_tags()
 
     def _get_values(self) -> dict[str, object]:
         """Return the parameters of the system and of its components by name."""

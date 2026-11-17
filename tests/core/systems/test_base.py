@@ -1,13 +1,20 @@
 """Test the `_base` module of `skcomplex.core.systems`."""
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 
 import pytest
 from sklearn.base import clone
 
 from skcomplex.core.components import Observable
+from skcomplex.core.components.base import BaseComponent
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.errors import NotPreparedError
+from skcomplex.core.specs import Role
 from skcomplex.core.systems import BaseSystem, System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
@@ -80,3 +87,27 @@ def test_prepare_exposes_what_the_built_system_learned() -> None:
     assert system.form_ == 'ordinary differential equations'
     assert system.equations_ == system.system_.equations_
     assert system.solver_ is system.system_.solver_
+
+
+class CountInteraction(Interaction):
+    """Interaction that adds one to a count at every step."""
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'counter') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next count as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target.n, context.target.n + 1)]
+
+
+def test_get_tags_reads_the_domains_of_values_from_the_laws() -> None:
+    """The tags of a system whose element is given by values name the domains of the states its laws change."""
+    counter = Element('counter', values={'n': 0.0, 'step': 0.5})
+    tags = System(elements=[counter], interactions=[CountInteraction('count')]).get_tags()
+    assert tags.domains == {'real'}
+    assert tags.laws == {'update'}

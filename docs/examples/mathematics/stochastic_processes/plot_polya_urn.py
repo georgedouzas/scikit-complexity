@@ -16,7 +16,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy import stats
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import PolyaUrnSystem
 
@@ -30,7 +29,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(PolyaUrnSystem(n_urns=6), until=200, observers=[observer], random_state=0)
+trajectory = PolyaUrnSystem(n_urns=6).prepare().simulate(200, observers=[observer], random_state=0)
 share = trajectory.get_values('urns.red') / (trajectory.get_values('urns.red') + trajectory.get_values('urns.blue'))
 for urn in range(6):
     observer.recording_.send_columns(
@@ -54,7 +53,7 @@ shares.set_ylabel('share of red balls')
 shares.set_title('Each urn freezes at its own share')
 grid = np.linspace(0, 1, 100)
 for red, color in ((1, 'C0'), (2, 'C1')):
-    urns = simulate(PolyaUrnSystem(n_urns=2000, red=red), until=200, random_state=1)
+    urns = PolyaUrnSystem(n_urns=2000, red=red).prepare().simulate(200, random_state=1)
     share = urns.get_values('urns.red')[-1] / (urns.get_values('urns.red')[-1] + urns.get_values('urns.blue')[-1])
     limits.hist(share, bins=20, range=(0, 1), density=True, alpha=0.5, color=color, label=f'red = {red}, blue = 1')
     limits.plot(grid, stats.beta.pdf(grid, red, 1), color=color)

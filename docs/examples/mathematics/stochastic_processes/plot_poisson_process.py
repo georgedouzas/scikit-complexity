@@ -13,14 +13,13 @@ import numpy as np
 from scipy import stats
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
 
 SYSTEM = 'poisson_process'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(PoissonProcessSystem(n_processes=6), dt=0.2, observers=[observer], random_state=0)
+trajectory = PoissonProcessSystem(n_processes=6).prepare().simulate(dt=0.2, observers=[observer], random_state=0)
 
 # %%
 # Poisson counts
@@ -29,7 +28,7 @@ trajectory = simulate(PoissonProcessSystem(n_processes=6), dt=0.2, observers=[ob
 # the variance over the mean, should be 1 at every time, within the few percent of sampling
 # error of 2000 counters, the signature of independent events.
 
-counts = simulate(PoissonProcessSystem(n_processes=2000), random_state=1)
+counts = PoissonProcessSystem(n_processes=2000).prepare().simulate(random_state=1)
 values = counts.get_values('counters.count')
 fig, (distribution_axes, fano) = plt.subplots(1, 2, figsize=(11, 4))
 grid = np.arange(25, 80)
