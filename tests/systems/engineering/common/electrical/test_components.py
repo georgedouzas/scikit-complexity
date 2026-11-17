@@ -160,7 +160,7 @@ def test_component_chua_follows_chua():
     """Test that the capacitor voltages of the component circuit follow `ChuaSystem` until chaos parts the runs."""
     settings = {'dt': 0.05, 'solver': ScipyODESolver(method='RK45', rtol=1e-10, atol=1e-10)}
     circuit = simulate(_component_chua(), until=20.0, **settings)
-    written = simulate(ChuaSystem().prepare().system_, until=20.0, **settings)
+    written = ChuaSystem().prepare().system_.set_params(solver=settings['solver']).prepare().simulate(20.0, dt=0.05)
     assert np.allclose(
         circuit.get_values('first.u').ravel(),
         written.get_values('circuit.x').ravel(),
