@@ -42,8 +42,10 @@ from ._overload import LoadedNodeElement, MotterLaiOverloadSystem
 from ._processes import (
     NetworkDiffusionSystem,
     NetworkRandomWalkSystem,
+    NetworkStepInteraction,
     NetworkWalkerElement,
     NodeRankElement,
+    PagerankInteraction,
     PagerankSystem,
 )
 from ._spatial_triadic import (
@@ -91,11 +93,13 @@ __all__: list[str] = [
     'NetworkMeasuresElement',
     'NetworkNodeElement',
     'NetworkRandomWalkSystem',
+    'NetworkStepInteraction',
     'NetworkStructureAnalysisSystem',
     'NetworkSuperpositionSystem',
     'NetworkWalkerElement',
     'NodeMergingSystem',
     'NodeRankElement',
+    'PagerankInteraction',
     'PagerankSystem',
     'PercolatingNodeElement',
     'PercolationInteraction',

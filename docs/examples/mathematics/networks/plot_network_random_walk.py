@@ -17,7 +17,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import NetworkRandomWalkSystem
 
@@ -31,11 +30,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(
-    NetworkRandomWalkSystem(graph=graph, n_walkers=200),
-    until=200,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    NetworkRandomWalkSystem(graph=graph, n_walkers=200)
+    .prepare()
+    .simulate(until=200, observers=[observer], random_state=0)
 )
 layout = nx.spring_layout(graph, seed=1)
 positions = np.array([layout[node] for node in graph.nodes]) * 300
