@@ -27,6 +27,7 @@ from ._kuramoto import (
     KuramotoSystem,
     NonlocalRingChimeraSystem,
     OttAntonsenSystem,
+    PopulationCouplingInteraction,
 )
 from ._networks import (
     CoupledMapLatticesOnNetworksSystem,
@@ -74,6 +75,7 @@ __all__: list[str] = [
     'NonlocalRingChimeraSystem',
     'OscillatorDeathSystem',
     'OttAntonsenSystem',
+    'PopulationCouplingInteraction',
     'RosslerDrivenLorenzSystem',
     'RosslerFlowInteraction',
     'RosslerOscillatorElement',
