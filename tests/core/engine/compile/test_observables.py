@@ -22,6 +22,7 @@ from skcomplex.core.engine.compile.passes._operator_compiler import OperatorComp
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.systems import BaseSystem
 from skcomplex.systems import all_systems
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.economics.resources import HarvestingSystem
@@ -47,10 +48,23 @@ class ObservedValueElement(Element):
         self.y = y
 
 
+def _tuned_observables(system):
+    """Return the observables a ready-made system records by default, on either base of ready-made systems."""
+    if isinstance(system, BaseSystem):
+        return list(system.observables)
+    return list(system.get_run_settings()['observables'])
+
+
+def _composite(system):
+    """Return the composite system a ready-made system builds, on either base of ready-made systems."""
+    built = system.prepare()
+    return built._get_composite() if isinstance(built, BaseSystem) else built.system_
+
+
 def _observed(system_class):
     """Return a system with its observables, and the paths of those that laws read at the current state."""
-    system = system_class().prepare().system_
-    observables = list(system_class().get_run_settings()['observables'])
+    system = _composite(system_class())
+    observables = _tuned_observables(system_class())
     compiler = PassCompiler(observables=observables).prepare(system)
     if compiler.learning_ is not None:
         pytest.skip('A system that trains a nested system records no observables of its own.')
@@ -293,11 +307,10 @@ def test_reductions_agree_with_observables(system_class):
 
 def test_laws_read_an_observable_of_time():
     """Test that a law reads an observable written with the time of the system, as the evaluator records it."""
-    observed = QuarterCarSystem().prepare().system_
+    observed = _composite(QuarterCarSystem())
     observed.label = 'system'
     observables = [
-        dataclasses.replace(item, label=f'system/{item.label}')
-        for item in QuarterCarSystem().get_run_settings()['observables']
+        dataclasses.replace(item, label=f'system/{item.label}') for item in _tuned_observables(QuarterCarSystem())
     ]
     reader = ReadInteraction('read', probe='probe', source='system/energy')
     system = CompositeSystem(elements=[ObservedValueElement('probe')], systems=[observed], interactions=[reader])
@@ -312,8 +325,8 @@ def test_laws_read_an_observable_of_time():
 
 def test_function_observable_reads_the_names_of_its_own_system():
     """Test that a function observable of a nested system reads its values by their names within that system."""
-    system = LatticeGaugeFieldsSystem(size=4).prepare().system_
-    observables = LatticeGaugeFieldsSystem(size=4).get_run_settings()['observables']
+    system = _composite(LatticeGaugeFieldsSystem(size=4))
+    observables = _tuned_observables(LatticeGaugeFieldsSystem(size=4))
     alone = PassCompiler(backend=NumpyBackend(), observables=observables).prepare(system).run().problem_
     expected = ObservableEvaluator(alone).prepare().evaluate(0.0, alone.initial_state, alone.initial_parameters)
     system.label = 'system'

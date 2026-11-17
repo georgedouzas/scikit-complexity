@@ -17,7 +17,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import BakerMapSystem
 
@@ -44,7 +43,7 @@ blueprint = rrb.Blueprint(
 )
 system = BakerMapSystem(alpha=ALPHA, lambda_a=LAMBDA_A, lambda_b=LAMBDA_B)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=80)
-trajectory = simulate(system, until=20000, observers=[observer])
+trajectory = system.prepare().simulate(20000, observers=[observer])
 x, y = trajectory.get_values('map.x')[20:], trajectory.get_values('map.y')[20:]
 observer.recording_.log(
     'attractor',

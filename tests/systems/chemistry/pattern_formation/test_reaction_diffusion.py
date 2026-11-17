@@ -44,7 +44,7 @@ def test_turing_spots_have_predicted_wavelength():
 
 def test_brusselator_and_heat_stay_bounded():
     """Test that the Brusselator stays bounded and insulated heat keeps its total."""
-    values = simulate(BrusselatorSystem((32, 32)), until=20, dt=1).states[-1]
+    values = BrusselatorSystem((32, 32)).prepare().simulate(until=20, dt=1).states[-1]
     assert np.all(np.isfinite(values))
     assert values.max() < 20
     trajectory = simulate(HeatDiffusionSystem((32, 32)).prepare().system_, until=50, dt=5)

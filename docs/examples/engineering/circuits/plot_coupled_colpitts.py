@@ -13,14 +13,13 @@ amplitudes stay irregular.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.circuits import CoupledColpittsSystem
 
 SYSTEM = 'coupled_colpitts'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-trajectory = simulate(CoupledColpittsSystem(), observers=[observer])
+trajectory = CoupledColpittsSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Phase difference
@@ -31,7 +30,7 @@ trajectory = simulate(CoupledColpittsSystem(), observers=[observer])
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for coupling in [0.0, 0.4]:
-    trajectory = simulate(CoupledColpittsSystem(k=coupling), until=400)
+    trajectory = CoupledColpittsSystem(k=coupling).prepare().simulate(until=400)
     settled = trajectory.times > 100
     phases = []
     for index in range(2):

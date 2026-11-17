@@ -204,7 +204,7 @@ class OrdersPass(BasePass):
 
         The states are those of the blocks, and the solved states are those equations determine.
         """
-        orders, lags, algebraic = {}, {}, set()
+        orders, lags, algebraic, fractional = {}, {}, set(), {}
         for block in blocks:
             if block.node.interaction or block.node.is_agent:
                 continue
@@ -213,11 +213,13 @@ class OrdersPass(BasePass):
                 declaration = declarations.get(variable)
                 if declaration is not None and declaration.derivatives:
                     orders[entry.name] = declaration.derivatives + 1
+                if declaration is not None and declaration.is_fractional:
+                    fractional[entry.name] = float(declaration.order)
                 if declaration is not None and declaration.lags:
                     lags[entry.name] = declaration.lags
                 if declaration is not None and declaration.algebraic and entry.name not in programmed:
                     algebraic.add(entry.name)
-        return _OrdersSpec(orders, lags, frozenset(algebraic))
+        return _OrdersSpec(orders, lags, frozenset(algebraic), fractional)
 
     @staticmethod
     def _get_companion_symbol(spec: KernelSpec, item: Expression, suffix: str) -> Expression:
@@ -310,10 +312,15 @@ class OrdersPass(BasePass):
             ValidationError:
                 The law gives a derivative of another order than the order of its state.
         """
-        order = OrdersPass._get_state_order(law, spec, orders)
+        references = [spec.references.get(item) for item in components_of(law._get_targets()[0])]
+        names = ', '.join(sorted({reference.entry.name for reference in references if reference is not None}))
+        order: float = OrdersPass._get_state_order(law, spec, orders)
+        if law.order is not None and not float(law.order).is_integer():
+            declared = {
+                orders.fractional.get(reference.entry.name, 1.0) for reference in references if reference is not None
+            }
+            order = max(declared, default=1.0)
         if law.order is not None and law.order != order:
-            references = [spec.references.get(item) for item in components_of(law._get_targets()[0])]
-            names = ', '.join(sorted({reference.entry.name for reference in references if reference is not None}))
             error_msg = (
                 f'A {type(law).__name__} of {spec.owner} on {names} gives the derivative of order {law.order}, but the '
                 f'state has order {order}. Match the law to the order declared with `state(order=...)`.'

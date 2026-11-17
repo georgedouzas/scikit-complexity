@@ -6,17 +6,22 @@ It is a slow-fast circuit with a cubic flux-controlled memristor.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import BaseSpace
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class MemristiveCircuitElement(Element):
@@ -69,23 +74,21 @@ class MemristiveCircuitElement(Element):
         -0.34
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-        z: Annotated[float, StateSpec()] = 0.0,
-        w: Annotated[float, StateSpec()] = 0.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        R: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.55,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.15,
-        e: Annotated[float, ParameterSpec()] = -0.04,
-        a: Annotated[float, ParameterSpec()] = -0.34,
-        b: Annotated[float, ParameterSpec()] = 0.05,
+        x: float = 0.0,
+        y: float = 0.0,
+        z: float = 0.0,
+        w: float = 0.0,
+        epsilon: Annotated[float, RealSet.open(0, oo)] = 0.01,
+        R: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 1.55,
+        beta: Annotated[float, RealSet.open(0, oo)] = 0.15,
+        e: float = -0.04,
+        a: float = -0.34,
+        b: float = 0.05,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -100,22 +103,47 @@ class MemristiveCircuitElement(Element):
         self.a = a
         self.b = b
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the voltages, the current, and the flux of the circuit.
+
+class MemristiveDynamicsInteraction(Interaction):
+    """Dynamics of a memristive circuit, with the constants the circuit holds.
+
+    It sets `epsilon x' = -y - (a + 3 b w^2) x`, `y' = alpha (x - R y - z + e)`, `z' = -beta y`, and `w' = x`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the circuit.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.circuits import MemristiveDynamicsInteraction
+        >>> MemristiveDynamicsInteraction('dynamics', target='circuit').target
+        'circuit'
+    """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the voltages, the current, and the flux of the circuit.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The space the interaction inherits from its system, or the namespace of the circuit.
         """
-        return [
-            RateLaw(s.x, -(s.y + (s.a + 3 * s.b * s.w**2) * s.x) / s.epsilon),
-            RateLaw(s.y, s.alpha * (s.x - s.R * s.y - s.z + s.e)),
-            RateLaw(s.z, -s.beta * s.y),
-            RateLaw(s.w, s.x),
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        c, t = context.target, context.t
+        self.laws_: list[BaseComponent] = [
+            RateLaw(c.x.diff(t), -(c.y + (c.a + 3 * c.b * c.w**2) * c.x) / c.epsilon),
+            RateLaw(c.y.diff(t), c.alpha * (c.x - c.R * c.y - c.z + c.e)),
+            RateLaw(c.z.diff(t), -c.beta * c.y),
+            RateLaw(c.w.diff(t), c.x),
         ]
 
 
@@ -181,7 +209,6 @@ class MemristiveMixedModeOscillatorSystem(BaseSystem):
     references = ('Trzaska 2023',)
     until = 150.0
     dt = 0.02
-    solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
     def __init__(
         self,
@@ -212,8 +239,9 @@ class MemristiveMixedModeOscillatorSystem(BaseSystem):
         self.a = a
         self.b = b
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         circuit = MemristiveCircuitElement(
             'circuit',
             x=self.x,
@@ -228,4 +256,9 @@ class MemristiveMixedModeOscillatorSystem(BaseSystem):
             a=self.a,
             b=self.b,
         )
-        return CompositeSystem(self.label, elements=[circuit])
+        self.system_ = System(
+            self.label,
+            elements=[circuit],
+            interactions=[MemristiveDynamicsInteraction('dynamics', target='circuit')],
+            solver=ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10),
+        )

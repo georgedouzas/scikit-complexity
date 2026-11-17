@@ -310,13 +310,13 @@ def test_default_solver_names_a_state_sliding_along_a_discontinuity():
 def test_default_solver_names_a_blow_up():
     """Test that a solution that diverges in finite time ends in an error that names the blow-up."""
     with pytest.raises(SolverError, match='blows up'):
-        simulate(FiniteTimeBlowUpSystem().prepare().system_, until=2, dt=0.01)
+        FiniteTimeBlowUpSystem().prepare().simulate(2, dt=0.01)
 
 
 def test_default_solver_follows_fast_exponential_growth():
     """Test that a state on a fast manifold, growing exponentially without a blow-up, stays close to its growth rate."""
-    system = TakensBogdanovFormSystem(x=5.0, y=5.0, beta1=0.1, beta2=-1.0).prepare().system_
-    values = simulate(system, until=20, dt=0.1).get_values('form.x')
+    system = TakensBogdanovFormSystem(x=5.0, y=5.0, beta1=0.1, beta2=-1.0).prepare()
+    values = system.simulate(20, dt=0.1).get_values('form.x')
     assert np.log(values[-1] / values[-11]) == pytest.approx(1.0, rel=0.01)
 
 

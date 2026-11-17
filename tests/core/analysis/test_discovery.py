@@ -75,7 +75,7 @@ def test_discovered_analyses_run_on_arrays_without_a_simulation():
 
 def test_discovery_of_a_jump_path():
     """Test that a jump path lists Markov analyses, which run on its states."""
-    trajectory = simulate(PoissonProcessSystem(n_processes=1), until=30.0, random_state=0)
+    trajectory = PoissonProcessSystem(n_processes=1).prepare().simulate(30.0, random_state=0)
     discovery = _discover(trajectory)
     assert 'path' in discovery.kinds
     assert any(item.func is markov for item in discovery.analyses['path'])
@@ -87,7 +87,7 @@ def test_discovery_of_a_jump_path():
 def test_discovery_leaves_out_analyses_whose_tags_the_system_lacks():
     """Test that the Lyapunov exponents are listed for a deterministic system and left out for a stochastic one."""
     deterministic = applicable_analyses(simulate(LogisticGrowthSystem(), until=5.0))
-    stochastic = applicable_analyses(simulate(OnOffIntermittencySystem(), until=5.0, random_state=0))
+    stochastic = applicable_analyses(OnOffIntermittencySystem().prepare().simulate(5.0, random_state=0))
     assert ('lyapunov', 'largest') in _names(deterministic.analyses['series'])
     assert ('lyapunov', 'largest') not in _names(stochastic.analyses['series'])
     assert ('entropy', 'permutation') in _names(stochastic.analyses['series'])

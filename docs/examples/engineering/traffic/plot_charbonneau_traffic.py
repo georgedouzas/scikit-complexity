@@ -13,7 +13,6 @@ along the road while the cars themselves keep moving forwards.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.traffic import CharbonneauTrafficSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'charbonneau_traffic'
 
 system = CharbonneauTrafficSystem(probability=0.1, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=200, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=200, observers=[observer], random_state=0)
 
 # %%
 # Jams travel backwards

@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import RandomBranchMapSystem
 
@@ -28,7 +27,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(RandomBranchMapSystem(n_orbits=20), observers=[observer])
+trajectory = RandomBranchMapSystem(n_orbits=20).prepare().simulate(observers=[observer])
 
 # %%
 # Bifurcation diagram over the coin
@@ -44,7 +43,7 @@ fig, axes = plt.subplots(1, 3, figsize=(12, 4), sharey=True)
 for axis, mu in zip(axes, (0.0, 0.5, 1.0), strict=True):
     means = []
     for p1 in probabilities:
-        run = simulate(RandomBranchMapSystem(n_orbits=300, p1=p1, mu=mu), until=100)
+        run = RandomBranchMapSystem(n_orbits=300, p1=p1, mu=mu).prepare().simulate(100)
         x = run.get_values('orbits.x')[-1]
         axis.plot(np.full_like(x, p1), x, ',', color='C0')
         means.append(x.mean())

@@ -10,7 +10,6 @@ up, the wheel responds first and fast, the body follows slowly, and both settle 
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.mechatronics import QuarterCarSystem
 
@@ -18,7 +17,7 @@ SYSTEM = 'quarter_car'
 
 system = QuarterCarSystem(height=0.05)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-trajectory = simulate(system, until=3.0, observers=[observer])
+trajectory = system.prepare().simulate(until=3.0, observers=[observer])
 
 # %%
 # The step response

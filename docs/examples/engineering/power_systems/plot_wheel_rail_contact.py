@@ -13,7 +13,6 @@ its pad, and comes back to rest before the next bogie arrives, so the deflection
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.power_systems import WheelRailContactSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'wheel_rail_contact'
 
 system = WheelRailContactSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # A linear track
@@ -33,7 +32,7 @@ trajectory = simulate(system, observers=[observer])
 loads = np.linspace(250.0, 2000.0, 8)
 peaks = [
     np.abs(
-        simulate(WheelRailContactSystem(F=load), until=10).get_values('rail.z'),
+        WheelRailContactSystem(F=load).prepare().simulate(until=10).get_values('rail.z'),
     ).max()
     for load in loads
 ]

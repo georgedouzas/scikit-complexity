@@ -1,55 +1,138 @@
 # Agent-based systems
 
-This page writes the behaviour of individual agents as plain Python and lets them move, eat, reproduce, and die on a
-grid, a network, or a continuous space. An agent is a member of a population that acts on its own rules, reads its
-surroundings, and changes them.
+This page writes the behaviour of individual agents as plain Python. An agent is one member of a group element, such
+as one walker of a crowd or one cell of a tissue. Its behaviour is a rule, a Python function that reads and changes one
+agent at every step, and an interaction gives the rule to the members of the group it binds. Rules move agents, let
+them give birth and die, and let them read each other on a grid, a network, or a continuous space.
 
 ## Agents with rules
 
-This section builds a population of foragers that wander a torus, find food, split when they are full, and starve
-when they are empty. Agents are ordinary elements whose laws are rules written as code. An
-[`Element`](../core_components/elements.md#element) subclass declares the states every agent holds and the parameters
-its group shares, as annotated arguments of its `__init__`. Its `_get_laws` returns a
-[`RuleLaw`](../core_components/laws.md#rulelaw), whose function takes the agent and the system. A
-[`GroupElement`](../core_components/elements.md#groupelement) built with `variable=True` holds the 50 foragers and lets
-them be created and removed during a run, and a periodic
-[`LatticeSpace`](../core_components/spaces.md#latticespace) of 30 by 30 cells holds the torus.
+This section lets a thousand walkers take random steps along a line. The walkers are one
+[`Element`](../core_components/elements.md#element) with `size=1000`, each with its own position `x`. The interaction
+`Walk` binds the walkers through its role `target`, and its `_prepare` sets the law
+[`UpdateLaw`](../core_components/laws.md#updatelaw)`(s.target, self.move)`. An update law whose target is a group and
+whose value is a function is a rule: every walker runs `move(agent, system)` once per step.
 
 ```python
-from typing import Annotated
-
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class ForagerElement(Element):
-    visual = VisualSpec('agents', {'color_by': 'food'})
-
-    def __init__(
-        self,
-        label,
-        *,
-        food: Annotated[float, StateSpec()] = 5.0,
-        hunger: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ):
+class Walk(Interaction):
+    def __init__(self, label, *, target: Role = 'walkers', step=1.0):
         super().__init__(label)
-        self.food = food
+        self.target = target
+        self.step = step
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s.target, self.move)]
+
+    def move(self, agent, system):
+        agent.x += self.step * system.rng.normal()
+
+
+walkers = Element('walkers', values={'x': 0.0}, size=1000)
+system = System(elements=[walkers], interactions=[Walk('walk')]).prepare()
+x = system.simulate(until=100, random_state=0).get_agents('walkers', 100).values['x']
+system.states_, system.form_, round(float(x.var()))
+```
+
+The states are `('walkers.x',)`, the form is an agent-based system, and the variance of the positions after 100 steps
+is 98, close to the number of steps, as a random walk spreads.
+
+- The rule reads and sets the values of its agent as attributes, such as `agent.x`. Since a rule may change any value,
+  every value of a group with rules is a state, recorded in the trajectory. A value the element does not have raises
+  Python's own `AttributeError`.
+- The rule reads the settings of its interaction as `self.step`, and `system.rng` is the random generator of the run,
+  seeded by `random_state`.
+- `prepare` picks `MesaSolver` for a system with rules. Mesa is the Python library of agent-based modelling that runs
+  the steps, one per unit of time.
+- `trajectory.get_agents(group, frame)` returns the ids and values of the agents of a group at a frame, and the
+  trajectory records the number of members of every group as `<group>.count`.
+- An element without `size` whose interaction gives it a rule is a group of one agent.
+
+## Births and deaths
+
+A rule adds a member with `agent.create(**values)` and removes its own agent with `agent.remove()`. In a Galton-Watson
+branching process every individual has a random number of offspring with mean `m` and then dies, so generation `n` has
+`n_0 m^n` individuals on average. Here 20 individuals start, with `m = 1.5`.
+
+```python
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+
+class Branching(Interaction):
+    def __init__(self, label, *, target: Role = 'population', m=1.0):
+        super().__init__(label)
+        self.target = target
+        self.m = m
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s.target, self.reproduce)]
+
+    def reproduce(self, agent, system):
+        for _ in range(system.rng.poisson(self.m)):
+            agent.create(generation=agent.generation + 1)
+        agent.remove()
+
+
+population = Element('population', values={'generation': 0}, size=20)
+system = System(elements=[population], interactions=[Branching('branching', m=1.5)]).prepare()
+system.simulate(until=4, random_state=0).get_values('population.count').tolist()
+```
+
+In this run the generations have 20, 25, 36, 47, and 64 individuals, against the mean sizes 20, 30, 45, 68, and 101,
+since one run of a branching process strays far from its mean. The offspring created in a step act from the next step
+on, so each step is one generation.
+
+Other births and deaths are a few lines of the same kind.
+
+- An agent dies with the probability `p` when `system.rng.random() < p` leads to `agent.remove()`.
+- A cell that divides and shares its mass halves `agent.mass` and creates `agent.create(mass=agent.mass)`.
+- An offspring inherits a trait as `agent.create(trait=agent.trait)`, and a mutation adds a draw to it.
+- `system.create(group)` adds a member of a group bound to a role of the interaction without a parent, such as an
+  arrival.
+
+## Agents in a space
+
+Agents live on a [`LatticeSpace`](../core_components/spaces.md#latticespace), a
+[`NetworkSpace`](../core_components/spaces.md#networkspace), or a
+[`ContinuousSpace`](../core_components/spaces.md#continuousspace) given to the system. Here 50 foragers wander a
+torus of 30 by 30 cells, gain a Poisson number of units of food with mean 0.8 per step, lose 1, split when they hold
+more than 10, and starve when they hold none.
+
+```python
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+
+class Forage(Interaction):
+    def __init__(self, label, *, target: Role = 'foragers', hunger=1.0):
+        super().__init__(label)
+        self.target = target
         self.hunger = hunger
 
-    def _get_laws(self, s):
-        return [RuleLaw(self.forage)]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s.target, self.forage)]
 
     def forage(self, agent, system):
         cells = agent.get_neighbor_cells()
         agent.move_to(cells[int(system.rng.integers(len(cells)))])
-        agent.food += system.rng.poisson(0.8) - agent.hunger
+        agent.food += system.rng.poisson(0.8) - self.hunger
         if agent.food <= 0:
             agent.remove()
         elif agent.food > 10:
@@ -57,293 +140,129 @@ class ForagerElement(Element):
             agent.create(food=agent.food)
 
 
-foragers = CompositeSystem(
-    elements=[GroupElement('foragers', element=ForagerElement, size=50, variable=True)],
+system = System(
+    elements=[Element('foragers', values={'food': 5.0}, size=50)],
+    interactions=[Forage('forage')],
     space=LatticeSpace((30, 30), boundary='periodic'),
 )
-trajectory = simulate(foragers, until=20, random_state=0)
-int(trajectory.get_values('foragers.count')[-1]), len(trajectory.get_agents('foragers', 20).ids)
+int(system.prepare().simulate(until=20, random_state=0).get_values('foragers.count')[-1])
 ```
 
-Of the 50 foragers, 17 are alive after 20 steps, and the frame of step 20 holds the ids of the same 17. Each forager
-gains a Poisson number of units of food with mean 0.8 per step and loses 1, so most of them starve.
+Of the 50 foragers, 17 are alive after 20 steps, since most of them lose more food than they find.
 
-An element or a group whose laws include rules is an agent, and so is every member of a variable group. In a system
-with rules, a group whose element type has no laws is a group of passive agents that rules read and change, unless an
-interaction whose laws are not rules binds it.
+An agent acts on its place through its own methods.
 
-A system with rules is agent-based. It runs in discrete time on `MesaSolver`, one Mesa step per unit of time, with
-every agent activated in random order. `MesaSolver` declares what it runs like any solver, so
-`simulate(system, solver=MesaSolver())` raises a `TagError` that names the laws, spaces, or times it does not support.
+- `agent.get_neighbor_cells()`, `agent.get_neighbors()`, and `agent.get_agents_here()` read the cells and agents
+  around it, and `agent.move_to(location)` moves it.
+- `agent.get_displacement_to(other)` gives the vector to another agent or a location, the shortest one on a torus,
+  and `agent.get_distance_to(other)` its length, or the number of hops on a network.
+- `agent.location` is its cell, node, or position, and `agent.id` its unique id.
 
-An agent acts on itself and on its surroundings through the view that its rule receives.
+## Activation and phases
 
-- An agent reads and sets its states as attributes, and reads the parameters of its group, which change live like any
-  parameter.
-- `neighbors`, `neighbor_cells`, `agents_here`, `move_to`, `create`, and `remove` act on its place and its population.
-  Only the members of a group declared `variable=True` are created and removed during a run.
-- `agent.get_neighbors(group=path)` and `agent.get_agents_here(path)` read the agents of one group around the agent
-  and at its place. So the agents of a variable group on the nodes of a network make a set of members per node that
-  grows and that neighbours read, as the guide on [networks](networks.md) shows.
-- `agent.get_displacement_to(other)` gives the vector to another agent or a location, the shortest one on a torus, and
-  `agent.get_distance_to(other)` its length, or the number of hops on a network.
-- `agent.group` is the path of the group of the agent, and `agent.group_label` its label.
+How agents take turns is a setting of the solver, given to the system as `solver=MesaSolver(activation=...)`.
 
-Agents live on a lattice, a network, or a continuous space.
+- `'random'`, the default, activates every agent once per step in a new random order.
+- `'sequential'` activates them in their order of creation.
+- `'simultaneous'` lets every agent read the values of the start of the step, and its changes apply at the end.
+- `'by-type'` activates group after group, each in random order.
 
-- `GroupElement(label, element=..., size=..., location=...)` places the agents at cell coordinates, network nodes, or
-  positions, one per agent or one shared. Agents without a location take random places.
-- A `LatticeSpace` gives agents Moore or von Neumann neighbourhoods and an optional cell capacity, a
-  [`NetworkSpace`](../core_components/spaces.md#networkspace) places agents on the nodes of a NetworkX graph, and a
-  [`ContinuousSpace`](../core_components/spaces.md#continuousspace) finds neighbours within a radius.
-- `system.dimensions` gives the extent of the space per axis, and `system.torus` whether it wraps.
-
-The system view gives a rule access to the rest of the run.
-
-- `system.rng` is the random generator, `system.get_agents(name)` and `system.count(name)` read the other agents, and
-  the view also lists the empty cells.
-- Every rule receives the system view scoped to the interaction or agent group that owns it.
-  `system.get_parameter('name')` reads a parameter of the owner. `system.get_agents('role')` reads the group bound to a
-  role of the owner, then a group by its path relative to the system of the owner, then by its path from the root. So
-  a rule works unchanged in a subsystem.
-- Interactions with agent rules bind any number of agent groups, of any sizes, through their roles.
-
-A run records every agent. Frames and trajectories hold the agents of every group with their ids, states, and
-locations, through `trajectory.get_agents(group, frame)`, and the count of every group as the reporter
-`<group>.count`. The catalog has Schelling segregation as `SchellingSystem`, the voter system as `VoterSystem`,
-Boltzmann wealth exchange as `BoltzmannWealthSystem`, and the wolf and sheep system as `WolfSheepSystem`.
-
-## Rules of interactions
-
-This section gives a rule to an interaction, which reads the groups bound to its roles. A role is a named slot of an
-interaction that a group fills when the system binds it. Here five walkers drift along a periodic road of length 50 in
-a [`ContinuousSpace`](../core_components/spaces.md#continuousspace), inside a subsystem. An
-[`Interaction`](../core_components/interactions.md#interaction) subclass counts the pairs closer than its `reach` of 10
-at every step and appends the count to a list.
+A step may also run in named phases, each a `PhaseSpec` with an activation of its own, and a rule joins a phase with
+`UpdateLaw(s.target, rule, phase=name)`. Here 20 traders quote bids in the phase `quote`, and then a clerk, a group of
+one agent, reads the best bid in the phase `settle` and sets a fee of one percent of it. The clerk reads the traders
+through the role `traders` of its interaction, with `system.get_agents('traders')`.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, RoleSpec
-
-
-class WalkerElement(Element):
-    def _get_laws(self, s):
-        return [RuleLaw(self.step)]
-
-    def step(self, agent, system):
-        width, height = system.dimensions
-        x, y = agent.location
-        agent.move_to(((x + system.rng.uniform(0, 2)) % width, y))
-
-
-class SpreadInteraction(Interaction):
-    def __init__(self, label, *, walkers: Annotated[str, RoleSpec()], reach: Annotated[float, ParameterSpec()] = 10.0):
-        super().__init__(label)
-        self.walkers = walkers
-        self.reach = reach
-
-    def _get_laws(self, s):
-        return [RuleLaw(self.measure)]
-
-    def measure(self, system):
-        walkers = system.get_agents('walkers')
-        close = [a for a in walkers for b in walkers if a != b and a.get_distance_to(b) < system.get_parameter('reach')]
-        counts.append(len(close) // 2)
-
-
-counts = []
-places = [(10.0 * index, 0.5) for index in range(5)]
-road = CompositeSystem(
-    systems=[
-        CompositeSystem(
-            'road',
-            elements=[GroupElement('walkers', element=WalkerElement, size=5, location=places)],
-            interactions=[SpreadInteraction('spread', walkers='walkers')],
-        ),
-    ],
-    space=ContinuousSpace(extent=(50.0, 1.0), boundary='periodic'),
-)
-trajectory = simulate(road, until=5, random_state=0)
-counts
-```
-
-The counts of close pairs over the five steps are 3, 2, 3, 3, and 2. The rule reads its walkers by the role name
-`'walkers'` and its reach by `system.get_parameter('reach')`, so it runs unchanged inside the subsystem `road`.
-
-## Phases, institutions, and learning
-
-This section orders each step into phases, lets an institution set policy, and lets agents learn from their past. A
-phase is a named part of a step whose rules run before those of the next phase. Traders quote bids in one phase, and in
-the next a clerk reads the best bid and sets a fee of one percent of it. A
-[`DiscreteTime`](../core_components/spaces.md#discretetime) with a `PhasesScheduleSpec` lists the two phases.
-
-```python
-from typing import Annotated, ClassVar
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.engine.compile import PhaseSpec
+from skcomplex.core.engine.solvers import MesaSolver
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class TraderElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        value: Annotated[float, StateSpec()] = 0.0,
-        bid: Annotated[float, StateSpec()] = 0.0,
-    ):
+class Quote(Interaction):
+    def __init__(self, label, *, target: Role = 'traders'):
         super().__init__(label)
-        self.value = value
-        self.bid = bid
+        self.target = target
 
-    def _get_laws(self, s):
-        return [RuleLaw(self.quote, phase='quote')]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s.target, self.quote, phase='quote')]
 
-    def quote(self, agent, system):
-        agent.bid = system.rng.uniform(0, agent.value)
+    def quote(self, trader, system):
+        trader.bid = system.rng.uniform(0, trader.value)
 
 
-class ClerkInteraction(Interaction):
-    law_classes: ClassVar[tuple[type, ...]] = (RuleLaw,)
-    reports: ClassVar[tuple[str, ...]] = ('best',)
-
-    def __init__(self, label, *, fee: Annotated[float, ParameterSpec()] = 0.0):
+class Settle(Interaction):
+    def __init__(self, label, *, target: Role = 'clerk', traders: Role = 'traders'):
         super().__init__(label)
-        self.fee = fee
+        self.target = target
+        self.traders = traders
 
-    def _get_laws(self, s):
-        return [RuleLaw(self.act, phase='settle')]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s.target, self.settle, phase='settle')]
 
-    def act(self, system):
-        best = max(agent.bid for agent in system.get_agents('traders'))
-        system.report('best', best)
-        system.set_parameter('fee', 0.01 * best)
+    def settle(self, clerk, system):
+        clerk.best = max(trader.bid for trader in system.get_agents('traders'))
+        clerk.fee = 0.01 * clerk.best
 
 
-values = {'value': np.random.default_rng(0).uniform(0.5, 2, 20)}
-market = CompositeSystem(
-    elements=[GroupElement('traders', element=TraderElement, size=20, values=values)],
-    interactions=[ClerkInteraction('clerk')],
-    time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('settle')])),
+traders = Element('traders', values={'value': np.random.default_rng(0).uniform(0.5, 2, 20), 'bid': 0.0}, size=20)
+clerk = Element('clerk', values={'best': 0.0, 'fee': 0.0})
+market = System(
+    elements=[traders, clerk],
+    interactions=[Quote('quote'), Settle('settle')],
+    solver=MesaSolver(phases=[PhaseSpec('quote'), PhaseSpec('settle')]),
 )
-trajectory = simulate(market, until=3, random_state=0)
-[round(float(best), 3) for best in trajectory.get_values('clerk.best')[1:]], round(float(trajectory.get_values('clerk.fee')[-1]), 4)
+trajectory = market.prepare().simulate(until=3, random_state=0)
+[round(float(trajectory.get_agents('clerk', step).values['best'][0]), 3) for step in (1, 2, 3)]
 ```
 
-The best bids of the three steps are 1.668, 1.537, and 1.577, and the fee ends at 0.0158, one percent of the last best
-bid. The clerk publishes the best bid as the reporter `clerk.best`, and the trajectory records the fee as a parameter.
+The best bids of the three steps are 1.537, 1.77, and 1.529, and the fee of every step is one percent of its best bid.
 
-**Phases.** `DiscreteTime(schedule=PhasesScheduleSpec([...]))` lists the phases of a step.
+- A `PhaseSpec(name, activation, repeat)` runs its agents with its own activation, for `repeat` rounds, such as
+  intraday rounds. Rules without a phase run in the phase `'default'`, which runs first.
+- `system.get_agents(role)` and `system.count(role)` read the agents of a group bound to a role of the interaction of
+  the rule, so a rule works unchanged inside a nested system.
+- `pairs(left, right, system.rng)` of `skcomplex.core.components.laws.utils` pairs the agents of one or two groups
+  inside a rule, such as buyers and sellers that a clerk matches.
 
-- A `PhaseSpec(name, activation, repeat)` runs its agents `'random'`ly, `'sequential'`ly in order of creation,
-  `'simultaneous'`ly, or `'by-type'`, for `repeat` rounds, such as intraday rounds.
-- In a simultaneous phase every rule reads the states of the start of the phase, and the writes apply at its end.
-- The activation `'visits'` runs `visits` times as many visits as the agents of `groups` at the start of the phase.
-  Each visit goes to an agent drawn with replacement, which runs its rules of the phase, the rules of its element and
-  then its member rules, at the time `k + i / n` of visit `i` of `n` in step `k`.
-- `RuleLaw(function, phase=name)` puts a rule in a phase. Rules without a phase run in the phase `'default'`, which runs
-  first unless the system lists it. So systems without phases keep one random activation per step.
+## Porting Mesa models
 
-**Markets.** A market that matches buyers with sellers is the recipe
-[`MatchingInteraction`](../core_components/general.md#matchinginteraction) of the general realizations, which runs a
-batch auction with phases and a clerk.
-
-**Agent operations.** These interactions of `skcomplex.core.components.interactions` run as agent rules.
-
-- [`TransferInteraction`](../core_components/interactions.md#transferinteraction) moves amounts of states between
-  members, the agents of one cell, a [`Source`](../core_components/laws.md#source), and a
-  [`Sink`](../core_components/laws.md#sink). It runs as transfer laws with `form='symbolic'`, or between paired agents
-  with `form='agent'`.
-- `system.get_composition(group, state)` counts the agents of a group by the value of a state, kept up to date as
-  agents change, so a birth probability can read the composition of the population.
-- [`GroupingInteraction`](../core_components/interactions.md#groupinginteraction) draws pairs, partitions,
-  neighbourhoods, or groups by a state every step, and acts on each.
-- [`TopologyInteraction`](../core_components/interactions.md#topologyinteraction) adds and removes nodes and edges of a
-  network, and rewires edges towards a weight.
-- The movement of agents and their birth and death are the recipes
-  [`MovementInteraction`](../core_components/general.md#movementinteraction) and
-  [`BirthDeathInteraction`](../core_components/general.md#birthdeathinteraction) of the general realizations.
-
-**Institutions.** An `Interaction` whose law is `RuleLaw(self.act, phase=...)` acts once per round of its phase, as
-the clerk above does. Economics names such an institution `PolicyRuleInteraction`.
-
-- It reads `system.get_observable(name)`, the reporters and the observables of the run at the end of earlier steps
-  through `system.get_history(name, window)`, and the agents.
-- It sets parameters of any element or interaction with `system.set_parameter(name, value)`. Rules see the change at
-  once, and the trajectory records it.
-- It declares its own parameters as annotated arguments of its `__init__`, as the clerk declares `fee`.
-- Elements and interactions declare the values they publish in the class variable `reports`, and publish them with
-  `system.report(name, value)`. `system.storage` keeps private values of an element or an interaction across the steps
-  of a run.
-
-**Learning.** Agents learn from their own past and from each other.
-
-- `agent.get_lags(state, window)`, a method of the agent view a rule receives, returns the past values of a state
-  declared with lags, `StateSpec(lags=m)`. A rule writes adaptive, trend-following, anchoring, and fundamentalist
-  forecasts from these values.
-- A [`MapInteraction`](../core_components/interactions.md#mapinteraction) built with `form='agent'` and
-  `schedule='member'` moves a score towards a realized payoff in the activation of every member, such as one visit.
-  The economics `PayoffLearningInteraction` names this learning.
-- Choosing an option by its utility, copying the best neighbour, and evolving strategies are the recipes
-  [`ChoiceInteraction`](../core_components/general.md#choiceinteraction),
-  [`ImitationInteraction`](../core_components/general.md#imitationinteraction), and
-  [`EvolutionInteraction`](../core_components/general.md#evolutioninteraction) of the general realizations.
-
-## Porting Mesa systems
-
-This section brings an existing Mesa model over, so its parameters become live, validated, and recorded. Mesa is the
-Python library of agent-based modelling that runs the steps of these systems. A Mesa model is ported piece by piece.
-Its agent class becomes an element whose step is a `RuleLaw`, and its agent attributes become states. The attributes
-of its `Model` become parameters, which then change live, are validated, and are recorded like those of any system.
-Here ten coins flip ten times each with the bias 0.5.
+A Mesa model is ported piece by piece. The attributes of its agent class become the values of a group element, its
+`step` method becomes a rule, and the attributes of its `Model` become settings of the interaction. Here ten coins
+flip ten times each with the bias 0.5.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class CoinElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        heads: Annotated[float, StateSpec()] = 0.0,
-        bias: Annotated[float, ParameterSpec()] = 0.5,
-    ):
+class Flip(Interaction):
+    def __init__(self, label, *, target: Role = 'coins', bias=0.5):
         super().__init__(label)
-        self.heads = heads
+        self.target = target
         self.bias = bias
 
-    def _get_laws(self, s):
-        return [RuleLaw(self.flip)]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s.target, self.flip)]
 
-    def flip(self, agent, system):
-        agent.heads += float(system.rng.random() < agent.bias)
+    def flip(self, coin, system):
+        coin.heads += int(system.rng.random() < self.bias)
 
 
-coins = CompositeSystem('coins', elements=[GroupElement('coins', element=CoinElement, size=10)], time=DiscreteTime())
-int(simulate(coins, until=10, random_state=0).get_agents('coins', 10).values['heads'].sum())
+coins = System(elements=[Element('coins', values={'heads': 0}, size=10)], interactions=[Flip('flip')]).prepare()
+int(coins.simulate(until=10, random_state=0).get_agents('coins', 10).values['heads'].sum())
 ```
 
-The ten coins show 54 heads in 100 flips. Mesa still runs the steps, as the backend of agent-based systems.
+The ten coins show 54 heads in 100 flips. The bias is a parameter of the system, `flip__bias`, so
+`coins.set_params(flip__bias=0.9)` changes it like any parameter before the system is prepared again.

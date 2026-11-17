@@ -14,14 +14,13 @@ next pair of spikes, the pattern `2^11` that Trzaska reports.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.circuits import MemristiveMixedModeOscillatorSystem
 
 SYSTEM = 'memristive_mixed_mode_oscillator'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-trajectory = simulate(MemristiveMixedModeOscillatorSystem(), observers=[observer])
+trajectory = MemristiveMixedModeOscillatorSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Large and small oscillations

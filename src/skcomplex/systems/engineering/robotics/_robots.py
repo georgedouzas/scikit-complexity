@@ -7,6 +7,7 @@ They react to light and to each other.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,13 +16,14 @@ from sage.all__sagemath_symbolics import NN, Expression, cos, exp, oo, sin, sqrt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.components.laws.utils import delayed, where
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 
 EDGE_FRACTION = 1e-9
 BEACON_MARGIN = 5.0
@@ -435,8 +437,9 @@ class LightSeekingRobotsSystem(BaseSystem):
         self.tau = tau
         self.R = R
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         headings = np.linspace(0.0, 2 * np.pi, self.n_robots, endpoint=False)
         robots = GroupElement(
             'robots',
@@ -455,7 +458,7 @@ class LightSeekingRobotsSystem(BaseSystem):
                 'delay': self.delay,
             },
         )
-        return CompositeSystem(self.label, elements=[robots])
+        self.system_ = System(self.label, elements=[robots])
 
 
 class SwarmtaxisSystem(BaseSystem):
@@ -529,8 +532,9 @@ class SwarmtaxisSystem(BaseSystem):
         self.avoid_shadowed = avoid_shadowed
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         start = np.array([self.size / 5, self.size / 2])
         points = np.clip(start + rng.normal(0.0, self.spread, (self.n_robots, 2)), 0.0, self.size)
@@ -551,4 +555,4 @@ class SwarmtaxisSystem(BaseSystem):
             },
             location=[tuple(map(float, point)) for point in points],
         )
-        return CompositeSystem(self.label, elements=[robots], space=ContinuousSpace(extent=(self.size, self.size)))
+        self.system_ = System(self.label, elements=[robots], space=ContinuousSpace(extent=(self.size, self.size)))

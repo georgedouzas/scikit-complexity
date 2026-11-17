@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
 from typing import ClassVar
 
 from ...errors import ValidationError
@@ -25,6 +26,10 @@ class UpdateLaw(BaseLaw):
     values set before it. Without it every member updates at once. With `phase`, the law runs in that phase of the step,
     which a `PhasesScheduleSpec` of the discrete time orders, and each phase reads the states the phases before it set.
 
+    An update law whose target is a group bound to a role and whose value is a function `rule(agent, system)` is an
+    agent rule, such as `UpdateLaw(s.target, move)` with `def move(agent, system): agent.x += system.rng.normal()`.
+    Every member of the group runs the rule at each step, and the rule may add and remove members.
+
     Unlike `RateLaw`, which gives a derivative in continuous time, it gives the next value in discrete time. Choose it
     when the model steps, such as a map, a generation, or a round.
 
@@ -33,11 +38,12 @@ class UpdateLaw(BaseLaw):
 
     Args:
         target:
-            The symbol of a scalar state, the column of symbols of a vector state, or a `TopologyRequestSpec`, whose
-            value is the probability that the request fires.
+            The symbol of a scalar state, the column of symbols of a vector state, a `TopologyRequestSpec`, whose
+            value is the probability that the request fires, or the group of a role, whose members run a rule.
 
         value:
-            A symbolic expression, a `Call`, or a callable `f(t, values)` that gives the next value.
+            A symbolic expression, a `Call`, or a callable `f(t, values)` that gives the next value, or the rule
+            `rule(agent, system)` of the members of a group.
 
         label:
             The name of the law, or the empty string for a law without one.
@@ -76,7 +82,7 @@ class UpdateLaw(BaseLaw):
 
     def __init__(
         self,
-        target: Target | TopologyRequestSpec,
+        target: Target | TopologyRequestSpec | SimpleNamespace,
         value: object,
         *,
         label: str = '',

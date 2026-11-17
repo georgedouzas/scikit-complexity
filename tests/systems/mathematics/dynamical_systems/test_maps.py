@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.mathematics.dynamical_systems import (
     BakerMapSystem,
     CatMapSystem,
@@ -98,7 +97,7 @@ def test_cat_map_has_a_periodic_orbit_of_period_three():
 
 def test_henon_map_stays_on_attractor():
     """Test that the Hénon map stays within its attractor's bounds."""
-    trajectory = simulate(HenonMapSystem(), random_state=0)
+    trajectory = HenonMapSystem().prepare().simulate(random_state=0)
     assert np.abs(trajectory.get_values('map.x')[100:]).max() < 1.5
     assert np.abs(trajectory.get_values('map.y')[100:]).max() < 0.5
 

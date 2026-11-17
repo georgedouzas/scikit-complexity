@@ -3,17 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 
@@ -128,8 +130,9 @@ class NagelSchreckenbergSystem(BaseSystem):
             following = np.where(velocity == distance, velocity, following)
         return following
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         velocity = np.full(self.length, -1.0)
         velocity[rng.choice(self.length, size=round(self.density * self.length), replace=False)] = 0.0
@@ -142,7 +145,7 @@ class NagelSchreckenbergSystem(BaseSystem):
         )
         ahead = LatticeNeighborhood(tuple((distance,) for distance in range(self.vmax + 1)))
         behind = LatticeNeighborhood(tuple((-distance,) for distance in range(self.vmax + 1)))
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[road],
             interactions=[

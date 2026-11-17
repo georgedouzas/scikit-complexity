@@ -6,39 +6,41 @@ Multiplicative noise drives a variable across a bifurcation in bursts.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import RateInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import HeunSolver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, HeunSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class IntermittentVariableElement(Element):
-    """Positive variable driven across the bifurcation at `epsilon = 0`.
-
-    The drive is a multiplicative noise of intensity `D`.
+    """Positive variables `x`, one per realization.
 
     Args:
         label:
-            The label of the variable or the group.
+            The label of the variables.
 
         x:
-            The initial value.
+            The initial value, positive, one per realization or shared.
 
-        epsilon:
-            The control parameter, the distance from the bifurcation.
-
-        D:
-            The noise intensity.
+        size:
+            The number of realizations, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import IntermittentVariableElement
-        >>> IntermittentVariableElement('variable', D=0.2).D
+        >>> IntermittentVariableElement('variable', x=0.2).x
         0.2
     """
 
@@ -46,14 +48,54 @@ class IntermittentVariableElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        epsilon: Annotated[float, ParameterSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        x: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.x = x
+
+
+class IntermittencyInteraction(Interaction):
+    """The drive of a positive variable across the bifurcation at `epsilon = 0` by a multiplicative noise.
+
+    The variable follows `dx = (epsilon x - x³) dt + sqrt(2 D) x dW` in the Stratonovich convention.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The variables the drive moves.
+
+        epsilon:
+            The control parameter, the distance from the bifurcation.
+
+        D:
+            The noise intensity, positive.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import IntermittencyInteraction
+        >>> IntermittencyInteraction('drift', target='variables', D=0.2).D
+        0.2
+    """
+
+    law_classes = (RateLaw, NoiseLaw)
+
+    def __init__(self, label: str, *, target: Role = 'variables', epsilon: float = 0.0, D: float = 0.5) -> None:
+        super().__init__(label)
+        self.target = target
         self.epsilon = epsilon
         self.D = D
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the drift and the multiplicative noise of the variable as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            self.laws_: list[BaseComponent] = [
+                RateLaw(x, context.epsilon * x - x**3),
+                NoiseLaw(x, sqrt(2 * context.D) * x, convention='stratonovich'),
+            ]
 
 
 class OnOffIntermittencySystem(BaseSystem):
@@ -83,6 +125,12 @@ class OnOffIntermittencySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import OnOffIntermittencySystem
         >>> OnOffIntermittencySystem(5).prepare().system_.elements[0].size
@@ -94,7 +142,6 @@ class OnOffIntermittencySystem(BaseSystem):
     references = ('Bertin 2021', 'Platt, Spiegel, and Tresser 1993', 'Heagy, Platt, and Hammel 1994')
     until = 500.0
     dt = 0.1
-    solver = HeunSolver(dt=0.01)
 
     def __init__(
         self,
@@ -104,27 +151,21 @@ class OnOffIntermittencySystem(BaseSystem):
         D: float = 0.5,
         x: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_realizations = n_realizations
         self.epsilon = epsilon
         self.D = D
         self.x = x
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        variables = GroupElement(
-            'variables',
-            element=IntermittentVariableElement,
-            size=self.n_realizations,
-            values={'x': self.x, 'epsilon': self.epsilon, 'D': self.D},
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the variables and their drive."""
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[IntermittentVariableElement('variables', x=self.x, size=self.n_realizations)],
+            interactions=[IntermittencyInteraction('drift', target='variables', epsilon=self.epsilon, D=self.D)],
+            solver=HeunSolver(dt=0.01),
         )
-        drift = RateInteraction(
-            'drift',
-            target='variables',
-            state='x',
-            rate=lambda s: s.target.epsilon * s.target.x - s.target.x**3,
-            noise=lambda s: sqrt(2 * s.target.D) * s.target.x,
-            convention='stratonovich',
-        )
-        return CompositeSystem(self.label, elements=[variables], interactions=[drift])

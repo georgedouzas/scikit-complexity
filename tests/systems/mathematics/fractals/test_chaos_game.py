@@ -4,12 +4,10 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import scaling
-from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 from skcomplex.systems.mathematics.fractals import ChaosGameSystem, ChaosPointElement, RandomAffineMapInteraction
 
 from ..conftest import _final
@@ -28,7 +26,7 @@ def test_chaos_game_draws_the_sierpinski_triangle():
 def test_chaos_game_agrees_across_backends():
     """Test that the NumPy and Numba backends give equal trajectories of the chaos game from one seed."""
     runs = [
-        (simulate(ChaosGameSystem(n_points=20).prepare().system_, until=1000, dt=1, random_state=0, backend=backend))
+        ChaosGameSystem(n_points=20, backend=backend).prepare().simulate(1000, dt=1, random_state=0)
         for backend in (NumpyBackend(), NumbaBackend())
     ]
     assert np.allclose(runs[0].get_values('points.p'), runs[1].get_values('points.p'), atol=1e-12)
@@ -42,10 +40,10 @@ def test_chaos_game_rejects_unknown_presets():
 
 def test_random_affine_map_with_one_map_applies_it():
     """Test that a single contraction toward the origin halves every position at every step."""
-    points = GroupElement('points', element=ChaosPointElement, size=3, values={'p': np.ones((3, 2))})
+    points = ChaosPointElement('points', p=np.ones((3, 2)), size=3)
     game = RandomAffineMapInteraction('game', target='points', maps=[(0.5, 0.0, 0.0, 0.5, 0.0, 0.0)], weights=[1.0])
-    system = CompositeSystem(elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2))
-    trajectory = simulate(system, until=2, dt=1, random_state=0)
+    system = System(elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2)).prepare()
+    trajectory = system.simulate(2, dt=1, random_state=0)
     np.testing.assert_allclose(trajectory.get_values('points.p')[-1], 0.25)
 
 

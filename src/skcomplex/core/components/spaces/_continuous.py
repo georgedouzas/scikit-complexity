@@ -15,6 +15,7 @@ from ...errors import SpaceError, ValidationError
 from ._base import BaseNeighborhood, BaseSpace
 
 BOUNDARIES = ('open', 'periodic', 'reflecting')
+AXES = ('x', 'y', 'z')
 REGION_DIMENSIONS = 2
 
 
@@ -28,8 +29,10 @@ class ContinuousSpace(BaseSpace):
     - `'reflecting'`: positions mirror back into the box and the velocity across the wall reverses.
 
     Without an extent the space is unbounded and has `n_dim` dimensions. The positions are states of the members, so the
-    space has no sites. A space of two dimensions can hold layers of `regions`, the polygons of a map, which agents are
-    placed in, moved to, and ask about.
+    space has no sites. The axes are named `x`, `y`, and `z`, or `x0`, `x1`, and so on beyond three dimensions, and a
+    value of an element named after an axis is its position, such as `x` in
+    `Element('walker', values={'x': 0.0}, space=ContinuousSpace(n_dim=1))`. A space of two dimensions can hold layers
+    of `regions`, the polygons of a map, which agents are placed in, moved to, and ask about.
 
     Unlike `LatticeSpace`, whose sites are fixed, it lets members move to any real position. Choose it when members move
     freely, such as particles or animals.
@@ -57,6 +60,9 @@ class ContinuousSpace(BaseSpace):
         extent_:
             The side of the box along every dimension, or `()` for an unbounded space.
 
+        axes_:
+            The names of the axes, such as `('x', 'y')` in two dimensions.
+
         regions_:
             The Shapely `STRtree` of the polygons of every layer of regions by the name of the layer.
 
@@ -71,6 +77,8 @@ class ContinuousSpace(BaseSpace):
         (10.0, 5.0)
         >>> ContinuousSpace(n_dim=3).prepare().n_dim_
         3
+        >>> ContinuousSpace(n_dim=2).prepare().axes_
+        ('x', 'y')
         >>> from shapely import Point, box
         >>> layers = {'parks': [box(0.0, 0.0, 1.0, 1.0), box(2.0, 2.0, 3.0, 3.0)]}
         >>> space = ContinuousSpace(extent=(5.0, 5.0), regions=layers).prepare()
@@ -147,6 +155,8 @@ class ContinuousSpace(BaseSpace):
             raise ValidationError(error_msg)
         self.extent_ = tuple(float(side) for side in self.extent)
         self.n_dim_ = int(self.n_dim) if self.n_dim is not None else len(self.extent_)
+        many = self.n_dim_ > len(AXES)
+        self.axes_ = tuple(f'x{axis}' for axis in range(self.n_dim_)) if many else AXES[: self.n_dim_]
         self.size_ = None
         self.shape_ = ()
         self.positions_ = np.zeros((0, self.n_dim_))

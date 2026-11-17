@@ -30,7 +30,7 @@ system from, and the column "Engine" names what compiles and runs them.
 
 | Kind | Core | Engine |
 | --- | --- | --- |
-| agents | [`RuleLaw`](../core_components/laws.md#rulelaw), `pairs` | the agents passes, `MesaSolver` |
+| agents | [`UpdateLaw`](../core_components/laws.md#updatelaw) with a rule on a group, `pairs` | the agents passes, `MesaSolver` |
 | lattices | [`LocalRuleLaw`](../core_components/laws.md#localrulelaw), [`LocalRuleInteraction`](../core_components/interactions.md#localruleinteraction), [`ArrayUpdateLaw`](../core_components/laws.md#arrayupdatelaw), [`relax`](../core_components/laws.md#relax), [`GroupElement`](../core_components/elements.md#groupelement), [`LatticeSpace`](../core_components/spaces.md#latticespace), `ObjectiveSpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
 | finitely generated groups | `CayleySpace` and `MemoryNeighborhood` of [`skcomplex.systems.computer_science.common.automata`][skcomplex.systems.computer_science.common.automata] | `CayleyVisual` of the same package |
 | rewriting | [`ProductionLaw`](../core_components/general.md#productionlaw), [`SubstitutionLaw`](../core_components/general.md#substitutionlaw), [`WordElement`](../core_components/general.md#wordelement), [`PatchElement`](../core_components/general.md#patchelement) of `skcomplex.systems.general.rewriting` | the rewriting compiler, `RewritingSolver`, `GeometryVisual` |

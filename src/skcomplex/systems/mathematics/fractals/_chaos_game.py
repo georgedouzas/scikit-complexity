@@ -5,19 +5,23 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, vector
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import categorical, where
 from ....core.components.spaces import BaseSpace, ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from .types import AffineMap
 
 AFFINE_COEFFICIENTS = 6
@@ -44,14 +48,17 @@ PRESETS: dict[str, tuple[tuple[AffineMap, ...], tuple[float, ...]]] = {
 
 
 class ChaosPointElement(Element):
-    """Point of the plane whose position a random affine map moves at every step.
+    """Points of the plane, each with its position `p`.
 
     Args:
         label:
-            The label of the point or the group.
+            The label of the points.
 
         p:
-            The initial position.
+            The initial position, one row per point or shared.
+
+        size:
+            The number of points, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import ChaosPointElement
@@ -61,17 +68,12 @@ class ChaosPointElement(Element):
 
     visual = VisualSpec('points', {'position': 'p', 'radius': 0.004, 'states': ()})
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        p: Annotated[object, StateSpec(vector=True)] = 0.0,
-    ) -> None:
-        super().__init__(label)
+    def __init__(self, label: str, *, p: object = (0.0, 0.0), size: int | None = None) -> None:
+        super().__init__(label, size=size)
         self.p = p
 
 
-class RandomAffineMapInteraction(MapInteraction):
+class RandomAffineMapInteraction(Interaction):
     """Map of a point of the plane by one affine map of an iterated function system.
 
     The map is drawn anew at every step.
@@ -106,23 +108,26 @@ class RandomAffineMapInteraction(MapInteraction):
         [(0.5, 0, 0, 0.5, 0, 0)]
     """
 
+    law_classes = (UpdateLaw,)
     draws = True
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role = 'points',
         state: str = 'p',
         maps: Sequence[AffineMap] = SIERPINSKI_MAPS,
         weights: Sequence[float] = (1.0, 1.0, 1.0),
     ) -> None:
-        super().__init__(label, target=target, state=state, function=self._get_image)
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.maps = maps
         self.weights = weights
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for invalid weights or maps.
+        """Set the image of the position by the drawn map as the law.
 
         The weights must match the maps, and every map must have six coefficients.
 
@@ -141,6 +146,9 @@ class RandomAffineMapInteraction(MapInteraction):
                 f'{len(self.maps)} maps and {len(self.weights)} weights.'
             )
             raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            position = getattr(context.target, self.state)
+            self.laws_: list[BaseComponent] = [UpdateLaw(position, self._get_image(context))]
 
     def _get_image(self, namespace: SimpleNamespace) -> FreeModuleElement:
         """Return the image of the position by the map drawn among the maps."""
@@ -186,6 +194,12 @@ class ChaosGameSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The preset is unknown.
@@ -211,51 +225,41 @@ class ChaosGameSystem(BaseSystem):
         n_points: int = 20000,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.preset = preset
         self.maps = maps
         self.weights = weights
         self.n_points = n_points
         self.random_state = random_state
 
-    @staticmethod
-    def _get_system_of(
-        label: str,
-        maps: Sequence[AffineMap],
-        weights: Sequence[float],
-        n_points: int,
-        random_state: int | np.random.Generator | None,
-    ) -> CompositeSystem:
-        """Return a group of points started uniformly in the unit square.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the points and the maps that move them.
 
-        The points iterate an iterated function system.
+        Raises:
+            ValidationError:
+                The preset is unknown.
         """
-        starts = np.random.default_rng(random_state).random((n_points, 2))
-        points = GroupElement('points', element=ChaosPointElement, size=n_points, values={'p': starts})
-        game = RandomAffineMapInteraction(
-            'game',
-            target='points',
-            maps=tuple(map(tuple, maps)),
-            weights=tuple(weights),
-        )
-        return CompositeSystem(label, elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2))
-
-    def _build_system(self) -> CompositeSystem:
-        """Return points that draw the attractor of an iterated function system.
-
-        The points draw it by the chaos game.
-        """
+        super()._prepare(context)
         if self.maps is None and self.preset not in PRESETS:
             error_msg = f'Unknown chaos game preset {self.preset!r}. Use one of {", ".join(PRESETS)}, or give the maps.'
             raise ValidationError(error_msg)
         chosen_maps, preset_weights = (
             PRESETS[self.preset] if self.maps is None else (self.maps, (1.0,) * len(self.maps))
         )
-        return self._get_system_of(
+        weights = self.weights if self.weights is not None else preset_weights
+        starts = np.random.default_rng(self.random_state).random((self.n_points, 2))
+        game = RandomAffineMapInteraction(
+            'game',
+            target='points',
+            maps=tuple(map(tuple, chosen_maps)),
+            weights=tuple(weights),
+        )
+        self.system_ = System(
             self.label,
-            chosen_maps,
-            self.weights if self.weights is not None else preset_weights,
-            self.n_points,
-            self.random_state,
+            elements=[ChaosPointElement('points', p=starts, size=self.n_points)],
+            interactions=[game],
+            space=ContinuousSpace(n_dim=2),
         )
