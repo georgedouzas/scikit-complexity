@@ -160,3 +160,35 @@ class LayoutSpec(BaseSpec):
                 A mapping from dotted name to value.
         """
         return {name: self.read(vector, name) for name in self._by_name}
+
+    def get_relaid(self, vector: npt.NDArray[np.float64], layout: 'LayoutSpec', initial: Array) -> Array:
+        """Return a flat vector of another layout laid out in this one.
+
+        Every variable keeps the rows and columns both layouts hold, and the rows only this layout holds, such as the
+        free rows of a group that grew, keep their values in `initial`.
+
+        Args:
+            vector:
+                A flat vector of the other layout.
+
+            layout:
+                The other layout.
+
+            initial:
+                A flat vector of this layout whose values fill what the other layout lacks.
+
+        Returns:
+            vector:
+                The flat vector of this layout.
+        """
+        relaid = np.array(initial, dtype=float)
+        known = layout._by_name
+        for entry in self.entries:
+            before = known.get(entry.name)
+            if before is None:
+                continue
+            rows, columns = min(entry.rows, before.rows), min(entry.columns, before.columns)
+            view = entry.get_view(relaid).copy()
+            view[:rows, :columns] = before.get_view(vector)[:rows, :columns]
+            relaid[entry.indices] = view.ravel()
+        return relaid

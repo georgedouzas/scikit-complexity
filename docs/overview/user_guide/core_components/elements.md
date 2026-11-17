@@ -229,8 +229,9 @@ flow of the second. `on='hyperedges'` puts one member on every hyperedge of a ne
 `along='hyperedges'` reads as `s.hyperedge`, beside the members `s.member` and `s.others` of the hyperedge.
 
 **Groups that grow.** A group has no capacity to give. When rules or topology requests add members, the engine
-doubles the rows of the group as a Python list grows, so a network may start with one node. Here a network grows to
-500 nodes by preferential attachment, each new node linking to a node drawn by its degree plus one.
+doubles the rows of the group as a Python list grows and goes on from the step where the group filled, so a network
+may start with one node and the trajectory holds one unbroken run. Here a network grows to 500 nodes by preferential
+attachment, each new node linking to a node drawn by its degree plus one.
 
 ```python continuation
 from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw

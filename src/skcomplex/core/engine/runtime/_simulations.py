@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import copy
 import inspect
 import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -16,10 +17,11 @@ from sklearn.base import clone
 
 from ...base import BaseConfig
 from ...components import Observable
+from ...components.elements import GroupElement
 from ...components.laws import JumpLaw, NoiseLaw, ObjectiveLaw, RateLaw, UpdateLaw
 from ...components.systems import CompositeSystem
 from ...enums import FormKind
-from ...errors import ParameterError, SimulationError, SolverError, ValidationError
+from ...errors import CapacityError, ParameterError, SimulationError, SolverError, ValidationError
 from ...specs import EntrySpec
 from ...types import Array
 from .. import solvers
@@ -313,6 +315,7 @@ class Simulation(BaseConfig[None, float]):
         self.time_ = 0.0
         self.state_ = self.stepper_.initial_state_.copy()
         self._step = 0
+        self._grown: set[str] = set()
         self._frame_parameters: npt.NDArray[np.float64] | None = None
         for observer in self.observers_:
             observer.prepare(self.problem_)
@@ -401,7 +404,7 @@ class Simulation(BaseConfig[None, float]):
                 step = StepSpec(self.time_, self.state_, self.parameters_, target)
                 if self.draw_recorder_ is not None:
                     self.draw_recorder_.run(self._step)
-                self.state_ = self.stepper_.run(step, final=released).state_
+                self.state_ = self._run_stepper(step, released)
                 stopped_at = self.stepper_.stopped_at_
                 if stopped_at is not None:
                     target = stopped_at
@@ -418,6 +421,79 @@ class Simulation(BaseConfig[None, float]):
                 self.stepper_.run(StepSpec(self.time_, self.state_, self.parameters_, self.time_), final=True)
             for observer in self.observers_:
                 observer.run(final=True)
+
+    def _run_stepper(self, step: StepSpec, final: bool) -> Array:
+        """Run the stepper for one frame and return the state it reaches.
+
+        A group without a `capacity` that fills during the frame grows as a Python list does: the run goes back to the
+        start of the frame, lays its state, parameters, and random stream out again with twice the rows for the group,
+        and runs the frame again from there, so the frames already emitted stay as they are.
+        """
+        if self.problem_.topology is None:
+            return self.stepper_.run(step, final=final).state_
+        parameters, stream = self.parameters_.copy(), self.stepper_.rng_.bit_generator.state
+        try:
+            return self.stepper_.run(step, final=final).state_
+        except CapacityError as error:
+            self.parameters_ = parameters
+            self._grow(error, stream)
+        return self._run_stepper(StepSpec(self.time_, self.state_, self.parameters_, step.until), final)
+
+    def _grow(self, error: CapacityError, stream: Mapping[str, object]) -> None:
+        """Compile the system with twice the rows of a full group and carry the run on.
+
+        The state and parameters of the current time move to the new layout, with the new rows free as unused rows
+        are, and the stepper continues from the same random stream.
+
+        Raises:
+            CapacityError:
+                The group has a capacity of its own, so it does not grow.
+        """
+        system = self.problem_.system
+        tree = None if system is None else self._get_grown(PassCompiler()._get_declared_system(system), error)
+        if tree is None:
+            raise error
+        observables = self.observables or tuple(item for path, item in self.problem_.observables if not path)
+        compiler = self._get_compiler().set_params(observables=observables).prepare(tree)
+        problem = compiler.run({}).problem_
+        self.state_ = problem.states.get_relaid(self.state_, self.problem_.states, problem.initial_state)
+        self.parameters_ = problem.parameters.get_relaid(
+            self.parameters_,
+            self.problem_.parameters,
+            problem.initial_parameters,
+        )
+        self.problem_ = problem
+        self._adaptive = problem.adaptive_parameters
+        self._frame_parameters = None
+        self.observables_ = ObservableEvaluator(problem).prepare()
+        self.stepper_.prepare(problem)
+        self.stepper_.rng_.bit_generator.state = stream
+        self.stepper_.draw_recorder_ = self.draw_recorder_
+
+    def _get_grown(self, system: CompositeSystem, error: CapacityError, scope: str = '') -> CompositeSystem | None:
+        """Return a copy of a system tree whose full group has twice its rows, or `None`.
+
+        A group the user gave a `capacity` keeps it, so the result is `None`, as it is for a group not in the tree.
+        """
+        grown = self._grown
+        for element in system.elements:
+            if f'{scope}{element.label}' != error.path:
+                continue
+            if not isinstance(element, GroupElement) or (element.capacity is not None and error.path not in grown):
+                return None
+            grown.add(error.path)
+            larger = copy.copy(element).set_params(capacity=max(2 * error.rows, 1))
+            elements = [larger if item is element else item for item in system.elements]
+            return copy.copy(system).set_params(elements=elements)
+        for nested in system.systems:
+            within = f'{scope}{nested.label}/'
+            if isinstance(nested, CompositeSystem) and error.path.startswith(within):
+                larger_system = self._get_grown(nested, error, within)
+                if larger_system is None:
+                    return None
+                systems = [larger_system if item is nested else item for item in system.systems]
+                return copy.copy(system).set_params(systems=systems)
+        return None
 
     def _apply_schedule(self) -> None:
         """Set every scheduled and adaptive parameter to its value at the current time.

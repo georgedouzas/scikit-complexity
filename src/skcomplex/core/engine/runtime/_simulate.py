@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import copy
 from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
@@ -12,12 +11,10 @@ from sklearn.base import clone
 
 from ...base import BaseConfig
 from ...components import Observable, Tags
-from ...components.elements import GroupElement
 from ...components.systems import BaseSystem, CompositeSystem
-from ...errors import CapacityError, TagError, ValidationError
+from ...errors import TagError, ValidationError
 from ..backends import BaseBackend, NumpyBackend
 from ..compile import BaseCompiler
-from ..compile._pass_compiler import PassCompiler
 from ..problems import BaseProblemSpec
 from ..solvers import BaseSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
@@ -163,72 +160,6 @@ def _prepare_runners(
     return composite, stepper, runner, form, observables or tuned_observables
 
 
-def _get_declared(system: BaseSystem) -> CompositeSystem:
-    """Return the composite of a system whose plain elements are declared.
-
-    Its groups are those the engine lays out, which it can grow.
-
-    Args:
-        system:
-            The system.
-
-    Returns:
-        composite:
-            The composite, whose groups the engine can grow.
-    """
-    composite = system if isinstance(system, CompositeSystem) else system.prepare().system_
-    if not isinstance(composite, CompositeSystem):
-        composite = composite._get_composite()
-    return PassCompiler()._get_declared_system(composite)
-
-
-def _get_grown(
-    system: CompositeSystem,
-    error: CapacityError,
-    grown: set[str],
-    scope: str = '',
-) -> CompositeSystem | None:
-    """Return a copy of a system tree whose full group has twice its rows.
-
-    It grows as a Python list does, and a group the user gave a `capacity` keeps it, so the error stands.
-
-    Args:
-        system:
-            The declared system tree.
-
-        error:
-            The error that names the full group and its rows.
-
-        grown:
-            The paths of the groups grown so far, which this call extends.
-
-        scope:
-            The path of the system tree, such as `'city/'`, empty for the root.
-
-    Returns:
-        system:
-            The copy, or `None` when the group has a capacity of its own or is not in the tree.
-    """
-    for element in system.elements:
-        if f'{scope}{element.label}' != error.path:
-            continue
-        if not isinstance(element, GroupElement) or (element.capacity is not None and error.path not in grown):
-            return None
-        grown.add(error.path)
-        larger = copy.copy(element).set_params(capacity=max(2 * error.rows, 1))
-        elements = [larger if item is element else item for item in system.elements]
-        return copy.copy(system).set_params(elements=elements)
-    for nested in system.systems:
-        within = f'{scope}{nested.label}/'
-        if isinstance(nested, CompositeSystem) and error.path.startswith(within):
-            larger_system = _get_grown(nested, error, grown, within)
-            if larger_system is None:
-                return None
-            systems = [larger_system if item is nested else item for item in system.systems]
-            return copy.copy(system).set_params(systems=systems)
-    return None
-
-
 def compile_problem(
     system: BaseSystem,
     *,
@@ -292,9 +223,7 @@ def run_problem(
 ) -> Trajectory:
     """Simulate a system as `simulate` does.
 
-    It starts from a problem compiled from the system by `compile_problem` when one is given. A group without a
-    `capacity` grows as a Python list does: when rules or requests fill its rows, the run compiles the system again with
-    twice the rows for that group and starts over from the same random state, so a network may start with one node.
+    It starts from a problem compiled from the system by `compile_problem` when one is given.
 
     Args:
         system:
@@ -373,56 +302,32 @@ def run_problem(
         raise ValidationError(error_msg)
     if (record_draws or replay is not None) and backend is None:
         backend = NumpyBackend()
-    dt = settings['dt'] if dt is None else dt
-    schedule = settings['schedule'] if schedule is None else schedule
-    invariants = settings['invariants'] if invariants is None else invariants
-    initial_state = settings['initial_state'] if initial_state is None else initial_state
-    stream = random_state.bit_generator.state if isinstance(random_state, np.random.Generator) else None
-    tree, grown = None, set[str]()
-    while True:
-        source: CompositeSystem | BaseProblemSpec
-        if compiled is None:
-            source, stepper, runner, form, observed = _prepare_runners(system, solver, backend, compiler, observables)
-        else:
-            source, runner, form, observed = compiled[0], _clone_setting(backend), None, ()
-            stepper = clone(compiled[1] if solver is None else solver)
-        simulation = Simulation(
-            source,
-            compiler=form,
-            solver=stepper,
-            backend=runner,
-            dt=dt,
-            observers=observers,
-            schedule=schedule,
-            observables=observed,
-            invariants=invariants,
-            initial_state=initial_state,
-            random_state=random_state,
-            checked=checked,
-            clock=clock,
-            until=end,
-            record_draws=record_draws,
-            replay=replay,
-        )
-        try:
-            trajectory: Trajectory = simulation.prepare().run().trajectory_
-        except CapacityError as error:
-            tree = _get_grown(tree or _get_declared(system), error, grown)
-            if tree is None:
-                raise
-            if stream is not None and isinstance(random_state, np.random.Generator):
-                random_state.bit_generator.state = stream
-            if compiled is not None:
-                observables = observables or tuple(item for path, item in compiled[0].observables if not path)
-                solver = compiled[1] if solver is None else solver
-            settings = system.get_run_settings()
-            solver = solver or settings['solver']
-            backend = backend or settings['backend']
-            compiler = compiler or settings['compiler']
-            observables = observables or settings['observables']
-            system, compiled = tree, None
-            continue
-        return trajectory
+    source: CompositeSystem | BaseProblemSpec
+    if compiled is None:
+        source, stepper, runner, form, observed = _prepare_runners(system, solver, backend, compiler, observables)
+    else:
+        source, runner, form, observed = compiled[0], _clone_setting(backend), None, ()
+        stepper = clone(compiled[1] if solver is None else solver)
+    simulation = Simulation(
+        source,
+        compiler=form,
+        solver=stepper,
+        backend=runner,
+        dt=settings['dt'] if dt is None else dt,
+        observers=observers,
+        schedule=settings['schedule'] if schedule is None else schedule,
+        observables=observed,
+        invariants=settings['invariants'] if invariants is None else invariants,
+        initial_state=settings['initial_state'] if initial_state is None else initial_state,
+        random_state=random_state,
+        checked=checked,
+        clock=clock,
+        until=end,
+        record_draws=record_draws,
+        replay=replay,
+    )
+    trajectory: Trajectory = simulation.prepare().run().trajectory_
+    return trajectory
 
 
 def simulate(

@@ -16,6 +16,20 @@ def test_layout_reads_its_entries_and_names_by_method():
     assert not layout.has('b.y')
 
 
+def test_relay_keeps_the_rows_both_layouts_hold():
+    """Test that a vector of a group of two members moves into a layout of four, whose new rows keep their values."""
+    old = LayoutSpec((EntrySpec('a.n', 0, (), RR), EntrySpec('g.x', 1, (2,), RR, members=2)))
+    new = LayoutSpec(
+        (
+            EntrySpec('a.n', 0, (), RR),
+            EntrySpec('g.x', 1, (4,), RR, members=4),
+            EntrySpec('g.active', 5, (4,), RR, members=4),
+        ),
+    )
+    relaid = new.get_relaid(np.array([7.0, 1.0, 2.0]), old, np.zeros(9))
+    assert relaid.tolist() == [7.0, 1.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+
 def test_complex_view_is_zero_copy():
     """Test that the complex values of a layout view the stored floats without copying."""
     layout = LayoutSpec((EntrySpec('a.z', 0, (3,), CC, is_complex=True),))
