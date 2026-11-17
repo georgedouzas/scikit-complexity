@@ -252,7 +252,7 @@ def test_series_of_group_states(system, state):
 
 def test_series_leave_out_particles_and_jump_paths():
     """Test that a group of particles or of jump paths has no series, while a single jump state keeps one."""
-    particles = simulate(RandomWalkWithMemorySystem(n_walkers=5), until=1.0, random_state=0)
+    particles = RandomWalkWithMemorySystem(n_walkers=5).prepare().simulate(until=1.0, random_state=0)
     paths = PoissonProcessSystem(n_processes=2).prepare().simulate(1.0, random_state=0)
     for trajectory in (particles, paths):
         with pytest.raises(AnalysisError, match='no scalar series'):
@@ -356,7 +356,7 @@ def test_every_analysis_declares_valid_tags():
 def test_lyapunov_of_a_stochastic_system_names_the_randomness():
     """Test that the Lyapunov exponents of a stochastic system, or of a trajectory of one, raise an error naming it."""
     system = WeakeningOrnsteinUhlenbeckSystem(4)
-    for source in (system, simulate(system, until=1.0, random_state=0)):
+    for source in (system, system.prepare().simulate(until=1.0, random_state=0)):
         with pytest.raises(TagError, match="lyapunov of kind 'spectrum' needs the randomness deterministic"):
             lyapunov(source)
 

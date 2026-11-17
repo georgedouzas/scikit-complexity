@@ -247,8 +247,8 @@ class MandelbrotSystem(BaseSystem):
     def _get_escape_system(
         label: str,
         shape: Sequence[int],
-        z: object,
-        c: object,
+        z: npt.NDArray[np.complex128] | complex,
+        c: npt.NDArray[np.complex128] | complex,
         radius: float,
     ) -> System:
         """Return the system of the quadratic map over a lattice.
@@ -257,7 +257,7 @@ class MandelbrotSystem(BaseSystem):
         one shared value, and read row by row as one value per site.
         """
         space = LatticeSpace(tuple(int(item) for item in shape))
-        z, c = (np.ravel(value) if np.ndim(value) else value for value in (z, c))
+        z, c = (np.ravel(value) if isinstance(value, np.ndarray) else value for value in (z, c))
         return System(
             label,
             elements=[QuadraticMapElement('plane', z=z, c=c, space=space)],

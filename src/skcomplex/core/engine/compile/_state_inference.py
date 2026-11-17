@@ -345,6 +345,7 @@ class _StateInference:
         orders, lags = self._get_orders(compilation)
         kinds = self._get_topology_kinds(compilation)
         agents = self._get_agent_groups(compilation)
+        steps = self._get_steps(compilation)
 
         def declare(element: Element, path: str) -> list[BaseElement]:
             return self._get_declared_elements(
@@ -353,9 +354,37 @@ class _StateInference:
                 lambda name: lags.get(f'{path}.{name}', 0),
                 kinds,
                 agents=path in agents,
+                steps={
+                    name.removeprefix(f'{path}.'): moved.removeprefix(f'{path}.')
+                    for name, moved in steps.items()
+                    if name.startswith(f'{path}.') and moved.startswith(f'{path}.')
+                },
             )
 
         return self._replace(system, declare)
+
+    @staticmethod
+    def _get_steps(compilation: Compilation) -> dict[str, str]:
+        """Return the value that every update law adds to its target, as `v` in `x <- x + v`, by its dotted name.
+
+        Each name maps to the name of the value it moves, so the step of a position in discrete time is its velocity.
+        """
+        census = Compilation._get_required(compilation.census, 'census')
+        layout = Compilation._get_required(compilation.layout, 'layout')
+        named = {
+            str(block.symbols[variable]): entry.name
+            for block in layout.blocks.values()
+            for variable, entry in block.entries.items()
+        }
+        steps: dict[str, str] = {}
+        for record in census.records:
+            law = record.law
+            if not isinstance(law, UpdateLaw) or not isinstance(law.value, Expression) or str(law.target) not in named:
+                continue
+            step = str((law.value - SR(law.target)).expand())
+            if step in named:
+                steps[named[step]] = named[str(law.target)]
+        return steps
 
     @staticmethod
     def _get_topology_kinds(compilation: Compilation) -> frozenset[str]:
@@ -392,6 +421,7 @@ class _StateInference:
         probing: bool = False,
         *,
         agents: bool = False,
+        steps: Mapping[str, str] | None = None,
     ) -> list[BaseElement]:
         """Return the declared element of a plain element, or a group of declared members.
 
@@ -400,8 +430,9 @@ class _StateInference:
         of a node is a state, since it comes and goes with its node, and the group has room for twice its nodes. The
         members of a group that runs agent rules are agents, whose rules may change every value and add or remove
         members, so every value is a state and the group is variable, and a single element that runs them is a group of
-        one agent. A value named after an axis of a continuous space is a position, also when no law changes it. The
-        probe that finds the orders reads no starting values of derivatives or past values.
+        one agent. A value named after an axis of a continuous space is a position, also when no law changes it, and
+        the value an update law adds to a position at every step, as `v` in `x <- x + v`, is its velocity. The probe
+        that finds the orders reads no starting values of derivatives or past values.
         """
         values = self._get_values(element)
         starting = {} if probing else self._get_starting(element, values)
@@ -409,6 +440,7 @@ class _StateInference:
         network = bool(kinds) and isinstance(element.space, NetworkSpace)
         growing = network and bool(kinds & MEMBERSHIP)
         axes = self._get_axes(element)
+        velocities = {name for name, moved in (steps or {}).items() if moved in axes}
         variables = {}
         for name, value in values.items():
             member = self._get_member_value(element, name, value, count)
@@ -420,7 +452,7 @@ class _StateInference:
                 1 if order(name) is None and kept else order(name),
                 lags=lags(name),
                 starting=starting.get(name),
-                role='position' if name in axes else None,
+                role='position' if name in axes else 'velocity' if name in velocities else None,
             )
         if count is None:
             return [DeclaredElement(element.label, variables=variables)]

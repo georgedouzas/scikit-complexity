@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from scipy.linalg import expm
 from scipy.special import ive
 
-from skcomplex.core.analysis import displacement
+from skcomplex.core.analysis import alignment, displacement
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
@@ -576,3 +576,26 @@ def test_get_declared_reads_the_kind_of_a_value_annotated_as_object_from_the_val
     points = Points('point', z=np.array([0.1 + 0.1j, 0.2 - 0.1j]), size=2)
     system = System(elements=[points], interactions=[Julia('julia', target='point', c=0.0)]).prepare()
     assert system.simulate(until=1, dt=1).get_values('point.z')[-1] == pytest.approx([0.02j, 0.03 - 0.04j])
+
+
+class Drift(Interaction):
+    """Interaction that moves every walker by its velocity, `x <- x + v`, and halves the velocity at every step."""
+
+    def __init__(self, label: str, *, target: Role = 'walkers') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next position and the next velocity as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, v = context.target.x, context.target.v
+            self.laws_: list[BaseComponent] = [UpdateLaw(x, x + v), UpdateLaw(v, v / 2)]
+
+
+def test_get_declared_reads_the_step_of_a_position_as_its_velocity():
+    """Test that the value `v` a map adds to a position `x` at every step is the velocity of the walkers."""
+    walkers = Element('walkers', values={'x': 0.0, 'v': [1.0, -1.0, 2.0]}, size=3, space=ContinuousSpace(n_dim=1))
+    system = System(elements=[walkers], interactions=[Drift('drift')]).prepare()
+    trajectory = system.simulate(until=2, dt=1)
+    assert alignment(trajectory, kind='mean-vector').order == pytest.approx([1 / 3] * 3)

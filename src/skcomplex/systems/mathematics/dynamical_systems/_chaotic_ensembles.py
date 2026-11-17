@@ -8,85 +8,101 @@ The module covers ensembles of chaotic maps, their invariant densities, and chao
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, floor, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression, floor
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import mod, where
-from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
+from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 
 DOUBLING_DENOMINATOR = 1125899906840747.0
 
 
 class CubicWalkElement(Element):
-    """Walker driven by Bertin's cubic chaotic map `x' = lam x (x - 1/2)(x - 1) + x`.
-
-    The walker steps by `2 x - 1`.
+    """Walkers driven by a chaotic map, each with the value `u` of its map and its position `x`.
 
     Args:
         label:
-            The label of the element.
+            The label of the walkers.
+
+        u:
+            The initial value of the map, between 0 and 1, one per walker or shared.
 
         x:
-            The initial value of the map, between 0 and 1.
+            The initial position, one per walker or shared.
 
-        y:
-            The initial position of the walker.
+        size:
+            The number of walkers, or `None` for one.
 
-        lam:
-            The nonlinearity of the map.
+        space:
+            The line the walkers live on, whose axis `x` makes `x` their position, or `None`.
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import CubicWalkElement
-        >>> CubicWalkElement('walker', lam=8.0).lam
-        8.0
+        >>> CubicWalkElement('walker', u=0.4).u
+        0.4
     """
 
-    law_classes = (UpdateLaw,)
-
-    visual = VisualSpec('points', {'position': 'y', 'states': ()})
+    visual = VisualSpec('points', {'position': 'x', 'states': ()})
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[object, StateSpec()] = 0.3,
-        y: Annotated[object, StateSpec(role='position')] = 0.0,
-        lam: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
+        u: object = 0.3,
+        x: object = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
+        self.u = u
         self.x = x
-        self.y = y
+
+
+class CubicWalkInteraction(Interaction):
+    """Bertin's cubic chaotic map `u' = lam u (u - 1/2)(u - 1) + u` and the step `x' = x + 2 u - 1` it drives.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The walkers whose values `u` and positions `x` the map moves.
+
+        lam:
+            The nonlinearity of the map.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import CubicWalkInteraction
+        >>> CubicWalkInteraction('walk', lam=8.0).lam
+        8.0
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'walkers', lam: float = 15.0) -> None:
+        super().__init__(label)
+        self.target = target
         self.lam = lam
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next value of the map and the next position.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [
-            UpdateLaw(s.x, s.lam * s.x * (s.x - 1 / 2) * (s.x - 1) + s.x),
-            UpdateLaw(s.y, s.y + 2 * s.x - 1),
-        ]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next value of the map and the next position as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            u, x = context.target.u, context.target.x
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(u, context.lam * u * (u - 1 / 2) * (u - 1) + u),
+                UpdateLaw(x, x + 2 * u - 1),
+            ]
 
 
 class DoublingMapInteraction(Interaction):
@@ -159,19 +175,19 @@ class SkewTentMapInteraction(Interaction):
 
 def _get_square_displacement(member: SimpleNamespace) -> Expression:
     """Return the squared position of a walker."""
-    return member.y**2
+    return member.x**2
 
 
-class CubicChaoticMapSystem(OldBaseSystem):
+class CubicChaoticMapSystem(BaseSystem):
     """Bertin's cubic chaotic map and the chaotic walk it drives.
 
     The walk spreads like a random walk.
 
-    Every walker follows the map `x' = λ x (x - 1/2)(x - 1) + x` on the unit interval and moves by the step `y' = y + 2x
-    - 1`. The fixed point `x = 1/2` is stable for `λ < 8`, a period-two cycle follows, and the map is chaotic at `λ =
-    15`. The walkers start at `y = 0` with values of `x` spread regularly over the unit interval, so the mean position
-    stays near 0 while the mean square position grows linearly in time, and the invariant density of `x` is not uniform.
-    The system has the states `walkers.x` and `walkers.y` and the observables `displacement`, the mean position, and
+    Every walker follows the map `u' = λ u (u - 1/2)(u - 1) + u` on the unit interval and moves by the step `x' = x + 2u
+    - 1`. The fixed point `u = 1/2` is stable for `λ < 8`, a period-two cycle follows, and the map is chaotic at `λ =
+    15`. The walkers start at `x = 0` with values of `u` spread regularly over the unit interval, so the mean position
+    stays near 0 while the mean square position grows linearly in time, and the invariant density of `u` is not uniform.
+    The system has the states `walkers.u` and `walkers.x` and the observables `displacement`, the mean position, and
     `square_displacement`, the mean square position.
 
     Args:
@@ -184,9 +200,15 @@ class CubicChaoticMapSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import CubicChaoticMapSystem
-        >>> CubicChaoticMapSystem(4, lam=10.0).prepare().system_.elements[0].prepare().size_
+        >>> CubicChaoticMapSystem(4, lam=10.0).prepare().system_.elements[0].size
         4
     """
 
@@ -196,7 +218,7 @@ class CubicChaoticMapSystem(OldBaseSystem):
     until = 200
     dt = 1
     observables = (
-        Observable('displacement', group='walkers', variable='y'),
+        Observable('displacement', group='walkers', variable='x'),
         Observable('square_displacement', _get_square_displacement, group='walkers'),
     )
 
@@ -206,26 +228,22 @@ class CubicChaoticMapSystem(OldBaseSystem):
         *,
         lam: float = 15.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.lam = lam
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Bertin's cubic chaotic map and the chaotic walk it drives.
-
-        The walk spreads like a random walk.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the walkers on a line and the map that drives them."""
+        super()._prepare(context)
         start = (np.arange(self.n_walkers) + 1 / 4) / self.n_walkers
-        walkers = GroupElement(
-            'walkers',
-            element=CubicWalkElement,
-            size=self.n_walkers,
-            values={'x': start, 'y': 0.0, 'lam': self.lam},
-        )
-        return CompositeSystem(
+        walkers = CubicWalkElement('walkers', u=start, size=self.n_walkers, space=ContinuousSpace(n_dim=1))
+        self.system_ = System(
             self.label,
             elements=[walkers],
+            interactions=[CubicWalkInteraction('walk', target='walkers', lam=self.lam)],
         )
 
 

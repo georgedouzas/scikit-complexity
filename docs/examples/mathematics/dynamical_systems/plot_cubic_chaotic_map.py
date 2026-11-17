@@ -1,19 +1,18 @@
 """
 # Cubic chaotic map
 
-Two hundred chaotic walkers start at 0 and spread out like random walkers. Every step is `2x - 1` for the current value
-of the cubic map `x' = 15 x (x - 1/2)(x - 1) + x`, so the walk is deterministic and still fans out diffusively.
+Two hundred chaotic walkers start at 0 and spread out like random walkers. Every step is `2u - 1` for the current value
+of the cubic map `u' = 15 u (u - 1/2)(u - 1) + u`, so the walk is deterministic and still fans out diffusively.
 """
 
 # %%
-# The walkers start with values of `x` spread regularly over the unit interval, as in Bertin's Figure 7.4, and walk for
-# 250 steps. The system logs the positions `y` of all walkers, and the blueprint shows them over the whole run.
+# The walkers start with values of `u` spread regularly over the unit interval, as in Bertin's Figure 7.4, and walk for
+# 250 steps. The system logs the positions `x` of all walkers, and the blueprint shows them over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import CubicChaoticMapSystem
 
@@ -21,13 +20,13 @@ SYSTEM = 'cubic_chaotic_map'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
-    rrb.TimeSeriesView(origin='/walkers/y', name='positions y', axis_x=rrb.TimeAxis(view_range=whole_run)),
+    rrb.TimeSeriesView(origin='/walkers/x', name='positions x', axis_x=rrb.TimeAxis(view_range=whole_run)),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(CubicChaoticMapSystem(n_walkers=200, lam=15.0), until=250, observers=[observer])
+trajectory = CubicChaoticMapSystem(n_walkers=200, lam=15.0).prepare().simulate(until=250, observers=[observer])
 
 # %%
 # Diffusion of the chaotic walk and the density of the map
@@ -36,22 +35,22 @@ trajectory = simulate(CubicChaoticMapSystem(n_walkers=200, lam=15.0), until=250,
 # The slope is twice the diffusion coefficient, which the Green-Kubo sum `C_0 + 2 sum_k C_k` of the autocovariances
 # `C_k` of the steps, measured over the ensemble up to lag 20, predicts. The negative `C_1` of anticorrelated steps
 # makes the slope about a third of the step variance `C_0`.
-# The histogram of `x` should be far from uniform, with peaks near both ends, as in Bertin's Figure 7.5.
+# The histogram of `u` should be far from uniform, with peaks near both ends, as in Bertin's Figure 7.5.
 
 times = np.asarray(trajectory.times)
-steps = 2 * trajectory.get_values('walkers.x')[50:] - 1
+steps = 2 * trajectory.get_values('walkers.u')[50:] - 1
 covariances = [np.mean(steps[: len(steps) - lag] * steps[lag:]) for lag in range(21)]
 predicted = covariances[0] + 2 * sum(covariances[1:])
 fig, (spread, density) = plt.subplots(1, 2, figsize=(10, 4))
-spread.plot(times, trajectory.get_values('square_displacement'), label=r'$\langle y_t^2 \rangle$')
-spread.plot(times, trajectory.get_values('displacement'), label=r'$\langle y_t \rangle$')
+spread.plot(times, trajectory.get_values('square_displacement'), label=r'$\langle x_t^2 \rangle$')
+spread.plot(times, trajectory.get_values('displacement'), label=r'$\langle x_t \rangle$')
 spread.plot(times, predicted * times, '--', color='black', label='Green-Kubo slope')
 spread.set_xlabel('step t')
 spread.set_ylabel('moment of the position')
 spread.set_title('Linear spreading without drift')
 spread.legend()
-density.hist(trajectory.get_values('walkers.x')[50:].ravel(), bins=50, range=(0, 1), density=True)
-density.set_xlabel('x')
+density.hist(trajectory.get_values('walkers.u')[50:].ravel(), bins=50, range=(0, 1), density=True)
+density.set_xlabel('u')
 density.set_ylabel('density')
 density.set_title('Invariant density of the cubic map, λ = 15')
 fig.tight_layout()

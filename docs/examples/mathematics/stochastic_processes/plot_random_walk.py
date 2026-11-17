@@ -14,14 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import RandomWalkSystem
 
 SYSTEM = 'random_walk'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(RandomWalkSystem(n_walkers=6), dt=0.5, observers=[observer], random_state=0)
+trajectory = RandomWalkSystem(n_walkers=6).prepare().simulate(dt=0.5, observers=[observer], random_state=0)
 
 # %%
 # Diffusive spreading
@@ -33,7 +32,7 @@ trajectory = simulate(RandomWalkSystem(n_walkers=6), dt=0.5, observers=[observer
 
 fig, (spread, distribution) = plt.subplots(1, 2, figsize=(11, 4))
 for bias in (0.5, 0.7):
-    run = simulate(RandomWalkSystem(n_walkers=2000, bias=bias), random_state=1)
+    run = RandomWalkSystem(n_walkers=2000, bias=bias).prepare().simulate(random_state=1)
     positions = run.get_values('walkers.x')
     spread.plot(run.times, positions.var(axis=1), label=f'variance, bias {bias}')
     spread.plot(run.times, positions.mean(axis=1), '--', label=f'mean, bias {bias}')
