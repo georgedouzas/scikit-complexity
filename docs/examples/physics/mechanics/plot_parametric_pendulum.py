@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import ParametricPendulumSystem
 
@@ -29,7 +28,7 @@ blueprint = rrb.Blueprint(
 )
 system = ParametricPendulumSystem(theta=0.1, omega=0.0, epsilon=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=6)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Exponential growth at resonance
@@ -42,7 +41,7 @@ trajectory = simulate(system, observers=[observer])
 natural = np.sqrt(9.81)
 fig, ax = plt.subplots(figsize=(6, 4))
 for epsilon in [0.2, 0.0]:
-    run = simulate(ParametricPendulumSystem(theta=0.01, omega=0.0, epsilon=epsilon), until=40, dt=0.01)
+    run = ParametricPendulumSystem(theta=0.01, omega=0.0, epsilon=epsilon).prepare().simulate(until=40, dt=0.01)
     times = np.asarray(run.times)
     angle = np.abs(np.ravel(run.get_values('swing.theta')))
     peaks = (angle[1:-1] > angle[:-2]) & (angle[1:-1] >= angle[2:])
@@ -65,7 +64,7 @@ plt.show()
 fig, ax = plt.subplots(figsize=(6, 4))
 for direction in ['horizontal', 'vertical']:
     system = ParametricPendulumSystem(theta=0.0, omega=0.0, epsilon=0.002, Omega=natural, direction=direction)
-    run = simulate(system, until=40, dt=0.01)
+    run = system.prepare().simulate(until=40, dt=0.01)
     times = np.asarray(run.times)
     ax.plot(times, np.ravel(run.get_values('swing.theta')), label=direction)
 ax.plot(times, 0.002 * natural * times / 2, '--', color='black', label='ε ω0 t / 2')
