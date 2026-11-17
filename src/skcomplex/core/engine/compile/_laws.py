@@ -6,7 +6,6 @@
 
 from ...components.laws import (
     ArrayUpdateLaw,
-    BilinearLaw,
     BoundaryLaw,
     EventLaw,
     LinearProgramLaw,
@@ -16,6 +15,7 @@ from ...components.laws import (
     SampleLaw,
     TransferLaw,
 )
+from ..problems._bilinear_law import BilinearLaw
 from ._flux_law import _FluxLaw
 from ._relaxation_law import RelaxationLaw
 

@@ -13,7 +13,6 @@ import scipy.sparse
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
 from ...components.laws import (
-    BilinearLaw,
     BoundaryLaw,
     ConstraintLaw,
     EventLaw,
@@ -27,6 +26,7 @@ from ...errors import SolverError
 from ...types import Array
 from ..backends import SupportSpec
 from ..problems import ProblemSpec, RunStateSpec
+from ..problems._bilinear_law import BilinearLaw
 from ._event_locator import EventLocator
 from ._history import RESTART, History
 from ._segment_spec import _SegmentSpec

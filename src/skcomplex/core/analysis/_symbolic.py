@@ -36,7 +36,6 @@ from ..components.systems import CompositeSystem
 from ..engine._utils import components_of, domain_of
 from ..engine.compile import BaseCompiler
 from ..engine.compile._pass_compiler import PassCompiler
-from ..engine.compile._rewriting_compiler import RewritingCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._operator_problem_spec import OperatorProblemSpec
 from ..engine.problems._transfer_network_spec import TransferNetworkSpec
@@ -316,7 +315,7 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
 
     Raises:
         AnalysisError:
-            The system has no form of the kind, such as a system of words or patches, which rewrites them, Maxima
+            The system has no form of the kind, such as a system that compiles to a form without equations, Maxima
             cannot solve its equations, or needs the sign of a parameter.
 
         ConservationError:
@@ -339,12 +338,6 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
     _check_choice('symbolic', 'kind', kind, KINDS)
     _check_settings(symbolic, 'kind', SETTINGS[kind], kind=kind, use_initial_state=use_initial_state)
     system = _read_system(source)
-    if not isinstance(system, BaseProblemSpec) and RewritingCompiler._is_rewriting(system):
-        error_msg = (
-            f'The system {system.label} rewrites words or patches, which have productions, not equations. Simulate it '
-            'and analyse its trajectory instead.'
-        )
-        raise AnalysisError(error_msg)
     compiled = (
         system if isinstance(system, BaseProblemSpec) else _get_compiler_of(system).prepare(system).run().problem_
     )

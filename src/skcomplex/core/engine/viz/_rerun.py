@@ -33,7 +33,6 @@ from ._bodies import BodiesVisual
 from ._cayley import CayleyVisual
 from ._cells import CellVisual
 from ._expectation import ExpectationVisual
-from ._geometry import GeometryVisual
 from ._histograms import HistogramVisual
 from ._images import ImageVisual
 from ._linear_programs import LinearProgramVisual
@@ -64,7 +63,6 @@ VISUALS: dict[str, type[BaseVisual]] = {
     'cayley': CayleyVisual,
     'cell': CellVisual,
     'expectations': ExpectationVisual,
-    'geometry': GeometryVisual,
     'histograms': HistogramVisual,
     'image': ImageVisual,
     'linear_program': LinearProgramVisual,

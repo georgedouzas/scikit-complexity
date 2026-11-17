@@ -26,7 +26,6 @@ from ...components.interactions import (
     WienerProcessSpec,
 )
 from ...components.laws import (
-    BilinearLaw,
     ConstraintLaw,
     JumpLaw,
     LinearProgramLaw,
@@ -81,6 +80,7 @@ from ...types import Array, ProcessKey, VectorFunction
 from .._utils import bound_labels, declarations_of, default_of, symbol
 from ..backends import BaseBackend
 from ..problems import BaseProblemSpec, ProblemSpec
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ..problems._node_spec import _NodeSpec
 from ..problems._partition_spec import PartitionSpec
@@ -2141,7 +2141,7 @@ class PassCompiler(BaseCompiler):
             )
             more = f', and {len(found) - LISTED_ENCOUNTERS} more' if len(found) > LISTED_ENCOUNTERS else ''
             message = (
-                f'The {type(law).__name__} of {record.path} has outcome probabilities that do not sum to one over the '
+                f'The bilinear form of {record.path} has outcome probabilities that do not sum to one over the '
                 f'outcomes of an encounter: {listed}{more}.'
             )
             fix = 'Give outcome probabilities that sum to one over the outcomes of every encounter with a nonzero rate.'

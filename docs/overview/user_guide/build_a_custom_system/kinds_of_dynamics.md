@@ -33,18 +33,19 @@ system from, and the column "Engine" names what compiles and runs them.
 | agents | [`RuleLaw`](../core_components/laws.md#rulelaw), `pairs` | the agents passes, `MesaSolver` |
 | lattices | [`LocalRuleLaw`](../core_components/laws.md#localrulelaw), [`LocalRuleInteraction`](../core_components/interactions.md#localruleinteraction), [`ArrayUpdateLaw`](../core_components/laws.md#arrayupdatelaw), [`relax`](../core_components/laws.md#relax), [`GroupElement`](../core_components/elements.md#groupelement), [`LatticeSpace`](../core_components/spaces.md#latticespace), `ObjectiveSpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
 | finitely generated groups | [`CayleySpace`](../core_components/spaces.md#cayleyspace) | `CayleyVisual` |
-| rewriting | [`ProductionLaw`](../core_components/laws.md#productionlaw), [`SubstitutionLaw`](../core_components/laws.md#substitutionlaw), [`WordElement`](../core_components/elements.md#wordelement), [`PatchElement`](../core_components/elements.md#patchelement) | the rewriting compiler, `RewritingSolver`, `GeometryVisual` |
+| rewriting | [`ProductionLaw`](../core_components/general.md#productionlaw), [`SubstitutionLaw`](../core_components/general.md#substitutionlaw), [`WordElement`](../core_components/general.md#wordelement), [`PatchElement`](../core_components/general.md#patchelement) of `skcomplex.systems.general.rewriting` | the rewriting compiler, `RewritingSolver`, `GeometryVisual` |
 | operator | `local_operator`, `dagger`, and the `GeneratorLaw`, `DissipatorLaw`, and `HilbertSpec` of the [quantum package](quantum_systems.md) | the operator compiler, and `UnitarySolver`, `LindbladSolver`, and `JumpTrajectoriesSolver` of the quantum package |
 | fields | [`FieldElement`](../core_components/elements.md#fieldelement), [`FiniteVolumeSpec`](../core_components/elements.md#fieldelement), [`CellComplexSpace`](../core_components/spaces.md#cellcomplexspace) of a mesh, `laplacian` and the other operators | the fields passes, `IMEXEulerSolver`, `CrankNicolsonSolver`, `SSPRKSolver` |
-| kinetics | [`BilinearLaw`](../core_components/laws.md#bilinearlaw), `moment` | the encounter passes, `KineticSolver` |
+| kinetics | [`RateLaw`](../core_components/laws.md#ratelaw) of [`bilinear`](kinetic_systems_of_active_particles.md#the-bilinear-form), `moment` | the encounter passes, `KineticSolver` |
 | fractional | `StateSpec(order=...)` in `(0, 1)`, [`NoiseLaw`](../core_components/laws.md#noiselaw)`(..., hurst=)` | the fractional passes, `FractionalABMSolver`, `GrunwaldLetnikovSolver`, `FractionalEulerMaruyamaSolver` |
 | topology | `TopologyRequestSpec` | the topology passes |
 | particles | `StateSpec(vector=True, order=2)`, [`GradientInteraction`](../core_components/general.md#gradientinteraction), [`PairInteraction`](../core_components/interactions.md#pairinteraction) | `VelocityVerletSolver`, `Yoshida4Solver`, `LammpsSolver` |
 | control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
 `simulate` compiles a system into the problem of its form and runs it. You never name the compiler of a form that the
-library ships. A system of operator elements compiles with the operator compiler, a system of words or patches with
-the rewriting compiler, and every other system with the pass compiler. A pass is one step of that compiler, and it
+library ships. An element can name the compiler of its system, as the words and patches of
+`skcomplex.systems.general.rewriting` name the rewriting compiler. A system of operator elements compiles with the
+operator compiler, and every other system with the pass compiler. A pass is one step of that compiler, and it
 lowers each law to the problem of its form, such as a right-hand side of an ordinary differential equation.
 
 A package of your own can bring a form of its own. Its compiler derives from `BaseCompiler` of

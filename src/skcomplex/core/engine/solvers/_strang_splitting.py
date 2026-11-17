@@ -9,13 +9,14 @@ from dataclasses import replace
 import numpy as np
 from sklearn.base import clone
 
-from ...components.laws import BilinearLaw, RateLaw
+from ...components.laws import RateLaw
 from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...types import Array
 from ..backends import SupportSpec
 from ..problems import ProblemSpec, RunStateSpec
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._steps import step_count
 from ._rk4 import RK4Solver
 from ._solver import Solver

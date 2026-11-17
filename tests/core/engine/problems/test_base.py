@@ -10,7 +10,6 @@ from skcomplex.core.engine.problems import (
     BaseProblemSpec,
     BaseRecordSpec,
     BaseSearch,
-    BaseStructureSpec,
 )
 from skcomplex.core.engine.problems._source_loader import SourceLoader
 from skcomplex.core.specs import BaseSpec
@@ -27,10 +26,9 @@ def test_public_names_are_classes_under_the_bases():
 
 
 def test_value_bases_derive_from_the_value_base():
-    """The problem, record, and structure bases are values."""
+    """The problem and record bases are values."""
     assert issubclass(BaseProblemSpec, BaseSpec)
     assert issubclass(BaseRecordSpec, BaseSpec)
-    assert issubclass(BaseStructureSpec, BaseSpec)
 
 
 def test_kernel_search_and_printer_bases_are_configurable():
@@ -40,9 +38,13 @@ def test_kernel_search_and_printer_bases_are_configurable():
 
 
 def test_public_problems_are_the_bases_frames_and_two_forms():
-    """The bases, the problems of the shared pass core and the operator form, its kernel, and the frames are public."""
+    """The bases, the shared problems, the operator form and kernel, the frames, and values are public.
+
+    The printer of expressions is public too, for the kernels of system packages.
+    """
     expected = {
         'BaseKernel',
+        'ExpressionPrinter',
         'BasePrinter',
         'BaseProblemSpec',
         'BaseSearch',

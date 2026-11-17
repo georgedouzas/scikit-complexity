@@ -271,8 +271,7 @@ A rewriting system grows a word at every generation, and `max_size` bounds its l
 replace `A` by `AB` and `B` by `A`.
 
 ```python
-from skcomplex.core.components.elements import WordElement
-from skcomplex.core.components.laws import ProductionLaw
+from skcomplex.systems.general.rewriting import ProductionLaw, WordElement
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RewritingError

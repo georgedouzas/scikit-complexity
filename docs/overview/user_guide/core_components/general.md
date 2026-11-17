@@ -18,6 +18,7 @@ The package has one subpackage per concept, and every recipe is imported from it
 | `dynamics` | systems given as equations | `DynamicalSystem`, `NetworkDynamicalSystem`, `ReactionDiffusionSystem`, `StockFlowSystem` |
 | `agents` | agent rules | `MovementInteraction`, `ChoiceInteraction`, `ImitationInteraction`, `EvolutionInteraction`, `BirthDeathInteraction` |
 | `matching` | markets that pair two groups | `MatchingInteraction`, its rule specs, and `MatchSpec` |
+| `rewriting` | words and tilings that grow by rules | `WordElement`, `PatchElement`, `ProductionLaw`, `SubstitutionLaw`, their specs, `GeometryVisual`, and `RewritingSolver` |
 
 ## NonnegativeElement
 
@@ -482,7 +483,8 @@ simulate(cells, until=10.0, dt=5.0).get_values('tumour.x').round(3).tolist()
 
 The tumour falls to 0.368 at time 5 and to 0.135 at time 10, which is `exp(-2)`.
 
-**How the engine runs it.** The interaction lowers to a [`BilinearLaw`](laws.md#bilinearlaw), a rate that is a sum
+**How the engine runs it.** The interaction returns a [`RateLaw`](laws.md#ratelaw) whose rate is the
+[`bilinear`](../build_a_custom_system/kinetic_systems_of_active_particles.md#the-bilinear-form) form of the core, a sum
 of products of the two densities, which the compiler evaluates as arrays over the classes. A proliferative outcome adds
 a candidate at class `i`, and with a `cross_section` the rate is the collision integral of kinetic theory, evaluated
 by a fast spectral method.
@@ -491,7 +493,7 @@ by a fast spectral method.
 [`PhaseSpace`](spaces.md#phasespace), where encounters pair classes at the same position. Without a field the
 encounter is a linear redistribution between classes.
 
-**Limits and errors.** The bilinear law needs a lattice of classes. A conservative encounter moves candidates by a
+**Limits and errors.** The bilinear form needs a lattice of classes. A conservative encounter moves candidates by a
 kernel, so `prepare` raises a `ValidationError` without one.
 
 ```python continuation
@@ -1955,6 +1957,365 @@ The clearing prices of the rounds are 1.018, 1.231, 1.074, none in the fourth ro
 4, 1, 0, and 2. No bid of the fourth round covers an ask, so nothing trades. The clerk counts 11 goods bought and
 ends with a fee of 0.11. The state `cap` names the money of a buyer, the most value it can give.
 
+The package `rewriting` brings numerics of its own: a compiler, a solver that rewrites one generation per step,
+and a visual that draws words and tiles. The computer science of shift spaces and the fractals of mathematics both
+use it.
+
+## WordElement
+
+A `WordElement` holds a word of symbols that productions rewrite at every generation. In the algae of Lindenmayer `A`
+becomes `AB` and `B` becomes `A`, so the length of the word runs through the Fibonacci numbers.
+
+```python
+from skcomplex.systems.general.rewriting import ProductionLaw, WordElement
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+
+
+class AlgaeElement(WordElement):
+    law_classes = (ProductionLaw,)
+
+    def _get_laws(self, namespace):
+        return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
+
+
+trajectory = simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A')]), until=5)
+trajectory.get_values('algae.size').tolist()
+```
+
+The Thue and Morse sequence of symbolic dynamics comes from the same class, with `0` becoming `01` and `1` becoming
+`10`.
+
+```python continuation
+class MorseElement(WordElement):
+    law_classes = (ProductionLaw,)
+
+    def _get_laws(self, namespace):
+        return [ProductionLaw('0', '01'), ProductionLaw('1', '10')]
+
+
+simulate(CompositeSystem(elements=[MorseElement('morse', axiom='0')]), until=3).get_values('morse.size').tolist()
+```
+
+**How the engine runs it.** Each generation applies every production to every matching symbol at once. The
+rewriting solver advances one generation per unit of time and records the size of the word as the state `size`.
+
+**How it combines.** Its productions are its own laws, so it usually runs alone. A `geometry` draws the word as line
+segments, as a turtle does, for plants and fractal curves.
+
+**Limits and errors.** The word grows at every generation, so `max_size` bounds it. A symbol outside `alphabet`, or a
+word that would grow past `max_size`, raises a `RewritingError` during the run.
+
+```python continuation
+from skcomplex.core.errors import RewritingError
+
+try:
+    simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A', max_size=4)]), until=5)
+except RewritingError as error:
+    message = str(error)
+message
+```
+
+The message says that the word would reach 5 symbols at generation 3, above its maximum size 4. The fix is a larger
+`max_size` or fewer generations.
+
+**A field realization.** The subclasses above are already field realizations, the algae of biology and the sequence
+of symbolic dynamics.
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
+## ProductionLaw
+
+A `ProductionLaw` rewrites every matching symbol of a word by a string at every generation, as an L-system does. The
+Koch curve replaces each segment `F` by `F+F--F+F`, where `+` and `-` turn the drawing pen.
+
+```python
+from skcomplex.systems.general.rewriting import ProductionLaw, WordElement
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+
+
+class KochElement(WordElement):
+    law_classes = (ProductionLaw,)
+
+    def _get_laws(self, namespace):
+        return [ProductionLaw('F', 'F+F--F+F')]
+
+
+koch = KochElement('koch', axiom='F')
+simulate(CompositeSystem(elements=[koch]), until=3).get_values('koch.size').tolist()
+```
+
+The word holds 1, 8, 36, and 148 symbols, since every segment becomes four segments and four turns.
+
+The same law runs a grammar of linguistics. A sentence `S` becomes a noun phrase `N` and a verb phrase `V`, a noun
+phrase becomes a determiner `D` and a word `W`, and a verb phrase takes a noun phrase as its object.
+
+```python continuation
+class SentenceElement(WordElement):
+    law_classes = (ProductionLaw,)
+
+    def _get_laws(self, namespace):
+        return [ProductionLaw('S', 'NV'), ProductionLaw('N', 'DW'), ProductionLaw('V', 'VN')]
+
+
+sentence = SentenceElement('sentence', axiom='S')
+simulate(CompositeSystem(elements=[sentence]), until=3).get_values('sentence.size').tolist()
+```
+
+The structure holds 1, 2, 4, and 6 symbols.
+
+**How the engine runs it.** The rewriting solver applies every production to every matching symbol at once, one
+generation per unit of time, and records the length of the word as the state `size`.
+
+**How it combines.** A `WordElement` returns its productions, which act on its word. A production may read a left or
+a right context, a condition on the parameters of a module, or a probability, so stochastic and parametric L-systems
+use the same law.
+
+**Limits and errors.** A word grows at every generation, so the element bounds it with `max_size`. The probability of a
+stochastic production lies in `[0, 1]`, and `prepare` raises a `RewritingError` otherwise.
+
+```python continuation
+from skcomplex.core.errors import RewritingError
+
+try:
+    ProductionLaw('F', 'FF', probability=1.5).prepare()
+except RewritingError as error:
+    message = str(error)
+message
+```
+
+The message reads "The probability of a production is in [0, 1], not 1.5."
+
+**A field realization.** The [WordElement](#wordelement) section holds the algae of Lindenmayer, a
+realization of botany.
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
+## PatchElement
+
+A `PatchElement` holds tiles, placed copies of basic shapes, that substitutions replace by smaller pieces at every
+generation. Keeping the outer thirds of every interval builds the Cantor set.
+
+```python
+from skcomplex.systems.general.rewriting import AffineSpec, PatchElement, PrototileSpec, SubstitutionLaw
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+
+
+class CantorElement(PatchElement):
+    law_classes = (SubstitutionLaw,)
+
+    def _get_laws(self, namespace):
+        thirds = [AffineSpec(scale=1 / 3), AffineSpec(scale=1 / 3, translation=(2 / 3, 0))]
+        return [SubstitutionLaw('interval', [('interval', third) for third in thirds])]
+
+
+cantor = CantorElement('cantor', prototiles=[PrototileSpec('interval', [(0, 0), (1, 0)])])
+simulate(CompositeSystem(elements=[cantor]), until=3).get_values('cantor.size').tolist()
+```
+
+Replacing every triangle by its three corner triangles builds the Sierpinski triangle of geometry.
+
+```python continuation
+class SierpinskiElement(PatchElement):
+    law_classes = (SubstitutionLaw,)
+
+    def _get_laws(self, namespace):
+        corners = [(0, 0), (1 / 2, 0), (1 / 4, 1 / 2)]
+        pieces = [('triangle', AffineSpec(scale=1 / 2, translation=corner)) for corner in corners]
+        return [SubstitutionLaw('triangle', pieces)]
+
+
+triangle = SierpinskiElement('sierpinski', prototiles=[PrototileSpec('triangle', [(0, 0), (1, 0), (1 / 2, 1)])])
+simulate(CompositeSystem(elements=[triangle]), until=3).get_values('sierpinski.size').tolist()
+```
+
+**How the engine runs it.** Each generation applies every substitution to every tile of its prototile at once, and
+the rewriting solver records the number of tiles as the state `size`.
+
+**How it combines.** Its substitutions are its own laws, so it usually runs alone, and its tiles are drawn as polygons.
+
+**Limits and errors.** Every tile must name a prototile of the patch, and `prepare` raises a `RewritingError`
+otherwise.
+
+```python continuation
+from skcomplex.core.errors import RewritingError
+
+try:
+    interval = PrototileSpec('interval', [(0, 0), (1, 0)])
+    PatchElement('patch', tiles=[('square', None)], prototiles=[interval]).prepare()
+except RewritingError as error:
+    message = str(error)
+message
+```
+
+The message names the unknown prototile `square`. The fix is a tile of the prototile `interval`.
+
+**A field realization.** The two subclasses above are realizations of mathematics, and a tiling of physics, such as
+the Penrose tiling of a quasicrystal, is written the same way.
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
+## SubstitutionLaw
+
+A `SubstitutionLaw` replaces every tile of a prototile, a shape of tile, by smaller placed pieces at every generation.
+The Sierpinski carpet keeps eight of the nine thirds of every square.
+
+```python
+from skcomplex.systems.general.rewriting import AffineSpec, PatchElement, PrototileSpec, SubstitutionLaw
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+
+
+class CarpetElement(PatchElement):
+    law_classes = (SubstitutionLaw,)
+
+    def _get_laws(self, namespace):
+        corners = [(i / 3, j / 3) for i in range(3) for j in range(3) if (i, j) != (1, 1)]
+        pieces = [('square', AffineSpec(scale=1 / 3, translation=corner)) for corner in corners]
+        return [SubstitutionLaw('square', pieces)]
+
+
+square = PrototileSpec('square', [(0, 0), (1, 0), (1, 1), (0, 1)])
+carpet = CarpetElement('carpet', prototiles=[square])
+simulate(CompositeSystem(elements=[carpet]), until=3).get_values('carpet.size').tolist()
+```
+
+The carpet holds 1, 8, 64, and 512 squares.
+
+The same law subdivides the square tiling of the plane, which is its own substitution tiling. Every square becomes four
+squares of half the size.
+
+```python continuation
+class RefinementElement(PatchElement):
+    law_classes = (SubstitutionLaw,)
+
+    def _get_laws(self, namespace):
+        corners = [(0, 0), (1 / 2, 0), (0, 1 / 2), (1 / 2, 1 / 2)]
+        pieces = [('square', AffineSpec(scale=1 / 2, translation=corner)) for corner in corners]
+        return [SubstitutionLaw('square', pieces)]
+
+
+grid = RefinementElement('grid', prototiles=[square])
+simulate(CompositeSystem(elements=[grid]), until=3).get_values('grid.size').tolist()
+```
+
+The tiling holds 1, 4, 16, and 64 squares.
+
+**How the engine runs it.** The rewriting solver applies every substitution to every tile of its prototile at once,
+one generation per unit of time, and records the number of tiles as the state `size`.
+
+**How it combines.** A `PatchElement` returns its substitutions, and several prototiles with one law each build a
+tiling of several shapes, as the Penrose tiling does.
+
+**Limits and errors.** Each piece pairs a prototile name with an `AffineSpec`, the map from the frame of the parent
+tile, and `prepare` raises a `RewritingError` for any other piece.
+
+```python continuation
+from skcomplex.core.errors import RewritingError
+
+try:
+    SubstitutionLaw('square', [('square', 1 / 3)]).prepare()
+except RewritingError as error:
+    message = str(error)
+message
+```
+
+The message says that a piece is a prototile name and an `AffineSpec`, not `('square', 0.3333333333333333)`. The fix
+is `('square', AffineSpec(scale=1 / 3))`.
+
+**A field realization.** The [PatchElement](#patchelement) section holds the Cantor set and the Sierpinski
+triangle, realizations of mathematics.
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
+## ModuleSpec
+
+A `ModuleSpec` is a symbol of a word with parameters, such as a segment `F(0.5)` of length 0.5 or an apex `A(x)` whose
+parameter a production reads. A word mixes plain symbols and modules, and `parse_word` reads it into modules.
+
+```python
+from skcomplex.systems.general.rewriting import ModuleSpec
+
+[module.name for module in ModuleSpec.parse_word(['F', ModuleSpec('A', (1.0,)), '+-'])]
+```
+
+The word reads as the modules `F`, `A`, `+`, and `-`. The parametric plant of [Rewriting
+systems](../build_a_custom_system/rewriting_systems.md) shrinks its apex with them. See its
+[API entry][skcomplex.systems.general.rewriting].
+
+## AffineSpec
+
+An `AffineSpec` places a piece of a substitution in the frame of its parent tile, by a scale, a rotation, a
+translation, and an optional reflection. The right third of an interval is the interval scaled by a half and shifted
+by one.
+
+```python
+from skcomplex.systems.general.rewriting import AffineSpec
+
+AffineSpec(scale=0.5, translation=(1, 0)).get_matrix_at({}).tolist()
+```
+
+The homogeneous matrix is `[[0.5, 0, 1], [0, 0.5, 0], [0, 0, 1]]`. Its entries can be expressions of the parameters
+of the patch, which every generation evaluates. See its [API entry][skcomplex.systems.general.rewriting].
+
+## PrototileSpec
+
+A `PrototileSpec` is a shape of which the tiles of a patch are placed copies, a segment of two vertices or a polygon
+of at least three. Its name names the count state of its tiles.
+
+```python
+from skcomplex.systems.general.rewriting import PrototileSpec
+
+interval = PrototileSpec('interval', [(0, 0), (1, 0)])
+square = PrototileSpec('square', [(0, 0), (1, 0), (1, 1), (0, 1)])
+interval.is_segment, square.is_segment
+```
+
+The interval is a segment and the square a polygon. See its [API entry][skcomplex.systems.general.rewriting].
+
+## GeometrySpec
+
+A `GeometrySpec` draws a word as line segments, as a turtle walks it: `F` draws a step, `+` and `-` turn by the angle,
+and `[` and `]` save and restore the position for branches. The step shrinks by `contraction` at every generation, so
+the Koch curve keeps its size.
+
+```python
+from skcomplex.systems.general.rewriting import GeometrySpec
+
+GeometrySpec(angle=60.0, contraction=1 / 3).dimension
+```
+
+The drawing is in two dimensions unless `dimension=3`. See its [API entry][skcomplex.systems.general.rewriting].
+
+## GeometryVisual
+
+A `GeometryVisual` logs the word or the patch of an element to the Rerun viewer, as line strips, or as an image for a
+filled patch, with the counts of its symbols or tiles as time series. Words and patches name it as their `visual`, so a
+`RerunObserver` draws them with it.
+
+```python
+from skcomplex.systems.general.rewriting import GeometryVisual, WordElement
+
+WordElement.visual.kind is GeometryVisual, GeometryVisual(filled=True)
+```
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
+## RewritingSolver
+
+A `RewritingSolver` rewrites every word and patch of a system once per unit of time, applying all productions at once.
+The compiler of the rewriting package names it, so a run of words or patches uses it without a `solver`.
+
+```python
+from skcomplex.systems.general.rewriting import RewritingSolver
+
+RewritingSolver()
+```
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
 ## Where a component goes
 
 One ordered test, the placement rule of the package layout, decides where any new component goes. The source tests check
@@ -1977,8 +2338,9 @@ on them.
 
 **A component the engine handles by type.** A law that a kernel lowers goes to the core under a mathematical name.
 [`GroupingInteraction`](interactions.md#groupinginteraction) stays in the core, since a compile pass lowers it by type
-to kernels over random groups, and economics and social science both form groups. `BilinearLaw` is in the core
-because the compiler names it, while `EncounterInteraction`, which only builds bilinear laws, is a recipe.
+to kernels over random groups, and economics and social science both form groups. The operator `bilinear` is in the
+core because the compiler lowers it, while `EncounterInteraction`, which only builds rate laws of bilinear forms, is a
+recipe.
 
 **A recipe of several fields.** An agent rule that economics and social science both use goes to a concept subpackage
 of `skcomplex.systems.general`. `ChoiceInteraction` returns only laws the core already runs, and the oligopoly markets
@@ -1992,10 +2354,10 @@ family `avalanches` of the physics `common` package, under the physics name `Top
 
 ```python
 from skcomplex.core.components.interactions import GroupingInteraction, HyperedgeInteraction
-from skcomplex.core.components.laws import BilinearLaw
+from skcomplex.core.components.laws.utils import bilinear
 from skcomplex.systems.general.agents import ChoiceInteraction
 
-components = [HyperedgeInteraction, GroupingInteraction, BilinearLaw, ChoiceInteraction]
+components = [HyperedgeInteraction, GroupingInteraction, bilinear, ChoiceInteraction]
 [component.__module__.rsplit('.', 1)[0] for component in components]
 ```
 

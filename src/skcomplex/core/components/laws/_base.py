@@ -220,34 +220,6 @@ class BaseLaw(BaseComponent[str, object]):
             )
             raise ValidationError(error_msg)
 
-    def _check_table(self, name: str, dimensions: tuple[int, ...]) -> None:
-        """Raise an error for an argument that is not an array of numbers or expressions.
-
-        The array must have one of some dimensions.
-        """
-        table = np.asarray(getattr(self, name), dtype=object)
-        if table.ndim not in dimensions:
-            expected = ' or '.join(str(item) for item in dimensions)
-            error_msg = (
-                f'The {name} of {type(self).__name__} must be an array of {expected} dimensions, but got shape '
-                f'{table.shape}.'
-            )
-            raise ValidationError(error_msg)
-
-    def _check_outcomes(self, rate_name: str, name: str) -> None:
-        """Raise an error for an outcome table whose leading shape is not the rate table's.
-
-        Its first two dimensions must be the shape of the rate table.
-        """
-        rate, outcomes = np.asarray(getattr(self, rate_name), dtype=object), getattr(self, name)
-        if outcomes is None or rate.ndim == 0 or rate.shape == np.shape(outcomes)[:2]:
-            return
-        error_msg = (
-            f'The {rate_name} of {type(self).__name__} has the shape {rate.shape}, but its {name} have '
-            f'{np.shape(outcomes)[:2]} candidate and field classes.'
-        )
-        raise ValidationError(error_msg)
-
     def _prepare(self, context: str | None = None) -> None:
         """Set `targets_`, `reads_`, and `owner_`.
 

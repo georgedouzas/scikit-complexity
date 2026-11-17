@@ -8,7 +8,6 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine import compile as package
 from skcomplex.core.engine.compile import BaseCompiler, BasePass, OperatorCompiler
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
 
 
 def test_base_compiler_resolve_backend():
@@ -29,13 +28,15 @@ def test_public_names_are_classes():
 
 
 def test_bases_and_the_operator_compiler_are_public():
-    """The bases, the operator compiler, and values are public, and the other compilers and the passes are private."""
-    expected = {'BaseCompiler', 'BasePass', 'BaseLowering', 'HilbertSpaceError', 'OperatorCompiler'}
+    """The bases, the operator compiler, the flattening pass, and values are public, and the other passes private.
+
+    A compiler of a system package flattens the tree of a system with the flattening pass.
+    """
+    expected = {'BaseCompiler', 'BasePass', 'BaseLowering', 'FlattenPass', 'HilbertSpaceError', 'OperatorCompiler'}
     assert expected <= set(package.__all__)
     assert all(name.endswith('Spec') for name in set(package.__all__) - expected)
-    for compiler in (PassCompiler, OperatorCompiler, RewritingCompiler):
+    for compiler in (PassCompiler, OperatorCompiler):
         assert issubclass(compiler, package.BaseCompiler)
-    for compiler in (PassCompiler, RewritingCompiler):
-        assert not hasattr(package, compiler.__name__)
-    for name in ('FlattenPass', 'LayoutPass', 'ProblemPass', 'Compilation', 'ObservableEvaluator'):
+    assert not hasattr(package, PassCompiler.__name__)
+    for name in ('LayoutPass', 'ProblemPass', 'Compilation', 'ObservableEvaluator'):
         assert not hasattr(package, name)

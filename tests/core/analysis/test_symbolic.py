@@ -420,7 +420,7 @@ def test_remaining_sign_question_names_parameter():
 
 def test_symbolic_refuses_rewriting_systems_with_an_analysis_error():
     """Test that a system of words raises the analysis error of a form without equations, not a compiling error."""
-    with pytest.raises(AnalysisError, match='rewrites words or patches'):
+    with pytest.raises(AnalysisError, match='rewriting system form, which has no equations'):
         symbolic(KochCurveSystem())
 
 

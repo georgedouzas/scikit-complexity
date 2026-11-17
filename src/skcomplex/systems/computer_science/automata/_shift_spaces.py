@@ -20,14 +20,14 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement, WordElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.laws import ProductionLaw
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
+from ...general.rewriting import ProductionLaw, WordElement
 from ._binary_cell import BinaryCellElement
 
 OUTSIDE = -1.0

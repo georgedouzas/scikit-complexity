@@ -14,12 +14,19 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GeometrySpec, PatchElement, PrototileSpec, WordElement
-from ....core.components.laws import AffineSpec, ProductionLaw, SubstitutionLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec
+from ...general.rewriting import (
+    AffineSpec,
+    GeometrySpec,
+    PatchElement,
+    ProductionLaw,
+    PrototileSpec,
+    SubstitutionLaw,
+    WordElement,
+)
 
 SHAPES = ('triangle', 'carpet')
 LARGEST_RATIO = 0.5

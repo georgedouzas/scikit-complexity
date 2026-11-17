@@ -375,7 +375,7 @@ This section lists the modules that every package of the core shares.
 - `skcomplex.core.specs` holds the specs, frozen values that declare, record, or hold what the classes read. These
   include the specs that annotate states, parameters, and roles, such as `StateSpec`, `ParameterSpec`, and `RoleSpec`,
   the specs of runs and structures, such as `Observable` and `WienerProcessSpec`, and the specs of rules, domains,
-  and geometries, such as `TableSpec`, `LinearRuleSpec`, `SubshiftSpec`, and `GeometrySpec`.
+  and geometries, such as `TableSpec`, `LinearRuleSpec`, and `SubshiftSpec`.
 
 ### The core
 

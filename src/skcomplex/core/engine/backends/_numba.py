@@ -18,7 +18,6 @@ from numba.core.dispatcher import Dispatcher
 
 from ...components.laws import (
     ArrayUpdateLaw,
-    BilinearLaw,
     BoundaryLaw,
     ConstraintLaw,
     EventLaw,
@@ -47,6 +46,7 @@ from ...specs import EntrySpec
 from ...types import Array, VectorFunction
 from ..enums import ReadKind
 from ..problems._accelerated_spec import _AcceleratedSpec
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch

@@ -401,8 +401,8 @@ def simulate(
             time.
 
         compiler:
-            The compiler of the system, or `None` for the tuned compiler of the system, or else the compiler of the
-            library's form the system holds, such as the rewriting form of words and patches or the operator form of
+            The compiler of the system, or `None` for the tuned compiler of the system, or else the compiler an
+            element of the system names, such as the compiler of words and patches, or the operator compiler of
             quantum elements. A system package that brings a form of its own tunes a compiler it defines on
             `BaseCompiler`, the one documented hook to the compiled form.
 

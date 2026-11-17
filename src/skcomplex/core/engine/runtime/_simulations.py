@@ -27,7 +27,6 @@ from ..backends import BaseBackend
 from ..compile import BaseCompiler
 from ..compile._observables import ObservableEvaluator
 from ..compile._pass_compiler import PassCompiler
-from ..compile._rewriting_compiler import RewritingCompiler
 from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec, RunStateSpec
 from ..problems._draw_recorder import DrawRecorder
 from ..solvers import (
@@ -37,10 +36,10 @@ from ..solvers import (
     MinimizeSolver,
     RootSolver,
     StepSpec,
+    StructureStateSpec,
 )
 from ..solvers._agent_state_spec import _AgentStateSpec
 from ..solvers._defaults import DEFAULT_SOLVERS
-from ..solvers._structure_state_spec import _StructureStateSpec
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver
 from ._invariants import InvariantObserver
@@ -87,9 +86,9 @@ class Simulation(BaseConfig[None, float]):
 
         compiler:
             The compiler of the system, whose backend, solver, and observables the simulation sets, or `None` for the
-            compiler of the library's form that the system holds: the operator compiler for a system of operator
-            elements, the rewriting compiler for a system of words or patches, and the pass compiler otherwise. A
-            system package can bring the compiler of a form of its own, which names the solver of its problems.
+            compiler an element of the system names, such as the compiler of the words of a rewriting package, else
+            the operator compiler for a system of operator elements, and the pass compiler otherwise. A system package
+            can bring the compiler of a form of its own, which names the solver of its problems.
 
         solver:
             The solver, or `None` for the solver the compiler names, or else the default solver of the system's form,
@@ -360,8 +359,8 @@ class Simulation(BaseConfig[None, float]):
         """
         external = self.stepper_.snapshot_
         agents, reporters = (external.groups, external.reporters) if isinstance(external, _AgentStateSpec) else ({}, {})
-        structures = external.structures if isinstance(external, _StructureStateSpec) else {}
-        reporters = external.reporters if isinstance(external, _StructureStateSpec) else reporters
+        structures = external.structures if isinstance(external, StructureStateSpec) else {}
+        reporters = external.reporters if isinstance(external, StructureStateSpec) else reporters
         state = self._get_frame_state()
         observables = cast(
             dict[str, npt.ArrayLike],
@@ -532,8 +531,7 @@ class Simulation(BaseConfig[None, float]):
 
         Returns:
             compiler:
-                The compiler an element of the system names, the rewriting compiler for a system of words or
-                patches, or `None` for any other system.
+                The compiler an element of the system names, or `None` for any other system.
 
         Raises:
             ValidationError:
@@ -545,8 +543,6 @@ class Simulation(BaseConfig[None, float]):
                 error_msg = f'An element of {system.label} names {named!r} as its compiler, which is not a compiler.'
                 raise ValidationError(error_msg)
             return named
-        if RewritingCompiler._is_rewriting(system):
-            return RewritingCompiler()
         return None
 
     @staticmethod

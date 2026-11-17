@@ -44,6 +44,7 @@ from ....specs import EntrySpec, TensorSpec
 from ....types import ProcessKey
 from ..._utils import components_of, declarations_of, symbol, symbols_of, vector
 from ...enums import ReadKind
+from ...problems._bilinear_law import BilinearLaw
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
@@ -898,7 +899,8 @@ class CensusPass(BasePass):
         if not isinstance(returned, list | tuple) or len(laws) < len(returned):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
-        split = [item for law in laws for item in CensusPass._get_component_rates(spec, law)]
+        lowered = [BilinearLaw._get_lowered(law) for law in laws]
+        split = [item for law in lowered for item in CensusPass._get_component_rates(spec, law)]
         declared = [CensusPass._get_relaxation(law).prepare(spec.owner) for law in split]
         if spec.hyperedge is not None:
             declared = CensusPass._get_hyperedge_laws(spec, declared)
