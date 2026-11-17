@@ -4,7 +4,6 @@ from ._agents import AgentsVisual
 from ._axes import AxisVisual
 from ._base import BaseVisual
 from ._bodies import BodiesVisual
-from ._cayley import CayleyVisual
 from ._cells import CellVisual
 from ._expectation import ExpectationVisual
 from ._histograms import HistogramVisual
@@ -23,7 +22,6 @@ __all__: list[str] = [
     'AxisVisual',
     'BaseVisual',
     'BodiesVisual',
-    'CayleyVisual',
     'CellVisual',
     'ExpectationVisual',
     'HistogramVisual',

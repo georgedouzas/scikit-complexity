@@ -5,7 +5,7 @@
 
 import functools
 import itertools
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass, field, replace
 from types import SimpleNamespace
 
@@ -19,9 +19,8 @@ from sage.structure.element import Matrix
 from ..components.elements import GroupElement
 from ..components.interactions import LocalRuleInteraction
 from ..components.laws import LinearRuleSpec, LocalRuleLaw, OuterTotalisticSpec, TableSpec, TotalisticSpec
-from ..components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
+from ..components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
 from ..components.systems import CompositeSystem
-from ..components.types import Reach
 from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import BaseSpec, SubshiftSpec
@@ -30,14 +29,13 @@ from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite
 from ._composed_rule_spec import _ComposedRuleSpec
 from ._utils import load_module
-from .types import Item, Source
+from .types import Source
 
 MAX_CONFIGURATIONS = 2**16
 MAX_PATTERNS = 2**20
 SAT_SOLVER = 'cadical153'
 METHODS = ('auto', 'enumeration', 'sat')
 SYNCHRONOUS = 'synchronous'
-IDENTITY = '1'
 TAGS = AnalysisTags(DataKind.SYSTEM)
 KINDS = (
     'injective',
@@ -773,20 +771,6 @@ def _check_method(method: str, enumerable: bool) -> bool:
     return method == 'enumeration' or (method == 'auto' and enumerable)
 
 
-def _shifted(element: Item, base: Item) -> Item:
-    """Return the composite of an element of a memory set after an element of another.
-
-    The composite is a word or an offset.
-    """
-    if isinstance(element, str) and isinstance(base, str):
-        parts = [part for part in (base, element) if part.strip() not in {'', IDENTITY}]
-        return '*'.join(parts) or IDENTITY
-    if isinstance(element, tuple) and isinstance(base, tuple):
-        return tuple(first + second for first, second in zip(base, element, strict=True))
-    error_msg = f'Composed automata read words of a memory set or offsets of a lattice, not {element!r} after {base!r}.'
-    raise AnalysisError(error_msg)
-
-
 def _rule_clauses(
     automaton: _AutomatonSpec,
     clauses: _Clauses,
@@ -880,17 +864,17 @@ def _images(automaton: _AutomatonSpec) -> tuple[IntArray, IntArray]:
     return configurations, _codes(_step(automaton, configurations), states)
 
 
-def _ball_neighborhood(automaton: _AutomatonSpec, radius: int) -> Reach:
+def _ball_neighborhood(automaton: _AutomatonSpec, radius: int) -> BaseNeighborhood:
     """Return the neighbourhood of every cell within a radius.
 
-    It is a box of offsets or a ball of group elements.
+    It has fixed slots, such as a box of offsets or a ball of group elements.
     """
     reach = automaton.law._get_neighborhood(_fitted(automaton.space))
     if isinstance(automaton.space, LatticeSpace) and not isinstance(reach, LatticeNeighborhood):
         error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
         raise AnalysisError(error_msg)
     ball = automaton.space._get_ball(radius)
-    if not isinstance(ball, LatticeNeighborhood | MemoryNeighborhood):
+    if ball._get_slots() is None:
         error_msg = f'The space of the automaton gives a ball of {type(ball).__name__}, which an automaton cannot read.'
         raise AnalysisError(error_msg)
     return ball
@@ -943,7 +927,7 @@ def _garden_of_eden(
     return None
 
 
-def _get_system(automaton: _AutomatonSpec, neighborhood: Reach, rule: object, name: str) -> CompositeSystem:
+def _get_system(automaton: _AutomatonSpec, neighborhood: BaseNeighborhood, rule: object, name: str) -> CompositeSystem:
     """Return the system with the elements of the analysed one and a new local rule.
 
     The rule acts on the same state.
@@ -985,13 +969,13 @@ def _inverse(automaton: _AutomatonSpec, max_radius: int = 2) -> CompositeSystem 
     return None
 
 
-def _get_reach(automaton: _AutomatonSpec) -> Reach:
+def _get_reach(automaton: _AutomatonSpec) -> BaseNeighborhood:
     """Return the neighbourhood the rule of the automaton reads.
 
-    It is made of offsets or of group elements.
+    It has fixed slots, such as offsets or group elements.
     """
     reach = automaton.law._get_neighborhood(_fitted(automaton.space))
-    if not isinstance(reach, LatticeNeighborhood | MemoryNeighborhood):
+    if reach._get_slots() is None:
         error_msg = f'An automaton reads offsets or a memory set, not {reach!r}.'
         raise AnalysisError(error_msg)
     return reach
@@ -1011,23 +995,17 @@ def _compose(automaton: _AutomatonSpec, second: CompositeSystem) -> CompositeSys
         error_msg = 'Composed automata share their space and their number of states.'
         raise AnalysisError(error_msg)
     inner, outer = _get_reach(automaton), _get_reach(other)
-    inner_items = inner.elements if isinstance(inner, MemoryNeighborhood) else inner.prepare().offsets_
-    outer_items = outer.elements if isinstance(outer, MemoryNeighborhood) else outer.prepare().offsets_
-    composite: list[Item] = []
+    composite: list[Hashable] = []
     columns = []
-    for base in outer_items:
+    for base in outer._get_slots() or ():
         row = []
-        for element in inner_items:
-            item = _shifted(element, base)
+        for slot in inner._get_slots() or ():
+            item = inner._join_slots(base, slot)
             if item not in composite:
                 composite.append(item)
             row.append(composite.index(item))
         columns.append(tuple(row))
-    reach: Reach = (
-        MemoryNeighborhood(tuple(item for item in composite if isinstance(item, str)))
-        if isinstance(inner, MemoryNeighborhood)
-        else LatticeNeighborhood(tuple(item for item in composite if isinstance(item, tuple)))
-    )
+    reach = inner._get_from_slots(composite)
     composed = _ComposedRuleSpec(automaton.local_map, other.local_map, tuple(columns), _get_states_count(automaton))
     return _get_system(automaton, reach, functools.partial(_composed_rule, composed), 'composition')
 
@@ -1137,7 +1115,7 @@ def _linear_surjective(automaton: _AutomatonSpec, *, infinite: bool) -> bool:
 def _get_complete(subshift: SubshiftSpec, space: BaseSpace) -> tuple[Indices, npt.NDArray[np.bool_]]:
     """Return the neighbour table of a space and the sites whose patterns lie in it."""
     neighborhood = subshift.neighborhood
-    if not isinstance(neighborhood, LatticeNeighborhood | MemoryNeighborhood):
+    if not isinstance(neighborhood, BaseNeighborhood) or neighborhood._get_slots() is None:
         error_msg = f'A subshift covers offsets or a memory set, not {neighborhood!r}.'
         raise AnalysisError(error_msg)
     table = _fitted(space)._get_index_table(neighborhood)

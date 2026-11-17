@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Hashable, Sequence
 from types import SimpleNamespace
 from typing import ClassVar
 
@@ -56,6 +56,94 @@ class BaseNeighborhood(BaseComponent[None, SimpleNamespace]):
         """
         return None
 
+    def _get_slots(self) -> tuple[Hashable, ...] | None:
+        """Return the slots a rule reads before any space is known, such as offsets.
+
+        A neighbourhood of fixed slots, such as the words of a memory set of a group, returns them in the order a rule
+        reads them, and by default the slots are the offsets known without a lattice.
+
+        Returns:
+            slots:
+                The slots in their order, or `None` for a neighbourhood whose slots depend on the space.
+        """
+        return self._get_offsets()
+
+    def _join_slots(self, base: Hashable, slot: Hashable) -> Hashable:
+        """Return the slot that reads a slot after a base slot, such as a sum of offsets.
+
+        Args:
+            base:
+                The slot read first.
+
+            slot:
+                The slot read after it.
+
+        Returns:
+            joined:
+                The slot that reads both in turn.
+
+        Raises:
+            SpaceError:
+                The neighbourhood has no slots to join.
+        """
+        error_msg = f'{type(self).__name__} has no fixed slots, so its slots cannot be joined.'
+        raise SpaceError(error_msg)
+
+    def _get_from_slots(self, slots: Sequence[Hashable]) -> BaseNeighborhood:
+        """Return a neighbourhood of the same kind that reads other slots.
+
+        Args:
+            slots:
+                The slots of the new neighbourhood, in their order.
+
+        Returns:
+            neighborhood:
+                The neighbourhood of the slots.
+
+        Raises:
+            SpaceError:
+                The neighbourhood has no fixed slots.
+        """
+        error_msg = f'{type(self).__name__} has no fixed slots, so it cannot read other slots.'
+        raise SpaceError(error_msg)
+
+    def _get_centered(self) -> BaseNeighborhood | None:
+        """Return the neighbourhood with the member itself first, or `None`.
+
+        A memory set of a group, for example, puts the identity first. By default it is `None`, and the space decides
+        where the member goes, as a lattice does with the zero offset.
+        """
+        return None
+
+    def _count_centers(self, n_dim: int | None = None) -> int:
+        """Return the number of slots that read the member itself, such as zero offsets.
+
+        Args:
+            n_dim:
+                The number of dimensions of the lattice, or `None` when no lattice is known yet.
+
+        Returns:
+            count:
+                The number of slots that read the member itself.
+        """
+        return sum(not any(offset) for offset in self._get_offsets(n_dim) or ())
+
+    def _is_translated(self) -> bool:
+        """Check whether the sites read move with the value each cell holds.
+
+        They do not by default. A translated neighbourhood reads the translation table of its space,
+        `_get_translation_table`, at the values of the first state a rule reads.
+        """
+        return False
+
+    def _get_spaces(self) -> tuple[type, ...]:
+        """Return the classes of the spaces the neighbourhood is read on, or none.
+
+        A neighbourhood defined outside the core, such as a memory set of a group, names its spaces here. By default it
+        names none, and the engine knows the spaces of the neighbourhoods of the core.
+        """
+        return ()
+
     def _prepare(self, context: None = None) -> None:
         """Leave the neighbourhood as it is, since it has nothing to prepare by default."""
         super()._prepare(context)
@@ -66,13 +154,14 @@ class BaseSpace(BaseComponent[None, SimpleNamespace]):
 
     A space also gives vector states their dimension. It stores its arguments in its `__init__`, `prepare` checks them
     and derives its facts, such as its size and shape, and `_get_laws` returns the laws it adds, none by default. A
-    space with sites answers the hooks the engine reads: `_get_neighbors` gives the sites around a site, `_index_table`
-    the neighbour of every site in every slot of a neighbourhood, `_translation_table` the sites a group space reads at
-    the products of a site and a group element, `_ball` the neighbourhood within a radius, `_neighbor_pairs` the pairs
-    of neighbouring sites, and `_default_neighborhood` the neighbourhood that `_get_neighbors` reads when none is given.
-    A space without sites, such as a continuous one, answers none of them. Every space also answers what the engine
-    asks of its cells: `_get_volumes` gives the fraction of every cell inside the domain, `_get_apertures` the open
-    fraction of every face, and `_supports_operator` whether a field on it takes an operator, such as `laplacian`.
+    space with sites says so with `_has_sites` and answers the hooks the engine reads: `_get_neighbors` gives the sites
+    around a site, `_index_table` the neighbour of every site in every slot of a neighbourhood, `_translation_table` the
+    sites a group space reads at the products of a site and a group element, `_ball` the neighbourhood within a radius,
+    `_neighbor_pairs` the pairs of neighbouring sites, and `_default_neighborhood` the neighbourhood that
+    `_get_neighbors` reads when none is given. A space without sites, such as a continuous one, answers none of them.
+    Every space also answers what the engine asks of its cells: `_get_volumes` gives the fraction of every cell inside
+    the domain, `_get_apertures` the open fraction of every face, and `_supports_operator` whether a field on it takes
+    an operator, such as `laplacian`.
 
     Unlike `BaseElement`, it holds no states, only the structure that members sit on. Choose it when members live on a
     new kind of structure, and choose `LatticeSpace`, `NetworkSpace`, or `ContinuousSpace` otherwise.
@@ -101,7 +190,8 @@ class BaseSpace(BaseComponent[None, SimpleNamespace]):
             Whether opposite sides of the space join.
 
         default_visual_:
-            The name of the visual of groups on the space when neither the group nor its element sets one, or `None`.
+            The name or class of the visual of groups on the space when neither the group nor its element sets one, or
+            `None`.
     """
 
     space_tags: ClassVar[tuple[str, ...]] = ()
@@ -151,6 +241,14 @@ class BaseSpace(BaseComponent[None, SimpleNamespace]):
             return int(self.size_)
         error_msg = f'{type(self).__name__} has no {on}.'
         raise SpaceError(error_msg)
+
+    def _has_sites(self) -> bool:
+        """Check whether the space has sites joined by neighbours, as a lattice does.
+
+        A space without sites, such as a continuous one, has none by default. A space with sites returns `True` and
+        answers the hooks of its sites.
+        """
+        return False
 
     def _get_default_neighborhood(self) -> BaseNeighborhood:
         """Return the neighbourhood that `run` reads when it is given none."""

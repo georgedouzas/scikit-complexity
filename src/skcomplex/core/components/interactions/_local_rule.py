@@ -30,8 +30,8 @@ class LocalRuleInteraction(Interaction):
       the parameters of the group by name.
 
     A state of several components per cell reaches a function as one row of components per cell. A
-    `StateTranslationNeighborhood` reads a group space at the product of each site and the group element that the first
-    read state holds there.
+    neighbourhood that moves with the values of the cells, such as one on a group space, reads the cells at the product
+    of each site and the group element that the first read state holds there.
 
     Unlike `MapInteraction`, which writes the next value as an expression of one member, it reads an ordered
     neighbourhood and may take a table. Choose it when the next value of a cell depends on the exact pattern around it.

@@ -47,7 +47,6 @@ from ...components.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
     BaseSpace,
-    CayleySpace,
     CellComplexSpace,
     CofaceNeighborhood,
     ContinuousSpace,
@@ -119,7 +118,7 @@ TIME_CLASSES: dict[type, str] = {
     DiscreteTime: 'DiscreteTime()',
     StaticTime: 'StaticTime()',
 }
-OWN_NEIGHBORHOOD = (LatticeSpace, NetworkSpace, CayleySpace)
+OWN_NEIGHBORHOOD = (LatticeSpace, NetworkSpace)
 REPLACEMENTS = {
     DomainKind.CATEGORICAL: 'a jump, transition, or update law',
     DomainKind.INTEGER: 'a jump or update law',
@@ -961,7 +960,7 @@ class PassCompiler(BaseCompiler):
             target = next(iter(members), None)
             space = target.space if target is not None else node.space
             offered = (
-                isinstance(space, LatticeSpace | NetworkSpace | CayleySpace)
+                isinstance(space, BaseSpace) and space._has_sites()
                 if over == 'neighbors'
                 else bool(getattr(space, 'hyperedges_', ()))
             )
@@ -1156,7 +1155,8 @@ class PassCompiler(BaseCompiler):
             law = record.law
             requires = law._get_law_requirements()
             name = f'{type(law).__name__} of {record.path}'
-            if requires.space and not isinstance(record.space, requires.space):
+            sites = requires.sites and isinstance(record.space, BaseSpace) and record.space._has_sites()
+            if requires.space and not isinstance(record.space, requires.space) and not sites:
                 lives = type(record.space).__name__ if record.space is not None else 'no space'
                 needs = PassCompiler._get_names(requires.space)
                 message = f'The {name} needs a {needs}, but the component lives on {lives}.'
@@ -1712,7 +1712,8 @@ class PassCompiler(BaseCompiler):
                     raise ValidationError(error_msg)
                 spaces = OWN_NEIGHBORHOOD if over is None else NeighborhoodKernel._get_spaces_of(over)
                 described = 'the neighbours of its space' if over is None else repr(over)
-                if not isinstance(record.space, spaces):
+                sites = isinstance(record.space, BaseSpace) and record.space._has_sites()
+                if not (sites if over is None else isinstance(record.space, spaces)):
                     lives = type(record.space).__name__ if record.space is not None else 'no space'
                     message = (
                         f'The {name} reduces over {described}, which needs a {PassCompiler._get_names(spaces)}, but '

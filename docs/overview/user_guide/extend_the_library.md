@@ -384,7 +384,7 @@ runs. They are listed in their import order, so a module imports only the module
 
 - `types`: the types of the components, such as the targets of laws and the pairings of transfers.
 - `base`: `BaseComponent`, the base of every component of a system, built on `BaseConfig`.
-- `spaces`: the continuous, lattice, network, mesh, and Cayley spaces, their neighbourhoods, and the kinds of time.
+- `spaces`: the continuous, lattice, network, mesh, and phase spaces, their neighbourhoods, and the kinds of time.
 - `laws`: the `BaseLaw` base and every law. `laws.utils` holds what laws are written with besides Sage, such as
   `where`, reductions, draws, delays, and calls. The helpers that only the compiler reads, such as `reductions_in`,
   stay in its private modules, and the engine imports them from there.

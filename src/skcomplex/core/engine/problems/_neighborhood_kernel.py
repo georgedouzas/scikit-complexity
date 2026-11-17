@@ -18,14 +18,12 @@ from ...components.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
     BaseSpace,
-    CayleySpace,
     CellComplexSpace,
     CofaceNeighborhood,
     ContinuousSpace,
     DelaunayNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
-    MemoryNeighborhood,
     NearestNeighborhood,
     NetworkSpace,
     RadiusNeighborhood,
@@ -45,7 +43,7 @@ from ._static_search import StaticSearch
 
 SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
-    ((LatticeNeighborhood, MemoryNeighborhood), (LatticeSpace, CayleySpace)),
+    (LatticeNeighborhood, (LatticeSpace,)),
     (RadiusNeighborhood, (ContinuousSpace, LatticeSpace)),
     ((NearestNeighborhood, DelaunayNeighborhood), (ContinuousSpace,)),
     (CofaceNeighborhood, (CellComplexSpace,)),
@@ -494,7 +492,7 @@ class NeighborhoodKernel(BaseKernel):
             neighbourhood:
                 The neighbourhood, or `None` for a space without one of its own.
         """
-        if isinstance(space, NetworkSpace | LatticeSpace | CayleySpace):
+        if isinstance(space, BaseSpace) and space._has_sites():
             return space._get_default_neighborhood()
         return None
 
@@ -582,14 +580,7 @@ class NeighborhoodKernel(BaseKernel):
 
     @staticmethod
     def _get_neighbor_search(
-        over: (
-            AdjacencyNeighborhood
-            | LatticeNeighborhood
-            | MemoryNeighborhood
-            | RadiusNeighborhood
-            | NearestNeighborhood
-            | DelaunayNeighborhood
-        ),
+        over: BaseNeighborhood,
         space: object,
         rows: int,
         entries: Mapping[str, EntrySpec],
@@ -641,7 +632,7 @@ class NeighborhoodKernel(BaseKernel):
                 return EdgeRowSearch(source, target, active, rows, directed, center=over.center).prepare()
             NeighborhoodKernel._check_rows(space, rows)
             return StaticSearch(*NeighborhoodKernel._get_network_rows(space, over)).prepare()
-        if isinstance(space, LatticeSpace | CayleySpace):
+        if isinstance(space, BaseSpace) and space._has_sites():
             NeighborhoodKernel._check_rows(space, rows)
             return StaticSearch(*NeighborhoodKernel._get_lattice_rows(space, over)).prepare()
         if isinstance(over, RadiusNeighborhood) and over.metric != 'euclidean':
@@ -651,7 +642,8 @@ class NeighborhoodKernel(BaseKernel):
             )
             raise ValidationError(error_msg)
         position = NeighborhoodKernel._get_position_state(states)
-        if position is None or not isinstance(space, ContinuousSpace):
+        metric = RadiusNeighborhood | NearestNeighborhood | DelaunayNeighborhood
+        if position is None or not isinstance(space, ContinuousSpace) or not isinstance(over, metric):
             error_msg = (
                 f'A reduction over {over!r} measures distances between positions, but the members declare no vector '
                 "position state. Declare one with `state(vector=True, role='position')`."
@@ -672,6 +664,9 @@ class NeighborhoodKernel(BaseKernel):
     def _get_spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:
         """Return the classes of the spaces a neighbourhood is read on.
 
+        A neighbourhood that names its spaces, such as one defined outside the core, gives them, and the table of the
+        core gives the others.
+
         Args:
             neighborhood:
                 The neighbourhood.
@@ -680,4 +675,7 @@ class NeighborhoodKernel(BaseKernel):
             spaces:
                 The space classes.
         """
+        named = neighborhood._get_spaces()
+        if named:
+            return named
         return next(spaces for neighborhoods, spaces in SPACES_OF if isinstance(neighborhood, neighborhoods))

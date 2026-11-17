@@ -16,10 +16,8 @@ from skcomplex.core.components.elements import DeclaredElement, Element, GroupEl
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import LinearRuleSpec, LocalRuleLaw, OuterTotalisticSpec, TableSpec, TotalisticSpec
 from skcomplex.core.components.spaces import (
-    CayleySpace,
     LatticeNeighborhood,
     LatticeSpace,
-    MemoryNeighborhood,
     RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
@@ -27,6 +25,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import DeclaredVariableSpec, StateSpec, SubshiftSpec
 from skcomplex.systems.computer_science.automata import lamplighter
+from skcomplex.systems.computer_science.common.automata import CayleySpace, MemoryNeighborhood
 
 LIFE = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 GOLDEN_RATIO = (1 + np.sqrt(5)) / 2

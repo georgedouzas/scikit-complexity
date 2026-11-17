@@ -18,11 +18,12 @@ from sage.groups.perm_gps.permgroup import PermutationGroup_generic
 
 from ....core.components.elements import DeclaredElement, Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import CayleySpace, LatticeNeighborhood, LatticeSpace, StateTranslationNeighborhood
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import DeclaredVariableSpec, PowerSeriesSpec, StateSpec
 from ....core.types import Array, Indices
+from ..common.automata import CayleySpace, StateTranslationNeighborhood
 from ._groups import free_group
 from ._pascal_cell import PascalCellElement
 

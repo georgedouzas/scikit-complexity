@@ -32,12 +32,9 @@ from ...components.laws import (
     UpdateLaw,
 )
 from ...components.spaces import (
-    CayleySpace,
-    ContinuousSpace,
+    BaseSpace,
     ContinuousTime,
     DiscreteTime,
-    LatticeSpace,
-    NetworkSpace,
     StaticTime,
 )
 from ...enums import FormKind, NoiseKind, OrderKind
@@ -134,7 +131,7 @@ class NumbaBackend(BaseBackend):
         """
         return SupportSpec(
             time={ContinuousTime, DiscreteTime, StaticTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            space={None, BaseSpace},
             laws={
                 BoundaryLaw,
                 EventLaw,

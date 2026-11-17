@@ -1,30 +1,290 @@
-"""Define the space of the Cayley graph of a finitely generated group."""
+"""Define the Cayley graph of a group, the memory sets that read it, and a visual."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
 import re
+from collections.abc import Hashable, Sequence
 from pathlib import Path
 from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
+import rerun as rr
+import rerun.blueprint as rrb
 from sage.all__sagemath_gap import libgap
 from sage.libs.gap.element import GapElement
 
-from ...errors import SpaceError, SpaceTooLargeError, ValidationError
-from ._base import BaseNeighborhood, BaseSpace
-from ._memory import MemoryNeighborhood
-from ._state_translation import StateTranslationNeighborhood
+from .....core.components.spaces import BaseNeighborhood, BaseSpace
+from .....core.engine.problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from .....core.engine.viz import BaseVisual
+from .....core.errors import SpaceError, SpaceTooLargeError, ValidationError
 
 MAX_SITES = 100_000
 MAX_PRODUCTS = 10_000_000
 LEVEL_POINTS = 2**14
 ORDERINGS = ('shortlex', 'recursive')
 KNUTH_BENDIX_LIMITS = (('maxeqns', 5000), ('maxstates', 50000))
-IDENTITY_WORDS = ('', '1')
+IDENTITY = '1'
+IDENTITY_WORDS = ('', IDENTITY)
 IDENTIFIER = re.compile(r'^[A-Za-z_]\w*$')
 TOKEN = re.compile(r'^([A-Za-z_]\w*)(?:\^(-?\d+))?$')
+NODE_SHARE = 0.15
+NODE_SPACING = 40.0
+UPWARD = np.array([1.0, -1.0])
+
+
+class MemoryNeighborhood(BaseNeighborhood):
+    """A neighbourhood of the group elements whose values a cellular automaton reads.
+
+    The memory set is a list of elements of a group. A cell at the element `g` reads the cell at `g s` for every element
+    `s` of the memory set, in its order, so the neighbourhood keeps its orientation. Elements are words in the
+    generators, such as `'a'`, `'a^-1'`, or `'a*b'`, and `'1'` is the identity, the cell itself.
+
+    Unlike `LatticeNeighborhood`, whose offsets are integer vectors, it takes words of a group. Choose it when cells
+    live on a `CayleySpace`.
+
+    It appears in mathematics and computer science, in cellular automata on free groups and on groups of automata.
+
+    Args:
+        elements:
+            The words of the memory set.
+
+        label:
+            The name of the neighbourhood, such as `'moore'`.
+
+    Attributes:
+        elements_:
+            The words of the memory set as strings.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.common.automata import MemoryNeighborhood
+        >>> MemoryNeighborhood(['1', 'a', 'a^-1']).prepare().elements_
+        ('1', 'a', 'a^-1')
+    """
+
+    def __init__(self, elements: Sequence[str], *, label: str = 'neighborhood') -> None:
+        super().__init__(label)
+        self.elements = elements
+
+    def _get_elements(self) -> tuple[str, ...]:
+        """Return the words of the memory set as strings."""
+        return tuple(str(element) for element in self.elements)
+
+    def _get_slots(self) -> tuple[str, ...]:
+        """Return the words of the memory set, in the order a rule reads them."""
+        return self.prepare().elements_
+
+    def _join_slots(self, base: Hashable, slot: Hashable) -> str:
+        """Return the word `b s` of a word `s` read after a word `b`, `1` for the identity.
+
+        Args:
+            base:
+                The word read first, such as `'a'`.
+
+            slot:
+                The word read after it, such as `'b^-1'`.
+
+        Returns:
+            word:
+                The product of the two words, such as `'a*b^-1'`.
+        """
+        parts = [str(part) for part in (base, slot) if str(part).strip() not in IDENTITY_WORDS]
+        return '*'.join(parts) or IDENTITY
+
+    def _get_from_slots(self, slots: Sequence[Hashable]) -> MemoryNeighborhood:
+        """Return the memory set of other words."""
+        return MemoryNeighborhood(tuple(str(slot) for slot in slots))
+
+    def _get_centered(self) -> MemoryNeighborhood:
+        """Return the memory set with the identity, the cell itself, first."""
+        return MemoryNeighborhood((IDENTITY, *self.elements))
+
+    def _count_centers(self, n_dim: int | None = None) -> int:
+        """Return the number of words of the memory set that read the cell itself."""
+        return sum(element.strip() in IDENTITY_WORDS for element in self.prepare().elements_)
+
+    def _get_spaces(self) -> tuple[type, ...]:
+        """Return the classes of the spaces a memory set is read on, the Cayley graphs."""
+        return (CayleySpace,)
+
+    def _prepare(self, context: None = None) -> None:
+        """Set `elements_`, the words of the memory set as strings."""
+        super()._prepare(context)
+        self.elements_ = self._get_elements()
+
+
+class StateTranslationNeighborhood(BaseNeighborhood):
+    """A neighbourhood that moves with the value each cell of a group space holds.
+
+    The cell at `g` reads the cells at `g x(g) s` for every word `s`, where `x(g)` is the group element that the first
+    read state holds at `g`, as the number of its site. The sites read move with the configuration, so on an infinite
+    group the map has no finite memory set, as for `x(g x(g))` of Ceccherini-Silberstein and Coornaert (2023, Example
+    1.8.2), which is continuous and equivariant but no cellular automaton. A run truncates it to a ball or a finite
+    quotient, and a product outside the ball reads the fill value of the space.
+
+    Unlike `MemoryNeighborhood`, whose memory set is fixed, it shifts the memory set by the value of the cell. Choose it
+    when studying maps on groups that are not cellular automata.
+
+    It appears in mathematics, in symbolic dynamics on groups, as the example of Ceccherini-Silberstein and Coornaert
+    shows.
+
+    Args:
+        elements:
+            The words `s` of the memory set after the translation, `'1'` for the translated site alone.
+
+        label:
+            The name of the neighbourhood, such as `'moore'`.
+
+    Attributes:
+        elements_:
+            The words of the memory set as strings.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.common.automata import StateTranslationNeighborhood
+        >>> StateTranslationNeighborhood().prepare().elements_
+        ('1',)
+    """
+
+    def __init__(self, elements: Sequence[str] = (IDENTITY,), *, label: str = 'neighborhood') -> None:
+        super().__init__(label)
+        self.elements = elements
+
+    def _is_translated(self) -> bool:
+        """Check whether the sites read move with the values of the cells, which they do."""
+        return True
+
+    def _prepare(self, context: None = None) -> None:
+        """Set `elements_`, the words of the memory set as strings."""
+        super()._prepare(context)
+        self.elements_ = tuple(str(element) for element in self.elements)
+
+
+class CayleyVisual(BaseVisual):
+    """A visual that logs every state of a lattice group on a group space as a graph.
+
+    The states are logged as the nodes of its Cayley graph. Sites sit on rings by word length, with one ring per radius
+    and the identity at the centre, colored by state. Every chosen state is logged under `<path>/<state>` as
+    `GraphNodes` at every frame, with the edges from every site `g` to `g s` for every generator `s` logged once as
+    static `GraphEdges`.
+
+    Unlike `SiteVisual`, which draws the sites of a lattice or a network, it draws the words of a group on rings.
+    Choose it for cells on a `CayleySpace`, which draws them with it by default.
+
+    It appears in mathematics and computer science, in pictures of cellular automata on free groups and on groups of
+    automata.
+
+    Args:
+        states:
+            The states to log, or `None` for every state.
+
+        low:
+            The value of the darkest color, or `None` for the smallest value of every frame.
+
+        high:
+            The value of the brightest color, or `None` for the largest value of every frame.
+
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
+    Attributes:
+        edges_:
+            The entity paths whose static edges are logged.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.common.automata import CayleyVisual
+        >>> CayleyVisual(low=0, high=1)
+        CayleyVisual(high=1, low=0)
+    """
+
+    def __init__(
+        self,
+        states: Sequence[str] | None = None,
+        low: float | None = None,
+        high: float | None = None,
+        *,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
+    ) -> None:
+        self.states = states
+        self.low = low
+        self.high = high
+        self.path = path
+        self.recording = recording
+
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
+        """Keep the group, forget the edges logged in earlier runs, and set the views."""
+        self.edges_: set[str] = set()
+        super()._prepare(context)
+
+    def _log_edges(self, recording: rr.RecordingStream, path: str, space: CayleySpace) -> None:
+        """Log the edges of every generator once, as static data."""
+        edges = [(str(site), str(neighbour)) for site, neighbour, _ in space.edges_ if site != neighbour]
+        recording.log(path, rr.GraphEdges(edges), static=True)
+        self.edges_.add(path)
+
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
+        """Log every chosen state of a lattice group on a group space as graph nodes.
+
+        The nodes are colored.
+
+        Args:
+            recording:
+                The Rerun recording.
+
+            element:
+                The compiled lattice group, with its path and the dotted names of its states.
+
+            frame:
+                The frame.
+        """
+        space = getattr(element.element, 'space', None)
+        if not isinstance(space, CayleySpace):
+            return
+        positions = space.positions_ * NODE_SPACING * UPWARD
+        nodes = [str(site) for site in range(space.size_)]
+        for state, name in element.states.items():
+            if self.states is not None and state not in self.states:
+                continue
+            path = f'{element.path}/{state}'
+            if path not in self.edges_:
+                self._log_edges(recording, path, space)
+            values = np.ravel(np.asarray(frame.get_value(name), dtype=float))
+            drawn = rr.GraphNodes(
+                nodes,
+                positions=positions,
+                colors=self._get_colors(values, self.low, self.high),
+                radii=NODE_SHARE * NODE_SPACING,
+                show_labels=False,
+            )
+            recording.log(path, drawn)
+
+    def _get_views(self, element: object, problem: BaseProblemSpec) -> list[rrb.View]:
+        """Return one graph view per chosen state, bounded by the outer ring.
+
+        Args:
+            element:
+                The compiled lattice group, with its path and the dotted names of its states.
+
+            problem:
+                The compiled problem the group belongs to.
+
+        Returns:
+            views:
+                One graph view per chosen state, with `<path>/<state>` as origin.
+        """
+        space = getattr(getattr(element, 'element', None), 'space', None)
+        if not isinstance(element, CompiledElementSpec) or not isinstance(space, CayleySpace):
+            return []
+        extent = (float(space.lengths_.max(initial=0)) + 1.0) * NODE_SPACING
+        bounds = rrb.VisualBounds2D(x_range=(-extent, extent), y_range=(-extent, extent))
+        states = [state for state in element.states if self.states is None or state in self.states]
+        return [rrb.GraphView(origin=f'{element.path}/{state}', name=state, visual_bounds=bounds) for state in states]
 
 
 class CayleySpace(BaseSpace):
@@ -87,7 +347,7 @@ class CayleySpace(BaseSpace):
 
     Examples:
         >>> from sage.all__sagemath_gap import PermutationGroup
-        >>> from skcomplex.core.components.spaces import CayleySpace
+        >>> from skcomplex.systems.computer_science.common.automata import CayleySpace
         >>> space = CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]]), ball=3).prepare()
         >>> space.size_, space.words_[:4], space.ball_sizes_
         (6, ['1', 'a', 'b', 'b^-1'], [1, 4, 6, 6])
@@ -347,12 +607,16 @@ class CayleySpace(BaseSpace):
         self.n_dim_ = 1
         self.shape_ = (self.size_,)
         self.periodic_ = self.ball is None
-        self.default_visual_ = 'cayley'
+        self.default_visual_ = CayleyVisual
         self.positions_ = np.zeros((self.size_, 2))
         for length in np.unique(self.lengths_):
             sites = np.flatnonzero(self.lengths_ == length)
             angles = 2 * np.pi * np.arange(sites.size) / sites.size
             self.positions_[sites] = length * np.column_stack([np.cos(angles), np.sin(angles)])
+
+    def _has_sites(self) -> bool:
+        """Check whether the space has sites joined by neighbours, its group elements."""
+        return True
 
     def _get_lacks(self) -> frozenset[str]:
         """Return the options lattices offer that a Cayley graph does not: image visuals."""

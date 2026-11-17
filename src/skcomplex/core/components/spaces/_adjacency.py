@@ -39,3 +39,7 @@ class AdjacencyNeighborhood(BaseNeighborhood):
         super().__init__(label)
         self.center = center
         self.layer = layer
+
+    def _count_centers(self, n_dim: int | None = None) -> int:
+        """Return one when the node itself comes first, and zero otherwise."""
+        return int(self.center)

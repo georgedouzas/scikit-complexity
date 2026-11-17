@@ -7,7 +7,7 @@ import numpy as np
 from scipy.optimize import root
 
 from ...components.laws import ConstraintLaw, LinearProgramLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace, StaticTime
+from ...components.spaces import BaseSpace, StaticTime
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...types import Array
@@ -80,7 +80,7 @@ class RootSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={StaticTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            space={None, BaseSpace},
             laws={LinearProgramLaw, ConstraintLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )

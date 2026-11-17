@@ -112,7 +112,7 @@ def test_default_install_stays_importable():
 def test_network_loads_after_gap_has_run():
     """Test that reading a network in a process that has already run GAP does not crash it."""
     code = (
-        'from skcomplex.core.components.spaces import CayleySpace\n'
+        'from skcomplex.systems.computer_science.common.automata import CayleySpace\n'
         'from skcomplex.systems.biology.common.metabolism import load_network\n'
         'from skcomplex.systems.computer_science.automata import free_group\n'
         'CayleySpace(free_group(2), ball=2).prepare()\n'
