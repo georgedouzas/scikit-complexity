@@ -17,20 +17,21 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import LocalRuleLaw
 from ....core.components.spaces import (
-    BaseNeighborhood,
     BaseSpace,
     LatticeNeighborhood,
     LatticeSpace,
     RadiusNeighborhood,
 )
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
-from ._codes import Wolfram, life
+from ._codes import Wolfram
+from ._life_rule import LifeRuleInteraction
 
 ELEMENTARY = LatticeNeighborhood(((-1,), (0,), (1,)))
-MOORE = RadiusNeighborhood(1, metric='chebyshev')
 VON_NEUMANN = RadiusNeighborhood(1, metric='manhattan', center=True)
 
 
@@ -64,8 +65,8 @@ class AntCellElement(Element):
         self,
         label: str,
         *,
-        color: Annotated[float, {0, 1}] = 0,
-        ant: Annotated[float, ZZ] = -1,
+        color: Annotated[float | Array, {0, 1}] = 0,
+        ant: Annotated[float | Array, ZZ] = -1,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)
@@ -107,58 +108,6 @@ class ElementaryRuleInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             alive = context.target.alive
             self.laws_: list[BaseComponent] = [LocalRuleLaw(alive, ELEMENTARY, Wolfram(self.rule), label=self.label)]
-
-
-class LifeRuleInteraction(Interaction):
-    """Life-like rule of cells, such as `B3/S23` of Conway's Game of Life.
-
-    A dead cell comes to life when its number of live neighbours is one of `born`, and a live cell stays alive when it
-    is one of `survive`. Every other cell is dead at the next step.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The cells whose state `alive` the rule updates.
-
-        born:
-            The numbers of live neighbours that bring a dead cell to life.
-
-        survive:
-            The numbers of live neighbours that keep a live cell alive.
-
-        neighborhood:
-            The neighbours every cell counts, the eight cells around it by default.
-
-    Examples:
-        >>> from skcomplex.systems.computer_science.automata import LifeRuleInteraction
-        >>> LifeRuleInteraction('rule', target='cells', born=(3, 6)).born
-        (3, 6)
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Role = 'cells',
-        born: Sequence[int] = (3,),
-        survive: Sequence[int] = (2, 3),
-        neighborhood: BaseNeighborhood = MOORE,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.born = born
-        self.survive = survive
-        self.neighborhood = neighborhood
-
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the local rule of the cells as the law."""
-        super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            rule = life(self.born, self.survive)
-            alive = context.target.alive
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(alive, self.neighborhood, rule, label=self.label)]
 
 
 class LangtonsAntInteraction(Interaction):
@@ -224,6 +173,12 @@ class ElementaryAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
         >>> trajectory = ElementaryAutomatonSystem(90, size=7).prepare().simulate(until=2)
@@ -244,8 +199,10 @@ class ElementaryAutomatonSystem(BaseSystem):
         size: int = 101,
         initial: Sequence[float] | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.rule = rule
         self.size = size
         self.initial = initial
@@ -290,6 +247,12 @@ class GameOfLifeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import GameOfLifeSystem
         >>> GameOfLifeSystem((20, 30)).prepare().simulate(until=1).get_lattice('cells.alive').shape
@@ -312,8 +275,10 @@ class GameOfLifeSystem(BaseSystem):
         survive: Sequence[int] = (2, 3),
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.density = density
         self.initial = initial
@@ -352,6 +317,12 @@ class LangtonsAntSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LangtonsAntSystem
         >>> int((LangtonsAntSystem((9, 9)).prepare().system_.elements[0].ant >= 0).sum())
@@ -370,8 +341,10 @@ class LangtonsAntSystem(BaseSystem):
         *,
         heading: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.heading = heading
 

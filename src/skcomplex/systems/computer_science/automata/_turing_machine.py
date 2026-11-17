@@ -19,6 +19,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import LocalRuleLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
@@ -67,8 +69,8 @@ class TapeCellElement(Element):
         self,
         label: str,
         *,
-        symbol: Annotated[float, NN] = 0,
-        head: Annotated[float, ZZ] = -1,
+        symbol: Annotated[float | Array, NN] = 0,
+        head: Annotated[float | Array, ZZ] = -1,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)
@@ -110,7 +112,7 @@ class TuringMachineInteraction(Interaction):
         self.target = target
         self.table = table
 
-    def _get_rule(self) -> Callable[..., tuple[Array, Array]]:
+    def _get_function(self) -> Callable[..., tuple[Array, Array]]:
         """Return the local rule of the action table, which reads the symbols and heads of three cells."""
         table = BUSY_BEAVER if self.table is None else self.table
         states = sorted({state for state, _ in table})
@@ -150,7 +152,7 @@ class TuringMachineInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             states = (context.target.symbol, context.target.head)
             self.laws_: list[BaseComponent] = [
-                LocalRuleLaw(states, THREE_CELLS, self._get_rule(), reads=states, label=self.label),
+                LocalRuleLaw(states, THREE_CELLS, self._get_function(), reads=states, label=self.label),
             ]
 
 
@@ -180,6 +182,12 @@ class TuringMachineSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The start is not a state of the table, or a move is not `'L'`, `'R'`, or `'N'`.
@@ -203,8 +211,10 @@ class TuringMachineSystem(BaseSystem):
         table: Mapping[tuple[str, int], tuple[int, str, str]] | None = None,
         start: str = 'A',
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.table = table
         self.start = start

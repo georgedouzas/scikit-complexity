@@ -9,6 +9,7 @@ from sage.all__sagemath_symbolics import NN
 
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace
+from ....core.types import Array
 
 
 class PascalCellElement(Element):
@@ -36,7 +37,7 @@ class PascalCellElement(Element):
         self,
         label: str,
         *,
-        value: Annotated[float, NN] = 0,
+        value: Annotated[float | Array, NN] = 0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)

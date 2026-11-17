@@ -22,18 +22,22 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import LocalRuleLaw
-from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
+from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
-from ._automata import ELEMENTARY, VON_NEUMANN, LifeRuleInteraction
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram
+from ._life_rule import LifeRuleInteraction
 from ._pascal_cell import PascalCellElement
 
 LIFE_RULE = re.compile(r'^B(?P<born>[0-8]*)/S(?P<survive>[0-8]*)$')
 PREDECESSORS = LatticeNeighborhood(((-1,), (0,)))
+ELEMENTARY = LatticeNeighborhood(((-1,), (0,), (1,)))
+VON_NEUMANN = RadiusNeighborhood(1, metric='manhattan', center=True)
 
 
 class DiffusionCellElement(Element):
@@ -62,7 +66,7 @@ class DiffusionCellElement(Element):
         self,
         label: str,
         *,
-        level: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        level: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)
@@ -100,7 +104,7 @@ class NoisyRuleInteraction(Interaction):
         self.rule = rule
         self.noise = noise
 
-    def _get_rule(self) -> Callable[..., Array]:
+    def _get_function(self) -> Callable[..., Array]:
         """Return the elementary rule whose output a uniform draw below the noise flips."""
         mapping = Wolfram(self.rule).get_table().mapping
         outputs = np.array(
@@ -120,7 +124,7 @@ class NoisyRuleInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             alive = context.target.alive
             self.laws_: list[BaseComponent] = [
-                LocalRuleLaw(alive, ELEMENTARY, self._get_rule(), stochastic=True, label=self.label),
+                LocalRuleLaw(alive, ELEMENTARY, self._get_function(), stochastic=True, label=self.label),
             ]
 
 
@@ -151,7 +155,7 @@ class DiscreteDiffusionInteraction(Interaction):
         self.target = target
         self.r = r
 
-    def _get_rule(self) -> Callable[..., Array]:
+    def _get_function(self) -> Callable[..., Array]:
         """Return the content after the exchange of a share of the difference with every neighbour."""
         r = self.r
 
@@ -165,7 +169,7 @@ class DiscreteDiffusionInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             level = context.target.level
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(level, VON_NEUMANN, self._get_rule(), label=self.label)]
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(level, VON_NEUMANN, self._get_function(), label=self.label)]
 
 
 class AdditiveRuleInteraction(Interaction):
@@ -229,6 +233,12 @@ class HighlifeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The rule is not in the notation `B<births>/S<survivals>`.
@@ -255,8 +265,10 @@ class HighlifeSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.rule = rule
         self.density = density
@@ -311,6 +323,12 @@ class NoisyAutomataSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import NoisyAutomataSystem
         >>> NoisyAutomataSystem(184, size=11).prepare().simulate(until=3).get_values('cells.alive').shape
@@ -332,8 +350,10 @@ class NoisyAutomataSystem(BaseSystem):
         density: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.rule = rule
         self.noise = noise
         self.size = size
@@ -370,6 +390,12 @@ class DiffusionAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import DiffusionAutomatonSystem
         >>> float(DiffusionAutomatonSystem((20, 20), width=4).prepare().system_.elements[0].level.sum())
@@ -389,8 +415,10 @@ class DiffusionAutomatonSystem(BaseSystem):
         r: float = 0.1,
         width: int = 10,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.r = r
         self.width = width
@@ -425,6 +453,12 @@ class UnboundedAlphabetAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import UnboundedAlphabetAutomatonSystem
         >>> int(UnboundedAlphabetAutomatonSystem(9).prepare().system_.elements[0].value.sum())
@@ -442,8 +476,10 @@ class UnboundedAlphabetAutomatonSystem(BaseSystem):
         size: int = 101,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:

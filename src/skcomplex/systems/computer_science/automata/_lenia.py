@@ -25,6 +25,8 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import both, clip, convolve, displacement, where
 from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
@@ -90,9 +92,9 @@ class LeniaSiteElement(Element):
         self,
         label: str,
         *,
-        A: Annotated[float, RealSet.closed(0, 1)] = 0.0,
-        B: Annotated[float, RealSet.closed(0, 1)] = 0.0,
-        C: Annotated[float, RealSet.closed(0, 1)] = 0.0,
+        A: Annotated[float | Array, RealSet.closed(0, 1)] = 0.0,
+        B: Annotated[float | Array, RealSet.closed(0, 1)] = 0.0,
+        C: Annotated[float | Array, RealSet.closed(0, 1)] = 0.0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)
@@ -257,6 +259,12 @@ class LeniaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The world has fewer than two axes or not one to three channels, Orbium does not fit a default world, the
@@ -290,8 +298,10 @@ class LeniaSystem(BaseSystem):
         channels: int = 1,
         kernels: Sequence[Kernel] | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.initial = initial
         self.R = R

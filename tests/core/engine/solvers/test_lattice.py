@@ -186,10 +186,16 @@ def test_glider_moves_diagonally():
 def test_lookup_rules_agree_across_backends(backend):
     """Test that the fused and the NumPy lookup rules give the same Game of Life."""
     trajectory = simulate(
-        GameOfLifeSystem((30, 30)).prepare().system_._get_composite(), until=20, dt=1, backend=backend()
+        GameOfLifeSystem((30, 30)).prepare().system_._get_composite(),
+        until=20,
+        dt=1,
+        backend=backend(),
     )
     reference = simulate(
-        GameOfLifeSystem((30, 30)).prepare().system_._get_composite(), until=20, dt=1, backend=NumpyBackend()
+        GameOfLifeSystem((30, 30)).prepare().system_._get_composite(),
+        until=20,
+        dt=1,
+        backend=NumpyBackend(),
     )
     assert np.array_equal(trajectory.states, reference.states)
 

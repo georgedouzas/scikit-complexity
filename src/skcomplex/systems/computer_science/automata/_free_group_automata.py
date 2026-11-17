@@ -20,15 +20,17 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import LocalRuleLaw
 from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.automata import CayleySpace
-from ._automata import LifeRuleInteraction
 from ._binary_cell import BinaryCellElement
 from ._generator_neighborhood import GeneratorNeighborhood
 from ._groups import free_group
+from ._life_rule import LifeRuleInteraction
 
 FREE_GENERATORS = GeneratorNeighborhood(('a', 'b'), center=False)
 TREE_RANK = 4
@@ -63,8 +65,8 @@ class PairCellElement(Element):
         self,
         label: str,
         *,
-        first: Annotated[float, ZZ] = 0,
-        second: Annotated[float, ZZ] = 0,
+        first: Annotated[float | Array, ZZ] = 0,
+        second: Annotated[float | Array, ZZ] = 0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)
@@ -99,7 +101,7 @@ class MullerRuleInteraction(Interaction):
         self.target = target
         self.modulus = modulus
 
-    def _get_rule(self) -> Callable[..., tuple[Array, Array]]:
+    def _get_function(self) -> Callable[..., tuple[Array, Array]]:
         """Return the rule on the pairs at `a`, `a^-1`, `b`, and `b^-1`."""
         modulus = self.modulus
 
@@ -116,7 +118,7 @@ class MullerRuleInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             states = (context.target.first, context.target.second)
             self.laws_: list[BaseComponent] = [
-                LocalRuleLaw(states, FREE_GENERATORS, self._get_rule(), label=self.label),
+                LocalRuleLaw(states, FREE_GENERATORS, self._get_function(), label=self.label),
             ]
 
 
@@ -146,7 +148,7 @@ class SurjectiveLinearRuleInteraction(Interaction):
         self.target = target
         self.modulus = modulus
 
-    def _get_rule(self) -> Callable[..., tuple[Array, Array]]:
+    def _get_function(self) -> Callable[..., tuple[Array, Array]]:
         """Return the rule on the pairs at `a`, `a^-1`, `b`, and `b^-1`."""
         modulus = self.modulus
 
@@ -162,7 +164,7 @@ class SurjectiveLinearRuleInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             states = (context.target.first, context.target.second)
             self.laws_: list[BaseComponent] = [
-                LocalRuleLaw(states, FREE_GENERATORS, self._get_rule(), label=self.label),
+                LocalRuleLaw(states, FREE_GENERATORS, self._get_function(), label=self.label),
             ]
 
 
@@ -192,6 +194,12 @@ class MullerAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The modulus is below 2.
@@ -220,8 +228,10 @@ class MullerAutomatonSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.radius = radius
         self.modulus = modulus
         self.initial = initial
@@ -276,6 +286,12 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The modulus is below 2.
@@ -304,8 +320,10 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.radius = radius
         self.modulus = modulus
         self.initial = initial
@@ -358,6 +376,12 @@ class LifeInATreeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LifeInATreeSystem
         >>> LifeInATreeSystem(radius=2).prepare().simulate(until=1).get_values('cells.alive').shape
@@ -379,8 +403,10 @@ class LifeInATreeSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.radius = radius
         self.density = density
         self.initial = initial
@@ -392,7 +418,7 @@ class LifeInATreeSystem(BaseSystem):
         space = CayleySpace(free_group(TREE_RANK), ball=self.radius)
         size = space.prepare().size_
         if self.initial is None:
-            cells = (np.random.default_rng(self.random_state).random(size) < self.density).astype(float)
+            cells = np.asarray(np.random.default_rng(self.random_state).random(size) < self.density, dtype=float)
         else:
             cells = np.asarray(self.initial, dtype=float)
         life = LifeRuleInteraction(

@@ -22,6 +22,8 @@ from ....core.components.elements import DeclaredElement, Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import LocalRuleLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
 from ....core.specs import DeclaredVariableSpec, PowerSeriesSpec, Role, StateSpec
 from ....core.systems import BaseSystem, System
@@ -62,7 +64,7 @@ class GroupCellElement(Element):
         self,
         label: str,
         *,
-        value: Annotated[float, ZZ] = 0,
+        value: Annotated[float | Array, ZZ] = 0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)
@@ -136,7 +138,7 @@ class RealCellElement(Element):
         self,
         label: str,
         *,
-        value: Annotated[float, RR] = 0.0,
+        value: Annotated[float | Array, RR] = 0.0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)
@@ -209,7 +211,7 @@ class PowerSeriesDifferenceInteraction(Interaction):
         self.target = target
         self.ring = ring
 
-    def _get_rule(self) -> Callable[[Array, Array], Array]:
+    def _get_function(self) -> Callable[[Array, Array], Array]:
         """Return `x(n) - t x(n + 1)` in the ring, with the coefficients on the last axis."""
         ring = self.ring
         variable = ring.get_coefficients_of(ring.ring.gen())
@@ -224,7 +226,7 @@ class PowerSeriesDifferenceInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             value = context.target.value
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, FORWARD, self._get_rule(), label=self.label)]
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, FORWARD, self._get_function(), label=self.label)]
 
 
 class SubtractionRuleInteraction(Interaction):
@@ -319,7 +321,7 @@ class GroupDifferenceInteraction(Interaction):
         self.target = target
         self.group = group
 
-    def _get_rule(self) -> Callable[[Array, Array], Array]:
+    def _get_function(self) -> Callable[[Array, Array], Array]:
         """Return the number of `x(n)^-1 x(n + 1)`, read from the Cayley table and the inverses."""
         alphabet = SymmetricGroup(3) if self.group is None else self.group
         product = np.asarray(alphabet.cayley_table().table(), dtype=np.intp)
@@ -335,7 +337,7 @@ class GroupDifferenceInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             value = context.target.value
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, FORWARD, self._get_rule(), label=self.label)]
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, FORWARD, self._get_function(), label=self.label)]
 
 
 class SelfIndexedShiftSystem(BaseSystem):
@@ -364,6 +366,12 @@ class SelfIndexedShiftSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import SelfIndexedShiftSystem
         >>> SelfIndexedShiftSystem(radius=2).prepare().simulate(until=1).get_values('cells.value').shape
@@ -384,8 +392,10 @@ class SelfIndexedShiftSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.group = group
         self.radius = radius
         self.initial = initial
@@ -433,6 +443,12 @@ class PowerSeriesAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import PowerSeriesAutomatonSystem
         >>> PowerSeriesAutomatonSystem(5, order=3).prepare().system_.elements[0].values['value'].shape
@@ -453,8 +469,10 @@ class PowerSeriesAutomatonSystem(BaseSystem):
         field: str = 'QQ',
         initial: npt.ArrayLike | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.order = order
         self.field = field
@@ -505,6 +523,12 @@ class SubtractionAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The height is negative.
@@ -528,8 +552,10 @@ class SubtractionAutomatonSystem(BaseSystem):
         height: int = 10,
         initial: npt.ArrayLike | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.height = height
         self.initial = initial
@@ -577,6 +603,12 @@ class RealQuadraticAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import RealQuadraticAutomatonSystem
         >>> RealQuadraticAutomatonSystem(8).prepare().simulate(until=1).get_values('cells.value').shape
@@ -597,8 +629,10 @@ class RealQuadraticAutomatonSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.amplitude = amplitude
         self.initial = initial
@@ -643,6 +677,12 @@ class GroupDifferenceAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import GroupDifferenceAutomatonSystem
         >>> GroupDifferenceAutomatonSystem(10).prepare().simulate(until=1).get_values('cells.value').shape
@@ -663,8 +703,10 @@ class GroupDifferenceAutomatonSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.group = group
         self.initial = initial

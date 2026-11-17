@@ -25,7 +25,6 @@ from ._automata import (
     GameOfLifeSystem,
     LangtonsAntInteraction,
     LangtonsAntSystem,
-    LifeRuleInteraction,
 )
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
@@ -57,6 +56,7 @@ from ._group_automata import (
 )
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 from ._lenia import LeniaSiteElement, LeniaSystem, LeniaUpdateInteraction
+from ._life_rule import LifeRuleInteraction
 from ._line_automata import (
     InvolutiveAutomatonSystem,
     InvolutiveRuleInteraction,

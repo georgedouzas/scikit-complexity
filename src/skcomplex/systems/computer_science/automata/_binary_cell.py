@@ -7,6 +7,7 @@ from typing import Annotated
 
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace
+from ....core.types import Array
 
 
 class BinaryCellElement(Element):
@@ -34,7 +35,7 @@ class BinaryCellElement(Element):
         self,
         label: str,
         *,
-        alive: Annotated[float, {0, 1}] = 0,
+        alive: Annotated[float | Array, {0, 1}] = 0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)

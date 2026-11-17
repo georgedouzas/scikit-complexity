@@ -19,6 +19,8 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import LocalRuleLaw, TotalisticSpec
 from ....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import Role, StateSpec, SubshiftSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
@@ -31,6 +33,7 @@ GOLDEN_MEAN = SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))
 GRIGORCHUK_MEMORY = MemoryNeighborhood(('1', 'a', 'b', 'c', 'd'))
 LAMPLIGHTER_MEMORY = MemoryNeighborhood(('1', 'a', 'b'))
 FLIP_PROBABILITY = 0.5
+FREE_GENERATORS = GeneratorNeighborhood(('a', 'b'))
 THREE_CELLS = LatticeNeighborhood(((-1,), (0,), (1,)))
 
 
@@ -56,7 +59,7 @@ class GoldenCellElement(Element):
         self,
         label: str,
         *,
-        alive: Annotated[float, StateSpec(domain=GOLDEN_MEAN)] = 0,
+        alive: Annotated[float | Array, StateSpec(domain=GOLDEN_MEAN)] = 0,
     ) -> None:
         super().__init__(label)
         self.alive = alive
@@ -87,7 +90,7 @@ class LaplacianCellElement(Element):
         self,
         label: str,
         *,
-        value: Annotated[float, ZZ] = 0,
+        value: Annotated[float | Array, ZZ] = 0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)
@@ -117,7 +120,7 @@ class MajorityRuleInteraction(Interaction):
         ['a', 'b']
     """
 
-    def __init__(self, label: str, *, target: Role = 'cells', neighborhood: BaseNeighborhood | None = None) -> None:
+    def __init__(self, label: str, *, target: Role = 'cells', neighborhood: BaseNeighborhood = FREE_GENERATORS) -> None:
         super().__init__(label)
         self.target = target
         self.neighborhood = neighborhood
@@ -206,7 +209,7 @@ class LaplacianRuleInteraction(Interaction):
         self.target = target
         self.modulus = modulus
 
-    def _get_rule(self) -> Callable[[Array, Array, Array], Array]:
+    def _get_function(self) -> Callable[[Array, Array, Array], Array]:
         """Return the discrete Laplacian taken modulo the field size."""
         modulus = self.modulus
 
@@ -220,7 +223,7 @@ class LaplacianRuleInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             value = context.target.value
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, THREE_CELLS, self._get_rule(), label=self.label)]
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, THREE_CELLS, self._get_function(), label=self.label)]
 
 
 class GoldenMeanMoveInteraction(Interaction):
@@ -293,6 +296,12 @@ class FreeGroupAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import FreeGroupAutomatonSystem
         >>> FreeGroupAutomatonSystem(radius=3).prepare().simulate(until=1).get_values('cells.alive').shape
@@ -314,8 +323,10 @@ class FreeGroupAutomatonSystem(BaseSystem):
         density: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.rank = rank
         self.radius = radius
         self.density = density
@@ -324,7 +335,7 @@ class FreeGroupAutomatonSystem(BaseSystem):
     def _get_cells(self, space: BaseSpace) -> Array:
         """Return cells that are 1 with the probability `density`, one per site of a prepared space."""
         size = space.prepare().size_
-        return (np.random.default_rng(self.random_state).random(size) < self.density).astype(float)
+        return np.asarray(np.random.default_rng(self.random_state).random(size) < self.density, dtype=float)
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of random cells on a ball of the group and their majority rule."""
@@ -358,6 +369,12 @@ class LamplighterAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LamplighterAutomatonSystem
         >>> LamplighterAutomatonSystem(radius=3).prepare().simulate(until=1).get_values('cells.alive').shape
@@ -378,8 +395,10 @@ class LamplighterAutomatonSystem(BaseSystem):
         density: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.radius = radius
         self.density = density
         self.random_state = random_state
@@ -388,7 +407,10 @@ class LamplighterAutomatonSystem(BaseSystem):
         """Set the system of random cells on a ball of the lamplighter group and their parity rule."""
         super()._prepare(context)
         space = CayleySpace(lamplighter(), ball=self.radius)
-        cells = (np.random.default_rng(self.random_state).random(space.prepare().size_) < self.density).astype(float)
+        cells = np.asarray(
+            np.random.default_rng(self.random_state).random(space.prepare().size_) < self.density,
+            dtype=float,
+        )
         self.system_ = System(
             self.label,
             elements=[BinaryCellElement('cells', alive=cells, space=space)],
@@ -415,6 +437,12 @@ class HeisenbergAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import HeisenbergAutomatonSystem
         >>> HeisenbergAutomatonSystem(radius=2).prepare().simulate(until=1).get_values('cells.alive').shape
@@ -435,8 +463,10 @@ class HeisenbergAutomatonSystem(BaseSystem):
         density: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.radius = radius
         self.density = density
         self.random_state = random_state
@@ -444,7 +474,7 @@ class HeisenbergAutomatonSystem(BaseSystem):
     def _get_cells(self, space: BaseSpace) -> Array:
         """Return cells that are 1 with the probability `density`, one per site of a prepared space."""
         size = space.prepare().size_
-        return (np.random.default_rng(self.random_state).random(size) < self.density).astype(float)
+        return np.asarray(np.random.default_rng(self.random_state).random(size) < self.density, dtype=float)
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of random cells on a ball of the group and their majority rule."""
@@ -484,6 +514,12 @@ class BaumslagSolitarAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import BaumslagSolitarAutomatonSystem
         >>> BaumslagSolitarAutomatonSystem(radius=2).prepare().simulate(until=1).get_values('cells.alive').shape
@@ -506,8 +542,10 @@ class BaumslagSolitarAutomatonSystem(BaseSystem):
         density: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.m = m
         self.n = n
         self.radius = radius
@@ -517,7 +555,7 @@ class BaumslagSolitarAutomatonSystem(BaseSystem):
     def _get_cells(self, space: BaseSpace) -> Array:
         """Return cells that are 1 with the probability `density`, one per site of a prepared space."""
         size = space.prepare().size_
-        return (np.random.default_rng(self.random_state).random(size) < self.density).astype(float)
+        return np.asarray(np.random.default_rng(self.random_state).random(size) < self.density, dtype=float)
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of random cells on a ball of the group and their majority rule."""
@@ -551,6 +589,12 @@ class LinearRingAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LinearRingAutomatonSystem
         >>> LinearRingAutomatonSystem(11).prepare().simulate(until=1).get_values('cells.value').shape
@@ -570,8 +614,10 @@ class LinearRingAutomatonSystem(BaseSystem):
         *,
         modulus: int = 3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.modulus = modulus
 
@@ -604,6 +650,12 @@ class SubshiftsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import SubshiftsSystem
         >>> SubshiftsSystem(10).prepare().simulate(until=1).get_values('cells.alive').shape
@@ -622,8 +674,10 @@ class SubshiftsSystem(BaseSystem):
         size: int = 200,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
@@ -656,6 +710,12 @@ class GrigorchukAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import GrigorchukAutomatonSystem
         >>> GrigorchukAutomatonSystem(radius=3).prepare().simulate(until=1).get_values('cells.alive').shape
@@ -676,8 +736,10 @@ class GrigorchukAutomatonSystem(BaseSystem):
         density: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.radius = radius
         self.density = density
         self.random_state = random_state
@@ -685,7 +747,7 @@ class GrigorchukAutomatonSystem(BaseSystem):
     def _get_cells(self, space: BaseSpace) -> Array:
         """Return cells that are 1 with the probability `density`, one per site of a prepared space."""
         size = space.prepare().size_
-        return (np.random.default_rng(self.random_state).random(size) < self.density).astype(float)
+        return np.asarray(np.random.default_rng(self.random_state).random(size) < self.density, dtype=float)
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of random cells on a ball of the group and their majority rule."""

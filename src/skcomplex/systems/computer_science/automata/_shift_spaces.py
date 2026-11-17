@@ -22,6 +22,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import LocalRuleLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
@@ -62,7 +64,7 @@ class DigitCellElement(Element):
         self,
         label: str,
         *,
-        digit: Annotated[float, ZZ] = 0,
+        digit: Annotated[float | Array, ZZ] = 0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)
@@ -130,7 +132,7 @@ class TernaryCellElement(Element):
         self,
         label: str,
         *,
-        symbol: Annotated[float, {0, 1, 2}] = 0,
+        symbol: Annotated[float | Array, {0, 1, 2}] = 0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)
@@ -175,7 +177,7 @@ class GapShiftInteraction(Interaction):
         self.hazards = hazards
         self.size = size
 
-    def _get_rule(self) -> Callable[..., Array]:
+    def _get_function(self) -> Callable[..., Array]:
         """Return the shift that reads the cell to the right, or draws a new cell at the right end."""
         hazards = np.asarray(self.hazards, dtype=float)
 
@@ -196,7 +198,7 @@ class GapShiftInteraction(Interaction):
             window = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, 2)))
             alive = context.target.alive
             self.laws_: list[BaseComponent] = [
-                LocalRuleLaw(alive, window, self._get_rule(), stochastic=True, label=self.label),
+                LocalRuleLaw(alive, window, self._get_function(), stochastic=True, label=self.label),
             ]
 
 
@@ -312,7 +314,7 @@ class CarryInteraction(Interaction):
         self.base = base
         self.digits = digits
 
-    def _get_rule(self) -> Callable[..., Array]:
+    def _get_function(self) -> Callable[..., Array]:
         """Return the digit plus 1 modulo the base when every lower digit is `base - 1`, and the digit otherwise."""
         base = self.base
 
@@ -329,7 +331,7 @@ class CarryInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             lower = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.digits, 1)))
             digit = context.target.digit
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(digit, lower, self._get_rule(), label=self.label)]
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(digit, lower, self._get_function(), label=self.label)]
 
 
 class GapSubshiftSystem(BaseSystem):
@@ -358,6 +360,12 @@ class GapSubshiftSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             No allowed gap lies below ten times the size.
@@ -384,8 +392,10 @@ class GapSubshiftSystem(BaseSystem):
         gaps: Sequence[int] | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.gaps = gaps
         self.random_state = random_state
@@ -475,6 +485,12 @@ class ContextFreeSubshiftSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The initial ring is not admissible.
@@ -498,8 +514,10 @@ class ContextFreeSubshiftSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.initial = initial
         self.random_state = random_state
@@ -545,6 +563,18 @@ class MorseSubshiftSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import MorseSubshiftSystem
         >>> MorseSubshiftSystem().prepare().simulate(until=3).get_values('morse.size').tolist()
@@ -557,8 +587,15 @@ class MorseSubshiftSystem(BaseSystem):
     until = 10
     dt = 1
 
-    def __init__(self, axiom: str = '0', *, label: str = 'system') -> None:
-        super().__init__(label)
+    def __init__(
+        self,
+        axiom: str = '0',
+        *,
+        label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
+    ) -> None:
+        super().__init__(label, solver=solver, backend=backend)
         self.axiom = axiom
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
@@ -592,6 +629,12 @@ class AddingMachineSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The base is below 2.
@@ -615,8 +658,10 @@ class AddingMachineSystem(BaseSystem):
         base: int = 2,
         initial: npt.ArrayLike | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.digits = digits
         self.base = base
         self.initial = initial
