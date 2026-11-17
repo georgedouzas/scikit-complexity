@@ -15,11 +15,11 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, EventLaw
-from ....core.components.laws.utils import clip, derivative, sign, step, where
+from ....core.components.laws.utils import clip, sign, step, where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -302,7 +302,7 @@ class ThermostatSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.control import ThermostatSystem
-        >>> ThermostatSystem(leak=0.3).prepare().system_.elements[0].get_value('leak')
+        >>> ThermostatSystem(leak=0.3).prepare().system_.elements[0].values['leak']
         0.3
     """
 
@@ -322,8 +322,10 @@ class ThermostatSystem(DynamicalSystem):
         outside: float = 10.0,
         swing: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.T = T
         self.setting = setting
         self.furnace = furnace
@@ -335,15 +337,20 @@ class ThermostatSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'room'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'T': DeclaredVariableSpec(self.T, StateSpec()),
-            'setting': DeclaredVariableSpec(self.setting, ParameterSpec()),
-            'furnace': DeclaredVariableSpec(self.furnace, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'leak': DeclaredVariableSpec(self.leak, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'outside': DeclaredVariableSpec(self.outside, ParameterSpec()),
-            'swing': DeclaredVariableSpec(self.swing, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'T': self.T,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'setting': self.setting,
+            'furnace': self.furnace,
+            'leak': self.leak,
+            'outside': self.outside,
+            'swing': self.swing,
         }
 
     def _get_equations(self) -> Equations:
@@ -404,7 +411,7 @@ class PidLoopSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.control import PidLoopSystem
-        >>> PidLoopSystem(Ki=0.0).prepare().system_.elements[0].get_value('Ki')
+        >>> PidLoopSystem(Ki=0.0).prepare().system_.elements[0].values['Ki']
         0.0
     """
 
@@ -427,8 +434,10 @@ class PidLoopSystem(DynamicalSystem):
         change: float = 0.0,
         disturbance: float = -0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.y = y
         self.tau = tau
         self.gain = gain
@@ -443,19 +452,24 @@ class PidLoopSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'process'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'y': DeclaredVariableSpec(self.y, StateSpec()),
-            'integral': DeclaredVariableSpec(0.0, StateSpec()),
-            'tau': DeclaredVariableSpec(self.tau, ParameterSpec(domain=RealSet.open(0, oo))),
-            'gain': DeclaredVariableSpec(self.gain, ParameterSpec()),
-            'Kp': DeclaredVariableSpec(self.Kp, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'Ki': DeclaredVariableSpec(self.Ki, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'Kd': DeclaredVariableSpec(self.Kd, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'setpoint': DeclaredVariableSpec(self.setpoint, ParameterSpec()),
-            'change': DeclaredVariableSpec(self.change, ParameterSpec()),
-            'disturbance': DeclaredVariableSpec(self.disturbance, ParameterSpec()),
+            'y': self.y,
+            'integral': 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'tau': self.tau,
+            'gain': self.gain,
+            'Kp': self.Kp,
+            'Ki': self.Ki,
+            'Kd': self.Kd,
+            'setpoint': self.setpoint,
+            'change': self.change,
+            'disturbance': self.disturbance,
         }
 
     def _get_equations(self) -> Equations:
@@ -508,7 +522,7 @@ class PendulumSwingUpSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.control import PendulumSwingUpSystem
-        >>> PendulumSwingUpSystem(mu=0.2).prepare().system_.elements[0].get_value('mu')
+        >>> PendulumSwingUpSystem(mu=0.2).prepare().system_.elements[0].values['mu']
         0.2
     """
 
@@ -517,7 +531,6 @@ class PendulumSwingUpSystem(DynamicalSystem):
     references = ('Åström and Furuta 2000', 'Dilão 2023')
     until = 100.0
     dt = 0.1
-    solver = RK4Solver(dt=0.01)
 
     def __init__(
         self,
@@ -527,40 +540,53 @@ class PendulumSwingUpSystem(DynamicalSystem):
         omega: float = 1.5652475842498528,
         mu: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.theta = theta
         self.omega0 = omega0
         self.omega = omega
         self.mu = mu
 
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return RK4Solver(dt=0.01)
+
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the states."""
         return 'pendulum'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'theta': DeclaredVariableSpec(self.theta, StateSpec(order=2, initial=(self.omega0,))),
-            'f': DeclaredVariableSpec(0.0, StateSpec(order=2, initial=(0.0,))),
-            'omega': DeclaredVariableSpec(self.omega, ParameterSpec(domain=RealSet.open(0, oo))),
-            'mu': DeclaredVariableSpec(self.mu, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'theta': self.theta,
+            "theta'": self.omega0,
+            'f': 0.0,
+            "f'": 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'omega': self.omega,
+            'mu': self.mu,
         }
 
     def _get_equations(self) -> Equations:
         """Return the controlled rate of the angle and the rate of the control integral."""
         return {
-            'theta': lambda s: (
+            "theta''": lambda s: (
                 -(s.target.omega**2) * sin(s.target.theta)
                 - PendulumSwingUpSystem._swing_up_control(s) * cos(s.target.theta)
             ),
-            'f': PendulumSwingUpSystem._swing_up_control,
+            "f''": PendulumSwingUpSystem._swing_up_control,
         }
 
     @staticmethod
     def _get_pendulum_energy(s: SimpleNamespace) -> Expression:
         """Return the energy per unit inertia of the pendulum, `θ'^2 / 2 - ω^2 cos θ`."""
-        return derivative(s.target.theta, 1) ** 2 / 2 - s.target.omega**2 * cos(s.target.theta)
+        return s.target.theta.diff(s.t) ** 2 / 2 - s.target.omega**2 * cos(s.target.theta)
 
     @staticmethod
     def _swing_up_control(s: SimpleNamespace) -> Expression:
@@ -569,13 +595,13 @@ class PendulumSwingUpSystem(DynamicalSystem):
         It is `u = -μ sign(θ' cos θ) sign(E_s - E)`.
         """
         gap = s.target.omega**2 - PendulumSwingUpSystem._get_pendulum_energy(s)
-        return -s.target.mu * sign(derivative(s.target.theta, 1) * cos(s.target.theta)) * sign(gap)
+        return -s.target.mu * sign(s.target.theta.diff(s.t) * cos(s.target.theta)) * sign(gap)
 
 
 def _get_energy_of_satellite(s: SimpleNamespace) -> Expression:
     """Return the total effective energy of the satellite of the system."""
     satellite = s.satellite
-    return satellite.s_d1**2 / 2 + satellite.Lz**2 / (2 * satellite.s**2) - 1 / satellite.s
+    return satellite.s.diff(s.t) ** 2 / 2 + satellite.Lz**2 / (2 * satellite.s**2) - 1 / satellite.s
 
 
 class SatelliteTransferSystem(DynamicalSystem):
@@ -587,7 +613,7 @@ class SatelliteTransferSystem(DynamicalSystem):
     inwards, `sigma = 1`, while the satellite falls and outwards, `sigma = -1`, while it rises, until `H` reaches the
     final energy. From the periapsis of the orbit with `H = -0.7`, the transfer to `H = -0.2` takes about 9.81.
 
-    The system has the distance `satellite.s`, the radial velocity `satellite.s_d1`, the angle `satellite.theta`, and
+    The system has the distance `satellite.s`, the radial velocity `satellite.s'`, the angle `satellite.theta`, and
     the observable `energy`.
 
     Args:
@@ -614,7 +640,7 @@ class SatelliteTransferSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.control import SatelliteTransferSystem
-        >>> SatelliteTransferSystem().prepare().system_.elements[0].get_value('Lz')
+        >>> SatelliteTransferSystem().prepare().system_.elements[0].values['Lz']
         0.7
     """
 
@@ -623,7 +649,6 @@ class SatelliteTransferSystem(DynamicalSystem):
     references = ('Dilão et al. 2022', 'Dilão 2023')
     until = 20.0
     dt = 0.05
-    solver = RK4Solver(dt=0.005)
     observables = (Observable('energy', _get_energy_of_satellite),)
 
     def __init__(
@@ -636,8 +661,10 @@ class SatelliteTransferSystem(DynamicalSystem):
         epsilon: float = 0.1,
         H_final: float = -0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.s = s
         self.velocity = velocity
         self.theta = theta
@@ -645,24 +672,34 @@ class SatelliteTransferSystem(DynamicalSystem):
         self.epsilon = epsilon
         self.H_final = H_final
 
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return RK4Solver(dt=0.005)
+
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the states."""
         return 'satellite'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            's': DeclaredVariableSpec(self.s, StateSpec(domain=RealSet.open(0, oo), order=2, initial=(self.velocity,))),
-            'theta': DeclaredVariableSpec(self.theta, StateSpec()),
-            'Lz': DeclaredVariableSpec(self.Lz, ParameterSpec(domain=RealSet.open(0, oo))),
-            'epsilon': DeclaredVariableSpec(self.epsilon, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'H_final': DeclaredVariableSpec(self.H_final, ParameterSpec()),
+            's': self.s,
+            "s'": self.velocity,
+            'theta': self.theta,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'Lz': self.Lz,
+            'epsilon': self.epsilon,
+            'H_final': self.H_final,
         }
 
     def _get_equations(self) -> Equations:
         """Return the radial rate under thrust and the rate of the angle."""
         return {
-            's': lambda s: (
+            "s''": lambda s: (
                 s.target.Lz**2 / s.target.s**3
                 - 1 / s.target.s**2
                 - s.target.epsilon * SatelliteTransferSystem._get_thrust_direction(s)
@@ -676,7 +713,7 @@ class SatelliteTransferSystem(DynamicalSystem):
 
         It is `s'^2 / 2 + L_z^2 / (2 s^2) - 1 / s`.
         """
-        return derivative(s.target.s, 1) ** 2 / 2 + s.target.Lz**2 / (2 * s.target.s**2) - 1 / s.target.s
+        return s.target.s.diff(s.t) ** 2 / 2 + s.target.Lz**2 / (2 * s.target.s**2) - 1 / s.target.s
 
     @staticmethod
     def _get_thrust_direction(s: SimpleNamespace) -> Expression:
@@ -686,7 +723,7 @@ class SatelliteTransferSystem(DynamicalSystem):
         """
         return where(
             SatelliteTransferSystem._get_satellite_energy(s) < s.target.H_final,
-            where(derivative(s.target.s, 1) < 0, 1, -1),
+            where(s.target.s.diff(s.t) < 0, 1, -1),
             0,
         )
 

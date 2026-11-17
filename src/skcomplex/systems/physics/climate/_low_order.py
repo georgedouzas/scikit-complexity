@@ -14,6 +14,8 @@ from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -317,7 +319,7 @@ class GeodynamoSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import GeodynamoSystem
-        >>> GeodynamoSystem(mu=0.12).prepare().system_.elements[0].get_value('mu')
+        >>> GeodynamoSystem(mu=0.12).prepare().system_.elements[0].values['mu']
         0.12
     """
 
@@ -337,8 +339,10 @@ class GeodynamoSystem(DynamicalSystem):
         nu: float = 0.1,
         Gamma: float = 0.9,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.Q = Q
         self.D = D
         self.V = V

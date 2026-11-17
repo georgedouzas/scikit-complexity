@@ -19,9 +19,10 @@ from ....core.components.interactions import CrossingInteraction, RateInteractio
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative, periodic_guard
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver, Yoshida4Solver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...physics.common.mechanics import HamiltonianInteraction
@@ -313,7 +314,7 @@ class DuffingSystem(DynamicalSystem):
 
     The oscillator is `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`.
 
-    The system has the displacement `duffing.x` of order 2 and its velocity `duffing.x_d1`.
+    The system has the displacement `duffing.x` of order 2 and its velocity `duffing.x'`.
 
     Args:
         x:
@@ -342,7 +343,7 @@ class DuffingSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import DuffingSystem
-        >>> DuffingSystem(gamma=0.3).prepare().system_.elements[0].get_value('gamma')
+        >>> DuffingSystem(gamma=0.3).prepare().system_.elements[0].values['gamma']
         0.3
     """
 
@@ -363,8 +364,10 @@ class DuffingSystem(DynamicalSystem):
         gamma: float = 0.5,
         omega: float = 1.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.x = x
         self.v = v
         self.delta = delta
@@ -377,22 +380,28 @@ class DuffingSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'duffing'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'x': DeclaredVariableSpec(self.x, StateSpec(order=2, initial=(self.v,))),
-            'delta': DeclaredVariableSpec(self.delta, ParameterSpec()),
-            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec()),
-            'beta': DeclaredVariableSpec(self.beta, ParameterSpec()),
-            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec()),
-            'omega': DeclaredVariableSpec(self.omega, ParameterSpec()),
+            'x': self.x,
+            "x'": self.v,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'delta': self.delta,
+            'alpha': self.alpha,
+            'beta': self.beta,
+            'gamma': self.gamma,
+            'omega': self.omega,
         }
 
     def _get_equations(self) -> Equations:
         """Return the components of the system, built from its model parameters."""
         return {
-            'x': lambda s: (
-                -s.target.delta * derivative(s.target.x, 1)
+            "x''": lambda s: (
+                -s.target.delta * s.target.x.diff(s.t)
                 - s.target.alpha * s.target.x
                 - s.target.beta * s.target.x**3
                 + s.target.gamma * cos(s.target.omega * s.t)
@@ -696,7 +705,7 @@ class AdlerEquationSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import AdlerEquationSystem
-        >>> AdlerEquationSystem(detuning=2.0).prepare().system_.elements[0].get_value('detuning')
+        >>> AdlerEquationSystem(detuning=2.0).prepare().system_.elements[0].values['detuning']
         2.0
     """
 
@@ -713,8 +722,10 @@ class AdlerEquationSystem(DynamicalSystem):
         detuning: float = 0.5,
         epsilon: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.phi = phi
         self.detuning = detuning
         self.epsilon = epsilon
@@ -873,7 +884,7 @@ class ForcedTodaSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import ForcedTodaSystem
-        >>> ForcedTodaSystem(a=1.2).prepare().system_.elements[0].get_value('a')
+        >>> ForcedTodaSystem(a=1.2).prepare().system_.elements[0].values['a']
         1.2
     """
 
@@ -892,8 +903,10 @@ class ForcedTodaSystem(DynamicalSystem):
         a: float = 0.88,
         omega: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.x = x
         self.v = v
         self.d = d
@@ -904,20 +917,26 @@ class ForcedTodaSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'toda'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'x': DeclaredVariableSpec(self.x, StateSpec(order=2, initial=(self.v,))),
-            'd': DeclaredVariableSpec(self.d, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'a': DeclaredVariableSpec(self.a, ParameterSpec()),
-            'omega': DeclaredVariableSpec(self.omega, ParameterSpec()),
+            'x': self.x,
+            "x'": self.v,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'd': self.d,
+            'a': self.a,
+            'omega': self.omega,
         }
 
     def _get_equations(self) -> Equations:
         """Return the acceleration of the oscillator."""
         return {
-            'x': lambda s: (
-                -s.target.d * derivative(s.target.x, 1) - (exp(s.target.x) - 1) + s.target.a * sin(s.target.omega * s.t)
+            "x''": lambda s: (
+                -s.target.d * s.target.x.diff(s.t) - (exp(s.target.x) - 1) + s.target.a * sin(s.target.omega * s.t)
             ),
         }
 

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import copy
 import inspect
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import fields as dataclass_fields
@@ -297,6 +298,15 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         return replace(spec, **changed) if changed else spec
 
     @staticmethod
+    def _get_replaced(law: BaseComponent, **params: object) -> BaseComponent:
+        """Return a copy of a law with some parameters replaced and the others shared.
+
+        A deep copy would rebuild every Sage expression from its pickle, which can change its numbers, such as
+        `1.0 * x` into `x`, and so merge branches of a table function that were apart. The copy shares them instead.
+        """
+        return copy.copy(law).set_params(**params)
+
+    @staticmethod
     def _get_law_in_states(law: BaseComponent, time: Expression, symbols: Mapping[str, Expression]) -> BaseComponent:
         """Return a law written with functions of time as a law of the states."""
         if not symbols:
@@ -313,7 +323,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             if name != 'label'
         }
         changed = {name: item for name, item in translated.items() if item is not params[name]}
-        return clone(law).set_params(**changed) if changed else law
+        return BaseInteraction._get_replaced(law, **changed) if changed else law
 
     @staticmethod
     def _get_normalized(law: BaseComponent) -> BaseComponent:
@@ -336,11 +346,11 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
                     'such as `RateLaw(fractional(s.target.x, 0.5), -s.k * s.target.x)`.'
                 )
                 raise ValidationError(error_msg)
-            return clone(law).set_params(target=state, order=1 if order == 1 else order)
+            return BaseInteraction._get_replaced(law, target=state, order=1 if order == 1 else order)
         if law.target.operator() is not derivative:
-            return law if law.order is not None else clone(law).set_params(order=1)
+            return law if law.order is not None else BaseInteraction._get_replaced(law, order=1)
         state, order = law.target.operands()
-        return clone(law).set_params(target=state, order=int(order))
+        return BaseInteraction._get_replaced(law, target=state, order=int(order))
 
     def _get_laws_of(self, inputs: object) -> Sequence[BaseComponent]:
         """Return the laws for a namespace, from a clone prepared on it if needed."""

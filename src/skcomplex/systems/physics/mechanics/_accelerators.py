@@ -8,12 +8,11 @@ The module holds the beam-beam map of colliding beams and a mass that sticks and
 
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import Expression, cos, exp, oo, pi, sin
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression, cos, exp, pi, sin
 
 from ....core.components.laws.utils import both, where
-from ....core.engine.solvers import RK4Solver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -48,7 +47,7 @@ class BeamBeamMapSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.mechanics import BeamBeamMapSystem
-        >>> BeamBeamMapSystem(nu=0.5).prepare().system_.elements[0].get_value('nu')
+        >>> BeamBeamMapSystem(nu=0.5).prepare().system_.elements[0].values['nu']
         0.5
     """
 
@@ -72,8 +71,10 @@ class BeamBeamMapSystem(DynamicalSystem):
         nu: float = 0.3,
         c: float = 0.05,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.nu = nu
@@ -97,13 +98,18 @@ class BeamBeamMapSystem(DynamicalSystem):
         """Return the discrete time of the map."""
         return 'discrete'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'x': DeclaredVariableSpec(self.x, StateSpec()),
-            'y': DeclaredVariableSpec(self.y, StateSpec()),
-            'nu': DeclaredVariableSpec(self.nu, ParameterSpec(domain=RealSet.closed(0, 2))),
-            'c': DeclaredVariableSpec(self.c, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'x': self.x,
+            'y': self.y,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'nu': self.nu,
+            'c': self.c,
         }
 
     def _get_equations(self) -> Equations:
@@ -159,7 +165,7 @@ class FrictionOscillatorSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.mechanics import FrictionOscillatorSystem
-        >>> FrictionOscillatorSystem(mu_k=0.1).prepare().system_.elements[0].get_value('mu_k')
+        >>> FrictionOscillatorSystem(mu_k=0.1).prepare().system_.elements[0].values['mu_k']
         0.1
     """
 
@@ -168,7 +174,6 @@ class FrictionOscillatorSystem(DynamicalSystem):
     references = ('Khalil 2002', 'Trzaska 2023')
     until = 40.0
     dt = 0.01
-    solver = RK4Solver(dt=0.005)
 
     def __init__(
         self,
@@ -183,8 +188,10 @@ class FrictionOscillatorSystem(DynamicalSystem):
         g: float = 1.0,
         v_stick: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.x = x
         self.v = v
         self.m = m
@@ -195,23 +202,31 @@ class FrictionOscillatorSystem(DynamicalSystem):
         self.g = g
         self.v_stick = v_stick
 
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return RK4Solver(dt=0.005)
+
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the states."""
         return 'mass'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
-        nonnegative = RealSet.closed_open(0, oo)
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'x': DeclaredVariableSpec(self.x, StateSpec()),
-            'v': DeclaredVariableSpec(self.v, StateSpec()),
-            'm': DeclaredVariableSpec(self.m, ParameterSpec(domain=RealSet.open(0, oo))),
-            'k': DeclaredVariableSpec(self.k, ParameterSpec(domain=nonnegative)),
-            'c': DeclaredVariableSpec(self.c, ParameterSpec(domain=nonnegative)),
-            'mu_s': DeclaredVariableSpec(self.mu_s, ParameterSpec(domain=nonnegative)),
-            'mu_k': DeclaredVariableSpec(self.mu_k, ParameterSpec(domain=nonnegative)),
-            'g': DeclaredVariableSpec(self.g, ParameterSpec(domain=RealSet.open(0, oo))),
-            'v_stick': DeclaredVariableSpec(self.v_stick, ParameterSpec(domain=RealSet.open(0, oo))),
+            'x': self.x,
+            'v': self.v,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'm': self.m,
+            'k': self.k,
+            'c': self.c,
+            'mu_s': self.mu_s,
+            'mu_k': self.mu_k,
+            'g': self.g,
+            'v_stick': self.v_stick,
         }
 
     def _get_equations(self) -> Equations:

@@ -17,7 +17,9 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, JumpLaw, LocalRuleLaw
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -360,7 +362,7 @@ class LandauRelaxationSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import LandauRelaxationSystem
-        >>> LandauRelaxationSystem(T=2.0).prepare().system_.elements[0].get_value('T')
+        >>> LandauRelaxationSystem(T=2.0).prepare().system_.elements[0].values['T']
         2.0
     """
 
@@ -381,8 +383,10 @@ class LandauRelaxationSystem(DynamicalSystem):
         h: float = 0.0,
         Gamma: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.phi = phi
         self.T = T
         self.Tc = Tc
@@ -395,16 +399,21 @@ class LandauRelaxationSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'magnet'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'phi': DeclaredVariableSpec(self.phi, StateSpec()),
-            'a': DeclaredVariableSpec(self.a, ParameterSpec(domain=RealSet.open(0, oo))),
-            'b': DeclaredVariableSpec(self.b, ParameterSpec(domain=RealSet.open(0, oo))),
-            'T': DeclaredVariableSpec(self.T, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'Tc': DeclaredVariableSpec(self.Tc, ParameterSpec(domain=RealSet.open(0, oo))),
-            'h': DeclaredVariableSpec(self.h, ParameterSpec()),
-            'Gamma': DeclaredVariableSpec(self.Gamma, ParameterSpec(domain=RealSet.open(0, oo))),
+            'phi': self.phi,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'a': self.a,
+            'b': self.b,
+            'T': self.T,
+            'Tc': self.Tc,
+            'h': self.h,
+            'Gamma': self.Gamma,
         }
 
     def _get_equations(self) -> Equations:

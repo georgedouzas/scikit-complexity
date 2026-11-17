@@ -31,5 +31,5 @@ def test_two_phase_zone_exchange_is_binomial():
 @pytest.mark.parametrize(('temperature', 'order'), [(0.5, np.sqrt(0.5)), (2.0, 0.0)])
 def test_landau_relaxation_reaches_the_mean_field_order(temperature, order):
     """Test that the order parameter relaxes to `sqrt(a (Tc - T) / b)` below `Tc` and to 0 above it."""
-    trajectory = simulate(LandauRelaxationSystem(T=temperature), until=50)
+    trajectory = LandauRelaxationSystem(T=temperature).prepare().simulate(until=50)
     assert trajectory.get_values('magnet.phi')[-1] == pytest.approx(order, abs=1e-6)

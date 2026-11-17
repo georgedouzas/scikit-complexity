@@ -15,14 +15,13 @@ near half of the population without vaccination.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import SIRVaccinationSystem
 
 SYSTEM = 'sir_vaccination'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(SIRVaccinationSystem(), observers=[observer])
+trajectory = SIRVaccinationSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Vaccination flattens the epidemic
@@ -31,7 +30,7 @@ trajectory = simulate(SIRVaccinationSystem(), observers=[observer])
 # the infected fraction should peak much lower, because vaccination removes susceptible people before the epidemic
 # reaches them.
 
-uncontrolled = simulate(SIRVaccinationSystem(a=0.0))
+uncontrolled = SIRVaccinationSystem(a=0.0).prepare().simulate()
 fig, (infected, rate) = plt.subplots(1, 2, figsize=(10, 4))
 infected.plot(uncontrolled.times, uncontrolled.get_values('population.I'), label='without vaccination')
 infected.plot(trajectory.times, trajectory.get_values('population.I'), label='optimal vaccination')

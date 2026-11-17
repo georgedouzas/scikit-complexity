@@ -12,7 +12,6 @@ grows into a self-sustained oscillation of fixed amplitude, the limit cycle of t
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.circuits import TunnelDiodeOscillatorSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'tunnel_diode_oscillator'
 
 system = TunnelDiodeOscillatorSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # One limit cycle
@@ -30,7 +29,7 @@ trajectory = simulate(system, observers=[observer])
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for V0, i0 in [(0.1, 0.0), (2.0, 1.0), (-1.5, -1.5), (0.0, 2.5)]:
-    run = simulate(TunnelDiodeOscillatorSystem(V=V0, i=i0))
+    run = TunnelDiodeOscillatorSystem(V=V0, i=i0).prepare().simulate()
     ax.plot(run.get_values('circuit.V'), run.get_values('circuit.i'), linewidth=0.8)
     ax.plot(V0, i0, 'o', color='gray', markersize=4)
 amplitude = np.abs(trajectory.get_values('circuit.V')[trajectory.times > 30]).max()

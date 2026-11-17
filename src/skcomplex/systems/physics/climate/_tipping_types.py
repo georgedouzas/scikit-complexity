@@ -19,9 +19,10 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import ramp
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.errors import ValidationError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations, Noises
 
@@ -286,7 +287,7 @@ class SuteraFraedrichTippingSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import SuteraFraedrichTippingSystem
-        >>> round(SuteraFraedrichTippingSystem('rate').prepare().system_.elements[0].get_value('T'), 1)
+        >>> round(SuteraFraedrichTippingSystem('rate').prepare().system_.elements[0].values['T'], 1)
         291.6
     """
 
@@ -295,7 +296,6 @@ class SuteraFraedrichTippingSystem(DynamicalSystem):
     references = ('Fang, Wang, Kurths, and Fan 2025', 'Sutera 1981', 'Fraedrich 1978', 'Ashwin et al. 2012')
     until = 300.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.05)
 
     def __init__(
         self,
@@ -304,11 +304,17 @@ class SuteraFraedrichTippingSystem(DynamicalSystem):
         rho: float = 0.18,
         nu: float | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.tipping = tipping
         self.rho = rho
         self.nu = nu
+
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return EulerMaruyamaSolver(dt=0.05)
 
     @staticmethod
     def _warm_state(mu: float, b2: float, a2: float) -> float:
@@ -323,12 +329,12 @@ class SuteraFraedrichTippingSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'earth'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters of the type of tipping with their specs.
+    def _get_tipping(self) -> dict[str, float]:
+        """Return the values of the type of tipping.
 
         Returns:
-            variables:
-                The temperature, the controls, and the parameters of the type of tipping.
+            values:
+                The values of the type of tipping by name.
 
         Raises:
             ValidationError:
@@ -337,20 +343,29 @@ class SuteraFraedrichTippingSystem(DynamicalSystem):
         if self.tipping not in TIPPING_TYPES:
             error_msg = f'Unknown tipping type {self.tipping!r}. Use one of {", ".join(TIPPING_TYPES)}.'
             raise ValidationError(error_msg)
-        values = TIPPING_TYPES[self.tipping]
-        nonnegative = RealSet.closed_open(0, oo)
+        return TIPPING_TYPES[self.tipping]
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the temperature and the controls of the type of tipping."""
+        values = self._get_tipping()
         return {
-            'T': DeclaredVariableSpec(self._warm_state(1.0, values['b_ini'], values['a_ini']), StateSpec()),
-            'mu': DeclaredVariableSpec(1.0, StateSpec(domain=nonnegative)),
-            'lam': DeclaredVariableSpec(values['lam'], StateSpec(domain=nonnegative)),
-            'drift': DeclaredVariableSpec(values['drift'], ParameterSpec()),
-            'rho': DeclaredVariableSpec(self.rho if self.tipping == 'rate' else 0.0, ParameterSpec(domain=nonnegative)),
-            'b_ini': DeclaredVariableSpec(values['b_ini'], ParameterSpec(domain=nonnegative)),
-            'b_fin': DeclaredVariableSpec(values['b_fin'], ParameterSpec(domain=nonnegative)),
-            'a_ini': DeclaredVariableSpec(values['a_ini'], ParameterSpec(domain=nonnegative)),
-            'nu': DeclaredVariableSpec(values['nu'] if self.nu is None else self.nu, ParameterSpec(domain=nonnegative)),
-            'c0': DeclaredVariableSpec(C0, ParameterSpec(domain=RealSet.open(0, oo))),
-            'c1': DeclaredVariableSpec(C1, ParameterSpec(domain=RealSet.open(0, oo))),
+            'T': self._warm_state(1.0, values['b_ini'], values['a_ini']),
+            'mu': 1.0,
+            'lam': values['lam'],
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the type of tipping."""
+        values = self._get_tipping()
+        return {
+            'drift': values['drift'],
+            'rho': self.rho if self.tipping == 'rate' else 0.0,
+            'b_ini': values['b_ini'],
+            'b_fin': values['b_fin'],
+            'a_ini': values['a_ini'],
+            'nu': values['nu'] if self.nu is None else self.nu,
+            'c0': C0,
+            'c1': C1,
         }
 
     def _get_equations(self) -> Equations:

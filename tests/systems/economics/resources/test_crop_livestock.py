@@ -9,8 +9,8 @@ from ..conftest import _run
 
 def test_crop_livestock_household_buys_livestock_that_joins_three_years_later():
     """Test the STELLA years by hand: purchases join the herd three years later and then bring livestock income."""
-    system = CropLivestockHouseholdSystem().prepare().system_
-    trajectory = _run(system, 12, observables=CropLivestockHouseholdSystem().get_run_settings()['observables'])
+    system = CropLivestockHouseholdSystem()
+    trajectory = _run(system, 12)
     purchase, livestock = trajectory.get_values('household.purchase'), trajectory.get_values('household.livestock')
     assert purchase[1] == 1.0
     assert livestock.tolist()[:6] == [4.0, 4.0, 4.0, 4.0, 4.0, 5.0]

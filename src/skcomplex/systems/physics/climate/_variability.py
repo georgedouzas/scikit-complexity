@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws.utils import delayed
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -162,7 +163,7 @@ class ENSOSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import ENSOSystem
-        >>> ENSOSystem(delta=4.0).prepare().system_.elements[0].get_value('delta')
+        >>> ENSOSystem(delta=4.0).prepare().system_.elements[0].values['delta']
         4.0
     """
 
@@ -179,8 +180,10 @@ class ENSOSystem(DynamicalSystem):
         alpha: float = 0.75,
         delta: float = 6.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.T = T
         self.alpha = alpha
         self.delta = delta

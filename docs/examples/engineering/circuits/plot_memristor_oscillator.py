@@ -13,7 +13,6 @@ that has flowed through it, and the voltage oscillates with irregular, never-rep
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.circuits import MemristorOscillatorSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'memristor_oscillator'
 
 system = MemristorOscillatorSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # A chaotic attractor

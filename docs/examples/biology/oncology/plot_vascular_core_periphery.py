@@ -13,7 +13,6 @@ live cells grow only to about `3 10^4` in two months, against about `10^11` with
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import VascularCorePeripherySystem
@@ -22,7 +21,7 @@ SYSTEM = 'vascular_core_periphery'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(VascularCorePeripherySystem(), dt=0.5, solver=solver, observers=[observer])
+trajectory = VascularCorePeripherySystem(solver=solver).prepare().simulate(dt=0.5, observers=[observer])
 
 # %%
 # Treated and untreated tumours
@@ -32,7 +31,7 @@ trajectory = simulate(VascularCorePeripherySystem(), dt=0.5, solver=solver, obse
 # cells should stay orders of magnitude lower and the radius close to its initial 13 mm.
 
 treated = trajectory
-untreated = simulate(VascularCorePeripherySystem(dose=0.0), dt=0.5, solver=solver)
+untreated = VascularCorePeripherySystem(dose=0.0, solver=solver).prepare().simulate(dt=0.5)
 fig, (cells, vessels) = plt.subplots(1, 2, figsize=(10, 4))
 for trajectory, name in ((untreated, 'untreated'), (treated, 'treated')):
     cells.semilogy(

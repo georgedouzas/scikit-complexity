@@ -12,16 +12,14 @@ deeper soil `y` averages it into small, damped fluctuations.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import orbit_diagram
 from skcomplex.systems.physics.climate import SoilTemperatureSystem
 
 SYSTEM = 'soil_temperature'
 
 system = SoilTemperatureSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Route to chaos
@@ -32,10 +30,10 @@ trajectory = simulate(system, observers=[observer])
 
 epsilon = 0.1
 swept = np.linspace(2.5, 3.95, 300)
-diagram = orbit_diagram(SoilTemperatureSystem(), 'r', swept, 'soil.x', transient=300, keep=80)
+orbits = [SoilTemperatureSystem(r=r).prepare().simulate(until=379, dt=1).get_values('soil.x')[300:] for r in swept]
 rates = np.linspace(2.5, 3.0, 50)
 fig, ax = plt.subplots(figsize=(7, 5))
-for rate, points in zip(swept, diagram.points, strict=True):
+for rate, points in zip(swept, orbits, strict=True):
     ax.plot(np.full(len(points), rate), points, ',', color='C0', alpha=0.5)
 ax.plot(rates, (rates + epsilon**2 / (1 - epsilon) - 1) / rates, color='black', label='fixed point x*')
 ax.axvline(3.8, color='C3', linestyle='--', label='r of the run above')

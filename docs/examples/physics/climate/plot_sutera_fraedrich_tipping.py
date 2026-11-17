@@ -15,13 +15,11 @@ fluctuating at its warm level and then falling abruptly to the cold state.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import SuteraFraedrichTippingSystem
 
 SYSTEM = 'sutera_fraedrich_tipping'
 
-solver = SuteraFraedrichTippingSystem.solver
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(origin='/earth/T', name='temperature (K)', axis_x=rrb.TimeAxis(view_range=whole_run)),
@@ -31,7 +29,7 @@ blueprint = rrb.Blueprint(
 )
 system = SuteraFraedrichTippingSystem(tipping='noise')
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=4)
-simulation = simulate(system, solver=solver, observers=[observer], random_state=0)
+simulation = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Three types of tipping
@@ -42,7 +40,7 @@ simulation = simulate(system, solver=solver, observers=[observer], random_state=
 # should follow it to 303 K while a fast ramp at `rho = 0.2` should lose it and tip. Fang et al. put the critical
 # rate near 0.175.
 
-bifurcation = simulate(SuteraFraedrichTippingSystem(tipping='bifurcation'), until=720, dt=1.0, solver=solver)
+bifurcation = SuteraFraedrichTippingSystem(tipping='bifurcation').prepare().simulate(until=720, dt=1.0)
 fold = 4 * 0.2 / (9.7137e9 * 1.04e-5**2)
 fig, (ramped, rates) = plt.subplots(1, 2, figsize=(10, 4))
 ramped.plot(bifurcation.get_values('earth.mu'), bifurcation.get_values('earth.T'))
@@ -54,7 +52,7 @@ ramped.set_ylabel('temperature (K)')
 ramped.set_title('B-tipping past the fold')
 ramped.legend()
 for rho in (0.16, 0.2):
-    trajectory = simulate(SuteraFraedrichTippingSystem(tipping='rate', rho=rho), until=150, solver=solver)
+    trajectory = SuteraFraedrichTippingSystem(tipping='rate', rho=rho).prepare().simulate(until=150)
     rates.plot(trajectory.times, trajectory.get_values('earth.T'), label=f'rho = {rho}')
 rates.set_ylim(240, 310)
 rates.set_xlabel('time (years)')

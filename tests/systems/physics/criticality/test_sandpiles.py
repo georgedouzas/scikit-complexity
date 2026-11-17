@@ -36,5 +36,5 @@ def test_zhang_sandpile_relaxes_below_the_threshold_with_avalanches_of_many_size
 def test_self_organized_branching_tunes_itself_to_the_critical_probability():
     """Test that the branching probability organizes itself to `p_c = 1 / 2` from below and from above."""
     for start in (0.3, 0.7):
-        p = np.asarray(simulate(SelfOrganizedBranchingSystem(p=start), random_state=0).get_values('tree.p'))
+        p = np.asarray(SelfOrganizedBranchingSystem(p=start).prepare().simulate(random_state=0).get_values('tree.p'))
         assert p[-10000:].mean() == pytest.approx(0.5, abs=0.02)

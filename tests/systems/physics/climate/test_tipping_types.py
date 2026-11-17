@@ -24,13 +24,9 @@ def _final(system):
 
 def test_sutera_fraedrich_tipping_has_a_critical_rate():
     """Test that a slow ramp keeps the warm state and a fast one tips it, around the critical rate 0.175."""
-    solver = SuteraFraedrichTippingSystem.solver
-    slow = _run_default(SuteraFraedrichTippingSystem('rate', rho=0.16), until=300.0, dt=1.0, solver=solver).get_values(
-        'earth.T',
-    )
-    fast = _run_default(SuteraFraedrichTippingSystem('rate', rho=0.2), until=300.0, dt=1.0, solver=solver).get_values(
-        'earth.T',
-    )
+    slow = SuteraFraedrichTippingSystem('rate', rho=0.16).prepare().simulate(300.0, dt=1.0, random_state=0)
+    fast = SuteraFraedrichTippingSystem('rate', rho=0.2).prepare().simulate(300.0, dt=1.0, random_state=0)
+    slow, fast = slow.get_values('earth.T'), fast.get_values('earth.T')
     assert slow.min() > 290
     assert slow[-1] > 300
     assert fast[-1] < 0

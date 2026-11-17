@@ -13,14 +13,13 @@ holds the longest memory.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import AdaptrodeSystem
 
 SYSTEM = 'adaptrode'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(AdaptrodeSystem(period=10.0, stop=150.0), observers=[observer])
+trajectory = AdaptrodeSystem(period=10.0, stop=150.0).prepare().simulate(observers=[observer])
 
 # %%
 # Three memories

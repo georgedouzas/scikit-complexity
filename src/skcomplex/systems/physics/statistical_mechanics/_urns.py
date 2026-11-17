@@ -6,11 +6,10 @@ The module holds the Ehrenfest system of balls moved one at a time between two b
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
 
 from ....core.components.laws.utils import bernoulli
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -39,7 +38,7 @@ class EhrenfestUrnSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import EhrenfestUrnSystem
-        >>> EhrenfestUrnSystem(10).prepare().system_.elements[0].get_value('n')
+        >>> EhrenfestUrnSystem(10).prepare().system_.elements[0].values['n']
         10
     """
 
@@ -55,8 +54,10 @@ class EhrenfestUrnSystem(DynamicalSystem):
         *,
         in_first: int | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.n_balls = n_balls
         self.in_first = in_first
 
@@ -68,12 +69,17 @@ class EhrenfestUrnSystem(DynamicalSystem):
         """Return the discrete time of the map."""
         return 'discrete'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the count of the first box and the number of balls with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         n = self.n_balls if self.in_first is None else self.in_first
         return {
-            'n': DeclaredVariableSpec(n, StateSpec(domain=NN)),
-            'N': DeclaredVariableSpec(self.n_balls, ParameterSpec(domain=RealSet.open(0, oo))),
+            'n': n,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'N': self.n_balls,
         }
 
     def _get_equations(self) -> Equations:

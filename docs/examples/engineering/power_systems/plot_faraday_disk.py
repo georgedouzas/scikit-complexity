@@ -14,7 +14,6 @@ value: the battery discharges slowly through the disk.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.power_systems import FaradayDiskSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'faraday_disk'
 
 system = FaradayDiskSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Steady states against the torque
@@ -33,7 +32,7 @@ trajectory = simulate(system, observers=[observer])
 # the current oscillate instead, which the sweep stops short of.
 
 torques = np.linspace(3.0, 9.0, 13)
-speeds = [simulate(FaradayDiskSystem(M=torque)).get_values('charger.omega')[-1] for torque in torques]
+speeds = [FaradayDiskSystem(M=torque).prepare().simulate().get_values('charger.omega')[-1] for torque in torques]
 fig, (settling, speed) = plt.subplots(1, 2, figsize=(10, 4))
 settling.plot(trajectory.get_values('charger.omega'), trajectory.get_values('charger.I'))
 settling.plot(

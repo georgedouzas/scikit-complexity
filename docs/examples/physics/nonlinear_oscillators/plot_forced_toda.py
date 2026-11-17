@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import section
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.nonlinear_oscillators import ForcedTodaSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'forced_toda'
 
 system = ForcedTodaSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=16)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Orbit diagram
@@ -38,7 +37,7 @@ for period in np.linspace(2.0, 6.0, 41):
     omega = 2 * math.pi / period
     system = ForcedTodaSystem(x=x, v=v, a=2.0, omega=omega)
     points = section(
-        system.prepare().system_,
+        system,
         kind='stroboscopic',
         period=period,
         n_points=30,

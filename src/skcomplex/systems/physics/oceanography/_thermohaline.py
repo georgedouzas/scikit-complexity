@@ -6,6 +6,8 @@
 
 from sage.all__sagemath_symbolics import abs_symbolic
 
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -41,7 +43,7 @@ class StommelSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.oceanography import StommelSystem
-        >>> StommelSystem(eta2=1.0).prepare().system_.elements[0].get_value('eta2')
+        >>> StommelSystem(eta2=1.0).prepare().system_.elements[0].values['eta2']
         1.0
     """
 
@@ -60,8 +62,10 @@ class StommelSystem(DynamicalSystem):
         eta2: float = 1.2,
         eta3: float = 0.3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.T = T
         self.S = S
         self.eta1 = eta1

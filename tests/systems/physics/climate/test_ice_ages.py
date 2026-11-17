@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.climate import CarbonCycleSystem, SaltzmanGlaciationSystem, VanDerPolIceAgesSystem
 
 from ..conftest import _run_default
@@ -34,7 +33,7 @@ def test_carbon_cycle_is_excitable():
 
 def test_van_der_pol_ice_ages_cycle_every_hundred_thousand_years():
     """Test that the unforced ice-age oscillator settles on a relaxation cycle of about 100 thousand years."""
-    trajectory = simulate(VanDerPolIceAgesSystem())
+    trajectory = VanDerPolIceAgesSystem().prepare().simulate()
     climate = np.asarray(trajectory.get_values('climate.y'), dtype=float)
     times = np.asarray(trajectory.times)
     crossings = times[np.flatnonzero((climate[:-1] < 0) & (climate[1:] >= 0))]

@@ -15,7 +15,6 @@ the stock left over has no value.
 import matplotlib.pyplot as plt
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.resources import OptimalHarvestingSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'optimal_harvesting'
 
 system = OptimalHarvestingSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # The singular level

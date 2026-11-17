@@ -8,12 +8,12 @@ The traders switch between fundamentalism and chartism.
 
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import NN, Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
 from ....core.components import Observable
 from ....core.components.laws.utils import lag, normal, uniform, where
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -75,7 +75,7 @@ class KirmanExchangeRateSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.finance import KirmanExchangeRateSystem
-        >>> KirmanExchangeRateSystem(g=1.2).prepare().system_.elements[0].get_value('g')
+        >>> KirmanExchangeRateSystem(g=1.2).prepare().system_.elements[0].values['g']
         1.2
     """
 
@@ -99,8 +99,10 @@ class KirmanExchangeRateSystem(DynamicalSystem):
         epsilon: float = 0.005,
         delta: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.x = x
         self.k = k
         self.n_traders = n_traders
@@ -119,19 +121,23 @@ class KirmanExchangeRateSystem(DynamicalSystem):
         """Return the discrete time of the map."""
         return 'discrete'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
-        nonnegative = RealSet.closed_open(0, oo)
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'x': DeclaredVariableSpec(self.x, StateSpec(lags=1)),
-            'k': DeclaredVariableSpec(self.k, StateSpec(domain=NN)),
-            'n_traders': DeclaredVariableSpec(self.n_traders, ParameterSpec(domain=RealSet.open(1, oo))),
-            'r': DeclaredVariableSpec(self.r, ParameterSpec(domain=nonnegative)),
-            'v': DeclaredVariableSpec(self.v, ParameterSpec(domain=RealSet.closed(0, 1))),
-            'g': DeclaredVariableSpec(self.g, ParameterSpec(domain=nonnegative)),
-            'sigma': DeclaredVariableSpec(self.sigma, ParameterSpec(domain=nonnegative)),
-            'epsilon': DeclaredVariableSpec(self.epsilon, ParameterSpec(domain=RealSet.closed(0, 1))),
-            'delta': DeclaredVariableSpec(self.delta, ParameterSpec(domain=RealSet.closed(0, 1))),
+            'x': self.x,
+            'k': self.k,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'n_traders': self.n_traders,
+            'r': self.r,
+            'v': self.v,
+            'g': self.g,
+            'sigma': self.sigma,
+            'epsilon': self.epsilon,
+            'delta': self.delta,
         }
 
     def _get_equations(self) -> Equations:

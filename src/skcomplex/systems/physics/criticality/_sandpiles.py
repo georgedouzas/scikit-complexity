@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, Expression, oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
@@ -21,7 +21,9 @@ from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import draw, either, where
 from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, RoleSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import RoleSpec, StateSpec
 from ....core.types import Array
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -293,7 +295,7 @@ class SelfOrganizedBranchingSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.criticality import SelfOrganizedBranchingSystem
-        >>> SelfOrganizedBranchingSystem(0.4).prepare().system_.elements[0].get_value('p')
+        >>> SelfOrganizedBranchingSystem(0.4).prepare().system_.elements[0].values['p']
         0.4
     """
 
@@ -319,8 +321,10 @@ class SelfOrganizedBranchingSystem(DynamicalSystem):
         *,
         generations: int = 10,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.p = p
         self.generations = generations
 
@@ -360,13 +364,17 @@ class SelfOrganizedBranchingSystem(DynamicalSystem):
         """Return the discrete time of the map."""
         return 'discrete'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'p': DeclaredVariableSpec(self.p, StateSpec(domain=RealSet.closed(0, 1))),
-            'z': DeclaredVariableSpec(1, StateSpec(domain=NN)),
-            'g': DeclaredVariableSpec(0, StateSpec(domain=NN)),
+            'p': self.p,
+            'z': 1,
+            'g': 0,
         }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {}
 
     def _get_equations(self) -> Equations:
         """Return the self-organized branching process of Zapperi, Lauritsen, and Stanley."""

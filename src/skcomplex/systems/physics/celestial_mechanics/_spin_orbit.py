@@ -18,8 +18,9 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws.utils import derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.mechanics import EulerLagrangeInteraction
@@ -320,7 +321,7 @@ class RelativisticOrbitSystem(DynamicalSystem):
     has two fixed points, the roots `(1 ∓ sqrt(1 - 4 alpha epsilon)) / (2 epsilon)` of `epsilon u² - u + alpha`. The
     smaller one, close to `alpha`, is a centre, the stable circular orbit, and the larger one is a saddle, the unstable
     circular orbit close to the black hole, beyond which a planet falls in. The system has the inverse radius `planet.u`
-    of order 2 along the angle and its derivative `planet.u_d1`.
+    of order 2 along the angle and its derivative `planet.u'`.
 
     Args:
         u:
@@ -340,7 +341,7 @@ class RelativisticOrbitSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import RelativisticOrbitSystem
-        >>> RelativisticOrbitSystem(epsilon=0.0).prepare().system_.elements[0].get_value('epsilon')
+        >>> RelativisticOrbitSystem(epsilon=0.0).prepare().system_.elements[0].values['epsilon']
         0.0
     """
 
@@ -358,8 +359,10 @@ class RelativisticOrbitSystem(DynamicalSystem):
         alpha: float = 1.0,
         epsilon: float = 0.05,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.u = u
         self.du = du
         self.alpha = alpha
@@ -369,14 +372,20 @@ class RelativisticOrbitSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'planet'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'u': DeclaredVariableSpec(self.u, StateSpec(order=2, initial=(self.du,))),
-            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec(domain=RealSet.open(0, oo))),
-            'epsilon': DeclaredVariableSpec(self.epsilon, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'u': self.u,
+            "u'": self.du,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'alpha': self.alpha,
+            'epsilon': self.epsilon,
         }
 
     def _get_equations(self) -> Equations:
         """Return Einstein's orbit equation, the second derivative of `u` along the angle."""
-        return {'u': lambda s: s.target.alpha + s.target.epsilon * s.target.u**2 - s.target.u}
+        return {"u''": lambda s: s.target.alpha + s.target.epsilon * s.target.u**2 - s.target.u}

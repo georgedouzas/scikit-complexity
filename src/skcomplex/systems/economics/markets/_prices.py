@@ -5,10 +5,10 @@
 
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -48,7 +48,7 @@ class RiccatiPricesSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.markets import RiccatiPricesSystem
-        >>> RiccatiPricesSystem(gamma=-0.2).prepare().system_.elements[0].get_value('gamma')
+        >>> RiccatiPricesSystem(gamma=-0.2).prepare().system_.elements[0].values['gamma']
         -0.2
     """
 
@@ -69,8 +69,10 @@ class RiccatiPricesSystem(DynamicalSystem):
         alpha: float = 2.0,
         gamma: float = -0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.price = price
         self.k = k
         self.beta = beta
@@ -94,16 +96,21 @@ class RiccatiPricesSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'market'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'P': DeclaredVariableSpec(self.price, StateSpec()),
-            'k': DeclaredVariableSpec(self.k, ParameterSpec(domain=RealSet.open(0, oo))),
-            'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=RealSet.open(0, oo))),
-            'lam': DeclaredVariableSpec(self.lam, ParameterSpec(domain=RealSet.open(0, oo))),
-            'delta': DeclaredVariableSpec(self.delta, ParameterSpec(domain=RealSet.open(0, oo))),
-            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec(domain=RealSet.open(0, oo))),
-            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec()),
+            'P': self.price,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'k': self.k,
+            'beta': self.beta,
+            'lam': self.lam,
+            'delta': self.delta,
+            'alpha': self.alpha,
+            'gamma': self.gamma,
         }
 
     def _get_equations(self) -> Equations:

@@ -112,7 +112,7 @@ def test_nuclear_quadrupole_conserves_energy():
 def test_free_toda_oscillator_conserves_energy_and_swings_further_on_the_soft_side():
     """Test that the free Toda oscillator keeps `v² / 2 + e^x - 1 - x` and reaches the turning points of energy 1."""
     trajectory = _run(ForcedTodaSystem(x=0.0, v=math.sqrt(2.0), d=0.0, a=0.0), 30.0, 0.01)
-    x, v = _series(trajectory, 'toda.x', 'toda.x_d1')
+    x, v = _series(trajectory, 'toda.x', "toda.x'")
     energy = v**2 / 2 + np.exp(x) - 1 - x
     assert np.ptp(energy) < 1e-8
     assert x.max() == pytest.approx(1.1462, abs=2e-3)

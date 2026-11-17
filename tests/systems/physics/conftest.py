@@ -6,27 +6,65 @@ import numpy as np
 import numpy.typing as npt
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.systems import BaseSystem
+from skcomplex.core.components.systems import BaseSystem as OldBaseSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import BaseSolver, ScipyODESolver
+from skcomplex.core.systems import BaseSystem
 
 ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
 
+def _simulate(
+    system: BaseSystem | OldBaseSystem,
+    solver: BaseSolver | None = None,
+    *,
+    until: float | None,
+    dt: float | None = None,
+    observables: Sequence[Observable] = (),
+    schedule: Mapping[str, Callable[[float], float]] | None = None,
+    invariants: Mapping[str, float] | None = None,
+    random_state: int | None = None,
+) -> Trajectory:
+    """Return the trajectory of a system, prepared and simulated with a solver if given when it has the new base."""
+    if isinstance(system, BaseSystem):
+        if solver is not None:
+            system.set_params(solver=solver)
+        return system.prepare().simulate(
+            until,
+            dt=dt,
+            observables=observables,
+            schedule=schedule,
+            invariants=invariants,
+            random_state=random_state,
+        )
+    return simulate(
+        system,
+        until=until,
+        dt=dt,
+        solver=solver,
+        observables=observables,
+        schedule=schedule,
+        invariants=invariants,
+        random_state=random_state,
+    )
+
+
 def _run_default(
-    system: BaseSystem,
+    system: BaseSystem | OldBaseSystem,
     until: float,
     dt: float,
     solver: BaseSolver | None = None,
     observables: Sequence[Observable] = (),
 ) -> Trajectory:
     """Return the trajectory of the components of a system under the default solver of their laws, or a given one."""
+    if isinstance(system, BaseSystem):
+        return _simulate(system, solver, until=until, dt=dt, observables=observables, random_state=0)
     composite = system.prepare().system_
     return simulate(composite, until=until, dt=dt, solver=solver, observables=observables, random_state=0)
 
 
 def _run(
-    system: BaseSystem,
+    system: BaseSystem | OldBaseSystem,
     until: float,
     dt: float,
     solver: BaseSolver = ACCURATE,
@@ -35,8 +73,8 @@ def _run(
     schedule: Mapping[str, Callable[[float], float]] | None = None,
 ) -> Trajectory:
     """Return the trajectory of a system run to a time, or of its components under a schedule of their parameters."""
-    if schedule is None:
-        return simulate(system, until=until, dt=dt, solver=solver, observables=observables)
+    if schedule is None or isinstance(system, BaseSystem):
+        return _simulate(system, solver, until=until, dt=dt, observables=observables, schedule=schedule)
     composite = system.prepare().system_
     return simulate(composite, until=until, dt=dt, solver=solver, observables=observables, schedule=schedule)
 
@@ -58,6 +96,6 @@ def _relative_spread(values: npt.NDArray[np.float64]) -> float:
     return float(np.ptp(values) / max(np.abs(values).max(), 1e-12))
 
 
-def _run_observed(system: BaseSystem, until: float, dt: float) -> Trajectory:
+def _run_observed(system: BaseSystem | OldBaseSystem, until: float, dt: float) -> Trajectory:
     """Return the trajectory of a system's run with its tuned observables."""
-    return simulate(system, until=until, dt=dt, random_state=0)
+    return _simulate(system, until=until, dt=dt, random_state=0)
