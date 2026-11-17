@@ -35,7 +35,8 @@ from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from .._utils import bound_labels
 from ._compilation import Compilation
 
-RESERVED = ('label', 'visual', 'size', 'space', 'values')
+RESERVED = ('label', 'visual', 'size', 'space', 'values', 'on')
+LINKS = ('edges', 'hyperedges')
 BOOLEAN = FiniteEnumeratedSet([0, 1])
 MEMBERSHIP = frozenset(
     {
@@ -59,7 +60,8 @@ class _StateInference:
     law changes it. An element with `size` or `space` is a group of members, and a value given as an
     array holds one value per member, such as the heights of `1000` molecules, while a single value is shared. On a
     lattice, a network, or a mesh, the members are the sites of a field, so laws can read `laplacian(u)` or a sum over
-    neighbours.
+    neighbours. With `on='edges'` or `on='hyperedges'` the members sit on the links of a network instead, such as the
+    signed links of triadic percolation.
     """
 
     def __init__(self, census: Callable[[CompositeSystem], Compilation]) -> None:
@@ -117,6 +119,8 @@ class _StateInference:
         """
         if element.size is not None:
             return int(element.size)
+        if element.space is not None and element.on in LINKS:
+            return element.space.prepare()._count_parts(element.on, None)
         if element.space is not None and not element.space._has_sites():
             return 1
         if element.space is not None:
@@ -124,10 +128,15 @@ class _StateInference:
         return None
 
     @staticmethod
-    def _get_axes(element: Element) -> tuple[str, ...]:
-        """Return the axes of the continuous space of an element, or none."""
+    def _get_axes(element: Element, agents: bool = False) -> tuple[str, ...]:
+        """Return the axes of the continuous space of an element, or none.
+
+        The agents of a lattice also have the axes of its cells, such as `x` and `y`, which place them.
+        """
         space = element.space
-        return space.prepare().axes_ if isinstance(space, ContinuousSpace) else ()
+        if isinstance(space, ContinuousSpace) or (agents and isinstance(space, LatticeSpace)):
+            return space.prepare().axes_
+        return ()
 
     @staticmethod
     def _get_member_value(element: Element, name: str, value: object, count: int | None) -> object:
@@ -450,19 +459,21 @@ class _StateInference:
 
         On a network whose edges the laws change, the members are a variable group of nodes, with a variable group on
         the edges named after the element, such as `voters_edges`. When the laws also add or remove nodes, every value
-        of a node is a state, since it comes and goes with its node, and the group has room for twice its nodes. The
+        of a node is a state, since it comes and goes with its node, and the group grows as a Python list does. The
         members of a group that runs agent rules are agents, whose rules may change every value and add or remove
         members, so every value is a state and the group is variable, and a single element that runs them is a group of
-        one agent. A value named after an axis of a continuous space is a position, also when no law changes it, and
-        the value an update law adds to a position at every step, as `v` in `x <- x + v`, is its velocity. The probe
-        that finds the orders reads no starting values of derivatives or past values.
+        one agent. A value named after an axis of a continuous space, or of the cells of a lattice for agents, is a
+        position, also when no law changes it, and the value an update law adds to a position at every step, as `v` in
+        `x <- x + v`, is its velocity. An element on the edges or hyperedges of a network is a group with one member on
+        each. The probe that finds the orders reads no starting values of derivatives or past values.
         """
         values = self._get_values(element)
         starting = {} if probing else self._get_starting(element, values)
         count = self._get_count(element) or (1 if agents else None)
-        network = bool(kinds) and isinstance(element.space, NetworkSpace)
+        on = next((part for part in LINKS if element.on == part), None)
+        network = bool(kinds) and isinstance(element.space, NetworkSpace) and on is None
         growing = network and bool(kinds & MEMBERSHIP)
-        axes = self._get_axes(element)
+        axes = self._get_axes(element, agents)
         velocities = {name for name, moved in (steps or {}).items() if moved in axes}
         variables = {}
         for name, value in values.items():
@@ -499,7 +510,16 @@ class _StateInference:
                 variable=True,
             )
             return [nodes, edges]
-        if isinstance(element.space, LatticeSpace | NetworkSpace):
+        if on is not None:
+            group = GroupElement(
+                element.label,
+                element=DeclaredElement,
+                space=element.space,
+                on=on,
+                values=values,
+            )
+            return [group]
+        if isinstance(element.space, LatticeSpace | NetworkSpace) and element.size is None:
             mesh = isinstance(element.space, CellComplexSpace) and element.space._is_mesh()
             discretization = 'finite-element' if mesh else 'finite-difference'
             field = FieldElement(
@@ -515,7 +535,7 @@ class _StateInference:
             element=DeclaredElement,
             size=count,
             space=element.space,
-            on=None if element.space is None else 'sites',
+            on=None if element.space is None or isinstance(element.space, LatticeSpace) else 'sites',
             values=values,
             variable=agents,
         )

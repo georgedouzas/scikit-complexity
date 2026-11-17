@@ -1,18 +1,21 @@
 """Test the `_simulate` module of `skcomplex.core.engine.runtime`."""
 
 from collections.abc import Mapping
+from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
+import networkx as nx
 import numpy as np
 import pytest
 from scipy import stats
 
 from skcomplex.core.components import Observable, Tags
+from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import JumpInteraction, RateInteraction
-from skcomplex.core.components.laws import RateLaw, UpdateLaw
-from skcomplex.core.components.laws.utils import normal
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, StaticTime
+from skcomplex.core.components.interactions import Interaction, JumpInteraction, RateInteraction
+from skcomplex.core.components.laws import RateLaw, TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.laws.utils import neighbors, normal
+from skcomplex.core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine import runtime as package
 from skcomplex.core.engine.backends import JaxBackend
@@ -21,8 +24,9 @@ from skcomplex.core.engine.runtime import RecorderObserver, Trajectory, _simulat
 from skcomplex.core.engine.runtime._simulate import _choose_solver
 from skcomplex.core.engine.runtime._simulations import Simulation
 from skcomplex.core.engine.solvers import GillespieSolver, MonteCarloSolver, RootSolver, ScipyODESolver
-from skcomplex.core.errors import ConservationError, TagError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.errors import CapacityError, ConservationError, TagError, ValidationError
+from skcomplex.core.specs import ParameterSpec, Role, StateSpec
+from skcomplex.core.systems import System
 
 
 class TankElement(Element):
@@ -295,3 +299,71 @@ def test_simulate_rejects_a_system_name():
     """Simulating a system name raises an error that names what it took."""
     with pytest.raises(ValidationError, match=r"simulate takes a system, not 'sir'"):
         package.simulate('sir', until=1)
+
+
+def _get_degree(node):
+    """Return the weight of a node for a new link, its degree plus one, so a lone first node can be chosen."""
+    return neighbors(1) + 1
+
+
+class AttachmentInteraction(Interaction):
+    """Interaction that adds one node per step, linked to a node drawn by preferential attachment."""
+
+    def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = None) -> None:
+        super().__init__(label, among=among, along=along)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the request of a new node with one link as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            request = TopologyRequestSpec('add-node', edges=1, one=True, toward=_get_degree)
+            self.laws_: list[BaseComponent] = [UpdateLaw(request, 1.0)]
+
+
+def test_run_problem_grows_a_network_from_one_node():
+    """Test that a network of one node grows to 500 by preferential attachment, with no capacity to give."""
+    graph = nx.Graph()
+    graph.add_node(0)
+    nodes = Element('nodes', values={'k': 0.0}, space=NetworkSpace(graph))
+    system = System(elements=[nodes], interactions=[AttachmentInteraction('attach')]).prepare()
+    trajectory = system.simulate(until=499, random_state=0)
+    sizes = [trajectory.get_network(frame).nodes.size for frame in range(len(trajectory.times))]
+    grown = trajectory.get_network(-1).get_graph()
+    assert sizes == list(range(1, 501))
+    assert nx.is_tree(grown)
+    assert max(degree for _, degree in grown.degree()) >= 15
+
+
+class _NodeElement(Element):
+    """Node of a growing network with its age."""
+
+    def __init__(self, label: str, age: Annotated[float, StateSpec()] = 0.0) -> None:
+        super().__init__(label)
+        self.age = age
+
+
+class _GrowthElement(Element):
+    """Element that adds one node with one link at every step."""
+
+    def _get_laws(self, s):
+        """Return the request of one new node."""
+        return [UpdateLaw(TopologyRequestSpec('add-node', edges=1), 1)]
+
+
+def _get_growing(capacity):
+    """Return a network of two nodes that gains one node per step, with a capacity of nodes or none."""
+    space = NetworkSpace(nx.path_graph(2))
+    nodes = GroupElement('nodes', element=_NodeElement, space=space, on='sites', variable=True, capacity=capacity)
+    links = GroupElement('links', element=Element, space=space, on='edges', variable=True, capacity=capacity)
+    return CompositeSystem(elements=[nodes, links, _GrowthElement('growth')], time=DiscreteTime())
+
+
+def test_run_problem_grows_a_group_without_a_capacity_and_keeps_a_given_one():
+    """Test that groups without a capacity grow as a list does, while a given capacity still raises when it fills."""
+    grown = simulate(_get_growing(None), until=40, random_state=np.random.default_rng(5))
+    again = simulate(_get_growing(None), until=40, random_state=np.random.default_rng(5))
+    assert grown.get_network(-1).nodes.size == 42
+    np.testing.assert_array_equal(grown.get_network(-1).sources, again.get_network(-1).sources)
+    with pytest.raises(CapacityError, match='capacity') as error:
+        simulate(_get_growing(10), until=40, random_state=0)
+    assert (error.value.path, error.value.rows) == ('nodes', 10)

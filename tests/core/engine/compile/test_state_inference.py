@@ -17,11 +17,22 @@ from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
-from skcomplex.core.components.laws.utils import laplacian, neighbors
-from skcomplex.core.components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.components.laws.utils import bernoulli, components, laplacian, neighbors, where
+from skcomplex.core.components.spaces import (
+    BaseSpace,
+    CellComplexSpace,
+    ContinuousSpace,
+    DiscreteTime,
+    LatticeSpace,
+    NetworkSpace,
+)
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
 
 
 class Particle(Element):
@@ -630,3 +641,111 @@ def test_get_declared_reads_the_step_of_a_position_as_its_velocity():
     system = System(elements=[walkers], interactions=[Drift('drift')]).prepare()
     trajectory = system.simulate(until=2, dt=1)
     assert alignment(trajectory, kind='mean-vector').order == pytest.approx([1 / 3] * 3)
+
+
+class WeightedExchange(Interaction):
+    """Exchange along every edge at the rate of the weight of the link on that edge."""
+
+    def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = True) -> None:
+        super().__init__(label, among=among, along=along)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the flow from the source to the target of an edge, weighted by its link."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            flow = s.edge.w * (s.source.x - s.target.x)
+            self.laws_: list[BaseComponent] = [
+                RateLaw(s.target.x.diff(s.t), flow),
+                RateLaw(s.source.x.diff(s.t), -flow),
+            ]
+
+
+def test_get_declared_puts_one_member_on_every_edge():
+    """Test that links on the edges of a path hold one weight each, which an exchange along the edges reads."""
+    graph = nx.path_graph(3)
+    space = NetworkSpace(graph)
+    nodes = Element('nodes', values={'x': np.array([1.0, 0.0, 0.0])}, space=space)
+    links = Element('links', values={'w': np.array([2.0, 0.5])}, space=space, on='edges')
+    system = System(elements=[nodes, links], interactions=[WeightedExchange('exchange')]).prepare()
+    assert 'links.w[i]' in system.parameters_
+    last = system.simulate(until=0.5, dt=0.01).get_values('nodes.x')[-1]
+    nx.set_edge_attributes(graph, {(0, 1): 2.0, (1, 2): 0.5}, 'w')
+    laplacian = nx.laplacian_matrix(graph, weight='w').toarray()
+    assert last == pytest.approx(expm(-laplacian * 0.5) @ np.array([1.0, 0.0, 0.0]), abs=1e-6)
+
+
+class Regulation(Interaction):
+    """Regulation of every link by the third node of its hyperedge, as in triadic percolation."""
+
+    def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = 'hyperedges', p: float = 0.5):
+        super().__init__(label, among=among, along=along)
+        self.p = p
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the activity of the link from the activity and the sign of its regulator."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            regulator = s.others[1].active
+            allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
+            retained = bernoulli('retained', s.p) * allowed
+            self.laws_: list[BaseComponent] = [UpdateLaw(s.edge.active, retained, phase='regulation')]
+
+
+class Percolation(Interaction):
+    """Activity of every node in the giant component of the active links."""
+
+    def __init__(self, label: str, *, nodes: Role = 'nodes', links: Role = 'links') -> None:
+        super().__init__(label)
+        self.nodes = nodes
+        self.links = links
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the membership of the giant component."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            giant = components(context.links.active, reduce='giant')
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.nodes.active, giant, phase='percolation')]
+
+
+def test_get_declared_gives_the_signed_links_of_triadic_percolation():
+    """Test that signed links on the edges, regulated along the hyperedges, run triadic percolation step for step."""
+    ready = TriadicPercolationSystem(500, p=0.5).prepare().system_
+    expected = simulate(ready, until=10, random_state=0).get_values('nodes.active')
+    space, signs = ready.elements[0].space, ready.elements[1].values['sign']
+    nodes = Element('nodes', values={'active': 1}, space=space)
+    links = Element('links', values={'active': 1, 'sign': signs}, space=space, on='edges')
+    phases = PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation')))
+    system = CompositeSystem(
+        elements=[nodes, links],
+        interactions=[Regulation('regulation', p=0.5), Percolation('percolation')],
+        time=DiscreteTime(schedule=phases),
+    )
+    np.testing.assert_array_equal(simulate(system, until=10, random_state=0).get_values('nodes.active'), expected)
+
+
+class Majority(Interaction):
+    """Pull of every member of a hyperedge towards the mean of its members, at the rate of the hyperedge."""
+
+    def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = 'hyperedges') -> None:
+        super().__init__(label, among=among, along=along)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the pull towards the mean of the members."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            center = (s.member.x + sum(other.x for other in s.others)) / (1 + len(s.others))
+            pull = s.hyperedge.k * (center - s.member.x)
+            self.laws_: list[BaseComponent] = [RateLaw(s.member.x.diff(s.t), pull)]
+
+
+def test_get_declared_puts_one_member_on_every_hyperedge():
+    """Test that a group of three, whose hyperedge holds its rate, pulls its members to their mean, and others not."""
+    space = NetworkSpace(nx.empty_graph(4), hyperedges=[(0, 1, 2)])
+    nodes = Element('nodes', values={'x': np.array([3.0, 0.0, 0.0, 5.0])}, space=space)
+    groups = Element('groups', values={'k': 2.0}, space=space, on='hyperedges')
+    system = System(elements=[nodes, groups], interactions=[Majority('majority')]).prepare()
+    last = system.simulate(until=0.5, dt=0.01).get_values('nodes.x')[-1]
+    assert last == pytest.approx([1.0 + 2.0 * np.exp(-1.0), 1.0 - np.exp(-1.0), 1.0 - np.exp(-1.0), 5.0], abs=1e-5)

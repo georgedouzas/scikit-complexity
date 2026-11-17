@@ -10,12 +10,13 @@ from types import SimpleNamespace
 from typing import ClassVar
 
 from ...errors import ValidationError
-from ...specs import ConnectorSpec
+from ...specs import ConnectorSpec, ParameterSpec, StateSpec
 from ..base import BaseComponent
-from ..spaces import BaseSpace
+from ..spaces import BaseSpace, NetworkSpace
 from ._base import BaseElement
 
 RESERVED = ('label', 'size', 'space', 'values')
+LINKS = ('edges', 'hyperedges')
 RESERVED_MEANINGS = {
     'size': 'number of members',
     'space': 'space of the members',
@@ -62,6 +63,10 @@ class Element(BaseElement):
         space:
             The space of the element, with one member per site, such as a lattice of cells, or `None` for none.
 
+        on:
+            The part of a network space that holds one member each: `'edges'` for every link, such as the signed
+            links of a network, `'hyperedges'` for every hyperedge, or `None` for every site.
+
     Attributes:
         default_visual_:
             How the element is drawn by default, the `visual` of its class.
@@ -104,11 +109,13 @@ class Element(BaseElement):
         values: Mapping[str, object] | None = None,
         size: int | None = None,
         space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
         super().__init__(label)
         self.values = values
         self.size = size
         self.space = space
+        self.on: object = on
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, checking the reserved names.
@@ -137,6 +144,23 @@ class Element(BaseElement):
                     f'such as half_side for the half side of a table.'
                 )
                 raise ValidationError(error_msg)
+        self._check_on()
+
+    def _check_on(self) -> None:
+        """Raise an error for an `on` that names no part of a network space.
+
+        A value named `on` that the element declares as its own state or parameter names no place.
+        """
+        if isinstance(type(self)._get_specs().get('on'), StateSpec | ParameterSpec):
+            return
+        on = getattr(self, 'on', None)
+        if on is None or (on in LINKS and isinstance(self.space, NetworkSpace)):
+            return
+        error_msg = (
+            f'Element {self.label!r} has on = {on!r}, but on is the part of a network space that holds one member '
+            "each, 'edges' or 'hyperedges', such as Element('links', values={'sign': 1}, space=network, on='edges')."
+        )
+        raise ValidationError(error_msg)
 
     @classmethod
     def _get_view(cls) -> type | None:

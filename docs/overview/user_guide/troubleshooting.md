@@ -687,8 +687,9 @@ the recorder holds the frames 30.0, 52.0, and 90.1.
 
 ## CapacityError
 
-A group whose members appear and disappear on a network holds a fixed number of rows, its `capacity`. A request to
-add a member beyond it raises this error. Here a network of three nodes gains one node at every step.
+A group without a `capacity` grows as a Python list does, so it never raises this error. A group given a `capacity`
+holds that many rows, and a request to add a member beyond it raises this error. Here a network of three nodes gains
+one node at every step.
 
 ```python
 import networkx as nx
