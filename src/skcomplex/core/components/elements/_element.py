@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import inspect
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
@@ -175,6 +176,17 @@ class Element(BaseElement):
             "each, 'edges' or 'hyperedges', such as Element('links', values={'sign': 1}, space=network, on='edges')."
         )
         raise ValidationError(error_msg)
+
+    def _get_hints(self) -> dict[str, object]:
+        """Return the type hint of every value argument by name, in the order of the arguments.
+
+        The hints are the annotations of the arguments of the class, such as `Annotated[float, Quantity('energy')]`,
+        from which the kind, the allowed values, the quantity, and the period of each value are read. A generic
+        subclass that takes its values through `values` gives their hints here instead, and the arguments it leaves
+        out, such as the allowed values themselves, are no values.
+        """
+        parameters = inspect.signature(type(self)).parameters
+        return {name: parameter.annotation for name, parameter in parameters.items() if name not in (*RESERVED, 'on')}
 
     @classmethod
     def _get_view(cls) -> type | None:

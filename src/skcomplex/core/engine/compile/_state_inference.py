@@ -86,8 +86,7 @@ class _StateInference:
                 )
                 raise ValidationError(error_msg)
         params = element.get_params(deep=False)
-        names = [name for name in inspect.signature(type(element)).parameters if name in params]
-        arguments = {name: params[name] for name in names if name not in RESERVED}
+        arguments = {name: params[name] for name in element._get_hints() if name in params and name not in RESERVED}
         return arguments | given
 
     @staticmethod
@@ -255,8 +254,7 @@ class _StateInference:
             ValidationError:
                 A starting value is given for a parameter, or for a derivative or past value no law reads.
         """
-        parameter = inspect.signature(type(element)).parameters.get(name)
-        annotation = inspect.Parameter.empty if parameter is None else parameter.annotation
+        annotation = element._get_hints().get(name, inspect.Parameter.empty)
         domain = self._get_domain(annotation, value)
         quantity = self._get_quantity(annotation)
         period = self._get_period(annotation)

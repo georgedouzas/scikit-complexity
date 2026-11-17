@@ -8,7 +8,8 @@ The product diffuses through innovators and imitators.
 
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -93,6 +94,22 @@ class BassDiffusionSystem(StockFlowSystem):
         return {
             'P': self.market - self.adopters,
             'A': self.adopters,
+        }
+
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the stocks and parameters that have them, by name."""
+        return {
+            'P': RealSet.closed_open(0, oo),
+            'A': RealSet.closed_open(0, oo),
+            'p': RealSet.closed_open(0, oo),
+            'q': RealSet.closed_open(0, oo),
+        }
+
+    def _get_quantities(self) -> dict[str, str]:
+        """Return the quantity every stock holds, by name."""
+        return {
+            'P': 'people',
+            'A': 'people',
         }
 
     def _get_parameters(self) -> dict[str, object]:

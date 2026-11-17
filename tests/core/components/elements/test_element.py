@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import var
 from sklearn.base import clone
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element, GroupElement, Quantity
 from skcomplex.core.components.laws import JumpLaw, RateLaw, RuleLaw
 from skcomplex.core.components.spaces import AxisSpec, ContinuousSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -334,3 +334,18 @@ def test_element_on_a_space_has_the_tags_of_its_space():
     space = PhaseSpace(LatticeSpace(4), [AxisSpec('v', 2, -1.0, 1.0)])
     assert Element('gas', values={'x': 1.0}, space=space).get_tags().space == frozenset({'phase space'})
     assert not Element('ball', values={'x': 1.0}).get_tags().space
+
+
+class HeatedElement(Element):
+    """Plain element with an annotated temperature and a plain mass."""
+
+    def __init__(self, label: str, *, T: Annotated[float, Quantity('energy')] = 1.0, m: float = 2.0) -> None:
+        super().__init__(label)
+        self.T = T
+        self.m = m
+
+
+def test_element_gives_the_hints_of_its_value_arguments():
+    """Test that the hints of an element are the annotations of its value arguments, in their order."""
+    assert HeatedElement('body')._get_hints() == {'T': Annotated[float, Quantity('energy')], 'm': float}
+    assert Element('ball', values={'x': 1.0})._get_hints() == {}

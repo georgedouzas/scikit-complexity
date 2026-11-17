@@ -4,6 +4,8 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
@@ -95,6 +97,21 @@ def test_dynamical_system_decays_exponentially():
     trajectory = system.prepare().simulate(until=2.0, dt=0.1)
     assert 'tank.x' in trajectory.names
     assert trajectory.get_values('tank.x')[-1] == pytest.approx(np.exp(-1.0), rel=1e-5)
+
+
+def test_dynamical_system_rejects_a_state_outside_its_allowed_values():
+    """Test that a population allowed only nonnegative sizes rejects a negative one."""
+    system = DynamicalSystem(
+        states={'n': -1.0},
+        equations={'n': lambda s: -s.target.n},
+        allowed={'n': RealSet.closed_open(0, oo)},
+        element='population',
+    )
+    with pytest.raises(ValidationError, match='n'):
+        system.prepare()
+    system.set_params(states={'n': 1.0})
+    trajectory = system.prepare().simulate(until=1.0, dt=1.0)
+    assert trajectory.get_values('population.n')[-1] == pytest.approx(np.exp(-1.0), rel=1e-4)
 
 
 def test_dynamical_system_rejects_an_equation_of_an_unknown_state():
