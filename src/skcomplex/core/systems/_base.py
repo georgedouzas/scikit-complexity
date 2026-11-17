@@ -49,6 +49,10 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         system_:
             The prepared `System` of the components built from the model parameters.
 
+        observables_:
+            The observables compiled with the problem, the tuned `observables` unless `_prepare` sets them from the
+            model parameters, such as the lowest energy of the candidates of an annealing that a tracker reads.
+
     See Also:
         System: The system of components that every ready-made system builds.
 
@@ -72,6 +76,7 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     schedule: ClassVar[Mapping[str, Callable[[float], float | npt.ArrayLike]] | None] = None
 
     system_: BaseSystem
+    observables_: tuple[Observable, ...]
     states_: tuple[str, ...]
     parameters_: tuple[str, ...]
     equations_: dict[str, str]
@@ -162,13 +167,16 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Check the model parameters and set `system_`, the `System` of the components.
 
-        A subclass starts with `super()._prepare(context)`, which checks the label.
+        A subclass starts with `super()._prepare(context)`, which checks the label and sets `observables_` to the
+        observables of the context. A subclass whose observables depend on its model parameters sets `observables_`
+        after it.
 
         Args:
             context:
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
+        self.observables_ = tuple(context or ())
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Set `laws_`, the laws of the system for a namespace of symbols.
@@ -197,7 +205,7 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         super().prepare(self.observables if context is None else context)
         if self.system_ is not self:
             settings = {name: getattr(self, name) for name in SETTINGS if getattr(self, name) != AUTO}
-            self.system_.set_params(**settings).prepare(self.observables)
+            self.system_.set_params(**settings).prepare(self.observables_)
             for name in LEARNED:
                 setattr(self, name, getattr(self.system_, name))
         self._prepared_from = self._get_values()

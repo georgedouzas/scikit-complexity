@@ -17,7 +17,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.evolutionary_computation import RobbyGASystem
 
@@ -32,7 +31,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 system = RobbyGASystem(n_strategies=200, mutation=0.005, random_state=0)
-trajectory = simulate(system, until=290, dt=1, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=290, dt=1, observers=[observer], random_state=0)
 scores = np.array(
     [trajectory.get_agents('strategies', frame).values['score'] for frame in range(len(trajectory.times))],
 )
@@ -75,7 +74,7 @@ for label, settings in (
     ('starvation switched every 30', {'starvation': 0.3, 'switch': 30}),
     ('no starvation', {'starvation': 0.0}),
 ):
-    run = simulate(RobbyGASystem(regime='circumstance', **settings), until=120, dt=1)
+    run = RobbyGASystem(regime='circumstance', **settings).prepare().simulate(until=120, dt=1)
     means = [run.get_agents('strategies', frame).values['score'].mean() for frame in range(121)]
     ax.plot(run.times, means, label=label)
 for start in (30, 90):

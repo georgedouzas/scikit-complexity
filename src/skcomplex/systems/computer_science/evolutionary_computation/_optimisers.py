@@ -26,11 +26,14 @@ from ....core.components.interactions import Interaction, SamplingInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.components.systems import CompositeSystem
 from ....core.components.types import SystemViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.enums import ElementKind
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 SEEDS = 2**31
@@ -531,6 +534,12 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The algorithm or the landscape is unknown.
@@ -557,8 +566,10 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         generations: float = 100.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_candidates = n_candidates
         self.algorithm = algorithm
         self.landscape = landscape
@@ -567,20 +578,13 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         self.generations = generations
         self.random_state = random_state
 
-    @staticmethod
-    def _get_annealing(
-        start: Array,
-        energy: Callable[[SimpleNamespace], Expression],
-        temperature: float,
-        width: float,
-        generations: float,
-        *,
-        label: str,
-    ) -> CompositeSystem:
+    def _get_annealing(self, start: Array, energy: Callable[[SimpleNamespace], Expression]) -> System:
         """Return candidates that anneal one state at a time, and the best-energy element.
 
-        The element keeps the lowest energy the candidates reach.
+        The search and the tracker of the best energy run side by side, and the tracker reads the lowest energy the
+        candidates reach, the observable `search/lowest`.
         """
+        generations = self.generations
         candidates = GroupElement(
             'candidates',
             element=AnnealedCandidateElement,
@@ -595,29 +599,26 @@ class EvolutionaryOptimisersSystem(BaseSystem):
                 state=state,
                 objective=energy,
                 move='gaussian',
-                width=width,
-                intensity=1 / temperature,
+                width=self.width,
+                intensity=1 / self.temperature,
                 schedule='colored',
                 neighborhood=RadiusNeighborhood(1, metric='manhattan'),
                 cooling=lambda t: COOLED ** (t / generations),
             )
             for state in ('x', 'y')
         ]
-        return CompositeSystem(
-            label,
+        return System(
+            self.label,
             systems=[
                 CompositeSystem('search', elements=[candidates], interactions=samplers, time=DiscreteTime()),
                 CompositeSystem('tracker', elements=[RunningBestElement('record')], time=DiscreteTime()),
             ],
             interactions=[RunningBestInteraction('update', target='tracker/record', source='search/lowest')],
-            time=DiscreteTime(),
         )
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a population of candidates that searches a two-dimensional landscape.
-
-        Each step is one generation.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         if (self.algorithm not in ALGORITHMS and self.algorithm != ANNEALING) or self.landscape not in LANDSCAPES:
             names = ', '.join((*ALGORITHMS, ANNEALING))
             error_msg = (
@@ -628,7 +629,10 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         energy, objective, bound = LANDSCAPES[self.landscape]
         start = np.random.default_rng(self.random_state).uniform(-bound, bound, (self.n_candidates, N_DIM))
         if self.algorithm == ANNEALING:
-            return self._get_annealing(start, energy, self.temperature, self.width, self.generations, label=self.label)
+            member = MEMBER_ENERGIES[self.landscape]
+            self.observables_ = (Observable('search/lowest', member, group='candidates', reduce='min'),)
+            self.system_ = self._get_annealing(start, energy)
+            return
         candidates = GroupElement(
             'candidates',
             element=SearchCandidateElement,
@@ -643,27 +647,4 @@ class EvolutionaryOptimisersSystem(BaseSystem):
             bounds=(-bound, bound),
             algorithm=ALGORITHMS[self.algorithm],
         )
-        return CompositeSystem(self.label, elements=[candidates], interactions=[search], time=DiscreteTime())
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        They record the lowest candidate energy of simulated annealing. A population optimiser keeps the default
-        settings. Simulated annealing nests the search and the tracker of the best energy, which run side by side, and
-        records the lowest energy its candidates reach, as `search/lowest`, which the tracker reads.
-
-        Returns:
-            settings:
-                The tuned run settings by name.
-
-        Examples:
-            >>> from skcomplex.systems.computer_science.evolutionary_computation import EvolutionaryOptimisersSystem
-            >>> settings = EvolutionaryOptimisersSystem(algorithm='annealing').get_run_settings()
-            >>> [spec.label for spec in settings['observables']]
-            ['search/lowest']
-        """
-        settings = super().get_run_settings()
-        if self.algorithm == ANNEALING and self.landscape in MEMBER_ENERGIES:
-            member = MEMBER_ENERGIES[self.landscape]
-            settings['observables'] = (Observable('search/lowest', member, group='candidates', reduce='min'),)
-        return settings
+        self.system_ = System(self.label, elements=[candidates], interactions=[search])
