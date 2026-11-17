@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution, events
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import OnOffIntermittencySystem
@@ -22,14 +21,9 @@ from skcomplex.systems.mathematics.stochastic_processes import OnOffIntermittenc
 SYSTEM = 'on_off_intermittency'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    OnOffIntermittencySystem(n_realizations=2, epsilon=0.0, D=0.5),
-    until=598,
-    dt=2.0,
-    solver=EulerMaruyamaSolver(dt=0.01),
-    observers=[observer],
-    random_state=0,
-)
+system = OnOffIntermittencySystem(n_realizations=2, epsilon=0.0, D=0.5).prepare().system_
+system.set_params(solver=EulerMaruyamaSolver(dt=0.01)).prepare()
+trajectory = system.simulate(598, dt=2.0, observers=[observer], random_state=0)
 
 # %%
 # Durations of the laminar phases
@@ -40,13 +34,8 @@ trajectory = simulate(
 # of the phases below `x = 0.05` in 50 realizations should follow this power law over two decades, and `ln x` of the
 # run above should wander far below 0 and never far above it.
 
-ensemble = simulate(
-    OnOffIntermittencySystem(n_realizations=50),
-    until=500,
-    dt=0.1,
-    solver=EulerMaruyamaSolver(dt=0.02),
-    random_state=1,
-)
+ensemble = OnOffIntermittencySystem(n_realizations=50).prepare().system_
+ensemble = ensemble.set_params(solver=EulerMaruyamaSolver(dt=0.02)).prepare().simulate(500, dt=0.1, random_state=1)
 values = ensemble.get_values('variables.x')
 step = float(np.median(np.diff(ensemble.times)))
 durations = step * np.concatenate(

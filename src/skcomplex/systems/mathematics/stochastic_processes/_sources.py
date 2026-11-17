@@ -3,14 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import NN
+from sage.all__sagemath_symbolics import NN, Expression
 
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import TransitionInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.laws.utils import categorical, where
+from ....core.components.spaces import BaseSpace
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from .types import Matrix
 
 CHAIN = ((0.9, 0.1), (0.4, 0.6))
@@ -19,8 +26,6 @@ EMISSION = ((0.7, 0.3), (0.2, 0.8))
 
 class HiddenMarkovSourceElement(Element):
     """Source of symbols emitted from the states of a hidden Markov chain.
-
-    The source emits one symbol per step.
 
     Args:
         label:
@@ -38,13 +43,7 @@ class HiddenMarkovSourceElement(Element):
         1
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        hidden: Annotated[float, StateSpec(domain=NN)] = 0,
-        symbol: Annotated[float, StateSpec(domain=NN)] = 0,
-    ) -> None:
+    def __init__(self, label: str, *, hidden: Annotated[float, NN] = 0, symbol: Annotated[float, NN] = 0) -> None:
         super().__init__(label)
         self.hidden = hidden
         self.symbol = symbol
@@ -52,8 +51,6 @@ class HiddenMarkovSourceElement(Element):
 
 class MarkovSourceElement(Element):
     """Source of symbols `0` to `n - 1`.
-
-    A transition matrix steps the symbol in discrete time.
 
     Args:
         label:
@@ -68,14 +65,82 @@ class MarkovSourceElement(Element):
         1
     """
 
+    def __init__(self, label: str, *, symbol: Annotated[float, NN] = 0) -> None:
+        super().__init__(label)
+        self.symbol = symbol
+
+
+class MarkovChainInteraction(Interaction):
+    """A Markov chain that draws the next value of a discrete state from the row of a transition matrix.
+
+    The value after `i` is `j` with probability `P_ij`. With an emission matrix `E`, a second state, the symbol, is
+    drawn in the same step from the row of `E` that the new value selects, as a hidden Markov chain emits its symbols.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The element that holds the state and, with an emission matrix, the symbol.
+
+        transition:
+            The transition matrix `P`, one row and one column per value, with rows that sum to 1.
+
+        emission:
+            The emission matrix `E`, one row per value of the state and one column per symbol, or `None` for none.
+
+        state:
+            The name of the state the chain moves.
+
+        observed:
+            The name of the symbol the emissions draw.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import MarkovChainInteraction
+        >>> MarkovChainInteraction('chain', target='source', transition=((0.5, 0.5), (0.1, 0.9))).state
+        'symbol'
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
     def __init__(
         self,
         label: str,
         *,
-        symbol: Annotated[float, StateSpec(domain=NN)] = 0,
+        target: Role = 'source',
+        transition: Matrix = CHAIN,
+        emission: Matrix | None = None,
+        state: str = 'symbol',
+        observed: str = 'symbol',
     ) -> None:
         super().__init__(label)
-        self.symbol = symbol
+        self.target = target
+        self.transition = transition
+        self.emission = emission
+        self.state = state
+        self.observed = observed
+
+    @staticmethod
+    def _draw_row(name: str, matrix: Matrix, value: Expression) -> Expression:
+        """Return the index drawn from the row of a matrix that a value selects."""
+        weights = [
+            sum(where(value == row, matrix[row][column], 0) for row in range(len(matrix)))
+            for column in range(len(matrix[0]))
+        ]
+        return categorical(name, weights)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the draw of the next value and, with an emission matrix, of the symbol as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            state = getattr(context.target, self.state)
+            following = self._draw_row(f'{self.label}_{self.state}', self.transition, state)
+            self.laws_: list[BaseComponent] = [UpdateLaw(state, following)]
+            if self.emission is not None:
+                observed = getattr(context.target, self.observed)
+                emitted = self._draw_row(f'{self.label}_{self.observed}', self.emission, following)
+                self.laws_.append(UpdateLaw(observed, emitted))
 
 
 class MarkovSourceSystem(BaseSystem):
@@ -99,8 +164,8 @@ class MarkovSourceSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import MarkovSourceSystem
-        >>> MarkovSourceSystem().prepare().system_.interactions[0].state
-        'symbol'
+        >>> MarkovSourceSystem().prepare().simulate(5, random_state=0).get_values('source.symbol').tolist()
+        [0.0, 1.0, 0.0, 0.0, 0.0, 0.0]
     """
 
     field = 'mathematics/stochastic_processes'
@@ -120,16 +185,13 @@ class MarkovSourceSystem(BaseSystem):
         self.transition = transition
         self.symbol = symbol
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a Markov source.
-
-        Each symbol of the sequence depends on the one before it.
-        """
-        chain = TransitionInteraction('chain', target='source', state='symbol', matrix=lambda s: self.transition)
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the source and its chain."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[MarkovSourceElement('source', symbol=self.symbol)],
-            interactions=[chain],
+            interactions=[MarkovChainInteraction('chain', target='source', transition=self.transition)],
         )
 
 
@@ -155,8 +217,8 @@ class HiddenMarkovSourceSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import HiddenMarkovSourceSystem
-        >>> HiddenMarkovSourceSystem().prepare().system_.interactions[0].observed
-        'symbol'
+        >>> HiddenMarkovSourceSystem().prepare().states_
+        ('source.hidden', 'source.symbol')
     """
 
     field = 'mathematics/stochastic_processes'
@@ -176,14 +238,15 @@ class HiddenMarkovSourceSystem(BaseSystem):
         self.transition = transition
         self.emission = emission
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        chain = TransitionInteraction(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the source and its hidden chain."""
+        super()._prepare(context)
+        chain = MarkovChainInteraction(
             'chain',
             target='source',
+            transition=self.transition,
+            emission=self.emission,
             state='hidden',
-            matrix=lambda s: self.transition,
-            emission=lambda s: self.emission,
             observed='symbol',
         )
-        return CompositeSystem(self.label, elements=[HiddenMarkovSourceElement('source')], interactions=[chain])
+        self.system_ = System(self.label, elements=[HiddenMarkovSourceElement('source')], interactions=[chain])

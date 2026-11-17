@@ -40,7 +40,7 @@ def test_signature_analysis_of_a_map():
 
 def test_signature_analysis_of_a_jump_path():
     """Test that a jump path gives its waiting-time distribution with the dispersion index."""
-    trajectory = simulate(PoissonProcessSystem(), until=30.0, random_state=0)
+    trajectory = PoissonProcessSystem().prepare().simulate(30.0, random_state=0)
     (signature,) = _signatures(trajectory)
     assert signature.kind == 'path'
     assert 'dispersion index of jumps per frame' in signature.values

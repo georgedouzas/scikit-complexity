@@ -4,11 +4,33 @@ The package covers random walks, Markov sources, counting, urn, branching, and s
 """
 
 from ._branching import GaltonWatsonSystem, IndividualElement
-from ._counting import BernoulliProcessSystem, BernoulliTrialElement, PoissonCounterElement, PoissonProcessSystem
-from ._intermittency import IntermittentVariableElement, OnOffIntermittencySystem
-from ._power_laws import ExponentialGrowthAtRandomTimesSystem, ObservedGrowthElement
-from ._queues import BirthDeathQueueSystem, QueueElement
-from ._random_maps import RandomBranchMapElement, RandomBranchMapSystem
+from ._counting import (
+    BernoulliProcessSystem,
+    BernoulliTrialElement,
+    PoissonCounterElement,
+    PoissonEventsInteraction,
+    PoissonProcessSystem,
+)
+from ._intermittency import (
+    IntermittencyInteraction,
+    IntermittentVariableElement,
+    OnOffIntermittencySystem,
+)
+from ._power_laws import (
+    ExponentialGrowthAtRandomTimesSystem,
+    ObservedGrowthElement,
+    ObservedGrowthInteraction,
+)
+from ._queues import (
+    BirthDeathQueueSystem,
+    QueueElement,
+    ServiceInteraction,
+)
+from ._random_maps import (
+    RandomBranchMapElement,
+    RandomBranchMapInteraction,
+    RandomBranchMapSystem,
+)
 from ._reducing import (
     CascadingBallElement,
     CascadingSampleSpaceReducingSystem,
@@ -18,8 +40,18 @@ from ._reducing import (
     ReducingJumpInteraction,
     SampleSpaceReducingSystem,
 )
-from ._sources import HiddenMarkovSourceElement, HiddenMarkovSourceSystem, MarkovSourceElement, MarkovSourceSystem
-from ._urns import PolyaUrnElement, PolyaUrnSystem
+from ._sources import (
+    HiddenMarkovSourceElement,
+    HiddenMarkovSourceSystem,
+    MarkovChainInteraction,
+    MarkovSourceElement,
+    MarkovSourceSystem,
+)
+from ._urns import (
+    PolyaDrawInteraction,
+    PolyaUrnElement,
+    PolyaUrnSystem,
+)
 from ._walks import (
     AgeingRandomWalkSystem,
     AgeingWalkerElement,
@@ -48,20 +80,26 @@ __all__: list[str] = [
     'HiddenMarkovSourceElement',
     'HiddenMarkovSourceSystem',
     'IndividualElement',
+    'IntermittencyInteraction',
     'IntermittentVariableElement',
+    'MarkovChainInteraction',
     'MarkovSourceElement',
     'MarkovSourceSystem',
     'MemoryWalkerElement',
     'ObservedGrowthElement',
+    'ObservedGrowthInteraction',
     'OnOffIntermittencySystem',
     'PersistentRandomWalkSystem',
     'PersistentWalkerElement',
     'PoissonCounterElement',
+    'PoissonEventsInteraction',
     'PoissonProcessSystem',
+    'PolyaDrawInteraction',
     'PolyaUrnElement',
     'PolyaUrnSystem',
     'QueueElement',
     'RandomBranchMapElement',
+    'RandomBranchMapInteraction',
     'RandomBranchMapSystem',
     'RandomWalkSystem',
     'RandomWalkWithMemorySystem',
@@ -69,6 +107,7 @@ __all__: list[str] = [
     'ReducingBallElement',
     'ReducingJumpInteraction',
     'SampleSpaceReducingSystem',
+    'ServiceInteraction',
     'WeakeningOrnsteinUhlenbeckSystem',
     'WeakeningParticleElement',
 ]

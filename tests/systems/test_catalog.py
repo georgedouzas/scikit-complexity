@@ -253,9 +253,13 @@ def test_seeded_runs_of_a_stochastic_system_repeat():
     gas = simulate(IdealGasSystem(), random_state=0).get_values('gas.x_d1')
     np.testing.assert_array_equal(gas, simulate(IdealGasSystem(), random_state=0).get_values('gas.x_d1'))
     assert not np.array_equal(gas, simulate(IdealGasSystem(random_state=None), random_state=0).get_values('gas.x_d1'))
-    counts = simulate(PoissonProcessSystem(), random_state=0).get_values('counters.count')
-    np.testing.assert_array_equal(counts, simulate(PoissonProcessSystem(), random_state=0).get_values('counters.count'))
-    assert not np.array_equal(counts, simulate(PoissonProcessSystem(), random_state=None).get_values('counters.count'))
+    counts = PoissonProcessSystem().prepare().simulate(random_state=0).get_values('counters.count')
+    np.testing.assert_array_equal(
+        counts, PoissonProcessSystem().prepare().simulate(random_state=0).get_values('counters.count'),
+    )
+    assert not np.array_equal(
+        counts, PoissonProcessSystem().prepare().simulate(random_state=None).get_values('counters.count'),
+    )
 
 
 def test_all_systems_lists_no_general_class():
