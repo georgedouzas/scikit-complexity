@@ -2,7 +2,6 @@
 
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.engineering.processes import BathtubSystem, CascadeClassifierSystem
 
 from ...conftest import _run_monitored
@@ -10,7 +9,7 @@ from ...conftest import _run_monitored
 
 def test_bathtub_drains_then_holds():
     """Test that the tub loses five gallons per minute until the faucet opens, and then holds its level."""
-    trajectory = simulate(BathtubSystem().prepare().system_, until=10, dt=0.5)
+    trajectory = BathtubSystem().prepare().simulate(until=10, dt=0.5)
     assert trajectory.get_values('tub.water')[10] == pytest.approx(25.0)
     assert trajectory.get_values('tub.water')[-1] == pytest.approx(25.0)
 

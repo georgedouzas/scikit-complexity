@@ -20,7 +20,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step, where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import StockFlowSystem
 from ...general.dynamics.types import FlowTable
@@ -72,7 +72,7 @@ class BathtubSystem(StockFlowSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.processes import BathtubSystem
-        >>> BathtubSystem(water=20.0).prepare().system_.elements[0].get_value('water')
+        >>> BathtubSystem(water=20.0).prepare().system_.elements[0].values['water']
         20.0
     """
 
@@ -89,8 +89,10 @@ class BathtubSystem(StockFlowSystem):
         inflow: float = 5.0,
         outflow: float = 5.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.water = water
         self.inflow = inflow
         self.outflow = outflow
@@ -99,12 +101,17 @@ class BathtubSystem(StockFlowSystem):
         """Return the label of the element that holds the stocks."""
         return 'tub'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the stocks and the parameters with their specs."""
+    def _get_stocks(self) -> dict[str, object]:
+        """Return the initial value of every stock by name."""
         return {
-            'water': DeclaredVariableSpec(self.water, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')),
-            'inflow': DeclaredVariableSpec(self.inflow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'outflow': DeclaredVariableSpec(self.outflow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'water': self.water,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'inflow': self.inflow,
+            'outflow': self.outflow,
         }
 
     def _get_flows(self) -> FlowTable:

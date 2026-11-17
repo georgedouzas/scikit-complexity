@@ -15,7 +15,6 @@ delays the peak by a few years.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.resources import OilEconomySystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'oil_economy'
 UNTIL = 100.0
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(OilEconomySystem(), until=UNTIL, observers=[observer])
+trajectory = OilEconomySystem().prepare().simulate(until=UNTIL, observers=[observer])
 
 # %%
 # More oil, a later peak
@@ -35,7 +34,7 @@ trajectory = simulate(OilEconomySystem(), until=UNTIL, observers=[observer])
 
 fig, (capital, extraction) = plt.subplots(1, 2, figsize=(10, 4))
 for index, resource in enumerate((1000.0, 2000.0, 4000.0)):
-    trajectory = simulate(OilEconomySystem(resource=resource), until=UNTIL, dt=0.5)
+    trajectory = OilEconomySystem(resource=resource).prepare().simulate(until=UNTIL, dt=0.5)
     times, stock = trajectory.times, trajectory.get_values('oil.capital')
     peak = times[stock.argmax()]
     capital.plot(times, stock, color=f'C{index}', label=f'resource {resource:.0f}, peak at {peak:.0f}')

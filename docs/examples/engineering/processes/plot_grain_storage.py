@@ -15,14 +15,13 @@ they settle.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.processes import GrainStorageSystem
 
 SYSTEM = 'grain_storage'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(GrainStorageSystem(), observers=[observer])
+trajectory = GrainStorageSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Oscillation from the supply line
