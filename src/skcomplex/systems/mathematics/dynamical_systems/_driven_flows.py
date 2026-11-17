@@ -6,50 +6,33 @@ The control parameter of a Rössler flow follows an Ornstein-Uhlenbeck process.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Sequence
+from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
-
-from ....core.components.interactions import RateInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec
-from ..common.flows._rossler import RosslerElement
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
+from ..common.flows._rossler import RosslerInteraction
 
 
-class DrivenRosslerElement(RosslerElement):
-    """Rössler flow with a control `eta`.
+class OUDriveInteraction(Interaction):
+    """The drive of a flow by a control `eta` that follows an Ornstein-Uhlenbeck process.
 
-    The control is the state that the drive adds to the rate of `y` and that relaxes to 0.
-
-    The element holds the flow and the states and parameters of its control. The interactions of the system add the
-    control to the rate of `y` and make it an Ornstein-Uhlenbeck process of correlation time `tau` and noise `rho`.
+    The control adds to the rate of `y` and follows `eta' = (-eta + rho xi) / tau` with white noise `xi`, so it relaxes
+    to 0 over the correlation time `tau`.
 
     Args:
         label:
-            The label of the element.
+            The label of the interaction.
 
-        x:
-            The initial first coordinate.
-
-        y:
-            The initial second coordinate.
-
-        z:
-            The initial third coordinate.
-
-        eta:
-            The initial control.
-
-        a:
-            The feedback of the second coordinate on itself.
-
-        b:
-            The constant drive of the third coordinate.
-
-        c:
-            The threshold of the third coordinate's growth.
+        target:
+            The element whose coordinate `y` the control drives and that holds the control `eta`.
 
         tau:
             The correlation time of the control.
@@ -58,29 +41,29 @@ class DrivenRosslerElement(RosslerElement):
             The amplitude of the noise of the control.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import DrivenRosslerElement
-        >>> DrivenRosslerElement('rossler', tau=10.0).tau
+        >>> from skcomplex.systems.mathematics.dynamical_systems import OUDriveInteraction
+        >>> OUDriveInteraction('control', target='rossler', tau=10.0).tau
         10.0
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: float = 1.0,
-        y: float = 1.0,
-        z: float = 1.0,
-        eta: Annotated[float, StateSpec()] = 0.0,
-        a: float = 0.2,
-        b: float = 0.4,
-        c: float = 5.743,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 50.0,
-        rho: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, x=x, y=y, z=z, a=a, b=b, c=c)
-        self.eta = eta
+    law_classes = (RateLaw, NoiseLaw)
+
+    def __init__(self, label: str, *, target: Role = 'rossler', tau: float = 50.0, rho: float = 0.5) -> None:
+        super().__init__(label)
+        self.target = target
         self.tau = tau
         self.rho = rho
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the drive of `y` and the rate and noise of the control as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            y, eta = context.target.y, context.target.eta
+            self.laws_: list[BaseComponent] = [
+                RateLaw(y, eta),
+                RateLaw(eta, -eta / context.tau),
+                NoiseLaw(eta, context.rho / context.tau),
+            ]
 
 
 class OUDrivenRosslerSystem(BaseSystem):
@@ -127,7 +110,7 @@ class OUDrivenRosslerSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import OUDrivenRosslerSystem
-        >>> OUDrivenRosslerSystem(tau=10.0).prepare().system_.elements[0].tau
+        >>> OUDrivenRosslerSystem(tau=10.0).prepare().system_.interactions[1].tau
         10.0
     """
 
@@ -136,7 +119,6 @@ class OUDrivenRosslerSystem(BaseSystem):
     references = ('Cestnik and Martens 2025', 'Rössler 1976', 'Uhlenbeck and Ornstein 1930')
     until = 500.0
     dt = 0.1
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -163,29 +145,15 @@ class OUDrivenRosslerSystem(BaseSystem):
         self.rho = rho
         self.eta = eta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Rössler flow driven through its bifurcations.
-
-        A slow Ornstein-Uhlenbeck control parameter drives the flow.
-        """
-        rossler = DrivenRosslerElement(
-            'rossler',
-            x=self.x,
-            y=self.y,
-            z=self.z,
-            eta=self.eta,
-            a=self.a,
-            b=self.b,
-            c=self.c,
-            tau=self.tau,
-            rho=self.rho,
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the flow and its drive."""
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[Element('rossler', values={'x': self.x, 'y': self.y, 'z': self.z, 'eta': self.eta})],
+            interactions=[
+                RosslerInteraction('flow', target='rossler', a=self.a, b=self.b, c=self.c),
+                OUDriveInteraction('control', target='rossler', tau=self.tau, rho=self.rho),
+            ],
+            solver=EulerMaruyamaSolver(dt=0.01),
         )
-        drive = RateInteraction('drive', target='rossler', state='y', rate=lambda s: s.target.eta)
-        control = RateInteraction(
-            'control',
-            target='rossler',
-            state='eta',
-            rate=lambda s: -s.target.eta / s.target.tau,
-            noise=lambda s: s.target.rho / s.target.tau,
-        )
-        return CompositeSystem(self.label, elements=[rossler], interactions=[drive, control])

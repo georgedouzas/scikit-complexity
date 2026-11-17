@@ -6,6 +6,7 @@ The module covers ensembles of chaotic maps, their invariant densities, and chao
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,11 +15,16 @@ from sage.all__sagemath_symbolics import Expression, floor, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import mod, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 
 DOUBLING_DENOMINATOR = 1125899906840747.0
 
@@ -81,96 +87,72 @@ class CubicWalkElement(Element):
         ]
 
 
-class DoublingMapElement(Element):
-    """Doubling map `x' = 2 x (mod 1)` on the grid of the fractions of denominator `q`.
+class DoublingMapInteraction(Interaction):
+    """The doubling map `x' = 2 x (mod 1)` on the grid of the fractions of denominator `q`.
 
     Args:
         label:
-            The label of the element.
+            The label of the interaction.
 
-        x:
-            The initial value, between 0 and 1.
+        target:
+            The element whose values `x` the map moves.
 
         q:
             The denominator of the grid.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import DoublingMapElement
-        >>> DoublingMapElement('point', q=1024.0).q
+        >>> from skcomplex.systems.mathematics.dynamical_systems import DoublingMapInteraction
+        >>> DoublingMapInteraction('doubling', target='points', q=1024.0).q
         1024.0
     """
 
     law_classes = (UpdateLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 0.4,
-        q: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = DOUBLING_DENOMINATOR,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role = 'points', q: float = DOUBLING_DENOMINATOR) -> None:
         super().__init__(label)
-        self.x = x
+        self.target = target
         self.q = q
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next value, rounded to the grid.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [UpdateLaw(s.x, mod(2 * floor(s.q * s.x + 1 / 2), s.q) / s.q)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next value, rounded to the grid, as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, q = context.target.x, context.q
+            self.laws_: list[BaseComponent] = [UpdateLaw(x, mod(2 * floor(q * x + 1 / 2), q) / q)]
 
 
-class SkewTentMapElement(Element):
-    """Skew tent map `x' = x / a` below the peak `a` and `(1 - x) / (1 - a)` above it.
+class SkewTentMapInteraction(Interaction):
+    """The skew tent map `x' = x / a` below the peak `a` and `(1 - x) / (1 - a)` above it.
 
     Args:
         label:
-            The label of the element.
+            The label of the interaction.
 
-        x:
-            The initial value, between 0 and 1.
+        target:
+            The element whose values `x` the map moves.
 
         a:
             The position of the peak, between 0 and 1.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import SkewTentMapElement
-        >>> SkewTentMapElement('point', a=0.5).a
+        >>> from skcomplex.systems.mathematics.dynamical_systems import SkewTentMapInteraction
+        >>> SkewTentMapInteraction('tent', target='points', a=0.5).a
         0.5
     """
 
     law_classes = (UpdateLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 0.4,
-        a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role = 'points', a: float = 0.3) -> None:
         super().__init__(label)
-        self.x = x
+        self.target = target
         self.a = a
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next value.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [UpdateLaw(s.x, where(s.x < s.a, s.x / s.a, (1 - s.x) / (1 - s.a)))]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next value as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, a = context.target.x, context.a
+            self.laws_: list[BaseComponent] = [UpdateLaw(x, where(x < a, x / a, (1 - x) / (1 - a)))]
 
 
 def _get_square_displacement(member: SimpleNamespace) -> Expression:
@@ -178,7 +160,7 @@ def _get_square_displacement(member: SimpleNamespace) -> Expression:
     return member.y**2
 
 
-class CubicChaoticMapSystem(BaseSystem):
+class CubicChaoticMapSystem(OldBaseSystem):
     """Bertin's cubic chaotic map and the chaotic walk it drives.
 
     The walk spreads like a random walk.
@@ -277,7 +259,7 @@ class SkewTentMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import SkewTentMapSystem
-        >>> SkewTentMapSystem(10, a=0.7).prepare().system_.elements[0].values['a']
+        >>> SkewTentMapSystem(10, a=0.7).prepare().system_.interactions[0].a
         0.7
     """
 
@@ -314,19 +296,14 @@ class SkewTentMapSystem(BaseSystem):
         self.spread = spread
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the points and their map."""
+        super()._prepare(context)
         start = SkewTentMapSystem._draw_cloud(self.n_points, self.x, self.spread, self.random_state)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'points',
-                    element=SkewTentMapElement,
-                    size=self.n_points,
-                    values={'x': start, 'a': self.a},
-                ),
-            ],
+            elements=[Element('points', values={'x': start}, size=self.n_points)],
+            interactions=[SkewTentMapInteraction('tent', target='points', a=self.a)],
         )
 
 
@@ -390,22 +367,17 @@ class DoublingMapSystem(BaseSystem):
         self.q = q
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the points and their map."""
+        super()._prepare(context)
         start = (
             np.floor(
                 self.q * SkewTentMapSystem._draw_cloud(self.n_points, self.x, self.spread, self.random_state) + 1 / 2,
             )
             / self.q
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'points',
-                    element=DoublingMapElement,
-                    size=self.n_points,
-                    values={'x': start, 'q': self.q},
-                ),
-            ],
+            elements=[Element('points', values={'x': start}, size=self.n_points)],
+            interactions=[DoublingMapInteraction('doubling', target='points', q=self.q)],
         )

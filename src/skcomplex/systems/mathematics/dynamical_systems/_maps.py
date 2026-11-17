@@ -137,6 +137,8 @@ class HenonMapInteraction(Interaction):
         1.4
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -242,6 +244,8 @@ class StandardMapInteraction(Interaction):
         >>> StandardMapInteraction('kick', target='map', K=0.5).K
         0.5
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(self, label: str, *, target: Role = 'map', K: float = 1.2) -> None:
         super().__init__(label)
@@ -485,6 +489,8 @@ class BakerMapInteraction(Interaction):
         0.4
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -624,6 +630,8 @@ class TowelMapInteraction(Interaction):
         3.8
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -735,6 +743,8 @@ class IntermittencyMapInteraction(Interaction):
         2.0
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -823,6 +833,8 @@ class NewtonRaphsonMapInteraction(Interaction):
         'map'
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -909,6 +921,8 @@ class CatMapInteraction(Interaction):
         >>> CatMapInteraction('cat', target='map').target
         'map'
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
@@ -1001,6 +1015,8 @@ class LoziMapInteraction(Interaction):
         >>> LoziMapInteraction('lozi', target='map').a
         1.7
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
@@ -1107,6 +1123,8 @@ class ConservativeHenonMapInteraction(Interaction):
         0.2114
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -1207,6 +1225,8 @@ class FermiUlamMapInteraction(Interaction):
         >>> FermiUlamMapInteraction('fermi_ulam', target='map').epsilon
         0.1
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,

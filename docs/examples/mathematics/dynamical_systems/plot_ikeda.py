@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import IkedaSystem
 
@@ -30,7 +29,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=5)
-trajectory = simulate(IkedaSystem(), observers=[observer])
+trajectory = IkedaSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Bifurcation diagram
@@ -41,7 +40,7 @@ trajectory = simulate(IkedaSystem(), observers=[observer])
 gains = np.linspace(0.2, 2.0, 37)
 low, high = [], []
 for a in gains:
-    x = simulate(IkedaSystem(a=a), until=300).get_values('ikeda.x')[-500:]
+    x = IkedaSystem(a=a).prepare().simulate(300).get_values('ikeda.x')[-500:]
     low.append(x.min())
     high.append(x.max())
 fig, (series, diagram) = plt.subplots(1, 2, figsize=(10, 4))

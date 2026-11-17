@@ -3,32 +3,43 @@
 The package covers chaotic and driven flows, maps, Koopman embeddings, and normal forms of bifurcations.
 """
 
-from ..common.flows._rossler import RosslerElement
+from ..common.flows import RosslerInteraction
 from ._chaotic_ensembles import (
     CubicChaoticMapSystem,
     CubicWalkElement,
-    DoublingMapElement,
+    DoublingMapInteraction,
     DoublingMapSystem,
-    SkewTentMapElement,
+    SkewTentMapInteraction,
     SkewTentMapSystem,
 )
-from ._driven_flows import DrivenRosslerElement, OUDrivenRosslerSystem
+from ._driven_flows import (
+    OUDriveInteraction,
+    OUDrivenRosslerSystem,
+)
 from ._flows import (
+    FiniteTimeBlowUpInteraction,
     FiniteTimeBlowUpSystem,
+    HyperchaoticRosslerInteraction,
     HyperchaoticRosslerSystem,
+    IkedaInteraction,
     IkedaSystem,
-    LangfordElement,
+    LangfordInteraction,
     LangfordSystem,
     LorenzSystem,
-    MixedFlowElement,
-    NoseHooverElement,
+    MixedFlowInteraction,
+    NoseHooverInteraction,
     NoseHooverSystem,
     RosslerSystem,
+    SprottJerkInteraction,
     SprottJerkSystem,
     SprottMixedFlowSystem,
+    ThomasInteraction,
     ThomasSystem,
 )
-from ._koopman import KoopmanSlowManifoldSystem
+from ._koopman import (
+    KoopmanSlowManifoldInteraction,
+    KoopmanSlowManifoldSystem,
+)
 from ._maps import (
     BakerMapInteraction,
     BakerMapSystem,
@@ -56,8 +67,20 @@ from ._maps import (
     TowelMapInteraction,
     TowelMapSystem,
 )
-from ._normal_forms import CuspFormSystem, HopfFormSystem, SaddleNodeFormSystem, TakensBogdanovFormSystem
-from ._subcritical_forms import SubcriticalHopfFormSystem
+from ._normal_forms import (
+    CuspFormInteraction,
+    CuspFormSystem,
+    HopfFormInteraction,
+    HopfFormSystem,
+    SaddleNodeFormInteraction,
+    SaddleNodeFormSystem,
+    TakensBogdanovFormInteraction,
+    TakensBogdanovFormSystem,
+)
+from ._subcritical_forms import (
+    SubcriticalHopfFormInteraction,
+    SubcriticalHopfFormSystem,
+)
 
 __all__: list[str] = [
     'BakerMapInteraction',
@@ -70,46 +93,57 @@ __all__: list[str] = [
     'ConservativeHenonMapSystem',
     'CubicChaoticMapSystem',
     'CubicWalkElement',
+    'CuspFormInteraction',
     'CuspFormSystem',
-    'DoublingMapElement',
+    'DoublingMapInteraction',
     'DoublingMapSystem',
-    'DrivenRosslerElement',
     'FermiUlamMapInteraction',
     'FermiUlamMapSystem',
+    'FiniteTimeBlowUpInteraction',
     'FiniteTimeBlowUpSystem',
     'HenonMapInteraction',
     'HenonMapSystem',
+    'HopfFormInteraction',
     'HopfFormSystem',
+    'HyperchaoticRosslerInteraction',
     'HyperchaoticRosslerSystem',
+    'IkedaInteraction',
     'IkedaSystem',
     'IntermittencyMapInteraction',
     'IntermittencyMapSystem',
+    'KoopmanSlowManifoldInteraction',
     'KoopmanSlowManifoldSystem',
-    'LangfordElement',
+    'LangfordInteraction',
     'LangfordSystem',
     'LogisticMapElement',
     'LogisticMapSystem',
     'LorenzSystem',
     'LoziMapInteraction',
     'LoziMapSystem',
-    'MixedFlowElement',
+    'MixedFlowInteraction',
     'NewtonRaphsonMapInteraction',
     'NewtonRaphsonMapSystem',
-    'NoseHooverElement',
+    'NoseHooverInteraction',
     'NoseHooverSystem',
+    'OUDriveInteraction',
     'OUDrivenRosslerSystem',
-    'RosslerElement',
+    'RosslerInteraction',
     'RosslerSystem',
+    'SaddleNodeFormInteraction',
     'SaddleNodeFormSystem',
-    'SkewTentMapElement',
+    'SkewTentMapInteraction',
     'SkewTentMapSystem',
+    'SprottJerkInteraction',
     'SprottJerkSystem',
     'SprottMixedFlowSystem',
     'StandardMapInteraction',
     'StandardMapSystem',
+    'SubcriticalHopfFormInteraction',
     'SubcriticalHopfFormSystem',
+    'TakensBogdanovFormInteraction',
     'TakensBogdanovFormSystem',
     'TentMapSystem',
+    'ThomasInteraction',
     'ThomasSystem',
     'TowelMapInteraction',
     'TowelMapSystem',
