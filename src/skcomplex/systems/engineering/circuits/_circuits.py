@@ -3,19 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, where
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.signals import PulseInteraction
@@ -273,9 +275,10 @@ class RlcCircuitSystem(BaseSystem):
         self.V = V
         self.omega = omega
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[
                 CircuitElement(
@@ -363,15 +366,16 @@ class ChuaSystem(BaseSystem):
         self.alpha = alpha
         self.beta = beta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         if self.nonlinearity not in CHUA_NONLINEARITIES:
             error_msg = f"Unknown nonlinearity {self.nonlinearity!r}. Use 'piecewise-linear' or 'sine'."
             raise ParameterError(error_msg)
         element = ChuaCircuitElement if self.nonlinearity == 'piecewise-linear' else MultiscrollChuaCircuitElement
         initial = {'x': self.x, 'y': self.y, 'alpha': self.alpha, 'beta': self.beta}
         values: dict[str, float] = {name: value for name, value in initial.items() if value is not None}
-        return CompositeSystem(self.label, elements=[element('circuit', z=self.z).set_params(**values)])
+        self.system_ = System(self.label, elements=[element('circuit', z=self.z).set_params(**values)])
 
 
 class MixedModeChuaSystem(BaseSystem):
@@ -427,7 +431,6 @@ class MixedModeChuaSystem(BaseSystem):
     references = ('Krupa, Popović, and Kopell 2008', 'Trzaska 2023')
     until = 200.0
     dt = 0.5
-    solver = ScipyODESolver(method='Radau')
 
     def __init__(
         self,
@@ -456,8 +459,9 @@ class MixedModeChuaSystem(BaseSystem):
         self.beta = beta
         self.c = c
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         circuit = MixedModeChuaCircuitElement(
             'circuit',
             x=self.x,
@@ -471,7 +475,7 @@ class MixedModeChuaSystem(BaseSystem):
             beta=self.beta,
             c=self.c,
         )
-        return CompositeSystem(self.label, elements=[circuit])
+        self.system_ = System(self.label, elements=[circuit], solver=ScipyODESolver(method='Radau'))
 
 
 class MemristorOscillatorSystem(DynamicalSystem):
@@ -715,9 +719,10 @@ class ImpulsiveCircuitsSystem(BaseSystem):
         self.A = A
         self.T = T
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         circuit = KickedCircuitElement('circuit', x=self.x, x_d1=self.current, L=self.L, R=self.R, C=self.C, A=self.A)
         kick = {'x_d1': lambda s: s.target.x_d1 + s.target.A / (s.target.L * s.target.C)}
         impulse = PulseInteraction('impulse', target='circuit', reset=kick, period=self.T)
-        return CompositeSystem(self.label, elements=[circuit], interactions=[impulse])
+        self.system_ = System(self.label, elements=[circuit], interactions=[impulse])

@@ -6,17 +6,19 @@ It is a slow-fast circuit with a cubic flux-controlled memristor.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 class MemristiveCircuitElement(Element):
@@ -181,7 +183,6 @@ class MemristiveMixedModeOscillatorSystem(BaseSystem):
     references = ('Trzaska 2023',)
     until = 150.0
     dt = 0.02
-    solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
     def __init__(
         self,
@@ -212,8 +213,9 @@ class MemristiveMixedModeOscillatorSystem(BaseSystem):
         self.a = a
         self.b = b
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         circuit = MemristiveCircuitElement(
             'circuit',
             x=self.x,
@@ -228,4 +230,6 @@ class MemristiveMixedModeOscillatorSystem(BaseSystem):
             a=self.a,
             b=self.b,
         )
-        return CompositeSystem(self.label, elements=[circuit])
+        self.system_ = System(
+            self.label, elements=[circuit], solver=ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
+        )

@@ -6,18 +6,20 @@ They lock their phases through a coupling.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 class ColpittsOscillatorElement(Element):
@@ -231,8 +233,9 @@ class CoupledColpittsSystem(BaseSystem):
         self.d = d
         self.epsilon = epsilon
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         starts = ((0.1, 0.0, 0.0), (0.0, 0.1, 0.2))
         oscillators = [
             ColpittsOscillatorElement(
@@ -253,4 +256,4 @@ class CoupledColpittsSystem(BaseSystem):
             ColpittsCouplingInteraction(f'coupling_{target}', source=source, target=target, k=self.k)
             for source, target in (('oscillator_1', 'oscillator_0'), ('oscillator_0', 'oscillator_1'))
         ]
-        return CompositeSystem(self.label, elements=oscillators, interactions=couplings)
+        self.system_ = System(self.label, elements=oscillators, interactions=couplings)
