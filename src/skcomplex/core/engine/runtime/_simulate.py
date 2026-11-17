@@ -164,6 +164,7 @@ def compile_problem(
     system: BaseSystem,
     *,
     solver: BaseSolver | None = None,
+    backend: BaseBackend | None = None,
     observables: Sequence[Observable] = (),
 ) -> tuple[BaseProblemSpec, BaseSolver]:
     """Return the problem compiled from a system, and the solver of its runs.
@@ -178,6 +179,10 @@ def compile_problem(
 
         solver:
             The solver, or `None` for the tuned or the default one.
+
+        backend:
+            The backend the problem is compiled for, such as `NumbaBackend()`, or `None` for the tuned or the default
+            one.
 
         observables:
             The observables, or none for the tuned ones.
@@ -196,7 +201,7 @@ def compile_problem(
         >>> type(solver).__name__
         'ScipyODESolver'
     """
-    composite, stepper, runner, form, observed = _prepare_runners(system, solver, None, None, observables)
+    composite, stepper, runner, form, observed = _prepare_runners(system, solver, backend, None, observables)
     simulation = Simulation(composite, compiler=form, solver=stepper, backend=runner, observables=observed).prepare()
     return simulation.problem_, simulation.stepper_
 

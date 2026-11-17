@@ -277,8 +277,10 @@ class System(BaseSystem):
         self._check_runners()
         self._composite = self._get_composite()
         solver = self.solver if isinstance(self.solver, BaseSolver) else None
-        self._problem, self.solver_ = compile_problem(self._composite, solver=solver, observables=context or ())
         self._backend = self.backend if isinstance(self.backend, BaseBackend) else None
+        self._problem, self.solver_ = compile_problem(
+            self._composite, solver=solver, backend=self._backend, observables=context or (),
+        )
         self.backend_ = self._backend or self._get_backend_of(self._problem)
         self._set_learned(self._problem)
         self.system_ = self
