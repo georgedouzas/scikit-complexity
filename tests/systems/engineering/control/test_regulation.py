@@ -15,7 +15,7 @@ from skcomplex.systems.engineering.control import (
 
 def test_pid_inverted_pendulum_returns_upright():
     """Test that the PID controller brings the pendulum from a tilt of 0.1 to within 0.01 of upright within 5 s."""
-    trajectory = simulate(PidInvertedPendulumSystem())
+    trajectory = PidInvertedPendulumSystem().prepare().simulate()
     assert trajectory.get_values('cart.theta')[0] == pytest.approx(0.1)
     late = trajectory.times >= 2.0
     assert np.all(np.abs(trajectory.get_values('cart.theta')[late]) < 0.01)
@@ -24,10 +24,10 @@ def test_pid_inverted_pendulum_returns_upright():
 
 def test_lqr_oscillator_comes_to_rest():
     """Test that the regulated oscillator loses its energy, unlike the free oscillator, which keeps it."""
-    trajectory = simulate(LqrOscillatorSystem())
+    trajectory = LqrOscillatorSystem().prepare().simulate()
     assert trajectory.get_values('energy')[0] == pytest.approx(0.5)
     assert trajectory.get_values('energy')[-1] < 1e-4
-    free = simulate(LqrOscillatorSystem(r=1e6))
+    free = LqrOscillatorSystem(r=1e6).prepare().simulate()
     assert free.get_values('energy')[-1] > 0.4
 
 
