@@ -18,6 +18,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import lyapunov
 from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import orbit_diagram
 from skcomplex.systems.mathematics.dynamical_systems import TentMapSystem
 
 SYSTEM = 'tent_map'
@@ -43,9 +44,9 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 trajectory = TentMapSystem().prepare().simulate(observers=[observer])
 slopes = np.linspace(1.0, 2.0, 400)
-orbits = [TentMapSystem(mu=mu).prepare().simulate(until=599).get_values('map.x')[500:] for mu in slopes]
+diagram = orbit_diagram(TentMapSystem(), 'mu', slopes, 'map.x', transient=500, keep=100, dt=1)
 points = np.array(
-    [(100 * mu, -100 * x) for mu, values in zip(slopes, orbits, strict=True) for x in values],
+    [(100 * mu, -100 * x) for mu, values in zip(slopes, diagram.points, strict=True) for x in values],
 )
 observer.recording_.log('orbit_diagram', rr.Points2D(points, radii=0.12, colors=[90, 170, 255]), static=True)
 observer.recording_.flush()
