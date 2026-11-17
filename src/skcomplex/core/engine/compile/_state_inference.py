@@ -16,12 +16,22 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...components.base import BaseComponent
 from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement
-from ...components.laws import BaseLaw, ConstraintLaw, JumpLaw, NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
+from ...components.laws import (
+    BaseLaw,
+    ConstraintLaw,
+    JumpLaw,
+    NoiseLaw,
+    RateLaw,
+    RuleLaw,
+    TopologyRequestSpec,
+    UpdateLaw,
+)
 from ...components.laws.utils import derivative, lag
 from ...components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...errors import ValidationError
 from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from .._utils import bound_labels
 from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values')
@@ -302,13 +312,15 @@ class _StateInference:
         compilation = self.census(self._replace(system, probe))
         orders, lags = self._get_orders(compilation)
         rewired = self._has_topology_requests(compilation)
+        agents = self._get_agent_groups(compilation)
 
         def declare(element: Element, path: str) -> list[BaseElement]:
             return self._get_declared_elements(
                 element,
-                lambda name: orders.get(f'{path}.{name}'),
+                (lambda name: 1) if path in agents else (lambda name: orders.get(f'{path}.{name}')),
                 lambda name: lags.get(f'{path}.{name}', 0),
                 rewired,
+                agents=path in agents,
             )
 
         return self._replace(system, declare)
@@ -325,6 +337,19 @@ class _StateInference:
                 return True
         return False
 
+    @staticmethod
+    def _get_agent_groups(compilation: Compilation) -> set[str]:
+        """Return the paths of the groups whose members run agent rules."""
+        census = Compilation._get_required(compilation.census, 'census')
+        nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
+        groups: set[str] = set()
+        for record in census.records:
+            node = nodes.get(record.path)
+            if not isinstance(record.law, RuleLaw) or record.law.members is None or node is None:
+                continue
+            groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, record.law.members)))
+        return groups
+
     def _get_declared_elements(
         self,
         element: Element,
@@ -332,16 +357,20 @@ class _StateInference:
         lags: Callable[[str], int],
         rewired: bool = False,
         probing: bool = False,
+        *,
+        agents: bool = False,
     ) -> list[BaseElement]:
         """Return the declared element of a plain element, or a group of declared members.
 
         On a network whose edges the laws change, the members are a variable group of nodes, with a variable group on
-        the edges named after the element, such as `voters_edges`. The probe that finds the orders reads no starting
-        values of derivatives or past values.
+        the edges named after the element, such as `voters_edges`. The members of a group that runs agent rules are
+        agents, whose rules may change every value and add or remove members, so every value is a state and the group
+        is variable, and a single element that runs them is a group of one agent. The probe that finds the orders reads
+        no starting values of derivatives or past values.
         """
         values = self._get_values(element)
         starting = {} if probing else self._get_starting(element, values)
-        count = self._get_count(element)
+        count = self._get_count(element) or (1 if agents else None)
         variables = {}
         for name, value in values.items():
             member = self._get_member_value(element, name, value, count)
@@ -389,9 +418,10 @@ class _StateInference:
         group = GroupElement(
             element.label,
             element=DeclaredElement,
-            size=element.size,
+            size=count if element.space is None else element.size,
             space=element.space,
             on=None if element.space is None else 'sites',
             values=values,
+            variable=agents,
         )
         return [group]

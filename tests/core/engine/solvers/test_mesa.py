@@ -2,6 +2,7 @@
 
 import json
 from importlib.resources import files
+from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -12,7 +13,7 @@ from shapely import Point, Polygon, box
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RuleLaw
+from skcomplex.core.components.laws import RuleLaw, UpdateLaw
 from skcomplex.core.components.spaces import (
     ContinuousSpace,
     DelaunayNeighborhood,
@@ -36,7 +37,8 @@ from skcomplex.core.errors import (
     SpaceError,
     ValidationError,
 )
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, Role, RoleSpec, StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.general.agents import MovementInteraction
@@ -1627,3 +1629,168 @@ def test_sequential_and_by_type_order():
     )
     simulate(sequential, until=1, random_state=0)
     assert [identity for _, identity in seen] == sorted(identity for _, identity in seen)
+
+
+class AgentRule(Interaction):
+    """Interaction whose rule changes every member of its target group at each step."""
+
+    def __init__(self, label, *, target: Role, rule=None, phase=None):
+        super().__init__(label)
+        self.target = target
+        self.rule = rule
+        self.phase = phase
+
+    def _prepare(self, context):
+        """Set the rule of the members of the target group."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target, self.rule, phase=self.phase)]
+
+
+class Branching(Interaction):
+    """Galton-Watson branching, where every individual is replaced by a Poisson number of offspring."""
+
+    def __init__(self, label, *, target: Role, mean=1.0):
+        super().__init__(label)
+        self.target = target
+        self.mean = mean
+
+    def _prepare(self, context):
+        """Set the rule of reproduction."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target, self.reproduce)]
+
+    def reproduce(self, agent, system):
+        """Create the offspring of one individual, one generation later, and remove the individual."""
+        for _ in range(system.rng.poisson(self.mean)):
+            agent.create(generation=agent.generation + 1)
+        agent.remove()
+
+
+def _walk(agent, system):
+    """Move a walker by a standard normal step."""
+    agent.x += system.rng.normal()
+
+
+def test_random_walk_of_agents_spreads_with_the_number_of_steps():
+    """Test that walkers that each take a standard normal step reach a variance equal to the number of steps."""
+    walkers = Element('walkers', values={'x': 0.0}, size=2000)
+    system = System(elements=[walkers], interactions=[AgentRule('walk', target='walkers', rule=_walk)]).prepare()
+    assert system.states_ == ('walkers.x',)
+    assert system.form_ == FormKind.AGENT
+    assert isinstance(system.solver_, MesaSolver)
+    x = system.simulate(until=25, random_state=0).get_agents('walkers', 25).values['x']
+    assert abs(x.mean()) < 0.5
+    assert x.var() == pytest.approx(25.0, rel=0.15)
+
+
+def test_galton_watson_process_grows_by_the_mean_number_of_offspring():
+    """Test that generation `n` of a branching process has `n_0 m^n` members on average, all of generation `n`."""
+    population = Element('population', values={'generation': 0}, size=20)
+    system = System(elements=[population], interactions=[Branching('branching', target='population', mean=1.5)])
+    system.prepare()
+    sizes = []
+    for seed in range(40):
+        trajectory = system.simulate(until=3, random_state=seed)
+        sizes.append(trajectory.get_values('population.count')[-1])
+        assert set(trajectory.get_agents('population', 3).values['generation'].tolist()) <= {3}
+    assert np.mean(sizes) == pytest.approx(20 * 1.5**3, rel=0.1)
+
+
+def test_galton_watson_process_without_offspring_dies_out():
+    """Test that a branching process whose individuals have no offspring is extinct after one generation."""
+    population = Element('population', values={'generation': 0}, size=10)
+    system = System(elements=[population], interactions=[Branching('branching', target='population', mean=0.0)])
+    trajectory = system.prepare().simulate(until=2, random_state=0)
+    assert trajectory.get_values('population.count').tolist() == [10.0, 0.0, 0.0]
+
+
+def test_birth_and_death_are_rules_that_add_and_remove_members():
+    """Test that cells that divide and share their mass, and cells that die, are rules of their group."""
+
+    def divide(cell, system):
+        cell.mass /= 2
+        cell.create(mass=cell.mass)
+
+    cells = Element('cells', values={'mass': 8.0}, size=1)
+    division = System(elements=[cells], interactions=[AgentRule('division', target='cells', rule=divide)])
+    trajectory = division.prepare().simulate(until=2, random_state=0)
+    assert trajectory.get_agents('cells', 2).values['mass'].tolist() == [2.0, 2.0, 2.0, 2.0]
+    death = System(elements=[cells], interactions=[AgentRule('death', target='cells', rule=lambda a, s: a.remove())])
+    assert death.prepare().simulate(until=1).get_values('cells.count').tolist() == [1.0, 0.0]
+
+
+def test_single_element_with_a_rule_is_one_agent():
+    """Test that an element without a size whose interaction gives it a rule runs as a group of one agent."""
+
+    def flip(coin, system):
+        coin.heads += 1
+
+    coin = Element('coin', values={'heads': 0})
+    system = System(elements=[coin], interactions=[AgentRule('flip', target='coin', rule=flip)]).prepare()
+    assert system.simulate(until=3).get_agents('coin', 3).values['heads'].tolist() == [3]
+
+
+def test_activation_of_the_solver_orders_the_agents():
+    """Test that the activation setting of the solver activates the agents in their order of creation."""
+    seen = []
+    walkers = Element('walkers', values={'x': 0.0}, size=5)
+    rule = AgentRule('log', target='walkers', rule=lambda agent, system: seen.append(agent.id))
+    solver = MesaSolver(activation='sequential')
+    System(elements=[walkers], interactions=[rule], solver=solver).prepare().simulate(until=2, random_state=0)
+    assert seen == sorted(seen[:5]) * 2
+
+
+def test_phases_of_the_solver_run_in_order():
+    """Test that rules in named phases of the solver run phase after phase, so a clerk reads the bids of the step."""
+
+    def quote(trader, system):
+        trader.bid = system.rng.uniform(0, 1)
+
+    def settle(clerk, system):
+        clerk.best = max(trader.bid for trader in system.get_agents('traders'))
+
+    class Settle(AgentRule):
+        def __init__(self, label, *, target: Role, traders: Role, rule=None, phase=None):
+            super().__init__(label, target=target, rule=rule, phase=phase)
+            self.traders = traders
+
+    traders = Element('traders', values={'bid': 0.0}, size=4)
+    clerk = Element('clerk', values={'best': 0.0})
+    system = System(
+        elements=[traders, clerk],
+        interactions=[
+            Settle('settle', target='clerk', traders='traders', rule=settle, phase='settle'),
+            AgentRule('quote', target='traders', rule=quote, phase='quote'),
+        ],
+        solver=MesaSolver(phases=[PhaseSpec('quote'), PhaseSpec('settle')]),
+    )
+    trajectory = system.prepare().simulate(until=3, random_state=0)
+    for frame in (1, 2, 3):
+        best = trajectory.get_agents('clerk', frame).values['best'][0]
+        assert best == trajectory.get_agents('traders', frame).values['bid'].max()
+
+
+def test_unknown_activation_raises():
+    """Test that an activation the solver does not know is named in the error."""
+    walkers = Element('walkers', values={'x': 0.0}, size=2)
+    system = System(
+        elements=[walkers],
+        interactions=[AgentRule('walk', target='walkers', rule=_walk)],
+        solver=MesaSolver(activation='chaotic'),
+    )
+    with pytest.raises(ValidationError, match="activation of the Mesa solver is 'chaotic'"):
+        system.prepare().simulate(until=1)
+
+
+def test_rule_writing_a_value_the_agent_lacks_raises():
+    """Test that a rule cannot give an agent a value its element does not have."""
+
+    def tail(agent, system):
+        agent.tails = 1
+
+    coins = Element('coins', values={'heads': 0}, size=2)
+    system = System(elements=[coins], interactions=[AgentRule('tail', target='coins', rule=tail)]).prepare()
+    with pytest.raises(AttributeError, match='tails'):
+        system.simulate(until=1)
