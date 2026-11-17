@@ -30,6 +30,7 @@ from ._deformable import (
     ShapeVelocityCouplingInteraction,
 )
 from ._flocks import (
+    CohesiveAlignmentInteraction,
     CohesiveParticleElement,
     DelayedVicsekParticleElement,
     GinelliNematicsSystem,
@@ -98,6 +99,7 @@ __all__: list[str] = [
     'ChemotaxisElement',
     'ChemotaxisInteraction',
     'ChiralActiveParticlesSystem',
+    'CohesiveAlignmentInteraction',
     'CohesiveParticleElement',
     'ContractileGelSiteElement',
     'CuckerSmaleAlignmentInteraction',
