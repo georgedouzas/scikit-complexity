@@ -43,7 +43,7 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 - [ ] 4.6 Let a ready-made system take `solver=` and `backend=` and pass them to `system_` when it prepares. Verify with a test that `LorenzSystem(backend=NumbaBackend())` runs on Numba and that `get_params` lists both.
 - [ ] 4.7 Infer elements fully: a value named after an axis of the element's space is a position, a value of a group whose members are added or removed is a state without a law, an `int` given through `values=` is an integer, and a complex value can be the target of a law. Verify with tests of a walker on a continuous space, a growing network that records degrees, an integer count, and a Julia set.
 - [ ] 4.8 Write agents on the new API: an interaction on a group element sets `UpdateLaw` rules that read and change one agent and may add or remove members, run by the agent solver, so `AgentView`, `form='agent'`, and `BirthDeathInteraction` go. Verify with tests of a random walk of agents and a branching process, and an agent page of the guide.
-- [ ] 4.9 Add the core operator `fractional(x, alpha)` as the target of a `RateLaw`, read by the Caputo solver. Verify with a test of anomalous relaxation against the Mittag-Leffler solution.
+- [x] 4.9 Add the core operator `fractional(x, alpha)` as the target of a `RateLaw`, read by the Caputo solver. Verify with a test of anomalous relaxation against the Mittag-Leffler solution.
 
 ## 5. Systems migrate field by field
 

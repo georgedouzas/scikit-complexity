@@ -22,6 +22,7 @@ from .._tags import Tags
 from ..base import BaseComponent
 from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw, UpdateLaw
 from ..laws.utils import delayed, derivative, lag
+from ..laws.utils._fractional import fractional_of
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._interaction_requirement_spec import _InteractionRequirementSpec
@@ -263,9 +264,26 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     @staticmethod
     def _get_normalized(law: BaseComponent) -> BaseComponent:
-        """Return a law on a derivative of order `k` as a law on the state of order `k`."""
+        """Return a law on a derivative of order `k` as a law on the state of order `k`.
+
+        A rate law on the fractional derivative `fractional(x, alpha)` becomes a rate law on `x` of the order `alpha`.
+
+        Raises:
+            ValidationError:
+                A fractional derivative is the target of a law other than a rate law, or of no state.
+        """
         if not isinstance(law, RateLaw | NoiseLaw) or not isinstance(law.target, Expression):
             return law
+        found = fractional_of(law.target)
+        if found is not None:
+            state, order = found
+            if not isinstance(law, RateLaw) or not state.is_symbol():
+                error_msg = (
+                    f'A {type(law).__name__} targets a fractional derivative, but only a RateLaw of a state takes one, '
+                    'such as `RateLaw(fractional(s.target.x, 0.5), -s.k * s.target.x)`.'
+                )
+                raise ValidationError(error_msg)
+            return clone(law).set_params(target=state, order=1 if order == 1 else order)
         if law.target.operator() is not derivative:
             return law if law.order is not None else clone(law).set_params(order=1)
         state, order = law.target.operands()
