@@ -16,20 +16,19 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import MotterLaiOverloadSystem
 
 SYSTEM = 'motter_lai_overload'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(MotterLaiOverloadSystem(tolerance=0.2), observers=[observer])
+trajectory = MotterLaiOverloadSystem(tolerance=0.2).prepare().simulate(observers=[observer])
 
 
 def giant_share(tolerance, attack, seed):
     """Return the share of the nodes in the largest component once the cascade stops."""
     system = MotterLaiOverloadSystem(tolerance=tolerance, attack=attack, random_state=seed)
-    graph = simulate(system).get_network(-1).get_graph()
+    graph = system.prepare().simulate().get_network(-1).get_graph()
     return max(len(component) for component in nx.connected_components(graph)) / 300
 
 

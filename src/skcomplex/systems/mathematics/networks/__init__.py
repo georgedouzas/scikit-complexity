@@ -38,7 +38,11 @@ from ._hypergraphs import (
     WalkerDensityElement,
 )
 from ._node_merging import MergingNodeElement, NodeMergingSystem
-from ._overload import LoadedNodeElement, MotterLaiOverloadSystem
+from ._overload import (
+    LoadedNodeElement,
+    MotterLaiOverloadSystem,
+    OverloadInteraction,
+)
 from ._processes import (
     NetworkDiffusionSystem,
     NetworkRandomWalkSystem,
@@ -99,6 +103,7 @@ __all__: list[str] = [
     'NetworkWalkerElement',
     'NodeMergingSystem',
     'NodeRankElement',
+    'OverloadInteraction',
     'PagerankInteraction',
     'PagerankSystem',
     'PercolatingNodeElement',
