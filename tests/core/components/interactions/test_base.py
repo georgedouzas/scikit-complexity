@@ -831,3 +831,65 @@ def test_call_of_a_function_reads_the_states_of_its_arguments():
     """Test that the arguments of a `CallSpec` in a law read the states, as the rest of the law does."""
     system = System(elements=[Element('p', values={'x': 8.0})], interactions=[HalvingInteraction('halve')]).prepare()
     assert system.simulate(until=2, dt=1).get_values('p.x').tolist() == [8.0, 4.0, 2.0]
+
+
+class TrapInteraction(Interaction):
+    """Trap `x' = -k x` with one stiffness per axis, written before a label setting and a tuple setting."""
+
+    def __init__(self, label, *, target: Role = 'bead', k=None, name='trap', axes=(0, 1)):
+        super().__init__(label)
+        self.target = target
+        self.k = [1.0, 2.0] if k is None else k
+        self.name = name
+        self.axes = axes
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            self.laws_ = [RateLaw(x, -context.k.pairwise_product(x))]
+
+
+def test_list_argument_is_a_vector_parameter_that_a_schedule_drives():
+    """Test that a list of numbers is a vector parameter of its length, which a schedule changes during a run."""
+    declared = TrapInteraction('trap')._get_declared()
+    assert list(declared) == ['k']
+    assert declared['k'].spec.vector
+    assert declared['k'].spec.n_dim == 2
+    bead = Element('bead', values={'x': [1.0, 1.0]})
+    system = System(elements=[bead], interactions=[TrapInteraction('trap')]).prepare()
+    assert system.parameters_ == ('trap.k[0]', 'trap.k[1]')
+    final = system.simulate(until=1.0, dt=0.5).get_values('bead.x')[-1]
+    assert final == pytest.approx(np.exp([-1.0, -2.0]), rel=1e-4)
+    driven = system.simulate(until=1.0, dt=0.5, schedule={'trap.k': lambda t: [3.0, 0.0]})
+    assert driven.get_values('bead.x')[-1] == pytest.approx(np.exp([-3.0, 0.0]), rel=1e-4)
+
+
+def test_matrix_argument_is_a_matrix_parameter():
+    """Test that a square matrix of numbers is a parameter that laws read as a matrix."""
+    rotation = np.array([[0.0, -1.0], [1.0, 0.0]])
+    declared = TrapInteraction('trap', k=rotation)._get_declared()['k']
+    assert declared.spec.tensor == 'full'
+    assert np.asarray(declared.value).tolist() == [0.0, -1.0, 1.0, 0.0]
+
+
+class SpringInteraction(Interaction):
+    """Spring `x'' = -k (x - a)` whose stiffness comes before its rest position."""
+
+    def __init__(self, label, *, target: Role = 'p', k=1.0, a=0.0):
+        super().__init__(label)
+        self.target = target
+        self.k = k
+        self.a = a
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.target.x, context.t
+            self.laws_ = [RateLaw(x.diff(t, 2), -context.k * (x - context.a))]
+
+
+def test_parameters_of_an_interaction_keep_the_order_of_its_arguments():
+    """Test that the parameters come in the order of the arguments, not the alphabetical one."""
+    system = System(elements=[Element('p', values={'x': 1.0})], interactions=[SpringInteraction('spring')]).prepare()
+    assert system.parameters_ == ('spring.k', 'spring.a')

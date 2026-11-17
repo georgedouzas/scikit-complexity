@@ -22,7 +22,7 @@ from skcomplex.core.components.laws import (
     TransferLaw,
     UpdateLaw,
 )
-from skcomplex.core.components.laws.utils import mean, neighbors
+from skcomplex.core.components.laws.utils import count, mean, neighbors, series, total
 from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.solvers import (
@@ -347,3 +347,75 @@ def test_system_without_laws_is_static() -> None:
     """A system whose values no law changes reports a static problem."""
     system = System(elements=[Element('ball', values={'x': 1.0, 'm': 2.0})]).prepare()
     assert (system.form_, system.states_, system.parameters_) == ('static solution', (), ('ball.x', 'ball.m'))
+
+
+class _Attraction(Interaction):
+    """Interaction whose members move towards the mean of all the others of the group."""
+
+    def __init__(self, label: str, *, target: Role = 'crowd') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the pull of every member towards the others."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            self.laws_: list[BaseComponent] = [RateLaw(x.diff(context.t), total(context.target.other.x - x) / count())]
+
+
+class _Majority(Interaction):
+    """Interaction that pulls every member of a hyperedge towards the mean of its members."""
+
+    def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = 'hyperedges') -> None:
+        super().__init__(label, among=among, along=along)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the pull towards the mean of the members of the hyperedge."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            self.laws_ = [RateLaw(s.member.x.diff(s.t), 2.0 * (mean(s.members.x, over=s.members) - s.member.x))]
+
+
+def test_prepare_names_the_other_members_a_law_reads():
+    """Test that equations name the other member of a group as `[j]` and those of a hyperedge as `[j0]`, `[j1]`."""
+    crowd = Element('crowd', values={'x': [1.0, 2.0, 6.0]}, size=3)
+    space = NetworkSpace(nx.empty_graph(4), hyperedges=[(0, 1, 2)])
+    nodes = Element('nodes', values={'x': np.array([3.0, 0.0, 0.0, 5.0])}, space=space)
+    system = System(elements=[crowd, nodes], interactions=[_Attraction('attraction'), _Majority('majority')]).prepare()
+    assert system.equations_['crowd.x[i]'] == '-(sum(1)*crowd.x[i] - sum(crowd.x[j]))/count(1)'
+    assert 'nodes.x[i]' in system.equations_['nodes.x[i]']
+    assert 'nodes.x[j0]' in system.equations_['nodes.x[i]']
+    assert not any('__' in equation for equation in system.equations_.values())
+
+
+def test_prepare_reduces_over_the_members_of_a_hyperedge():
+    """Test that `mean(..., over=s.members)` on a hyperedge pulls its three members to their mean, and others not."""
+    space = NetworkSpace(nx.empty_graph(4), hyperedges=[(0, 1, 2)])
+    nodes = Element('nodes', values={'x': np.array([3.0, 0.0, 0.0, 5.0])}, space=space)
+    system = System(elements=[nodes], interactions=[_Majority('majority')]).prepare()
+    last = system.simulate(until=0.5, dt=0.01).get_values('nodes.x')[-1]
+    assert last == pytest.approx([1.0 + 2.0 * np.exp(-1.0), 1.0 - np.exp(-1.0), 1.0 - np.exp(-1.0), 5.0], abs=1e-5)
+
+
+class _Lookup(Interaction):
+    """Interaction whose rate is a lookup table of the state, as in system dynamics."""
+
+    def __init__(self, label: str, *, target: Role = 'stock') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set a rate that a table of breakpoints between whole numbers gives."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            self.laws_ = [RateLaw(x.diff(context.t), -series(x, (0.0, 0.25, 0.5, 1.0), (0.0, 1.0, 1.5, 2.0)))]
+
+
+def test_prepare_keeps_the_breakpoints_of_a_lookup_table():
+    """Test that a table read through an interaction keeps its breakpoints, so the state falls at the rate 2 above 1."""
+    system = System(elements=[Element('stock', values={'x': 2.0})], interactions=[_Lookup('lookup')]).prepare()
+    assert '< 0.25' in system.equations_['stock.x']
+    assert system.simulate(until=0.5, dt=0.5).get_values('stock.x')[-1] == pytest.approx(1.0)

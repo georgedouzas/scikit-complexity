@@ -44,3 +44,20 @@ def test_complex_component_is_located_by_its_part():
     layout = LayoutSpec((EntrySpec('a.z', 0, (), CC, is_complex=True),))
     entry, indices = layout.locate('a.z.imag')
     assert (entry.domain, indices) == (RR, slice(1, 2))
+
+
+def test_layout_reads_derivatives_and_past_values_by_the_names_users_read():
+    """Test that `x'` names the derivative `x_d1` and `y[-1]` the past value `y_lag1`, also for one member."""
+    entries = (EntrySpec('a.x', 0, (), RR), EntrySpec('a.x_d1', 1, (), RR), EntrySpec('b.y_lag1', 2, (2,), RR))
+    layout = LayoutSpec(entries)
+    vector = np.array([1.0, 2.0, 3.0, 4.0])
+    assert layout.has("a.x'")
+    assert layout.read(vector, "a.x'") == 2.0
+    assert layout.get_entry('b.y[-1]').name == 'b.y_lag1'
+    assert layout.locate('b.y[-1][1]')[1] == slice(3, 4)
+
+
+def test_layout_names_derivatives_of_vectors_of_members_with_primes():
+    """Test that the derivative of a vector of a member reads with a prime before its indices."""
+    assert LayoutSpec._get_display_name('ball.x_d1[i, 0]') == "ball.x'[i, 0]"
+    assert LayoutSpec._get_internal_name("ball.x'[i, 0]") == 'ball.x_d1[i, 0]'

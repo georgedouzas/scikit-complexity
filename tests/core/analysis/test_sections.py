@@ -1,12 +1,18 @@
 """Test the section analysis: Poincaré sections and stroboscopic samples."""
 
 import math
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
 from skcomplex.core.analysis import section
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.errors import AnalysisError, TagError
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
@@ -93,3 +99,25 @@ def test_section_needs_its_settings():
         section(HarmonicOscillatorSystem().prepare().system_, kind='stroboscopic')
     with pytest.raises(AnalysisError, match='does not read period'):
         section(HarmonicOscillatorSystem().prepare().system_, kind='poincare', state='mass.x', period=3.0)
+
+
+class _Spring(Interaction):
+    """Interaction of a unit spring, `x'' = -x`."""
+
+    def __init__(self, label: str, *, target: Role = 'mass') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.target.x, context.t
+            self.laws_ = [RateLaw(x.diff(t, 2), -x)]
+
+
+def test_section_reads_derivatives_by_their_names_with_a_prime():
+    """Test that a section of a spring crosses `x' = 0` where the position is at its largest, read as `mass.x'`."""
+    spring = System(elements=[Element('mass', values={'x': 1.0})], interactions=[_Spring('spring')])
+    points = section(spring, state="mass.x'", value=0.0, until=20.0, variables=['mass.x', "mass.x'"])
+    assert np.abs(points.values['mass.x']) == pytest.approx(np.ones(len(points.times)), abs=1e-4)
+    assert points.values["mass.x'"] == pytest.approx(np.zeros(len(points.times)), abs=1e-6)

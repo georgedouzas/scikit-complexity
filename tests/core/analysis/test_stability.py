@@ -1,5 +1,6 @@
 """Test the stability analysis: fixed points, Jacobians, stability, nullclines, divergence, and dispersion."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -14,7 +15,8 @@ from skcomplex.core.components.laws.utils import laplacian, total
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.specs import Role, RoleSpec, StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction
@@ -230,3 +232,27 @@ def test_stability_checks_its_kind_and_settings():
         stability(LotkaVolterraSystem().prepare().system_, kind='unknown')
     with pytest.raises(AnalysisError, match='does not read points'):
         stability(LotkaVolterraSystem().prepare().system_, kind='dispersion', points=[{'x': 0.0}])
+
+
+class _Fisher(Interaction):
+    """Interaction of Fisher's equation, `u' = r u (1 - u) + D laplacian(u)`."""
+
+    def __init__(self, label, *, target: Role = 'plate', D=1.0, r=0.5):
+        super().__init__(label)
+        self.target = target
+        self.D = D
+        self.r = r
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            u, t = context.target.u, context.t
+            self.laws_ = [RateLaw(u.diff(t), context.r * u * (1 - u) + context.D * laplacian(u))]
+
+
+def test_dispersion_relation_of_a_system_of_a_plain_element():
+    """Test that the modes of Fisher's equation around `u = 1` decay at `r + 2 - 2 cos(k)` on a unit lattice."""
+    plate = Element('plate', values={'u': np.full(16, 0.9)}, space=LatticeSpace(16))
+    relation = stability(System(elements=[plate], interactions=[_Fisher('fisher')]), kind='dispersion')
+    assert relation.uniform == pytest.approx({'u': 1.0})
+    assert relation.growth_rates == pytest.approx(-0.5 - (2 - 2 * np.cos(relation.magnitudes)))

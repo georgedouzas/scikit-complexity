@@ -238,7 +238,7 @@ class FieldElement(GroupElement):
                     "('fixed', value)."
                 )
                 raise ValidationError(error_msg)
-        if self.element.visual != VisualSpec():
+        if self._get_member()._get_visual() != VisualSpec():
             return
         if isinstance(self.space, LatticeSpace):
             self.default_visual_ = VisualSpec('image')

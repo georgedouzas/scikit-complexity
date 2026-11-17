@@ -15,11 +15,11 @@ from ..components.interactions import BaseInteraction
 from ..components.spaces import BaseSpace
 from ..components.systems import CompositeSystem
 from ..engine.backends import BaseBackend, JaxBackend, NumbaBackend, NumpyBackend
-from ..engine.problems import BaseProblemSpec, ProblemSpec
+from ..engine.problems import BaseProblemSpec, LayoutSpec, ProblemSpec
 from ..engine.problems._neighborhood_kernel import NeighborhoodKernel
 from ..engine.problems._reduction_kernel import ReductionKernel
 from ..engine.problems._rule_kernel import RuleKernel
-from ..engine.runtime import Trajectory, compile_problem
+from ..engine.runtime import compile_problem
 from ..engine.solvers import BaseSolver
 from ..enums import FormKind
 from ..errors import ValidationError
@@ -27,6 +27,8 @@ from ..specs import EntrySpec
 from ._base import AUTO, BaseSystem
 
 SETTINGS = ('space', 'solver', 'backend')
+SLOT = re.compile(r'(?<![\w.])(?P<base>\w+?)__(?P<slot>members|member|others?\d*|edge|hyperedge|source)(?!\w)')
+SLOT_INDICES = {'member': 'i', 'other': 'j', 'edge': 'ij', 'hyperedge': 'h', 'source': 'source'}
 BACKENDS = (NumpyBackend, NumbaBackend, JaxBackend)
 
 
@@ -181,11 +183,41 @@ class System(BaseSystem):
 
     @staticmethod
     def _get_readable(expression: object, names: Mapping[str, str]) -> str:
-        """Return an expression as text, with every symbol named by its dotted path."""
+        """Return an expression as text, with every symbol named by its dotted path.
+
+        The values a law reads of other members are named too, such as `oscillators.theta[j]`.
+        """
         text = str(expression)
+        names = {**names, **System._get_readable_slots(text, names)}
         for symbol in sorted(names, key=len, reverse=True):
             text = re.sub(rf'(?<![\w.]){re.escape(symbol)}(?![\w])', names[symbol], text)
         return text
+
+    @staticmethod
+    def _get_readable_slots(text: str, readable: Mapping[str, str]) -> dict[str, str]:
+        """Return the names of the values that laws read of other members.
+
+        They are keyed by their internal symbols. A law of a member reads another member as `other`, such as
+        `oscillators.theta[j]` for `theta_oscillators__other`, and the other members of a hyperedge as `[j0]`, `[j1]`,
+        and so on. A law of an edge or a hyperedge reads the member it changes as `[i]` and the edge or the hyperedge
+        itself as `[ij]` or `[h]`, and a reduction over all the members of a hyperedge reads the group, such as
+        `nodes.x`.
+        """
+        slots = {}
+        for found in SLOT.finditer(text):
+            name = readable.get(found['base'])
+            if name is None:
+                continue
+            slot = found['slot']
+            index = SLOT_INDICES.get(slot) or f'j{slot.removeprefix("others").removeprefix("other")}'
+            base = name.split('[', 1)[0]
+            if slot == 'members':
+                slots[found[0]] = base
+            elif '[i' in name:
+                slots[found[0]] = name.replace('[i', f'[{index}', 1)
+            else:
+                slots[found[0]] = f'{base}[{index}]'
+        return slots
 
     def _get_readable_reduction(self, reduction: ReductionKernel, readable: Mapping[str, str]) -> str:
         """Return a reduction over the members of a group as text, such as `mean(crowd.x)`."""
@@ -206,7 +238,7 @@ class System(BaseSystem):
         for symbol, read in kernel.reads.items():
             entry = read.read.entry
             if entry is not None:
-                names[str(symbol)] = f'{Trajectory._get_display_name(entry.name)}{indices.get(read.side, "")}'
+                names[str(symbol)] = f'{LayoutSpec._get_display_name(entry.name)}{indices.get(read.side, "")}'
         argument = self._get_readable(kernel.argument, names)
         weight = '' if str(kernel.weight) == '1' else f', weight={self._get_readable(kernel.weight, names)}'
         return f"neighbors({argument}{weight}, reduce='{kernel.kind}')"
@@ -219,7 +251,7 @@ class System(BaseSystem):
         `life(neighbors(cells.alive, reduce='each'))`, and the rules of one state run one after the other.
         """
         names = {entry.name: entry.generic_names for entry in entries}
-        display = Trajectory._get_display_name
+        display = LayoutSpec._get_display_name
         rules: dict[str, list[str]] = {}
         for step in getattr(problem, 'lattice', None) or ():
             if not isinstance(step, RuleKernel):
@@ -236,7 +268,7 @@ class System(BaseSystem):
         parameters = getattr(problem, 'parameters', None)
         state_entries = list(states.entries) if states is not None else []
         parameter_entries = list(parameters.entries) if parameters is not None else []
-        display = Trajectory._get_display_name
+        display = LayoutSpec._get_display_name
         agents = [f'{group.path}.{name}' for group in getattr(problem, 'agents', ()) for name in group.states]
         names = [display(name) for entry in state_entries for name in entry.generic_names]
         self.states_ = tuple(dict.fromkeys([*names, *agents]))
@@ -280,7 +312,10 @@ class System(BaseSystem):
         solver = self.solver if isinstance(self.solver, BaseSolver) else None
         self._backend = self.backend if isinstance(self.backend, BaseBackend) else None
         self._problem, self.solver_ = compile_problem(
-            self._composite, solver=solver, backend=self._backend, observables=context or (),
+            self._composite,
+            solver=solver,
+            backend=self._backend,
+            observables=context or (),
         )
         self.backend_ = self._backend or self._get_backend_of(self._problem)
         self._set_learned(self._problem)

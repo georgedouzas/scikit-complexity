@@ -23,12 +23,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ...physics.common.mechanics import HamiltonianInteraction
 from .types import Preset
@@ -126,8 +124,8 @@ class RotatingFrameBodyElement(Element):
 
     The frame rotates with two primaries.
 
-    The states are of order 1, and the momenta are `px = x' - y` and `py = y' + x` for the unit angular velocity of the
-    frame. The primaries of masses `1 - mu` and `mu` sit at `(-mu, 0)` and `(1 - mu, 0)`.
+    The momenta are `px = x' - y` and `py = y' + x` for the unit angular velocity of the frame. The primaries of masses
+    `1 - mu` and `mu` sit at `(-mu, 0)` and `(1 - mu, 0)`.
 
     Args:
         label:
@@ -160,11 +158,11 @@ class RotatingFrameBodyElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 0.5,
-        y: Annotated[float, StateSpec()] = 0.0,
-        px: Annotated[float, StateSpec()] = 0.0,
-        py: Annotated[float, StateSpec()] = 0.5,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01215,
+        x: float = 0.5,
+        y: float = 0.0,
+        px: float = 0.0,
+        py: float = 0.5,
+        mu: Annotated[float, RealSet.open(0, oo)] = 0.01215,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -529,7 +527,54 @@ def _get_rotating_frame_energy(body: SimpleNamespace) -> Expression:
     return kinetic - (1 - body.mu) / first - body.mu / second
 
 
-class RestrictedThreeBodySystem(OldBaseSystem):
+class RotatingFrameMotionInteraction(Interaction):
+    """Motion of a light body in the frame that rotates with two primaries.
+
+    The coordinates `(x, y)` and the momenta `(px, py)` of the target follow Hamilton's equations `q' = dH/dp` and
+    `p' = -dH/dq` of `H = (px² + py²) / 2 + y px - x py - (1 - mu) / r1 - mu / r2`, with the distances `r1` and `r2` to
+    the primaries at `(-mu, 0)` and `(1 - mu, 0)` and the mass fraction `mu` of the target.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the light body.
+
+    Examples:
+        >>> from skcomplex.systems.physics.celestial_mechanics import RotatingFrameMotionInteraction
+        >>> RotatingFrameMotionInteraction('motion', target='body').target
+        'body'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the coordinates and the momenta of the light body.
+
+        Args:
+            context:
+                The namespace of the light body and the time `t`.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            body = context.target
+            t = context.t
+            names = ('x', 'y', 'px', 'py')
+            values = [getattr(body, name) for name in names]
+            symbols = [SR.symbol(f'_{name}') for name in names]
+            x, y, px, py = symbols
+            hamiltonian = _get_rotating_frame_energy(SimpleNamespace(x=x, y=y, px=px, py=py, mu=body.mu))
+            back = dict(zip(symbols, values, strict=True))
+            rates = [hamiltonian.diff(px), hamiltonian.diff(py), -hamiltonian.diff(x), -hamiltonian.diff(y)]
+            self.laws_ = [RateLaw(value.diff(t), rate.subs(back)) for value, rate in zip(values, rates, strict=True)]
+
+
+class RestrictedThreeBodySystem(BaseSystem):
     """A light body moving in the plane of two primaries on circular orbits.
 
     The body moves in the frame that rotates with the primaries.
@@ -565,6 +610,12 @@ class RestrictedThreeBodySystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import RestrictedThreeBodySystem
         >>> RestrictedThreeBodySystem(mu=0.1).prepare().system_.elements[0].mu
@@ -576,7 +627,6 @@ class RestrictedThreeBodySystem(OldBaseSystem):
     references = ('Dilão 2023', 'Szebehely 1967')
     until = 20.0
     dt = 0.02
-    solver = RK4Solver()
     invariants: ClassVar[Mapping[str, float]] = {'body.energy': 1e-6}
     observables = (Observable('energy', _get_rotating_frame_energy, element='body'),)
 
@@ -589,43 +639,34 @@ class RestrictedThreeBodySystem(OldBaseSystem):
         *,
         mu: float = 0.01215,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.vx = vx
         self.vy = vy
         self.mu = mu
 
-    @staticmethod
-    def _get_rotating_frame_hamiltonian(s: SimpleNamespace) -> Expression:
-        """Return the Hamiltonian of the rotating frame of the target."""
-        return _get_rotating_frame_energy(s.target)
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a light body in the frame that rotates with two primaries.
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        return CompositeSystem(
-            self.label,
-            elements=[
-                RotatingFrameBodyElement(
-                    'body',
-                    x=self.x,
-                    y=self.y,
-                    px=self.vx - self.y,
-                    py=self.vy + self.x,
-                    mu=self.mu,
-                ),
-            ],
-            interactions=[
-                HamiltonianInteraction(
-                    'motion',
-                    target='body',
-                    coordinates=('x', 'y'),
-                    momenta=('px', 'py'),
-                    hamiltonian=self._get_rotating_frame_hamiltonian,
-                ),
-            ],
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        body = RotatingFrameBodyElement(
+            'body',
+            x=self.x,
+            y=self.y,
+            px=self.vx - self.y,
+            py=self.vy + self.x,
+            mu=self.mu,
         )
+        motion = RotatingFrameMotionInteraction('motion', target='body')
+        self.system_ = System(self.label, elements=[body], interactions=[motion], solver=RK4Solver())
 
 
 class SitnikovSystem(BaseSystem):

@@ -94,6 +94,10 @@ class StateSpec(BaseSpec):
             matrix, or `None` for a state that is no matrix. Laws read it as a vector of the components, and only a
             drive changes it on a lattice or a network.
 
+        n_dim:
+            The number of components of a vector state, or of rows of a tensor state, such as `3` for the value
+            `[1.0, 0.0, 0.0]`, or `None` for the number of dimensions of the enclosing space.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
@@ -125,6 +129,7 @@ class StateSpec(BaseSpec):
     tensor: str | None = None
     algebraic: bool = False
     group: MatrixGroupSpec | None = None
+    n_dim: int | None = None
 
     def _check_group(self) -> None:
         """Raise an error for a matrix group state that is not a plain state.

@@ -1,5 +1,6 @@
 """Test the `_state_inference` module of `skcomplex.core.engine.compile`."""
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,14 +15,16 @@ from scipy.special import ive
 
 from skcomplex.core.analysis import alignment, displacement
 from skcomplex.core.components.base import BaseComponent
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element, FieldElement, Quantity
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
     BoundaryLaw,
     ConstraintLaw,
     NoiseLaw,
     RateLaw,
+    Sink,
     TopologyRequestSpec,
+    TransferLaw,
     UpdateLaw,
 )
 from skcomplex.core.components.laws.utils import bernoulli, components, divergence, laplacian, neighbors, where
@@ -33,13 +36,14 @@ from skcomplex.core.components.spaces import (
     FiniteVolumeSpec,
     LatticeSpace,
     NetworkSpace,
+    RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.engine.runtime import ConservationObserver, simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role, StateSpec
+from skcomplex.core.specs import Role, StateSpec, VisualSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
 
@@ -172,11 +176,34 @@ class Feedback(Interaction):
             self.laws_ = [RateLaw(x, -x(t=t - context.tau))]
 
 
+class Wave(Interaction):
+    """Interaction of the wave equation on a lattice."""
+
+    def __init__(self, label: str, *, target: Role = 'string', c: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.c = c
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the acceleration of every site as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            u, t = context.target.u, context.t
+            self.laws_ = [RateLaw(u.diff(t, 2), context.c**2 * laplacian(u))]
+
+
 def test_get_declared_makes_untouched_values_parameters():
     """A particle no law acts on has no states, and its values are parameters."""
     system = System(elements=[Particle('ball', x=2.0)]).prepare()
     assert system.states_ == ()
-    assert system.parameters_ == ('ball.m', 'ball.x')
+    assert system.parameters_ == ('ball.x', 'ball.m')
+
+
+def test_get_declared_keeps_the_order_of_the_values():
+    """The values keep the order of the class arguments and then of `values`, not the alphabetical one."""
+    stock = Element('stock', values={'z': 1.0, 'a': 2.0})
+    system = System(elements=[Particle('ball', x=2.0), stock]).prepare()
+    assert system.parameters_ == ('ball.x', 'ball.m', 'stock.z', 'stock.a')
 
 
 def test_get_declared_reads_the_order_from_the_laws():
@@ -229,12 +256,29 @@ def test_get_declared_starts_past_values_from_values():
 
 @pytest.mark.parametrize(
     ('values', 'message'),
-    [({'x': 1.0, "z'": 1.0}, "no single value named 'z'"), ({'x': 1.0, "x''": 1.0}, "of 'x' at index 2")],
+    [({'x': 1.0, "z'": 1.0}, "no value named 'z'"), ({'x': 1.0, "x''": 1.0}, "of 'x' at index 2")],
 )
 def test_get_declared_rejects_unread_starting_values(values, message):
     """Test that a starting value of an unknown value, or of a derivative no law reads, raises an error."""
     with pytest.raises(ValidationError, match=message):
         System(elements=[Element('ball', values=values)], interactions=[Gravity('gravity')]).prepare()
+
+
+def test_get_declared_starts_the_derivative_of_every_member():
+    """Test that a group of balls thrown at three speeds starts with one derivative per member."""
+    balls = Element('ball', values={'x': np.zeros(3), "x'": np.array([1.0, 2.0, 3.0])}, size=3)
+    trajectory = System(elements=[balls], interactions=[Gravity('gravity')]).prepare().simulate(until=1.0, dt=0.5)
+    assert trajectory.get_values("ball.x'")[0] == pytest.approx([1.0, 2.0, 3.0])
+    assert trajectory.get_values('ball.x')[-1] == pytest.approx(np.array([1.0, 2.0, 3.0]) - 9.81 / 2)
+
+
+def test_get_declared_starts_the_derivative_of_every_site():
+    """Test that a string on a lattice starts with one velocity per site, and moves first by that velocity."""
+    speeds = np.array([0.0, 1.0, 2.0, 1.0, 0.0])
+    string = Element('string', values={'u': np.zeros(5), "u'": speeds}, space=LatticeSpace(5))
+    trajectory = System(elements=[string], interactions=[Wave('wave')]).prepare().simulate(until=0.01, dt=0.01)
+    assert trajectory.get_values("string.u'")[0] == pytest.approx(speeds)
+    assert trajectory.get_values('string.u')[-1] == pytest.approx(0.01 * speeds, abs=1e-5)
 
 
 def test_get_declared_rejects_two_orders():
@@ -874,3 +918,177 @@ def test_field_on_a_mesh_runs_as_the_finite_element_field_of_its_fixed_edges():
     rod = Element('rod', values={'u': 0.0}, space=CellComplexSpace(points=grid.p, cells=grid.t, boundary={'u': edge}))
     system = System(elements=[rod], interactions=[Transport('transport')], solver=solver).prepare()
     np.testing.assert_array_equal(system.simulate(until=0.5, dt=0.25).get_values('rod.u'), old_values)
+
+
+class Reserve(Element):
+    """Energy reserve whose stock holds the quantity energy."""
+
+    def __init__(
+        self,
+        label: str,
+        stock: Annotated[float, RealSet.closed_open(0, oo), Quantity('energy')] = 10.0,
+    ) -> None:
+        super().__init__(label)
+        self.stock = stock
+
+
+class Extraction(Interaction):
+    """Interaction that draws energy from a reserve into a sink, or burns it outside any flow."""
+
+    def __init__(self, label: str, *, target: Role = 'reserve', r: float = 0.5, flow: bool = True) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
+        self.flow = flow
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the extraction as a flow or as a plain rate."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            stock = context.target.stock
+            rate = context.r * stock
+            law = TransferLaw(stock, Sink('society'), rate, label='extracted') if self.flow else RateLaw(stock, -rate)
+            self.laws_ = [law]
+
+
+def test_get_declared_reads_the_quantity_of_a_value():
+    """A value annotated with a quantity is checked by the conservation monitor, and only flows may change it."""
+    monitor = ConservationObserver()
+    system = System(elements=[Reserve('reserve')], interactions=[Extraction('extraction')]).prepare()
+    trajectory = system.simulate(until=2.0, dt=1.0, observers=[monitor])
+    assert monitor.totals_['energy'] == pytest.approx(10.0 * np.exp(-1.0), rel=1e-4)
+    assert trajectory.get_values('extraction.extracted')[-1] == pytest.approx(5.0 * np.exp(-1.0), rel=1e-4)
+    burning = System(elements=[Reserve('reserve')], interactions=[Extraction('extraction', flow=False)])
+    with pytest.raises(ValidationError, match=r"holds the quantity 'energy'"):
+        burning.prepare()
+
+
+def _spread(center, left, right, *gates):
+    """Return the larger neighbour on an open site, and the site itself on a closed one."""
+    return np.where(gates[0] > 0, np.maximum(left, right), center)
+
+
+class Spread(Interaction):
+    """Interaction whose local rule reads a value of every site that no law changes."""
+
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set a local rule that reads the signal and the gate of every site and its neighbours."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            cells = context.target
+            around = RadiusNeighborhood(1, center=True)
+            self.laws_ = [UpdateLaw(cells.s, _spread, neighborhood=around, reads=(cells.s, cells.gate))]
+
+
+def test_get_declared_keeps_a_value_a_local_rule_reads():
+    """Test that a local rule reads a value of every site that no law changes, the gate of a spreading signal."""
+    values = {'s': np.array([0.0, 0.0, 1.0, 0.0, 0.0]), 'gate': np.array([1.0, 0.0, 1.0, 1.0, 1.0])}
+    cells = Element('cells', values=values, space=LatticeSpace(5))
+    system = System(elements=[cells], interactions=[Spread('spread')]).prepare()
+    assert system.states_ == ('cells.s[i]', 'cells.gate[i]')
+    signal = system.simulate(until=2).get_values('cells.s')
+    assert signal.tolist() == [[0.0, 0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 1.0, 0.0, 1.0]]
+
+
+class Relaxation(Interaction):
+    """Interaction that relaxes a matrix value to zero."""
+
+    def __init__(self, label: str, *, target: Role = 'shape', rate: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.rate = rate
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the decay of the matrix as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.target.S, -context.rate * context.target.S)]
+
+
+@pytest.mark.parametrize('members', [{}, {'size': 3}, {'space': LatticeSpace(3)}])
+def test_get_declared_reads_a_matrix_value_as_a_matrix_state(members):
+    """Test that a square matrix is a state that laws read as a matrix, for one element, a group, or a field."""
+    start = np.array([[1.0, 0.5], [0.5, 2.0]])
+    shape = Element('shape', values={'S': np.stack([start] * 3) if members else start}, **members)
+    system = System(elements=[shape], interactions=[Relaxation('relaxation')]).prepare()
+    suffix = '[i]' if members else ''
+    assert system.states_ == tuple(f'shape.S_{name}{suffix}' for name in ('xx', 'xy', 'yx', 'yy'))
+    final = system.simulate(until=1.0, dt=0.5).get_values('shape.S')[-1]
+    assert np.reshape(final, (-1, 4)) == pytest.approx(
+        np.tile(start.ravel() * np.exp(-1.0), (3 if members else 1, 1)),
+        rel=1e-4,
+    )
+
+
+class Body(Element):
+    """Body drawn as a point at its position."""
+
+    visual = VisualSpec('points', {'position': 'x'})
+
+    def __init__(self, label: str, x: float = 0.0, *, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+
+
+@pytest.mark.parametrize('size', [None, 3])
+def test_get_declared_keeps_the_drawing_of_the_class(size):
+    """Test that a plain element, alone or in a group, is drawn as the `visual` of its class says."""
+    system = System(elements=[Body('body', size=size)], interactions=[Gravity('gravity', target='body')]).prepare()
+    problem = system.simulate(until=0.1, dt=0.1).problem
+    assert problem.elements[0].visual == Body.visual
+
+
+class Spring(Interaction):
+    """Interaction that pulls a position in the plane back to the origin."""
+
+    def __init__(self, label: str, *, target: Role = 'ball', k: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.k = k
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the acceleration of the vector position as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.target.x, context.t
+            self.laws_ = [RateLaw(x.diff(t, 2), -context.k * x)]
+
+
+@pytest.mark.parametrize(
+    ('members', 'start', 'names'),
+    [
+        ({}, [1.0, 0.0], ('ball.x[0]', 'ball.x[1]', "ball.x'[0]", "ball.x'[1]")),
+        (
+            {'space': ContinuousSpace(n_dim=2)},
+            [1.0, 0.0],
+            ('ball.x[i, 0]', 'ball.x[i, 1]', "ball.x'[i, 0]", "ball.x'[i, 1]"),
+        ),
+        ({'size': 2}, [[1.0, 0.0], [0.0, 1.0]], ('ball.x[i, 0]', 'ball.x[i, 1]', "ball.x'[i, 0]", "ball.x'[i, 1]")),
+    ],
+)
+def test_get_declared_reads_the_second_derivative_of_a_vector(members, start, names):
+    """Test that a rate law on `x.diff(t, 2)` of a vector gives the vector order two, like a scalar."""
+    ball = Element('ball', values={'x': np.array(start)}, **members)
+    system = System(elements=[ball], interactions=[Spring('spring')]).prepare()
+    assert system.states_ == names
+    final = system.simulate(until=np.pi, dt=np.pi / 2).get_values('ball.x')[-1]
+    assert np.ravel(final) == pytest.approx(-np.ravel(start), abs=1e-5)
+
+
+class Charges(Element):
+    """Charges whose value is one number or one number per member."""
+
+    def __init__(self, label: str, q: float | Sequence[float] = 1.0, *, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.q = q
+
+
+def test_get_declared_accepts_an_array_for_a_hint_of_several_types():
+    """Test that a value hinted as `float | Sequence[float]` takes an array of real values, one per member."""
+    system = System(elements=[Charges('charges', q=np.array([1.0, -2.0, 0.5]), size=3)]).prepare()
+    assert system.parameters_ == ('charges.q[i]',)
+    assert system.simulate(until=0).get_values('charges.q')[0] == pytest.approx([1.0, -2.0, 0.5])

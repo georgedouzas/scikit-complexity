@@ -8,18 +8,19 @@ from __future__ import annotations
 import inspect
 import re
 from collections.abc import Callable, Mapping
-from typing import get_args, get_origin
+from typing import Annotated, get_args, get_origin
 
 import numpy as np
 from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...components.base import BaseComponent
-from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement
+from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement, Quantity
 from ...components.laws import (
     BaseLaw,
     ConstraintLaw,
     JumpLaw,
+    LocalRuleLaw,
     NoiseLaw,
     RateLaw,
     RuleLaw,
@@ -31,7 +32,7 @@ from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from .._utils import bound_labels
 from ._compilation import Compilation
 
@@ -71,7 +72,9 @@ class _StateInference:
     def _get_values(element: Element) -> dict[str, object]:
         """Return the values of a plain element by name, from its arguments and `values`.
 
-        The starting values of derivatives and past values, such as `"x'"` or `'y[-1]'`, are left out.
+        The values keep the order in which they are given, the arguments of the class first and then the entries of
+        `values`, so the states and parameters come out in that order. The starting values of derivatives and past
+        values, such as `"x'"` or `'y[-1]'`, are left out.
         """
         given = {name: value for name, value in (element.values or {}).items() if not STARTING.fullmatch(name)}
         for name in given:
@@ -82,18 +85,21 @@ class _StateInference:
                     "primes or a past index, such as values={\"x'\": 1.0} or values={'y[-1]': 0.5}."
                 )
                 raise ValidationError(error_msg)
-        arguments = {name: value for name, value in element.get_params(deep=False).items() if name not in RESERVED}
+        params = element.get_params(deep=False)
+        names = [name for name in inspect.signature(type(element)).parameters if name in params]
+        arguments = {name: params[name] for name in names if name not in RESERVED}
         return arguments | given
 
     @staticmethod
     def _get_starting(element: Element, values: Mapping[str, object]) -> dict[str, dict[int, object]]:
         """Return the starting values of derivatives and past values, by value and index.
 
-        A derivative named with `k` primes and a past value named with the index `-k` both have the index `k`.
+        A derivative named with `k` primes and a past value named with the index `-k` both have the index `k`. An
+        element with many members takes one starting value per member as an array, such as the velocities of a gas.
 
         Raises:
             ValidationError:
-                A starting value names no value of the element, or the element has many members.
+                A starting value names no value of the element.
         """
         starting: dict[str, dict[int, object]] = {}
         for name, value in (element.values or {}).items():
@@ -101,9 +107,9 @@ class _StateInference:
             if found is None:
                 continue
             base = found.group('name')
-            if base not in values or element.size is not None or element.space is not None:
+            if base not in values:
                 error_msg = (
-                    f'Element {element.label!r} takes the starting value {name!r}, but it has no single value named '
+                    f'Element {element.label!r} takes the starting value {name!r}, but it has no value named '
                     f'{base!r}. Give it with the value, such as values={{{base!r}: 0.0, {name!r}: 1.0}}.'
                 )
                 raise ValidationError(error_msg)
@@ -142,6 +148,9 @@ class _StateInference:
     def _get_member_value(element: Element, name: str, value: object, count: int | None) -> object:
         """Return the value of one member, checking an array holds one per member.
 
+        A single element in a space without sites, such as a ball in the plane, is one member whose value is the array
+        itself, such as its velocity `[1.0, 0.0]`.
+
         On a lattice, an array of the shape of the lattice holds one value per site, such as the concentration of every
         cell of a plate.
         """
@@ -153,6 +162,8 @@ class _StateInference:
             shape = tuple(space.shape_)
             if array.shape[: len(shape)] == shape:
                 array = array.reshape(count, *array.shape[len(shape) :])
+        if array.shape[0] != count and count == 1 and element.size is None:
+            return value
         if array.shape[0] != count:
             error_msg = (
                 f'Element {element.label!r} has {count} members but its value {name!r} has {array.shape[0]} entries. '
@@ -177,9 +188,10 @@ class _StateInference:
 
         A value without an annotation, such as one given through `values`, takes the domain of its type, so `3` is an
         integer and `0.5 + 1j` is complex. The annotation `object` says nothing of the kind, so a value annotated so,
-        such as a point that may be one number or an array of complex numbers, also takes the domain of its type.
+        such as a point that may be one number or an array of complex numbers, also takes the domain of its type, and
+        so does a value of one of several types, such as `float | Sequence[float]`.
         """
-        if get_origin(annotation) is not None and get_args(annotation):
+        if get_origin(annotation) is Annotated:
             for item in get_args(annotation)[1:]:
                 if isinstance(item, set | frozenset):
                     return FiniteEnumeratedSet(sorted(item, key=str))
@@ -195,6 +207,18 @@ class _StateInference:
         if kind is complex or (isinstance(kind, type) and issubclass(kind, np.complexfloating)):
             return CC
         return RR
+
+    @staticmethod
+    def _get_quantity(annotation: object) -> str | None:
+        """Return the name of the quantity in the `Annotated` of a value, or `None`.
+
+        A value annotated as `Annotated[float, Quantity('energy')]` holds energy, which the conservation monitor reads.
+        """
+        for item in get_args(annotation)[1:] if get_origin(annotation) is Annotated else ():
+            if isinstance(item, Quantity):
+                item._check()
+                return item.name
+        return None
 
     def _get_spec(
         self,
@@ -220,8 +244,10 @@ class _StateInference:
         parameter = inspect.signature(type(element)).parameters.get(name)
         annotation = inspect.Parameter.empty if parameter is None else parameter.annotation
         domain = self._get_domain(annotation, value)
-        vector = np.ndim(np.asarray(value, dtype=object)) > 0
-        starting = starting or {}
+        quantity = self._get_quantity(annotation)
+        vector, n_dim, tensor = element._get_shape_of(value)
+        value = element._get_matrix_entries(value, tensor)
+        starting = {index: element._get_matrix_entries(item, tensor) for index, item in (starting or {}).items()}
         count = lags or max(int(order or 1) - 1, 0)
         unread = sorted(index for index in starting if index > count)
         if unread and order is not None:
@@ -231,13 +257,33 @@ class _StateInference:
             )
             raise ValidationError(error_msg)
         if order is None:
-            return DeclaredVariableSpec(value, ParameterSpec(domain=domain, vector=vector))
+            declared = ParameterSpec(domain=domain, vector=vector, n_dim=n_dim, tensor=tensor)
+            return DeclaredVariableSpec(value, declared)
         if order == 0:
-            return DeclaredVariableSpec(value, StateSpec(domain=domain, vector=vector, algebraic=True, role=role))
+            spec = StateSpec(
+                domain=domain,
+                vector=vector,
+                n_dim=n_dim,
+                tensor=tensor,
+                algebraic=True,
+                role=role,
+                quantity=quantity,
+            )
+            return DeclaredVariableSpec(value, spec)
         missing = value if lags else 0.0
         initial = tuple(starting.get(index, missing) for index in range(1, count + 1)) if starting else ()
         steps = 1 if lags else order
-        spec = StateSpec(domain=domain, vector=vector, order=steps, lags=lags, initial=initial, role=role)
+        spec = StateSpec(
+            domain=domain,
+            vector=vector,
+            n_dim=n_dim,
+            tensor=tensor,
+            order=steps,
+            lags=lags,
+            initial=initial,
+            role=role,
+            quantity=quantity,
+        )
         return DeclaredVariableSpec(value, spec)
 
     def _replace(
@@ -378,6 +424,7 @@ class _StateInference:
 
         compilation = self.census(self._replace(system, probe))
         orders, lags = self._get_orders(compilation)
+        orders = dict.fromkeys(self._get_rule_reads(compilation), 1) | orders
         kinds = self._get_topology_kinds(compilation)
         agents = self._get_agent_groups(compilation)
         steps = self._get_steps(compilation)
@@ -421,6 +468,28 @@ class _StateInference:
             if step in named:
                 steps[named[step]] = named[str(law.target)]
         return steps
+
+    @staticmethod
+    def _get_rule_reads(compilation: Compilation) -> set[str]:
+        """Return the dotted names of the values whose neighbours a local rule reads.
+
+        Such a value is a state even when no law changes it, as the trapping times of the sites of a walk, since a
+        local rule reads the states of the neighbours of every site.
+        """
+        census = Compilation._get_required(compilation.census, 'census')
+        layout = Compilation._get_required(compilation.layout, 'layout')
+        named = {
+            str(block.symbols[variable]): entry.name
+            for block in layout.blocks.values()
+            for variable, entry in block.entries.items()
+        }
+        reads: set[str] = set()
+        for record in census.records:
+            law = record.law
+            local = isinstance(law, LocalRuleLaw) or (isinstance(law, UpdateLaw) and law.neighborhood is not None)
+            if local and law.reads is not None:
+                reads.update(named[str(item)] for item in law.reads if str(item) in named)
+        return reads
 
     @staticmethod
     def _get_topology_kinds(compilation: Compilation) -> frozenset[str]:
@@ -500,7 +569,8 @@ class _StateInference:
         one agent. A value named after an axis of a continuous space, or of the cells of a lattice for agents, is a
         position, also when no law changes it, and the value an update law adds to a position at every step, as `v` in
         `x <- x + v`, is its velocity. An element on the edges or hyperedges of a network is a group with one member on
-        each. The probe that finds the orders reads no starting values of derivatives or past values.
+        each. The probe that finds the orders reads no starting values of derivatives or past values. The element keeps
+        the drawing of its class, except a drawing of agents for members that run no agent rules.
         """
         values = self._get_values(element)
         starting = {} if probing else self._get_starting(element, values)
@@ -511,6 +581,7 @@ class _StateInference:
         axes = self._get_axes(element, agents)
         velocities = {name for name, moved in (steps or {}).items() if moved in axes}
         variables = {}
+        arrays = {}
         for name, value in values.items():
             member = self._get_member_value(element, name, value, count)
             kept = growing or name in axes
@@ -520,13 +591,26 @@ class _StateInference:
                 member,
                 1 if order(name) is None and kept else order(name),
                 lags=lags(name),
-                starting=starting.get(name),
+                starting={
+                    index: self._get_member_value(element, name, given, count)
+                    for index, given in starting.get(name, {}).items()
+                },
                 role='position' if name in axes else 'velocity' if name in velocities else None,
             )
+            tensor = element._get_shape_of(member)[2]
+            if np.ndim(np.asarray(value, dtype=object)) > 0:
+                arrays[name] = element._get_matrix_entries(value, tensor)
+            for index, given in starting.get(name, {}).items():
+                if count is not None and np.ndim(np.asarray(given, dtype=object)) > 0:
+                    arrays[f'{name}_lag{index}' if lags(name) else f'{name}_d{index}'] = element._get_matrix_entries(
+                        given,
+                        tensor,
+                    )
+        visual = element._get_visual()
+        drawing = None if visual == VisualSpec() or (visual.kind == 'agents' and not agents) else visual
         if count is None:
-            return [DeclaredElement(element.label, variables=variables)]
-        arrays = {name: value for name, value in values.items() if np.ndim(np.asarray(value, dtype=object)) > 0}
-        values = {'variables': variables, **arrays}
+            return [DeclaredElement(element.label, variables=variables, drawing=drawing)]
+        values = {'variables': variables, 'drawing': drawing, **arrays}
         if network:
             nodes = GroupElement(
                 element.label,

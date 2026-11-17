@@ -19,7 +19,10 @@ from sklearn.base import BaseEstimator
 from ..base import BaseConfig
 from ..errors import ValidationError
 from ..specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec
+from ..specs._tensor_spec import TENSOR_DIMENSIONS
 from ._tags import STOCHASTIC_LAWS, Tags
+
+MATRIX_AXES = 2
 
 
 class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
@@ -97,6 +100,35 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
         if not isinstance(self.label, str):
             error_msg = f'The label of {type(self).__name__} must be a string, but it is {self.label!r}.'
             raise ValidationError(error_msg)
+
+    @staticmethod
+    def _get_shape_of(value: object) -> tuple[bool, int | None, str | None]:
+        """Return whether a value is a vector, its size, and its tensor symmetry.
+
+        The size is the number of components of a vector or of rows of a matrix. A number is no vector, a list or an
+        array of `n` numbers is a vector of `n` components, and a square matrix of 2 or 3 rows is a full tensor, which
+        laws read as a Sage matrix. Any other array is a vector of one component per dimension of the space.
+        """
+        shape = np.shape(np.asarray(value, dtype=object))
+        if not shape:
+            return False, None, None
+        if len(shape) == 1:
+            return True, shape[0], None
+        if len(shape) == MATRIX_AXES and shape[0] == shape[1] and shape[0] in TENSOR_DIMENSIONS:
+            return False, shape[0], 'full'
+        return True, None, None
+
+    @staticmethod
+    def _get_matrix_entries(value: object, tensor: str | None) -> object:
+        """Return a matrix value as its entries, row after row.
+
+        The matrices sit on the last two axes, so a group gives one matrix per member. Any other value is returned as it
+        is.
+        """
+        if tensor is None:
+            return value
+        array = np.asarray(value)
+        return array.reshape(*array.shape[:-2], array.shape[-2] * array.shape[-1])
 
     @staticmethod
     def _get_annotated(annotation: object) -> object:

@@ -7,8 +7,6 @@ import pytest
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver, Yoshida4Solver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.systems import System
@@ -94,14 +92,14 @@ def test_restricted_three_body_conserves_the_jacobi_constant():
 
 def test_restricted_three_body_records_its_hamiltonian_within_its_invariant_tolerance():
     """Test that the default run of the restricted three-body problem passes its invariant check."""
-    trajectory = simulate(RestrictedThreeBodySystem(), random_state=0)
+    trajectory = RestrictedThreeBodySystem().prepare().simulate(random_state=0)
     assert np.ptp(np.asarray(trajectory.get_values('body.energy'), dtype=float)) < 1e-6
 
 
 def test_restricted_three_body_admits_no_split_of_the_yoshida_solver():
     """Test that the Coriolis terms of the rotating frame make the Yoshida solver name a momentum and RK4Solver."""
     with pytest.raises(SolverError, match=r'rate of body\.p[xy] reads .*body\.p[xy].*RK4Solver'):
-        Yoshida4Solver().prepare(PassCompiler().prepare(RestrictedThreeBodySystem().prepare().system_).run().problem_)
+        RestrictedThreeBodySystem(solver=Yoshida4Solver()).prepare().simulate(until=0.1)
 
 
 def test_restricted_three_body_defaults_are_chaotic():

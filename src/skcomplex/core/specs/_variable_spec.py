@@ -91,6 +91,9 @@ class VariableSpec(BaseSpec):
 
         group:
             The matrix group whose elements a state takes, or `None`.
+
+        n_dim:
+            The number of components of a vector, or of rows of a tensor, or `None` for the dimension of the space.
     """
 
     kind: VariableKind
@@ -117,6 +120,7 @@ class VariableSpec(BaseSpec):
     tensor: str | None = None
     algebraic: bool = False
     group: MatrixGroupSpec | None = None
+    n_dim: int | None = None
 
     @property
     def is_place(self) -> bool:

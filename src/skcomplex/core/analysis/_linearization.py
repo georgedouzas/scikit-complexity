@@ -11,8 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from scipy.linalg import solve_continuous_are
 
-from ..engine.problems import ProblemSpec
-from ..engine.runtime import Trajectory
+from ..engine.problems import LayoutSpec, ProblemSpec
 from ..enums import DataKind, FormKind
 from ..errors import AnalysisError, ValidationError
 from ..types import Array
@@ -173,7 +172,7 @@ def linearization(
         raise ValidationError(error_msg)
     adaptive = problem.adaptive_parameters
     dynamics = StabilityResult._get_dynamics_of(problem)
-    display = Trajectory._get_display_name
+    display = LayoutSpec._get_display_name
     internal = {display(name): name for name in [*dynamics.names, *adaptive, *problem.parameters.names]}
     chosen = [name for name, item in adaptive.items() if item.bounds is not None] if controls is None else controls
     known = [display(name) for name in [*adaptive, *problem.parameters.names]]

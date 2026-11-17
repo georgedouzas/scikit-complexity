@@ -3,10 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import copy
 from abc import ABC, abstractmethod
+from dataclasses import is_dataclass
 from typing import Self
 
-from sklearn.base import BaseEstimator
+from sage.all__sagemath_symbolics import Expression
+from sage.modules.free_module_element import FreeModuleElement
+from sage.structure.element import Matrix
+from sage.structure.parent import Parent
+from sage.symbolic.function import Function
+from sklearn.base import BaseEstimator, clone
 
 from .errors import NotPreparedError
 
@@ -87,6 +94,39 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
         if not getattr(self, '_prepared', False):
             error_msg = f'{type(self).__name__} must be prepared before it runs. Call `prepare(...)` first.'
             raise NotPreparedError(error_msg)
+
+    def __sklearn_clone__(self) -> Self:
+        """Return a new object of the same class with copies of the settings.
+
+        It is what `sklearn.base.clone` returns. Symbolic values of Sage, such as the expression of a law, a symbolic
+        function, or a set of allowed values, are immutable, so the copy shares them. Copying them deeply would rebuild
+        them through Sage's pickling, which changes the numbers in conditions and makes new symbolic functions.
+
+        Returns:
+            clone:
+                The new object, not prepared.
+        """
+        params = {name: self._get_cloned(value) for name, value in self.get_params(deep=False).items()}
+        return type(self)(**params)
+
+    @staticmethod
+    def _get_cloned(value: object) -> object:
+        """Return a copy of a setting that shares the values that never change.
+
+        They are the symbolic values of Sage and frozen dataclasses, such as specs.
+        """
+        if isinstance(value, Expression | Function | Parent):
+            return value
+        params = getattr(type(value), '__dataclass_params__', None)
+        if is_dataclass(value) and params is not None and params.frozen:
+            return value
+        if isinstance(value, FreeModuleElement | Matrix):
+            return value if value.is_immutable() else copy.copy(value)
+        if type(value) is dict:
+            return {key: BaseConfig._get_cloned(item) for key, item in value.items()}
+        if isinstance(value, list | tuple | set | frozenset) and type(value) in {list, tuple, set, frozenset}:
+            return type(value)([BaseConfig._get_cloned(item) for item in value])
+        return clone(value, safe=False)
 
     def prepare(self, context: ContextT | None = None) -> Self:
         """Check the object and prepare it against the one thing it serves.

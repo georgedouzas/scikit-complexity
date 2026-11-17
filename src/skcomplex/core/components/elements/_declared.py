@@ -9,7 +9,7 @@ from dataclasses import replace
 from typing import Self
 
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, StateSpec
+from ...specs import DeclaredVariableSpec, StateSpec, VisualSpec
 from ..spaces import BaseSpace
 from ._element import Element
 
@@ -37,6 +37,10 @@ class DeclaredElement(Element):
             The initial value and the spec of each state and parameter, by name, or `None` for none. For example,
             `{'x': DeclaredVariableSpec(100.0, StateSpec())}` declares a state `x` that starts at 100, in the units of
             the system, such as people or moles.
+
+        drawing:
+            How the element is drawn in place of the `visual` of its class, such as the drawing of the class of a
+            plain element the system declares it from, or `None` for the `visual` of its class.
 
     Attributes:
         default_visual_:
@@ -81,9 +85,15 @@ class DeclaredElement(Element):
         label: str,
         *,
         variables: Mapping[str, DeclaredVariableSpec] | None = None,
+        drawing: VisualSpec | None = None,
     ) -> None:
         super().__init__(label)
         self.variables = variables
+        self.drawing = drawing
+
+    def _get_visual(self) -> VisualSpec:
+        """Return how the element is drawn, its `drawing` or the `visual` of its class."""
+        return self.drawing if self.drawing is not None else super()._get_visual()
 
     def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
         """Return the variables the element declares from its arguments, by name."""

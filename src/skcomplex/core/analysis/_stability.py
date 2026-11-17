@@ -557,7 +557,7 @@ def _linearised_rates(
     for law in member._get_laws(SimpleNamespace(**names, **parameters, t=time)):
         _add_rate(rates, names, law, field.label)
     for interaction in interactions:
-        own = {name: getattr(interaction, name) for name in declarations_of(type(interaction), VariableKind.PARAMETER)}
+        own = {name: getattr(interaction, name) for name in declarations_of(interaction, VariableKind.PARAMETER)}
         roles = {
             name: SimpleNamespace(**names, **parameters)
             for name in declarations_of(type(interaction), VariableKind.ROLE)

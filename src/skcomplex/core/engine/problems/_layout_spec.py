@@ -4,6 +4,7 @@
 # License: MIT
 
 import functools
+import re
 from dataclasses import dataclass
 
 import numpy as np
@@ -13,6 +14,10 @@ from sage.all__sagemath_symbolics import RR
 from ...specs._base_spec import BaseSpec
 from ...specs._entry_spec import EntrySpec
 from ...types import Array, ComplexArray
+
+DERIVATIVE = re.compile(r"^(?P<base>.*?)(?P<primes>'+)(?P<index>\[[\w, ]+\])?$")
+LAG = re.compile(r'^(?P<base>.*?)\[-(?P<steps>\d+)\](?P<index>\[[\w, ]+\])?$')
+COMPANION = re.compile(r'_(?P<kind>d|lag)(?P<count>\d+)(?P<index>\[[\w, ]+\])?$')
 
 
 @dataclass(frozen=True)
@@ -35,6 +40,31 @@ class LayoutSpec(BaseSpec):
 
     entries: tuple[EntrySpec, ...]
 
+    @staticmethod
+    def _get_internal_name(name: str) -> str:
+        """Return the engine name of a value, such as `x_d1` for `x'`.
+
+        A past value such as `y[-1]` is `y_lag1`.
+        """
+        derivative = DERIVATIVE.match(name)
+        if derivative is not None:
+            return f"{derivative['base']}_d{len(derivative['primes'])}{derivative['index'] or ''}"
+        lag = LAG.match(name)
+        if lag is not None:
+            return f"{lag['base']}_lag{lag['steps']}{lag['index'] or ''}"
+        return name
+
+    @staticmethod
+    def _get_display_name(name: str) -> str:
+        """Return the name users read, such as `x'` for `x_d1` and `y[-1]` for `y_lag1`."""
+        companion = COMPANION.search(name)
+        if companion is None:
+            return name
+        base = name[: companion.start()]
+        count = int(companion['count'])
+        suffix = "'" * count if companion['kind'] == 'd' else f'[-{count}]'
+        return f"{base}{suffix}{companion['index'] or ''}"
+
     @functools.cached_property
     def _by_name(self) -> dict[str, EntrySpec]:
         """Entries by dotted name."""
@@ -45,13 +75,13 @@ class LayoutSpec(BaseSpec):
 
         Args:
             name:
-                The dotted name of a variable.
+                The dotted name of a variable, such as `ball.x` or its derivative `ball.x'`.
 
         Returns:
             found:
                 Whether the layout has a variable of that name.
         """
-        return name in self._by_name
+        return self._get_internal_name(name) in self._by_name
 
     @property
     def size(self) -> int:
@@ -73,7 +103,7 @@ class LayoutSpec(BaseSpec):
 
         Args:
             name:
-                The dotted name of the variable.
+                The dotted name of the variable, such as `ball.x` or its derivative `ball.x'`.
 
         Returns:
             entry:
@@ -83,6 +113,7 @@ class LayoutSpec(BaseSpec):
             KeyError:
                 The name is not part of the layout.
         """
+        name = self._get_internal_name(name)
         if name not in self._by_name:
             error_msg = f'No variable named {name!r}. Available names are: {", ".join(self.names)}.'
             raise KeyError(error_msg)
@@ -114,6 +145,7 @@ class LayoutSpec(BaseSpec):
             >>> entry.name, entry.shape, indices
             ('b.w[1]', (), slice(2, 3, None))
         """
+        name = self._get_internal_name(name)
         if name in self._by_name:
             entry = self._by_name[name]
             return entry, entry.indices
