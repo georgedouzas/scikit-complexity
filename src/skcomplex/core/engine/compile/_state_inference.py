@@ -63,7 +63,7 @@ class _StateInference:
 
     @staticmethod
     def _get_starting(element: Element, values: Mapping[str, object]) -> dict[str, dict[int, object]]:
-        """Return the starting values of the derivatives and past values of an element, by value and index.
+        """Return the starting values of derivatives and past values, by value and index.
 
         A derivative named with `k` primes and a past value named with the index `-k` both have the index `k`.
 
