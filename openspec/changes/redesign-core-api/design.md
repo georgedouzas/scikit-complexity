@@ -122,6 +122,12 @@ class Particle(Element):
 - What quantity a value is, such as an energy, a mass, or a charge, is written with the same `Annotated` as its
   allowed values, such as `E: Annotated[float, Quantity('energy')] = 0.0`, and conservation monitors read it. A plain
   `Element(values=...)` has no quantity.
+- A value that wraps around, such as an angle or a phase, says so in `Annotated` too, such as
+  `theta: Annotated[float, Period(2 * pi)] = 0.0`. It wraps after every step, and the analyses read a periodic value
+  as a phase, or as a heading when the element moves in a space. No role names are written.
+- The generic ready-made bases that build one element from a mapping of states, such as `DynamicalSystem` and
+  `StockFlowSystem`, take the allowed values and quantities of those states as their own arguments, such as
+  `allowed={'n': RealSet.closed_open(0, oo)}`, and keep them on the element they build. `Element` keeps its arguments.
 - Values keep the order in which they are given, so states and parameters come out in that order and results do not
   depend on alphabetical order.
 - A value named after an axis of the element's space is a position, with no flag. In
