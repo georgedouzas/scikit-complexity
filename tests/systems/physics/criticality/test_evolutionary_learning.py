@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import events, fit_law
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.criticality import EvolutionarySKGameSystem
 
 STEPS = 51_000
@@ -16,22 +15,22 @@ SWEEP_STEPS = 3_000
 
 def test_evolutionary_sk_game_rules():
     """Test the symmetric couplings of variance 1/N, the uniform initial temperatures, and the fixed game."""
-    agents = EvolutionarySKGameSystem(400, random_state=0).prepare().system_.elements[0]
-    couplings = agents.values['couplings']
+    system = EvolutionarySKGameSystem(400, random_state=0).prepare().system_
+    couplings = system.interactions[0].couplings
     assert np.array_equal(couplings, couplings.T)
     assert np.all(np.diag(couplings) == 0)
     assert couplings[np.triu_indices(400, 1)].var() * 400 == pytest.approx(1.0, rel=0.05)
-    temperatures = np.asarray(agents.values['temperature'])
+    temperatures = np.asarray(system.elements[0].temperature)
     assert temperatures.min() >= 0
     assert temperatures.max() <= 2
-    fixed = EvolutionarySKGameSystem(10, temperature=0.3).prepare().system_.elements[0].values
-    assert not fixed['evolving']
-    assert np.all(np.asarray(fixed['temperature']) == 0.3)
+    fixed = EvolutionarySKGameSystem(10, temperature=0.3).prepare().system_
+    assert not fixed.interactions[0].evolving
+    assert np.all(np.asarray(fixed.elements[0].temperature) == 0.3)
 
 
 def test_evolutionary_sk_game_replaces_the_least_fit():
     """Test that the least fit agent at a replacement step gets a new temperature and no other agent does."""
-    trajectory = simulate(EvolutionarySKGameSystem(n_agents=32), until=10, random_state=0)
+    trajectory = EvolutionarySKGameSystem(n_agents=32).prepare().simulate(until=10, random_state=0)
     temperatures, fitness = np.asarray(trajectory.get_values('agents.temperature')), np.asarray(
         trajectory.get_values('agents.fitness'),
     )
@@ -44,8 +43,8 @@ def test_evolutionary_sk_game_replaces_the_least_fit():
 @pytest.mark.slow
 def test_evolutionary_sk_game_self_organisation():
     """Test the evolved low temperatures, cascades of exponent 3/2, and a reward above every fixed temperature."""
-    system = EvolutionarySKGameSystem(memory=0.75, random_state=SEED).prepare().system_
-    evolved = simulate(system, until=STEPS, dt=1, random_state=SEED)
+    system = EvolutionarySKGameSystem(memory=0.75, random_state=SEED).prepare()
+    evolved = system.simulate(until=STEPS, dt=1, random_state=SEED)
     temperatures = np.asarray(evolved.get_values('agents.temperature'))
     assert np.median(temperatures[-1]) < 0.5 < np.median(temperatures[0])
     fitness = np.asarray(evolved.get_values('agents.fitness'))[::3][TRANSIENT // 3 :]
@@ -55,6 +54,6 @@ def test_evolutionary_sk_game_self_organisation():
     assert fit.exponent == pytest.approx(1.5, abs=0.15)
     reward = np.asarray(evolved.get_values('agents.reward'))[STEPS // 2 :].mean()
     for temperature in SWEEP:
-        system = EvolutionarySKGameSystem(temperature=temperature, random_state=SEED).prepare().system_
-        fixed = simulate(system, until=SWEEP_STEPS, dt=1, random_state=SEED)
+        system = EvolutionarySKGameSystem(temperature=temperature, random_state=SEED).prepare()
+        fixed = system.simulate(until=SWEEP_STEPS, dt=1, random_state=SEED)
         assert reward > np.asarray(fixed.get_values('agents.reward'))[SWEEP_STEPS // 2 :].mean(), temperature

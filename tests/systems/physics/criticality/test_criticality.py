@@ -46,7 +46,7 @@ def test_forest_fire_burns_graph_by_distance():
 
 def test_manna_sandpile_settles_below_two_grains():
     """Test that the Manna pile records avalanches, stays stable between grains, and fills to a critical density."""
-    trajectory = simulate(MannaSandpileSystem((16, 16)), until=3000, dt=100, random_state=0)
+    trajectory = MannaSandpileSystem((16, 16)).prepare().simulate(until=3000, dt=100, random_state=0)
     heights = trajectory.get_lattice('pile.height')
     assert heights.max() < 2
     assert trajectory.events

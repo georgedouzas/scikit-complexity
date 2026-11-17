@@ -2,14 +2,13 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.criticality import DirectedPercolationLangevinSystem
 
 
 def _stationary_density(energy):
     """Return the late mean activity of the directed percolation field at a fixed energy."""
     system = DirectedPercolationLangevinSystem((16, 16), energy=energy)
-    trajectory = simulate(system, until=40, random_state=0)
+    trajectory = system.prepare().simulate(until=40, random_state=0)
     return float(np.asarray(trajectory.get_values('neurons.rho'))[-10:].mean())
 
 

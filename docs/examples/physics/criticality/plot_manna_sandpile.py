@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution, events
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.criticality import MannaSandpileSystem
 
@@ -25,7 +24,7 @@ SYSTEM = 'manna_sandpile'
 
 system = MannaSandpileSystem(shape=(32, 32), random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=8970, dt=30, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=8970, dt=30, observers=[observer], random_state=0)
 
 # %%
 # Self-organized criticality
