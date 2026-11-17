@@ -201,7 +201,7 @@ class PowerGridSystem(BaseSystem):
         ]
         pairs = [(index, (index + 1) % self.n_nodes) for index in range(self.n_nodes)]
         if self.added_line is not None:
-            pairs.append(tuple(self.added_line))
+            pairs.append((self.added_line[0], self.added_line[1]))
         doubled = None if self.doubled_line is None else frozenset(self.doubled_line)
         lines = [
             TransmissionLineInteraction(
