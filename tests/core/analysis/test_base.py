@@ -202,7 +202,7 @@ def test_snapshots_of_particle_groups():
 
 def test_snapshots_of_scalar_positions():
     """Test that a scalar position and a velocity role give one dimension per frame and member."""
-    trajectory = simulate(OptimalVelocitySystem(), until=0.5, random_state=0)
+    trajectory = OptimalVelocitySystem().prepare().simulate(until=0.5, random_state=0)
     snapshots = _read_snapshots(trajectory)
     assert snapshots.positions.ndim == 3
     assert snapshots.positions.shape == snapshots.velocities.shape
@@ -211,7 +211,7 @@ def test_snapshots_of_scalar_positions():
 
 def test_snapshots_stack_position_components():
     """Test that scalar states of the role position stack into dimensions, with a state of the role direction."""
-    trajectory = simulate(LightSeekingRobotsSystem(), until=0.5, random_state=0)
+    trajectory = LightSeekingRobotsSystem().prepare().simulate(until=0.5, random_state=0)
     snapshots = _read_snapshots(trajectory)
     assert snapshots.positions.shape[-1] == 2
     assert snapshots.directions is not None

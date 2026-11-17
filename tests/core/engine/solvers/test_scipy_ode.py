@@ -112,9 +112,9 @@ def test_scipy_ode_failure_raises_error():
 def test_simulation_runs_stiff_system_with_default_solver():
     """Test that a stiff system built directly runs fast with the default solver and matches its registered solver."""
     start = time.perf_counter()
-    default = simulate(NanoparticleCoronaSystem().prepare().system_, until=10800)
+    default = simulate(NanoparticleCoronaSystem().prepare()._get_composite(), until=10800)
     assert time.perf_counter() - start < 5
-    registered = simulate(NanoparticleCoronaSystem(), until=10800, random_state=0)
+    registered = NanoparticleCoronaSystem().prepare().simulate(until=10800, random_state=0)
     np.testing.assert_allclose(default.states[-1], registered.states[-1], rtol=1e-4, atol=1e-12)
 
 
