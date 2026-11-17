@@ -71,7 +71,7 @@ def test_heated_room_stays_within_the_band_of_its_thermostat():
     closed = [event for event in trajectory.events if event.label == 'close_switch']
     assert len(opened) >= 2
     assert len(closed) >= 2
-    assert set(np.unique(trajectory.get_values('heater.on'))) == {0.0, 1.0}
+    assert set(np.unique(trajectory.get_values('heater.power'))) == {0.0, 1.0}
 
 
 def test_heated_room_records_the_power_of_its_heater():

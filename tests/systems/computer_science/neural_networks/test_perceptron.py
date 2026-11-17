@@ -46,17 +46,21 @@ def test_perceptron_satisfiability_even_weights() -> None:
 class WeightElement(Element):
     """Member with a Boolean weight."""
 
-    def __init__(self, label: str, on: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0) -> None:
+    def __init__(
+        self,
+        label: str,
+        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+    ) -> None:
         super().__init__(label)
-        self.on = on
+        self.active = active
 
 
 class RealWeightElement(Element):
     """Member with a real weight."""
 
-    def __init__(self, label: str, on: Annotated[float, StateSpec()] = 0.0) -> None:
+    def __init__(self, label: str, active: Annotated[float, StateSpec()] = 0.0) -> None:
         super().__init__(label)
-        self.on = on
+        self.active = active
 
 
 def _pattern_constraint(pattern: np.ndarray, output: int) -> CardinalitySpec:
@@ -72,7 +76,7 @@ def _perceptron(size: int, count: int, seed: int) -> tuple[System, np.ndarray, n
     outputs = rng.choice([-1, 1], count)
     constraints = [_pattern_constraint(pattern, int(output)) for pattern, output in zip(patterns, outputs, strict=True)]
     group = GroupElement('weights', element=WeightElement, size=size)
-    decide = SatisfiabilityInteraction('decide', target='weights', state='on', constraints=constraints)
+    decide = SatisfiabilityInteraction('decide', target='weights', state='active', constraints=constraints)
     return System(elements=[group], interactions=[decide]), patterns, outputs
 
 
@@ -95,9 +99,9 @@ def test_constraint_perceptron_pattern() -> None:
 def test_prepare_compiler_real_state() -> None:
     """Test that a state that is not Boolean is reported by the role domain check with the role and the state."""
     group = GroupElement('weights', element=RealWeightElement, size=3)
-    decide = SatisfiabilityInteraction('decide', target='weights', state='on', constraints=[ClauseSpec((1,))])
+    decide = SatisfiabilityInteraction('decide', target='weights', state='active', constraints=[ClauseSpec((1,))])
     system = System(elements=[group], interactions=[decide])
-    with pytest.raises(RoleElementError, match='on'):
+    with pytest.raises(RoleElementError, match='active'):
         system.prepare().simulate(until=1)
 
 
@@ -112,7 +116,7 @@ def test_run_small_perceptron_matches_enumeration() -> None:
         expected = any(_holds(candidate, *revealed).all() for candidate in candidates)
         assert bool(verdicts[step]) == expected
         if expected:
-            weights = np.asarray(trajectory.get_agents('weights', step).values['on'], dtype=float)
+            weights = np.asarray(trajectory.get_agents('weights', step).values['active'], dtype=float)
             assert _holds(2 * weights - 1, *revealed).all()
 
 
@@ -135,4 +139,4 @@ def test_run_capacity_of_binary_perceptron() -> None:
 def test_check_refuses_constraint_that_is_no_spec() -> None:
     """Test that a constraint that is not a spec is refused."""
     with pytest.raises(ValidationError, match='ClauseSpec'):
-        SatisfiabilityInteraction('decide', target='weights', state='on', constraints=[(1, 2)]).prepare()
+        SatisfiabilityInteraction('decide', target='weights', state='active', constraints=[(1, 2)]).prepare()

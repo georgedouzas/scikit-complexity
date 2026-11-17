@@ -151,7 +151,8 @@ class SatisfiabilityInteraction(Interaction):
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import SatisfiabilityInteraction
         >>> from skcomplex.systems.computer_science.neural_networks import ClauseSpec
-        >>> interaction = SatisfiabilityInteraction('sat', target='bits', state='on', constraints=[ClauseSpec((1, -2))])
+        >>> constraints = [ClauseSpec((1, -2))]
+        >>> interaction = SatisfiabilityInteraction('sat', target='bits', state='active', constraints=constraints)
         >>> interaction.reveal
         1
     """
@@ -265,18 +266,22 @@ class BinaryWeightElement(Element):
         label:
             The label of the weight or the group.
 
-        on:
+        active:
             Whether the weight is `+1`.
 
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import BinaryWeightElement
-        >>> BinaryWeightElement('weight', on=1.0).on
+        >>> BinaryWeightElement('weight', active=1.0).active
         1.0
     """
 
-    def __init__(self, label: str, on: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0) -> None:
+    def __init__(
+        self,
+        label: str,
+        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+    ) -> None:
         super().__init__(label)
-        self.on = on
+        self.active = active
 
 
 class PerceptronSatisfiabilitySystem(BaseSystem):
@@ -355,5 +360,5 @@ class PerceptronSatisfiabilitySystem(BaseSystem):
             for pattern in patterns
         ]
         weights = GroupElement('weights', element=BinaryWeightElement, size=self.n_weights)
-        decide = SatisfiabilityInteraction('decide', target='weights', state='on', constraints=constraints)
+        decide = SatisfiabilityInteraction('decide', target='weights', state='active', constraints=constraints)
         self.system_ = System(self.label, elements=[weights], interactions=[decide])

@@ -189,8 +189,8 @@ class ConvectionElement(Element):
 class HeatingResistorElement(TwoPinElement):
     """Resistor that delivers its electric power to a thermal port `h`.
 
-    It delivers the power while its switch `on` is closed. The current is `on (p_v - n_v) / R`, and the heat flow into
-    the thermal port is `-(p_v - n_v) p_i`.
+    It delivers the power while its switch `power` is closed. The current is `power (p_v - n_v) / R`, and the heat flow
+    into the thermal port is `-(p_v - n_v) p_i`.
 
     Args:
         label:
@@ -214,7 +214,7 @@ class HeatingResistorElement(TwoPinElement):
         h_Q:
             The heat flow into the thermal port.
 
-        on:
+        power:
             The initial position of the switch, 1 for closed and 0 for open.
 
         R:
@@ -238,13 +238,13 @@ class HeatingResistorElement(TwoPinElement):
         n_i: object = 0.0,
         h_T: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         h_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
-        on: Annotated[object, StateSpec()] = 1.0,
+        power: Annotated[object, StateSpec()] = 1.0,
         R: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
         super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.h_T = h_T
         self.h_Q = h_Q
-        self.on = on
+        self.power = power
         self.R = R
 
     def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -259,7 +259,7 @@ class HeatingResistorElement(TwoPinElement):
                 The equation laws of the branch.
         """
         voltage = s.p_v - s.n_v
-        return [ConstraintLaw(s.R * s.p_i, s.on * voltage), ConstraintLaw(s.h_Q, -voltage * s.p_i)]
+        return [ConstraintLaw(s.R * s.p_i, s.power * voltage), ConstraintLaw(s.h_Q, -voltage * s.p_i)]
 
 
 class ThermostatSystem(DynamicalSystem):
@@ -696,7 +696,7 @@ class HeatedRoomSystem(BaseSystem):
     It is heated under a thermostat with hysteresis. A voltage source drives a heating resistor whose heat enters the
     room, and the room loses heat through a wall of its own heat capacity to the outside air. The thermostat opens the
     switch of the resistor when the room rises through `setting + band / 2` and closes it when the room falls through
-    `setting - band / 2`. The system has the room temperature `room.T` and the switch `heater.on`, in seconds.
+    `setting - band / 2`. The system has the room temperature `room.T` and the switch `heater.power`, in seconds.
 
     Args:
         T:
@@ -804,14 +804,14 @@ class HeatedRoomSystem(BaseSystem):
                     'open_switch',
                     target='heater',
                     guard=lambda s: s.target.h_T - upper,
-                    reset={'on': lambda s: 0.0},
+                    reset={'power': lambda s: 0.0},
                     direction=1,
                 ),
                 CrossingInteraction(
                     'close_switch',
                     target='heater',
                     guard=lambda s: s.target.h_T - lower,
-                    reset={'on': lambda s: 1.0},
+                    reset={'power': lambda s: 1.0},
                     direction=-1,
                 ),
             ],
