@@ -13,6 +13,8 @@ from skcomplex.core.engine.problems import ProblemSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import RegistryError, ValidationError
+from skcomplex.core.systems import BaseSystem as PreparedSystem
+from skcomplex.core.systems import System
 from skcomplex.systems import all_systems
 from skcomplex.systems._catalog import _SystemClasses
 from skcomplex.systems.biology.common.populations import (
@@ -52,6 +54,21 @@ def _undeclared_laws(system: CompositeSystem) -> list[str]:
         if interaction.get_requirements().laws and not isinstance(law, interaction.get_requirements().laws)
     ]
     return found + [item for child in system.systems for item in _undeclared_laws(child)]
+
+
+def _get_settings(system: BaseSystem | PreparedSystem) -> tuple[float | None, float | None]:
+    """Return the tuned end time and time between frames of a ready-made system."""
+    if isinstance(system, PreparedSystem):
+        return system.until, system.dt
+    settings = system.get_run_settings()
+    return settings['until'], settings['dt']
+
+
+def _simulate(system: BaseSystem | PreparedSystem, **arguments: object):
+    """Return the trajectory of a ready-made system, prepared and simulated when it is written on `prepare`."""
+    if isinstance(system, PreparedSystem):
+        return system.prepare().simulate(**arguments)
+    return simulate(system, **arguments)
 
 
 def test_run_settings_depend_on_the_model_parameters():
@@ -199,12 +216,11 @@ def test_simulate_uses_the_tuned_settings():
 def test_system_conforms(system: type[BaseSystem], tmp_path: Path):
     """Test that a ready-made system is built, validated, compiled, simulated, logged, and cloned generically."""
     built = system()
-    settings = built.get_run_settings()
-    dt = settings['dt'] or 1.0
-    tuned = settings['until']
+    tuned, step = _get_settings(built)
+    dt = step or 1.0
     until = CONFORMANCE_FRAMES * dt if tuned is None else min(tuned, CONFORMANCE_FRAMES * dt)
     observer = RerunObserver(system.__name__, save_path=tmp_path / 'run.rrd')
-    trajectory = simulate(built, until=until, observers=[observer], random_state=0)
+    trajectory = _simulate(built, until=until, observers=[observer], random_state=0)
     problem = trajectory.problem
     assert _undeclared_laws(built.system_) == []
     assert observer.logged_frames_ == len(trajectory.times)
@@ -216,13 +232,18 @@ def test_system_conforms(system: type[BaseSystem], tmp_path: Path):
         )
     copy = clone(built)
     assert copy is not built
-    assert simulate(copy, until=0, random_state=0).problem.states.names == problem.states.names
+    assert _simulate(copy, until=0, random_state=0).problem.states.names == problem.states.names
 
 
 @pytest.mark.parametrize('system', [system for _, system in all_systems()], ids=lambda system: system.__name__)
 def test_jacobian_pattern_holds_finite_differences(system: type[BaseSystem]):
     """Test that the Jacobian pattern of every system with an ODE form holds its finite differences at random states."""
-    problem = simulate(system(), until=0, backend=NumpyBackend(), random_state=0).problem
+    built = system()
+    if isinstance(built, PreparedSystem):
+        built = System(systems=[built], backend=NumpyBackend()).prepare()
+        problem = built.simulate(until=0, random_state=0).problem
+    else:
+        problem = simulate(built, until=0, backend=NumpyBackend(), random_state=0).problem
     if not isinstance(problem, ProblemSpec) or problem.jacobian is None or problem.delays or problem.drift is None:
         pytest.skip('The system has no ODE form without delays.')
     rng = np.random.default_rng(0)

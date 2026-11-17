@@ -1,39 +1,40 @@
 """Test the `_pulse` module of `skcomplex.systems.engineering.common.signals`."""
 
-from typing import Annotated
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 from skcomplex.systems.engineering.common.signals import PulseInteraction
 
 
-class DecayElement(Element):
-    """Amount `c` that decays at rate 1."""
+class DecayInteraction(Interaction):
+    """Decay of the amount `c` at rate 1."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        c: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
-        self.c = c
+        self.target = target
 
-    def _get_laws(self, s):
-        return [RateLaw(s.c, -s.c)]
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            c = context.target.c
+            self.laws_ = [RateLaw(c.diff(context.t), -c)]
 
 
 def _run(pulse, until):
     """Return the trajectory of a decaying amount with pulses."""
-    system = CompositeSystem(elements=[DecayElement('body')], interactions=[pulse])
-    return simulate(system, until=until, dt=0.25)
+    body = Element('body', values={'c': 0.0})
+    system = System(elements=[body], interactions=[DecayInteraction('decay', target='body'), pulse])
+    return system.prepare().simulate(until=until, dt=0.25)
 
 
 def _dose(**arguments):
@@ -64,9 +65,10 @@ def test_periodic_pulses_without_a_count_fire_until_the_end():
 
 def test_pulses_on_a_group_set_every_member_from_its_own_state():
     """Test that pulses on a group set the state of every member from that member's own state."""
-    bodies = GroupElement('bodies', element=DecayElement, size=3, values={'c': [0.0, 1.0, 2.0]})
+    bodies = Element('bodies', size=3, values={'c': [0.0, 1.0, 2.0]})
     dose = PulseInteraction('dose', target='bodies', reset={'c': lambda s: s.target.c + 1.0}, times=(1.0,))
-    trajectory = simulate(CompositeSystem(elements=[bodies], interactions=[dose]), until=2.0, dt=0.25)
+    decay = DecayInteraction('decay', target='bodies')
+    trajectory = System(elements=[bodies], interactions=[decay, dose]).prepare().simulate(until=2.0, dt=0.25)
     expected = (np.array([0.0, 1.0, 2.0]) * np.exp(-1.0) + 1.0) * np.exp(-1.0)
     np.testing.assert_allclose(trajectory.get_values('bodies.c')[-1], expected, rtol=1e-3)
 

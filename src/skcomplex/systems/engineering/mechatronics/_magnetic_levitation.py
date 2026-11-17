@@ -7,25 +7,30 @@ Alternating impulses of a field push and pull the ball.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.spaces import BaseSpace
+from ....core.specs import ParameterSpec, Role
+from ....core.systems import BaseSystem, System
 from ..common.signals import PulseInteraction
 
 IMPULSE_PERIOD = 4.0
 
 
 class LevitatedBallElement(Element):
-    """Conductive ball levitated in a vacuum.
+    """Conductive ball levitated in a vacuum, with the velocity `v`.
 
-    Between impulses the velocity follows `v' = -b v`, and every impulse of the field changes it by `m` or `-m`.
+    The damping and the impulses of `MagneticLevitationSystem` change the velocity.
 
     Args:
         label:
@@ -34,45 +39,60 @@ class LevitatedBallElement(Element):
         v:
             The initial velocity.
 
+    Examples:
+        >>> from skcomplex.systems.engineering.mechatronics import LevitatedBallElement
+        >>> LevitatedBallElement('ball', v=0.1).v
+        0.1
+    """
+
+    def __init__(self, label: str, *, v: float = 0.0) -> None:
+        super().__init__(label)
+        self.v = v
+
+
+class DampingInteraction(Interaction):
+    """Damping that relaxes the velocity of the target at the rate `b`, as `v' = -b v`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element whose velocity relaxes.
+
         b:
             The damping rate.
 
-        m:
-            The strength of every impulse.
-
     Examples:
-        >>> from skcomplex.systems.engineering.mechatronics import LevitatedBallElement
-        >>> LevitatedBallElement('ball').m
-        0.2
+        >>> from skcomplex.systems.engineering.mechatronics import DampingInteraction
+        >>> DampingInteraction('damping', target='ball').b
+        1.0
     """
 
-    law_classes = (RateLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        v: Annotated[float, StateSpec()] = 0.0,
+        target: Role,
         b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        m: Annotated[float, ParameterSpec()] = 0.2,
     ) -> None:
         super().__init__(label)
-        self.v = v
+        self.target = target
         self.b = b
-        self.m = m
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the relaxation of the velocity.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the relaxation of the velocity.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The space the interaction inherits from its system, or the namespace of the target.
         """
-        return [RateLaw(s.v, -s.b * s.v)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            v = context.target.v
+            self.laws_: list[BaseComponent] = [RateLaw(v.diff(context.t), -context.b * v)]
 
 
 class MagneticLevitationSystem(BaseSystem):
@@ -124,15 +144,17 @@ class MagneticLevitationSystem(BaseSystem):
         self.b = b
         self.m = m
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_`, the ball, its damping, and the impulses that push and pull it."""
+        super()._prepare(context)
         start = self.m / (2 * math.cosh(self.b)) if self.v is None else self.v
-        push = {'v': lambda s: s.target.v + s.target.m}
-        pull = {'v': lambda s: s.target.v - s.target.m}
-        return CompositeSystem(
+        push = {'v': lambda s: s.target.v + self.m}
+        pull = {'v': lambda s: s.target.v - self.m}
+        self.system_ = System(
             self.label,
-            elements=[LevitatedBallElement('ball', v=start, b=self.b, m=self.m)],
+            elements=[LevitatedBallElement('ball', v=start)],
             interactions=[
+                DampingInteraction('damping', target='ball', b=self.b),
                 PulseInteraction('push', target='ball', reset=push, period=IMPULSE_PERIOD, start=3.0),
                 PulseInteraction('pull', target='ball', reset=pull, period=IMPULSE_PERIOD, start=1.0),
             ],
