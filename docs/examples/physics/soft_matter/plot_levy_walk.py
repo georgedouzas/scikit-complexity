@@ -15,7 +15,6 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import LevyWalkSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'levy_walk'
 
 system = LevyWalkSystem(n_walkers=500, sigma=1.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Superdiffusion and ballistic flights

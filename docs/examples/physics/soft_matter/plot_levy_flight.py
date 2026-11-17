@@ -14,7 +14,6 @@ are huge, so the cloud has a dense core and walkers scattered far away by single
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import LevyFlightSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'levy_flight'
 
 system = LevyFlightSystem(n_walkers=500, mu=1.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Superdiffusive spreading
