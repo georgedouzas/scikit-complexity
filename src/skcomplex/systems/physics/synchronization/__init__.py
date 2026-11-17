@@ -5,7 +5,12 @@ The package covers coupled phase oscillators, pulse-coupled oscillators, swarmal
 
 from ..common.oscillators import LinkElement
 from ._adaptive import AdaptiveCouplingInteraction, AdaptiveKuramotoSystem, AdaptiveLinkElement
-from ._amplitude_death import GlobalCouplingInteraction, HeterogeneousGlobalCouplingSystem, OscillatorDeathSystem
+from ._amplitude_death import (
+    GlobalCouplingInteraction,
+    HeterogeneousGlobalCouplingSystem,
+    OscillatorDeathSystem,
+    StuartLandauInteraction,
+)
 from ._chaos import (
     AggregateAveragingInteraction,
     AggregateAveragingSynchronizationSystem,
@@ -84,6 +89,7 @@ __all__: list[str] = [
     'RosslerFlowInteraction',
     'RosslerOscillatorElement',
     'SimplexCouplingInteraction',
+    'StuartLandauInteraction',
     'SwarmalatorCouplingInteraction',
     'SwarmalatorElement',
     'SwarmalatorsSystem',

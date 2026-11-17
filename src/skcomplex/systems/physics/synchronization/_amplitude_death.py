@@ -7,6 +7,7 @@ The coupling of globally coupled limit-cycle oscillators restabilizes their comm
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -16,23 +17,80 @@ from sage.sets.real_set import RealSet
 from scipy import stats
 
 from ....core.components import Observable
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import CouplingInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import count, total
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec
-from ..common.oscillators import StuartLandauElement
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 QUANTILE_GRID_SIZE = 20001
 DISTRIBUTIONS = ('lorentzian', 'quartic')
 
 
-class GlobalCouplingInteraction(CouplingInteraction):
+class StuartLandauInteraction(Interaction):
+    """Stuart-Landau flow of `z = x + i y`, `z' = tau ((mu + i omega) z - kappa (1 + i beta) |z|^2 z)`.
+
+    The flow is the normal form of a supercritical Hopf bifurcation. For `mu > 0` the oscillator settles on the limit
+    cycle of radius `sqrt(mu / kappa)`, which it turns at the frequency `tau (omega - beta mu)`, and for `mu < 0` it
+    decays to the fixed point 0. The target holds the parts `x` and `y` and the parameters `mu`, `omega`, `beta`,
+    `kappa`, and `tau`, one of each per member of a group, as for a laser near threshold, a chemical oscillator, or a
+    neuron that starts to fire.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the oscillator or the group of oscillators.
+
+    Examples:
+        >>> import math
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.physics.synchronization import StuartLandauInteraction
+        >>> values = {'x': 0.1, 'y': 0.0, 'mu': 4.0, 'omega': 1.0, 'beta': 0.0, 'kappa': 1.0, 'tau': 1.0}
+        >>> flow = StuartLandauInteraction('flow', target='oscillator')
+        >>> system = System(elements=[Element('oscillator', values=values)], interactions=[flow])
+        >>> trajectory = system.prepare().simulate(until=10.0, dt=0.5)
+        >>> round(math.hypot(trajectory.get_values('oscillator.x')[-1], trajectory.get_values('oscillator.y')[-1]), 4)
+        2.0
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the real and imaginary parts of `z`.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context.target, context.t
+            saturation = s.kappa * (s.x**2 + s.y**2)
+            self.laws_ = [
+                RateLaw(s.x.diff(t), s.tau * (s.mu * s.x - s.omega * s.y - saturation * (s.x - s.beta * s.y))),
+                RateLaw(s.y.diff(t), s.tau * (s.mu * s.y + s.omega * s.x - saturation * (s.y + s.beta * s.x))),
+            ]
+
+
+class GlobalCouplingInteraction(Interaction):
     """Diffusive coupling of one state of every member to the mean of the group.
 
     The coupling is `x_i' += K (mean_j x_j - x_i)`.
 
-    The mean runs over every member, the member itself included.
+    The mean runs over every member, the member itself included, as for oscillators that share one medium, such as
+    cells that exchange a chemical or lasers that share a cavity.
 
     Args:
         label:
@@ -48,39 +106,37 @@ class GlobalCouplingInteraction(CouplingInteraction):
             The coupling strength.
 
     Examples:
-        >>> from types import SimpleNamespace
-        >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.systems.physics.synchronization import GlobalCouplingInteraction
-        >>> coupling = GlobalCouplingInteraction('coupling', target='oscillators', state='y').prepare()
-        >>> member, other = SimpleNamespace(y=var('y')), SimpleNamespace(y=var('z'))
-        >>> coupling.function(SimpleNamespace(K=var('K'), member=member, other=other))
-        -K*(y - z)
+        >>> GlobalCouplingInteraction('coupling', target='oscillators', state='y').state
+        'y'
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'x',
-        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        K: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            read=state,
-            write=state,
-            function=self._pull,
-            reduce='mean',
-            mode='group',
-            include_self=True,
-        )
+        super().__init__(label)
+        self.target = target
         self.state = state
         self.K = K
 
-    def _pull(self, namespace: SimpleNamespace) -> Expression:
-        """Return the pull `K (x_j - x_i)` of one other member."""
-        return namespace.K * (getattr(namespace.other, self.state) - getattr(namespace.member, self.state))
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the pull of the state of every member towards the mean of the group.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, other = getattr(context.target, self.state), getattr(context.target.other, self.state)
+            self.laws_ = [RateLaw(x.diff(context.t), total(context.K * (other - x)) / count())]
 
 
 def _get_amplitude(member: SimpleNamespace) -> Expression:
@@ -125,13 +181,19 @@ class OscillatorDeathSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The distribution is neither `'lorentzian'` nor `'quartic'`.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import OscillatorDeathSystem
-        >>> OscillatorDeathSystem(4, distribution='quartic').prepare().system_.elements[0].prepare().size_
+        >>> OscillatorDeathSystem(4, distribution='quartic').prepare().system_.elements[0].size
         4
     """
 
@@ -174,8 +236,10 @@ class OscillatorDeathSystem(BaseSystem):
         distribution: str = 'lorentzian',
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_oscillators = n_oscillators
         self.K = K
         self.width = width
@@ -197,22 +261,30 @@ class OscillatorDeathSystem(BaseSystem):
         message = f'The distribution must be one of {DISTRIBUTIONS}, got {distribution!r}.'
         raise ValidationError(message)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of globally coupled Stuart-Landau oscillators.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValidationError:
+                The distribution is neither `'lorentzian'` nor `'quartic'`.
+        """
+        super()._prepare(context)
         omegas = self._get_frequency_quantiles(self.n_oscillators, self.width, self.distribution)
         x, y = OscillatorDeathSystem._spread_on_circle(self.n_oscillators, self.random_state)
-        oscillators = GroupElement(
-            'oscillators',
-            element=StuartLandauElement,
-            size=self.n_oscillators,
-            values={'x': x, 'y': y, 'mu': 1.0, 'omega': omegas, 'tau': 1.0},
-        )
-        return CompositeSystem(
+        values = {'x': x, 'y': y, 'mu': 1.0, 'omega': omegas, 'beta': 0.0, 'kappa': 1.0, 'tau': 1.0}
+        self.system_ = System(
             self.label,
-            elements=[oscillators],
+            elements=[Element('oscillators', values=values, size=self.n_oscillators)],
             interactions=[
-                GlobalCouplingInteraction(f'coupling_{state}', target='oscillators', state=state, K=self.K)
-                for state in 'xy'
+                StuartLandauInteraction('flow', target='oscillators'),
+                *[
+                    GlobalCouplingInteraction(f'coupling_{state}', target='oscillators', state=state, K=self.K)
+                    for state in 'xy'
+                ],
             ],
         )
 
@@ -263,6 +335,12 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.synchronization import HeterogeneousGlobalCouplingSystem
         >>> HeterogeneousGlobalCouplingSystem(4).prepare().system_.elements[0].values['tau']
@@ -292,8 +370,10 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
         heterogeneity: float = 0.8,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_systems = n_systems
         self.k = k
         self.beta = beta
@@ -301,22 +381,34 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
         self.heterogeneity = heterogeneity
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of globally coupled oscillators with heterogeneous time scales.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         taus = 1 + self.heterogeneity * (2 * (np.arange(self.n_systems) + 1 / 2) / self.n_systems - 1)
         x, y = OscillatorDeathSystem._spread_on_circle(self.n_systems, self.random_state)
         radius = math.sqrt(abs(self.beta))
-        systems = GroupElement(
-            'systems',
-            element=StuartLandauElement,
-            size=self.n_systems,
-            values={'x': radius * x, 'y': radius * y, 'mu': self.beta, 'omega': self.gamma, 'tau': taus},
-        )
-        return CompositeSystem(
+        values = {
+            'x': radius * x,
+            'y': radius * y,
+            'mu': self.beta,
+            'omega': self.gamma,
+            'beta': 0.0,
+            'kappa': 1.0,
+            'tau': taus,
+        }
+        self.system_ = System(
             self.label,
-            elements=[systems],
+            elements=[Element('systems', values=values, size=self.n_systems)],
             interactions=[
-                GlobalCouplingInteraction(f'coupling_{state}', target='systems', state=state, K=self.k)
-                for state in 'xy'
+                StuartLandauInteraction('flow', target='systems'),
+                *[
+                    GlobalCouplingInteraction(f'coupling_{state}', target='systems', state=state, K=self.k)
+                    for state in 'xy'
+                ],
             ],
         )
