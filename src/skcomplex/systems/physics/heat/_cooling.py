@@ -6,21 +6,24 @@ A cup of coffee relaxes to the temperature of the room.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
-from ..common.particles import RelaxationTimeInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class CoffeeCupElement(Element):
-    """Cup of coffee at the temperature `T` in a room at the temperature `room`.
-
-    The cup exchanges heat at the rate `k`.
+    """Cup of coffee at the temperature `T`.
 
     Args:
         label:
@@ -29,6 +32,29 @@ class CoffeeCupElement(Element):
         T:
             The initial temperature of the coffee.
 
+    Examples:
+        >>> from skcomplex.systems.physics.heat import CoffeeCupElement
+        >>> CoffeeCupElement('coffee', T=60.0).T
+        60.0
+    """
+
+    def __init__(self, label: str, *, T: float = 90.0) -> None:
+        super().__init__(label)
+        self.T = T
+
+
+class NewtonCoolingInteraction(Interaction):
+    """Newton cooling of a body towards the temperature of the room.
+
+    The temperature `T` of the target follows `T' = -k (T - room)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the body that cools.
+
         room:
             The temperature of the room.
 
@@ -36,23 +62,37 @@ class CoffeeCupElement(Element):
             The rate of heat exchange.
 
     Examples:
-        >>> from skcomplex.systems.physics.heat import CoffeeCupElement
-        >>> CoffeeCupElement('coffee', k=0.2).k
+        >>> from skcomplex.systems.physics.heat import NewtonCoolingInteraction
+        >>> NewtonCoolingInteraction('cooling', target='coffee', k=0.2).k
         0.2
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        T: Annotated[float, StateSpec()] = 90.0,
-        room: Annotated[float, ParameterSpec()] = 20.0,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        target: Role,
+        room: float = 20.0,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(label)
-        self.T = T
+        self.target = target
         self.room = room
         self.k = k
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate of the temperature of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            T = context.target.T
+            self.laws_ = [RateLaw(T.diff(context.t), -context.k * (T - context.room))]
 
 
 class CoolingCoffeeSystem(BaseSystem):
@@ -79,7 +119,8 @@ class CoolingCoffeeSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.heat import CoolingCoffeeSystem
-        >>> CoolingCoffeeSystem(T=5.0).prepare().system_.elements[0].T
+        >>> trajectory = CoolingCoffeeSystem(T=5.0).prepare().simulate(until=10.0)
+        >>> round(float(trajectory.get_values('coffee.T')[0]), 1)
         5.0
     """
 
@@ -102,20 +143,16 @@ class CoolingCoffeeSystem(BaseSystem):
         self.room = room
         self.k = k
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a cup of coffee whose temperature relaxes to that of the room.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a cup of coffee whose temperature relaxes to that of the room.
 
-        The temperature follows `T' = -k (T - T_room)`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        cooling = RelaxationTimeInteraction(
-            'cooling',
-            target='coffee',
-            state='T',
-            goal=lambda s: s.target.room,
-            time=lambda s: 1 / s.target.k,
-        )
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[CoffeeCupElement('coffee', T=self.T, room=self.room, k=self.k)],
-            interactions=[cooling],
+            elements=[CoffeeCupElement('coffee', T=self.T)],
+            interactions=[NewtonCoolingInteraction('cooling', target='coffee', room=self.room, k=self.k)],
         )
