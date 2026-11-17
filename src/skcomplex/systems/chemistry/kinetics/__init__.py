@@ -20,6 +20,7 @@ from ._reactions import (
 from ._reactors import (
     CatalystPelletElement,
     CatalystPelletSystem,
+    ElectrodeKineticsInteraction,
     PulsedElectrochemicalReactorSystem,
     PulsedElectrodeElement,
 )
@@ -34,6 +35,7 @@ __all__: list[str] = [
     'CubicAutocatalysisSystem',
     'CyclicCellElement',
     'CyclicCellularAutomatonSystem',
+    'ElectrodeKineticsInteraction',
     'HodgepodgeCellElement',
     'HodgepodgeSystem',
     'MassExchangeInteraction',

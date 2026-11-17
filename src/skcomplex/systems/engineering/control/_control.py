@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -15,9 +15,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, CrossingInteraction
 from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import clip, derivative, sign, step, where
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ConnectorSpec, DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.electrical import ELECTRICAL, GroundElement, TwoPinElement, VoltageSourceElement
@@ -771,10 +771,11 @@ class HeatedRoomSystem(BaseSystem):
         self.wall_conductance = wall_conductance
         self.surface_conductance = surface_conductance
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         upper, lower = self.setting + self.band / 2, self.setting - self.band / 2
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 VoltageSourceElement('source', V=self.V),

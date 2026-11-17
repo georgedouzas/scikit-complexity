@@ -6,6 +6,7 @@ The fields lie along a road.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,13 +14,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, erf, exp, oo, pi, sqrt, tanh
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, FiniteVolumeSpec
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian, shifted
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import SSPRKSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ..common.traffic import SpeedAdaptationInteraction
 
 KERNER_KONHAUSER_OFFSET = 3.72e-6
@@ -219,7 +221,6 @@ class LighthillWhithamRichardsSystem(BaseSystem):
     references = ('Lighthill and Whitham 1955', 'Richards 1956', 'Chowdhury, Santen, and Schadschneider 2000')
     until = 1.0
     dt = 0.05
-    solver = SSPRKSolver()
 
     def __init__(
         self,
@@ -244,8 +245,9 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         road = s.target
         return road.vmax * road.rho * (1 - road.rho / road.rho_max)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         density = np.where(np.arange(self.n) < self.n // 2, self.upstream, self.downstream).astype(float)
         values = {'rho': density, 'vmax': self.vmax, 'rho_max': self.rho_max}
         space = LatticeSpace(self.n, spacing=1 / self.n)
@@ -260,7 +262,7 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         )
         flux = self._get_lighthill_whitham_richards_flux
         density = ConservationInteraction('density', target='road', state='rho', flux=flux)
-        return CompositeSystem(self.label, elements=[road], interactions=[density])
+        self.system_ = System(self.label, elements=[road], interactions=[density], solver=SSPRKSolver())
 
 
 class PayneSystem(BaseSystem):
@@ -305,7 +307,6 @@ class PayneSystem(BaseSystem):
     references = ('Payne 1971', 'Chowdhury, Santen, and Schadschneider 2000')
     until = 1.0
     dt = 0.05
-    solver = SSPRKSolver()
 
     @staticmethod
     def _get_density_bump(n: int, density: float, bump: float) -> np.ndarray:
@@ -335,8 +336,9 @@ class PayneSystem(BaseSystem):
         self.rho_max = rho_max
         self.tau = tau
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         density = self.density
         rho = PayneSystem._get_density_bump(self.n, density, self.bump)
         values = {
@@ -368,7 +370,12 @@ class PayneSystem(BaseSystem):
             goal=lambda s: s.target.rho * s.target.vmax * (1 - s.target.rho / s.target.rho_max),
             time=lambda s: s.target.tau,
         )
-        return CompositeSystem(self.label, elements=[road], interactions=[density, flow, relaxation])
+        self.system_ = System(
+            self.label,
+            elements=[road],
+            interactions=[density, flow, relaxation],
+            solver=SSPRKSolver(),
+        )
 
 
 class KernerKonhauserSystem(BaseSystem):
@@ -422,7 +429,6 @@ class KernerKonhauserSystem(BaseSystem):
     references = ('Kerner and Konhäuser 1993', 'Chowdhury, Santen, and Schadschneider 2000')
     until = 100.0
     dt = 0.2
-    solver = SSPRKSolver(cfl=0.15)
 
     def __init__(
         self,
@@ -462,8 +468,9 @@ class KernerKonhauserSystem(BaseSystem):
         """Return the equilibrium speed of the Kerner-Konhäuser system."""
         return V0 * (1 / (1 + np.exp((rho / rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         density = self.density
         rho = PayneSystem._get_density_bump(self.n, density, self.bump)
         values = {
@@ -503,7 +510,12 @@ class KernerKonhauserSystem(BaseSystem):
             state='q',
             rate=lambda s: s.target.mu * laplacian(s.target.q / s.target.rho),
         )
-        return CompositeSystem(self.label, elements=[road], interactions=[density, flow, relaxation, viscosity])
+        self.system_ = System(
+            self.label,
+            elements=[road],
+            interactions=[density, flow, relaxation, viscosity],
+            solver=SSPRKSolver(cfl=0.15),
+        )
 
 
 class GktTrafficSystem(BaseSystem):
@@ -568,7 +580,6 @@ class GktTrafficSystem(BaseSystem):
     references = ('Treiber, Hennecke, and Helbing 1999', 'arXiv:cond-mat/0012229')
     until = 1.0
     dt = 1 / 60
-    solver = SSPRKSolver(cfl=0.4)
 
     @staticmethod
     def _get_variance_prefactor(road: SimpleNamespace, rho: object) -> Expression:
@@ -653,8 +664,9 @@ class GktTrafficSystem(BaseSystem):
         squared = prefactors[1] / prefactors[0] * ((1 / rho - 1 / road.rho_max) / road.T) ** 2
         return np.asarray(squared / (2 * road.V0) * (np.sqrt(1 + 4 * road.V0**2 / squared) - 1))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         centers = (np.arange(self.n) + 0.5) * self.length / self.n
         start, width, wake = 0.3 * self.length, 0.20125, 0.805
         rho = self.density + self.amplitude * (
@@ -684,4 +696,9 @@ class GktTrafficSystem(BaseSystem):
             flux=self._get_gkt_momentum_flux,
             source=self._get_gkt_relaxation,
         )
-        return CompositeSystem(self.label, elements=[road], interactions=[vehicles, momentum])
+        self.system_ = System(
+            self.label,
+            elements=[road],
+            interactions=[vehicles, momentum],
+            solver=SSPRKSolver(cfl=0.4),
+        )

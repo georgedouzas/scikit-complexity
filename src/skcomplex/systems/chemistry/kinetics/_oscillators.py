@@ -3,16 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
 from ._mass_exchange import MassExchangeInteraction
@@ -178,9 +180,10 @@ class BrusselatorODESystem(BaseSystem):
         self.a = a
         self.b = b
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the reactor and the four reactions of the Brusselator."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the reactor and the four reactions of the Brusselator."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[BrusselatorReactionElement('reactor', u=self.u, v=self.v, a=self.a, b=self.b)],
             interactions=[
@@ -247,7 +250,6 @@ class OregonatorSystem(BaseSystem):
     references = ('Field and Noyes 1974', 'Field, Körös, and Noyes 1972', 'Tyson 1985', 'Trzaska 2023')
     until = 30.0
     dt = 0.05
-    solver = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-9)
 
     def __init__(
         self,
@@ -303,8 +305,9 @@ class OregonatorSystem(BaseSystem):
         """Return the propensity `x^2` of the disproportionation of bromous acid."""
         return s.target.x**2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the reactor and the five reactions of the Oregonator."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the reactor and the five reactions of the Oregonator."""
+        super()._prepare(context)
         reactor = OregonatorElement(
             'reactor',
             x=self.x,
@@ -315,7 +318,7 @@ class OregonatorSystem(BaseSystem):
             q=self.q,
             f=self.f,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[reactor],
             interactions=[
@@ -351,6 +354,7 @@ class OregonatorSystem(BaseSystem):
                     products={'y': self._get_y_yield},
                 ),
             ],
+            solver=ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-9),
         )
 
 
@@ -412,12 +416,13 @@ class CubicAutocatalysisSystem(BaseSystem):
         """Return the residence time `1 / F` of the continuously fed reactor."""
         return 1 / s.target.F
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the reactor, the autocatalysis, the decay, and the flows.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the reactor, the autocatalysis, the decay, and the flows.
 
         The flows run through the reactor.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[CubicAutocatalysisElement('reactor', a=self.a, b=self.b, F=self.F, k=self.k)],
             interactions=[

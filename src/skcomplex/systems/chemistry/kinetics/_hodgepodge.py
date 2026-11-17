@@ -10,11 +10,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 
@@ -149,12 +150,13 @@ class HodgepodgeSystem(BaseSystem):
         worsening = np.minimum(np.floor((level + neighbours.sum(axis=0)) / (infected + ill + 1)) + g, n)
         return np.where(level <= 0, np.minimum(healthy, n), np.where(level >= n, 0.0, worsening))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the lattice of cells with random levels and the rule of the infection."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the lattice of cells with random levels and the rule of the infection."""
+        super()._prepare(context)
         shape = tuple(self.shape)
         levels = np.random.default_rng(self.random_state).integers(0, int(self.n) + 1, size=shape).astype(float)
         values = {'level': levels, 'n': self.n, 'k1': self.k1, 'k2': self.k2, 'g': self.g}
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 GroupElement(

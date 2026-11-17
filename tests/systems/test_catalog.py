@@ -92,10 +92,11 @@ def test_all_systems_lists_system_classes_by_field_and_topics():
     code = """
 import sys
 from skcomplex.systems import all_systems
-from skcomplex.core.components.systems import BaseSystem
+from skcomplex.core.components.systems import BaseSystem as OldBaseSystem
+from skcomplex.core.systems import BaseSystem
 listed = all_systems(field='chemistry/pattern_formation')
 assert [name for name, _ in listed] == ['BrusselatorSystem', 'GrayScottSystem', 'SchnakenbergSystem'], listed
-assert all(issubclass(system, BaseSystem) and system.__name__ == name for name, system in listed)
+assert all(issubclass(system, BaseSystem | OldBaseSystem) and system.__name__ == name for name, system in listed)
 loaded = [name for name in sys.modules if name.startswith('skcomplex.systems.chemistry.kinetics')]
 assert loaded == [], loaded
 assert [name for name, _ in all_systems(field='chemistry', topics=('oscillation', 'pde'))] == ['BrusselatorSystem']
@@ -255,10 +256,12 @@ def test_seeded_runs_of_a_stochastic_system_repeat():
     assert not np.array_equal(gas, simulate(IdealGasSystem(random_state=None), random_state=0).get_values('gas.x_d1'))
     counts = PoissonProcessSystem().prepare().simulate(random_state=0).get_values('counters.count')
     np.testing.assert_array_equal(
-        counts, PoissonProcessSystem().prepare().simulate(random_state=0).get_values('counters.count'),
+        counts,
+        PoissonProcessSystem().prepare().simulate(random_state=0).get_values('counters.count'),
     )
     assert not np.array_equal(
-        counts, PoissonProcessSystem().prepare().simulate(random_state=None).get_values('counters.count'),
+        counts,
+        PoissonProcessSystem().prepare().simulate(random_state=None).get_values('counters.count'),
     )
 
 

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -12,8 +13,8 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ..common.mechanics import SpringDamperInteraction
 
 
@@ -159,8 +160,9 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
         self.d = d
         self.C = C
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         harvester = PiezoHarvesterElement(
             'harvester',
             m1=self.m1,
@@ -182,4 +184,4 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
             damping='b',
             divisor={'y1': 'm1', 'y2': 'm2'},
         )
-        return CompositeSystem(self.label, elements=[harvester], interactions=[suspension])
+        self.system_ = System(self.label, elements=[harvester], interactions=[suspension])

@@ -16,8 +16,6 @@ against the traffic.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.traffic import GktTrafficSystem
 
@@ -25,7 +23,7 @@ SYSTEM = 'gkt_traffic'
 
 system = GktTrafficSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, dt=1 / 60, solver=SSPRKSolver(cfl=0.4), observers=[observer])
+trajectory = system.prepare().simulate(dt=1 / 60, observers=[observer])
 
 # %%
 # Fronts that move upstream
