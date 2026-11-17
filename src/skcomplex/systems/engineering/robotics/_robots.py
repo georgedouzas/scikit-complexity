@@ -21,7 +21,8 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.components.laws.utils import delayed, where
 from ....core.components.spaces import ContinuousSpace
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.systems import BaseSystem, System
 
@@ -402,6 +403,12 @@ class LightSeekingRobotsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.robotics import LightSeekingRobotsSystem
         >>> LightSeekingRobotsSystem(4).prepare().system_.elements[0].prepare().size_
@@ -426,8 +433,10 @@ class LightSeekingRobotsSystem(BaseSystem):
         tau: float = 1.0,
         R: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_robots = n_robots
         self.delay = delay
         self.V0 = V0
@@ -498,6 +507,12 @@ class SwarmtaxisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.robotics import SwarmtaxisSystem
         >>> SwarmtaxisSystem(5).prepare().system_.elements[0].prepare().size_
@@ -521,8 +536,10 @@ class SwarmtaxisSystem(BaseSystem):
         avoid_shadowed: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_robots = n_robots
         self.size = size
         self.spread = spread

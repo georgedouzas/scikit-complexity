@@ -35,7 +35,8 @@ from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from .._utils import bound_labels
 from ._compilation import Compilation
 
-RESERVED = ('label', 'visual', 'size', 'space', 'values')
+RESERVED = ('label', 'visual', 'size', 'space', 'values', 'on')
+LINKS = ('edges', 'hyperedges')
 BOOLEAN = FiniteEnumeratedSet([0, 1])
 MEMBERSHIP = frozenset(
     {
@@ -59,7 +60,8 @@ class _StateInference:
     law changes it. An element with `size` or `space` is a group of members, and a value given as an
     array holds one value per member, such as the heights of `1000` molecules, while a single value is shared. On a
     lattice, a network, or a mesh, the members are the sites of a field, so laws can read `laplacian(u)` or a sum over
-    neighbours.
+    neighbours. With `on='edges'` or `on='hyperedges'` the members sit on the links of a network instead, such as the
+    signed links of triadic percolation.
     """
 
     def __init__(self, census: Callable[[CompositeSystem], Compilation]) -> None:
@@ -117,6 +119,8 @@ class _StateInference:
         """
         if element.size is not None:
             return int(element.size)
+        if element.space is not None and element.on in LINKS:
+            return element.space.prepare()._count_parts(element.on, None)
         if element.space is not None and not element.space._has_sites():
             return 1
         if element.space is not None:
@@ -124,10 +128,15 @@ class _StateInference:
         return None
 
     @staticmethod
-    def _get_axes(element: Element) -> tuple[str, ...]:
-        """Return the axes of the continuous space of an element, or none."""
+    def _get_axes(element: Element, agents: bool = False) -> tuple[str, ...]:
+        """Return the axes of the continuous space of an element, or none.
+
+        The agents of a lattice also have the axes of its cells, such as `x` and `y`, which place them.
+        """
         space = element.space
-        return space.prepare().axes_ if isinstance(space, ContinuousSpace) else ()
+        if isinstance(space, ContinuousSpace) or (agents and isinstance(space, LatticeSpace)):
+            return space.prepare().axes_
+        return ()
 
     @staticmethod
     def _get_member_value(element: Element, name: str, value: object, count: int | None) -> object:
@@ -158,7 +167,8 @@ class _StateInference:
         """Return the domain of a value from its annotation or its Python type.
 
         A value without an annotation, such as one given through `values`, takes the domain of its type, so `3` is an
-        integer and `0.5 + 1j` is complex.
+        integer and `0.5 + 1j` is complex. The annotation `object` says nothing of the kind, so a value annotated so,
+        such as a point that may be one number or an array of complex numbers, also takes the domain of its type.
         """
         if get_origin(annotation) is not None and get_args(annotation):
             for item in get_args(annotation)[1:]:
@@ -167,7 +177,7 @@ class _StateInference:
                 if hasattr(item, '__contains__') and not isinstance(item, str):
                     return item
             annotation = get_args(annotation)[0]
-        annotated = isinstance(annotation, type) and annotation is not inspect.Parameter.empty
+        annotated = isinstance(annotation, type) and annotation not in {inspect.Parameter.empty, object}
         kind = annotation if annotated else type(value)
         if kind is bool:
             return BOOLEAN
@@ -274,6 +284,23 @@ class _StateInference:
         return any(isinstance(value, Expression) and bool(value.find(marker)) for value in law._get_values())
 
     @staticmethod
+    def _get_derivative_orders(law: BaseLaw, named: Mapping[str, str]) -> dict[str, int]:
+        """Return the highest derivative a law reads of every value, by its dotted name.
+
+        An equation such as `L q'' + R q' + q / C == 0` reads the second derivative of `q`, so `q` has order 2.
+        """
+        orders: dict[str, int] = {}
+        for value in law._get_values():
+            if not isinstance(value, Expression):
+                continue
+            for found in value.find(derivative(SR.wild(0), SR.wild(1))):
+                state, steps = found.operands()
+                if str(state) in named and SR(steps).is_integer():
+                    name = named[str(state)]
+                    orders[name] = max(int(steps), orders.get(name, 0))
+        return orders
+
+    @staticmethod
     def _get_order(name: str, order: float, known: float | None) -> float:
         """Return the higher of two orders of a value, both integers or equal.
 
@@ -300,6 +327,8 @@ class _StateInference:
 
         A value that only constraints without derivatives determine has order 0, as the potential of a circuit node
         whose currents must balance, and a value that rate laws give a fractional derivative has its fractional order.
+        A value whose derivative of order `k` a constraint reads has order `k` at least, as the charge of
+        `L q'' + R q' + q / C == 0`.
         """
         census = Compilation._get_required(compilation.census, 'census')
         layout = Compilation._get_required(compilation.layout, 'layout')
@@ -321,6 +350,9 @@ class _StateInference:
                 order = 1 if _StateInference._has_derivative(law) else 0
             for name in names:
                 orders[name] = _StateInference._get_order(name, order, orders.get(name))
+            if isinstance(law, ConstraintLaw):
+                for name, steps in _StateInference._get_derivative_orders(law, named).items():
+                    orders[name] = _StateInference._get_order(name, steps, orders.get(name))
         return orders, lags
 
     def get_declared(self, system: CompositeSystem) -> CompositeSystem:
@@ -344,6 +376,7 @@ class _StateInference:
         orders, lags = self._get_orders(compilation)
         kinds = self._get_topology_kinds(compilation)
         agents = self._get_agent_groups(compilation)
+        steps = self._get_steps(compilation)
 
         def declare(element: Element, path: str) -> list[BaseElement]:
             return self._get_declared_elements(
@@ -352,9 +385,38 @@ class _StateInference:
                 lambda name: lags.get(f'{path}.{name}', 0),
                 kinds,
                 agents=path in agents,
+                steps={
+                    name.removeprefix(f'{path}.'): moved.removeprefix(f'{path}.')
+                    for name, moved in steps.items()
+                    if name.startswith(f'{path}.') and moved.startswith(f'{path}.')
+                },
             )
 
         return self._replace(system, declare)
+
+    @staticmethod
+    def _get_steps(compilation: Compilation) -> dict[str, str]:
+        """Return what every update law adds to its target, as `v` in `x <- x + v`.
+
+        The dotted name of each such value maps to that of the value it moves, so the step of a position in discrete
+        time is its velocity.
+        """
+        census = Compilation._get_required(compilation.census, 'census')
+        layout = Compilation._get_required(compilation.layout, 'layout')
+        named = {
+            str(block.symbols[variable]): entry.name
+            for block in layout.blocks.values()
+            for variable, entry in block.entries.items()
+        }
+        steps: dict[str, str] = {}
+        for record in census.records:
+            law = record.law
+            if not isinstance(law, UpdateLaw) or not isinstance(law.value, Expression) or str(law.target) not in named:
+                continue
+            step = str((law.value - SR(law.target)).expand())
+            if step in named:
+                steps[named[step]] = named[str(law.target)]
+        return steps
 
     @staticmethod
     def _get_topology_kinds(compilation: Compilation) -> frozenset[str]:
@@ -391,23 +453,28 @@ class _StateInference:
         probing: bool = False,
         *,
         agents: bool = False,
+        steps: Mapping[str, str] | None = None,
     ) -> list[BaseElement]:
         """Return the declared element of a plain element, or a group of declared members.
 
         On a network whose edges the laws change, the members are a variable group of nodes, with a variable group on
         the edges named after the element, such as `voters_edges`. When the laws also add or remove nodes, every value
-        of a node is a state, since it comes and goes with its node, and the group has room for twice its nodes. The
+        of a node is a state, since it comes and goes with its node, and the group grows as a Python list does. The
         members of a group that runs agent rules are agents, whose rules may change every value and add or remove
         members, so every value is a state and the group is variable, and a single element that runs them is a group of
-        one agent. A value named after an axis of a continuous space is a position, also when no law changes it. The
-        probe that finds the orders reads no starting values of derivatives or past values.
+        one agent. A value named after an axis of a continuous space, or of the cells of a lattice for agents, is a
+        position, also when no law changes it, and the value an update law adds to a position at every step, as `v` in
+        `x <- x + v`, is its velocity. An element on the edges or hyperedges of a network is a group with one member on
+        each. The probe that finds the orders reads no starting values of derivatives or past values.
         """
         values = self._get_values(element)
         starting = {} if probing else self._get_starting(element, values)
         count = self._get_count(element) or (1 if agents else None)
-        network = bool(kinds) and isinstance(element.space, NetworkSpace)
+        on = next((part for part in LINKS if element.on == part), None)
+        network = bool(kinds) and isinstance(element.space, NetworkSpace) and on is None
         growing = network and bool(kinds & MEMBERSHIP)
-        axes = self._get_axes(element)
+        axes = self._get_axes(element, agents)
+        velocities = {name for name, moved in (steps or {}).items() if moved in axes}
         variables = {}
         for name, value in values.items():
             member = self._get_member_value(element, name, value, count)
@@ -419,7 +486,7 @@ class _StateInference:
                 1 if order(name) is None and kept else order(name),
                 lags=lags(name),
                 starting=starting.get(name),
-                role='position' if name in axes else None,
+                role='position' if name in axes else 'velocity' if name in velocities else None,
             )
         if count is None:
             return [DeclaredElement(element.label, variables=variables)]
@@ -443,7 +510,16 @@ class _StateInference:
                 variable=True,
             )
             return [nodes, edges]
-        if isinstance(element.space, LatticeSpace | NetworkSpace):
+        if on is not None:
+            group = GroupElement(
+                element.label,
+                element=DeclaredElement,
+                space=element.space,
+                on=on,
+                values=values,
+            )
+            return [group]
+        if isinstance(element.space, LatticeSpace | NetworkSpace) and element.size is None:
             mesh = isinstance(element.space, CellComplexSpace) and element.space._is_mesh()
             discretization = 'finite-element' if mesh else 'finite-difference'
             field = FieldElement(
@@ -459,7 +535,7 @@ class _StateInference:
             element=DeclaredElement,
             size=count,
             space=element.space,
-            on=None if element.space is None else 'sites',
+            on=None if element.space is None or isinstance(element.space, LatticeSpace) else 'sites',
             values=values,
             variable=agents,
         )

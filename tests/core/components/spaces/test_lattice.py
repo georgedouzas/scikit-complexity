@@ -22,6 +22,15 @@ def test_lattice_space_prepares_its_facts():
 
 
 @pytest.mark.parametrize(
+    ('shape', 'axes'),
+    [(10, ('x',)), ((4, 5), ('x', 'y')), ((2, 2, 2, 2), ('x0', 'x1', 'x2', 'x3'))],
+)
+def test_lattice_space_names_the_coordinates_of_its_cells(shape, axes):
+    """Test that the coordinates of a cell are named `x`, `y`, and `z`, or `x0`, `x1`, and so on beyond three."""
+    assert LatticeSpace(shape).prepare().axes_ == axes
+
+
+@pytest.mark.parametrize(
     ('space', 'message'),
     [
         (LatticeSpace((-1, 4)), 'positive number of sites'),

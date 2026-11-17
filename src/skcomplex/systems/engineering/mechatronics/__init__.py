@@ -9,8 +9,8 @@ from ._mechatronics import (
     DcMotorSystem,
     InertiaElement,
     MotorCouplingInteraction,
-    QuarterCarElement,
     QuarterCarSystem,
+    TireInteraction,
 )
 from ._vibrating_table import VibratingTableSystem
 
@@ -22,7 +22,7 @@ __all__: list[str] = [
     'LevitatedBallElement',
     'MagneticLevitationSystem',
     'MotorCouplingInteraction',
-    'QuarterCarElement',
     'QuarterCarSystem',
+    'TireInteraction',
     'VibratingTableSystem',
 ]

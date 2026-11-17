@@ -12,14 +12,13 @@ triangles of every size: a one-dimensional rule of three neighbours that produce
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
 
 SYSTEM = 'elementary_automaton'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ElementaryAutomatonSystem(rule=30, size=201), observers=[observer])
+trajectory = ElementaryAutomatonSystem(rule=30, size=201).prepare().simulate(observers=[observer])
 
 # %%
 # Regular and random rules
@@ -29,7 +28,7 @@ trajectory = simulate(ElementaryAutomatonSystem(rule=30, size=201), observers=[o
 # Rule 30 should instead fill its triangle with a density of live cells near 1/2.
 
 rule30 = trajectory.get_lattice('cells.alive')
-rule90 = simulate(ElementaryAutomatonSystem(rule=90, size=201)).get_lattice('cells.alive')
+rule90 = ElementaryAutomatonSystem(rule=90, size=201).prepare().simulate().get_lattice('cells.alive')
 generations = np.arange(rule90.shape[0])
 fig, (counts, density) = plt.subplots(1, 2, figsize=(11, 4))
 counts.semilogy(generations, rule90.sum(axis=1), 'o', markersize=3, label='rule 90, simulated')

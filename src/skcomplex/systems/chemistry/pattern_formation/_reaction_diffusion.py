@@ -15,7 +15,8 @@ from ....core.components.elements import FieldElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.engine.solvers import RK4Solver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
@@ -227,6 +228,12 @@ class BrusselatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
         >>> BrusselatorSystem((8, 8), b=2.5).prepare().system_.elements[0].values['b']
@@ -270,8 +277,10 @@ class BrusselatorSystem(BaseSystem):
         Dv: float = 8.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape: Sequence[int] = shape
         self.a = a
         self.b = b

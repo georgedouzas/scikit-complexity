@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import NetworkAttackSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(NetworkAttackSystem(), until=17, observers=[observer], random_state=0)
+trajectory = NetworkAttackSystem().prepare().simulate(until=17, observers=[observer], random_state=0)
 
 
 def giant_share(trajectory, frame, size):
@@ -54,7 +53,7 @@ def giant_share(trajectory, frame, size):
 size = 1000
 fig, axis = plt.subplots(figsize=(6, 4))
 for strategy, rate in (('targeted', 0.0), ('random', 0.01)):
-    run = simulate(NetworkAttackSystem(n_nodes=size, strategy=strategy, rate=rate), until=60, random_state=0)
+    run = NetworkAttackSystem(n_nodes=size, strategy=strategy, rate=rate).prepare().simulate(until=60, random_state=0)
     removed = [1 - len(run.get_network(frame).nodes) / size for frame in range(len(run.times))]
     giants = [giant_share(run, frame, size) for frame in range(len(run.times))]
     axis.plot(removed, giants, 'o-', markersize=3, label=strategy)

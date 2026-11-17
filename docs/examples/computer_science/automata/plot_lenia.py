@@ -14,14 +14,13 @@ rules grow solitons, localized patterns that keep their shape and move like orga
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import LeniaSystem
 
 SYSTEM = 'lenia'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(LeniaSystem(), observers=[observer], random_state=0)
+trajectory = LeniaSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # A gliding soliton
@@ -53,7 +52,7 @@ kernels = [
     (1, 0, 0.5, 1.0, (1.0,), 0.2, 0.03),
     (0, 1, 1.0, 1.0, (0.5, 1.0), 0.15, 0.03),
 ]
-expanded = simulate(LeniaSystem(initial=initial, channels=2, kernels=kernels), until=50, random_state=0)
+expanded = LeniaSystem(initial=initial, channels=2, kernels=kernels).prepare().simulate(until=50, random_state=0)
 fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
 for ax, channel in zip(axes, 'AB', strict=True):
     ax.imshow(np.asarray(expanded.get_lattice(f'world.{channel}'))[-1], cmap='viridis', vmin=0, vmax=1)

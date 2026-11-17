@@ -2,6 +2,7 @@
 
 import hashlib
 import itertools
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -13,8 +14,15 @@ from scipy.linalg import circulant
 
 from skcomplex.core.analysis import automaton, entropy
 from skcomplex.core.components.elements import DeclaredElement, Element, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.laws import LinearRuleSpec, LocalRuleLaw, OuterTotalisticSpec, TableSpec, TotalisticSpec
+from skcomplex.core.components.interactions import Interaction, LocalRuleInteraction
+from skcomplex.core.components.laws import (
+    LinearRuleSpec,
+    LocalRuleLaw,
+    OuterTotalisticSpec,
+    TableSpec,
+    TotalisticSpec,
+    UpdateLaw,
+)
 from skcomplex.core.components.spaces import (
     LatticeNeighborhood,
     LatticeSpace,
@@ -23,7 +31,8 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec, SubshiftSpec
+from skcomplex.core.specs import DeclaredVariableSpec, Role, StateSpec, SubshiftSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import lamplighter
 from skcomplex.systems.computer_science.common.automata import CayleySpace, MemoryNeighborhood
 
@@ -531,3 +540,40 @@ def test_golden_mean_shift_samples_admissible_configurations():
     assert 0 < sample.mean() < 0.5
     with pytest.raises(AnalysisError, match='forbidden pattern'):
         _automaton('sample', golden, configuration=np.ones(60))
+
+
+class ParityInteraction(Interaction):
+    """Parity of every cell and its two neighbours on a ring, as an update law with a neighbourhood."""
+
+    def __init__(self, label, *, target: Role):
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            parity = TotalisticSpec({total: total % 2 for total in range(4)})
+            neighborhood = LatticeNeighborhood(((-1,), (0,), (1,)))
+            self.laws_ = [UpdateLaw(context.target.alive, parity, neighborhood=neighborhood)]
+
+
+def test_automaton_of_a_system_with_plain_cells():
+    """Test that a `System` of plain cells with a local rule is an automaton, as its declared form is."""
+    rule = LinearRuleSpec((1, 1), 'GF(2)')
+    neighborhood = LatticeNeighborhood(((-1,), (1,)))
+    interaction = LocalRuleInteraction('rule', target='cells', state='alive', rule=rule, neighborhood=neighborhood)
+    system = System(elements=[Element('cells', values={'alive': 0}, space=LatticeSpace(7))], interactions=[interaction])
+    assert _automaton('surjective', system, infinite=True).surjective
+    assert not _automaton('injective', system, infinite=True).injective
+
+
+def test_automaton_of_an_interaction_that_sets_an_update_with_a_neighbourhood():
+    """Test that an interaction whose `_prepare` sets an update law with a neighbourhood is an automaton."""
+    cells = Element('cells', values={'alive': np.zeros(5, dtype=int)}, space=LatticeSpace(5))
+    system = System(elements=[cells], interactions=[ParityInteraction('parity', target='cells')])
+    declared = _automaton_system(
+        LatticeSpace(5),
+        LatticeNeighborhood(((-1,), (0,), (1,))),
+        TotalisticSpec({0: 0, 1: 1, 2: 0, 3: 1}),
+    )
+    assert _automaton('injective', system).injective == _automaton('injective', declared).injective

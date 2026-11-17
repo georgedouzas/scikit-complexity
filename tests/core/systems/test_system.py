@@ -18,11 +18,13 @@ from skcomplex.core.components.laws import (
     NoiseLaw,
     ObjectiveLaw,
     RateLaw,
+    TotalisticSpec,
     TransferLaw,
     UpdateLaw,
 )
 from skcomplex.core.components.laws.utils import mean, neighbors
-from skcomplex.core.components.spaces import BaseSpace, NetworkSpace
+from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
+from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.solvers import (
     EulerMaruyamaSolver,
     GillespieSolver,
@@ -117,6 +119,13 @@ def test_prepare_uses_named_solver() -> None:
     assert system.simulate(until=1.0, dt=0.01).times[-1] == pytest.approx(1.0)
 
 
+def test_prepare_compiles_for_the_named_backend() -> None:
+    """A backend given to the system is the one its problem is compiled for, not only the one that runs it."""
+    system = System('ecology', systems=[LotkaVolterraSystem(label='meadow')], backend=NumbaBackend()).prepare()
+    assert isinstance(system.backend_, NumbaBackend)
+    assert system._problem.backend == 'numba'
+
+
 def test_prepare_rejects_bad_solver() -> None:
     """A solver that is neither 'auto' nor a solver raises an error."""
     with pytest.raises(ValidationError, match="solver of the system 'ecology' must be 'auto'"):
@@ -157,6 +166,38 @@ def test_prepare_writes_reductions_readably():
     assert system.equations_['nodes.x[i]'] == "neighbors(-nodes.x[i] + nodes.x[j], reduce='sum')"
     assert system.equations_['crowd.x[i]'] == 'mean(crowd.x) - crowd.x[i]'
     assert not any(re.search(r'(?<![\w.])_\w', equation) for equation in system.equations_.values())
+
+
+def _keep(center, *around):
+    """Return every cell unchanged."""
+    return center
+
+
+class _Rules(Interaction):
+    """Interaction with a named local rule and a lookup local rule of the same cells."""
+
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set a named function rule, then a totalistic rule, of the cells."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            alive = context.target.alive
+            around = RadiusNeighborhood(1, center=True)
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(alive, _keep, neighborhood=around),
+                UpdateLaw(alive, TotalisticSpec({1: 1}), neighborhood=around, label='parity'),
+            ]
+
+
+def test_prepare_writes_local_rules_by_their_names():
+    """Test that local rules appear in the equations by name and the neighbours they read, one after the other."""
+    cells = Element('cells', values={'alive': [0.0, 1.0, 0.0]}, space=LatticeSpace(3))
+    system = System(elements=[cells], interactions=[_Rules('rules')]).prepare()
+    reads = "neighbors(cells.alive, reduce='each')"
+    assert system.equations_ == {'cells.alive[i]': f'keep({reads}), then parity({reads})'}
 
 
 class _Process(Interaction):
@@ -250,3 +291,59 @@ def test_one_reaction_runs_as_jumps_or_as_its_mean_with_two_solvers():
     assert (jumps.form_, mean.form_) == ('jump process', 'ordinary differential equations')
     assert float(jumps.simulate(until=1.0, random_state=0).get_values('A.n')[-1]).is_integer()
     assert mean.simulate(until=1.0).get_values('A.n')[-1] == pytest.approx(100 * np.exp(-1), rel=1e-4)
+
+
+class _Hold(Interaction):
+    """Controller that sets its input once per step to the negative half of the plant."""
+
+    def __init__(self, label: str, *, control: Role = 'input', plant: Role = 'plant') -> None:
+        super().__init__(label)
+        self.control = control
+        self.plant = plant
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next input."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.control.u, -context.plant.x / 2)]
+
+
+class _Plant(Interaction):
+    """Plant that relaxes towards its input, `x' = -x + u`."""
+
+    def __init__(self, label: str, *, plant: Role = 'plant', control: Role = 'input') -> None:
+        super().__init__(label)
+        self.plant = plant
+        self.control = control
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate of the plant."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.plant.x, context.t
+            self.laws_: list[BaseComponent] = [RateLaw(x.diff(t), -x + context.control.u)]
+
+
+def test_nested_systems_keep_the_time_their_laws_imply() -> None:
+    """A discrete controller steps once per unit of time next to a continuous plant that holds its input."""
+    system = System(
+        systems=[
+            System('control', elements=[Element('input', values={'u': 0.0})]),
+            System('house', elements=[Element('plant', values={'x': 1.0})]),
+        ],
+        interactions=[
+            _Hold('policy', control='control/input', plant='house/plant'),
+            _Plant('rate', plant='house/plant', control='control/input'),
+        ],
+    ).prepare()
+    trajectory = system.simulate(until=2.0, dt=1.0)
+    first = 1.5 * np.exp(-1) - 0.5
+    assert system.form_ == 'co-simulation'
+    assert trajectory.get_values('control/input.u') == pytest.approx([0.0, -0.5, -first / 2], rel=1e-4)
+    assert trajectory.get_values('house/plant.x')[1] == pytest.approx(first, rel=1e-4)
+
+
+def test_system_without_laws_is_static() -> None:
+    """A system whose values no law changes reports a static problem."""
+    system = System(elements=[Element('ball', values={'x': 1.0, 'm': 2.0})]).prepare()
+    assert (system.form_, system.states_, system.parameters_) == ('static solution', (), ('ball.x', 'ball.m'))

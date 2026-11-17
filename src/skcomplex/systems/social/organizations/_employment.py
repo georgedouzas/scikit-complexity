@@ -6,16 +6,19 @@ They follow each other's colours.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec
+from ....core.specs import Role, StateSpec
 from ....core.types import Array
 
 TAKEOVER = 3
@@ -60,6 +63,61 @@ class WorkplaceElement(Element):
         self.employer = employer
 
 
+class EmploymentTakeoverInteraction(Interaction):
+    """Colours of workers and employers that follow each other on a checkerboard.
+
+    Every step each worker first takes the colour of the employer to its right, and then each employer takes the colour
+    of three or four of its four workers, keeping its own colour on a tie of two.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `colour` the rules update, by their states `colour` and `employer`.
+
+    Examples:
+        >>> from skcomplex.systems.social.organizations import EmploymentTakeoverInteraction
+        >>> EmploymentTakeoverInteraction('takeover', target='cells').target
+        'cells'
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _follow_employer(*values: Array) -> Array:
+        """Return the colours after every worker follows its employer.
+
+        Every worker takes the colour of the employer at `x + 1`.
+        """
+        colours, employers = values[:5], values[5:]
+        return np.where(employers[0] > 0, colours[0], colours[1])
+
+    @staticmethod
+    def _follow_workers(*values: Array) -> Array:
+        """Return the colours after every employer follows its workers.
+
+        Every employer counts its workers of colour 1 and follows a majority of three.
+        """
+        colours, employers = values[:5], values[5:]
+        count = sum(colours[1:])
+        following = np.where(count >= TAKEOVER, 1.0, np.where(count == KEEP, colours[0], 0.0))
+        return np.where(employers[0] > 0, following, colours[0])
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the workers following their employers, then the employers following their workers, as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            colour, employer = context.target.colour, context.target.employer
+            reads = (colour, employer)
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(colour, self._follow_employer, neighborhood=NEIGHBORS, reads=reads, label='workers'),
+                UpdateLaw(colour, self._follow_workers, neighborhood=NEIGHBORS, reads=reads, label='employers'),
+            ]
+
+
 class EmploymentTakeoverSystem(BaseSystem):
     """The employment takeover system on a periodic checkerboard.
 
@@ -99,26 +157,6 @@ class EmploymentTakeoverSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    @staticmethod
-    def _follow_employer(*values: Array) -> Array:
-        """Return the colours after every worker follows its employer.
-
-        Every worker takes the colour of the employer at `x + 1`.
-        """
-        colours, employers = values[:5], values[5:]
-        return np.where(employers[0] > 0, colours[0], colours[1])
-
-    @staticmethod
-    def _follow_workers(*values: Array) -> Array:
-        """Return the colours after every employer follows its workers.
-
-        Every employer counts its workers of colour 1 and follows a majority of three.
-        """
-        colours, employers = values[:5], values[5:]
-        count = sum(colours[1:])
-        following = np.where(count >= TAKEOVER, 1.0, np.where(count == KEEP, colours[0], 0.0))
-        return np.where(employers[0] > 0, following, colours[0])
-
     def _build_system(self) -> CompositeSystem:
         """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
@@ -135,15 +173,5 @@ class EmploymentTakeoverSystem(BaseSystem):
             values={'colour': colours, 'employer': employers},
             on='sites',
         )
-        phases = [
-            LocalRuleInteraction(
-                label,
-                target='cells',
-                state='colour',
-                rule=rule,
-                neighborhood=NEIGHBORS,
-                reads=('colour', 'employer'),
-            )
-            for label, rule in (('workers', self._follow_employer), ('employers', self._follow_workers))
-        ]
-        return CompositeSystem(self.label, elements=[cells], interactions=phases)
+        takeover = EmploymentTakeoverInteraction('takeover', target='cells')
+        return CompositeSystem(self.label, elements=[cells], interactions=[takeover])

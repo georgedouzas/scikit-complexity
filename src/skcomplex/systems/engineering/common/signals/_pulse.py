@@ -24,7 +24,8 @@ class PulseInteraction(Interaction):
     Engineering names them pulses or impulses, as the kicks of a sampled controller or of a pulsed circuit. The pulses
     fall at every time of `times` and, with a `period`, at `start + j * period` for `j` from 0, `count` times or without
     end. A pulse at the initial time of a run does not fire. The new values are functions of the namespace, which holds
-    `namespace.target`, the states and parameters of the target, and the time `namespace.t`. A pulse sets the states of
+    `namespace.target`, the states and parameters of the target, and the time `namespace.t`. A name with primes sets a
+    derivative, so `{"x'": lambda s: s.target.x.diff(s.t) + 1.0}` kicks the rate of `x`. A pulse sets the states of
     every member of a group at once, and the trajectory records every pulse among its events, under the label of the
     interaction.
 
@@ -36,7 +37,8 @@ class PulseInteraction(Interaction):
             The path of the element or group whose states the pulses set.
 
         reset:
-            A mapping from the name of a state of the target to the function `f(namespace)` of its new value.
+            A mapping from the name of a state of the target, or of its derivative such as `"x'"`, to the function
+            `f(namespace)` of its new value.
 
         times:
             The times of the pulses.
@@ -107,6 +109,14 @@ class PulseInteraction(Interaction):
             error_msg = f'The count of the pulses {self.label!r} is {self.count!r}. Give a positive integer, or None.'
             raise ValidationError(error_msg)
 
+    @staticmethod
+    def _get_reset_state(context: SimpleNamespace, name: str) -> object:
+        """Return the state a name of `reset` sets, or its derivative for a name with primes, such as `"x'"`."""
+        base = name.rstrip("'")
+        state = getattr(context.target, base)
+        order = len(name) - len(base)
+        return state.diff(context.t, order) if order else state
+
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Check the pulses, and set one event law per given time and one for the periodic pulses.
 
@@ -123,7 +133,7 @@ class PulseInteraction(Interaction):
         super()._prepare(context)
         if not isinstance(context, SimpleNamespace):
             return
-        reset = {getattr(context.target, name): SR(f(context)) for name, f in self.reset.items()}
+        reset = {self._get_reset_state(context, name): SR(f(context)) for name, f in self.reset.items()}
         laws: list[BaseComponent] = [EventLaw(context.t - time, reset, 1, label=self.label) for time in self.times]
         if self.period is not None:
             guard = periodic_guard(context.t, self.period, self.start, self.count)

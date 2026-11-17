@@ -27,6 +27,11 @@ RATES = {'alpha': 1.1, 'beta': 0.4, 'gamma': 0.4, 'delta': 0.1}
 TIMES = np.linspace(0.4, 20.0, 50)
 
 
+def _elman(**settings):
+    """Return the composite of an Elman network that trains, which the free `simulate` runs."""
+    return ElmanNetworkSystem(**settings).prepare().system_._get_composite()
+
+
 class PairElement(Element):
     """Prey and predators with adaptive rates and observed abundances."""
 
@@ -140,14 +145,14 @@ def test_check_unknown_precision():
 
 def test_automatic_solver():
     """Test that a system that trains runs on the learning solver and the JAX backend without being told."""
-    problem = simulate(ElmanNetworkSystem(n_bits=60).prepare().system_, until=0).problem
+    problem = simulate(_elman(n_bits=60), until=0).problem
     assert DEFAULT_SOLVERS[problem.form] is GradientDescentSolver
     assert problem.inner.backend == 'jax'
 
 
 def test_epochs_as_frames():
     """Test that every frame is one epoch and frame 0 holds the initial weights of the inner system."""
-    system = ElmanNetworkSystem(n_bits=60).prepare().system_
+    system = _elman(n_bits=60)
     weights = system.systems[0].interactions[2].W
     trajectory = _trajectory(system, 5)
     assert trajectory.times.tolist() == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
@@ -158,12 +163,12 @@ def test_epochs_as_frames():
 def test_time_between_frames():
     """Test that a fraction of an epoch between frames raises an error naming the value."""
     with pytest.raises(ValidationError, match=r'0\.5.*whole number of epochs'):
-        simulate(ElmanNetworkSystem(n_bits=60).prepare().system_, until=2, dt=0.5)
+        simulate(_elman(n_bits=60), until=2, dt=0.5)
 
 
 def test_loss_at_the_start():
     """Test that the loss at frame 0 is the mean of the loss over NumPy runs of the inner system on every sequence."""
-    system = ElmanNetworkSystem(n_bits=30).prepare().system_
+    system = _elman(n_bits=30)
     data, net = system.interactions[0].data, system.systems[0]
     trajectory = _trajectory(system, 1)
     error = Observable('error', group='outputs', reduce='sum', expression=_output_error)
@@ -181,7 +186,7 @@ def test_loss_at_the_start():
 
 def test_masked_steps():
     """Test that the loss and its gradient do not depend on the outputs at steps of weight 0."""
-    system, other = ElmanNetworkSystem(n_bits=60).prepare().system_, ElmanNetworkSystem(n_bits=60).prepare().system_
+    system, other = _elman(n_bits=60), _elman(n_bits=60)
     data = system.interactions[0].data
     weights = np.ones((data.sequences, data.steps))
     weights[:, :3] = 0.0
@@ -196,8 +201,8 @@ def test_masked_steps():
 
 def test_same_seed():
     """Test that two runs with the same seed record equal trajectories."""
-    first, second = _trajectory(ElmanNetworkSystem(n_bits=60).prepare().system_, 20), _trajectory(
-        ElmanNetworkSystem(n_bits=60).prepare().system_,
+    first, second = _trajectory(_elman(n_bits=60), 20), _trajectory(
+        _elman(n_bits=60),
         20,
     )
     np.testing.assert_array_equal(first.states, second.states)
@@ -206,7 +211,7 @@ def test_same_seed():
 
 def test_updates_per_epoch():
     """Test that 996 sequences in batches of 16 give 63 updates per epoch."""
-    problem = simulate(ElmanNetworkSystem().prepare().system_, until=0).problem
+    problem = simulate(_elman(), until=0).problem
     stepper = GradientDescentSolver(random_state=0, until=1).prepare(problem)
     stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
     assert int(stepper.optimizer_state_.inner_state[0].count) == 63
@@ -214,7 +219,7 @@ def test_updates_per_epoch():
 
 def test_zero_learning_rate():
     """Test that a learning rate of 0 keeps every trained parameter at its initial value."""
-    system = ElmanNetworkSystem(n_bits=60, learning_rate=0.0).prepare().system_
+    system = _elman(n_bits=60, learning_rate=0.0)
     states = _trajectory(system, 5).states
     np.testing.assert_array_equal(states[-1], states[0])
 
@@ -222,7 +227,7 @@ def test_zero_learning_rate():
 def test_learning_rate_schedule():
     """Test that a schedule that halves the learning rate every 50 epochs halves the recorded parameter."""
     schedule = {'training.learning_rate': lambda t: 0.05 * 0.5 ** (t // 50)}
-    values = _trajectory(ElmanNetworkSystem(n_bits=30).prepare().system_, 150, schedule=schedule).get_values(
+    values = _trajectory(_elman(n_bits=30), 150, schedule=schedule).get_values(
         'training.learning_rate',
     )
     assert values[[49, 50, 100, 150]].tolist() == pytest.approx([0.05, 0.025, 0.0125, 0.00625])
@@ -230,7 +235,7 @@ def test_learning_rate_schedule():
 
 def test_gradient_against_finite_differences():
     """Test that the gradient of the loss of an Elman network agrees with central finite differences."""
-    system = ElmanNetworkSystem(n_bits=30).prepare().system_
+    system = _elman(n_bits=30)
     gradient = _gradient(system)
     problem = PassCompiler().prepare(system).run().problem_
     step = 1e-6
@@ -246,8 +251,8 @@ def test_gradient_against_finite_differences():
 
 def test_full_and_truncated_gradients():
     """Test that truncation changes the gradient of the input weights but not of the readout weights."""
-    full, truncated = _gradient(ElmanNetworkSystem(n_bits=30).prepare().system_), _gradient(
-        ElmanNetworkSystem(n_bits=30, truncation=1).prepare().system_,
+    full, truncated = _gradient(_elman(n_bits=30)), _gradient(
+        _elman(n_bits=30, truncation=1),
     )
     assert not np.allclose(full['net/input.D'], truncated['net/input.D'])
     np.testing.assert_allclose(full['net/readout.W'], truncated['net/readout.W'], atol=1e-12)
@@ -339,11 +344,11 @@ def test_tensor_trains():
 
 def test_trained_system_agrees_with_training():
     """Test that the inner system with the trained values of the last frame records the loss the law evaluates."""
-    system = ElmanNetworkSystem(n_bits=30).prepare().system_
+    system = _elman(n_bits=30)
     data, net = system.interactions[0].data, system.systems[0]
     trajectory = _trajectory(system, 3)
     trained = {name: trajectory.get_values(name)[-1] for name in trajectory.problem.states.names}
-    single = ElmanNetworkSystem(n_bits=30).prepare().system_
+    single = _elman(n_bits=30)
     first = DatasetSpec({path: values[:1] for path, values in data.values.items()})
     single.interactions[0].set_params(data=first, metrics=())
     expected = _loss(single, trained)

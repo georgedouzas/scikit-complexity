@@ -5,7 +5,8 @@
 
 import inspect
 from collections.abc import Callable, Collection, Mapping, Sequence
-from dataclasses import replace
+from dataclasses import fields as dataclass_fields
+from dataclasses import is_dataclass, replace
 from types import SimpleNamespace
 from typing import ClassVar
 
@@ -13,6 +14,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression, function, vector
 from sage.modules.free_module_element import FreeModuleElement
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.symbolic.operators import FDerivativeOperator
 from sklearn.base import clone
 
@@ -158,16 +160,35 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
         An argument annotated with a spec keeps its spec, and a role or a setting that is no number declares nothing.
         An `int` is an integer, a `float` a real, and a `complex` a complex parameter, such as the `c` of `z**2 + c`.
+        The allowed values of an argument come from `Annotated`, as for the values of an element, such as
+        `k: Annotated[float, RealSet.open(0, oo)] = 1.0` for a positive rate.
         """
         if not self._is_preparing_laws():
             return {}
         specs = self._get_specs()
+        allowed = self._get_allowed()
         return {
-            name: DeclaredVariableSpec(value, ParameterSpec(domain=self._get_domain_of(value)))
+            name: DeclaredVariableSpec(value, ParameterSpec(domain=allowed.get(name, self._get_domain_of(value))))
             for name, value in self.get_params(deep=False).items()
             if name not in specs and name != 'label' and isinstance(value, int | float | complex)
             if not isinstance(value, bool)
         }
+
+    @classmethod
+    def _get_allowed(cls) -> dict[str, object]:
+        """Return the allowed values `Annotated` gives each argument, by name.
+
+        A set, such as `{0, 1}`, is a finite set of values, and any other container of values, such as
+        `RealSet.open(0, oo)`, is taken as it is.
+        """
+        allowed: dict[str, object] = {}
+        for name, argument in inspect.signature(cls.__init__, eval_str=True).parameters.items():
+            for item in getattr(cls._get_annotated(argument.annotation), '__metadata__', ()):
+                if isinstance(item, set | frozenset):
+                    allowed[name] = FiniteEnumeratedSet(sorted(item, key=str))
+                elif hasattr(item, '__contains__') and not isinstance(item, str | BaseSpec):
+                    allowed[name] = item
+        return allowed
 
     @staticmethod
     def _get_domain_of(value: complex) -> object:
@@ -258,6 +279,24 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         return value.operator()(*operands)
 
     @staticmethod
+    def _get_translated_spec[SpecT: BaseSpec](
+        spec: SpecT,
+        time: Expression,
+        symbols: Mapping[str, Expression],
+        discrete: bool,
+    ) -> SpecT:
+        """Return a spec of a law with the states of its fields translated.
+
+        The arguments of a `CallSpec` are such fields.
+        """
+        fields = {item.name: getattr(spec, item.name) for item in dataclass_fields(spec) if item.init}
+        translated = {
+            name: BaseInteraction._get_translated(item, time, symbols, discrete) for name, item in fields.items()
+        }
+        changed = {name: item for name, item in translated.items() if item is not fields[name]}
+        return replace(spec, **changed) if changed else spec
+
+    @staticmethod
     def _get_law_in_states(law: BaseComponent, time: Expression, symbols: Mapping[str, Expression]) -> BaseComponent:
         """Return a law written with functions of time as a law of the states."""
         if not symbols:
@@ -265,7 +304,11 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         discrete = isinstance(law, UpdateLaw)
         params = law.get_params(deep=False)
         translated = {
-            name: BaseInteraction._get_translated(item, time, symbols, discrete)
+            name: (
+                BaseInteraction._get_translated_spec(item, time, symbols, discrete)
+                if isinstance(item, BaseSpec) and is_dataclass(item)
+                else BaseInteraction._get_translated(item, time, symbols, discrete)
+            )
             for name, item in params.items()
             if name != 'label'
         }
@@ -316,23 +359,53 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         prepared = clone(self)
         prepared.prepare(functional)
         return [
-            self._get_rule(law, roles) or self._get_normalized(self._get_law_in_states(law, time, functions))
+            self._get_rule(law, roles, functional)
+            or self._get_local_rule(self._get_normalized(self._get_law_in_states(law, time, functions)))
             for law in prepared.laws_
         ]
 
-    def _get_rule(self, law: BaseComponent, roles: Mapping[str, object]) -> RuleLaw | None:
-        """Return the agent rule that an update law of a group states, or `None`.
+    @staticmethod
+    def _get_local_rule(law: BaseComponent) -> BaseComponent:
+        """Return the local rule of an update law with a neighbourhood, or the law itself.
+
+        An update law with a neighbourhood, such as `UpdateLaw(s.target.alive, life(), neighborhood=MOORE)`, runs as a
+        local rule of the cells, with its lookup tables and fused lattice kernels.
+        """
+        if isinstance(law, UpdateLaw) and law.neighborhood is not None:
+            law.prepare()
+            return law._get_local_rule()
+        return law
+
+    def _get_rule(
+        self,
+        law: BaseComponent,
+        roles: Mapping[str, object],
+        system: SimpleNamespace | None = None,
+    ) -> RuleLaw | None:
+        """Return the rule of agents or of the system that an update law states, or `None`.
 
         An update law whose target is a bound group, such as `UpdateLaw(s.target, move)`, is an agent rule: its value
         is a function `move(agent, system)` that reads and changes one member, and every member runs it at each step.
+        An update law whose target is the namespace of the interaction itself, such as `UpdateLaw(s, brake)`, is a rule
+        of the whole system: its value is a function `brake(system)` that runs once per step after the agents' rules.
 
         Raises:
             ValidationError:
-                The target is a group but the value is no function of an agent and the system, or the target is a
-                namespace that no role binds.
+                The target is a group but the value is no function of an agent and the system, the target is the
+                namespace of the interaction but the value is no function of the system, or the target is a namespace
+                that no role binds.
         """
         if not isinstance(law, UpdateLaw) or not isinstance(law.target, SimpleNamespace):
             return None
+        if law.target is system:
+            rule = law.value
+            if not callable(rule) or not self._is_rule(rule, 1):
+                error_msg = (
+                    f'The update law of {self.label!r} on the whole system has the value {rule!r}. A rule of the '
+                    'system is a function of the system, such as def brake(system): ...'
+                )
+                raise ValidationError(error_msg)
+            return RuleLaw(rule, law.phase, label=law.label)
         role = next((name for name, item in roles.items() if item is law.target), None)
         if role is None:
             error_msg = (
@@ -350,10 +423,13 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         return RuleLaw(rule, law.phase, members=role, label=law.label)
 
     @staticmethod
-    def _is_rule(rule: Callable[..., object]) -> bool:
-        """Return whether a function takes two arguments, the agent and the system."""
+    def _is_rule(rule: Callable[..., object], arguments: int = 2) -> bool:
+        """Return whether a function takes a number of arguments, two by default.
+
+        The two are the agent and the system.
+        """
         try:
-            inspect.signature(rule).bind(None, None)
+            inspect.signature(rule).bind(*[None] * arguments)
         except (TypeError, ValueError):
             return False
         return True
@@ -706,6 +782,10 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     def _runs_on_edges(self) -> bool:
         """Return whether the laws run once per edge of a network, false by default."""
+        return False
+
+    def _runs_on_hyperedges(self) -> bool:
+        """Return whether the laws run once per hyperedge of a network, false by default."""
         return False
 
     def _get_layer(self) -> str | None:

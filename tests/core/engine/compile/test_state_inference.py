@@ -12,16 +12,34 @@ from sage.sets.real_set import RealSet
 from scipy.linalg import expm
 from scipy.special import ive
 
-from skcomplex.core.analysis import displacement
+from skcomplex.core.analysis import alignment, displacement
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ConstraintLaw, NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
-from skcomplex.core.components.laws.utils import laplacian, neighbors
-from skcomplex.core.components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.components.laws import (
+    BoundaryLaw,
+    ConstraintLaw,
+    NoiseLaw,
+    RateLaw,
+    TopologyRequestSpec,
+    UpdateLaw,
+)
+from skcomplex.core.components.laws.utils import bernoulli, components, laplacian, neighbors, where
+from skcomplex.core.components.spaces import (
+    BaseSpace,
+    CellComplexSpace,
+    ContinuousSpace,
+    DiscreteTime,
+    LatticeSpace,
+    NetworkSpace,
+)
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
 
 
 class Particle(Element):
@@ -407,6 +425,37 @@ class Ground(Interaction):
             ]
 
 
+class Loop(Interaction):
+    """Series RLC loop whose charge follows `L q'' + R q' + q / C = 0`, written as one equation."""
+
+    def __init__(self, label: str, *, target: Role = 'loop', L: float = 1.0, R: float = 0.5, C: float = 0.25) -> None:
+        super().__init__(label)
+        self.target = target
+        self.L = L
+        self.R = R
+        self.C = C
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the voltage law of the loop."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            q, t = context.target.q, context.t
+            self.laws_: list[BaseComponent] = [
+                ConstraintLaw(context.L * q.diff(t, 2) + context.R * q.diff(t) + q / context.C == 0),
+            ]
+
+
+def test_get_declared_reads_the_order_of_a_state_from_the_derivatives_of_a_constraint():
+    """Test that a constraint that reads `q''` gives `q` order 2, and the charge decays as `exp(-t / 4) cos(w t)`."""
+    loop = Element('loop', values={'q': 1.0, "q'": -0.25})
+    system = System(elements=[loop], interactions=[Loop('kvl')]).prepare()
+    assert system.states_ == ('loop.q', "loop.q'")
+    trajectory = system.simulate(until=5.0, dt=0.5)
+    frequency = np.sqrt(4 - 1 / 16)
+    expected = np.exp(-trajectory.times / 4) * np.cos(frequency * trajectory.times)
+    assert trajectory.get_values('loop.q') == pytest.approx(expected, abs=1e-3)
+
+
 def test_get_declared_balances_the_currents_of_three_resistors():
     """Test that the currents of three resistors into the node they share sum to zero at every frame."""
     nodes = [Element(name, values={'v': 0.0}) for name in ('n', 'a1', 'a2', 'g')]
@@ -561,3 +610,175 @@ def test_get_declared_makes_every_value_of_an_agent_group_a_state():
     assert system.states_ == ('walkers.x', 'walkers.speed')
     trajectory = system.simulate(until=3)
     assert trajectory.get_values('walkers.count').tolist() == [3.0, 3.0, 2.0, 1.0]
+
+
+class Points(Element):
+    """Element whose points `z` are annotated as `object`, since they may be one number or an array."""
+
+    def __init__(self, label: str, *, z: object = 0.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.z = z
+
+
+def test_get_declared_reads_the_kind_of_a_value_annotated_as_object_from_the_value():
+    """Test that complex points of an element class whose argument is annotated `object` are complex states."""
+    points = Points('point', z=np.array([0.1 + 0.1j, 0.2 - 0.1j]), size=2)
+    system = System(elements=[points], interactions=[Julia('julia', target='point', c=0.0)]).prepare()
+    assert system.simulate(until=1, dt=1).get_values('point.z')[-1] == pytest.approx([0.02j, 0.03 - 0.04j])
+
+
+class Drift(Interaction):
+    """Interaction that moves every walker by its velocity, `x <- x + v`, and halves the velocity at every step."""
+
+    def __init__(self, label: str, *, target: Role = 'walkers') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next position and the next velocity as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, v = context.target.x, context.target.v
+            self.laws_: list[BaseComponent] = [UpdateLaw(x, x + v), UpdateLaw(v, v / 2)]
+
+
+def test_get_declared_reads_the_step_of_a_position_as_its_velocity():
+    """Test that the value `v` a map adds to a position `x` at every step is the velocity of the walkers."""
+    walkers = Element('walkers', values={'x': 0.0, 'v': [1.0, -1.0, 2.0]}, size=3, space=ContinuousSpace(n_dim=1))
+    system = System(elements=[walkers], interactions=[Drift('drift')]).prepare()
+    trajectory = system.simulate(until=2, dt=1)
+    assert alignment(trajectory, kind='mean-vector').order == pytest.approx([1 / 3] * 3)
+
+
+class Brake(Interaction):
+    """Controller that sets the force on a cart to `-2 x'` after every step, while the cart moves as `x'' = force`."""
+
+    def __init__(self, label: str, *, cart: Role = 'cart') -> None:
+        super().__init__(label)
+        self.cart = cart
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the motion and the force the controller sets."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            cart, t = context.cart, context.t
+            speed = cart.x.diff(t)
+            self.laws_: list[BaseComponent] = [RateLaw(speed.diff(t), cart.force), BoundaryLaw(cart.force, -2 * speed)]
+
+
+def test_get_declared_holds_a_value_a_controller_sets_after_every_step():
+    """Test that a value of a plain element that a controller sets after every step holds within the step."""
+    cart = Element('cart', values={'x': 0.0, 'force': 0.0})
+    system = System(elements=[cart], interactions=[Brake('brake')]).prepare()
+    trajectory = system.simulate(until=1.0, dt=0.5, initial_state={"cart.x'": 1.0})
+    assert 'cart.force' in system.states_
+    assert system.equations_['cart.force'] == '0'
+    assert trajectory.get_values('cart.force')[1:] == pytest.approx(-2 * trajectory.get_values("cart.x'")[1:])
+
+
+class WeightedExchange(Interaction):
+    """Exchange along every edge at the rate of the weight of the link on that edge."""
+
+    def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = True) -> None:
+        super().__init__(label, among=among, along=along)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the flow from the source to the target of an edge, weighted by its link."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            flow = s.edge.w * (s.source.x - s.target.x)
+            self.laws_: list[BaseComponent] = [
+                RateLaw(s.target.x.diff(s.t), flow),
+                RateLaw(s.source.x.diff(s.t), -flow),
+            ]
+
+
+def test_get_declared_puts_one_member_on_every_edge():
+    """Test that links on the edges of a path hold one weight each, which an exchange along the edges reads."""
+    graph = nx.path_graph(3)
+    space = NetworkSpace(graph)
+    nodes = Element('nodes', values={'x': np.array([1.0, 0.0, 0.0])}, space=space)
+    links = Element('links', values={'w': np.array([2.0, 0.5])}, space=space, on='edges')
+    system = System(elements=[nodes, links], interactions=[WeightedExchange('exchange')]).prepare()
+    assert 'links.w[i]' in system.parameters_
+    last = system.simulate(until=0.5, dt=0.01).get_values('nodes.x')[-1]
+    nx.set_edge_attributes(graph, {(0, 1): 2.0, (1, 2): 0.5}, 'w')
+    laplacian = nx.laplacian_matrix(graph, weight='w').toarray()
+    assert last == pytest.approx(expm(-laplacian * 0.5) @ np.array([1.0, 0.0, 0.0]), abs=1e-6)
+
+
+class Regulation(Interaction):
+    """Regulation of every link by the third node of its hyperedge, as in triadic percolation."""
+
+    def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = 'hyperedges', p: float = 0.5):
+        super().__init__(label, among=among, along=along)
+        self.p = p
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the activity of the link from the activity and the sign of its regulator."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            regulator = s.others[1].active
+            allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
+            retained = bernoulli('retained', s.p) * allowed
+            self.laws_: list[BaseComponent] = [UpdateLaw(s.edge.active, retained, phase='regulation')]
+
+
+class Percolation(Interaction):
+    """Activity of every node in the giant component of the active links."""
+
+    def __init__(self, label: str, *, nodes: Role = 'nodes', links: Role = 'links') -> None:
+        super().__init__(label)
+        self.nodes = nodes
+        self.links = links
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the membership of the giant component."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            giant = components(context.links.active, reduce='giant')
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.nodes.active, giant, phase='percolation')]
+
+
+def test_get_declared_gives_the_signed_links_of_triadic_percolation():
+    """Test that signed links on the edges, regulated along the hyperedges, run triadic percolation step for step."""
+    ready = TriadicPercolationSystem(500, p=0.5).prepare().system_
+    expected = simulate(ready, until=10, random_state=0).get_values('nodes.active')
+    space, signs = ready.elements[0].space, ready.elements[1].values['sign']
+    nodes = Element('nodes', values={'active': 1}, space=space)
+    links = Element('links', values={'active': 1, 'sign': signs}, space=space, on='edges')
+    phases = PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation')))
+    system = CompositeSystem(
+        elements=[nodes, links],
+        interactions=[Regulation('regulation', p=0.5), Percolation('percolation')],
+        time=DiscreteTime(schedule=phases),
+    )
+    np.testing.assert_array_equal(simulate(system, until=10, random_state=0).get_values('nodes.active'), expected)
+
+
+class Majority(Interaction):
+    """Pull of every member of a hyperedge towards the mean of its members, at the rate of the hyperedge."""
+
+    def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = 'hyperedges') -> None:
+        super().__init__(label, among=among, along=along)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the pull towards the mean of the members."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            center = (s.member.x + sum(other.x for other in s.others)) / (1 + len(s.others))
+            pull = s.hyperedge.k * (center - s.member.x)
+            self.laws_: list[BaseComponent] = [RateLaw(s.member.x.diff(s.t), pull)]
+
+
+def test_get_declared_puts_one_member_on_every_hyperedge():
+    """Test that a group of three, whose hyperedge holds its rate, pulls its members to their mean, and others not."""
+    space = NetworkSpace(nx.empty_graph(4), hyperedges=[(0, 1, 2)])
+    nodes = Element('nodes', values={'x': np.array([3.0, 0.0, 0.0, 5.0])}, space=space)
+    groups = Element('groups', values={'k': 2.0}, space=space, on='hyperedges')
+    system = System(elements=[nodes, groups], interactions=[Majority('majority')]).prepare()
+    last = system.simulate(until=0.5, dt=0.01).get_values('nodes.x')[-1]
+    assert last == pytest.approx([1.0 + 2.0 * np.exp(-1.0), 1.0 - np.exp(-1.0), 1.0 - np.exp(-1.0), 5.0], abs=1e-5)

@@ -8,10 +8,12 @@ from ..common.networks import NetworkNodeElement, RegulatedNodeElement, VertexEl
 from ._davidsen_ebel_bornholdt import ClosingNodeElement, DavidsenEbelBornholdtSystem
 from ._duplication_deletion import DuplicatingNodeElement, DuplicationDeletionSystem
 from ._ensembles import (
+    AttackInteraction,
     ConfigurationModelSystem,
     DependentNodeElement,
     EnsembleNodeElement,
     FailingElement,
+    InterdependenceInteraction,
     InterdependentNetworkCascadeSystem,
     KroneckerGraphSystem,
     NetworkAttackSystem,
@@ -38,12 +40,18 @@ from ._hypergraphs import (
     WalkerDensityElement,
 )
 from ._node_merging import MergingNodeElement, NodeMergingSystem
-from ._overload import LoadedNodeElement, MotterLaiOverloadSystem
+from ._overload import (
+    LoadedNodeElement,
+    MotterLaiOverloadSystem,
+    OverloadInteraction,
+)
 from ._processes import (
     NetworkDiffusionSystem,
     NetworkRandomWalkSystem,
+    NetworkStepInteraction,
     NetworkWalkerElement,
     NodeRankElement,
+    PagerankInteraction,
     PagerankSystem,
 )
 from ._spatial_triadic import (
@@ -63,6 +71,7 @@ from ._triadic import (
 )
 
 __all__: list[str] = [
+    'AttackInteraction',
     'BarabasiAlbertSystem',
     'ClosingNodeElement',
     'ClusterNodeElement',
@@ -81,6 +90,7 @@ __all__: list[str] = [
     'GrowingSimplicialComplexSystem',
     'HolmeKimSystem',
     'HypergraphRandomWalkSystem',
+    'InterdependenceInteraction',
     'InterdependentNetworkCascadeSystem',
     'KroneckerGraphSystem',
     'LoadedNodeElement',
@@ -91,11 +101,14 @@ __all__: list[str] = [
     'NetworkMeasuresElement',
     'NetworkNodeElement',
     'NetworkRandomWalkSystem',
+    'NetworkStepInteraction',
     'NetworkStructureAnalysisSystem',
     'NetworkSuperpositionSystem',
     'NetworkWalkerElement',
     'NodeMergingSystem',
     'NodeRankElement',
+    'OverloadInteraction',
+    'PagerankInteraction',
     'PagerankSystem',
     'PercolatingNodeElement',
     'PercolationInteraction',

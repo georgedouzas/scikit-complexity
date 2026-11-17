@@ -14,7 +14,6 @@ import numpy as np
 
 from skcomplex.core.analysis import automaton
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import SubshiftsSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'subshifts'
 
 system = SubshiftsSystem(size=200)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Density and entropy

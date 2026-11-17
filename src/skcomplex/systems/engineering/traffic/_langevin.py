@@ -19,7 +19,8 @@ from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import divergence, laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ..common.traffic import CarElement, OptimalVelocityInteraction, SpeedAdaptationInteraction
@@ -187,6 +188,12 @@ class LangevinTrafficSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import LangevinTrafficSystem
         >>> float(LangevinTrafficSystem(n_cars=10, length=20.0).prepare().system_.elements[0].values['v'][0])
@@ -209,8 +216,10 @@ class LangevinTrafficSystem(BaseSystem):
         rho_max: float = 1.0,
         D1: float = 0.05,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_cars = n_cars
         self.length = length
         self.gamma = gamma
@@ -286,6 +295,12 @@ class TrafficDensityEquationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import TrafficDensityEquationSystem
         >>> TrafficDensityEquationSystem(10).prepare().system_.elements[0].values['D1']
@@ -311,8 +326,10 @@ class TrafficDensityEquationSystem(BaseSystem):
         perturbation: float = 0.01,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.length = length
         self.density = density

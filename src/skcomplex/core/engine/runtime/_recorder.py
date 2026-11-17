@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import replace
+
 import numpy as np
 import numpy.typing as npt
 
@@ -54,12 +56,28 @@ class RecorderObserver(BaseObserver):
         if frame is not None:
             self.frames_.append(frame)
 
-    def _get_parameters(self, frames: list[FrameSpec]) -> npt.NDArray[np.float64]:
+    def _get_relaid(self, frame: FrameSpec) -> FrameSpec:
+        """Return a frame laid out like the last frame.
+
+        A frame from before a group grew holds fewer rows, and the rows it lacks are free, as unused rows are.
+        """
+        problem = self.frames_[-1].problem
+        if frame.problem is problem:
+            return frame
+        state = problem.states.get_relaid(frame.state, frame.problem.states, problem.initial_state)
+        parameters = problem.parameters.get_relaid(
+            frame.parameters,
+            frame.problem.parameters,
+            problem.initial_parameters,
+        )
+        return replace(frame, state=state, parameters=parameters, problem=problem)
+
+    def _get_parameters(self, frames: list[FrameSpec], problem: BaseProblemSpec) -> npt.NDArray[np.float64]:
         """Return the parameters of the frames.
 
         They are a read-only view of one row when every frame shares the same array.
         """
-        shape = (len(frames), self.problem_.parameters.size)
+        shape = (len(frames), problem.parameters.size)
         if frames and all(frame.parameters is frames[0].parameters for frame in frames):
             return np.broadcast_to(np.asarray(frames[0].parameters, dtype=float), shape)
         return np.asarray([frame.parameters for frame in frames], dtype=float).reshape(shape)
@@ -70,14 +88,14 @@ class RecorderObserver(BaseObserver):
         if not hasattr(self, 'problem_'):
             error_msg = 'The recorder has not received a problem. Run a simulation that observes it first.'
             raise SimulationError(error_msg)
-        problem = self.problem_
-        frames = list(self.frames_)
+        frames = [self._get_relaid(frame) for frame in self.frames_]
+        problem = frames[-1].problem if frames else self.problem_
         n_frames = len(frames)
         return Trajectory(
             problem,
             np.asarray([frame.time for frame in frames], dtype=float),
             np.asarray([frame.state for frame in frames], dtype=float).reshape(n_frames, problem.states.size),
-            self._get_parameters(frames),
+            self._get_parameters(frames, problem),
             agents=[frame.agents for frame in frames],
             reporters=[frame.reporters for frame in frames],
             observables=[frame.observables for frame in frames],

@@ -9,15 +9,15 @@ bounded least-squares problem at every sample. The primary view shows the forced
 # %%
 # The factory fits `mode_decomposition(runs, dictionary=PolynomialFeatures(3), inputs=['input.u'])` to 100 runs of
 # 1000 samples each under a random binary input, as the review of Brunton et al. does. The system then nests the
-# controller under discrete time and the plant under continuous time, and `CoSimulationSolver` holds the input between
-# samples. One time unit of a run is one sample, 0.1 time units of the Duffing oscillator.
+# controller, whose update steps once per sample, and the plant, whose rates run in continuous time, and
+# `CoSimulationSolver` holds the input between samples. One time unit of a run is one sample, 0.1 time units of the
+# Duffing oscillator.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.control import KoopmanModelPredictiveControlSystem
 
@@ -32,7 +32,7 @@ blueprint = rrb.Blueprint(
 )
 system = KoopmanModelPredictiveControlSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, until=200.0, observers=[observer])
+trajectory = system.prepare().simulate(until=200.0, observers=[observer])
 time = [rr.TimeColumn('sim_time', duration=trajectory.times)]
 for name, values, color in (
     ('output', trajectory.get_values('plant/state.y'), (31, 119, 180)),
@@ -54,10 +54,8 @@ observer.recording_.flush()
 def tracked(plant, *, controlled):
     """Return the times, the output, the reference, and the mean squared error of a run of a plant."""
     until = 300.0 if plant == 'motor' else 150.0
-    found = simulate(
-        KoopmanModelPredictiveControlSystem(plant=plant, controlled=controlled, n_runs=20, duration=200),
-        until=until,
-    )
+    system = KoopmanModelPredictiveControlSystem(plant=plant, controlled=controlled, n_runs=20, duration=200)
+    found = system.prepare().simulate(until=until)
     output, reference = found.get_values('plant/state.y'), found.get_values('reference')
     return found.times, output, reference, np.mean((output - reference) ** 2)
 

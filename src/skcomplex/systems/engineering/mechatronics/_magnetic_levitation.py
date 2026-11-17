@@ -20,6 +20,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, Role
 from ....core.systems import BaseSystem, System
 from ..common.signals import PulseInteraction
@@ -119,6 +121,12 @@ class MagneticLevitationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.mechatronics import MagneticLevitationSystem
         >>> round(MagneticLevitationSystem(b=1.0, m=0.2).prepare().system_.elements[0].v, 4)
@@ -138,8 +146,10 @@ class MagneticLevitationSystem(BaseSystem):
         b: float = 1.0,
         m: float = 0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.v = v
         self.b = b
         self.m = m

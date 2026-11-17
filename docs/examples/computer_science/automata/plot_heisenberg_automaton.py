@@ -12,7 +12,6 @@ neighbours inside the ball, so the random start freezes within a few steps into 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import HeisenbergAutomatonSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'heisenberg_automaton'
 
 system = HeisenbergAutomatonSystem(radius=5, density=0.5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Polynomial growth and freezing

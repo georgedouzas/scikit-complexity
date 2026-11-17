@@ -168,7 +168,7 @@ def test_neighborhoods_are_ordered():
 
 def test_rule_30_matches_published_pattern():
     """Test that rule 30 from a single live cell reproduces its space-time diagram for 15 steps."""
-    trajectory = simulate(ElementaryAutomatonSystem(30, size=41).prepare().system_, until=15, dt=1)
+    trajectory = simulate(ElementaryAutomatonSystem(30, size=41).prepare().system_._get_composite(), until=15, dt=1)
     assert np.array_equal(trajectory.get_lattice('cells.alive').astype(int), _rule_30(15, 41))
 
 
@@ -176,7 +176,7 @@ def test_glider_moves_diagonally():
     """Test that a glider on a periodic 20 x 20 lattice has the same shape one cell further after 4 steps."""
     glider = np.zeros((20, 20))
     glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
-    trajectory = simulate(GameOfLifeSystem((20, 20), initial=glider).prepare().system_, until=4, dt=1)
+    trajectory = simulate(GameOfLifeSystem((20, 20), initial=glider).prepare().system_._get_composite(), until=4, dt=1)
     cells = trajectory.get_lattice('cells.alive')
     assert np.array_equal(cells[-1], np.roll(glider, (1, 1), axis=(0, 1)))
     assert not np.array_equal(cells[2], cells[0])
@@ -185,8 +185,18 @@ def test_glider_moves_diagonally():
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_lookup_rules_agree_across_backends(backend):
     """Test that the fused and the NumPy lookup rules give the same Game of Life."""
-    trajectory = simulate(GameOfLifeSystem((30, 30)).prepare().system_, until=20, dt=1, backend=backend())
-    reference = simulate(GameOfLifeSystem((30, 30)).prepare().system_, until=20, dt=1, backend=NumpyBackend())
+    trajectory = simulate(
+        GameOfLifeSystem((30, 30)).prepare().system_._get_composite(),
+        until=20,
+        dt=1,
+        backend=backend(),
+    )
+    reference = simulate(
+        GameOfLifeSystem((30, 30)).prepare().system_._get_composite(),
+        until=20,
+        dt=1,
+        backend=NumpyBackend(),
+    )
     assert np.array_equal(trajectory.states, reference.states)
 
 

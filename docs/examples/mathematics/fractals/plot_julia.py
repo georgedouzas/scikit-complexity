@@ -14,7 +14,6 @@ scale, because `c` lies inside the Mandelbrot set.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.fractals import JuliaSystem
 
@@ -23,7 +22,7 @@ WINDOW = (-1.6, 1.6, -1.2, 1.2)
 
 system = JuliaSystem(c=-0.8 + 0.156j, shape=(240, 320), window=WINDOW)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Symmetry of the escape times

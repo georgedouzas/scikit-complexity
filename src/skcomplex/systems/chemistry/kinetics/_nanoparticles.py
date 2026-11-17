@@ -10,8 +10,8 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.systems import BaseSystem, System
 from ...general.elements import NonnegativeElement
 from ...general.reactions import ReactionInteraction
@@ -43,7 +43,7 @@ class SpeciesElement(NonnegativeElement):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
         super().__init__(label, x=x)
 
@@ -88,6 +88,12 @@ class NanoparticleCoronaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import NanoparticleCoronaSystem
         >>> round(NanoparticleCoronaSystem().prepare().system_.interactions[0].k, 7)
@@ -111,8 +117,10 @@ class NanoparticleCoronaSystem(BaseSystem):
         association: Sequence[float] = (2.4e3, 3e4, 2e3),
         dissociation: Sequence[float] = (2e-3, 3e-5, 2e-3),
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.nanoparticle = nanoparticle
         self.radius = radius
         self.proteins = proteins

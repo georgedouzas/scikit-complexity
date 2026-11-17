@@ -18,7 +18,7 @@ class FormPass(BasePass):
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('kinds',)
+        return ('kinds', 'layout')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""

@@ -15,8 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction, ReactionNetworkSystem
 from ...general.reactions.types import ReactionTable
@@ -67,13 +67,13 @@ class SchloglElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5e-06,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0025,
-        c3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0002,
-        c4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.5,
-        A: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100000.0,
-        B: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 200000.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 50.0,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 1.5e-06,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0025,
+        c3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0002,
+        c4: Annotated[float, RealSet.closed_open(0, oo)] = 3.5,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 100000.0,
+        B: Annotated[float, RealSet.closed_open(0, oo)] = 200000.0,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -213,6 +213,12 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import ChemicalLangevinEquationSystem
         >>> ChemicalLangevinEquationSystem(c4=3.0).prepare().system_.elements[0].c4
@@ -236,8 +242,10 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         A: float = 1e5,
         B: float = 2e5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.c1 = c1
         self.c2 = c2

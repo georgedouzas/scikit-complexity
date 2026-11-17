@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import InterdependentNetworkCascadeSystem
 
@@ -27,7 +26,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(InterdependentNetworkCascadeSystem(), dt=1, observers=[observer])
+trajectory = InterdependentNetworkCascadeSystem().prepare().simulate(dt=1, observers=[observer])
 
 # %%
 # A discontinuous transition
@@ -38,7 +37,9 @@ trajectory = simulate(InterdependentNetworkCascadeSystem(), dt=1, observers=[obs
 
 shares = np.linspace(0.45, 0.95, 11)
 survivors = [
-    simulate(InterdependentNetworkCascadeSystem(n_nodes=1000, p=p), until=30, dt=30)
+    InterdependentNetworkCascadeSystem(n_nodes=1000, p=p)
+    .prepare()
+    .simulate(until=30, dt=30)
     .get_values('nodes.active')[-1]
     .mean()
     for p in shares

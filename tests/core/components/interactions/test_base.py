@@ -6,7 +6,8 @@ from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import function, var
+from sage.all__sagemath_symbolics import function, oo, var
+from sage.sets.real_set import RealSet
 
 from skcomplex.core.components import interactions
 from skcomplex.core.components.elements import Element, GroupElement
@@ -29,7 +30,14 @@ from skcomplex.core.components.interactions import (
     TransferInteraction,
     TransitionInteraction,
 )
-from skcomplex.core.components.laws import PartnerSpec, RateLaw, TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.laws import (
+    CallSpec,
+    PartnerSpec,
+    RateLaw,
+    TopologyRequestSpec,
+    TotalisticSpec,
+    UpdateLaw,
+)
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     BaseSpace,
@@ -739,8 +747,87 @@ def test_rule_that_is_no_function_of_an_agent_and_the_system_raises(rule):
         interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(x=var('x'))))
 
 
+class ParityInteraction(Interaction):
+    """Interaction whose law sets every cell to the parity of its neighbourhood."""
+
+    def __init__(self, label, *, target: Role = 'cells', phase=None):
+        super().__init__(label)
+        self.target = target
+        self.phase = phase
+
+    def _prepare(self, context):
+        """Set the parity of the cells as a local rule."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            parity = TotalisticSpec(lambda total: total % 2)
+            neighborhood = RadiusNeighborhood(1, center=True)
+            self.laws_ = [UpdateLaw(context.target.alive, parity, neighborhood=neighborhood, phase=self.phase)]
+
+
+def test_update_with_a_neighborhood_is_a_local_rule():
+    """Test that an update law with a neighbourhood runs as a local rule of the states of the cells."""
+    alive = var('alive')
+    laws = ParityInteraction('parity').prepare().run(SimpleNamespace(target=SimpleNamespace(alive=alive))).laws_
+    assert [(type(law).__name__, law.targets, law.label) for law in laws] == [('LocalRuleLaw', alive, '')]
+
+
+def test_local_rule_with_a_setting_of_one_member_raises():
+    """Test that a local rule rejects a phase, which only an update of one member takes."""
+    interaction = ParityInteraction('parity', phase='move')
+    with pytest.raises(ValidationError, match='neighbourhood and phase'):
+        interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(alive=var('alive'))))
+
+
 def test_rule_on_a_namespace_no_role_binds_raises():
     """Test that an update law targets the group of a role, not a namespace of its own."""
     interaction = RuleInteraction('shift', target='walkers', rule=_shift, bound=False)
     with pytest.raises(ValidationError, match='which no role binds'):
         interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(x=var('x'))))
+
+
+class DecayInteraction(Interaction):
+    """Decay `x' = -k x` at a positive rate."""
+
+    def __init__(self, label, *, target: Role = 'p', k: Annotated[float, RealSet.open(0, oo)] = 1.0):
+        super().__init__(label)
+        self.target = target
+        self.k = k
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.target.x, context.t
+            self.laws_ = [RateLaw(x.diff(t), -context.k * x)]
+
+
+def test_allowed_values_of_an_argument_come_from_annotated():
+    """Test that `Annotated[float, RealSet.open(0, oo)]` gives the rate its domain, which a system checks."""
+    assert DecayInteraction('decay')._get_declared()['k'].spec.domain == RealSet.open(0, oo)
+    system = System(elements=[Element('p', values={'x': 1.0})], interactions=[DecayInteraction('decay', k=-1.0)])
+    with pytest.raises(ValidationError, match=r'decay\.k'):
+        system.prepare()
+
+
+class HalvingInteraction(Interaction):
+    """Update `x <- f(x)` through a function of the state."""
+
+    def __init__(self, label, *, target: Role = 'p'):
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            self.laws_ = [UpdateLaw(x, CallSpec(_halve, (x,)))]
+
+
+def _halve(t, x):
+    """Return half of a value."""
+    return x / 2
+
+
+def test_call_of_a_function_reads_the_states_of_its_arguments():
+    """Test that the arguments of a `CallSpec` in a law read the states, as the rest of the law does."""
+    system = System(elements=[Element('p', values={'x': 8.0})], interactions=[HalvingInteraction('halve')]).prepare()
+    assert system.simulate(until=2, dt=1).get_values('p.x').tolist() == [8.0, 4.0, 2.0]

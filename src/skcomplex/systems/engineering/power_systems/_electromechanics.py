@@ -8,93 +8,170 @@ The braking recovers energy, and the chargers are homopolar.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import derivative, pulse_train, sign
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.components.laws.utils import pulse_train, sign
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, Role, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.mechanics import SpringDamperInteraction
 
 
-class RailSegmentElement(Element):
-    """Rail segment on a sleeper, loaded by passing wheels.
+class WheelLoadInteraction(Interaction):
+    """Load of the two wheels of passing bogies on a rail.
 
-    It is two masses joined by a spring and a damper. The element holds the wheel load and the ballast under the
-    sleeper, and the system joins the rail and the sleeper by a `SpringDamperInteraction` of the stiffness `kr` and the
-    damping `br`.
+    Every bogie presses the rail with two rectangular pulses of force `F` and duration `width`, `spacing` apart, once
+    per period `T`, and the load accelerates the rail divided by its mass.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element that holds the rail.
+
+        state:
+            The name of the deflection of the rail.
+
+        mass:
+            The name of the mass of the rail.
+
+        F:
+            The force of a wheel.
+
+        T:
+            The period of the passing bogies.
+
+        width:
+            The duration of the load of one wheel.
+
+        spacing:
+            The time between the two wheels of a bogie.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.power_systems import WheelLoadInteraction
+        >>> WheelLoadInteraction('wheels', target='rail', F=500.0).F
+        500.0
     """
 
-    law_classes = (RateLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        z: Annotated[object, StateSpec(order=2)] = 0.0,
-        z_d1: float = 0.0,
-        zs: Annotated[object, StateSpec(order=2)] = 0.0,
-        zs_d1: float = 0.0,
-        Mr: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 60.0,
-        Ms: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 156.0,
-        kr: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 6000.0,
-        br: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 300.0,
-        ks: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1500.0,
-        bs: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 520.0,
-        k2: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        alpha: Annotated[object, ParameterSpec()] = 1.75,
-        beta: Annotated[object, ParameterSpec()] = -1.0,
-        F: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
-        T: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        width: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        spacing: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        target: Role,
+        state: str = 'z',
+        mass: str = 'Mr',
+        F: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
+        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        spacing: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
     ) -> None:
         super().__init__(label)
-        self.z = z
-        self.z_d1 = z_d1
-        self.zs = zs
-        self.zs_d1 = zs_d1
-        self.Mr = Mr
-        self.Ms = Ms
-        self.kr = kr
-        self.br = br
-        self.ks = ks
-        self.bs = bs
-        self.k2 = k2
-        self.alpha = alpha
-        self.beta = beta
+        self.target = target
+        self.state = state
+        self.mass = mass
         self.F = F
         self.T = T
         self.width = width
         self.spacing = spacing
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the accelerations of the rail and of the sleeper.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the acceleration of the rail by the wheels."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s, z = context, getattr(context.target, self.state)
+        load = pulse_train(s.t, s.T, s.width, s.F) + pulse_train(s.t, s.T, s.width, s.F, start=s.spacing)
+        self.laws_: list[BaseComponent] = [RateLaw(z.diff(s.t, 2), load / getattr(s.target, self.mass))]
 
-        The wheels accelerate the rail and the ballast the sleeper. They leave the pad apart.
-        """
-        return [
-            RateLaw(s.z, RailSegmentElement._get_wheel_load(s) / s.Mr),
-            RateLaw(
-                s.zs,
-                (-s.bs * derivative(s.zs, 1) - s.ks * s.zs - s.k2 * (s.alpha * s.zs**2 + s.beta * s.zs**3)) / s.Ms,
-            ),
-        ]
 
-    @staticmethod
-    def _get_wheel_load(s: SimpleNamespace) -> Expression:
-        """Return the force of the two wheels of a bogie.
+class BallastInteraction(Interaction):
+    """Ballast under a sleeper, a damped spring with an optional nonlinear term.
 
-        It is two pulses per period, `spacing` apart.
-        """
-        return pulse_train(s.t, s.T, s.width, s.F) + pulse_train(s.t, s.T, s.width, s.F, start=s.spacing)
+    The ballast pushes the sleeper with `-bs zs' - ks zs - k2 (alpha zs^2 + beta zs^3)`, which accelerates it divided
+    by its mass. The nonlinear term is off for `k2 = 0`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element that holds the sleeper.
+
+        state:
+            The name of the deflection of the sleeper.
+
+        mass:
+            The name of the mass of the sleeper.
+
+        ks:
+            The stiffness of the ballast.
+
+        bs:
+            The damping of the ballast.
+
+        k2:
+            The stiffness of the nonlinear term.
+
+        alpha:
+            The quadratic coefficient of the nonlinear term.
+
+        beta:
+            The cubic coefficient of the nonlinear term.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.power_systems import BallastInteraction
+        >>> BallastInteraction('ballast', target='rail', k2=500.0).k2
+        500.0
+    """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        state: str = 'zs',
+        mass: str = 'Ms',
+        ks: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1500.0,
+        bs: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 520.0,
+        k2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        alpha: float = 1.75,
+        beta: float = -1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.state = state
+        self.mass = mass
+        self.ks = ks
+        self.bs = bs
+        self.k2 = k2
+        self.alpha = alpha
+        self.beta = beta
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the acceleration of the sleeper by the ballast."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s, zs = context, getattr(context.target, self.state)
+        force = -s.bs * zs.diff(s.t) - s.ks * zs - s.k2 * (s.alpha * zs**2 + s.beta * zs**3)
+        self.laws_: list[BaseComponent] = [RateLaw(zs.diff(s.t, 2), force / getattr(s.target, self.mass))]
 
 
 class RegenerativeBrakingSystem(DynamicalSystem):
@@ -362,7 +439,8 @@ class WheelRailContactSystem(BaseSystem):
     ballast, `Mr z'' + br (z' - zs') + kr (z - zs) = F(t)` and `Ms zs'' + br (zs' - z') + bs zs' + kr (zs - z) + ks zs +
     k2 (alpha zs^2 + β zs^3) = 0`. The load is two rectangular pulses of force `F` per period `T`, one per wheel of a
     bogie, `spacing` apart. The nonlinear ballast term, with `alpha = 1.75` and `β = -1`, is off for `k2 = 0`. The
-    system has the deflections `rail.z` of the rail and `rail.zs` of the sleeper, and their velocities.
+    system has the deflections `rail.z` of the rail and `rail.zs` of the sleeper, and their
+    velocities `rail.z'` and `rail.zs'`.
 
     Args:
         F:
@@ -389,9 +467,15 @@ class WheelRailContactSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.power_systems import WheelRailContactSystem
-        >>> WheelRailContactSystem(k2=500.0).prepare().system_.elements[0].k2
+        >>> WheelRailContactSystem(k2=500.0).prepare().system_.interactions[1].k2
         500.0
     """
 
@@ -412,8 +496,10 @@ class WheelRailContactSystem(BaseSystem):
         Mr: float = 60.0,
         Ms: float = 156.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.F = F
         self.T = T
         self.width = width
@@ -423,24 +509,17 @@ class WheelRailContactSystem(BaseSystem):
         self.Ms = Ms
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set `system_` to the components of the system built from its model parameters."""
+        """Set `system_` to the rail and its sleeper, the wheels, the pad, and the ballast."""
         super()._prepare(context)
-        rail = RailSegmentElement(
-            'rail',
+        rail = Element('rail', values={'z': 0.0, 'zs': 0.0, 'Mr': self.Mr, 'Ms': self.Ms})
+        wheels = WheelLoadInteraction(
+            'wheels',
+            target='rail',
             F=self.F,
             T=self.T,
             width=self.width,
             spacing=self.spacing,
-            k2=self.k2,
-            Mr=self.Mr,
-            Ms=self.Ms,
         )
-        pad = SpringDamperInteraction(
-            'pad',
-            target='rail',
-            states=('z', 'zs'),
-            stiffness='kr',
-            damping='br',
-            divisor={'z': 'Mr', 'zs': 'Ms'},
-        )
-        self.system_ = System(self.label, elements=[rail], interactions=[pad])
+        ballast = BallastInteraction('ballast', target='rail', k2=self.k2)
+        pad = SpringDamperInteraction('pad', target='rail', states=('z', 'zs'), masses=('Mr', 'Ms'), k=6000.0, b=300.0)
+        self.system_ = System(self.label, elements=[rail], interactions=[wheels, ballast, pad])

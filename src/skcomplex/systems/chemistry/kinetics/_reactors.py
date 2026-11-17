@@ -17,7 +17,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import pulse_train
 from ....core.components.spaces import BaseSpace
-from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, Role
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ._mass_exchange import MassExchangeInteraction
@@ -57,10 +59,10 @@ class CatalystPelletElement(Element):
         self,
         label: str,
         *,
-        c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        c: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        h: Annotated[float, RealSet.open(0, oo)] = 0.1,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        K: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
     ) -> None:
         super().__init__(label)
         self.c = c
@@ -213,6 +215,12 @@ class CatalystPelletSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import CatalystPelletSystem
         >>> CatalystPelletSystem(k=5.0).prepare().system_.elements[0].k
@@ -233,8 +241,10 @@ class CatalystPelletSystem(BaseSystem):
         k: float = 10.0,
         K: float = 20.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.c = c
         self.h = h
         self.k = k
@@ -313,6 +323,12 @@ class PulsedElectrochemicalReactorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import PulsedElectrochemicalReactorSystem
         >>> PulsedElectrochemicalReactorSystem(width=1.0).prepare().system_.interactions[0].width
@@ -340,8 +356,10 @@ class PulsedElectrochemicalReactorSystem(BaseSystem):
         period: float = 10.0,
         width: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.eta = eta
         self.c = c
         self.C = C

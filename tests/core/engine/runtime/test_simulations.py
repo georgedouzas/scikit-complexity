@@ -2,8 +2,10 @@
 
 import inspect
 import time
+from types import SimpleNamespace
 from typing import Annotated
 
+import networkx as nx
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import oo
@@ -13,8 +15,9 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.analysis import loops
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw, RuleLaw, TransitionLaw, UpdateLaw
-from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.components.laws import RateLaw, RuleLaw, TopologyRequestSpec, TransitionLaw, UpdateLaw
+from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, simulate
@@ -22,8 +25,9 @@ from skcomplex.core.engine.runtime._simulations import Simulation
 from skcomplex.core.engine.solvers import GillespieSolver, RK4Solver, ScipyODESolver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.errors import ParameterError, SimulationError, SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.errors import CapacityError, ParameterError, SimulationError, SolverError, ValidationError
+from skcomplex.core.specs import ParameterSpec, Role, RoleSpec, StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import (
     ExponentialGrowthInteraction,
@@ -550,7 +554,7 @@ def test_large_game_of_life_runs_in_real_time(tmp_path):
     """Test that a 1000 x 1000 Game of Life on Numba sustains 30 steps per second while streaming images."""
     observer = RerunObserver('life', save_path=tmp_path / 'life.rrd')
     simulation = Simulation(
-        GameOfLifeSystem((1000, 1000)).prepare().system_,
+        GameOfLifeSystem((1000, 1000)).prepare().system_._get_composite(),
         dt=1,
         backend=NumbaBackend(),
         record=False,
@@ -606,3 +610,86 @@ def test_simulation_runs_the_solver_instance_passed():
     )
     solver = ScipyODESolver(method='RK45')
     assert Simulation(system, solver=solver).prepare().run(until=0.1).stepper_ is solver
+
+
+def _get_degree(node):
+    """Return the weight of a node for a new link, its degree plus one, so a lone first node can be chosen."""
+    return neighbors(1) + 1
+
+
+class AttachmentInteraction(Interaction):
+    """Interaction that adds one node per step, linked to a node drawn by preferential attachment."""
+
+    def __init__(self, label, *, among: Role = 'nodes', along=None):
+        super().__init__(label, among=among, along=along)
+
+    def _prepare(self, context):
+        """Set the request of a new node with one link as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            request = TopologyRequestSpec('add-node', edges=1, one=True, toward=_get_degree)
+            self.laws_ = [UpdateLaw(request, 1.0)]
+
+
+def test_run_grows_a_network_from_one_node_in_one_continuous_run():
+    """Test that a network of one node grows to 500 by preferential attachment, and observers see each frame once."""
+    nodes = Element('nodes', values={'k': 0.0}, space=NetworkSpace(nx.empty_graph(1)))
+    system = System(elements=[nodes], interactions=[AttachmentInteraction('attach')]).prepare()
+    observer = FrameCounterObserver()
+    trajectory = system.simulate(until=499, random_state=0, observers=[observer])
+    sizes = [trajectory.get_network(frame).nodes.size for frame in range(len(trajectory.times))]
+    grown = trajectory.get_network(-1).get_graph()
+    assert observer.times_ == list(map(float, range(500)))
+    assert sizes == list(range(1, 501))
+    assert nx.is_tree(grown)
+    assert max(degree for _, degree in grown.degree()) >= 15
+
+
+class _AgingElement(Element):
+    """Node of a growing network that ages by one at every step."""
+
+    def __init__(self, label, age: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.age = age
+
+    def _get_laws(self, s):
+        """Return the ageing."""
+        return [UpdateLaw(s.age, s.age + 1)]
+
+
+class _GrowthElement(Element):
+    """Element that adds one node at every step, linked to a node drawn by its degree."""
+
+    def _get_laws(self, s):
+        """Return the request of one new node."""
+        return [UpdateLaw(TopologyRequestSpec('add-node', edges=1, toward=_get_degree), 1)]
+
+
+def _get_growing(capacity):
+    """Return a network of two nodes that gains one node per step, with a capacity of nodes and links or none."""
+    space = NetworkSpace(nx.path_graph(2))
+    nodes = GroupElement('nodes', element=_AgingElement, space=space, on='sites', variable=True, capacity=capacity)
+    links = GroupElement('links', element=Element, space=space, on='edges', variable=True, capacity=capacity)
+    return CompositeSystem(elements=[nodes, links, _GrowthElement('growth')], time=DiscreteTime())
+
+
+def test_run_grows_a_group_without_a_capacity_as_a_presized_one_runs():
+    """Test that groups that grow give the run of groups with room enough, and the same seed repeats the run."""
+    grown = simulate(_get_growing(None), until=100, random_state=np.random.default_rng(5))
+    again = simulate(_get_growing(None), until=100, random_state=np.random.default_rng(5))
+    roomy = simulate(_get_growing(128), until=100, random_state=np.random.default_rng(5))
+    for other in (again, roomy):
+        for frame in (10, 50, 100):
+            network, expected = grown.get_network(frame), other.get_network(frame)
+            np.testing.assert_array_equal(network.nodes, expected.nodes)
+            np.testing.assert_array_equal(network.sources, expected.sources)
+            np.testing.assert_array_equal(network.targets, expected.targets)
+        np.testing.assert_array_equal(grown.get_values('nodes.age')[:, :102], other.get_values('nodes.age')[:, :102])
+    assert grown.get_network(-1).nodes.size == 102
+
+
+def test_run_keeps_a_given_capacity():
+    """Test that a group given a capacity does not grow, and a request beyond it names the group and its rows."""
+    with pytest.raises(CapacityError, match='capacity') as error:
+        simulate(_get_growing(10), until=40, random_state=0)
+    assert (error.value.path, error.value.rows) == ('nodes', 10)

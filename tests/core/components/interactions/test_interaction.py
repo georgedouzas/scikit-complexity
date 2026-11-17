@@ -341,6 +341,16 @@ def test_interaction_along_edges_clones_with_its_binding():
     assert not Interaction('growth')._runs_on_edges()
 
 
+def test_interaction_along_hyperedges_runs_on_no_edge():
+    """Test that `along='hyperedges'` runs the laws once per hyperedge, not per edge, on the graph of no layer."""
+    interaction = _ExchangeInteraction('exchange', along='hyperedges')
+    assert (interaction._runs_on_hyperedges(), interaction._runs_on_edges(), interaction._get_layer()) == (
+        True,
+        False,
+        None,
+    )
+
+
 def test_interaction_rewires_the_edges_of_a_network():
     """Test that updates on the edges move them away from disagreeing voters at every step until few remain."""
     graph = nx.random_regular_graph(4, 30, seed=1)

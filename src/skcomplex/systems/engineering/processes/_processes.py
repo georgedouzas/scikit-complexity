@@ -18,6 +18,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step, where
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import StockFlowSystem
@@ -142,6 +144,12 @@ class CascadeClassifierSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.processes import CascadeClassifierSystem
         >>> len(CascadeClassifierSystem(n_stages=4).prepare().system_.interactions)
@@ -162,8 +170,10 @@ class CascadeClassifierSystem(BaseSystem):
         feed_stage: int | None = None,
         feed: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_stages = n_stages
         self.k = k
         self.feed_stage = feed_stage

@@ -17,6 +17,8 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import sign, where
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
@@ -177,6 +179,12 @@ class MinimumTimeControlSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The plant is unknown, or the interval is not positive.
@@ -201,8 +209,10 @@ class MinimumTimeControlSystem(BaseSystem):
         plant: str = 'free_particle',
         interval: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.v = v
         self.plant = plant

@@ -6,6 +6,7 @@ The load of a node is the number of shortest paths through it.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,34 +15,41 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TopologyInteraction
-from ....core.components.laws.utils import components, shortest_paths
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import TopologyRequestSpec, UpdateLaw
+from ....core.components.laws.utils import components, shortest_paths, where
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import StateSpec
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 ATTACKS = ('load', 'degree', 'random')
 
 
 class LoadedNodeElement(Element):
-    """Node of a network that carries a load and fails above its capacity.
-
-    The load is the number of shortest paths through it.
+    """Nodes of a network, each with its load, its capacity, and the size of the largest component.
 
     Args:
         label:
-            The label of the node group.
+            The label of the nodes.
 
         load:
-            The betweenness of the node on the network present, read at the start of every step.
+            The initial betweenness of every node, one per node or shared.
 
         capacity:
-            The largest load the node carries, a negative value for a node that fails at the first step.
+            The largest load a node carries, a negative value for a node that fails at the first step, one per node or
+            shared.
 
         giant:
-            The number of nodes of the largest connected component, the same for every node.
+            The initial number of nodes of the largest connected component, the same for every node.
+
+        space:
+            The network with one node per site, or `None` for one node.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import LoadedNodeElement
@@ -53,14 +61,52 @@ class LoadedNodeElement(Element):
         self,
         label: str,
         *,
-        load: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        capacity: Annotated[float, StateSpec()] = 0.0,
-        giant: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        load: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        capacity: object = 0.0,
+        giant: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.load = load
         self.capacity = capacity
         self.giant = giant
+
+
+class OverloadInteraction(Interaction):
+    """Failure of every node whose load, the number of shortest paths through it, exceeds its capacity.
+
+    At the start of every step the load of every node and the size of the largest component are read from the network
+    present, and every overloaded node leaves the network at the end of the step.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The nodes whose loads and sizes the interaction sets and that fail.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import OverloadInteraction
+        >>> OverloadInteraction('overload').target
+        'nodes'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'nodes') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the loads, the size of the largest component, and the failures as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            node = context.target
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(node.load, shortest_paths(1)),
+                UpdateLaw(node.giant, components(1, reduce='largest')),
+                UpdateLaw(TopologyRequestSpec('remove-node'), where(shortest_paths(1) > node.capacity, 1, 0)),
+            ]
 
 
 class MotterLaiOverloadSystem(BaseSystem):
@@ -72,8 +118,7 @@ class MotterLaiOverloadSystem(BaseSystem):
     largest degree, or a random node. Every later step the loads are those of the network present, and every node whose
     load exceeds its capacity fails at once, until no node is overloaded. A heterogeneous network loses most of its
     largest component after an attack on a node of large load and a low tolerance, and keeps it after a random failure.
-    The system has the nodes `nodes`, their `load`, `capacity`, and the size of the largest component `giant`, and the
-    links `links`.
+    The system has the nodes `nodes`, their `load`, `capacity`, and the size of the largest component `giant`.
 
     Args:
         graph:
@@ -91,14 +136,19 @@ class MotterLaiOverloadSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The attack is unknown.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import MotterLaiOverloadSystem
-        >>> trajectory = simulate(MotterLaiOverloadSystem(tolerance=0.1), until=10)
+        >>> trajectory = MotterLaiOverloadSystem(tolerance=0.1).prepare().simulate(until=10)
         >>> int(trajectory.get_network(-1).nodes.size) < 300
         True
     """
@@ -116,23 +166,23 @@ class MotterLaiOverloadSystem(BaseSystem):
         attack: str = 'load',
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.tolerance = tolerance
         self.attack = attack
         self.random_state = random_state
 
-    @staticmethod
-    def _is_overloaded(s: SimpleNamespace) -> object:
-        """Return whether the load of a node on the network present exceeds its capacity."""
-        return shortest_paths(1) > s.source.capacity
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the loaded nodes of the network after the attack.
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the cascade of overload failures of Motter and Lai.
-
-        The cascade follows the removal of one node.
+        Raises:
+            ValidationError:
+                The attack is unknown.
         """
+        super()._prepare(context)
         if self.attack not in ATTACKS:
             error_msg = f'Unknown attack {self.attack!r}. Use one of {", ".join(ATTACKS)}.'
             raise ValidationError(error_msg)
@@ -149,28 +199,11 @@ class MotterLaiOverloadSystem(BaseSystem):
         }[self.attack]
         capacities = (1 + self.tolerance) * loads
         capacities[target] = -1.0
-        nodes = GroupElement(
+        nodes = LoadedNodeElement(
             'nodes',
-            element=LoadedNodeElement,
-            on='sites',
-            variable=True,
-            capacity=len(loads),
-            values={'load': loads, 'capacity': capacities, 'giant': float(len(loads))},
-        )
-        links = GroupElement('links', element=Element, on='edges', variable=True, capacity=graph.number_of_edges())
-        return CompositeSystem(
-            self.label,
-            elements=[nodes, links],
-            interactions=[
-                MapInteraction('load', target='nodes', state='load', function=lambda s: shortest_paths(1)),
-                MapInteraction(
-                    'giant',
-                    target='nodes',
-                    state='giant',
-                    function=lambda s: components(1, reduce='largest'),
-                ),
-                TopologyInteraction('overload', target='nodes', action='remove-node', condition=self._is_overloaded),
-            ],
+            load=loads,
+            capacity=capacities,
+            giant=float(len(loads)),
             space=NetworkSpace(graph),
-            time=DiscreteTime(),
         )
+        self.system_ = System(self.label, elements=[nodes], interactions=[OverloadInteraction('overload')])

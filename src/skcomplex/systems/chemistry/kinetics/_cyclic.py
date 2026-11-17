@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -11,12 +12,18 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, Role, StateSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
+
+VON_NEUMANN = RadiusNeighborhood(1, metric='manhattan', center=True)
 
 
 class CyclicCellElement(Element):
@@ -61,6 +68,49 @@ class CyclicCellElement(Element):
         self.threshold = threshold
 
 
+class CyclicAdvanceInteraction(Interaction):
+    """Advance of the cells of Griffeath's cyclic automaton around their cycle of levels.
+
+    A cell moves from level `k` to level `k + 1` modulo `n` when at least `threshold` of its von Neumann neighbours
+    hold that level, with `n` and `threshold` the parameters of its cell.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `level` the rule updates.
+
+    Examples:
+        >>> from skcomplex.systems.chemistry.kinetics import CyclicAdvanceInteraction
+        >>> CyclicAdvanceInteraction('advance', target='cells').target
+        'cells'
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _advance_cyclically(level: Array, *around: Array, n: float | Array, threshold: float | Array) -> Array:
+        """Return the next levels, one step around the cycle.
+
+        A cell steps where enough neighbours hold the following level.
+        """
+        following = np.mod(level + 1, n)
+        successors = sum((item == following).astype(float) for item in around)
+        return np.where(successors >= threshold, following, level)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the advance of the levels as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            level = context.target.level
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(level, self._advance_cyclically, neighborhood=VON_NEUMANN, label=self.label),
+            ]
+
+
 class CyclicCellularAutomatonSystem(BaseSystem):
     """Griffeath's cyclic cellular automaton.
 
@@ -85,6 +135,12 @@ class CyclicCellularAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import CyclicCellularAutomatonSystem
         >>> CyclicCellularAutomatonSystem((10, 10), n=8).prepare().system_.elements[0].values['n']
@@ -105,22 +161,14 @@ class CyclicCellularAutomatonSystem(BaseSystem):
         threshold: int = 1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.n = n
         self.threshold = threshold
         self.random_state = random_state
-
-    @staticmethod
-    def _advance_cyclically(level: Array, *around: Array, n: float | Array, threshold: float | Array) -> Array:
-        """Return the next levels, one step around the cycle.
-
-        A cell steps where enough neighbours hold the following level.
-        """
-        following = np.mod(level + 1, n)
-        successors = sum((item == following).astype(float) for item in around)
-        return np.where(successors >= threshold, following, level)
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the lattice of cells with random levels and the rule that advances them."""
@@ -139,12 +187,6 @@ class CyclicCellularAutomatonSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                LocalRuleInteraction(
-                    'advance',
-                    target='cells',
-                    state='level',
-                    rule=self._advance_cyclically,
-                    neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
-                ),
+                CyclicAdvanceInteraction('advance', target='cells'),
             ],
         )

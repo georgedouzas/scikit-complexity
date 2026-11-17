@@ -12,7 +12,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.elements import FieldElement
+from ....components.elements import FieldElement, GroupElement
 from ....components.interactions import (
     BaseInteraction,
     GroupingInteraction,
@@ -572,6 +572,8 @@ class SpecsPass(BasePass):
         ]
         edges = [block for block in blocks if getattr(block.node.component, 'on', None) == 'edges']
         nodes = [block for block in blocks if block not in edges]
+        along = SpecsPass._get_along(node, nodes, ('edges',), elements) if not edges else None
+        edges += [along] if along is not None else []
         if (
             not 1 <= len(nodes) <= 1 + int(not edges)
             or len(edges) > 1
@@ -584,6 +586,47 @@ class SpecsPass(BasePass):
             )
             raise RoleError(error_msg)
         return nodes[0], next(iter(edges), None), next(iter(nodes[1:]), None)
+
+    @staticmethod
+    def _get_along(
+        node: _NodeSpec,
+        nodes: Sequence[BlockSpec],
+        parts: Sequence[str],
+        elements: dict[str, BlockSpec],
+    ) -> BlockSpec | None:
+        """Return the group with values on the links an interaction runs along, or `None`.
+
+        The group sits on the first of `parts` that holds one, such as the hyperedges and then the edges, of the network
+        and layer of the interaction's nodes, and its member declares values, such as the sign of every link. Only an
+        interaction that sets its laws in `_prepare` reads such a group without a role.
+
+        Raises:
+            RoleError:
+                Several groups with values sit on the same links.
+        """
+        component = node.component
+        if not (isinstance(component, BaseInteraction) and component._is_preparing_laws()) or len(nodes) != 1:
+            return None
+        layer = component._get_layer()
+        for part in parts:
+            found = [
+                block
+                for block in elements.values()
+                if isinstance(block.node.component, GroupElement)
+                and block.node.component.on == part
+                and block.node.space is nodes[0].node.space
+                and block.node.component.layer == layer
+                and block.node.component._get_member_specs()
+            ]
+            if len(found) > 1:
+                error_msg = (
+                    f'Interaction {node.path} runs along the {part} that the elements '
+                    f'{", ".join(block.node.path for block in found)} sit on. Keep one element on them.'
+                )
+                raise RoleError(error_msg)
+            if found:
+                return found[0]
+        return None
 
     @staticmethod
     def _get_edge_search(
@@ -948,6 +991,8 @@ class SpecsPass(BasePass):
             for role in declarations_of(node.component, VariableKind.ROLE)
             if getattr(node.component, role) is not None
         ]
+        along = SpecsPass._get_along(node, blocks, SECOND_PARTS[::-1], elements) if len(blocks) == 1 else None
+        blocks += [along] if along is not None else []
         parts = [getattr(block.node.component, 'on', None) for block in blocks]
         valid = (
             len(blocks) <= MAX_HYPEREDGE_ROLES
@@ -1428,7 +1473,10 @@ class SpecsPass(BasePass):
         if edges and bound:
             return SpecsPass._get_edge_specs(block, elements, declarations)
         grouped = isinstance(component, GroupingInteraction) and component.form == 'symbolic'
-        if (isinstance(component, HyperedgeInteraction) and bound) or (
+        hyperedges = isinstance(component, HyperedgeInteraction) or (
+            isinstance(component, BaseInteraction) and component._runs_on_hyperedges()
+        )
+        if (hyperedges and bound) or (
             isinstance(component, GroupingInteraction) and grouped and component.groups != 'state'
         ):
             gathered = SpecsPass._get_grouping_specs if grouped else SpecsPass._get_hyperedge_specs

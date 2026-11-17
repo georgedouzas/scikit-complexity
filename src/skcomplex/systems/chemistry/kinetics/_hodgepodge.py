@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -11,12 +12,18 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, Role, StateSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
+
+MOORE = RadiusNeighborhood(1, metric='chebyshev', center=True)
 
 
 class HodgepodgeCellElement(Element):
@@ -70,6 +77,57 @@ class HodgepodgeCellElement(Element):
         self.g = g
 
 
+class HodgepodgeInteraction(Interaction):
+    """Infection, worsening, and healing of the cells of the hodgepodge machine.
+
+    A healthy cell catches the infection from its infected and ill neighbours, an infected cell worsens by the mean of
+    its Moore neighbourhood plus `g`, and an ill cell heals, with `n`, `k1`, `k2`, and `g` the parameters of its cell.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `level` the rule updates.
+
+    Examples:
+        >>> from skcomplex.systems.chemistry.kinetics import HodgepodgeInteraction
+        >>> HodgepodgeInteraction('infection', target='cells').target
+        'cells'
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _infect(
+        level: Array,
+        *around: Array,
+        n: float | Array,
+        k1: float | Array,
+        k2: float | Array,
+        g: float | Array,
+    ) -> Array:
+        """Return the next levels.
+
+        Healthy cells catch the infection, infected cells worsen, and ill cells heal.
+        """
+        neighbours = np.stack(around)
+        infected = ((neighbours > 0) & (neighbours < n)).sum(axis=0)
+        ill = (neighbours >= n).sum(axis=0)
+        healthy = np.floor(infected / k1) + np.floor(ill / k2)
+        worsening = np.minimum(np.floor((level + neighbours.sum(axis=0)) / (infected + ill + 1)) + g, n)
+        return np.where(level <= 0, np.minimum(healthy, n), np.where(level >= n, 0.0, worsening))
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the infection of the cells as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            level = context.target.level
+            self.laws_: list[BaseComponent] = [UpdateLaw(level, self._infect, neighborhood=MOORE, label=self.label)]
+
+
 class HodgepodgeSystem(BaseSystem):
     """The hodgepodge machine, a chemical reaction whose waves form spirals.
 
@@ -99,6 +157,12 @@ class HodgepodgeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import HodgepodgeSystem
         >>> HodgepodgeSystem((10, 10)).prepare().system_.elements[0].values['g']
@@ -121,34 +185,16 @@ class HodgepodgeSystem(BaseSystem):
         g: float = 34.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.n = n
         self.k1 = k1
         self.k2 = k2
         self.g = g
         self.random_state = random_state
-
-    @staticmethod
-    def _infect(
-        level: Array,
-        *around: Array,
-        n: float | Array,
-        k1: float | Array,
-        k2: float | Array,
-        g: float | Array,
-    ) -> Array:
-        """Return the next levels.
-
-        Healthy cells catch the infection, infected cells worsen, and ill cells heal.
-        """
-        neighbours = np.stack(around)
-        infected = ((neighbours > 0) & (neighbours < n)).sum(axis=0)
-        ill = (neighbours >= n).sum(axis=0)
-        healthy = np.floor(infected / k1) + np.floor(ill / k2)
-        worsening = np.minimum(np.floor((level + neighbours.sum(axis=0)) / (infected + ill + 1)) + g, n)
-        return np.where(level <= 0, np.minimum(healthy, n), np.where(level >= n, 0.0, worsening))
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the lattice of cells with random levels and the rule of the infection."""
@@ -168,12 +214,6 @@ class HodgepodgeSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                LocalRuleInteraction(
-                    'infection',
-                    target='cells',
-                    state='level',
-                    rule=self._infect,
-                    neighborhood=RadiusNeighborhood(1, metric='chebyshev', center=True),
-                ),
+                HodgepodgeInteraction('infection', target='cells'),
             ],
         )

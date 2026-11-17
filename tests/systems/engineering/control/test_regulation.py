@@ -4,10 +4,11 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import linearization
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.systems import System
 from skcomplex.systems.engineering.control import (
-    CartPendulumElement,
+    CartPendulumInteraction,
+    DrivenOscillatorInteraction,
     LqrOscillatorSystem,
     PidInvertedPendulumSystem,
 )
@@ -33,11 +34,14 @@ def test_lqr_oscillator_comes_to_rest():
 
 def test_lqr_oscillator_is_controllable():
     """Test that the oscillator with its force as control is controllable."""
-    plant = CompositeSystem(elements=list(LqrOscillatorSystem().prepare().system_.elements))
-    assert linearization(plant).controllability == 2
+    motion = DrivenOscillatorInteraction('motion', target='oscillator')
+    plant = System(elements=list(LqrOscillatorSystem().prepare().system_.elements), interactions=[motion])
+    assert linearization(plant, controls=['oscillator.force']).controllability == 2
 
 
 def test_pendulum_without_control_falls():
     """Test that the pendulum without its controller falls away from upright."""
-    trajectory = simulate(CompositeSystem(elements=[CartPendulumElement('cart', theta=0.1)]), until=1.0, dt=0.1)
+    cart = Element('cart', values={'x': 0.0, 'theta': 0.1, 'force': 0.0, 'M': 1.0, 'm': 0.1, 'l': 0.5})
+    system = System(elements=[cart], interactions=[CartPendulumInteraction('motion', target='cart')])
+    trajectory = system.prepare().simulate(until=1.0, dt=0.1)
     assert trajectory.get_values('cart.theta')[-1] > 0.5

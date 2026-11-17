@@ -6,25 +6,31 @@ They are Muller's automaton, a linear one, and Life in a tree.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable, Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import ZZ, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import ZZ
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.automata import CayleySpace
 from ._binary_cell import BinaryCellElement
-from ._codes import life
 from ._generator_neighborhood import GeneratorNeighborhood
 from ._groups import free_group
+from ._life_rule import LifeRuleInteraction
 
 FREE_GENERATORS = GeneratorNeighborhood(('a', 'b'), center=False)
 TREE_RANK = 4
@@ -34,39 +40,132 @@ MIN_MODULUS = 2
 class PairCellElement(Element):
     """Cell of an automaton over the product `H x H` of the integers modulo `n`.
 
-    For a prime `n` the product is `K^2`.
+    For a prime `n` the product is `K^2`. With `space`, the element holds one cell on every site.
 
     Args:
         label:
-            The label of the cell or the lattice group.
+            The label of the cells.
 
         first:
-            The initial first coordinate, an integer from 0 to `modulus - 1`.
+            The initial first coordinate, an integer from 0 to `n - 1`, or one per cell.
 
         second:
-            The initial second coordinate, an integer from 0 to `modulus - 1`.
+            The initial second coordinate, an integer from 0 to `n - 1`, or one per cell.
 
-        modulus:
-            The order `n` of the cyclic group `H`, the size of the field `K` when prime.
+        space:
+            The space with one cell on every site, such as a group, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import PairCellElement
-        >>> PairCellElement('cell', first=1).modulus
-        2
+        >>> PairCellElement('cell', first=1).first
+        1
     """
 
     def __init__(
         self,
         label: str,
         *,
-        first: Annotated[float, StateSpec(domain=ZZ)] = 0,
-        second: Annotated[float, StateSpec(domain=ZZ)] = 0,
-        modulus: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2,
+        first: Annotated[float | Array, ZZ] = 0,
+        second: Annotated[float | Array, ZZ] = 0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.first = first
         self.second = second
+
+
+class MullerRuleInteraction(Interaction):
+    """Muller's rule on pairs, `p1(x(ga)) + p2(x(gb)) + p1(x(ga^-1)) + p2(x(gb^-1))`.
+
+    The projections are `p1(h, k) = (h, 0)` and `p2(h, k) = (k, 0)`, and the sum is taken modulo the order of the
+    cyclic group, so every image lies in `H x {0}`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells on the free group, whose states `first` and `second` the rule updates.
+
+        modulus:
+            The order `n` of the cyclic group `H`.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import MullerRuleInteraction
+        >>> MullerRuleInteraction('rule', target='cells', modulus=3).modulus
+        3
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells', modulus: int = 2) -> None:
+        super().__init__(label)
+        self.target = target
         self.modulus = modulus
+
+    def _get_function(self) -> Callable[..., tuple[Array, Array]]:
+        """Return the rule on the pairs at `a`, `a^-1`, `b`, and `b^-1`."""
+        modulus = self.modulus
+
+        def muller(*values: Array) -> tuple[Array, Array]:
+            first, second = values[:4], values[4:]
+            total = first[0] + first[1] + second[2] + second[3]
+            return total % modulus, np.zeros_like(total)
+
+        return muller
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the pairs as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            states = (context.target.first, context.target.second)
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(states, self._get_function(), neighborhood=FREE_GENERATORS, label=self.label),
+            ]
+
+
+class SurjectiveLinearRuleInteraction(Interaction):
+    """Linear rule on pairs, `q1(x(ga)) + q1(x(ga^-1)) + q2(x(gb)) + q2(x(gb^-1))`.
+
+    The maps are `q1(h, k) = (h, 0)` and `q2(h, k) = (0, h)`, over the field of a prime number of elements.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells on the free group, whose states `first` and `second` the rule updates.
+
+        modulus:
+            The prime size of the field `K`.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import SurjectiveLinearRuleInteraction
+        >>> SurjectiveLinearRuleInteraction('rule', target='cells', modulus=3).modulus
+        3
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells', modulus: int = 2) -> None:
+        super().__init__(label)
+        self.target = target
+        self.modulus = modulus
+
+    def _get_function(self) -> Callable[..., tuple[Array, Array]]:
+        """Return the rule on the pairs at `a`, `a^-1`, `b`, and `b^-1`."""
+        modulus = self.modulus
+
+        def linear(*values: Array) -> tuple[Array, Array]:
+            first = values[:4]
+            return (first[0] + first[1]) % modulus, (first[2] + first[3]) % modulus
+
+        return linear
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the pairs as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            states = (context.target.first, context.target.second)
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(states, self._get_function(), neighborhood=FREE_GENERATORS, label=self.label),
+            ]
 
 
 class MullerAutomatonSystem(BaseSystem):
@@ -95,14 +194,20 @@ class MullerAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The modulus is below 2.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import MullerAutomatonSystem
-        >>> MullerAutomatonSystem(radius=2).prepare().system_.elements[0].prepare().size_
-        17
+        >>> MullerAutomatonSystem(radius=2).prepare().simulate(until=1).get_values('cells.first').shape
+        (2, 17)
     """
 
     field = 'computer_science/automata'
@@ -115,56 +220,6 @@ class MullerAutomatonSystem(BaseSystem):
         Observable('second_mean', group='cells', variable='second'),
     )
 
-    @staticmethod
-    def _get_pair_cells(
-        space: CayleySpace,
-        modulus: int,
-        initial: npt.ArrayLike | None,
-        random_state: int | np.random.Generator | None,
-    ) -> Array:
-        """Return the initial pairs, one row of two coordinates per site.
-
-        By default they are random modulo the modulus.
-        """
-        if modulus < MIN_MODULUS:
-            error_msg = f'The order of the cyclic group H is at least 2, but it is {modulus}.'
-            raise ParameterError(error_msg)
-        size = space.prepare().size_
-        if initial is not None:
-            return np.asarray(initial, dtype=float).reshape(size, 2)
-        return np.random.default_rng(random_state).integers(0, modulus, (size, 2)).astype(float)
-
-    @staticmethod
-    def _get_pair_system(
-        label: str,
-        rule: object,
-        *,
-        radius: int,
-        modulus: int,
-        initial: npt.ArrayLike | None,
-        random_state: int | np.random.Generator | None,
-    ) -> CompositeSystem:
-        """Return an automaton of pairs on a ball of the free group of rank 2.
-
-        It reads `a`, `a^-1`, `b`, and `b^-1`.
-        """
-        space = CayleySpace(free_group(2), ball=radius)
-        pairs = MullerAutomatonSystem._get_pair_cells(space, modulus, initial, random_state)
-        values = {'first': pairs[:, 0], 'second': pairs[:, 1], 'modulus': modulus}
-        return CompositeSystem(
-            label,
-            elements=[GroupElement('cells', element=PairCellElement, space=space, values=values, on='sites')],
-            interactions=[
-                LocalRuleInteraction(
-                    'rule',
-                    target='cells',
-                    state=('first', 'second'),
-                    rule=rule,
-                    neighborhood=FREE_GENERATORS,
-                ),
-            ],
-        )
-
     def __init__(
         self,
         *,
@@ -173,35 +228,34 @@ class MullerAutomatonSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.radius = radius
         self.modulus = modulus
         self.initial = initial
         self.random_state = random_state
 
-    @staticmethod
-    def _get_muller(*values: Array, modulus: Array | float) -> tuple[Array, Array]:
-        """Return `p1(x(ga)) + p2(x(gb)) + p1(x(ga^-1)) + p2(x(gb^-1))`.
+    def _get_pairs(self, space: BaseSpace) -> Array:
+        """Return the initial pairs, one row of two coordinates per site, random modulo the modulus by default."""
+        if self.modulus < MIN_MODULUS:
+            error_msg = f'The order of the cyclic group H is at least 2, but it is {self.modulus}.'
+            raise ParameterError(error_msg)
+        size = space.prepare().size_
+        if self.initial is not None:
+            return np.asarray(self.initial, dtype=float).reshape(size, 2)
+        return np.random.default_rng(self.random_state).integers(0, self.modulus, (size, 2)).astype(float)
 
-        The projections are `p1(h, k) = (h, 0)` and `p2(h, k) = (k, 0)`.
-        """
-        first, second = values[:4], values[4:]
-        total = first[0] + first[1] + second[2] + second[3]
-        return total % modulus, np.zeros_like(total)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return Muller's automaton on the free group F2.
-
-        It is pre-injective but not surjective.
-        """
-        return MullerAutomatonSystem._get_pair_system(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of pairs on a ball of the free group of rank 2 and Muller's rule."""
+        super()._prepare(context)
+        space = CayleySpace(free_group(2), ball=self.radius)
+        pairs = self._get_pairs(space)
+        self.system_ = System(
             self.label,
-            self._get_muller,
-            radius=self.radius,
-            modulus=self.modulus,
-            initial=self.initial,
-            random_state=self.random_state,
+            elements=[PairCellElement('cells', first=pairs[:, 0], second=pairs[:, 1], space=space)],
+            interactions=[MullerRuleInteraction('rule', target='cells', modulus=self.modulus)],
         )
 
 
@@ -232,14 +286,20 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The modulus is below 2.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import SurjectiveLinearAutomatonSystem
-        >>> SurjectiveLinearAutomatonSystem(radius=2).prepare().system_.elements[0].prepare().size_
-        17
+        >>> SurjectiveLinearAutomatonSystem(radius=2).prepare().simulate(until=1).get_values('cells.first').shape
+        (2, 17)
     """
 
     field = 'computer_science/automata'
@@ -260,34 +320,34 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.radius = radius
         self.modulus = modulus
         self.initial = initial
         self.random_state = random_state
 
-    @staticmethod
-    def _get_surjective_linear(*values: Array, modulus: Array | float) -> tuple[Array, Array]:
-        """Return `q1(x(ga)) + q1(x(ga^-1)) + q2(x(gb)) + q2(x(gb^-1))`.
+    def _get_pairs(self, space: BaseSpace) -> Array:
+        """Return the initial pairs, one row of two coordinates per site, random modulo the modulus by default."""
+        if self.modulus < MIN_MODULUS:
+            error_msg = f'The order of the cyclic group H is at least 2, but it is {self.modulus}.'
+            raise ParameterError(error_msg)
+        size = space.prepare().size_
+        if self.initial is not None:
+            return np.asarray(self.initial, dtype=float).reshape(size, 2)
+        return np.random.default_rng(self.random_state).integers(0, self.modulus, (size, 2)).astype(float)
 
-        The maps are `q1(h, k) = (h, 0)` and `q2(h, k) = (0, h)`.
-        """
-        first = values[:4]
-        return (first[0] + first[1]) % modulus, (first[2] + first[3]) % modulus
-
-    def _build_system(self) -> CompositeSystem:
-        """Return a linear automaton over `K^2` on the free group F2.
-
-        It is surjective but not pre-injective.
-        """
-        return MullerAutomatonSystem._get_pair_system(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of pairs on a ball of the free group of rank 2 and the linear rule."""
+        super()._prepare(context)
+        space = CayleySpace(free_group(2), ball=self.radius)
+        pairs = self._get_pairs(space)
+        self.system_ = System(
             self.label,
-            self._get_surjective_linear,
-            radius=self.radius,
-            modulus=self.modulus,
-            initial=self.initial,
-            random_state=self.random_state,
+            elements=[PairCellElement('cells', first=pairs[:, 0], second=pairs[:, 1], space=space)],
+            interactions=[SurjectiveLinearRuleInteraction('rule', target='cells', modulus=self.modulus)],
         )
 
 
@@ -316,10 +376,16 @@ class LifeInATreeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LifeInATreeSystem
-        >>> LifeInATreeSystem(radius=2).prepare().system_.elements[0].prepare().size_
-        65
+        >>> LifeInATreeSystem(radius=2).prepare().simulate(until=1).get_values('cells.alive').shape
+        (2, 65)
     """
 
     field = 'computer_science/automata'
@@ -337,36 +403,33 @@ class LifeInATreeSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.radius = radius
         self.density = density
         self.initial = initial
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Game of Life on the free group F4, surjective but not pre-injective.
-
-        The free group F4 is a tree of degree 8.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the cells on a ball of the free group of rank 4 and the rules of life."""
+        super()._prepare(context)
         space = CayleySpace(free_group(TREE_RANK), ball=self.radius)
         size = space.prepare().size_
         if self.initial is None:
-            cells = (np.random.default_rng(self.random_state).random(size) < self.density).astype(float)
+            cells = np.asarray(np.random.default_rng(self.random_state).random(size) < self.density, dtype=float)
         else:
             cells = np.asarray(self.initial, dtype=float)
-        return CompositeSystem(
+        life = LifeRuleInteraction(
+            'life',
+            target='cells',
+            born=(3,),
+            survive=(2, 3),
+            neighborhood=GeneratorNeighborhood(space.generators_, center=False),
+        )
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': cells}, on='sites'),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'life',
-                    target='cells',
-                    state='alive',
-                    rule=life((3,), (2, 3)),
-                    neighborhood=GeneratorNeighborhood(space.generators_, center=False),
-                ),
-            ],
+            elements=[BinaryCellElement('cells', alive=cells, space=space)],
+            interactions=[life],
         )

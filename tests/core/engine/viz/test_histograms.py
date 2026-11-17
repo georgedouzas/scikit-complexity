@@ -160,7 +160,7 @@ def test_agents_visual_logs_one_dimensional_positions_as_series(log_agents):
 
 def test_charbonneau_traffic_has_a_space_time_view():
     """Test that the cars of Charbonneau's traffic system keep the agents visual and get a space-time view."""
-    problem = PassCompiler().prepare(CharbonneauTrafficSystem().prepare().system_).run().problem_
+    problem = PassCompiler().prepare(CharbonneauTrafficSystem().prepare()._get_composite()).run().problem_
     visual = _agents_visual(problem)
     assert not isinstance(visual, HistogramVisual)
     views = visual.views_

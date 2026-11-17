@@ -16,7 +16,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.neural_networks import HopfieldSystem
 
@@ -42,12 +41,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(
-    HopfieldSystem(patterns=patterns, noise=0.3, random_state=0),
-    until=4,
-    dt=1,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    HopfieldSystem(patterns=patterns, noise=0.3, random_state=0)
+    .prepare()
+    .simulate(until=4, dt=1, observers=[observer], random_state=0)
 )
 frames = [spins(trajectory, frame).reshape(10, 10) for frame in range(5)] + [patterns[0].reshape(10, 10)]
 tiles = [np.pad(frame, 1) for frame in frames]
@@ -70,12 +67,9 @@ final = [
     np.mean(
         [
             spins(
-                simulate(
-                    HopfieldSystem(n_neurons=N, n_patterns=p, noise=0.1, random_state=seed),
-                    until=4,
-                    dt=1,
-                    random_state=seed,
-                ),
+                HopfieldSystem(n_neurons=N, n_patterns=p, noise=0.1, random_state=seed)
+                .prepare()
+                .simulate(until=4, dt=1, random_state=seed),
                 -1,
             )
             @ np.random.default_rng(seed).choice([-1.0, 1.0], size=(p, N))[0]

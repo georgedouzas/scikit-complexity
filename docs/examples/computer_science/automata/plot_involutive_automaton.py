@@ -15,14 +15,15 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import InvolutiveAutomatonSystem
 
 SYSTEM = 'involutive_automaton'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(InvolutiveAutomatonSystem(n=3, size=80, density=0.6, random_state=0), observers=[observer])
+trajectory = (
+    InvolutiveAutomatonSystem(n=3, size=80, density=0.6, random_state=0).prepare().simulate(observers=[observer])
+)
 
 # %%
 # Period two
@@ -35,7 +36,10 @@ distance = (alive != alive[0]).sum(axis=1)
 configurations = np.asarray(list(itertools.product((0, 1), repeat=12)), dtype=float)
 returned = [
     np.array_equal(
-        simulate(InvolutiveAutomatonSystem(n=3, initial=configuration), until=2).get_values(
+        InvolutiveAutomatonSystem(n=3, initial=configuration)
+        .prepare()
+        .simulate(until=2)
+        .get_values(
             'cells.alive',
         )[-1],
         configuration,

@@ -481,6 +481,62 @@ trajectory.get_values('village/farmers_count.value')[-1]
 The land is a differential equation and the village holds agents, so each runs as its own partition. After fifty years
 the village still counts 10 farmers.
 
+Each nested system keeps the time its own laws imply, and no time is given to any of them. A nested system whose laws
+are updates steps once per unit of time, and one whose laws are rates runs in continuous time between those steps. A
+heater that a thermostat switches once a minute is a discrete controller next to a continuous room.
+
+```python
+from types import SimpleNamespace
+
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw, UpdateLaw
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+
+class Heating(Interaction):
+    def __init__(self, label, *, room: Role, heater: Role, k=0.1):
+        super().__init__(label)
+        self.room = room
+        self.heater = heater
+        self.k = k
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            room, t = context.room, context.t
+            self.laws_ = [RateLaw(room.T.diff(t), -context.k * room.T + context.heater.on)]
+
+
+class Thermostat(Interaction):
+    def __init__(self, label, *, heater: Role, room: Role):
+        super().__init__(label)
+        self.heater = heater
+        self.room = room
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.heater.on, (context.room.T < 5) * 1.0)]
+
+
+house = System(
+    systems=[
+        System('control', elements=[Element('heater', values={'on': 0.0})]),
+        System('house', elements=[Element('room', values={'T': 0.0})]),
+    ],
+    interactions=[
+        Thermostat('thermostat', heater='control/heater', room='house/room'),
+        Heating('heating', room='house/room', heater='control/heater'),
+    ],
+).prepare()
+trajectory = house.simulate(until=60, dt=1)
+house.form_, set(trajectory.get_values('control/heater.on').tolist())
+```
+
+The thermostat changes the heater once a minute, and the room warms or cools in continuous time in between.
+
 Every nested system whose laws fit one form becomes a partition. A law joins the partition that owns its target, so
 an interaction of the parent system may contribute to several partitions. A nested system whose own elements mix law
 kinds raises `IncompatibleLawsError`, with its path and the suggestion to split it.

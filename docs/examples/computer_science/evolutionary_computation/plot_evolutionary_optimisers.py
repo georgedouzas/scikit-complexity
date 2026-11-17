@@ -11,9 +11,7 @@ step, and the best value it has seen falls with time.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import sweep
 from skcomplex.systems.computer_science.evolutionary_computation import (
     EvolutionaryOptimisersSystem,
 )
@@ -21,24 +19,19 @@ from skcomplex.systems.computer_science.evolutionary_computation import (
 SYSTEM = 'evolutionary_optimisers'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(EvolutionaryOptimisersSystem(), observers=[observer], random_state=0)
+trajectory = EvolutionaryOptimisersSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The best value against the generation
 # -------------------------------------
-# A `sweep` runs each population optimiser over the same seeds, and annealing, which cools geometrically, reports its
-# best value through the tuned observable of its class.
+# Every population optimiser runs from the same seed, and annealing, which cools geometrically, reports its best
+# value through the tracker of the lowest energy its candidates reach.
 
 fig, ax = plt.subplots(figsize=(7, 4))
-bounds = {'algorithm': ['differential-evolution', 'particle-swarm'], 'random_state': [1]}
-result = sweep(EvolutionaryOptimisersSystem(), bounds, until=100, outputs=['search.best'])
-for name, best in zip(
-    bounds['algorithm'],
-    result.get_series('search.best'),
-    strict=True,
-):
-    ax.semilogy(best[1:] + 1e-12, label=name)
-annealing = simulate(EvolutionaryOptimisersSystem(algorithm='annealing', random_state=1), until=100)
+for name in ('differential-evolution', 'particle-swarm'):
+    run = EvolutionaryOptimisersSystem(algorithm=name, random_state=1).prepare().simulate(until=100)
+    ax.semilogy(run.get_values('search.best')[1:] + 1e-12, label=name)
+annealing = EvolutionaryOptimisersSystem(algorithm='annealing', random_state=1).prepare().simulate(until=100)
 ax.semilogy(annealing.get_values('tracker/record.best')[1:] + 1e-12, label='annealing')
 ax.set_xlabel('generation')
 ax.set_ylabel('best value')

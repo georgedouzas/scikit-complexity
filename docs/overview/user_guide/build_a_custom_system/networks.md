@@ -579,7 +579,9 @@ The share of cooperators falls from 0.46 to 0.04 over 30 steps.
   Numba backends. Each reads the states the phases before it set.
 - Laws without a phase run in the default phase, first unless the schedule places it.
 - The draws of a step are made once, before the first phase.
-- A law in a phase the schedule does not declare raises `ValidationError`.
+- Without a schedule of phases, the phases run in the order their laws first appear, so the order of the
+  interactions of a system orders them. With a schedule, a law in a phase it does not declare raises
+  `ValidationError`.
 
 ## Reductions over neighbourhoods
 
@@ -854,7 +856,8 @@ of update and jump laws.
 The iteration and Gillespie steppers apply the requests between steps. A request that joins nodes draws the new ends
 with weights from `toward`. This is a module-level function of the namespace of a candidate node, such as `degree`
 above, which returns `neighbors(1)`. A request on a group that is not variable gets the validation issue
-`group-fixed`, and a full capacity raises `CapacityError`.
+`group-fixed`. A variable group without a `capacity` grows as it needs, and one whose given capacity fills raises
+`CapacityError`.
 
 Trajectories hold the values of absent members as NaN, and `trajectory.get_network(frame)` returns the nodes and edges
 present at a frame. Rerun draws the nodes present, and the edges at every frame where they change.

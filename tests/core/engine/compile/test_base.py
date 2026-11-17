@@ -8,6 +8,9 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine import compile as package
 from skcomplex.core.engine.compile import BaseCompiler, BasePass, OperatorCompiler
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.enums import FormKind
+from skcomplex.core.systems import System
+from skcomplex.systems.engineering.control import PidInvertedPendulumSystem
 
 
 def test_base_compiler_resolve_backend():
@@ -40,3 +43,10 @@ def test_bases_and_the_operator_compiler_are_public():
     assert not hasattr(package, PassCompiler.__name__)
     for name in ('LayoutPass', 'ProblemPass', 'Compilation', 'ObservableEvaluator'):
         assert not hasattr(package, name)
+
+
+def test_base_compiler_prepares_on_a_system():
+    """Test that a compiler compiles a `System` and a ready-made system through their composites."""
+    pendulum = PidInvertedPendulumSystem(label='pendulum')
+    for system in (pendulum, System(systems=[pendulum])):
+        assert PassCompiler().prepare(system).run().problem_.form == FormKind.ODE

@@ -4,6 +4,7 @@ from multiprocessing.reduction import ForkingPickler
 from types import SimpleNamespace
 from typing import Annotated
 
+import networkx as nx
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
@@ -12,7 +13,7 @@ from sklearn.base import clone
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw, RateLaw, RuleLaw
-from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.components.spaces import ContinuousSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -303,3 +304,26 @@ def test_prepare_rejects_a_reserved_name_used_for_a_value(element, name):
     """Test that a reserved name holding something else than its setting raises an error naming the reserved names."""
     with pytest.raises(ValidationError, match=rf"has {name} = .*label, size, space, values are reserved"):
         element.prepare()
+
+
+@pytest.mark.parametrize(
+    ('on', 'space'),
+    [('links', NetworkSpace(nx.path_graph(3))), ('edges', ContinuousSpace(n_dim=2)), ('edges', None)],
+)
+def test_prepare_rejects_an_on_that_names_no_links_of_a_network(on, space):
+    """Test that `on` other than the edges or hyperedges of a network space raises an error with an example."""
+    with pytest.raises(ValidationError, match=r"has on = .*'edges' or 'hyperedges'"):
+        Element('links', values={'sign': 1}, space=space, on=on).prepare()
+
+
+def test_prepare_keeps_a_state_of_its_own_named_on():
+    """Test that an element that declares its own state `on`, such as a switch, is not read as the part of a space."""
+
+    class SwitchElement(Element):
+        """Switch whose state `on` is 1 when it is closed."""
+
+        def __init__(self, label: str, on: Annotated[float, StateSpec()] = 1.0) -> None:
+            super().__init__(label)
+            self.on = on
+
+    assert SwitchElement('switch', on=0.0).prepare().on == 0.0

@@ -192,6 +192,74 @@ class CapacitorElement(Element):
 CapacitorElement('c1', v=5.0).get_params()
 ```
 
+**Members on the links of a network.** `space=` puts one member of an element on every node of a network, and
+`on='edges'` puts one on every link instead, such as the width of every road between three cities. An interaction that
+runs `along` the edges reads the member of each link as `s.edge`, beside the two ends `s.source` and `s.target`.
+
+```python
+import networkx as nx
+
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+
+class Exchange(Interaction):
+    def __init__(self, label, *, among: Role = 'cities', along=True):
+        super().__init__(label, among=among, along=along)
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        flow = s.edge.w * (s.source.x - s.target.x)
+        self.laws_ = [RateLaw(s.target.x.diff(s.t), flow), RateLaw(s.source.x.diff(s.t), -flow)]
+
+
+roads = NetworkSpace(nx.path_graph(3))
+cities = Element('cities', values={'x': [90.0, 0.0, 0.0]}, space=roads)
+links = Element('links', values={'w': [2.0, 0.5]}, space=roads, on='edges')
+system = System(elements=[cities, links], interactions=[Exchange('exchange')]).prepare()
+system.simulate(until=1.0, dt=0.5).get_values('cities.x')[-1].round(1).tolist()
+```
+
+After one unit of time the three cities hold 41.3, 36.4, and 12.3, since the wide first road carries four times the
+flow of the second. `on='hyperedges'` puts one member on every hyperedge of a network, which an interaction with
+`along='hyperedges'` reads as `s.hyperedge`, beside the members `s.member` and `s.others` of the hyperedge.
+
+**Groups that grow.** A group has no capacity to give. When rules or topology requests add members, the engine
+doubles the rows of the group as a Python list grows and goes on from the step where the group filled, so a network
+may start with one node and the trajectory holds one unbroken run. Here a network grows to 500 nodes by preferential
+attachment, each new node linking to a node drawn by its degree plus one.
+
+```python continuation
+from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.laws.utils import neighbors
+
+
+def degree(node):
+    return neighbors(1) + 1
+
+
+class Attach(Interaction):
+    def __init__(self, label, *, among: Role = 'nodes', along=None):
+        super().__init__(label, among=among, along=along)
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(TopologyRequestSpec('add-node', edges=1, one=True, toward=degree), 1.0)]
+
+
+nodes = Element('nodes', values={'k': 0.0}, space=NetworkSpace(nx.empty_graph(1)))
+web = System(elements=[nodes], interactions=[Attach('attach')]).prepare()
+grown = web.simulate(until=499, random_state=0).get_network(-1).get_graph()
+grown.number_of_nodes(), max(degree for _, degree in grown.degree())
+```
+
+The network holds 500 nodes, and its largest hub has 27 links, far more than a network whose new nodes link uniformly
+would give.
+
 See its [fact sheet](../../../components/elements.md#element)
 and its [API entry][skcomplex.core.components.elements.Element].
 

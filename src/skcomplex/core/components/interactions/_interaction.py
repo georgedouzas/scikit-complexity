@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from ._base import BaseInteraction
 
+HYPEREDGES = 'hyperedges'
+
 
 class Interaction(BaseInteraction):
     """An interaction whose laws run once for the elements its roles bind.
@@ -24,7 +26,14 @@ class Interaction(BaseInteraction):
 
     With `among` and `along`, the laws run once for every edge of a network instead, and read `s.source` and
     `s.target`, the members at the two ends. A subclass lists both in its own `__init__` and passes them on, such as an
-    infection along the contacts of a network, `Infection('infect', among='people', along=True, beta=0.3)`.
+    infection along the contacts of a network, `Infection('infect', among='people', along=True, beta=0.3)`. When an
+    element sits on those edges, such as `Element('links', values={'sign': 1}, space=network, on='edges')`, the laws
+    read its member on the edge as `s.edge`, such as `s.edge.sign`.
+
+    With `along='hyperedges'`, the laws run once for every hyperedge of the network and read `s.member`, the member
+    the laws change, `s.others`, the other members in the order of the hyperedge, and `s.members`, all of them. They
+    read the element on the hyperedges as `s.hyperedge`, or else the element on the edges as `s.edge`, the link that
+    joins the first two members, as the regulated links of triadic percolation do.
 
     Args:
         label:
@@ -36,7 +45,7 @@ class Interaction(BaseInteraction):
 
         along:
             `True` for the edges of the network the group lives on, the name of a layer of a network with several, such
-            as `'contacts'`, or `None` for no edges.
+            as `'contacts'`, `'hyperedges'` for its hyperedges, or `None` for no edges.
 
     Examples:
         >>> from typing import Annotated
@@ -67,8 +76,12 @@ class Interaction(BaseInteraction):
 
     def _runs_on_edges(self) -> bool:
         """Return whether the interaction runs along edges."""
-        return self.along is not None and self.along is not False
+        return self.along is not None and self.along is not False and not self._runs_on_hyperedges()
+
+    def _runs_on_hyperedges(self) -> bool:
+        """Return whether the interaction runs along the hyperedges of a network."""
+        return self.along == HYPEREDGES
 
     def _get_layer(self) -> str | None:
-        """Return the layer `along` names, or `None` for the graph of the network."""
-        return self.along if isinstance(self.along, str) else None
+        """Return the layer `along` names, or `None` for the graph or the hyperedges."""
+        return self.along if isinstance(self.along, str) and not self._runs_on_hyperedges() else None

@@ -80,7 +80,8 @@ class GroupElement(BaseElement):
 
         capacity:
             The largest number of members of a variable group on the sites or edges of a network, which compiled
-            backends reserve rows for, or `None` for twice the initial size.
+            backends reserve rows for, or `None` for a group that grows as a Python list does, doubling its rows when
+            it fills.
 
         rank:
             The largest number of members of one hyperedge of a variable group on hyperedges, such as `3` for triangles,

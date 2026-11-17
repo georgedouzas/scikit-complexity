@@ -105,7 +105,7 @@ class FlattenPass(BasePass):
             FlattenPass._check_network_lattice(space, group.size, where)
         if group.size is None:
             return
-        if isinstance(space, LatticeSpace):
+        if isinstance(space, LatticeSpace) and group.on is not None:
             try:
                 space.prepare()
             except ValidationError as error:

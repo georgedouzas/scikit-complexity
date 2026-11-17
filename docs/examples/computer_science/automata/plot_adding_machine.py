@@ -13,14 +13,13 @@ on the first six levels it visits all 64 vertices in turn.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import AddingMachineSystem
 
 SYSTEM = 'adding_machine'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(AddingMachineSystem(digits=6, base=2), observers=[observer])
+trajectory = AddingMachineSystem(digits=6, base=2).prepare().simulate(observers=[observer])
 
 # %%
 # Counting and the portrait
@@ -31,7 +30,7 @@ trajectory = simulate(AddingMachineSystem(digits=6, base=2), observers=[observer
 
 digits = trajectory.get_values('cells.digit')
 numbers = digits @ 2 ** np.arange(6)
-ternary = simulate(AddingMachineSystem(digits=4, base=3), until=81).get_values('cells.digit')
+ternary = AddingMachineSystem(digits=4, base=3).prepare().simulate(until=81).get_values('cells.digit')
 turns = (np.diff(ternary, axis=0) != 0).sum(axis=0)
 fig, (count, portrait) = plt.subplots(1, 2, figsize=(10, 4))
 count.plot(trajectory.times, numbers, 'o', markersize=3, label='digits read in base 2')

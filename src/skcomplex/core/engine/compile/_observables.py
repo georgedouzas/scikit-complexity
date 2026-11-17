@@ -10,11 +10,12 @@ from typing import Annotated, Self
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, I
+from sage.all__sagemath_symbolics import SR, Expression, I, function
 
 from ...components import Observable
 from ...components.elements import Element
-from ...components.laws.utils import local_operator
+from ...components.interactions import BaseInteraction
+from ...components.laws.utils import derivative, local_operator
 from ...components.laws.utils._local_operators import has_operator
 from ...components.systems import CompositeSystem
 from ...enums import FormKind, VariableKind
@@ -485,9 +486,59 @@ class ObservableEvaluator:
         namespace = self._get_namespace_of(self.problem, scope)
         for other, item in earlier.items():
             setattr(namespace, other[len(prefix) :], item)
-        expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
+        expression = self._read_derivatives(path, observable, namespace)
         expression, stages = self._read_delays(path, expression)
         return self._compile(path, expression, {item: other for other, item in earlier.items()}, stages)
+
+    def _get_functional(self, value: object, names: Mapping[str, str], functions: dict[str, Expression]) -> object:
+        """Return a namespace with every scalar state as a function of the time.
+
+        A state `x` becomes `x(t)`.
+        """
+        if isinstance(value, SimpleNamespace):
+            return SimpleNamespace(
+                **{name: self._get_functional(item, names, functions) for name, item in vars(value).items()},
+            )
+        states = self.problem.states
+        if isinstance(value, Expression) and value.is_symbol() and states.has(names.get(str(value), '')):
+            functions[str(value)] = value
+            return function(str(value))(self.problem.time)
+        return value
+
+    def _read_derivatives(self, path: str, observable: Observable, namespace: SimpleNamespace) -> object:
+        """Return the value of an observable, reading derivatives as states.
+
+        The observable reads every state as a function of the time, so `s.ball.x.diff(s.t)` is the derivative `ball.x'`,
+        which the problem holds as a state when a law reads the second derivative of `x`.
+
+        Raises:
+            ValidationError:
+                The observable reads a derivative that the problem does not hold.
+        """
+        if not callable(observable.expression):
+            return observable.expression
+        if not isinstance(self.problem, ProblemSpec):
+            return observable.expression(namespace)
+        names = {str(item): name for name, item in self.problem.symbols.items() if isinstance(item, Expression)}
+        functions: dict[str, Expression] = {}
+        value = observable.expression(self._get_functional(namespace, names, functions))
+        if not functions:
+            return value
+        value = BaseInteraction._get_translated(value, self.problem.time, functions, False)
+        if not isinstance(value, Expression):
+            return value
+        for found in value.find(derivative(SR.wild(0), SR.wild(1))):
+            state, order = found.operands()
+            name = f'{names[str(state)]}_d{order}'
+            if name not in self.problem.symbols:
+                read = names[str(state)] + "'" * int(order)
+                error_msg = (
+                    f'Observable {path} reads {read}, a derivative that the system does not hold. Observe the '
+                    'derivatives of a state whose laws read a higher derivative.'
+                )
+                raise ValidationError(error_msg)
+            value = value.subs({found: self.problem.symbols[name]})
+        return value
 
     def _read_delays(
         self,

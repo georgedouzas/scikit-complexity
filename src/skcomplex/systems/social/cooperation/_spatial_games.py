@@ -15,8 +15,10 @@ from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import GroupingInteraction, LocalRuleInteraction
+from ....core.components.interactions import GroupingInteraction, Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import count, total
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -144,11 +146,11 @@ class PrisonerElement(Element):
         self.noise = noise
 
 
-class IteratedDilemmaInteraction(LocalRuleInteraction):
+class IteratedDilemmaInteraction(Interaction):
     """Play of the iterated prisoner's dilemma between neighbours.
 
-    The play is followed by revision to the best strategy, and mutation. It is a stochastic `LocalRuleInteraction` of
-    the strategies over the cells within two von Neumann steps of a player. Every step each player plays the `N`-round
+    The play is followed by revision to the best strategy, and mutation. It is a stochastic local rule of the
+    strategies over the cells within two von Neumann steps of a player. Every step each player plays the `N`-round
     prisoner's dilemma with its four von Neumann neighbours and sums its years in prison. A player of strategy `n`
     against one of strategy `m < n` gets `m R + S + (N - m - 1) P`, the other `m R + T + (N - m - 1) P`, and two players
     of strategy `n` get `n R + (N - n) P`. Every player then adopts the strategy of the lowest score among itself and
@@ -164,12 +166,20 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
 
     Examples:
         >>> from skcomplex.systems.social.cooperation import IteratedDilemmaInteraction
-        >>> IteratedDilemmaInteraction('play', target='players').state
-        'strategy'
+        >>> IteratedDilemmaInteraction('play', target='players').target
+        'players'
     """
 
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, state='strategy', rule=self._play, neighborhood=DIAMOND, stochastic=True)
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the play, the revision, and the mutation of the strategies as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            strategy = context.target.strategy
+            self.laws_: list[BaseComponent] = [UpdateLaw(strategy, self._play, neighborhood=DIAMOND, label=self.label)]
 
     @staticmethod
     def get_years(
@@ -278,11 +288,11 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
         return np.where(random < mutation, mutant, revised)
 
 
-class PrisonersDilemmaInteraction(LocalRuleInteraction):
+class PrisonersDilemmaInteraction(Interaction):
     """Play of the weak prisoner's dilemma between neighbours.
 
-    The play is followed by imitation of more successful neighbours. It is a stochastic `LocalRuleInteraction` of the
-    strategies over the 5 by 5 square around a player, a cooperator at 1 and a defector at 0. Every step each player
+    The play is followed by imitation of more successful neighbours. It is a stochastic local rule of the strategies
+    over the 5 by 5 square around a player, a cooperator at 1 and a defector at 0. Every step each player
     plays the weak dilemma, with reward 1, temptation `temptation`, and 0 otherwise, against itself and its eight
     neighbours. It then copies the best player among them, or a random neighbour with the Fermi probability
     `1 / (1 + exp((P_own - P_other) / noise))`. The temptation and the noise are parameters of the players.
@@ -308,15 +318,16 @@ class PrisonersDilemmaInteraction(LocalRuleInteraction):
     """
 
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], imitation: str = 'best') -> None:
-        super().__init__(label, target=target, state='strategy', rule=self._play, neighborhood=SQUARE, stochastic=True)
+        super().__init__(label)
+        self.target = target
         self.imitation = imitation
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an unknown imitation.
+        """Raise an error for an unknown imitation, and set the play and the imitation as the law.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of the players.
 
         Raises:
             ValidationError:
@@ -326,6 +337,9 @@ class PrisonersDilemmaInteraction(LocalRuleInteraction):
         if self.imitation not in IMITATIONS:
             error_msg = f'Unknown imitation {self.imitation!r}. Use one of {", ".join(IMITATIONS)}.'
             raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            strategy = context.target.strategy
+            self.laws_: list[BaseComponent] = [UpdateLaw(strategy, self._play, neighborhood=SQUARE, label=self.label)]
 
     def _play(self, *values: Array, temptation: float | Array, noise: float | Array, random: Array) -> Array:
         """Return the strategies after the play and the imitation.

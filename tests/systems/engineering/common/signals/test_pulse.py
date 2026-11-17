@@ -73,6 +73,30 @@ def test_pulses_on_a_group_set_every_member_from_its_own_state():
     np.testing.assert_allclose(trajectory.get_values('bodies.c')[-1], expected, rtol=1e-3)
 
 
+class CoastInteraction(Interaction):
+    """Motion of `x` without force, `x'' = 0`."""
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.target.x.diff(context.t, 2), 0)]
+
+
+def test_prepare_kicks_a_derivative_named_with_a_prime():
+    """Test that a pulse on `x'` at time 1 sets a body at rest moving, so it travels 2 by time 3."""
+    kick = PulseInteraction('kick', target='body', reset={"x'": lambda s: s.target.x.diff(s.t) + 1.0}, times=(1.0,))
+    body = Element('body', values={'x': 0.0})
+    system = System(elements=[body], interactions=[CoastInteraction('coast', target='body'), kick])
+    trajectory = system.prepare().simulate(until=3.0, dt=0.5)
+    assert trajectory.get_values('body.x')[-1] == pytest.approx(2.0)
+
+
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [

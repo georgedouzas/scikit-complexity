@@ -11,7 +11,7 @@ from skcomplex.systems.engineering.traffic import (
 
 def test_charbonneau_cars_keep_order_and_distance():
     """Test that cars never pass each other or come closer than one unit, and that random braking stops some cars."""
-    trajectory = CharbonneauTrafficSystem(50).prepare().system_.simulate(until=100, random_state=0)
+    trajectory = CharbonneauTrafficSystem(50).prepare().simulate(until=100, random_state=0)
     snapshot = trajectory.get_agents('cars', 100)
     order = np.argsort(snapshot.values['rank'])
     assert np.diff(snapshot.values['x'][order]).min() >= 1.0 - 1e-9
@@ -21,7 +21,7 @@ def test_charbonneau_cars_keep_order_and_distance():
 @pytest.mark.parametrize(('n_cars', 'eps', 'free'), [(20, 0.0, True), (30, 0.02, False)])
 def test_ring_road_drivers_jam_with_errors(n_cars, eps, free):
     """Test that sparse drivers without errors reach the speed limit, and errors of speed jam a denser road."""
-    trajectory = RingRoadDriversSystem(n_cars, eps=eps).prepare().system_.simulate(until=100, random_state=0)
+    trajectory = RingRoadDriversSystem(n_cars, eps=eps).prepare().simulate(until=100, random_state=0)
     speeds = trajectory.get_agents('drivers', 100).values['speed']
     assert (speeds.min() == pytest.approx(40.0)) == free
 

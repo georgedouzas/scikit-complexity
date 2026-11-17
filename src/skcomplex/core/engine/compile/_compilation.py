@@ -359,13 +359,23 @@ class Compilation:
         return value
 
     def is_static(self) -> bool:
-        """Return whether the system is static, by its time or an objective law.
+        """Return whether the system is static.
+
+        It is static by its time, by an objective law, or by having no laws and no states at all.
+
+        A system with no laws, no states, and no time of its own, such as
+        `System(elements=[Element('ball', values={'x': 1.0})])`, changes nothing, so it is static.
 
         Returns:
             static:
-                Whether the system has static time or an objective law.
+                Whether the system has static time, an objective law, or no laws, no states, and no time.
         """
         if isinstance(self.system.time, StaticTime):
             return True
         census = self.census
-        return census is not None and any(isinstance(record.law, ObjectiveLaw) for record in census.records)
+        if census is None:
+            return False
+        unchanged = self.layout is not None and not self.layout.states and not self.layout.agents
+        if not census.records and unchanged and self.system.time is None:
+            return True
+        return any(isinstance(record.law, ObjectiveLaw) for record in census.records)

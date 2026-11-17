@@ -944,7 +944,9 @@ class PassCompiler(BaseCompiler):
             interaction = node.component
             if isinstance(interaction, BaseInteraction) and interaction._runs_on_edges():
                 over = 'neighbors'
-            elif isinstance(interaction, HyperedgeInteraction):
+            elif isinstance(interaction, HyperedgeInteraction) or (
+                isinstance(interaction, BaseInteraction) and interaction._runs_on_hyperedges()
+            ):
                 over = 'hyperedges'
             else:
                 continue

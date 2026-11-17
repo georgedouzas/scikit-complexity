@@ -1794,3 +1794,82 @@ def test_rule_writing_a_value_the_agent_lacks_raises():
     system = System(elements=[coins], interactions=[AgentRule('tail', target='coins', rule=tail)]).prepare()
     with pytest.raises(AttributeError, match='tails'):
         system.simulate(until=1)
+
+
+def _step_right(agent, system):
+    """Move an agent one unit along the first axis."""
+    agent.x += 1
+
+
+def test_agents_start_at_the_points_of_their_values_and_move_with_them():
+    """Test that walkers on a plane start at their values `x` and `y` and move when a rule changes `x`."""
+    plane = ContinuousSpace(extent=[50.0, 50.0])
+    walkers = Element('walkers', values={'x': [22.7, 5.0], 'y': [1.5, 30.0]}, size=2, space=plane)
+    walk = AgentRule('walk', target='walkers', rule=_step_right)
+    trajectory = System(elements=[walkers], interactions=[walk]).prepare().simulate(until=2, random_state=0)
+    for frame, shift in enumerate([0.0, 1.0, 2.0]):
+        snapshot = trajectory.get_agents('walkers', frame)
+        expected = [[22.7 + shift, 1.5], [5.0 + shift, 30.0]]
+        np.testing.assert_allclose(snapshot.locations, expected)
+        np.testing.assert_allclose(np.column_stack([snapshot.values['x'], snapshot.values['y']]), expected)
+
+
+def test_agents_start_at_the_cells_of_their_values_and_wrap_around_a_ring():
+    """Test that agents on a periodic lattice start at the cells their values name and wrap from the last cell."""
+    walkers = Element('walkers', values={'x': [0, 3], 'y': [4, 2]}, size=2, space=LatticeSpace((5, 5)))
+    walk = AgentRule('walk', target='walkers', rule=_step_right)
+    trajectory = System(elements=[walkers], interactions=[walk]).prepare().simulate(until=2, random_state=0)
+    assert trajectory.get_agents('walkers', 0).locations.tolist() == [[0, 4], [3, 2]]
+    assert trajectory.get_agents('walkers', 2).locations.tolist() == [[2, 4], [0, 2]]
+    assert trajectory.get_agents('walkers', 2).values['x'].tolist() == [2, 0]
+
+
+def _drive(car, system):
+    """Move a car by its speed in cells."""
+    car.x += car.v
+
+
+class Braking(Interaction):
+    """Braking of every car of the road at once, an event drawn once per step for the whole road."""
+
+    def __init__(self, label, *, p=1.0):
+        super().__init__(label)
+        self.p = p
+
+    def _prepare(self, context):
+        """Set the rule of the whole road."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context, self.brake)]
+
+    def brake(self, system):
+        """Slow every car by one cell per step with probability `p`."""
+        if system.rng.random() < self.p:
+            for car in system.get_agents('cars'):
+                car.v = max(car.v - 1, 0)
+
+
+@pytest.mark.parametrize(('p', 'moved'), [(1.0, [2, 3, 3]), (0.0, [2, 4, 6])])
+def test_a_rule_of_the_whole_road_runs_once_per_step_after_the_cars(p, moved):
+    """Test that a braking event of the whole road slows every car once per step, after the cars have moved."""
+    cars = Element('cars', values={'x': [0, 3, 8], 'v': 2}, size=3, space=LatticeSpace(10))
+    road = System(elements=[cars], interactions=[AgentRule('drive', target='cars', rule=_drive), Braking('road', p=p)])
+    trajectory = road.prepare().simulate(until=3, random_state=0)
+    for frame, distance in enumerate(moved, start=1):
+        assert trajectory.get_agents('cars', frame).values['x'].tolist() == [(x + distance) % 10 for x in (0, 3, 8)]
+
+
+class _AgentBraking(Braking):
+    """Braking whose rule wrongly takes an agent and the system."""
+
+    def brake(self, agent, system):
+        """Slow one car."""
+        agent.v = 0
+
+
+def test_a_rule_of_the_whole_system_takes_the_system_alone():
+    """Test that a rule of the whole system that takes an agent too raises an error that shows the right form."""
+    cars = Element('cars', values={'x': [0], 'v': 1}, size=1, space=LatticeSpace(10))
+    road = System(elements=[cars], interactions=[AgentRule('drive', target='cars', rule=_drive), _AgentBraking('road')])
+    with pytest.raises(ValidationError, match=r'def brake\(system\)'):
+        road.prepare()

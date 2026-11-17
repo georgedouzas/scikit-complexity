@@ -150,11 +150,13 @@ def test_alignment_of_a_field_of_vectors():
 
 def test_alignment_of_velocities_along_a_line():
     """Test that agents moving along a line align by the sign of their velocities, per frame and per member."""
-    trajectory = simulate(RandomWalkWithMemorySystem(n_walkers=200), until=5.0, random_state=0)
+    trajectory = RandomWalkWithMemorySystem(n_walkers=200).prepare().simulate(until=5.0, random_state=0)
     signs = np.sign(trajectory.get_values('walkers.v'))
     expected = np.abs(np.where(signs == 0, 0.0, signs).mean(axis=1))
     assert _alignment('mean-vector', trajectory).order == pytest.approx(expected, abs=1e-12)
-    assert _alignment('mean-phase', simulate(OptimalVelocitySystem(), until=1.0, random_state=0)).order[-1] == 1.0
+    assert (
+        _alignment('mean-phase', OptimalVelocitySystem().prepare().simulate(until=1.0, random_state=0)).order[-1] == 1.0
+    )
 
 
 @pytest.mark.parametrize(

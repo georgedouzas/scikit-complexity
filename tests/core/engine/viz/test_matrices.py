@@ -12,6 +12,11 @@ from skcomplex.core.errors import ValidationError
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 
 
+def _elman(**settings):
+    """Return the composite of an Elman network that trains, which the free `simulate` runs."""
+    return ElmanNetworkSystem(**settings).prepare().system_._get_composite()
+
+
 def _views(blueprint):
     """Return the views of a blueprint in layout order."""
     found, stack = [], [blueprint.root_container]
@@ -29,7 +34,7 @@ def test_matrix_visual_logs_the_recurrent_weights(tmp_path):
     recorder = RecorderObserver()
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
     trajectory = simulate(
-        ElmanNetworkSystem(n_bits=30).prepare().system_,
+        _elman(n_bits=30),
         until=3,
         observers=[observer, recorder],
         random_state=0,
@@ -43,7 +48,7 @@ def test_matrix_visual_logs_the_recurrent_weights(tmp_path):
 
 def test_matrix_visual_rejects_a_variable_that_is_not_a_matrix():
     """Test that a variable without two dimensions raises an error."""
-    problem = PassCompiler().prepare(ElmanNetworkSystem(n_bits=30).prepare().system_).run().problem_
+    problem = PassCompiler().prepare(_elman(n_bits=30)).run().problem_
     with pytest.raises(ValidationError, match='no matrix'):
         MatrixVisual('b', path='net/hidden', recording=rr.RecordingStream('test')).prepare(problem)
 
@@ -51,7 +56,7 @@ def test_matrix_visual_rejects_a_variable_that_is_not_a_matrix():
 def test_first_view_of_a_system_that_trains():
     """Test that the first view of a system that trains is the time series of its loss and metrics over epochs."""
     observer = RerunObserver(blueprint='default').prepare(
-        PassCompiler().prepare(ElmanNetworkSystem(n_bits=30).prepare().system_).run().problem_,
+        PassCompiler().prepare(_elman(n_bits=30)).run().problem_,
     )
     first = _views(observer.blueprint_)[0]
     assert isinstance(first, rrb.TimeSeriesView)
@@ -61,7 +66,7 @@ def test_first_view_of_a_system_that_trains():
 def test_default_blueprint_of_a_system_that_trains():
     """Test that the default blueprint holds the loss and one heat map per trained matrix, and no inner state."""
     observer = RerunObserver(blueprint='default').prepare(
-        PassCompiler().prepare(ElmanNetworkSystem(n_bits=30).prepare().system_).run().problem_,
+        PassCompiler().prepare(_elman(n_bits=30)).run().problem_,
     )
     origins = [str(view.origin) for view in _views(observer.blueprint_)]
     assert origins == ['/reporters/training', 'net/input/D', 'net/recurrence/A', 'net/readout/W']

@@ -6,6 +6,7 @@ It is trained on the temporal XOR stream.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -16,15 +17,14 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, TrainingInteraction
 from ....core.components.laws import DatasetSpec
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 TRAINED = ('input.D', 'recurrence.A', 'readout.W', 'hidden.b', 'outputs.c')
 WEIGHT_SCALE = 0.5
-PHASES = (PhaseSpec('drive'), PhaseSpec('hidden'), PhaseSpec('readout'))
 
 
 class HiddenUnitElement(Element):
@@ -139,7 +139,8 @@ class InputCouplingInteraction(CouplingInteraction):
 
     The weights `D` are an adaptive matrix with one row per hidden unit and one column per input unit, so training
     changes them. The coupling runs in the phase `drive` of the step, which the system declares before the phases
-    `hidden` of the recurrence and `readout` of the readout, so the hidden units read the drive of the same step.
+    `hidden` of the recurrence and `readout` of the readout, which follow it in the interactions of the system, so the
+    hidden units read the drive of the same step.
 
     Args:
         label:
@@ -338,6 +339,12 @@ class ElmanNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
         >>> [item.label for item in ElmanNetworkSystem().prepare().system_.systems]
@@ -361,8 +368,10 @@ class ElmanNetworkSystem(BaseSystem):
         truncation: int | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_hidden = n_hidden
         self.n_bits = n_bits
         self.window = window
@@ -403,14 +412,12 @@ class ElmanNetworkSystem(BaseSystem):
             weights={'xor_error': xor, 'random_error': 1.0 - xor},
         )
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Elman's simple recurrent network.
-
-        It learns to predict the next bit of a temporal XOR stream.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the network and the training that teaches it the temporal XOR stream."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         data = self._get_dataset(self._get_temporal_xor(self.n_bits, rng), self.window)
-        net = CompositeSystem(
+        net = System(
             'net',
             elements=[
                 GroupElement('inputs', element=InputUnitElement, size=1),
@@ -436,7 +443,6 @@ class ElmanNetworkSystem(BaseSystem):
                     W=rng.normal(0.0, WEIGHT_SCALE, (1, self.n_hidden)),
                 ),
             ],
-            time=DiscreteTime(schedule=PhasesScheduleSpec(PHASES)),
         )
         training = TrainingInteraction(
             'training',
@@ -452,4 +458,4 @@ class ElmanNetworkSystem(BaseSystem):
                 Observable('random_error', group='outputs', reduce='sum', expression=self._get_squared_error),
             ),
         )
-        return CompositeSystem(self.label, systems=[net], interactions=[training], time=DiscreteTime())
+        self.system_ = System(self.label, systems=[net], interactions=[training])

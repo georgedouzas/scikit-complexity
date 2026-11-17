@@ -7,6 +7,7 @@ from ..common.flows import RosslerInteraction
 from ._chaotic_ensembles import (
     CubicChaoticMapSystem,
     CubicWalkElement,
+    CubicWalkInteraction,
     DoublingMapInteraction,
     DoublingMapSystem,
     SkewTentMapInteraction,
@@ -93,6 +94,7 @@ __all__: list[str] = [
     'ConservativeHenonMapSystem',
     'CubicChaoticMapSystem',
     'CubicWalkElement',
+    'CubicWalkInteraction',
     'CuspFormInteraction',
     'CuspFormSystem',
     'DoublingMapInteraction',

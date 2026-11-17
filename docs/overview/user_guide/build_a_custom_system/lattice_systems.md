@@ -37,60 +37,75 @@ builds one.
 
 This section computes the next value of a cell from the values of its neighbours, the rule of a cellular automaton.
 Conway's Game of Life is one. A dead cell with three live neighbours comes alive, and a live cell with two or three
-live neighbours stays alive. A [`LocalRuleLaw`](../core_components/laws.md#localrulelaw) holds the state it changes,
-the neighbourhood it reads, and the rule. Here the neighbourhood is the
+live neighbours stays alive. An [`UpdateLaw`](../core_components/laws.md#updatelaw) with a `neighborhood` is such a
+rule: it holds the state it changes, the rule, and the neighbours the rule reads. Here the neighbourhood is the
 [`RadiusNeighborhood`](../core_components/spaces.md#radiusneighborhood) of the eight surrounding cells, and the rule is an
-outer totalistic rule, which reads the cell and the sum of its neighbours. A glider of five live cells starts in the
-corner of a periodic grid of 20 by 20.
+outer totalistic rule, which reads the cell and the sum of its neighbours. An interaction sets the law in `_prepare`,
+and a glider of five live cells starts in the corner of a periodic grid of 20 by 20.
 
 ```python
-from typing import Annotated
+from types import SimpleNamespace
 
 import numpy as np
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-from skcomplex.core.components.laws import OuterTotalisticSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import OuterTotalisticSpec, UpdateLaw
+from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+MOORE = RadiusNeighborhood(1, metric='chebyshev')
+LIFE = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 
 
-class LifeElement(Element):
-    def __init__(self, label, *, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
+class LifeInteraction(Interaction):
+    def __init__(self, label, *, target: Role = 'cells'):
         super().__init__(label)
-        self.alive = alive
+        self.target = target
 
-    def _get_laws(self, s):
-        return [LocalRuleLaw(s.alive, RadiusNeighborhood(1, metric='chebyshev'), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
+    def _prepare(self, context):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target.alive, LIFE, neighborhood=MOORE)]
 
 
 glider = np.zeros((20, 20))
 glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
-space = LatticeSpace((20, 20))
-cells = CompositeSystem(elements=[GroupElement('cells', element=LifeElement, space=space, values={'alive': glider}, on='sites')])
-trajectory = simulate(cells, until=4, dt=1)
+cells = Element('cells', values={'alive': glider.ravel()}, space=LatticeSpace((20, 20)))
+system = System(elements=[cells], interactions=[LifeInteraction('life')]).prepare()
+trajectory = system.simulate(until=4, dt=1)
 np.array_equal(trajectory.get_lattice('cells.alive')[-1], np.roll(glider, (1, 1), axis=(0, 1)))
 ```
 
 After four steps the configuration equals the glider moved one cell down and one cell right, so the block returns
-`True`.
+`True`. The equations name the rule by its interaction and the neighbours it reads.
 
-`LocalRuleLaw(targets, over, rule)` reads the values of the neighbourhood in a fixed order.
+```python continuation
+system.equations_
+```
+
+They are `{'cells.alive[i]': "life(neighbors(cells.alive, reduce='each'))"}`.
+
+`UpdateLaw(target, rule, neighborhood=...)` reads the values of the neighbourhood in a fixed order.
 
 - `RadiusNeighborhood(radius, metric=...)`, the Euclidean, Chebyshev, Manhattan, or hexagonal ball in the dimensions
   of the lattice, or [`LatticeNeighborhood(offsets)`](../core_components/spaces.md#latticeneighborhood) gives the
   offsets of the neighbours. `center=True` puts the site first. A neighbourhood in an order of its own, such as the
   left neighbour, the cell, and the right neighbour of the rule numbers of Wolfram, lists its offsets in a
   `LatticeNeighborhood`.
-- A rule is a `TableSpec` of patterns, a `TotalisticSpec` or `OuterTotalisticSpec` rule, a rule code whose `table()`
-  returns a table, or a function of NumPy arrays, one per neighbour. A function also receives the parameters it names
-  and, for stochastic rules, uniform random numbers.
-- Tables and totalistic rules run as lookups, fused into one compiled loop on the Numba backend.
+- A rule is a `TableSpec` of patterns, a `TotalisticSpec` or `OuterTotalisticSpec` rule, a rule code whose
+  `get_table()` returns a table, or a function of NumPy arrays, one per neighbour. A function also receives the
+  parameters of the cells it names, `random`, one uniform number per cell, when it names it, and `degree`, the number
+  of neighbours of each cell, when it names it.
+- A tuple of states as the target, such as `(s.target.color, s.target.ant)` for Langton's ant, sets them together from
+  one function that returns one array per state, and `reads=` names other states whose neighbours the function reads.
+- Tables and totalistic rules run as lookups, fused into one compiled loop on the Numba backend, which a system picks
+  for lattices of 1000 cells or more.
 - Rules update synchronously by default, every cell from the previous configuration. `schedule='random-sequential'`,
   `'random-site'`, `'checkerboard'`, or `'colored'` update cells one at a time, or one class of sites at a time.
+- Several rules of one state run one after the other in every step, such as the acceleration and the movement of the
+  cars of `NagelSchreckenbergSystem`.
 - One unit of time is one application of every rule, so `dt` is an integer. `trajectory.get_lattice(name)` returns the
   states in the shape of the lattice.
 - [`ArrayUpdateLaw(target, function)`](../core_components/laws.md#arrayupdatelaw) changes a whole lattice at once, such
@@ -186,36 +201,39 @@ This section gives every site six neighbours, as hexagonal cells and lattice gas
 to its six neighbours at every step, and the rule `spread` takes the largest value of the neighbourhood.
 
 ```python
-from typing import Annotated
+from types import SimpleNamespace
 
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
 def spread(*values):
     return np.max(values, axis=0)
 
 
-class BurnElement(Element):
-    def __init__(self, label, *, fire: Annotated[float, StateSpec()] = 0.0):
+class SpreadInteraction(Interaction):
+    def __init__(self, label, *, target: Role = 'forest'):
         super().__init__(label)
-        self.fire = fire
+        self.target = target
 
-    def _get_laws(self, s):
-        return [LocalRuleLaw(s.fire, RadiusNeighborhood(1, metric='hexagonal', center=True), spread)]
+    def _prepare(self, context):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            hexagonal = RadiusNeighborhood(1, metric='hexagonal', center=True)
+            self.laws_ = [UpdateLaw(context.target.fire, spread, neighborhood=hexagonal)]
 
 
 fire = np.zeros((40, 40))
 fire[20, 20] = 1
-space = LatticeSpace((40, 40), geometry='triangular')
-forest = CompositeSystem(elements=[GroupElement('forest', element=BurnElement, space=space, values={'fire': fire}, on='sites')])
-burning = simulate(forest, until=3, dt=1).get_lattice('forest.fire')
+forest = Element('forest', values={'fire': fire.ravel()}, space=LatticeSpace((40, 40), geometry='triangular'))
+system = System(elements=[forest], interactions=[SpreadInteraction('spread')]).prepare()
+burning = system.simulate(until=3, dt=1).get_lattice('forest.fire')
 [int(item.sum()) for item in burning]
 ```
 
@@ -307,22 +325,23 @@ neighbourhood `StateTranslationNeighborhood` of
 cell a rule reads from the state itself, such as the map `τ(x)(g) = x(g · x(g))` whose alphabet is the group itself. A
 cell of a `CayleySpace` of the same package holds an element of a group as the number of its site, and the rule reads
 the cells at `g x(g) s` for the words `s` of the neighbourhood. `SelfIndexedShiftSystem` of
-`skcomplex.systems.computer_science.automata` writes the map as a
-[`LocalRuleInteraction`](../core_components/interactions.md#localruleinteraction) with this neighbourhood. Here it runs
+`skcomplex.systems.computer_science.automata` writes the map as an `UpdateLaw` with this neighbourhood. Here it runs
 once on the symmetric group of three letters, whose six elements are the sites.
 
 ```python
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_gap import SymmetricGroup
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import PowerSeriesSpec, StateSpec
+from skcomplex.core.specs import PowerSeriesSpec, Role, StateSpec
 from skcomplex.systems.computer_science.automata import SelfIndexedShiftSystem
 
 RING = PowerSeriesSpec(order=4, field='QQ')
@@ -335,7 +354,7 @@ class SeriesElement(Element):
 
 
 shift = SelfIndexedShiftSystem(SymmetricGroup(3), radius=None, initial=[1, 2, 3, 4, 5, 0])
-simulate(shift, until=1).get_values('cells.value')[-1].tolist()
+shift.prepare().simulate(until=1).get_values('cells.value')[-1].tolist()
 ```
 
 The map sends the values `[1, 2, 3, 4, 5, 0]` to `[2.0, 1.0, 0.0, 3.0, 3.0, 0.0]`.
@@ -351,19 +370,27 @@ Here the automaton `x(n) - t x(n + 1)` over `K[[t]]` runs three steps on a line 
 series 1.
 
 ```python continuation
+def difference(here, right):
+    return here - RING.multiply(RING.get_coefficients_of('t'), right)
+
+
+class DifferenceInteraction(Interaction):
+    def __init__(self, label, *, target: Role = 'cells'):
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            here_and_right = LatticeNeighborhood(((0,), (1,)))
+            self.laws_ = [UpdateLaw(context.target.value, difference, neighborhood=here_and_right)]
+
+
 start = np.zeros((6, 4))
 start[3, 0] = 1
 series = CompositeSystem(
     elements=[GroupElement('cells', element=SeriesElement, space=LatticeSpace(6), values={'value': start}, on='sites')],
-    interactions=[
-        LocalRuleInteraction(
-            'difference',
-            target='cells',
-            state='value',
-            rule=lambda here, right: here - RING.multiply(RING.get_coefficients_of('t'), right),
-            neighborhood=LatticeNeighborhood(((0,), (1,))),
-        ),
-    ],
+    interactions=[DifferenceInteraction('difference')],
 )
 final = simulate(series, until=3).get_values('cells.value')[-1]
 RING.get_series_of(final[2])

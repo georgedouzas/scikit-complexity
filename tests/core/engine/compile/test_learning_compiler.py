@@ -112,10 +112,14 @@ def test_unsupported_solver():
 
 
 def test_training_needs_discrete_time():
-    """Test that a system that trains in continuous time is reported."""
-    system = _elman()
-    system.set_params(time=ContinuousTime())
+    """Test that a system that trains in a declared continuous time is reported."""
+    system = _elman()._get_composite().set_params(time=ContinuousTime())
     assert 'law-time' in _codes(system)
+
+
+def test_training_steps_once_per_epoch_without_a_time():
+    """Test that a system that trains and declares no time steps once per epoch, with no issue."""
+    assert _codes(_elman()) == []
 
 
 def test_training_runs_on_the_jax_backend():

@@ -22,7 +22,7 @@ from ._langevin import (
     TrafficMomentsElement,
 )
 from ._ridesharing import ArrivalInteraction, CabElement, RiderElement, RidesharingSystem
-from ._traffic import NagelSchreckenbergSystem, RoadElement
+from ._traffic import NagelSchreckenbergInteraction, NagelSchreckenbergSystem, RoadElement
 
 __all__: list[str] = [
     'ArrivalInteraction',
@@ -39,6 +39,7 @@ __all__: list[str] = [
     'LangevinTrafficSystem',
     'LighthillWhithamRichardsSystem',
     'MotoristElement',
+    'NagelSchreckenbergInteraction',
     'NagelSchreckenbergSystem',
     'OptimalVelocitySystem',
     'PayneSystem',
