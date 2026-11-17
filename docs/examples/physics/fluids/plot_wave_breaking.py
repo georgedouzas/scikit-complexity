@@ -17,7 +17,6 @@ number, one row per saved step with the earliest at the top, with the smooth mod
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.fluids import WaveBreakingSystem
 
@@ -25,7 +24,7 @@ SYSTEM = 'wave_breaking'
 
 system = WaveBreakingSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=25, dt=0.1, observers=[observer])
+trajectory = system.prepare().simulate(until=25, dt=0.1, observers=[observer])
 
 # %%
 # Breaking time and the conservation of waves

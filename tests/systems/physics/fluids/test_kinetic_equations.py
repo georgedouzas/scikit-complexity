@@ -8,7 +8,6 @@ import numpy.typing as npt
 import pytest
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver, StrangSplittingSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.physics.fluids import (
@@ -59,7 +58,7 @@ def test_bgk_sod_shock_tube_near_the_fluid_limit() -> None:
     positions, velocities = 200, 48
     system = BGKEquationSystem(positions=positions, velocities=velocities, knudsen=1e-4)
     solver = StrangSplittingSolver(SSPRKSolver(dt=0.001), RK4Solver(dt=2e-4), dt=0.001)
-    trajectory = simulate(system, dt=0.2, solver=solver)
+    trajectory = system.set_params(solver=solver).prepare().simulate(dt=0.2)
     values = trajectory.get_values('gas.x')[-1].reshape(positions, velocities)
     width = 12.0 / velocities
     density = values.sum(axis=1) * width
@@ -71,7 +70,7 @@ def test_bgk_sod_shock_tube_near_the_fluid_limit() -> None:
 def test_vlasov_default_system_damps_at_the_landau_rate() -> None:
     """Measure a damping rate of the electric energy within 5 percent of 0.1533 with the default set-up."""
     positions, velocities = 32, 64
-    trajectory = simulate(VlasovEquationSystem())
+    trajectory = VlasovEquationSystem().prepare().simulate()
     amplitude = amplitude_of(np.asarray(trajectory.get_values('gas.x')), positions, velocities)
     times = np.asarray(trajectory.times)
     peaks = [
@@ -86,7 +85,7 @@ def test_vlasov_two_stream_grows_and_unknown_setup_raises() -> None:
     """Grow the density wave of two beams, and raise a named error for an unknown set-up."""
     positions, velocities = 32, 64
     system = VlasovEquationSystem(positions, velocities, setup='two-stream', amplitude=0.001)
-    trajectory = simulate(system, until=40.0)
+    trajectory = system.prepare().simulate(until=40.0)
     amplitude = amplitude_of(np.asarray(trajectory.get_values('gas.x')), positions, velocities)
     assert amplitude.max() > 10 * amplitude[0]
     with pytest.raises(ValidationError, match='Unknown set-up'):
@@ -95,7 +94,7 @@ def test_vlasov_two_stream_grows_and_unknown_setup_raises() -> None:
 
 def test_boltzmann_conserves_density() -> None:
     """Keep the total of a Boltzmann gas within 1e-10 relative error under streaming and collisions."""
-    trajectory = simulate(BoltzmannEquationSystem())
+    trajectory = BoltzmannEquationSystem().prepare().simulate()
     values = np.asarray(trajectory.get_values('gas.x'))
     assert abs(values[-1].sum() / values[0].sum() - 1.0) < 1e-10
     assert not np.array_equal(values[-1], values[0])
@@ -103,8 +102,8 @@ def test_boltzmann_conserves_density() -> None:
 
 def test_enskog_contact_value_speeds_collisions_at_a_higher_density() -> None:
     """Relax faster than the Boltzmann equation at the same Knudsen number, by the contact value at the density."""
-    dilute = simulate(EnskogSystem(diameter=1e-6), until=0.2)
-    dense = simulate(EnskogSystem(diameter=0.5), until=0.2)
+    dilute = EnskogSystem(diameter=1e-6).prepare().simulate(until=0.2)
+    dense = EnskogSystem(diameter=0.5).prepare().simulate(until=0.2)
     start = np.asarray(dilute.get_values('gas.x'))[0]
     assert (
         np.abs(np.asarray(dense.get_values('gas.x'))[-1] - start).max()

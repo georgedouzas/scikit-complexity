@@ -24,7 +24,8 @@ from skcomplex.core.engine.solvers import (
 )
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.systems.physics.pattern_formation import GinzburgLandauElement
+from skcomplex.core.systems import System
+from skcomplex.systems.physics.pattern_formation import GinzburgLandauElement, GinzburgLandauInteraction
 
 from ..conftest import PhaseElement, QuadraticElement
 
@@ -142,16 +143,10 @@ def _ginzburg_landau(shape=(32, 32), discretization='spectral'):
             ),
         ],
     )
-    split = CompositeSystem(
-        elements=[
-            FieldElement(
-                'm',
-                element=GinzburgLandauElement,
-                space=space,
-                values={'u': u, 'v': v},
-                discretization=discretization,
-            ),
-        ],
+    lattice = LatticeSpace(shape, spacing=1.0, discretization=discretization)
+    split = System(
+        elements=[GinzburgLandauElement('m', u=u.ravel(), v=v.ravel(), space=lattice)],
+        interactions=[GinzburgLandauInteraction('dynamics', target='m')],
     )
     return joined, split
 
@@ -318,7 +313,7 @@ def test_stiff_steppers_match_split_form(solver, discretization):
     """Test that the stiff steppers run a complex field as they run the split real form."""
     joined, split = _ginzburg_landau((16, 16), discretization)
     first = simulate(joined, until=5, solver=solver, dt=1.0)
-    second = simulate(split, until=5, solver=solver, dt=1.0)
+    second = split.set_params(solver=solver).prepare().simulate(until=5, dt=1.0)
     assert np.max(np.abs(first.get_values('m.A') - (second.get_values('m.u') + 1j * second.get_values('m.v')))) < 1e-8
 
 
@@ -326,7 +321,7 @@ def test_complex_and_split_ginzburg_landau_agree():
     """Test that the complex and split Ginzburg-Landau equations agree to 1e-10 at every frame."""
     joined, split = _ginzburg_landau()
     first = simulate(joined, until=20, solver=ETDRK4Solver(dt=0.1), dt=1.0)
-    second = simulate(split, until=20, solver=ETDRK4Solver(dt=0.1), dt=1.0)
+    second = split.set_params(solver=ETDRK4Solver(dt=0.1)).prepare().simulate(until=20, dt=1.0)
     amplitude = first.get_lattice('m.A')
     assert amplitude.shape == (21, 32, 32)
     assert amplitude.dtype == np.complex128

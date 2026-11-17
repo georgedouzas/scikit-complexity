@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.components import Observable
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.fluids import BoltzmannEquationSystem, EnskogSystem
@@ -40,7 +39,9 @@ observables = [Observable('density_wave', function=density_wave)]
 system = EnskogSystem(positions=POSITIONS, velocities=VELOCITIES, knudsen=KNUDSEN, diameter=0.8)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 solver = StrangSplittingSolver(SemiLagrangianSolver(0.1), RK4Solver(0.05), 0.1)
-trajectory = simulate(system, until=5.5, solver=solver, observers=[observer], observables=observables)
+trajectory = (
+    system.set_params(solver=solver).prepare().simulate(until=5.5, observers=[observer], observables=observables)
+)
 
 # %%
 # Crowding acts as a smaller Knudsen number
@@ -53,7 +54,7 @@ trajectory = simulate(system, until=5.5, solver=solver, observers=[observer], ob
 
 def relative_wave(gas):
     """Return the times and the density wave of a gas, relative to its start."""
-    run = simulate(gas, until=5.5, solver=solver, dt=0.1, observables=observables)
+    run = gas.set_params(solver=solver).prepare().simulate(until=5.5, dt=0.1, observables=observables)
     wave = run.get_values('density_wave')
     return run.times, wave / wave[0]
 
@@ -63,10 +64,10 @@ for diameter in (0.01, 0.5, 0.8):
     fraction = np.pi * diameter**2 / 4
     contact = (1 - 7 * fraction / 16) / (1 - fraction) ** 2
     dense = EnskogSystem(positions=POSITIONS, velocities=VELOCITIES, knudsen=KNUDSEN, diameter=diameter)
-    times, wave = relative_wave(dense.prepare().system_)
+    times, wave = relative_wave(dense)
     line = axis.plot(times, wave, label=f'Enskog, diameter {diameter:g}, contact value {contact:.2f}')[0]
     dilute = BoltzmannEquationSystem(positions=POSITIONS, velocities=VELOCITIES, knudsen=KNUDSEN / contact)
-    times, wave = relative_wave(dilute.prepare().system_)
+    times, wave = relative_wave(dilute)
     axis.plot(times[::4], wave[::4], 'o', markersize=4, color=line.get_color())
 axis.plot([], [], 'o', markersize=4, color='gray', label='Boltzmann, Knudsen number over the contact value')
 axis.set_xlabel('time t')

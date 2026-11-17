@@ -15,7 +15,6 @@ phase winds by a full turn around each of them.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.pattern_formation import ComplexGinzburgLandauSystem
 
@@ -29,7 +28,7 @@ def wrap_angle(angles):
 
 system = ComplexGinzburgLandauSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=150, observers=[observer])
+trajectory = system.prepare().simulate(until=150, observers=[observer])
 
 # %%
 # Defects and amplitude

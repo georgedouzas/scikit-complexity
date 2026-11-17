@@ -15,42 +15,47 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import ConservationInteraction, Interaction, RateInteraction
 from ....core.components.laws.utils import gradient, inverse_helmholtz, laplacian
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ETDRK4Solver, SSPRKSolver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ETDRK4Solver, SSPRKSolver
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.fields import AdvectionInteraction, DiffusivityInteraction
 
 
 class BoussinesqElement(Element):
-    """Vorticity and temperature of Boussinesq convection.
+    """Sites of Boussinesq convection, with the vorticity `omega` and the temperature departure `theta`.
 
     The units are those of the thermal diffusion time.
 
     The temperature `theta` is the departure from the linear profile between a hot bottom and a cold top, so
     `dtheta/dt + u . grad(theta) = w + laplacian(theta)` and
     `domega/dt + u . grad(omega) = Pr laplacian(omega) + Ra Pr dtheta/dx`. The advections, the diffusions, and the
-    buoyancy are interactions of the system.
+    buoyancy are interactions of the system, which read the Rayleigh number `Ra` and the Prandtl number `Pr` of the
+    layer.
 
     Args:
         label:
-            The label of the site or the field.
+            The label of the layer.
 
         omega:
-            The initial vorticity.
+            The initial vorticity, one value per site or one for all.
 
         theta:
-            The initial temperature departure.
+            The initial temperature departure, one value per site or one for all.
 
         Ra:
             The Rayleigh number.
 
         Pr:
             The Prandtl number.
+
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.fluids import BoussinesqElement
@@ -62,12 +67,13 @@ class BoussinesqElement(Element):
         self,
         label: str,
         *,
-        omega: Annotated[float, StateSpec()] = 0.0,
-        theta: Annotated[float, StateSpec()] = 0.0,
-        Ra: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
-        Pr: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        omega: object = 0.0,
+        theta: object = 0.0,
+        Ra: Annotated[float, RealSet.closed_open(0, oo)] = 1000.0,
+        Pr: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.omega = omega
         self.theta = theta
         self.Ra = Ra
@@ -75,16 +81,19 @@ class BoussinesqElement(Element):
 
 
 class BurgersElement(Element):
-    """Site of a field `u` carried by the Burgers equation.
+    """Cells of a field `u` carried by the Burgers equation.
 
     The equation is `du/dt + d(u^2 / 2)/dx = 0`.
 
     Args:
         label:
-            The label of the site.
+            The label of the line.
 
         u:
-            The initial value.
+            The initial value, one value per cell or one for all.
+
+        space:
+            The lattice of the cells, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.physics.fluids import BurgersElement
@@ -92,18 +101,13 @@ class BurgersElement(Element):
         1.5
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
+    def __init__(self, label: str, *, u: object = 0.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
         self.u = u
 
 
 class KuramotoSivashinskyElement(Element):
-    """Site of a flame front or a thin film.
+    """Sites of a flame front or a thin film.
 
     The field follows `du/dt = -d(u^2 / 2)/dx - laplacian(u) - laplacian(laplacian(u))`.
 
@@ -111,10 +115,13 @@ class KuramotoSivashinskyElement(Element):
 
     Args:
         label:
-            The label of the site.
+            The label of the front.
 
         u:
-            The initial height of the front.
+            The initial height of the front, one value per site or one for all.
+
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.fluids import KuramotoSivashinskyElement
@@ -122,36 +129,34 @@ class KuramotoSivashinskyElement(Element):
         0.5
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
+    def __init__(self, label: str, *, u: object = 0.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
         self.u = u
 
 
 class ShallowWaterElement(Element):
-    """Site of a channel of shallow water.
+    """Cells of a channel of shallow water.
 
-    The site has the depth `h` and the discharge `q` per unit width.
+    Every cell has the depth `h` and the discharge `q` per unit width.
 
     The mass `h` and the momentum `q` are conserved by two conservation interactions, with the fluxes `q` and
     `q^2 / h + g h^2 / 2`, which form one hyperbolic system.
 
     Args:
         label:
-            The label of the site.
+            The label of the channel.
 
         h:
-            The initial depth.
+            The initial depth, one value per cell or one for all.
 
         q:
-            The initial discharge.
+            The initial discharge, one value per cell or one for all.
 
         g:
             The gravitational acceleration.
+
+        space:
+            The lattice of the cells, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.physics.fluids import ShallowWaterElement
@@ -163,37 +168,41 @@ class ShallowWaterElement(Element):
         self,
         label: str,
         *,
-        h: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        q: Annotated[float, StateSpec()] = 0.0,
-        g: Annotated[float, ParameterSpec()] = 9.81,
+        h: object = 1.0,
+        q: object = 0.0,
+        g: float = 9.81,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.h = h
         self.q = q
         self.g = g
 
 
 class VorticityElement(Element):
-    """Vorticity of an incompressible two-dimensional flow.
+    """Sites of the vorticity of an incompressible two-dimensional flow.
 
     The vorticity follows `domega/dt + u . grad(omega) = nu laplacian(omega) + f`.
 
     The velocity comes from the streamfunction, the solution of a Poisson equation, so the flow is divergence free,
     and the advection is written in conservative form so that dealiasing applies to it. The advection, the viscosity,
-    and the forcing are interactions of the system.
+    and the forcing are interactions of the system, which read the viscosity `nu` and the forcing `f` of the flow.
 
     Args:
         label:
-            The label of the site or the field.
+            The label of the flow.
 
         omega:
-            The initial vorticity.
+            The initial vorticity, one value per site or one for all.
 
         nu:
             The kinematic viscosity.
 
         f:
-            The forcing of the vorticity.
+            The forcing of the vorticity, one value per site or one for all.
+
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.fluids import VorticityElement
@@ -205,11 +214,12 @@ class VorticityElement(Element):
         self,
         label: str,
         *,
-        omega: Annotated[float, StateSpec()] = 0.0,
-        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        f: Annotated[float, ParameterSpec()] = 0.0,
+        omega: object = 0.0,
+        nu: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        f: object = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.omega = omega
         self.nu = nu
         self.f = f
@@ -239,9 +249,15 @@ class KuramotoSivashinskySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for exponential steps of 0.25.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem
-        >>> KuramotoSivashinskySystem(32).prepare().system_.elements[0].discretization
+        >>> KuramotoSivashinskySystem(32).prepare().system_.elements[0].space.discretization
         'spectral'
     """
 
@@ -250,7 +266,6 @@ class KuramotoSivashinskySystem(BaseSystem):
     references = ('Kuramoto 1978', 'Sivashinsky 1977', 'Kassam and Trefethen 2005')
     until = 150.0
     dt = 1.0
-    solver = ETDRK4Solver(dt=0.25)
 
     def __init__(
         self,
@@ -258,20 +273,25 @@ class KuramotoSivashinskySystem(BaseSystem):
         *,
         length: float = 32 * math.pi,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.modes = modes
         self.length = length
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Kuramoto-Sivashinsky equation `u_t = -u u_x - u_xx - u_xxxx`.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Kuramoto-Sivashinsky equation from the start of Kassam and Trefethen.
 
-        The equation is spatiotemporally chaotic.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         spacing = self.length / self.modes
         positions = np.arange(1, self.modes + 1) * spacing
-        values = {'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))}
-        space = LatticeSpace(self.modes, spacing=spacing)
+        u = np.cos(positions / 16) * (1 + np.sin(positions / 16))
+        space = LatticeSpace(self.modes, spacing=spacing, discretization='spectral')
         transport = ConservationInteraction(
             'transport',
             target='line',
@@ -284,18 +304,11 @@ class KuramotoSivashinskySystem(BaseSystem):
             state='u',
             rate=lambda s: -laplacian(s.target.u) - laplacian(laplacian(s.target.u)),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                FieldElement(
-                    'line',
-                    element=KuramotoSivashinskyElement,
-                    space=space,
-                    values=values,
-                    discretization='spectral',
-                ),
-            ],
+            elements=[KuramotoSivashinskyElement('line', u=u, space=space)],
             interactions=[transport, linear],
+            solver=ETDRK4Solver(dt=0.25),
         )
 
 
@@ -353,8 +366,9 @@ def incompressible_flow(
     walls: bool = False,
     vorticity: npt.ArrayLike | None = None,
     temperature: npt.ArrayLike | None = None,
+    solver: BaseSolver | str = 'auto',
     label: str = 'system',
-) -> CompositeSystem:
+) -> System:
     """Return incompressible two-dimensional flow in vorticity-streamfunction form.
 
     The flow is on a periodic spectral lattice.
@@ -386,6 +400,9 @@ def incompressible_flow(
         temperature:
             The initial temperature departure of convection, or `None` for zero.
 
+        solver:
+            The solver of the flow, or `'auto'` for the one the system chooses.
+
         label:
             The label of the system.
 
@@ -395,35 +412,28 @@ def incompressible_flow(
 
     Examples:
         >>> from skcomplex.systems.physics.fluids import incompressible_flow
-        >>> incompressible_flow((16, 16), buoyancy={'Ra': 800.0, 'Pr': 1.0}).elements[0].element.__name__
+        >>> type(incompressible_flow((16, 16), buoyancy={'Ra': 800.0, 'Pr': 1.0}).elements[0]).__name__
         'BoussinesqElement'
     """
     shape = tuple(int(item) for item in shape)
-    space = LatticeSpace(shape, spacing=tuple(length / count for length, count in zip(size, shape, strict=True)))
-    values: dict[str, object] = {}
-    if vorticity is not None:
-        values['omega'] = np.asarray(vorticity, dtype=float)
-    if buoyancy is None:
-        element: type[Element] = VorticityElement
-        values['nu'] = nu
-        if forcing is not None:
-            values['f'] = np.asarray(forcing, dtype=float)
-    else:
-        element = BoussinesqElement
-        values.update({key: float(value) for key, value in buoyancy.items()})
-        if temperature is not None:
-            values['theta'] = np.asarray(temperature, dtype=float)
     states = ['omega'] if buoyancy is None else ['omega', 'theta']
-    symmetry = dict.fromkeys(states, (None, 'odd')) if walls else None
-    field = FieldElement(
-        'flow',
-        element=element,
-        space=space,
-        values=values,
+    space = LatticeSpace(
+        shape,
+        spacing=tuple(length / count for length, count in zip(size, shape, strict=True)),
         discretization='spectral',
-        symmetry=symmetry,
+        symmetry=dict.fromkeys(states, (None, 'odd')) if walls else None,
     )
-    return CompositeSystem(label, elements=[field], interactions=_get_flow_interactions(buoyancy is not None))
+    omega = 0.0 if vorticity is None else np.asarray(vorticity, dtype=float).ravel()
+    flow: Element
+    if buoyancy is None:
+        f = 0.0 if forcing is None else np.asarray(forcing, dtype=float).ravel()
+        flow = VorticityElement('flow', omega=omega, nu=nu, f=f, space=space)
+    else:
+        theta = 0.0 if temperature is None else np.asarray(temperature, dtype=float).ravel()
+        Ra, Pr = (float(buoyancy[name]) for name in ('Ra', 'Pr'))
+        flow = BoussinesqElement('flow', omega=omega, theta=theta, Ra=Ra, Pr=Pr, space=space)
+    interactions = _get_flow_interactions(buoyancy is not None)
+    return System(label, elements=[flow], interactions=interactions, solver=solver)
 
 
 class DecayingTurbulenceSystem(BaseSystem):
@@ -450,9 +460,15 @@ class DecayingTurbulenceSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for exponential steps of 0.05.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.fluids import DecayingTurbulenceSystem
-        >>> DecayingTurbulenceSystem((16, 16)).prepare().system_.elements[0].prepare().size_
+        >>> DecayingTurbulenceSystem((16, 16)).prepare().system_.elements[0].space.prepare().size_
         256
     """
 
@@ -461,7 +477,6 @@ class DecayingTurbulenceSystem(BaseSystem):
     references = ('Kraichnan 1967', 'Satz 2022')
     until = 20.0
     dt = 1.0
-    solver = ETDRK4Solver(dt=0.05)
 
     def __init__(
         self,
@@ -471,8 +486,10 @@ class DecayingTurbulenceSystem(BaseSystem):
         modes: int = 6,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.nu = nu
         self.modes = modes
@@ -495,11 +512,23 @@ class DecayingTurbulenceSystem(BaseSystem):
         values = np.fft.irfftn(spectrum, s=shape, axes=range(len(shape)))
         return values / np.abs(values).max()
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a random vorticity field that decays.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         shape = tuple(self.shape)
         vorticity = 5 * self._smooth_noise(shape, self.modes, self.random_state)
-        return incompressible_flow(shape, nu=self.nu, vorticity=vorticity, label=self.label)
+        self.system_ = incompressible_flow(
+            shape,
+            nu=self.nu,
+            vorticity=vorticity,
+            solver=ETDRK4Solver(dt=0.05),
+            label=self.label,
+        )
 
 
 class RayleighBenardSystem(BaseSystem):
@@ -509,7 +538,7 @@ class RayleighBenardSystem(BaseSystem):
 
     The layer has height 1 and width `2 sqrt(2)`, the wavelength of the critical mode, and convection sets in above `Ra
     = 27 pi^4 / 4`, about 657.5. The lattice holds twice the layer's height with odd states, which gives the free-slip
-    walls. The registered step `ETDRK4Solver(dt=0.005)` is stable up to about `Ra = 4000`, and faster convection needs a
+    walls. The default step `ETDRK4Solver(dt=0.005)` is stable up to about `Ra = 4000`, and faster convection needs a
     smaller step, such as `ETDRK4Solver(dt=0.0025)` at `Ra = 5000`. The system has the vorticity `flow.omega` and the
     temperature departure `flow.theta`.
 
@@ -529,9 +558,15 @@ class RayleighBenardSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for exponential steps of 0.005.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.fluids import RayleighBenardSystem
-        >>> RayleighBenardSystem(500.0).prepare().system_.elements[0].values['Ra']
+        >>> RayleighBenardSystem(500.0).prepare().system_.elements[0].Ra
         500.0
     """
 
@@ -540,7 +575,6 @@ class RayleighBenardSystem(BaseSystem):
     references = ('Rayleigh 1916', 'Chandrasekhar 1961', 'Mihailović et al. 2023')
     until = 10.0
     dt = 0.5
-    solver = ETDRK4Solver(dt=0.005)
 
     def __init__(
         self,
@@ -550,28 +584,34 @@ class RayleighBenardSystem(BaseSystem):
         shape: Sequence[int] = (32, 32),
         amplitude: float = 1e-3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.Ra = Ra
         self.Pr = Pr
         self.shape = shape
         self.amplitude = amplitude
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Rayleigh-Bénard convection between free-slip walls.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of convection between free-slip walls from a small perturbation of the critical mode.
 
-        The convection starts from a small perturbation of the critical mode.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         width, height = 2 * math.sqrt(2), 2.0
         x = (np.arange(self.shape[0]) * width / self.shape[0])[:, None]
         z = (np.arange(self.shape[1]) * height / self.shape[1])[None, :]
         temperature = self.amplitude * np.cos(math.pi / math.sqrt(2) * x) * np.sin(math.pi * z)
-        return incompressible_flow(
+        self.system_ = incompressible_flow(
             self.shape,
             (width, height),
             buoyancy={'Ra': self.Ra, 'Pr': self.Pr},
             walls=True,
             temperature=temperature,
+            solver=ETDRK4Solver(dt=0.005),
             label=self.label,
         )
 
@@ -598,9 +638,15 @@ class BurgersSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for strong stability preserving Runge-Kutta steps.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.fluids import BurgersSystem
-        >>> BurgersSystem(16).prepare().system_.elements[0].prepare().size_
+        >>> BurgersSystem(16).prepare().system_.elements[0].space.prepare().size_
         16
     """
 
@@ -609,7 +655,6 @@ class BurgersSystem(BaseSystem):
     references = ('Burgers 1948', 'LeVeque 2002')
     until = 2.0
     dt = 0.1
-    solver = SSPRKSolver()
 
     def __init__(
         self,
@@ -618,32 +663,32 @@ class BurgersSystem(BaseSystem):
         mean: float = 1.5,
         amplitude: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.mean = mean
         self.amplitude = amplitude
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a sine that steepens into a shock.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         spacing = 2 * math.pi / self.n
         centers = (np.arange(self.n) + 0.5) * spacing
-        values = {'u': self.mean + self.amplitude * np.sin(centers)}
-        space = LatticeSpace(self.n, spacing=spacing)
-        return CompositeSystem(
+        space = LatticeSpace(self.n, spacing=spacing, discretization='finite-volume')
+        self.system_ = System(
             self.label,
-            elements=[
-                FieldElement(
-                    'line',
-                    element=BurgersElement,
-                    space=space,
-                    values=values,
-                    discretization='finite-volume',
-                ),
-            ],
+            elements=[BurgersElement('line', u=self.mean + self.amplitude * np.sin(centers), space=space)],
             interactions=[
                 ConservationInteraction('transport', target='line', state='u', flux=lambda s: s.target.u**2 / 2),
             ],
+            solver=SSPRKSolver(),
         )
 
 
@@ -674,9 +719,15 @@ class ShallowWaterSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for strong stability preserving Runge-Kutta steps.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.fluids import ShallowWaterSystem
-        >>> float(ShallowWaterSystem(10).prepare().system_.elements[0].values['h'][0])
+        >>> float(ShallowWaterSystem(10).prepare().system_.elements[0].h[0])
         2.0
     """
 
@@ -685,7 +736,6 @@ class ShallowWaterSystem(BaseSystem):
     references = ('Stoker 1957', 'LeVeque 2002')
     until = 0.5
     dt = 0.05
-    solver = SSPRKSolver()
 
     def __init__(
         self,
@@ -696,31 +746,32 @@ class ShallowWaterSystem(BaseSystem):
         downstream: float = 1.0,
         g: float = 9.81,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.length = length
         self.upstream = upstream
         self.downstream = downstream
         self.g = g
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the shallow-water dam break.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of still water at two depths released at the middle.
 
-        Still water at two depths was separated at the middle by a removed dam.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         depth = np.where(np.arange(self.n) < self.n // 2, self.upstream, self.downstream).astype(float)
-        space = LatticeSpace(self.n, spacing=self.length / self.n)
-        values = {'h': depth, 'q': np.zeros(self.n), 'g': self.g}
-        boundary = {'h': 'zero-flux', 'q': 'zero-flux'}
-        field = FieldElement(
-            'channel',
-            element=ShallowWaterElement,
-            space=space,
-            boundary=boundary,
-            values=values,
+        space = LatticeSpace(
+            self.n,
+            spacing=self.length / self.n,
+            boundary={'h': 'zero-flux', 'q': 'zero-flux'},
             discretization='finite-volume',
         )
+        channel = ShallowWaterElement('channel', h=depth, q=np.zeros(self.n), g=self.g, space=space)
         mass = ConservationInteraction('mass', target='channel', state='h', flux=lambda s: s.target.q)
         momentum = ConservationInteraction(
             'momentum',
@@ -728,4 +779,4 @@ class ShallowWaterSystem(BaseSystem):
             state='q',
             flux=lambda s: s.target.q**2 / s.target.h + s.target.g * s.target.h**2 / 2,
         )
-        return CompositeSystem(self.label, elements=[field], interactions=[mass, momentum])
+        self.system_ = System(self.label, elements=[channel], interactions=[mass, momentum], solver=SSPRKSolver())

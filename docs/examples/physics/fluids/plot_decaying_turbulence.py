@@ -17,7 +17,6 @@ thin spiral filaments.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.fluids import DecayingTurbulenceSystem
 
@@ -25,7 +24,7 @@ SYSTEM = 'decaying_turbulence'
 
 system = DecayingTurbulenceSystem(shape=(128, 128), random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=40, dt=0.2, observers=[observer])
+trajectory = system.prepare().simulate(until=40, dt=0.2, observers=[observer])
 
 # %%
 # Energy survives, enstrophy decays

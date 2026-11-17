@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver, StrangSplittingSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.fluids import BGKEquationSystem
@@ -26,7 +25,7 @@ SYSTEM = 'bgk_equation'
 system = BGKEquationSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = StrangSplittingSolver(SSPRKSolver(), RK4Solver(0.005), 0.005)
-simulation = simulate(system, solver=solver, dt=0.005, observers=[observer])
+simulation = system.set_params(solver=solver).prepare().simulate(dt=0.005, observers=[observer])
 
 # %%
 # The fluid limit
@@ -69,7 +68,7 @@ fig, axis = plt.subplots(figsize=(7, 4))
 for knudsen, step in ((1.0, 2e-3), (1e-2, 2e-3), (1e-4, 2e-4)):
     fine = BGKEquationSystem(positions=positions, velocities=velocities, knudsen=knudsen)
     stepper = StrangSplittingSolver(SSPRKSolver(dt=0.001), RK4Solver(dt=step), dt=0.001)
-    trajectory = simulate(fine, solver=stepper, dt=0.2)
+    trajectory = fine.set_params(solver=stepper).prepare().simulate(dt=0.2)
     density = trajectory.get_values('gas.x')[-1].reshape(positions, velocities).sum(axis=1) * 12.0 / velocities
     axis.plot(centres, density, label=f'Knudsen {knudsen:g}')
 axis.plot(centres, euler_density(centres - 0.5, 0.2, gamma=3.0), 'k--', label='exact Euler solution')

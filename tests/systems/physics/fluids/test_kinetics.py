@@ -3,13 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.fluids import DiscreteVelocityBoltzmannSystem, WaveBreakingSystem
 
 
 def test_wave_breaking_steepens_after_the_breaking_time():
     """Test that the wave number stays smooth before the breaking time, steepens after it, and is conserved."""
-    trajectory = simulate(WaveBreakingSystem(), until=12)
+    trajectory = WaveBreakingSystem().prepare().simulate(until=12)
     numbers = trajectory.get_values('train.k')
     jumps = np.abs(np.diff(numbers, axis=1)).max(axis=1)
     centers = (np.arange(200) + 0.5) * 2 * np.pi / 200
@@ -22,7 +21,7 @@ def test_wave_breaking_steepens_after_the_breaking_time():
 
 def test_discrete_velocity_boltzmann_conserves_mass_and_relaxes():
     """Test that the Carleman gas conserves its mass and relaxes to equal densities of both velocities."""
-    trajectory = simulate(DiscreteVelocityBoltzmannSystem())
+    trajectory = DiscreteVelocityBoltzmannSystem().prepare().simulate()
     right, left = trajectory.get_values('gas.f_plus'), trajectory.get_values('gas.f_minus')
     assert (right + left).sum(axis=1) == pytest.approx(np.full(len(right), (right + left)[0].sum()))
     assert np.abs(right - left).max(axis=1)[-1] < 0.05 * np.abs(right - left).max(axis=1)[0]

@@ -18,7 +18,6 @@ import numpy as np
 from scipy.stats import skew
 
 from skcomplex.core.analysis import domains, spectrum
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.fluids import BenardMarangoniSystem
 
@@ -27,7 +26,7 @@ LENGTH = 16 * np.pi
 
 system = BenardMarangoniSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Hexagons against rolls
@@ -39,7 +38,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # skewed, while the rolls of the same layer with `g = 0` are symmetric.
 
 hexagons = trajectory.get_lattice('layer.u')[-1]
-rolls_run = simulate(BenardMarangoniSystem(g=0.0), random_state=0)
+rolls_run = BenardMarangoniSystem(g=0.0).prepare().simulate(random_state=0)
 rolls = rolls_run.get_lattice('layer.u')[-1]
 spacing = LENGTH / hexagons.shape[0]
 

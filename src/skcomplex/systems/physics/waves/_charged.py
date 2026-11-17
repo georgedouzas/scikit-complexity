@@ -6,6 +6,7 @@ The Schrödinger equation is minimally coupled to a prescribed electromagnetic p
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,33 +14,60 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import gradient, laplacian, ramp
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class ChargedWaveFunctionElement(Element):
-    """Wave function `psi = u + i w` of a charge `q` in an electromagnetic potential.
+    """Sites of the wave function `psi = u + i w` of a charge, held as its real part `u` and its imaginary part `w`.
 
-    The potential is uniform.
+    Args:
+        label:
+            The label of the wave function.
 
-    The wave function follows `(d_t - i q A_t) psi = i D (d_x - i q A_x)^2 psi`. The vector potential
-    `A_x(t) = A_x - E min(t, duration)` holds a uniform electric field `E` from time 0 to `duration`, and the scalar
-    potential `A_t` is constant. Expanded, the equation is
+        u:
+            The initial real part, one value per site or one for all.
+
+        w:
+            The initial imaginary part, one value per site or one for all.
+
+        space:
+            The lattice of the sites, or `None` for one site.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import ChargedWaveFunctionElement
+        >>> ChargedWaveFunctionElement('site', u=1.0).u
+        1.0
+    """
+
+    def __init__(self, label: str, *, u: object = 0.0, w: object = 0.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
+        self.u = u
+        self.w = w
+
+
+class MinimalCouplingInteraction(Interaction):
+    """The Schrödinger equation of a charge `q` minimally coupled to a uniform electromagnetic potential.
+
+    The wave function `psi = u + i w` of the target follows `(d_t - i q A_t) psi = i D (d_x - i q A_x)^2 psi`. The
+    vector potential `A_x(t) = A_x - E min(t, duration)` holds a uniform electric field `E` from time 0 to `duration`,
+    and the scalar potential `A_t` is constant. Expanded, the equation is
     `psi_t = i D psi_xx + 2 D q A_x psi_x + i (q A_t - D q^2 A_x^2) psi`.
 
     Args:
         label:
-            The label of the site or the field.
+            The label of the interaction.
 
-        u:
-            The initial real part.
-
-        w:
-            The initial imaginary part.
+        target:
+            The path of the wave function, with the real part `u` and the imaginary part `w`.
 
         D:
             The coefficient of the Laplacian, `ħ / (2 m)`.
@@ -60,8 +88,8 @@ class ChargedWaveFunctionElement(Element):
             The time the electric field is on.
 
     Examples:
-        >>> from skcomplex.systems.physics.waves import ChargedWaveFunctionElement
-        >>> ChargedWaveFunctionElement('site').q
+        >>> from skcomplex.systems.physics.waves import MinimalCouplingInteraction
+        >>> MinimalCouplingInteraction('coupling', target='packet').q
         1.0
     """
 
@@ -71,18 +99,16 @@ class ChargedWaveFunctionElement(Element):
         self,
         label: str,
         *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        w: Annotated[float, StateSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        q: Annotated[float, ParameterSpec()] = 1.0,
-        A_x: Annotated[float, ParameterSpec()] = 0.0,
-        A_t: Annotated[float, ParameterSpec()] = 0.0,
-        E: Annotated[float, ParameterSpec()] = 0.0,
-        duration: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        D: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        q: float = 1.0,
+        A_x: float = 0.0,
+        A_t: float = 0.0,
+        E: float = 0.0,
+        duration: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
-        self.u = u
-        self.w = w
+        self.target = target
         self.D = D
         self.q = q
         self.A_x = A_x
@@ -90,26 +116,24 @@ class ChargedWaveFunctionElement(Element):
         self.E = E
         self.duration = duration
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the minimally coupled Schrödinger equation of the two real parts.
-
-        The parts are the real and imaginary parts of the wave function.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the minimally coupled Schrödinger equation of the real and imaginary parts of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        potential = s.A_x - s.E * ramp(s.t, 0, s.duration, s.duration)
-        drift = 2 * s.D * s.q * potential
-        phase = s.q * s.A_t - s.D * s.q**2 * potential**2
-        return [
-            RateLaw(s.u, -s.D * laplacian(s.w) + drift * gradient(s.u, 1)[0] - phase * s.w),
-            RateLaw(s.w, s.D * laplacian(s.u) + drift * gradient(s.w, 1)[0] + phase * s.u),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context, context.t
+            u, w = s.target.u, s.target.w
+            potential = s.A_x - s.E * ramp(t, 0, s.duration, s.duration)
+            drift = 2 * s.D * s.q * potential
+            phase = s.q * s.A_t - s.D * s.q**2 * potential**2
+            self.laws_ = [
+                RateLaw(u.diff(t), -s.D * laplacian(w) + drift * gradient(u, 1)[0] - phase * w),
+                RateLaw(w.diff(t), s.D * laplacian(u) + drift * gradient(w, 1)[0] + phase * u),
+            ]
 
 
 class ChargedSchrodingerSystem(BaseSystem):
@@ -158,9 +182,15 @@ class ChargedSchrodingerSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.waves import ChargedSchrodingerSystem
-        >>> ChargedSchrodingerSystem(64, E=0.5).prepare().system_.elements[0].values['E']
+        >>> ChargedSchrodingerSystem(64, E=0.5).prepare().system_.interactions[0].E
         0.5
     """
 
@@ -184,8 +214,10 @@ class ChargedSchrodingerSystem(BaseSystem):
         E: float = 1.0,
         duration: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.length = length
         self.D = D
@@ -197,32 +229,28 @@ class ChargedSchrodingerSystem(BaseSystem):
         self.E = E
         self.duration = duration
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a Gaussian wave packet of a charge in the electromagnetic potential.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         spacing = self.length / self.n_sites
         positions = spacing * np.arange(self.n_sites) - self.length / 2
         envelope = np.exp(-(positions**2) / (4 * self.width**2)) / (2 * np.pi * self.width**2) ** 0.25
         psi = envelope * np.exp(1j * self.momentum * positions)
-        values = {
-            'u': psi.real,
-            'w': psi.imag,
-            'D': self.D,
-            'q': self.q,
-            'A_x': self.A_x,
-            'A_t': self.A_t,
-            'E': self.E,
-            'duration': self.duration,
-        }
-        space = LatticeSpace(self.n_sites, spacing=spacing)
-        return CompositeSystem(
-            self.label,
-            elements=[
-                FieldElement(
-                    'packet',
-                    element=ChargedWaveFunctionElement,
-                    space=space,
-                    values=values,
-                    discretization='spectral',
-                ),
-            ],
+        space = LatticeSpace(self.n_sites, spacing=spacing, discretization='spectral')
+        packet = ChargedWaveFunctionElement('packet', u=psi.real, w=psi.imag, space=space)
+        coupling = MinimalCouplingInteraction(
+            'coupling',
+            target='packet',
+            D=self.D,
+            q=self.q,
+            A_x=self.A_x,
+            A_t=self.A_t,
+            E=self.E,
+            duration=self.duration,
         )
+        self.system_ = System(self.label, elements=[packet], interactions=[coupling])

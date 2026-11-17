@@ -47,7 +47,7 @@ def test_brusselator_and_heat_stay_bounded():
     values = BrusselatorSystem((32, 32)).prepare().simulate(until=20, dt=1).states[-1]
     assert np.all(np.isfinite(values))
     assert values.max() < 20
-    trajectory = simulate(HeatDiffusionSystem((32, 32)).prepare().system_, until=50, dt=5)
+    trajectory = HeatDiffusionSystem((32, 32)).prepare().simulate(until=50, dt=5)
     assert trajectory.get_values('plate.u').sum(axis=1) == pytest.approx(
         np.full(len(trajectory.times), trajectory.get_values('plate.u')[0].sum()),
     )

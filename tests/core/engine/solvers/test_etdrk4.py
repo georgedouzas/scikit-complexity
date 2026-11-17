@@ -92,17 +92,16 @@ def test_spectral_accuracy():
 
 def test_kuramoto_sivashinsky_is_fourth_order():
     """Test that ETDRK4 is stable at steps 0.25 and 0.125 and its error shrinks at fourth order."""
-    system = KuramotoSivashinskySystem().prepare().system_
-    reference = simulate(system, until=1, dt=1.0, solver=ETDRK4Solver(dt=1 / 256)).states[-1]
-    errors = [
-        np.abs(
-            simulate(system, until=1, dt=1.0, solver=ETDRK4Solver(dt=step)).states[-1] - reference,
-        ).max()
-        for step in (0.25, 0.125)
-    ]
+
+    def run(step, until, dt):
+        system = KuramotoSivashinskySystem(solver=ETDRK4Solver(dt=step)).prepare()
+        return system.simulate(until=until, dt=dt).states[-1]
+
+    reference = run(1 / 256, 1.0, 1.0)
+    errors = [np.abs(run(step, 1.0, 1.0) - reference).max() for step in (0.25, 0.125)]
     assert errors[0] / errors[1] == pytest.approx(16, rel=0.1)
     for step in (0.25, 0.125):
-        values = simulate(system, until=100, dt=10.0, solver=ETDRK4Solver(dt=step)).states[-1]
+        values = run(step, 100.0, 10.0)
         assert np.isfinite(values).all()
         assert np.abs(values).max() < 5
 
@@ -110,9 +109,9 @@ def test_kuramoto_sivashinsky_is_fourth_order():
 @pytest.mark.parametrize('stepper', [IMEXEulerSolver(dt=1e-3), IMEX2Solver(dt=1e-3), CrankNicolsonSolver(dt=1e-3)])
 def test_implicit_explicit_steppers_agree(stepper):
     """Test that the implicit-explicit steppers converge to the ETDRK4 solution of the Kuramoto-Sivashinsky equation."""
-    system = KuramotoSivashinskySystem().prepare().system_
-    reference = simulate(system, until=1, dt=1.0, solver=ETDRK4Solver(dt=1 / 64)).states[-1]
-    values = simulate(system, until=1, dt=1.0, solver=stepper).states[-1]
+    reference = KuramotoSivashinskySystem(solver=ETDRK4Solver(dt=1 / 64)).prepare().simulate(until=1, dt=1.0)
+    values = KuramotoSivashinskySystem(solver=stepper).prepare().simulate(until=1, dt=1.0)
+    reference, values = reference.states[-1], values.states[-1]
     tolerance = 1e-2 if isinstance(stepper, IMEXEulerSolver) else 1e-5
     assert np.abs(values - reference).max() < tolerance
 
@@ -132,7 +131,7 @@ def test_steppers_need_linear_terms():
 
 def test_burgers_shock_is_conservative():
     """Test that the Burgers shock keeps its total within 1e-12 and forms no new extrema."""
-    trajectory = simulate(BurgersSystem().prepare().system_, until=2.0, dt=0.25)
+    trajectory = BurgersSystem().prepare().simulate(until=2.0, dt=0.25)
     values = trajectory.get_values('line.u')
     totals = values.sum(axis=1)
     assert np.abs(totals - totals[0]).max() < 1e-12 * totals[0]
@@ -145,7 +144,7 @@ def test_burgers_shock_is_conservative():
 @pytest.mark.slow
 def test_dam_break_conserves_water():
     """Test that the dam break conserves its water and keeps the depth between the two initial depths."""
-    values = simulate(ShallowWaterSystem().prepare().system_, until=0.5, dt=0.05).get_values('channel.h')
+    values = ShallowWaterSystem().prepare().simulate(until=0.5, dt=0.05).get_values('channel.h')
     assert values[-1].sum() == pytest.approx(values[0].sum(), rel=1e-12)
     assert 1.0 - 1e-9 <= values[-1].min() <= values[-1].max() <= 2.0 + 1e-9
 
@@ -160,20 +159,20 @@ def test_mesh_fields_stream_as_meshes(tmp_path):
         def log(self, path, archetype):
             self.logged.append((path, type(archetype).__name__))
 
-    trajectory = simulate(HeatLShapeSystem(1).prepare().system_, until=0.1, dt=0.1)
+    trajectory = HeatLShapeSystem(1).prepare().simulate(until=0.1, dt=0.1)
     problem, recording = trajectory.problem, Meshes()
     visual = RerunObserver().prepare(problem).visuals_[0].set_params(recording=recording).prepare(problem)
     visual.run(FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], problem))
     assert recording.logged == [('plate/u', 'Mesh3D')]
     observer = RerunObserver('mesh', save_path=tmp_path / 'mesh.rrd')
-    simulate(HeatLShapeSystem(1).prepare().system_, until=0.2, dt=0.1, observers=[observer])
+    HeatLShapeSystem(1).prepare().simulate(until=0.2, dt=0.1, observers=[observer])
     assert observer.logged_frames_ == 3
 
 
 @pytest.mark.slow
 def test_decaying_turbulence_loses_energy():
     """Test that decaying turbulence loses energy monotonically and enstrophy faster than energy."""
-    vorticity = simulate(DecayingTurbulenceSystem().prepare().system_, until=20, dt=1.0).get_lattice('flow.omega')
+    vorticity = DecayingTurbulenceSystem().prepare().simulate(until=20, dt=1.0).get_lattice('flow.omega')
     energy = _energies(vorticity)
     enstrophy = 0.5 * (vorticity**2).sum(axis=(1, 2))
     assert np.all(np.diff(energy) < 0)
@@ -185,11 +184,14 @@ def test_convection_onset():
     """Test that perturbations decay at Rayleigh number 500 and grow into steady rolls at 1000."""
     amplitudes = {}
     for rayleigh in (500.0, 1000.0):
-        trajectory = simulate(
-            RayleighBenardSystem(rayleigh, shape=(16, 16)).prepare().system_,
-            until=10,
-            dt=1.0,
-            solver=ETDRK4Solver(dt=0.01),
+        trajectory = (
+            (RayleighBenardSystem(rayleigh, shape=(16, 16)).prepare().system_)
+            .set_params(solver=ETDRK4Solver(dt=0.01))
+            .prepare()
+            .simulate(
+                until=10,
+                dt=1.0,
+            )
         )
         amplitudes[rayleigh] = np.abs(trajectory.get_values('flow.theta')).max(axis=1)
     assert amplitudes[500.0][-1] < 1e-6
@@ -207,7 +209,12 @@ def test_symmetry_needs_periodic_lattice():
 
 def test_swift_hohenberg_rolls():
     """Test that Swift-Hohenberg above onset forms rolls with a wavelength within 5% of 2 pi."""
-    trajectory = simulate(SwiftHohenbergSystem().prepare().system_, until=200, dt=10.0, solver=ETDRK4Solver(dt=0.5))
+    trajectory = (
+        (SwiftHohenbergSystem().prepare().system_)
+        .set_params(solver=ETDRK4Solver(dt=0.5))
+        .prepare()
+        .simulate(until=200, dt=10.0)
+    )
     values = trajectory.get_lattice('cells.u')[-1]
     n, length = values.shape[0], 16 * math.pi
     spectrum = np.abs(np.fft.fft2(values)) ** 2

@@ -19,7 +19,6 @@ top: the pulse runs to the right, spreads, and fades.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.fluids import DiscreteVelocityBoltzmannSystem
 
@@ -27,7 +26,7 @@ SYSTEM = 'discrete_velocity_boltzmann'
 
 system = DiscreteVelocityBoltzmannSystem(kappa=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = simulate(system, until=3, dt=0.015, observers=[observer])
+simulation = system.prepare().simulate(until=3, dt=0.015, observers=[observer])
 
 # %%
 # Conserved mass and relaxing current
@@ -36,7 +35,7 @@ simulation = simulate(system, until=3, dt=0.015, observers=[observer])
 # initial value to round-off, while the total current `c sum(f_plus - f_minus)`, which collisions do not conserve,
 # should decay towards zero as the gas relaxes to the equilibrium `f_plus = f_minus`, over a longer run.
 
-trajectory = simulate(DiscreteVelocityBoltzmannSystem(), until=10, dt=0.05)
+trajectory = DiscreteVelocityBoltzmannSystem().prepare().simulate(until=10, dt=0.05)
 right, left = trajectory.get_values('gas.f_plus'), trajectory.get_values('gas.f_minus')
 mass = (right + left).sum(axis=1)
 current = (right - left).sum(axis=1)

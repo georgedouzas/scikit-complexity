@@ -11,8 +11,9 @@ from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import AgentSnapshotSpec, BaseProblemSpec, FrameSpec, ProblemSpec
-from skcomplex.core.engine.runtime import BaseObserver, simulate
+from skcomplex.core.engine.runtime import BaseObserver, Trajectory, simulate
 from skcomplex.core.engine.viz import BaseVisual, RerunObserver
+from skcomplex.core.systems import BaseSystem
 from skcomplex.systems.biology.evolution import MoranProcessSystem
 
 
@@ -34,7 +35,18 @@ class Logs:
         return [archetype for logged, archetype in self.logs if logged == path]
 
 
-def _frames(system: CompositeSystem, steps: int, dt: float = 0.1) -> tuple[BaseProblemSpec, list[FrameSpec]]:
+def _simulate(system: CompositeSystem | BaseSystem, **settings: object) -> Trajectory:
+    """Return the trajectory of a system of either API."""
+    if isinstance(system, BaseSystem):
+        return system.prepare().simulate(**settings)
+    return simulate(system, **settings)
+
+
+def _frames(
+    system: CompositeSystem | BaseSystem,
+    steps: int,
+    dt: float = 0.1,
+) -> tuple[BaseProblemSpec, list[FrameSpec]]:
     """Return the problem and the frames of a run of a system."""
     frames = []
 
@@ -46,13 +58,13 @@ def _frames(system: CompositeSystem, steps: int, dt: float = 0.1) -> tuple[BaseP
             if inputs is not None:
                 frames.append(inputs)
 
-    trajectory = simulate(system, until=steps * dt, dt=dt, observers=[KeepObserver()], random_state=0)
+    trajectory = _simulate(system, until=steps * dt, dt=dt, observers=[KeepObserver()], random_state=0)
     return trajectory.problem, frames
 
 
-def _first_frame(system: CompositeSystem) -> tuple[BaseProblemSpec, FrameSpec]:
+def _first_frame(system: CompositeSystem | BaseSystem) -> tuple[BaseProblemSpec, FrameSpec]:
     """Return the problem and the first frame of a system."""
-    trajectory = simulate(system, until=0.0)
+    trajectory = _simulate(system, until=0.0)
     problem = trajectory.problem
     return problem, FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], problem)
 

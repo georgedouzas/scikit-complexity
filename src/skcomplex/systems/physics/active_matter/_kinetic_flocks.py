@@ -7,6 +7,7 @@ The theory runs over position and orientation.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,12 +15,13 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, cos, sin
 
-from ....core.components.elements import FieldElement
+from ....core.components import Observable
 from ....core.components.laws.utils import coordinate
 from ....core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.specs import RoleSpec
+from ....core.systems import BaseSystem, System
 from ...general.kinetics import EncounterInteraction
 from ..common.fields import AdvectionInteraction, PhaseSpaceDensityElement
 
@@ -219,9 +221,15 @@ class BertinDrozGregoireSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for Runge-Kutta steps of 0.05.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import BertinDrozGregoireSystem
-        >>> BertinDrozGregoireSystem(2, 8).prepare().system_.elements[0].prepare().size_
+        >>> BertinDrozGregoireSystem(2, 8).prepare().system_.elements[0].space.prepare().size_
         32
     """
 
@@ -230,7 +238,6 @@ class BertinDrozGregoireSystem(BaseSystem):
     references = ('Bertin, Droz, and Grégoire 2006', 'Bertin, Droz, and Grégoire 2009')
     until = 0.5
     dt = 0.1
-    solver = RK4Solver(dt=0.05)
 
     def __init__(
         self,
@@ -244,8 +251,10 @@ class BertinDrozGregoireSystem(BaseSystem):
         noise: float = 0.5,
         perturbation: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.positions = positions
         self.angles = angles
         self.density = density
@@ -255,28 +264,25 @@ class BertinDrozGregoireSystem(BaseSystem):
         self.noise = noise
         self.perturbation = perturbation
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the kinetic theory of flocking.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a homogeneous flock with a small polar perturbation.
 
-        Its polar order grows above a transition density.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         axis = AxisSpec('theta', self.angles, 0.0, 2 * math.pi, periodic=True)
-        space = PhaseSpace(LatticeSpace((self.positions, self.positions)), [axis]).prepare()
+        position = LatticeSpace((self.positions, self.positions), discretization='finite-volume')
+        space = PhaseSpace(position, [axis]).prepare()
         theta = space.coordinates_['theta']
         profile = self.density * (1.0 + self.perturbation * np.cos(theta)) / (2 * math.pi)
-        values = np.broadcast_to(profile, space.shape_).copy()
-        flock = FieldElement(
-            'flock',
-            element=PhaseSpaceDensityElement,
-            space=space,
-            values={'x': values},
-            discretization='finite-volume',
-        )
+        flock = PhaseSpaceDensityElement('flock', x=np.broadcast_to(profile, space.shape_).ravel(), space=space)
 
         def drift(_: SimpleNamespace) -> list[Expression]:
             return [self.speed * cos(coordinate('theta')), self.speed * sin(coordinate('theta')), 0]
 
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[flock],
             interactions=[
@@ -297,4 +303,5 @@ class BertinDrozGregoireSystem(BaseSystem):
                     noise=self.noise,
                 ),
             ],
+            solver=RK4Solver(dt=0.05),
         )

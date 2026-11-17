@@ -33,7 +33,7 @@ from ._lattice_gases import (
     LatticeGasPropagationInteraction,
     ParticleCountInteraction,
 )
-from ._marangoni import BenardMarangoniSystem, MarangoniLayerElement
+from ._marangoni import BenardMarangoniSystem, MarangoniLayerElement, ThermocapillaryInteraction
 
 __all__: list[str] = [
     'BGKEquationSystem',
@@ -60,6 +60,7 @@ __all__: list[str] = [
     'RayleighBenardSystem',
     'ShallowWaterElement',
     'ShallowWaterSystem',
+    'ThermocapillaryInteraction',
     'VlasovEquationSystem',
     'VorticityElement',
     'WaveBreakingSystem',

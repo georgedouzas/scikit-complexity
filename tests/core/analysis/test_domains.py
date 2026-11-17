@@ -79,7 +79,7 @@ def test_domain_growth_of_an_ising_trajectory():
 @pytest.mark.slow
 def test_pattern_wavelength_turing_patterns_on_two_domains():
     """Test that Swift-Hohenberg rolls have wavelength 2 pi and a Brusselator its critical Turing wavelength."""
-    rolls = simulate(SwiftHohenbergSystem(), random_state=0).get_lattice('cells.u')[-1]
+    rolls = SwiftHohenbergSystem().prepare().simulate(random_state=0).get_lattice('cells.u')[-1]
     wavelength = _domains('wavelength', rolls, spacing=16 * math.pi / 64).wavelength[0]
     assert wavelength == pytest.approx(2 * math.pi, rel=0.05)
     brusselator = simulate(BrusselatorSystem(b=1.95).prepare().system_, until=400.0, dt=10.0)

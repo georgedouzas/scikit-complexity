@@ -4,11 +4,12 @@ The package covers strings, chains of springs, quantum wave packets, and abelian
 """
 
 from ..common.fields import WilsonSamplingInteraction
-from ._charged import ChargedSchrodingerSystem, ChargedWaveFunctionElement
+from ._charged import ChargedSchrodingerSystem, ChargedWaveFunctionElement, MinimalCouplingInteraction
 from ._gauge_fields import GaugeLinkElement, LatticeGaugeFieldsSystem, MaxwellLinkElement, StaticChargeElement
 from ._quantum import (
     LatticeHamiltonianInteraction,
     PositionDephasingInteraction,
+    SchrodingerInteraction,
     SchrodingerSystem,
     WaveFunctionElement,
 )
@@ -39,7 +40,9 @@ __all__: list[str] = [
     'LatticeHamiltonianInteraction',
     'LatticeYangMillsSystem',
     'MaxwellLinkElement',
+    'MinimalCouplingInteraction',
     'PositionDephasingInteraction',
+    'SchrodingerInteraction',
     'SchrodingerSystem',
     'SpringChainSystem',
     'StandingWavesSystem',

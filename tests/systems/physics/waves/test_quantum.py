@@ -6,7 +6,6 @@ import pytest
 
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import ValidationError
@@ -19,7 +18,7 @@ from ..conftest import _relative_spread, _series
 
 def test_schrodinger_packet_moves_at_the_group_velocity_and_keeps_its_norm():
     """Test that a free wave packet keeps its norm and its center moves at `2 D k`."""
-    trajectory = simulate(SchrodingerSystem(), dt=0.5)
+    trajectory = SchrodingerSystem().prepare().simulate(dt=0.5)
     u, w = _series(trajectory, 'packet.u', 'packet.w')
     density = u**2 + w**2
     positions = 40.0 / 256 * np.arange(256) - 20.0
@@ -31,8 +30,8 @@ def test_schrodinger_packet_moves_at_the_group_velocity_and_keeps_its_norm():
 def test_schrodinger_formulations_agree():
     """Test that the field and operator formulations give the same probability of every site."""
     spacing = 40.0 / 128
-    fields = simulate(SchrodingerSystem(n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01))
-    operators = simulate(SchrodingerSystem(n_sites=128, formulation='operators'), dt=0.5)
+    fields = SchrodingerSystem(n_sites=128).set_params(solver=ETDRK4Solver(dt=0.01)).prepare().simulate(dt=0.5)
+    operators = SchrodingerSystem(n_sites=128, formulation='operators').prepare().simulate(dt=0.5)
     density = fields.get_values('packet.u') ** 2 + fields.get_values('packet.w') ** 2
     probability = np.abs(operators.get_values('system.state')) ** 2
     assert np.allclose(density * spacing, probability, atol=1e-6)
@@ -42,7 +41,7 @@ def test_schrodinger_dephased_packet_keeps_its_trace(tmp_path):
     """Test that a dephased packet keeps trace 1 while its purity falls, and streams its probability."""
     system = SchrodingerSystem(n_sites=32, length=20.0, formulation='operators', gamma=0.5)
     observer = RerunObserver('dephased', save_path=tmp_path / 'run.rrd')
-    trajectory = simulate(system, until=2.0, dt=0.5, observers=[observer])
+    trajectory = system.prepare().simulate(until=2.0, dt=0.5, observers=[observer])
     traces = np.trace(trajectory.get_values('system.state'), axis1=1, axis2=2)
     assert np.allclose(traces, 1, atol=1e-10)
     assert np.all(np.diff(operator_measures(trajectory, kind='purity').purity) <= 1e-10)

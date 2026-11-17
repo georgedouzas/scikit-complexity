@@ -5,13 +5,20 @@ The package covers amplitude equations, rolls, phase ordering, and nonreciprocal
 
 from ._conserved import NonreciprocalCahnHilliardSystem, NonreciprocalMixtureElement
 from ._ordering import AllenCahnSystem, CahnHilliardSystem
-from ._patterns import ComplexGinzburgLandauSystem, GinzburgLandauElement, PatternFieldElement, SwiftHohenbergSystem
+from ._patterns import (
+    ComplexGinzburgLandauSystem,
+    GinzburgLandauElement,
+    GinzburgLandauInteraction,
+    PatternFieldElement,
+    SwiftHohenbergSystem,
+)
 
 __all__: list[str] = [
     'AllenCahnSystem',
     'CahnHilliardSystem',
     'ComplexGinzburgLandauSystem',
     'GinzburgLandauElement',
+    'GinzburgLandauInteraction',
     'NonreciprocalCahnHilliardSystem',
     'NonreciprocalMixtureElement',
     'PatternFieldElement',

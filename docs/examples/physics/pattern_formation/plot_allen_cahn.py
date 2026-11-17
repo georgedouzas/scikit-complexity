@@ -15,7 +15,6 @@ run: large yellow and purple domains with smooth, gently curved walls.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.pattern_formation import AllenCahnSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'allen_cahn'
 
 system = AllenCahnSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Coarsening by curvature

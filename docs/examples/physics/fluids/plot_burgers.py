@@ -17,7 +17,6 @@ smooth sine turning into a sharp moving jump.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.fluids import BurgersSystem
 
@@ -25,7 +24,7 @@ SYSTEM = 'burgers'
 
 system = BurgersSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=2.99, dt=0.01, observers=[observer])
+trajectory = system.prepare().simulate(until=2.99, dt=0.01, observers=[observer])
 
 # %%
 # Shock formation and conservation

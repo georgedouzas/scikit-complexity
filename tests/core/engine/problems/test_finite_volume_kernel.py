@@ -114,10 +114,10 @@ def test_run_is_faster_with_closed_form_speeds():
 
 def test_run_keeps_burgers_shock_conservative_and_monotone():
     """Test that the Burgers shock keeps its total and forms no new extrema with the closed-form speeds."""
-    system = BurgersSystem(400).prepare().system_
-    initial = np.asarray(system.elements[0].values['u'])
-    _, volume = _volume(system)
-    values = simulate(system, until=2.0, dt=2.0, solver=SSPRKSolver()).states[-1]
+    system = BurgersSystem(400).prepare()
+    initial = np.asarray(system.system_.elements[0].u)
+    _, volume = _volume(system.system_)
+    values = system.simulate(until=2.0, dt=2.0).states[-1]
     assert volume.closed_form is True
     assert values.sum() == pytest.approx(initial.sum(), rel=1e-12)
     assert initial.min() - 1e-12 <= values.min() <= values.max() <= initial.max() + 1e-12
