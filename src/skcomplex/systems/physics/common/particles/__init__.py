@@ -15,7 +15,6 @@ from ._langevin_thermostat import LangevinThermostatInteraction
 from ._lennard_jones import LennardJonesInteraction
 from ._linear_drag import LinearDragInteraction
 from ._mass_point import MassPointElement
-from ._periodic_force import PeriodicForceInteraction
 from ._potential_energy import PotentialEnergyInteraction
 from ._propulsion_step import PropulsionStepInteraction
 from ._relaxation_time import RelaxationTimeInteraction
@@ -40,7 +39,6 @@ __all__: list[str] = [
     'LennardJonesInteraction',
     'LinearDragInteraction',
     'MassPointElement',
-    'PeriodicForceInteraction',
     'PotentialEnergyInteraction',
     'PropulsionStepInteraction',
     'RelaxationTimeInteraction',

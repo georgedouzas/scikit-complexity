@@ -56,7 +56,7 @@ from ._rotations import (
     RotatingSwingSystem,
     RotationInteraction,
 )
-from ._springs import ElasticLinkInteraction, TwoMassSpringDamperSystem
+from ._springs import ElasticLinkInteraction, PeriodicForceInteraction, TwoMassSpringDamperSystem
 from ._wells import ExponentialWellInteraction, ParticleInAWellSystem
 
 __all__: list[str] = [
@@ -104,6 +104,7 @@ __all__: list[str] = [
     'PendulumSpringInteraction',
     'PendulumSwingInteraction',
     'PendulumSystem',
+    'PeriodicForceInteraction',
     'ProjectileSystem',
     'RotatingBallElement',
     'RotatingBallsOnRodsSystem',
