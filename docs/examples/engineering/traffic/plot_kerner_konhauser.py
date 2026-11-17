@@ -13,8 +13,6 @@ that keeps its shape and moves around the ring road while the traffic outside it
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.traffic import KernerKonhauserSystem
 
@@ -22,7 +20,7 @@ SYSTEM = 'kerner_konhauser'
 
 system = KernerKonhauserSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, solver=SSPRKSolver(cfl=0.15), observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Growth of the cluster

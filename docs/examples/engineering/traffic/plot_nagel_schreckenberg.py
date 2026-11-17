@@ -14,7 +14,6 @@ and join their back.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.traffic import NagelSchreckenbergSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'nagel_schreckenberg'
 
 system = NagelSchreckenbergSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # The fundamental diagram
@@ -34,7 +33,7 @@ trajectory = simulate(system, observers=[observer])
 densities = np.linspace(0.02, 0.8, 27)
 flows = []
 for density in densities:
-    run = simulate(NagelSchreckenbergSystem(density=float(density), random_state=1))
+    run = NagelSchreckenbergSystem(density=float(density), random_state=1).prepare().simulate()
     speeds = run.get_lattice('road.velocity')[100:]
     flows.append(density * speeds[speeds >= 0].mean())
 fig, ax = plt.subplots(figsize=(6, 4.5))

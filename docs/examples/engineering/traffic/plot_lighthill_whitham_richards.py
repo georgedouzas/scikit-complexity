@@ -13,8 +13,6 @@ that moves upstream, against the traffic, at a constant speed, as arriving cars 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.traffic import LighthillWhithamRichardsSystem
 
@@ -22,7 +20,7 @@ SYSTEM = 'lighthill_whitham_richards'
 
 system = LighthillWhithamRichardsSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, dt=0.02, solver=SSPRKSolver(), observers=[observer])
+trajectory = system.prepare().simulate(dt=0.02, observers=[observer])
 
 # %%
 # Shock speed

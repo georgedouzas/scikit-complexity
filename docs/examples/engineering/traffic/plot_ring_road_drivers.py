@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.traffic import RingRoadDriversSystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
 )
 system = RingRoadDriversSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(system, until=300, dt=1, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=300, dt=1, observers=[observer], random_state=0)
 
 # %%
 # Jams keep the traffic slow
@@ -46,7 +45,7 @@ trajectory = simulate(system, until=300, dt=1, observers=[observer], random_stat
 
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for n_cars in (10, 30, 60):
-    run = simulate(RingRoadDriversSystem(n_cars=n_cars), until=300, dt=1, random_state=1)
+    run = RingRoadDriversSystem(n_cars=n_cars).prepare().simulate(until=300, dt=1, random_state=1)
     speeds = [run.get_agents('drivers', frame).values['speed'].mean() for frame in range(len(run.times))]
     ax.plot(run.times, speeds, label=f'{n_cars} cars')
 ax.axhline(40.0, color='black', linestyle='--', linewidth=0.8, label='speed limit')
