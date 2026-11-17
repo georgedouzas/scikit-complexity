@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 import pytest
+from sage.all__sagemath_symbolics import function, var
 from sklearn.base import clone
 
 from skcomplex.core import errors
@@ -10,6 +11,8 @@ from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import series
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import BaseSpec
@@ -125,3 +128,42 @@ def test_a_spec_without_hooks_is_a_value():
     assert not hasattr(span, 'prepare')
     assert not hasattr(span, 'run')
     assert span._check() is None
+
+
+def test_clone_shares_the_symbolic_values_of_sage():
+    """Test that a clone keeps the conditions of a lookup table and the symbolic functions of a law as they are."""
+    x = var('x')
+    deaths = series(x, (0.0, 0.25, 0.5, 1.0), (30.0, 3.0, 2.0, 1.0))
+    speed = function('speed')
+    law = RateLaw(x, deaths + speed(x), label='decline')
+    cloned = clone(law)
+    assert cloned is not law
+    assert cloned.value is law.value
+    assert str(cloned.value) == str(deaths + speed(x))
+    assert '< 0.25' in str(cloned.value)
+    assert any(item.operator() is speed for item in cloned.value.operands())
+
+
+def test_clone_copies_mutable_settings():
+    """Test that a clone copies a mutable setting, such as a list, and shares a frozen spec."""
+
+    @dataclass(frozen=True)
+    class WindowSpec(BaseSpec):
+        width: float = 1.0
+
+    class WindowConfig(BaseConfig):
+        def __init__(self, sizes=None, window=None):
+            self.sizes = sizes
+            self.window = window
+
+        def _prepare(self, context):
+            pass
+
+        def _run(self, inputs):
+            pass
+
+    config = WindowConfig(sizes=[1, 2], window=WindowSpec())
+    cloned = clone(config)
+    assert cloned.sizes == [1, 2]
+    assert cloned.sizes is not config.sizes
+    assert cloned.window is config.window
