@@ -317,9 +317,21 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         prepared.prepare(functional)
         return [
             self._get_rule(law, roles, functional)
-            or self._get_normalized(self._get_law_in_states(law, time, functions))
+            or self._get_local_rule(self._get_normalized(self._get_law_in_states(law, time, functions)))
             for law in prepared.laws_
         ]
+
+    @staticmethod
+    def _get_local_rule(law: BaseComponent) -> BaseComponent:
+        """Return the local rule of an update law with a neighbourhood, or the law itself.
+
+        An update law with a neighbourhood, such as `UpdateLaw(s.target.alive, life(), neighborhood=MOORE)`, runs as a
+        local rule of the cells, with its lookup tables and fused lattice kernels.
+        """
+        if isinstance(law, UpdateLaw) and law.neighborhood is not None:
+            law.prepare()
+            return law._get_local_rule()
+        return law
 
     def _get_rule(
         self,

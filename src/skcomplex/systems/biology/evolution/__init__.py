@@ -24,7 +24,13 @@ from ._finite_populations import (
     TangledNatureLifeCycleInteraction,
     TangledNatureSystem,
 )
-from ._games import CyclicSpeciesElement, ReplicatorDynamicsSystem, RockPaperScissorsSystem, StrategyElement
+from ._games import (
+    CyclicInvasionInteraction,
+    CyclicSpeciesElement,
+    ReplicatorDynamicsSystem,
+    RockPaperScissorsSystem,
+    StrategyElement,
+)
 from ._networks import (
     ChemicalElement,
     CompetingSpeciesElement,
@@ -71,6 +77,7 @@ __all__: list[str] = [
     'CompetingSpeciesElement',
     'CompetitiveJainKrishnaSystem',
     'CompetitiveSelectionInteraction',
+    'CyclicInvasionInteraction',
     'CyclicSpeciesElement',
     'DependencyFieldInteraction',
     'EigenQuasispeciesSystem',

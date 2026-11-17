@@ -8,13 +8,24 @@ from sage.all__sagemath_symbolics import SR, var
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw, TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.laws import (
+    LocalRuleLaw,
+    OuterTotalisticSpec,
+    RateLaw,
+    TopologyRequestSpec,
+    TotalisticSpec,
+    UpdateLaw,
+)
 from skcomplex.core.components.laws.utils import lag, total, where
+from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+
+ROW = LatticeSpace(5)
+AROUND = RadiusNeighborhood(1, center=True)
 
 
 class EconomyElement(Element):
@@ -257,3 +268,60 @@ def test_update_check_rejects_an_increment_with_a_source():
     x = var('x')
     with pytest.raises(ValidationError, match='no source'):
         UpdateLaw(x, x + 1, increment=True, source=0).prepare()
+
+
+@pytest.mark.parametrize(
+    ('rule', 'expected'),
+    [
+        (TotalisticSpec(lambda total: total % 2), [0, 1, 1, 1, 0]),
+        (OuterTotalisticSpec({(0, 1): 1}), [0, 1, 0, 1, 0]),
+        (lambda center, left, right: left, [0, 0, 0, 1, 0]),
+    ],
+)
+def test_update_with_a_neighborhood_runs_a_local_rule(rule, expected):
+    """Test that an update with a neighbourhood sets every cell from the ordered values of its neighbours."""
+    x = var('x')
+    law = UpdateLaw(x, rule, neighborhood=AROUND).prepare()
+    assert law.run({'space': ROW, 'x': [0, 0, 1, 0, 0]}).value_.tolist() == expected
+
+
+def test_update_with_a_neighborhood_becomes_a_local_rule_law():
+    """Test that a local rule keeps its neighbourhood, reads, schedule, and label, and draws when it names `random`."""
+    a, b = var('a b')
+
+    def flip(*values, random):
+        """Return the first value flipped."""
+        return 1 - values[0]
+
+    law = UpdateLaw((a, b), flip, neighborhood=AROUND, reads=[b], schedule='checkerboard', label='flip')
+    rule = law._get_local_rule()
+    assert isinstance(rule, LocalRuleLaw)
+    assert (rule.targets, rule.over, rule.rule, rule.reads, rule.schedule, rule.stochastic, rule.label) == (
+        (a, b),
+        AROUND,
+        flip,
+        (b,),
+        'checkerboard',
+        True,
+        'flip',
+    )
+    assert law._get_targets() == (a, b)
+    assert not UpdateLaw(a, TotalisticSpec({1: 1}), neighborhood=AROUND)._get_local_rule().stochastic
+
+
+@pytest.mark.parametrize(
+    ('settings', 'message'),
+    [
+        ({'neighborhood': 'moore'}, 'Give one'),
+        ({'neighborhood': AROUND, 'schedule': 'sometimes'}, 'Unknown schedule'),
+        ({'schedule': 'checkerboard'}, 'no neighbourhood'),
+        ({'reads': [var('y')]}, 'no neighbourhood'),
+        ({'neighborhood': AROUND, 'phase': 'move'}, 'neighbourhood and phase'),
+        ({'neighborhood': AROUND, 'increment': True}, 'neighbourhood and increment'),
+    ],
+)
+def test_update_check_rejects_a_bad_local_rule(settings, message):
+    """Test that a local rule needs a neighbourhood, a known schedule, and none of the settings of one member."""
+    x = var('x')
+    with pytest.raises(ValidationError, match=message):
+        UpdateLaw(x, TotalisticSpec({1: 1}), **settings).prepare()

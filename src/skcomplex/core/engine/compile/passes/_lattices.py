@@ -650,7 +650,19 @@ class LatticeProblemPass(BasePass):
             degrees=LatticeProblemPass._get_degrees_of(table, law.over, space) if reads_degree else None,
             classes=LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
             translations=translations,
+            name=LatticeProblemPass._get_rule_name(law, context.owner),
         ).prepare()
+
+    @staticmethod
+    def _get_rule_name(law: LocalRuleLaw, owner: str) -> str:
+        """Return the name of a local rule that equations show.
+
+        It is the name of a named function, else the label of the law, else the label of the component that owns it.
+        """
+        name = str(getattr(law.rule, '__name__', '')).lstrip('_')
+        if name and name != '<lambda>':
+            return name
+        return law.label or owner.replace('/', '.').rpartition('.')[2] or type(law.rule).__name__
 
     @staticmethod
     def _get_first_component(item: object) -> object:

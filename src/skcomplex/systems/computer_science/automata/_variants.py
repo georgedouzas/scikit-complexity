@@ -21,7 +21,7 @@ from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import LocalRuleLaw
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -124,7 +124,7 @@ class NoisyRuleInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             alive = context.target.alive
             self.laws_: list[BaseComponent] = [
-                LocalRuleLaw(alive, ELEMENTARY, self._get_function(), stochastic=True, label=self.label),
+                UpdateLaw(alive, self._get_function(), neighborhood=ELEMENTARY, label=self.label),
             ]
 
 
@@ -169,7 +169,9 @@ class DiscreteDiffusionInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             level = context.target.level
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(level, VON_NEUMANN, self._get_function(), label=self.label)]
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(level, self._get_function(), neighborhood=VON_NEUMANN, label=self.label),
+            ]
 
 
 class AdditiveRuleInteraction(Interaction):
@@ -204,7 +206,7 @@ class AdditiveRuleInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             value = context.target.value
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, PREDECESSORS, self._add, label=self.label)]
+            self.laws_: list[BaseComponent] = [UpdateLaw(value, self._add, neighborhood=PREDECESSORS, label=self.label)]
 
 
 class HighlifeSystem(BaseSystem):

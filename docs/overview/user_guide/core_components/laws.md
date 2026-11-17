@@ -1067,69 +1067,61 @@ and its [API entry][skcomplex.core.components.laws.LinearProgramLaw].
 
 ## LocalRuleLaw
 
-A `LocalRuleLaw` sets the next value of every cell of a lattice from the ordered values of its neighbourhood. The
+A `LocalRuleLaw` sets the next value of every cell of a lattice from the ordered values of its neighbourhood. A model
+writes it as an [`UpdateLaw`](#updatelaw) with a `neighborhood`, which the engine runs as a `LocalRuleLaw`. The
 elementary cellular automaton of rule 90 sets each cell to the sum of its two neighbours modulo 2, and it grows the
 Sierpinski triangle from one live cell.
 
 ```python
-from typing import Annotated
+from types import SimpleNamespace
 
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import LocalRuleLaw
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import LinearRuleSpec, LocalRuleLaw, UpdateLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-from skcomplex.core.components.laws import LinearRuleSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class CellElement(Element):
-    law_classes = (LocalRuleLaw,)
-
-    def __init__(self, label, *, cell: Annotated[float, StateSpec()] = 0.0):
+class RuleInteraction(Interaction):
+    def __init__(self, label, *, target: Role = 'row', rule=None, neighborhood=None):
         super().__init__(label)
-        self.cell = cell
+        self.target = target
+        self.rule = rule
+        self.neighborhood = neighborhood
 
-    def _get_laws(self, namespace):
-        return [LocalRuleLaw(namespace.cell, LatticeNeighborhood(((-1,), (1,))), LinearRuleSpec((1, 1), 'GF(2)'))]
+    def _prepare(self, context):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target.cell, self.rule, neighborhood=self.neighborhood)]
 
 
 seed = np.zeros(15)
 seed[7] = 1
-row = GroupElement('row', element=CellElement, space=LatticeSpace(15), on='sites', values={'cell': seed})
-cells = simulate(CompositeSystem(elements=[row]), until=4).get_values('row.cell')
+row = Element('row', values={'cell': seed}, space=LatticeSpace(15))
+rule90 = RuleInteraction('rule90', rule=LinearRuleSpec((1, 1), 'GF(2)'), neighborhood=LatticeNeighborhood(((-1,), (1,))))
+cells = System(elements=[row], interactions=[rule90]).prepare().simulate(until=4, dt=1).get_values('row.cell')
 cells.sum(axis=1).astype(int).tolist()
 ```
 
 The numbers of live cells at each step are 1, 2, 2, 4, and 2, the rows of the Sierpinski triangle.
 
-The same law runs Conway's Game of Life on a torus of 8 by 8 cells. A glider moves one cell down and one cell right
+The same form runs Conway's Game of Life on a torus of 8 by 8 cells. A glider moves one cell down and one cell right
 every four steps.
 
 ```python continuation
-from skcomplex.core.components.spaces import LatticeNeighborhood, RadiusNeighborhood
 from skcomplex.core.components.laws import OuterTotalisticSpec
+from skcomplex.core.components.spaces import RadiusNeighborhood
 
 life = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
-
-
-class LifeElement(Element):
-    law_classes = (LocalRuleLaw,)
-
-    def __init__(self, label, *, alive: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.alive = alive
-
-    def _get_laws(self, namespace):
-        return [LocalRuleLaw(namespace.alive, RadiusNeighborhood(1, metric='chebyshev'), life)]
-
-
 glider = np.zeros((8, 8))
 glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
-board = GroupElement('board', element=LifeElement, space=LatticeSpace((8, 8)), on='sites', values={'alive': glider})
-frames = simulate(CompositeSystem(elements=[board]), until=4).get_lattice('board.alive')
+board = Element('row', values={'cell': glider.ravel()}, space=LatticeSpace((8, 8)))
+moore = RadiusNeighborhood(1, metric='chebyshev')
+game = System(elements=[board], interactions=[RuleInteraction('life', rule=life, neighborhood=moore)])
+frames = game.prepare().simulate(until=4, dt=1).get_lattice('row.cell')
 bool(np.array_equal(frames[-1], np.roll(glider, (1, 1), axis=(0, 1))))
 ```
 
@@ -1140,8 +1132,8 @@ lattice solver applies the rule to every site from the previous configuration by
 run as lookups, which the Numba backend fuses into one compiled loop. The schedules `'random-sequential'`,
 `'random-site'`, `'checkerboard'`, and `'colored'` update the sites one at a time or one class at a time.
 
-**How it combines.** A rule may read several states and set several targets together. `LocalRuleInteraction` returns
-it from an interaction, and `relax` uses it to relax a lattice.
+**How it combines.** A rule may read several states and set several targets together. An interaction sets it as an
+`UpdateLaw` with a neighbourhood, and `relax` uses it to relax a lattice.
 
 **Limits and errors.** The rule reads a fixed neighbourhood of each cell, so a change of the whole array at once needs
 an `ArrayUpdateLaw`. An unknown schedule raises a `ValidationError` from `prepare`.
@@ -1152,7 +1144,7 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.errors import ValidationError
 
 try:
-    LocalRuleLaw(var('cell'), RadiusNeighborhood(1, metric='chebyshev'), life, schedule='parallel').prepare()
+    UpdateLaw(var('cell'), life, neighborhood=moore, schedule='parallel').prepare()
 except ValidationError as error:
     message = str(error)
 message
@@ -2142,7 +2134,9 @@ After twelve months the balance is 1061.68, which is `1000 * 1.005^12`.
 
 **How the engine runs it.** The law needs discrete time. `IterationSolver` computes every update from the states at
 the start of the step, so the order of the laws does not matter. With `order`, the members of a group update one after
-the other, and with `phase`, the law runs in a phase of the step.
+the other, and with `phase`, the law runs in a phase of the step. With `neighborhood`, the law is a local rule of the
+cells of a lattice or a network, such as `UpdateLaw(s.target.alive, life, neighborhood=MOORE)` for the Game of Life,
+which the lattice solver runs with the lookup tables and fused loops of a [`LocalRuleLaw`](#localrulelaw).
 
 **How it combines.** A state takes one update law, unless each of its laws says how it combines: an `increment` law
 adds a change, and a law with a `source` changes only members that hold that value. `CouplingInteraction`,

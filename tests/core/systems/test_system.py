@@ -18,11 +18,12 @@ from skcomplex.core.components.laws import (
     NoiseLaw,
     ObjectiveLaw,
     RateLaw,
+    TotalisticSpec,
     TransferLaw,
     UpdateLaw,
 )
 from skcomplex.core.components.laws.utils import mean, neighbors
-from skcomplex.core.components.spaces import BaseSpace, NetworkSpace
+from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.engine.solvers import (
     EulerMaruyamaSolver,
     GillespieSolver,
@@ -157,6 +158,38 @@ def test_prepare_writes_reductions_readably():
     assert system.equations_['nodes.x[i]'] == "neighbors(-nodes.x[i] + nodes.x[j], reduce='sum')"
     assert system.equations_['crowd.x[i]'] == 'mean(crowd.x) - crowd.x[i]'
     assert not any(re.search(r'(?<![\w.])_\w', equation) for equation in system.equations_.values())
+
+
+def _keep(center, *around):
+    """Return every cell unchanged."""
+    return center
+
+
+class _Rules(Interaction):
+    """Interaction with a named local rule and a lookup local rule of the same cells."""
+
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set a named function rule, then a totalistic rule, of the cells."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            alive = context.target.alive
+            around = RadiusNeighborhood(1, center=True)
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(alive, _keep, neighborhood=around),
+                UpdateLaw(alive, TotalisticSpec({1: 1}), neighborhood=around, label='parity'),
+            ]
+
+
+def test_prepare_writes_local_rules_by_their_names():
+    """Test that local rules appear in the equations by name and the neighbours they read, one after the other."""
+    cells = Element('cells', values={'alive': [0.0, 1.0, 0.0]}, space=LatticeSpace(3))
+    system = System(elements=[cells], interactions=[_Rules('rules')]).prepare()
+    reads = "neighbors(cells.alive, reduce='each')"
+    assert system.equations_ == {'cells.alive[i]': f'keep({reads}), then parity({reads})'}
 
 
 class _Process(Interaction):

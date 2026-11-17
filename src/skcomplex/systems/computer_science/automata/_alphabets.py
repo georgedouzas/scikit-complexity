@@ -20,7 +20,7 @@ from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import DeclaredElement, Element, GroupElement
 from ....core.components.interactions import Interaction
-from ....core.components.laws import LocalRuleLaw
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -179,7 +179,7 @@ class SelfIndexedShiftInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             value = context.target.value
             self.laws_: list[BaseComponent] = [
-                LocalRuleLaw(value, StateTranslationNeighborhood(), self._translate, label=self.label),
+                UpdateLaw(value, self._translate, neighborhood=StateTranslationNeighborhood(), label=self.label),
             ]
 
 
@@ -226,7 +226,9 @@ class PowerSeriesDifferenceInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             value = context.target.value
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, FORWARD, self._get_function(), label=self.label)]
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(value, self._get_function(), neighborhood=FORWARD, label=self.label),
+            ]
 
 
 class SubtractionRuleInteraction(Interaction):
@@ -259,7 +261,7 @@ class SubtractionRuleInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             value = context.target.value
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, FORWARD, self._subtract, label=self.label)]
+            self.laws_: list[BaseComponent] = [UpdateLaw(value, self._subtract, neighborhood=FORWARD, label=self.label)]
 
 
 class QuadraticRuleInteraction(Interaction):
@@ -292,7 +294,9 @@ class QuadraticRuleInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             value = context.target.value
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, FORWARD, self._get_quadratic, label=self.label)]
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(value, self._get_quadratic, neighborhood=FORWARD, label=self.label),
+            ]
 
 
 class GroupDifferenceInteraction(Interaction):
@@ -337,7 +341,9 @@ class GroupDifferenceInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             value = context.target.value
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, FORWARD, self._get_function(), label=self.label)]
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(value, self._get_function(), neighborhood=FORWARD, label=self.label),
+            ]
 
 
 class SelfIndexedShiftSystem(BaseSystem):
