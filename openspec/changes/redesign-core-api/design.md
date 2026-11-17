@@ -115,6 +115,15 @@ class Particle(Element):
   percolation. Interactions read them through the `along=` layer binding.
 - A group has no capacity. When rules or topology add members, the engine enlarges the arrays of the group as a Python
   list grows, so a network may start empty and grow without a setting.
+- How a field is discretized belongs to its space, which already owns its cells, volumes, and operators. A space takes
+  the scheme, the boundary of each state, and the symmetry, such as
+  `LatticeSpace(64, discretization='spectral', boundary={'T': ('fixed', 0.0)})`, and every element on it is read
+  that way. `Element` keeps only label, values, size, space, and on.
+- What quantity a value is, such as an energy, a mass, or a charge, is written with the same `Annotated` as its
+  allowed values, such as `E: Annotated[float, Quantity('energy')] = 0.0`, and conservation monitors read it. A plain
+  `Element(values=...)` has no quantity.
+- Values keep the order in which they are given, so states and parameters come out in that order and results do not
+  depend on alphabetical order.
 - A value named after an axis of the element's space is a position, with no flag. In
   `Element('walker', values={'x': 0.0}, space=ContinuousSpace(...))` the value `x` is the position of the walker, which
   walks, particle analyses, and drawings read. `role` and the other flags of `StateSpec` go.
