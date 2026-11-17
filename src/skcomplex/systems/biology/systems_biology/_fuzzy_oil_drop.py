@@ -18,17 +18,17 @@ import rerun as rr
 from scipy.optimize import minimize_scalar
 from scipy.special import rel_entr
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ArrayUpdateLaw, BaseLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.specs import CompiledElementSpec
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.problems import BaseProblemSpec, FrameSpec
+from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
 from ....core.engine.runtime import Trajectory
 from ....core.engine.viz import PointsVisual
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._extras import import_extra
 from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
@@ -51,97 +51,6 @@ CLASH_DISTANCE = 3.0
 NEAREST_SEPARATED_RESIDUES = 2
 COORDINATE_STATE = 'chain.x'
 ANGLE_STATE = 'chain.angle'
-
-
-class ChainCoordinateElement(Element):
-    """Coordinate of an effective atom of a protein chain.
-
-    Args:
-        label:
-            The label of the element.
-
-        x:
-            The coordinate in ångström.
-
-    Examples:
-        >>> from skcomplex.systems.biology.systems_biology import ChainCoordinateElement
-        >>> ChainCoordinateElement('site').x
-        0.0
-    """
-
-    def __init__(self, label: str, x: Annotated[float, StateSpec()] = 0.0) -> None:
-        super().__init__(label)
-        self.x = x
-
-
-class DihedralAngleElement(Element):
-    """Backbone dihedral angle of a protein chain.
-
-    Args:
-        label:
-            The label of the element.
-
-        angle:
-            The angle in degrees.
-
-    Examples:
-        >>> from skcomplex.systems.biology.systems_biology import DihedralAngleElement
-        >>> DihedralAngleElement('site').angle
-        0.0
-    """
-
-    def __init__(self, label: str, angle: Annotated[float, StateSpec()] = 0.0) -> None:
-        super().__init__(label)
-        self.angle = angle
-
-
-class EnsembleReplayInteraction(Interaction):
-    """Drive that sets a lattice state to one member of an ensemble per unit of time.
-
-    It holds the last member after the end.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the lattice group.
-
-        state:
-            The name of the state.
-
-        ensemble:
-            The members, members by the lattice shape.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.systems.biology.systems_biology import EnsembleReplayInteraction
-        >>> EnsembleReplayInteraction('replay', target='chain', state='x', ensemble=np.zeros((2, 3))).state
-        'x'
-    """
-
-    law_classes = (ArrayUpdateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        state: str,
-        ensemble: Array,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.state = state
-        self.ensemble = ensemble
-
-    def _read_member(self, values: Array, *, time: float) -> Array:
-        """Return the member of the time of a step."""
-        return self.ensemble[min(int(time), len(self.ensemble) - 1)].reshape(values.shape)
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
-        """Return the drive of the state."""
-        return [ArrayUpdateLaw(getattr(self._get_member(namespace, 'target'), self.state), self._read_member)]
 
 
 class BackboneVisual(PointsVisual):
@@ -220,6 +129,117 @@ class BackboneVisual(PointsVisual):
     def _get_dimension(self, element: CompiledElementSpec, problem: BaseProblemSpec) -> tuple[int, ...]:
         """Return the three coordinates of a point."""
         return (CHAIN_DIMENSIONS,)
+
+
+class ChainCoordinateElement(Element):
+    """Coordinate of an effective atom of a protein chain.
+
+    Args:
+        label:
+            The label of the element.
+
+        x:
+            The coordinate in ångström.
+
+    Examples:
+        >>> from skcomplex.systems.biology.systems_biology import ChainCoordinateElement
+        >>> ChainCoordinateElement('site').x
+        0.0
+    """
+
+    visual = VisualSpec(BackboneVisual, {'position': 'x'})
+
+    def __init__(self, label: str, x: Annotated[float, StateSpec()] = 0.0) -> None:
+        super().__init__(label)
+        self.x = x
+
+
+class DihedralAngleElement(Element):
+    """Backbone dihedral angle of a protein chain.
+
+    Args:
+        label:
+            The label of the element.
+
+        angle:
+            The angle in degrees.
+
+        structure:
+            The structure whose chain the angles rebuild, which the element is drawn as, or `None` for an image of the
+            angles.
+
+    Examples:
+        >>> from skcomplex.systems.biology.systems_biology import DihedralAngleElement
+        >>> DihedralAngleElement('site').angle
+        0.0
+    """
+
+    visual = VisualSpec('image', {'states': ('angle',), 'low': -180.0, 'high': 180.0})
+
+    def __init__(
+        self,
+        label: str,
+        angle: Annotated[float, StateSpec()] = 0.0,
+        structure: StructureSpec | None = None,
+    ) -> None:
+        super().__init__(label)
+        self.angle = angle
+        self.structure = structure
+
+    def _get_visual(self) -> VisualSpec:
+        """Return the backbone the angles rebuild with a structure, or else the image of the angles."""
+        if self.structure is None:
+            return self.visual
+        return VisualSpec(BackboneVisual, {'position': 'angle', 'structure': self.structure})
+
+
+class EnsembleReplayInteraction(Interaction):
+    """Drive that sets a lattice state to one member of an ensemble per unit of time.
+
+    It holds the last member after the end.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the lattice group.
+
+        state:
+            The name of the state.
+
+        ensemble:
+            The members, members by the lattice shape.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.systems.biology.systems_biology import EnsembleReplayInteraction
+        >>> EnsembleReplayInteraction('replay', target='chain', state='x', ensemble=np.zeros((2, 3))).state
+        'x'
+    """
+
+    law_classes = (ArrayUpdateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        state: str,
+        ensemble: Array,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.state = state
+        self.ensemble = ensemble
+
+    def _read_member(self, values: Array, *, time: float) -> Array:
+        """Return the member of the time of a step."""
+        return self.ensemble[min(int(time), len(self.ensemble) - 1)].reshape(values.shape)
+
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
+        """Return the drive of the state."""
+        return [ArrayUpdateLaw(getattr(self._get_member(namespace, 'target'), self.state), self._read_member)]
 
 
 @dataclass(frozen=True)
@@ -573,11 +593,11 @@ class FuzzyOilDropSystem(BaseSystem):
         state = ANGLE_STATE if self.dynamics == 'folding' else COORDINATE_STATE
         settings = super().get_run_settings()
         settings['observables'] = [
-            ObservableSpec(
+            Observable(
                 'RD',
                 function=partial(FuzzyOilDropSystem._read_observed_value, 'relative-distance', self.entry, state),
             ),
-            ObservableSpec(
+            Observable(
                 'K',
                 function=partial(FuzzyOilDropSystem._read_observed_value, 'environment-factor', self.entry, state),
             ),
@@ -613,7 +633,7 @@ class FuzzyOilDropSystem(BaseSystem):
         return FuzzyOilDropSystem._read_value(structure, 'relative-distance', positions) + self._read_clashes(positions)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the fuzzy oil drop of a protein."""
+        """Return the components of the fuzzy oil drop of a protein."""
         import_extra('Bio.PDB', 'fuzzy_oil_drop', 'structures')
         if self.dynamics not in DYNAMICS:
             error_msg = f'Unknown dynamics {self.dynamics!r}. Use one of {", ".join(DYNAMICS)}.'
@@ -629,7 +649,6 @@ class FuzzyOilDropSystem(BaseSystem):
                         element=ChainCoordinateElement,
                         space=LatticeSpace((ensemble.shape[1], COORDINATES), boundary='fixed'),
                         values={'x': ensemble[0]},
-                        visual=VisualSpec(BackboneVisual, {'position': 'x'}),
                         on='sites',
                     ),
                 ],
@@ -645,8 +664,7 @@ class FuzzyOilDropSystem(BaseSystem):
                     'chain',
                     element=DihedralAngleElement,
                     space=LatticeSpace((1, angles.size), boundary='fixed'),
-                    values={'angle': angles[None]},
-                    visual=VisualSpec(BackboneVisual, {'position': 'angle', 'structure': structure}),
+                    values={'angle': angles[None], 'structure': structure},
                     on='sites',
                 ),
             ],

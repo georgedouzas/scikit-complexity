@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from ....core.components.interactions import WienerProcessSpec
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import WienerProcessSpec
 from ..common.assets import AssetElement, GeometricBrownianMotionInteraction
 
 
@@ -61,7 +61,7 @@ class CorrelatedGeometricBrownianMotionSystem(BaseSystem):
         self.rho = rho
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         labels = ('first', 'second')
         market = WienerProcessSpec('market', dimension=2, covariance=[[1.0, self.rho], [self.rho, 1.0]])
         return CompositeSystem(

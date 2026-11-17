@@ -15,7 +15,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import JumpInteraction
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class QueueElement(Element):
@@ -29,9 +29,6 @@ class QueueElement(Element):
     Args:
         label:
             The label of the queue or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         n:
             The initial number of customers.
@@ -51,13 +48,12 @@ class QueueElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[float, StateSpec(domain=NN)] = 0.0,
         arrival_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         service_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.arrival_rate = arrival_rate
         self.service_rate = service_rate

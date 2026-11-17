@@ -8,18 +8,11 @@ from dataclasses import replace
 
 from ...components.laws import (
     ArrayUpdateLaw,
-    BilinearLaw,
     BoundaryLaw,
-    CascadeLaw,
-    CrossingLaw,
-    DissipatorLaw,
-    EquationLaw,
-    ExtremalLaw,
-    FluxLaw,
-    GeneratorLaw,
+    ConstraintLaw,
+    EventLaw,
     JumpLaw,
     LocalRuleLaw,
-    MatchLaw,
     NoiseLaw,
     RateLaw,
     RuleLaw,
@@ -34,17 +27,19 @@ from ...components.spaces import (
     ContinuousTime,
     DiscreteTime,
     LatticeSpace,
-    MeshSpace,
     NetworkSpace,
     StaticTime,
 )
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import ValidationError
-from ...specs import LoweredFunctionsSpec, SupportSpec
-from ...types import FormKind, NoiseKind, OrderKind, VectorFunction
+from ...types import VectorFunction
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ._base import BaseBackend
+from ._lowered_functions_spec import LoweredFunctionsSpec
+from ._support_spec import SupportSpec
 
 
 class NumpyBackend(BaseBackend):
@@ -71,23 +66,17 @@ class NumpyBackend(BaseBackend):
         """
         return SupportSpec(
             time={ContinuousTime, DiscreteTime, StaticTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={
                 BoundaryLaw,
-                CrossingLaw,
-                DissipatorLaw,
+                EventLaw,
                 ArrayUpdateLaw,
-                EquationLaw,
-                ExtremalLaw,
-                FluxLaw,
-                GeneratorLaw,
+                ConstraintLaw,
                 JumpLaw,
                 LocalRuleLaw,
-                MatchLaw,
                 NoiseLaw,
                 BilinearLaw,
                 RateLaw,
-                CascadeLaw,
                 RuleLaw,
                 SampleLaw,
                 TransferLaw,

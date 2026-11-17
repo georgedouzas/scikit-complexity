@@ -21,7 +21,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 
 
@@ -42,9 +42,6 @@ class ExplorerElement(Element):
     Args:
         label:
             The label of the individual or the group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
 
         x:
             The first coordinate of the current location.
@@ -67,14 +64,13 @@ class ExplorerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.0,
         distinct: Annotated[float, StateSpec(domain=NN)] = 1.0,
         level: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.distinct = distinct
@@ -244,7 +240,7 @@ class ContainerMobilityInteraction(Interaction):
         self.travel = travel
         self.exponent = exponent
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for probabilities of travel that do not match the levels.
 
         Args:
@@ -409,7 +405,7 @@ class ExplorationPreferentialReturnSystem(BaseSystem):
         self.least_jump = least_jump
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         individuals = GroupElement('individuals', element=ExplorerElement, size=self.n_individuals)
         displacement = ExplorationInteraction(
             'displacement',
@@ -484,7 +480,7 @@ class ContainerMobilitySystem(BaseSystem):
         self.exponent = exponent
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         individuals = GroupElement('individuals', element=ExplorerElement, size=self.n_individuals)
         displacement = ContainerMobilityInteraction(
             'displacement',

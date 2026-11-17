@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....errors import ValidationError
-from ....specs import DrawSpec
+from .._draw_spec import DrawSpec
 from ._operators import _OperatorFunction
 
 DRAWS: dict[str, DrawSpec] = {}

@@ -35,7 +35,8 @@ from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.specs import AxisSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.spaces import AxisSpec
 
 
 class DensityElement(Element):
@@ -69,8 +70,8 @@ The function `coordinate(name)` returns the coordinate, along a named axis, of t
 the drift `[coordinate('v'), 0]`, and acceleration by a force `F` is the drift `[0, F]`. A law that reads a coordinate
 of a group whose space lacks that axis fails `simulate` with the issue `law-space`.
 
-Finite-volume fields stream on a phase space, and so do finite-difference and spectral fields built with
-`riemann=None`. Spectral derivatives need the axis to be periodic.
+Finite-volume, finite-difference, and spectral fields all stream on a phase space. Spectral derivatives need the axis to
+be periodic.
 
 ## Moments and mean fields
 
@@ -126,7 +127,8 @@ from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.specs import AxisSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.spaces import AxisSpec
 
 
 class DensityElement(Element):
@@ -171,44 +173,28 @@ The functions of the block follow these rules.
 ## Simplex domains
 
 This section holds a density over the frequencies of three strategies, which sum to one. A simplex is the set of
-points whose coordinates are nonnegative and sum to at most one. A
-[`SimplexSpace`](../core_components/spaces.md#simplexspace) is a phase space whose class axes are the free frequencies
-of a simplex, each on `[0, 1]` with the same number of cells. A uniform density of two on the 2-simplex, a triangle of
-area one half, has the integral one.
+points whose coordinates are nonnegative and sum to at most one. The space `SimplexSpace` of
+`skcomplex.systems.social.cooperation` is a phase space whose class axes are the free frequencies of a simplex,
+each on `[0, 1]` with the same number of cells. `TrimorphicMultilevelSelectionSystem` holds groups of cooperators,
+defectors, and punishers on such a space, with a uniform density of two on the 2-simplex, a triangle of area one half,
+so the integral is one.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.laws.utils import moment
-from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.systems.social.cooperation import TrimorphicMultilevelSelectionSystem
 
-
-class DensityElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-
-def total(s):
-    return moment(s.x, 0, axes=('x', 'y'))
-
-
-axes = [AxisSpec('x', 20, 0.0, 1.0), AxisSpec('y', 20, 0.0, 1.0)]
-simplex = SimplexSpace(LatticeSpace((1,)), axes).prepare()
-groups = FieldElement('groups', element=DensityElement, space=simplex, values={'x': 2.0 * (simplex.volumes_ > 0)})
-observables = [ObservableSpec('total', total, group='groups')]
-trajectory = simulate(CompositeSystem(elements=[groups]), until=0.1, dt=0.1, observables=observables)
-round(float(np.asarray(trajectory.get_values('total'))[-1]), 10)
+system = TrimorphicMultilevelSelectionSystem(cells=20)
+simplex = system.prepare().system_.elements[0].space.prepare()
+trajectory = simulate(system, until=1.0, dt=1.0, solver=RK4Solver(dt=0.01))
+density = np.asarray(trajectory.get_values('groups.x'))[-1]
+round(float((density * simplex.volumes_.ravel()).sum() / 20**2), 6)
 ```
 
-The observable `total` returns `1.0`, the integral of the density over the triangle. The space weights each cell by
-the part of it that lies inside the simplex.
+The integral of the density over the triangle stays `1.0`. The space weights each cell by the part of it that lies
+inside the simplex.
 
 - `volumes_` holds the fraction of every cell inside the simplex. Cells below the slanted face are whole, cells along
   it are partial, which is half a cell in two dimensions, and cells beyond it are empty. `apertures_` holds the
@@ -219,6 +205,9 @@ the part of it that lies inside the simplex.
 - `simulate` rejects a local operator of a field on a simplex, such as `laplacian` or a finite-difference advection,
   with the issue `law-space`. `SemiLagrangianSolver` refuses partial cells, and `SSPRKSolver` divides its wave speed
   by the smallest cell volume.
+- Any space can cut its cells the same way. The engine asks every space for the fraction of its cells inside the
+  domain, the open fraction of its faces, and the operators it takes, and a plain lattice answers whole cells, open
+  faces, and every operator.
 
 ## Encounters and equilibria
 
@@ -237,7 +226,7 @@ relax.state
 
 The block returns `'x'`, the state of the gas that the relaxation changes. The encounters of the classes at one
 position are the recipe [`EncounterInteraction`](../core_components/general.md#encounterinteraction) of the general
-realizations, which writes them as bilinear laws of the core.
+realizations, which writes them as rate laws of the `bilinear` form of the core.
 
 ## Collisions
 

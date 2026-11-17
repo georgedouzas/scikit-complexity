@@ -15,10 +15,10 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.spaces import LatticeSpace, MeshSpace
+from ....core.components.spaces import CellComplexSpace, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import IMEXEulerSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 from ..common.fields import DiffusivityInteraction
 
@@ -29,9 +29,6 @@ class HeatElement(Element):
     Args:
         label:
             The label of the site.
-
-        visual:
-            How the site is drawn, or `None` for none.
 
         u:
             The initial temperature.
@@ -48,12 +45,11 @@ class HeatElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
         D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.D = D
 
@@ -209,9 +205,9 @@ class HeatLShapeSystem(BaseSystem):
         self.temperature = temperature
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         grid = skfem.MeshTri.init_lshaped().refined(self.refine)
-        mesh = MeshSpace(grid.p, grid.t)
+        mesh = CellComplexSpace(points=grid.p, cells=grid.t)
         return CompositeSystem(
             self.label,
             elements=[

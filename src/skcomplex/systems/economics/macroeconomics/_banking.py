@@ -14,13 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, Sink
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.policy import PolicyRuleInteraction
 
 TOLERANCE = 1e-9
@@ -51,9 +53,6 @@ class DepositorElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         bank:
             The id of the customer's bank in the group `banks`, given initially as its position in the group.
 
@@ -79,7 +78,6 @@ class DepositorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         bank: Annotated[float, StateSpec(domain=ZZ, reference='banks')] = -1,
         deposit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
@@ -87,7 +85,7 @@ class DepositorElement(Element):
         spending: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         repayment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.bank = bank
         self.deposit = deposit
         self.loan = loan
@@ -161,9 +159,6 @@ class ReserveBankElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         reserves:
             The reserves of the bank.
 
@@ -191,7 +186,6 @@ class ReserveBankElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         reserves: Annotated[float, StateSpec()] = 0.0,
         deposits: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -199,7 +193,7 @@ class ReserveBankElement(Element):
         reserve_ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         customers: str = 'customers',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.reserves = reserves
         self.deposits = deposits
         self.loans = loans
@@ -373,9 +367,9 @@ class FractionalReserveBankingSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 ch. 9',)
     until = 300
     observables = (
-        ObservableSpec('broad_money', group='banks', variable='deposits', reduce='sum'),
-        ObservableSpec('reserves', group='banks', variable='reserves', reduce='sum'),
-        ObservableSpec('loans', group='banks', variable='loans', reduce='sum'),
+        Observable('broad_money', group='banks', variable='deposits', reduce='sum'),
+        Observable('reserves', group='banks', variable='reserves', reduce='sum'),
+        Observable('loans', group='banks', variable='loans', reduce='sum'),
     )
 
     def __init__(
@@ -404,7 +398,7 @@ class FractionalReserveBankingSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         owners = rng.integers(self.banks, size=self.customers)
         deposit = self.base_money / self.customers

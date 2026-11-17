@@ -14,10 +14,12 @@ from ..components.laws import BaseLaw, RateLaw
 from ..components.spaces import ContinuousTime
 from ..components.systems import CompositeSystem
 from ..engine._utils import vector
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, SamplesSpec
-from ..types import Array, ComplexArray, DataKind
+from ..types import Array, ComplexArray
+from ._analysis_tags import AnalysisTags
 from ._base import _read_samples
+from ._samples_spec import _SamplesSpec
 from ._sparse_identification import (
     _check_horizon,
     _check_validation,
@@ -94,7 +96,7 @@ class ModeDecompositionResult:
             The states at the `horizon` samples after the last one, one row per sample.
     """
 
-    samples: SamplesSpec
+    samples: _SamplesSpec
     system: CompositeSystem
     labels: list[str]
     states: list[str]
@@ -249,7 +251,7 @@ def mode_decomposition(
     )
 
 
-def _split_inputs(samples: SamplesSpec, inputs: Sequence[str] | None) -> tuple[SamplesSpec, list[str], list[Array]]:
+def _split_inputs(samples: _SamplesSpec, inputs: Sequence[str] | None) -> tuple[_SamplesSpec, list[str], list[Array]]:
     """Return the samples without the inputs, and the labels and series of the inputs.
 
     Args:
@@ -277,7 +279,7 @@ def _split_inputs(samples: SamplesSpec, inputs: Sequence[str] | None) -> tuple[S
     columns = [samples.labels.index(name) for name in names]
     labels = [samples.labels[index] for index in others]
     return (
-        SamplesSpec([values[:, others] for values in samples.series], labels, samples.dt),
+        _SamplesSpec([values[:, others] for values in samples.series], labels, samples.dt),
         names,
         [values[:, columns] for values in samples.series],
     )
@@ -379,7 +381,7 @@ def _input_declarations(
     }
 
 
-def _lift(samples: SamplesSpec, fitted: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:
+def _lift(samples: _SamplesSpec, fitted: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:
     """Return the series, labels, and state names of the observables.
 
     Without a dictionary, the observables are the variables.

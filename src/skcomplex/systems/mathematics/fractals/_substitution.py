@@ -14,12 +14,19 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import PatchElement, WordElement
-from ....core.components.laws import ProductionLaw, SubstitutionLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
+from ....core.specs import ParameterSpec
+from ...general.rewriting import (
+    AffineSpec,
+    GeometrySpec,
+    PatchElement,
+    ProductionLaw,
+    PrototileSpec,
+    SubstitutionLaw,
+    WordElement,
+)
 
 SHAPES = ('triangle', 'carpet')
 LARGEST_RATIO = 0.5
@@ -52,9 +59,6 @@ class CantorElement(PatchElement):
         bounds:
             The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
 
-        visual:
-            How the patch is drawn, or `None` for `default_visual_`.
-
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import CantorElement
         >>> CantorElement('cantor', ratio=0.25).ratio
@@ -73,7 +77,6 @@ class CantorElement(PatchElement):
         filled: bool = False,
         max_size: int = 10_000_000,
         bounds: Sequence[float] | None = None,
-        visual: VisualSpec | None = None,
     ) -> None:
         super().__init__(
             label,
@@ -82,7 +85,6 @@ class CantorElement(PatchElement):
             filled=filled,
             max_size=max_size,
             bounds=bounds,
-            visual=visual,
         )
         self.ratio = ratio
 
@@ -167,9 +169,6 @@ class SierpinskiElement(PatchElement):
         bounds:
             The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
 
-        visual:
-            How the patch is drawn, or `None` for `default_visual_`.
-
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import SierpinskiElement
         >>> SierpinskiElement('sierpinski', shape='carpet').shape
@@ -188,7 +187,6 @@ class SierpinskiElement(PatchElement):
         filled: bool = False,
         max_size: int = 10_000_000,
         bounds: Sequence[float] | None = None,
-        visual: VisualSpec | None = None,
     ) -> None:
         super().__init__(
             label,
@@ -197,7 +195,6 @@ class SierpinskiElement(PatchElement):
             filled=filled,
             max_size=max_size,
             bounds=bounds,
-            visual=visual,
         )
         self.shape = shape
 
@@ -269,7 +266,7 @@ class KochCurveSystem(BaseSystem):
         self.angle = angle
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         word = KochElement(
             'koch',
             axiom='F',
@@ -317,7 +314,7 @@ class CantorSetSystem(BaseSystem):
         self.ratio = ratio
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for a ratio outside of `(0, 1/2)`, then check the parts.
+        """Raise an error for a ratio outside of `(0, 1/2)`, then check the components.
 
         Args:
             context:
@@ -333,7 +330,7 @@ class CantorSetSystem(BaseSystem):
             raise ValidationError(error_msg)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         interval = PrototileSpec('interval', [(0.0, 0.0), (1.0, 0.0)])
         cantor = CantorElement('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1), ratio=self.ratio)
         return CompositeSystem(self.label, elements=[cantor])
@@ -383,7 +380,7 @@ class SierpinskiSubstitutionSystem(BaseSystem):
         self.filled = filled
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         prototile, _ = SierpinskiElement._get_sierpinski_tiles(self.shape)
         sierpinski = SierpinskiElement('sierpinski', shape=self.shape, prototiles=[prototile], filled=self.filled)
         return CompositeSystem(self.label, elements=[sierpinski])

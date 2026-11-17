@@ -14,12 +14,13 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_helmholtz, moment
-from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SemiLagrangianSolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import AxisSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.systems.social.cooperation import SimplexSpace
 
 
 class AmountElement(Element):
@@ -28,11 +29,10 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 

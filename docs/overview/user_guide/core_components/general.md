@@ -1,11 +1,11 @@
 # General realizations
 
 `skcomplex.systems.general` holds the recipes that systems of several fields share, such as a nonnegative amount, a
-reaction, an agent that moves, or a market that matches buyers with sellers. A recipe is a part written with the public
-parts of the core alone, so each one is also an example of how to build a part of your own. The core never imports
-these recipes, and every field imports them freely. [How the parts fit](index.md) shows the parts of the core that the
-recipes are written with, and the section [Where a part goes](#where-a-part-goes) at the end of this page gives the
-rule that decides whether a new part is a recipe.
+reaction, an agent that moves, or a market that matches buyers with sellers. A recipe is a component written with the
+public components of the core alone, so each one is also an example of how to build a component of your own. The core
+never imports these recipes, and every field imports them freely. [How the components fit](index.md) shows the
+components of the core that the recipes are written with, and the section [Where a component
+goes](#where-a-component-goes) at the end of this page gives the rule that decides whether a new component is a recipe.
 
 The package has one subpackage per concept, and every recipe is imported from its subpackage.
 
@@ -18,6 +18,7 @@ The package has one subpackage per concept, and every recipe is imported from it
 | `dynamics` | systems given as equations | `DynamicalSystem`, `NetworkDynamicalSystem`, `ReactionDiffusionSystem`, `StockFlowSystem` |
 | `agents` | agent rules | `MovementInteraction`, `ChoiceInteraction`, `ImitationInteraction`, `EvolutionInteraction`, `BirthDeathInteraction` |
 | `matching` | markets that pair two groups | `MatchingInteraction`, its rule specs, and `MatchSpec` |
+| `rewriting` | words and tilings that grow by rules | `WordElement`, `PatchElement`, `ProductionLaw`, `SubstitutionLaw`, their specs, `GeometryVisual`, and `RewritingSolver` |
 
 ## NonnegativeElement
 
@@ -88,8 +89,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class CompartmentElement(NonnegativeElement):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0):
-        super().__init__(label, visual=visual, x=x)
+    def __init__(self, label, *, x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0):
+        super().__init__(label, x=x)
 
 
 CompartmentElement('susceptible', x=990.0).get_params()
@@ -155,8 +156,8 @@ The message says that `p.x` is a vector, so the system that holds it must have a
 
 ```python continuation
 class AtomElement(PointElement):
-    def __init__(self, label, x=0.0, visual=None):
-        super().__init__(label, x=x, x_d1=0.0, visual=visual)
+    def __init__(self, label, x=0.0):
+        super().__init__(label, x=x, x_d1=0.0)
 
 
 AtomElement('argon', x=[1.0, 2.0]).get_params()
@@ -276,8 +277,8 @@ sorted(jumps.get_tags().laws), jumps.get_tags().randomness
 
 The laws are `['jump']` and the randomness is `'stochastic'`.
 
-**How it combines.** Its species are usually `NonnegativeElement` parts. With `target`, a species may be the name of a
-state of the target alone, and a target that is a group or a field reacts in every member. `modifiers` enter the
+**How it combines.** Its species are usually `NonnegativeElement` components. With `target`, a species may be the name
+of a state of the target alone, and a target that is a group or a field reacts in every member. `modifiers` enter the
 propensity without changing, as a catalyst does, and `propensity` replaces the product form, such as a saturating rate
 of enzyme kinetics.
 
@@ -378,7 +379,7 @@ sir.set_params(mode='jump').get_tags().randomness
 The jump mode makes the system `'stochastic'`.
 
 **How it combines.** It is a [`BaseSystem`](systems.md#basesystem), so `simulate`, `calibrate`, and the analyses take
-it as they take any system. A field system subclasses it and gives its parts through hooks:
+it as they take any system. A field system subclasses it and gives its components through hooks:
 
 - `_get_species` returns the initial amount of every species by name.
 - `_get_reactions` returns the reaction table.
@@ -482,7 +483,8 @@ simulate(cells, until=10.0, dt=5.0).get_values('tumour.x').round(3).tolist()
 
 The tumour falls to 0.368 at time 5 and to 0.135 at time 10, which is `exp(-2)`.
 
-**How the engine runs it.** The interaction lowers to a [`BilinearLaw`](laws.md#bilinearlaw), a rate that is a sum
+**How the engine runs it.** The interaction returns a [`RateLaw`](laws.md#ratelaw) whose rate is the
+[`bilinear`](../build_a_custom_system/kinetic_systems_of_active_particles.md#the-bilinear-form) form of the core, a sum
 of products of the two densities, which the compiler evaluates as arrays over the classes. A proliferative outcome adds
 a candidate at class `i`, and with a `cross_section` the rate is the collision integral of kinetic theory, evaluated
 by a fast spectral method.
@@ -491,7 +493,7 @@ by a fast spectral method.
 [`PhaseSpace`](spaces.md#phasespace), where encounters pair classes at the same position. Without a field the
 encounter is a linear redistribution between classes.
 
-**Limits and errors.** The bilinear law needs a lattice of classes. A conservative encounter moves candidates by a
+**Limits and errors.** The bilinear form needs a lattice of classes. A conservative encounter moves candidates by a
 kernel, so `prepare` raises a `ValidationError` without one.
 
 ```python continuation
@@ -507,6 +509,215 @@ message
 The message reads "The conservative encounter 'exchange' moves candidates by a kernel. Give `kernel`."
 
 See its [API entry][skcomplex.systems.general.kinetics].
+
+## GradientInteraction
+
+A `GradientInteraction` takes a potential, one scalar function of the states, and moves every state down its
+gradient. Here a particle in the double well `U = (x^2 - 1)^2 / 4` slides from 0.5 to the bottom of the well at 1.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.components.elements import Element
+from skcomplex.systems.general.gradients import GradientInteraction
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.specs import StateSpec
+
+
+class AmountElement(Element):
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.x = x
+
+
+well = GradientInteraction('well', target='particle', potential=lambda s: (s.target.x**2 - 1) ** 2 / 4)
+landscape = CompositeSystem(elements=[AmountElement('particle', x=0.5)], interactions=[well])
+simulate(landscape, until=10, dt=5.0).get_values('particle.x').round(3).tolist()
+```
+
+The particle reaches 1.0 by the fifth unit of time and stays there.
+
+The same class fits the two weights of a model by descending its loss, the squared distance to the values 1 and -2.
+
+```python continuation
+class ModelElement(Element):
+    def __init__(
+        self, label, *, a: Annotated[float, StateSpec()] = 0.0, b: Annotated[float, StateSpec()] = 0.0
+    ):
+        super().__init__(label)
+        self.a = a
+        self.b = b
+
+
+loss = lambda s: (s.target.a - 1) ** 2 + (s.target.b + 2) ** 2
+descent = GradientInteraction('descent', target='model', states=('a', 'b'), potential=loss)
+trajectory = simulate(CompositeSystem(elements=[ModelElement('model')], interactions=[descent]), until=5, dt=5.0)
+round(float(trajectory.get_values('model.a')[-1]), 3), round(float(trajectory.get_values('model.b')[-1]), 3)
+```
+
+The weights reach 1.0 and -2.0, the minimum of the loss.
+
+**How the engine runs it.** The interaction differentiates the potential symbolically and returns one rate law per
+moving state, `-dU/dx` divided by the divisor. On a state of order 1 this is a gradient flow, and on a state of order
+2 it is Newton's law with the force `-dU/dx`. `ScipyODESolver` integrates the rates.
+
+```python continuation
+[law.__name__ for law in descent.law_classes]
+```
+
+The interaction emits rate laws.
+
+**How it combines.** The role `target` binds an element or a group, and `sources` names the elements the potential
+reads without moving them, such as the position of a fixed charge. Several gradient interactions on one state add
+their forces. On a `FieldElement`, with `variational=True`, the potential is the density of a functional and the field
+follows the Allen-Cahn equation, and `conserved=True` gives the Cahn-Hilliard equation.
+
+**Limits and errors.** One potential gives every rate, so a force that is not the gradient of a potential, such as
+friction, needs a `RateInteraction`. The potential must be a function, and `prepare` raises a `ValidationError`
+otherwise.
+
+```python continuation
+from skcomplex.core.errors import ValidationError
+
+try:
+    GradientInteraction('well', target='particle', potential=1.0).prepare()
+except ValidationError as error:
+    message = str(error)
+message
+```
+
+The message reads "The potential of 'well' is 1.0. Give a function of the namespace." The fix is a function, such as
+`lambda s: s.target.x**2 / 2`.
+
+**A field realization.** A field fixes the potential and names its parameters, such as a spring of stiffness `k`.
+
+```python continuation
+from skcomplex.core.specs import ParameterSpec
+
+
+class SpringInteraction(GradientInteraction):
+    def __init__(self, label, *, target, k: Annotated[float, ParameterSpec()] = 1.0):
+        super().__init__(label, target=target, potential=lambda s: s.k * s.target.x**2 / 2)
+        self.k = k
+
+
+spring = SpringInteraction('spring', target='particle', k=2.0)
+relaxation = CompositeSystem(elements=[AmountElement('particle', x=1.0)], interactions=[spring])
+round(float(simulate(relaxation, until=1, dt=1.0).get_values('particle.x')[-1]), 3)
+```
+
+The particle relaxes from 1 to 0.135 in one unit of time, which is `exp(-2)`.
+
+See its [API entry][skcomplex.systems.general.gradients].
+
+## EulerLagrangeInteraction
+
+An `EulerLagrangeInteraction` takes a Lagrangian, the kinetic minus the potential energy, and moves the coordinates by
+its equations of motion. Here a pendulum swings from an angle of 0.1 radians, with the Lagrangian
+`q'^2 / 2 + cos q` in units where gravity and the length are 1.
+
+```python
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import cos
+
+from skcomplex.core.components.elements import Element
+from skcomplex.systems.general.mechanics import EulerLagrangeInteraction
+from skcomplex.core.components.laws.utils import derivative
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.specs import StateSpec
+
+
+class CoordinateElement(Element):
+    def __init__(self, label, *, q: Annotated[float, StateSpec(order=2)] = 0.1, q_d1: float = 0.0):
+        super().__init__(label)
+        self.q = q
+        self.q_d1 = q_d1
+
+
+lagrangian = lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q)
+swing = EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=lagrangian)
+pendulum = CompositeSystem(elements=[CoordinateElement('bob')], interactions=[swing])
+simulate(pendulum, until=3.2, dt=1.6).get_values('bob.q').round(3).tolist()
+```
+
+The angle passes through -0.003 at 1.6 seconds and reaches -0.1 at 3.2, half of the period `2 pi` of small swings.
+`derivative(q, 1)` is the velocity of the coordinate.
+
+The same class gives an electric circuit of a coil and a capacitor, written by its energy. The charge `q` is the
+coordinate, the coil of inductance 2 stores `L q'^2 / 2`, and the capacitor of capacitance 0.5 stores `q^2 / (2 C)`.
+
+```python continuation
+energy = lambda s: 2.0 * derivative(s.target.q, 1) ** 2 / 2 - s.target.q**2 / (2 * 0.5)
+oscillation = EulerLagrangeInteraction('oscillation', target='circuit', states='q', lagrangian=energy)
+circuit = CompositeSystem(elements=[CoordinateElement('circuit', q=1.0)], interactions=[oscillation])
+simulate(circuit, until=3.14159, dt=3.14159 / 2).get_values('circuit.q').round(3).tolist()
+```
+
+The charge goes from 1 to 0 and to -1 in half a period, since the frequency `1 / sqrt(L C)` is 1.
+
+**How the engine runs it.** The interaction differentiates the Lagrangian and returns one equation per coordinate,
+`d/dt dL/dq' - dL/dq = Q - dR/dq'`, with the generalized forces `Q` and the dissipation `R`. The compiler solves the
+equations together for the accelerations, so a Lagrangian with a mass matrix, such as that of a double pendulum,
+needs no inversion by hand.
+
+```python continuation
+[law.__name__ for law in swing.law_classes]
+```
+
+The interaction emits equation laws, which hold at every time.
+
+**How it combines.** The role `target` binds an element or a group, and every role that binds one element adds its
+coordinates. Equations of one coordinate from several interactions add, so a spring between two pendulums is an
+interaction of its own whose Lagrangian holds only the coupling energy. `dissipation` and `forcing` add friction and
+external forces.
+
+**Limits and errors.** The coordinates are states of order 2, and the Lagrangian must be a function. `prepare` raises
+a `ValidationError` for a Lagrangian that is not one.
+
+```python continuation
+from skcomplex.core.errors import ValidationError
+
+try:
+    EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=0.5).prepare()
+except ValidationError as error:
+    message = str(error)
+message
+```
+
+The message reads "The lagrangian of 'swing' is 0.5. Give a function of the namespace." The fix is a function of
+the namespace, as above.
+
+**A field realization.** A field fixes the Lagrangian and names its parameters, such as a pendulum of length `l` under
+gravity `g`.
+
+```python continuation
+from skcomplex.core.specs import ParameterSpec
+
+
+class PendulumInteraction(EulerLagrangeInteraction):
+    def __init__(
+        self,
+        label,
+        *,
+        target,
+        g: Annotated[float, ParameterSpec()] = 9.81,
+        l: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        lagrangian = lambda s: s.l**2 * derivative(s.target.q, 1) ** 2 / 2 + s.g * s.l * cos(s.target.q)
+        super().__init__(label, target=target, states='q', lagrangian=lagrangian)
+        self.g = g
+        self.l = l
+
+
+PendulumInteraction('swing', target='bob', l=2.0).get_params()
+```
+
+Its parameters are the label, the target, `g`, and `l`.
+
+See its [API entry][skcomplex.systems.general.mechanics].
 
 ## DynamicalSystem
 
@@ -653,8 +864,8 @@ The rooms reach the same temperature, 1.0 each, and the total stays 3.
 
 **How the engine runs it.** The states are those of a `DeclaredElement` that is the member of a
 [`FieldElement`](elements.md#fieldelement) on the [`NetworkSpace`](spaces.md#networkspace) of the graph. The equations
-are `RateInteraction` parts, and the coupling is a [`CouplingInteraction`](interactions.md#couplinginteraction) that
-reads node `i` as `s.member` and its neighbour as `s.other`. The system runs in continuous time.
+are `RateInteraction` components, and the coupling is a [`CouplingInteraction`](interactions.md#couplinginteraction)
+that reads node `i` as `s.member` and its neighbour as `s.other`. The system runs in continuous time.
 
 **How it combines.** A subclass returns the graph from `_get_graph` and the couplings from `_get_coupling`, besides
 the hooks of `DynamicalSystem`. A local equation may also read the graph Laplacian, as network diffusion does.
@@ -1209,7 +1420,8 @@ from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.systems.general.agents import EvolutionInteraction
 
 
@@ -1314,7 +1526,7 @@ See its [API entry][skcomplex.systems.general.agents].
 
 A `BirthDeathInteraction` creates and removes the agents of a group. At every step an agent dies with the probability
 `death`, and an agent that survives gives birth with the probability `birth` or at a Poisson `rate`. Here a cell of
-size 8 divides twice, and each division splits the size between the parent and its offspring.
+mass 8 divides twice, and each division splits the mass between the parent and its offspring.
 
 ```python
 from typing import Annotated
@@ -1328,18 +1540,18 @@ from skcomplex.systems.general.agents import BirthDeathInteraction
 
 
 class CellElement(Element):
-    def __init__(self, label, *, size: Annotated[float, StateSpec()] = 0.0):
+    def __init__(self, label, *, mass: Annotated[float, StateSpec()] = 0.0):
         super().__init__(label)
-        self.size = size
+        self.mass = mass
 
 
-cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
-division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('size',))
+cells = GroupElement('cells', element=CellElement, size=1, values={'mass': 8.0}, variable=True)
+division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('mass',))
 system = CompositeSystem(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
-simulate(system, until=2, random_state=0).get_agents('cells', 2).values['size'].tolist()
+simulate(system, until=2, random_state=0).get_agents('cells', 2).values['mass'].tolist()
 ```
 
-After two steps four cells of size 2.0 share the size 8 of the first.
+After two steps four cells of mass 2.0 share the mass 8 of the first.
 
 Rabbits in a warren breed with the probability 0.3 and die with the probability 0.1 each step. The interaction reports
 the births and deaths of every step.
@@ -1378,12 +1590,12 @@ message
 
 The message reads "'breeding' gives births by a probability and by a rate. Give one of them."
 
-**A field realization.** Biology writes cell division as a birth that halves the size.
+**A field realization.** Biology writes cell division as a birth that halves the mass.
 
 ```python continuation
 class DivisionInteraction(BirthDeathInteraction):
     def __init__(self, label, *, target, probability=1.0):
-        super().__init__(label, target=target, birth=probability, split=('size',))
+        super().__init__(label, target=target, birth=probability, split=('mass',))
 
 
 DivisionInteraction('division', target='cells').split
@@ -1455,8 +1667,8 @@ accept a wage above theirs. The same interaction with `transfers=(('money', -1),
 worker for every match, and the section [A market in two phases](#a-market-in-two-phases) below runs a market over
 several rounds.
 
-**How the engine runs it.** It returns a [`MatchLaw`](laws.md#matchlaw), the primitive of the core that pairs two
-groups, and a `RuleLaw` that settles the matches. The matching runs once per round of its phase, runs the algorithm of
+**How the engine runs it.** It returns a [`RuleLaw`](laws.md#rulelaw) that pairs the two groups with `pairs`, the
+primitive of the core that pairs agents, and settles the matches. The matching runs once per round of its phase, runs the algorithm of
 its rule on the offers, and reports `<label>.value`, the clearing value weighted by quantity, `<label>.volume`, and
 `<label>.unmatched`. With `('money', -1)` the value times the quantity moves from the requester to the provider, and
 with `('goods', 1)` the quantity moves back, so the totals stay the same. `on_match(match, system)` adds any other
@@ -1645,7 +1857,7 @@ See its [API entry][skcomplex.systems.general.matching].
 ### A market in two phases
 
 Traders quote prices in one phase and trade in a batch auction in the next, while a clerk sets a fee from the volume
-traded. The phases and the clerk are parts of the core, which the section
+traded. The phases and the clerk are components of the core, which the section
 [Phases, institutions, and learning](../build_a_custom_system/agent_based_systems.md#phases-institutions-and-learning)
 explains.
 
@@ -1660,7 +1872,8 @@ from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.systems.general.matching import BatchMatchingSpec, MatchingInteraction
 
 
@@ -1744,28 +1957,390 @@ The clearing prices of the rounds are 1.018, 1.231, 1.074, none in the fourth ro
 4, 1, 0, and 2. No bid of the fourth round covers an ask, so nothing trades. The clerk counts 11 goods bought and
 ends with a fee of 0.11. The state `cap` names the money of a buyer, the most value it can give.
 
-## Where a part goes
+The package `rewriting` brings numerics of its own: a compiler, a solver that rewrites one generation per step,
+and a visual that draws words and tiles. The computer science of shift spaces and the fractals of mathematics both
+use it.
 
-One ordered test, the placement rule of the package layout, decides where any new part goes. The source tests check it
-mechanically. It reads, word for word:
+## WordElement
 
-> Every new part SHALL be placed by one ordered test. A structural base SHALL go to the core. A part the engine
-> handles by type, or an operator generated from one function, SHALL go to the core under a mathematical name. Any
-> other part is a recipe, placed by its users: `skcomplex.systems.general.<concept>` for several fields,
-> `systems/<field>/common/<family>` for one field, its system's module for one system. The core SHALL never import
-> `skcomplex.systems`.
+A `WordElement` holds a word of symbols that productions rewrite at every generation. In the algae of Lindenmayer `A`
+becomes `AB` and `B` becomes `A`, so the length of the word runs through the Fibonacci numbers.
+
+```python
+from skcomplex.systems.general.rewriting import ProductionLaw, WordElement
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+
+
+class AlgaeElement(WordElement):
+    law_classes = (ProductionLaw,)
+
+    def _get_laws(self, namespace):
+        return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
+
+
+trajectory = simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A')]), until=5)
+trajectory.get_values('algae.size').tolist()
+```
+
+The Thue and Morse sequence of symbolic dynamics comes from the same class, with `0` becoming `01` and `1` becoming
+`10`.
+
+```python continuation
+class MorseElement(WordElement):
+    law_classes = (ProductionLaw,)
+
+    def _get_laws(self, namespace):
+        return [ProductionLaw('0', '01'), ProductionLaw('1', '10')]
+
+
+simulate(CompositeSystem(elements=[MorseElement('morse', axiom='0')]), until=3).get_values('morse.size').tolist()
+```
+
+**How the engine runs it.** Each generation applies every production to every matching symbol at once. The
+rewriting solver advances one generation per unit of time and records the size of the word as the state `size`.
+
+**How it combines.** Its productions are its own laws, so it usually runs alone. A `geometry` draws the word as line
+segments, as a turtle does, for plants and fractal curves.
+
+**Limits and errors.** The word grows at every generation, so `max_size` bounds it. A symbol outside `alphabet`, or a
+word that would grow past `max_size`, raises a `RewritingError` during the run.
+
+```python continuation
+from skcomplex.core.errors import RewritingError
+
+try:
+    simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A', max_size=4)]), until=5)
+except RewritingError as error:
+    message = str(error)
+message
+```
+
+The message says that the word would reach 5 symbols at generation 3, above its maximum size 4. The fix is a larger
+`max_size` or fewer generations.
+
+**A field realization.** The subclasses above are already field realizations, the algae of biology and the sequence
+of symbolic dynamics.
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
+## ProductionLaw
+
+A `ProductionLaw` rewrites every matching symbol of a word by a string at every generation, as an L-system does. The
+Koch curve replaces each segment `F` by `F+F--F+F`, where `+` and `-` turn the drawing pen.
+
+```python
+from skcomplex.systems.general.rewriting import ProductionLaw, WordElement
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+
+
+class KochElement(WordElement):
+    law_classes = (ProductionLaw,)
+
+    def _get_laws(self, namespace):
+        return [ProductionLaw('F', 'F+F--F+F')]
+
+
+koch = KochElement('koch', axiom='F')
+simulate(CompositeSystem(elements=[koch]), until=3).get_values('koch.size').tolist()
+```
+
+The word holds 1, 8, 36, and 148 symbols, since every segment becomes four segments and four turns.
+
+The same law runs a grammar of linguistics. A sentence `S` becomes a noun phrase `N` and a verb phrase `V`, a noun
+phrase becomes a determiner `D` and a word `W`, and a verb phrase takes a noun phrase as its object.
+
+```python continuation
+class SentenceElement(WordElement):
+    law_classes = (ProductionLaw,)
+
+    def _get_laws(self, namespace):
+        return [ProductionLaw('S', 'NV'), ProductionLaw('N', 'DW'), ProductionLaw('V', 'VN')]
+
+
+sentence = SentenceElement('sentence', axiom='S')
+simulate(CompositeSystem(elements=[sentence]), until=3).get_values('sentence.size').tolist()
+```
+
+The structure holds 1, 2, 4, and 6 symbols.
+
+**How the engine runs it.** The rewriting solver applies every production to every matching symbol at once, one
+generation per unit of time, and records the length of the word as the state `size`.
+
+**How it combines.** A `WordElement` returns its productions, which act on its word. A production may read a left or
+a right context, a condition on the parameters of a module, or a probability, so stochastic and parametric L-systems
+use the same law.
+
+**Limits and errors.** A word grows at every generation, so the element bounds it with `max_size`. The probability of a
+stochastic production lies in `[0, 1]`, and `prepare` raises a `RewritingError` otherwise.
+
+```python continuation
+from skcomplex.core.errors import RewritingError
+
+try:
+    ProductionLaw('F', 'FF', probability=1.5).prepare()
+except RewritingError as error:
+    message = str(error)
+message
+```
+
+The message reads "The probability of a production is in [0, 1], not 1.5."
+
+**A field realization.** The [WordElement](#wordelement) section holds the algae of Lindenmayer, a
+realization of botany.
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
+## PatchElement
+
+A `PatchElement` holds tiles, placed copies of basic shapes, that substitutions replace by smaller pieces at every
+generation. Keeping the outer thirds of every interval builds the Cantor set.
+
+```python
+from skcomplex.systems.general.rewriting import AffineSpec, PatchElement, PrototileSpec, SubstitutionLaw
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+
+
+class CantorElement(PatchElement):
+    law_classes = (SubstitutionLaw,)
+
+    def _get_laws(self, namespace):
+        thirds = [AffineSpec(scale=1 / 3), AffineSpec(scale=1 / 3, translation=(2 / 3, 0))]
+        return [SubstitutionLaw('interval', [('interval', third) for third in thirds])]
+
+
+cantor = CantorElement('cantor', prototiles=[PrototileSpec('interval', [(0, 0), (1, 0)])])
+simulate(CompositeSystem(elements=[cantor]), until=3).get_values('cantor.size').tolist()
+```
+
+Replacing every triangle by its three corner triangles builds the Sierpinski triangle of geometry.
+
+```python continuation
+class SierpinskiElement(PatchElement):
+    law_classes = (SubstitutionLaw,)
+
+    def _get_laws(self, namespace):
+        corners = [(0, 0), (1 / 2, 0), (1 / 4, 1 / 2)]
+        pieces = [('triangle', AffineSpec(scale=1 / 2, translation=corner)) for corner in corners]
+        return [SubstitutionLaw('triangle', pieces)]
+
+
+triangle = SierpinskiElement('sierpinski', prototiles=[PrototileSpec('triangle', [(0, 0), (1, 0), (1 / 2, 1)])])
+simulate(CompositeSystem(elements=[triangle]), until=3).get_values('sierpinski.size').tolist()
+```
+
+**How the engine runs it.** Each generation applies every substitution to every tile of its prototile at once, and
+the rewriting solver records the number of tiles as the state `size`.
+
+**How it combines.** Its substitutions are its own laws, so it usually runs alone, and its tiles are drawn as polygons.
+
+**Limits and errors.** Every tile must name a prototile of the patch, and `prepare` raises a `RewritingError`
+otherwise.
+
+```python continuation
+from skcomplex.core.errors import RewritingError
+
+try:
+    interval = PrototileSpec('interval', [(0, 0), (1, 0)])
+    PatchElement('patch', tiles=[('square', None)], prototiles=[interval]).prepare()
+except RewritingError as error:
+    message = str(error)
+message
+```
+
+The message names the unknown prototile `square`. The fix is a tile of the prototile `interval`.
+
+**A field realization.** The two subclasses above are realizations of mathematics, and a tiling of physics, such as
+the Penrose tiling of a quasicrystal, is written the same way.
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
+## SubstitutionLaw
+
+A `SubstitutionLaw` replaces every tile of a prototile, a shape of tile, by smaller placed pieces at every generation.
+The Sierpinski carpet keeps eight of the nine thirds of every square.
+
+```python
+from skcomplex.systems.general.rewriting import AffineSpec, PatchElement, PrototileSpec, SubstitutionLaw
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+
+
+class CarpetElement(PatchElement):
+    law_classes = (SubstitutionLaw,)
+
+    def _get_laws(self, namespace):
+        corners = [(i / 3, j / 3) for i in range(3) for j in range(3) if (i, j) != (1, 1)]
+        pieces = [('square', AffineSpec(scale=1 / 3, translation=corner)) for corner in corners]
+        return [SubstitutionLaw('square', pieces)]
+
+
+square = PrototileSpec('square', [(0, 0), (1, 0), (1, 1), (0, 1)])
+carpet = CarpetElement('carpet', prototiles=[square])
+simulate(CompositeSystem(elements=[carpet]), until=3).get_values('carpet.size').tolist()
+```
+
+The carpet holds 1, 8, 64, and 512 squares.
+
+The same law subdivides the square tiling of the plane, which is its own substitution tiling. Every square becomes four
+squares of half the size.
+
+```python continuation
+class RefinementElement(PatchElement):
+    law_classes = (SubstitutionLaw,)
+
+    def _get_laws(self, namespace):
+        corners = [(0, 0), (1 / 2, 0), (0, 1 / 2), (1 / 2, 1 / 2)]
+        pieces = [('square', AffineSpec(scale=1 / 2, translation=corner)) for corner in corners]
+        return [SubstitutionLaw('square', pieces)]
+
+
+grid = RefinementElement('grid', prototiles=[square])
+simulate(CompositeSystem(elements=[grid]), until=3).get_values('grid.size').tolist()
+```
+
+The tiling holds 1, 4, 16, and 64 squares.
+
+**How the engine runs it.** The rewriting solver applies every substitution to every tile of its prototile at once,
+one generation per unit of time, and records the number of tiles as the state `size`.
+
+**How it combines.** A `PatchElement` returns its substitutions, and several prototiles with one law each build a
+tiling of several shapes, as the Penrose tiling does.
+
+**Limits and errors.** Each piece pairs a prototile name with an `AffineSpec`, the map from the frame of the parent
+tile, and `prepare` raises a `RewritingError` for any other piece.
+
+```python continuation
+from skcomplex.core.errors import RewritingError
+
+try:
+    SubstitutionLaw('square', [('square', 1 / 3)]).prepare()
+except RewritingError as error:
+    message = str(error)
+message
+```
+
+The message says that a piece is a prototile name and an `AffineSpec`, not `('square', 0.3333333333333333)`. The fix
+is `('square', AffineSpec(scale=1 / 3))`.
+
+**A field realization.** The [PatchElement](#patchelement) section holds the Cantor set and the Sierpinski
+triangle, realizations of mathematics.
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
+## ModuleSpec
+
+A `ModuleSpec` is a symbol of a word with parameters, such as a segment `F(0.5)` of length 0.5 or an apex `A(x)` whose
+parameter a production reads. A word mixes plain symbols and modules, and `parse_word` reads it into modules.
+
+```python
+from skcomplex.systems.general.rewriting import ModuleSpec
+
+[module.name for module in ModuleSpec.parse_word(['F', ModuleSpec('A', (1.0,)), '+-'])]
+```
+
+The word reads as the modules `F`, `A`, `+`, and `-`. The parametric plant of [Rewriting
+systems](../build_a_custom_system/rewriting_systems.md) shrinks its apex with them. See its
+[API entry][skcomplex.systems.general.rewriting].
+
+## AffineSpec
+
+An `AffineSpec` places a piece of a substitution in the frame of its parent tile, by a scale, a rotation, a
+translation, and an optional reflection. The right third of an interval is the interval scaled by a half and shifted
+by one.
+
+```python
+from skcomplex.systems.general.rewriting import AffineSpec
+
+AffineSpec(scale=0.5, translation=(1, 0)).get_matrix_at({}).tolist()
+```
+
+The homogeneous matrix is `[[0.5, 0, 1], [0, 0.5, 0], [0, 0, 1]]`. Its entries can be expressions of the parameters
+of the patch, which every generation evaluates. See its [API entry][skcomplex.systems.general.rewriting].
+
+## PrototileSpec
+
+A `PrototileSpec` is a shape of which the tiles of a patch are placed copies, a segment of two vertices or a polygon
+of at least three. Its name names the count state of its tiles.
+
+```python
+from skcomplex.systems.general.rewriting import PrototileSpec
+
+interval = PrototileSpec('interval', [(0, 0), (1, 0)])
+square = PrototileSpec('square', [(0, 0), (1, 0), (1, 1), (0, 1)])
+interval.is_segment, square.is_segment
+```
+
+The interval is a segment and the square a polygon. See its [API entry][skcomplex.systems.general.rewriting].
+
+## GeometrySpec
+
+A `GeometrySpec` draws a word as line segments, as a turtle walks it: `F` draws a step, `+` and `-` turn by the angle,
+and `[` and `]` save and restore the position for branches. The step shrinks by `contraction` at every generation, so
+the Koch curve keeps its size.
+
+```python
+from skcomplex.systems.general.rewriting import GeometrySpec
+
+GeometrySpec(angle=60.0, contraction=1 / 3).dimension
+```
+
+The drawing is in two dimensions unless `dimension=3`. See its [API entry][skcomplex.systems.general.rewriting].
+
+## GeometryVisual
+
+A `GeometryVisual` logs the word or the patch of an element to the Rerun viewer, as line strips, or as an image for a
+filled patch, with the counts of its symbols or tiles as time series. Words and patches name it as their `visual`, so a
+`RerunObserver` draws them with it.
+
+```python
+from skcomplex.systems.general.rewriting import GeometryVisual, WordElement
+
+WordElement.visual.kind is GeometryVisual, GeometryVisual(filled=True)
+```
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
+## RewritingSolver
+
+A `RewritingSolver` rewrites every word and patch of a system once per unit of time, applying all productions at once.
+The compiler of the rewriting package names it, so a run of words or patches uses it without a `solver`.
+
+```python
+from skcomplex.systems.general.rewriting import RewritingSolver
+
+RewritingSolver()
+```
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
+## Where a component goes
+
+One ordered test, the placement rule of the package layout, decides where any new component goes. The source tests check
+it mechanically. It reads, word for word:
+
+> Every new component SHALL be placed by one ordered test. A structural base SHALL go to the core. A component the
+> engine handles by type, or an operator generated from one function, SHALL go to the core under a mathematical name.
+> Any other component is a recipe, placed by its users: `skcomplex.systems.general.<concept>` for several fields,
+> `systems/<field>/common/<family>` for one field, its system's module for one system. Every analysis SHALL be placed
+> by its users too: an analysis that measures what systems of several fields share SHALL go to
+> `skcomplex.core.analysis`, and an analysis of one field SHALL go to `systems/<field>/common/<family>`. The core SHALL
+> never import `skcomplex.systems`.
 
 A field with its own term names its recipe, and `general` uses neutral names. One example for each step follows.
 
 **A structural base.** A base where laws run once per triangle of a cell complex goes to the core, as
 [`HyperedgeInteraction`](interactions.md#hyperedgeinteraction) does, which runs its laws once per hyperedge, and
-[`CompositeSystem`](systems.md#compositesystem), which holds the parts of a system. Parts of every field build on
-them.
+[`CompositeSystem`](systems.md#compositesystem), which holds the components of a system. Components of every field build
+on them.
 
-**A part the engine handles by type.** A law that a kernel lowers goes to the core under a mathematical name.
+**A component the engine handles by type.** A law that a kernel lowers goes to the core under a mathematical name.
 [`GroupingInteraction`](interactions.md#groupinginteraction) stays in the core, since a compile pass lowers it by type
-to kernels over random groups, and economics and social science both form groups. `BilinearLaw` is in the core
-because the compiler names it, while `EncounterInteraction`, which only builds bilinear laws, is a recipe.
+to kernels over random groups, and economics and social science both form groups. The operator `bilinear` is in the
+core because the compiler lowers it, while `EncounterInteraction`, which only builds rate laws of bilinear forms, is a
+recipe.
 
 **A recipe of several fields.** An agent rule that economics and social science both use goes to a concept subpackage
 of `skcomplex.systems.general`. `ChoiceInteraction` returns only laws the core already runs, and the oligopoly markets
@@ -1779,14 +2354,14 @@ family `avalanches` of the physics `common` package, under the physics name `Top
 
 ```python
 from skcomplex.core.components.interactions import GroupingInteraction, HyperedgeInteraction
-from skcomplex.core.components.laws import BilinearLaw
+from skcomplex.core.components.laws.utils import bilinear
 from skcomplex.systems.general.agents import ChoiceInteraction
 
-parts = [HyperedgeInteraction, GroupingInteraction, BilinearLaw, ChoiceInteraction]
-[part.__module__.rsplit('.', 1)[0] for part in parts]
+components = [HyperedgeInteraction, GroupingInteraction, bilinear, ChoiceInteraction]
+[component.__module__.rsplit('.', 1)[0] for component in components]
 ```
 
-The first three parts live in `skcomplex.core.components` and the choice in `skcomplex.systems.general.agents`. The
+The first three components live in `skcomplex.core.components` and the choice in `skcomplex.systems.general.agents`. The
 toppling lives in the physics `common` package and the satisfiability in the module of its system, so the guide names
 them without importing them, since only system classes are imported from a field.
 
@@ -1805,7 +2380,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import RoleElementError
 from skcomplex.core.specs import RoleSpec, StateSpec
-from skcomplex.core.types import ElementKind
+from skcomplex.core.enums import ElementKind
 
 
 class BitRuleInteraction(Interaction):
@@ -1839,7 +2414,7 @@ The message says that the role `target` of `sat` accepts the domain `boolean`, b
 `on` of the domain `real`. The fix is a state of the domain `{0, 1}`, declared with
 `StateSpec(domain=FiniteEnumeratedSet([0, 1]))`.
 
-Finally, `sparse_identification` of the core returns a `CompositeSystem` of core parts, never a class of
+Finally, `sparse_identification` of the core returns a `CompositeSystem` of core components, never a class of
 `skcomplex.systems`, so the core runs without the catalog.
 
 ### Recipes of one field
@@ -1849,7 +2424,10 @@ examples to read, and the gallery example of each system runs it.
 
 - `TopplingInteraction` drives the members of a lattice and relaxes every member at or above a threshold, as in
   `SandpileSystem` of `skcomplex.systems.physics.criticality`. The section
-  [Cascades](../build_a_custom_system/lattice_systems.md#cascades) writes a cascade with the core `CascadeLaw`.
+  [Cascades](../build_a_custom_system/lattice_systems.md#cascades) writes a cascade with the core operator `relax`.
+- `SimplexSpace` holds a density over the frequencies of several types, which sum to at most one, as in
+  `TrimorphicMultilevelSelectionSystem` of `skcomplex.systems.social.cooperation`. The section
+  [Simplex domains](../build_a_custom_system/phase_space_fields.md#simplex-domains) runs it.
 - `PolicyRuleInteraction` sets parameters once per round of its phase from what happened in the round, as in
   `BrockHommesSystem` of `skcomplex.systems.economics.markets`. A plain `Interaction` that returns
   `RuleLaw(self.act, phase=...)` does the same, as the clerk of the market above shows.

@@ -12,13 +12,14 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 from scipy import ndimage
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray, IntArray
 
 
@@ -42,9 +43,6 @@ class VillageElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         culture:
             The culture code, the traits of the features as the digits of a number in base `q`.
 
@@ -63,16 +61,17 @@ class VillageElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'culture'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'culture'}),
         *,
         culture: Annotated[float, StateSpec(domain=NN)] = 0,
         features: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
         traits: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.culture = culture
         self.features = features
         self.traits = traits
@@ -210,7 +209,7 @@ def _count_cultures(cultures: AnyArray) -> int:
     return len(np.unique(cultures))
 
 
-def culture_observables(width: int, height: int) -> list[ObservableSpec]:
+def culture_observables(width: int, height: int) -> list[Observable]:
     """Return the share of the largest cultural region and the number of cultures.
 
     They are read from a full grid of villages.
@@ -234,8 +233,8 @@ def culture_observables(width: int, height: int) -> list[ObservableSpec]:
     locations = [(x, y) for x in range(width) for y in range(height)]
     region = partial(largest_region, locations, width=width, height=height)
     return [
-        ObservableSpec('largest_region', group='villages', variable='culture', reduce=region),
-        ObservableSpec('cultures', group='villages', variable='culture', reduce=_count_cultures),
+        Observable('largest_region', group='villages', variable='culture', reduce=region),
+        Observable('cultures', group='villages', variable='culture', reduce=_count_cultures),
     ]
 
 
@@ -278,7 +277,7 @@ class AxelrodSystem(BaseSystem):
     until = 200
 
     @staticmethod
-    def _get_culture_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_culture_observables(system: CompositeSystem) -> list[Observable]:
         """Return the culture observables of the grid of a system."""
         if not isinstance(system.space, LatticeSpace):
             return []
@@ -303,7 +302,7 @@ class AxelrodSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
         digits = rng.integers(self.traits, size=(size, self.features))
@@ -326,7 +325,7 @@ class AxelrodSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         settings['observables'] = AxelrodSystem._get_culture_observables(self._get_pass_parameters())

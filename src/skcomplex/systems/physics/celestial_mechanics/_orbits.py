@@ -18,13 +18,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import GradientInteraction, HamiltonianInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.gradients import GradientInteraction
+from ...physics.common.mechanics import HamiltonianInteraction
 from ..common.particles import MassPointElement, PotentialEnergyInteraction
 from .types import Preset
 
@@ -65,9 +67,6 @@ class KeplerBodyElement(Element):
         label:
             The label of the planet.
 
-        visual:
-            How the planet is drawn, or `None` for its class visual.
-
         x:
             The initial first coordinate.
 
@@ -97,7 +96,6 @@ class KeplerBodyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 10.0,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -106,7 +104,7 @@ class KeplerBodyElement(Element):
         G: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         mass: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.px = px
@@ -131,9 +129,6 @@ class RotatingFrameBodyElement(Element):
     Args:
         label:
             The label of the body.
-
-        visual:
-            How the body is drawn, or `None` for its class visual.
 
         x:
             The initial first coordinate.
@@ -161,7 +156,6 @@ class RotatingFrameBodyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.5,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -169,7 +163,7 @@ class RotatingFrameBodyElement(Element):
         py: Annotated[float, StateSpec()] = 0.5,
         mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01215,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.px = px
@@ -187,9 +181,6 @@ class SitnikovBodyElement(Element):
     Args:
         label:
             The label of the body.
-
-        visual:
-            How the body is drawn, or `None` for none.
 
         z:
             The initial height.
@@ -209,13 +200,12 @@ class SitnikovBodyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         z: Annotated[float, StateSpec(order=2)] = 0.5,
         z_d1: float = 0.0,
         e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
         self.z_d1 = z_d1
         self.e = e
@@ -329,7 +319,7 @@ class TwoBodyOrbitSystem(BaseSystem):
     dt = 0.01
     solver = Yoshida4Solver()
     invariants: ClassVar[Mapping[str, float]] = {'planet.energy': 1e-6}
-    observables = (ObservableSpec('energy', _get_kepler_energy, element='planet'),)
+    observables = (Observable('energy', _get_kepler_energy, element='planet'),)
 
     def __init__(
         self,
@@ -352,7 +342,7 @@ class TwoBodyOrbitSystem(BaseSystem):
         return _get_kepler_energy(s.target)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         speed = float(np.sqrt(self.G * self.mass * (1 + self.eccentricity) / self.radius))
         return CompositeSystem(
             self.label,
@@ -523,7 +513,7 @@ class RestrictedThreeBodySystem(BaseSystem):
     dt = 0.02
     solver = RK4Solver()
     invariants: ClassVar[Mapping[str, float]] = {'body.energy': 1e-6}
-    observables = (ObservableSpec('energy', _get_rotating_frame_energy, element='body'),)
+    observables = (Observable('energy', _get_rotating_frame_energy, element='body'),)
 
     def __init__(
         self,
@@ -548,7 +538,7 @@ class RestrictedThreeBodySystem(BaseSystem):
         return _get_rotating_frame_energy(s.target)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -631,7 +621,7 @@ class SitnikovSystem(BaseSystem):
         return -1 / sqrt(s.target.z**2 + distance**2)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[SitnikovBodyElement('body', z=self.z, z_d1=self.vz, e=self.e)],

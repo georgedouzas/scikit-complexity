@@ -6,8 +6,8 @@ from sage.all__sagemath_symbolics import RR, ZZ, oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.spaces import LatticeNeighborhood
+from skcomplex.core.enums import DomainKind
 from skcomplex.core.specs import EntrySpec, SubshiftSpec, TensorSpec
-from skcomplex.core.types import DomainKind
 
 
 def test_kind_is_tensor_for_a_tensor_entry():
@@ -57,3 +57,9 @@ def test_contains_checks_other_domains_component_by_component():
     """Test that an integer domain still rejects a fraction among whole numbers."""
     assert EntrySpec('x', 0, (), ZZ).contains([1, 2, 3])
     assert not EntrySpec('x', 0, (), ZZ).contains([1, 2.5])
+
+
+def test_layout_of_real_systems_is_unchanged():
+    """Test that a real variable keeps one float per component and its names."""
+    entry = EntrySpec('a.x', 0, (2,), RR)
+    assert (entry.size, entry.columns, entry.component_names) == (2, 2, ['a.x[0]', 'a.x[1]'])

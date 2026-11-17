@@ -11,8 +11,9 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.laws.utils import lag, normal, uniform, where
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -83,7 +84,7 @@ class KirmanExchangeRateSystem(DynamicalSystem):
     references = ('Caiani et al. 2016 §1.3.2', 'Kirman 1993')
     until = 20000
     draws = True
-    observables = (ObservableSpec('fundamentalists', _get_share, element='market'),)
+    observables = (Observable('fundamentalists', _get_share, element='market'),)
 
     def __init__(
         self,

@@ -6,9 +6,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import IMEXEulerSolver
-from skcomplex.core.specs import RunStateSpec
 from skcomplex.systems.biology.ecology import CometsSystem
 
 STEP = 0.1

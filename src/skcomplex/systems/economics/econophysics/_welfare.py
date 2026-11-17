@@ -15,12 +15,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction
 from ....core.components.laws.utils import moment, total
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.elements import NonnegativeElement
 from ...general.kinetics import EncounterInteraction
 
@@ -35,10 +36,7 @@ class WealthDensityElement(NonnegativeElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         x:
             The initial density, a nonnegative number.
@@ -57,11 +55,10 @@ class WealthDensityElement(NonnegativeElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x)
 
 
 def exchange_table(classes: int, cooperation: object, competition: object) -> npt.NDArray[np.object_]:
@@ -327,7 +324,7 @@ def mean_wealth(s: SimpleNamespace, wealth: npt.NDArray[np.float64]) -> Expressi
     return moment(s.x, 1, wealth, normalized=True)
 
 
-def wealth_observables(classes: int) -> list[ObservableSpec]:
+def wealth_observables(classes: int) -> list[Observable]:
     """Return the density, the mean wealth, and the Gini coefficient of a distribution.
 
     The distribution is `wealth`, over wealth classes.
@@ -347,9 +344,9 @@ def wealth_observables(classes: int) -> list[ObservableSpec]:
     """
     wealth = wealth_classes(classes)
     return [
-        ObservableSpec('density', partial(wealth_density, wealth=wealth), group='wealth'),
-        ObservableSpec('mean_wealth', partial(mean_wealth, wealth=wealth), group='wealth'),
-        ObservableSpec('gini', partial(gini_coefficient, wealth=wealth), group='wealth'),
+        Observable('density', partial(wealth_density, wealth=wealth), group='wealth'),
+        Observable('mean_wealth', partial(mean_wealth, wealth=wealth), group='wealth'),
+        Observable('gini', partial(gini_coefficient, wealth=wealth), group='wealth'),
     ]
 
 
@@ -420,7 +417,7 @@ class KineticWealthWelfareSystem(BaseSystem):
         self.tax = tax
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         initial = np.exp(-((wealth_classes(self.classes) - 0.5) ** 2) / 0.05)
         components: list[GroupElement] = [
             GroupElement(
@@ -464,7 +461,7 @@ class KineticWealthWelfareSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         system = self._get_pass_parameters()

@@ -112,8 +112,8 @@ conventions are the taste it cannot check.
   never by its name. A base a client is expected to subclass MUST be re-exported.
 - Inheritance MUST mean *is* and membership *has*: a class MUST derive only from a class it is, and MUST hold what it
   merely has. A class MUST be named after what it is, so its name ends with the concept of the base it derives from,
-  such as `RateLaw` of `BaseLaw`, and no base MUST derive from another base, except that the bases of the parts of a
-  domain model MAY derive from one base of parts that defines what every part does.
+  such as `RateLaw` of `BaseLaw`, and no base MUST derive from another base, except that the bases of the components of a
+  domain model MAY derive from one base of components that defines what every component does.
 - One module MUST be one concern, a file that grows two MUST be split, and small general helpers MUST share a
   `_utils` module. A base package MUST import no other package of the project, and its modules MUST import one
   another downward.
@@ -136,19 +136,22 @@ conventions are the taste it cannot check.
 
 ### Placement
 
-Every part MUST be placed by one ordered test, the placement rule, which `tests/test_sources.py` checks mechanically.
+Every component MUST be placed by one ordered test, the placement rule, which `openspec/scripts/check_conventions.py` checks mechanically.
 
 1. A structural base, such as a `Base` class, the composite system, or a base where laws run per member, edge,
    hyperedge, or pair, goes to the core.
-2. A part that the engine handles by type, through a compile pass, a kernel, a solver, a backend lowering, or an
+2. A component that the engine handles by type, through a compile pass, a kernel, a solver, a backend lowering, or an
    analysis that checks the class or its spec, goes to the core, and so does an operator generated from one function.
    It is named by its mathematics and must be cross-domain in principle.
-3. Every other part is a recipe, expressible with core parts. Its users place it. Several fields:
+3. Every other component is a recipe, expressible with core components. Its users place it. Several fields:
    `skcomplex.systems.general.<concept>`. One field with several systems: `systems/<field>/common/<family>`. One system:
    that system's module. A field with its own term names it, and `general` uses neutral names.
 4. A recipe that needs something the core cannot express reveals a missing core primitive, which enters by step 2.
    Engine support never lives inside a recipe.
 5. The core never imports `skcomplex.systems`.
+
+Analyses follow the rule by their users too. An analysis that measures what systems of several fields share goes to
+`skcomplex.core.analysis`, and an analysis of one field goes to `systems/<field>/common/<family>`.
 
 ### Style & Naming
 
@@ -281,7 +284,7 @@ to fill in as the project takes shape.
   declares abstract and every class MUST implement, returning `None`; `_release` is optional and does nothing by
   default. No family MUST add a verb of its own. Domains, problems, terms, and compiled records are values: frozen specs
   deriving from `BaseSpec`, the only base whose hooks have defaults, whose only hook they usually implement is `_check`. A system is
-  defined by elements, interactions, and laws alone, its parts, which derive from `BasePart`. Elements and groups derive from
+  defined by elements, interactions, and laws alone, its components, which derive from `BaseComponent`. Elements and groups derive from
   `BaseElement`, and interactions from `BaseInteraction`, which both take the label and the values of the declared
   states, parameters, and roles in one explicit constructor and list them in `get_params`, through the declaration
   helpers they share. A system holds its elements, interactions, and nested systems, and is none of them. What a
@@ -347,7 +350,7 @@ to fill in as the project takes shape.
   `skcomplex.core.base` (`BaseConfig`, the root of every configurable class), `skcomplex.core.types`, `skcomplex.core.specs`, and
   `skcomplex.core.errors`, which import no package. Within `core` and within `engine`, a package imports only the packages
   listed before it. Every kind of dynamics, such as agents, lattices, fields, kinetics, operators, or particles, is no
-  package of its own: its laws, elements, and spaces are parts of the core, and its passes, solvers, and visuals parts
+  package of its own: its laws, elements, and spaces are components of the core, and its passes, solvers, and visuals parts
   of the engine. Every name of `core` and `engine` is a mathematical, modelling, or engineering term, and none of
   them imports `skcomplex.systems`. The test tree mirrors the source tree with no exceptions, so every test module
   tests one module of `skcomplex`, and no test module checks repository conventions, documentation tooling, or

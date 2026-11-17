@@ -14,11 +14,12 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
+from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 
 ALONG_ROW = LatticeNeighborhood(((0, 0), (0, -1), (0, 1)))
@@ -38,9 +39,6 @@ class TrapSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         occupied:
             Whether a walker is on the site.
 
@@ -59,17 +57,18 @@ class TrapSiteElement(Element):
         3.0
     """
 
+    visual = VISITED
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         occupied: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         visited: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         clock: Annotated[float, StateSpec(domain=NN)] = 0.0,
         tau: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.occupied = occupied
         self.visited = visited
         self.clock = clock
@@ -124,9 +123,9 @@ class BiasedTrapWalkSystem(BaseSystem):
     until = 2000
     dt = 10
     observables = (
-        ObservableSpec('visits', group='traps', variable='visited', reduce='sum'),
-        ObservableSpec('walkers', group='traps', variable='occupied', reduce='sum'),
-        ObservableSpec('position', _get_mean_position),
+        Observable('visits', group='traps', variable='visited', reduce='sum'),
+        Observable('walkers', group='traps', variable='occupied', reduce='sum'),
+        Observable('position', _get_mean_position),
     )
 
     def __init__(
@@ -160,7 +159,7 @@ class BiasedTrapWalkSystem(BaseSystem):
         return next_occupied, np.maximum(visited, next_occupied), np.where(stays, clock + 1, 0.0)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = (self.n_walkers, self.n_sites)
         tau = np.ceil(self.tau0 * (1 - np.random.default_rng(self.random_state).random(shape)) ** (-1 / self.alpha))
         start = np.zeros(shape)
@@ -170,7 +169,6 @@ class BiasedTrapWalkSystem(BaseSystem):
             element=TrapSiteElement,
             space=LatticeSpace(shape, boundary='fixed', fill=-1.0),
             values={'occupied': start, 'visited': start, 'tau': tau},
-            visual=VISITED,
             on='sites',
         )
         hops = LocalRuleInteraction(

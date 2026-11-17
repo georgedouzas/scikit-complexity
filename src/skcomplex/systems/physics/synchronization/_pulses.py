@@ -18,7 +18,7 @@ from ....core.components.interactions import CouplingInteraction, CrossingIntera
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import maximum, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.oscillators import PhaseOscillatorElement, order_parameter
 
 
@@ -34,9 +34,6 @@ class IntegrateAndFireOscillatorElement(Element):
         label:
             The label of the oscillator or the group.
 
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
-
         x:
             The initial charge.
 
@@ -51,7 +48,7 @@ class IntegrateAndFireOscillatorElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the oscillator when it sets none.
+            How the oscillator is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import IntegrateAndFireOscillatorElement
@@ -64,14 +61,13 @@ class IntegrateAndFireOscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         S: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.S = S
         self.gamma = gamma
@@ -102,7 +98,7 @@ class WinfreeMeanFieldInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of oscillators.
@@ -200,7 +196,7 @@ class WinfreeSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         oscillators = GroupElement(
             'oscillators',
             element=PhaseOscillatorElement,

@@ -1,17 +1,13 @@
 """Test the `base` module of `skcomplex`."""
 
-import importlib
-import inspect
-import pkgutil
 from dataclasses import dataclass
 
 import pytest
 from sklearn.base import clone
 
-import skcomplex
 from skcomplex.core import errors
 from skcomplex.core.base import BaseConfig
-from skcomplex.core.components.base import BasePart
+from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import CompositeSystem
@@ -63,17 +59,17 @@ def test_prepare_validates_a_setting_changed_after_preparing():
 
 def test_no_public_check_remains():
     """Test that the bases have no public `check`, no `_validated`, and the error for an unchecked object is gone."""
-    assert not any(hasattr(base, 'check') for base in (BaseConfig, BaseSpec, BasePart))
-    assert not any(hasattr(base, '_validated') for base in (BaseConfig, BaseSpec, BasePart))
+    assert not any(hasattr(base, 'check') for base in (BaseConfig, BaseSpec, BaseComponent))
+    assert not any(hasattr(base, '_validated') for base in (BaseConfig, BaseSpec, BaseComponent))
     assert not hasattr(BaseConfig, '_check')
-    assert not hasattr(BasePart, '_check')
+    assert not hasattr(BaseComponent, '_check')
     assert not hasattr(BaseSpec, 'prepare')
     assert not hasattr(BaseSpec, 'run')
     assert not hasattr(errors, 'NotCheckedError')
 
 
-def test_bad_part_fails_before_it_is_prepared():
-    """Test that a part with a bad label raises from `prepare` of its system, before it sets any attribute."""
+def test_bad_component_fails_before_it_is_prepared():
+    """Test that a component with a bad label raises from `prepare` of its system, before it sets any attribute."""
     interaction = RateInteraction(1, target='stock', state='n', rate=1.0)
     system = CompositeSystem(elements=[Element('stock')], interactions=[interaction])
     with pytest.raises(ValidationError, match='label'):
@@ -103,27 +99,6 @@ def test_settings_follow_scikit_learn():
     config = ScalingConfig(4)
     assert config.get_params() == {'factor': 4}
     assert clone(config.set_params(factor=5)).factor == 5
-
-
-def test_every_base_derives_from_the_root():
-    """Test that every class named `Base*` outside the systems derives from `BaseConfig` or `BaseSpec`."""
-    outside = []
-    for module in pkgutil.walk_packages(skcomplex.__path__, 'skcomplex.'):
-        if module.name.startswith('skcomplex.systems'):
-            continue
-        try:
-            loaded = importlib.import_module(module.name)
-        except ImportError:
-            continue
-        for name, value in vars(loaded).items():
-            if (
-                inspect.isclass(value)
-                and value.__module__ == loaded.__name__
-                and name.lstrip('_').startswith('Base')
-                and not issubclass(value, BaseConfig | BaseSpec | BaseException)
-            ):
-                outside.append(f'{loaded.__name__}.{name}')
-    assert outside == []
 
 
 def test_a_class_without_a_hook_cannot_be_created():

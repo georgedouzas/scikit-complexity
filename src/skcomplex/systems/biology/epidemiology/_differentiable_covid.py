@@ -13,13 +13,14 @@ from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, total
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 BINARY = FiniteEnumeratedSet([0, 1])
 HOUSEHOLD_ADULTS = 2
@@ -297,7 +298,7 @@ class DifferentiableCovidAbmSystem(BaseSystem):
     topics = ('agents', 'covid-19', 'differentiable', 'calibration', 'households')
     references = ('Quera-Bofarull et al. 2023', 'Aylett-Bullock et al. 2021', 'Chopra et al. 2023')
     until = 30
-    observables = (ObservableSpec('daily_infections', group='people', variable='new', reduce='sum'),)
+    observables = (Observable('daily_infections', group='people', variable='new', reduce='sum'),)
 
     def __init__(
         self,

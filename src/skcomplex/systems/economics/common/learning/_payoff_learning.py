@@ -14,15 +14,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 from sage.sets.real_set import RealSet
 
-from .....core.components.base import BasePart
+from .....core.components.base import BaseComponent
 from .....core.components.interactions import MapInteraction
 from .....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from .....core.components.laws.utils import where
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import AgentViewProtocol, SystemViewProtocol
+from .....core.enums import ElementKind
 from .....core.errors import ValidationError
 from .....core.specs import ParameterSpec, RoleSpec
-from .....core.types import Array, ElementKind
+from .....core.types import Array
 
 RULES = ('average', 'cumulative')
 
@@ -49,7 +50,7 @@ class PayoffLearningInteraction(MapInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or group whose members hold the scores.
@@ -137,7 +138,7 @@ class PayoffLearningInteraction(MapInteraction):
         self.rule = rule
         self.chosen = chosen
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown variant, no scores, or an uncallable payoff.
 
         Args:
@@ -203,7 +204,7 @@ class PayoffLearningInteraction(MapInteraction):
         for name, score in zip(self.scores, scores, strict=True):
             setattr(agent, name, float(score))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the update of every score towards its payoff, or the agent-form rule.
 
         Args:
@@ -216,7 +217,7 @@ class PayoffLearningInteraction(MapInteraction):
         """
         if self.form == 'agent':
             return super()._get_laws(namespace)
-        laws: list[BasePart] = []
+        laws: list[BaseComponent] = []
         for index, name in enumerate(self.scores):
             score = getattr(self._get_member(namespace, 'target'), name)
             payoff = self.payoff(namespace, index)

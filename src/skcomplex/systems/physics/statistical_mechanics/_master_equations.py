@@ -15,9 +15,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, JumpLaw, LocalRuleLaw
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ....core.types import Array
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -35,9 +35,6 @@ class MicrostateElement(Element):
     Args:
         label:
             The label of the state or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         P:
             The initial probability.
@@ -62,14 +59,13 @@ class MicrostateElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         U: Annotated[float, StateSpec()] = 0.0,
         beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.P = P
         self.U = U
         self.beta = beta
@@ -89,7 +85,7 @@ class MicrostateElement(Element):
         return [
             LocalRuleLaw(
                 s.P,
-                BallNeighborhood(n_dim=1, center='inline'),
+                LatticeNeighborhood(((-1,), (0,), (1,))),
                 MicrostateElement._get_master_step,
                 reads=(s.P, s.U),
             ),
@@ -136,9 +132,6 @@ class ZoneElement(Element):
         label:
             The label of the zone or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         N:
             The initial number of particles in the zone.
 
@@ -162,14 +155,13 @@ class ZoneElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         N: Annotated[float, StateSpec(domain=NN)] = 0.0,
         Na: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.N = N
         self.Na = Na
         self.p = p
@@ -319,7 +311,7 @@ class TwoPhaseZoneExchangeSystem(BaseSystem):
         self.k = k
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[

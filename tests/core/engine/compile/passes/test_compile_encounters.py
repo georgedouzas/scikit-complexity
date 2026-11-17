@@ -9,7 +9,8 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import BilinearLaw
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import bilinear
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
@@ -18,7 +19,7 @@ from skcomplex.core.engine.compile.passes._compile_encounters import CompileEnco
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 CLASSES = 9
 
@@ -29,11 +30,10 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -66,7 +66,7 @@ class ExchangeInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the encounter."""
-        return [BilinearLaw(s.population.x, s.population.x, s.population.x, s.eta, self.table, conserved=True)]
+        return [RateLaw(s.population.x, bilinear(s.eta, self.table, s.population.x, s.population.x, conserved=True))]
 
 
 class RedistributionInteraction(Interaction):
@@ -79,7 +79,7 @@ class RedistributionInteraction(Interaction):
     def _get_laws(self, s):
         """Return the conserved bilinear law without a second density."""
         outcomes = np.asarray([[[0.0, 1.0]], [[0.0, 1.0]]])
-        return [BilinearLaw(s.population.x, s.population.x, None, 1.0, outcomes, conserved=True)]
+        return [RateLaw(s.population.x, bilinear(1.0, outcomes, s.population.x, conserved=True))]
 
 
 class GrowthInteraction(Interaction):
@@ -103,8 +103,8 @@ class GrowthInteraction(Interaction):
     def _get_laws(self, s):
         """Return the proliferation and the destruction."""
         return [
-            BilinearLaw(s.population.x, s.population.x, s.field.x, s.mu),
-            BilinearLaw(s.population.x, s.population.x, s.field.x, -s.kill),
+            RateLaw(s.population.x, bilinear(s.mu, None, s.population.x, s.field.x)),
+            RateLaw(s.population.x, bilinear(-s.kill, None, s.population.x, s.field.x)),
         ]
 
 
@@ -205,7 +205,7 @@ def test_parameter_in_transition_table_is_evaluated():
             for candidate in range(CLASSES):
                 table[candidate, :, min(candidate + 1, CLASSES - 1)] += s.q
                 table[candidate, :, candidate] += 1 - s.q
-            return [BilinearLaw(s.population.x, s.population.x, s.population.x, 1.0, table, conserved=True)]
+            return [RateLaw(s.population.x, bilinear(1.0, table, s.population.x, s.population.x, conserved=True))]
 
     system = CompositeSystem(
         elements=[GroupElement('wealth', element=AmountElement, on='sites', values={'x': _profile()})],

@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ReactingParticlesElement(Element):
@@ -31,9 +31,6 @@ class ReactingParticlesElement(Element):
     Args:
         label:
             The label of the particles.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         n:
             The initial number of particles.
@@ -64,7 +61,6 @@ class ReactingParticlesElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[float, StateSpec(domain=NN)] = 100.0,
         kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
@@ -73,7 +69,7 @@ class ReactingParticlesElement(Element):
         volume: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
         epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.kappa = kappa
         self.nu = nu
@@ -165,7 +161,7 @@ class AbsorbingBirthDeathSystem(BaseSystem):
         self.epsilon = epsilon
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         particles = ReactingParticlesElement(
             'particles',
             n=float(round(self.density * self.volume)),

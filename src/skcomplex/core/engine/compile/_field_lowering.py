@@ -17,27 +17,28 @@ from scipy.ndimage import convolve, map_coordinates
 from scipy.signal import oaconvolve
 from scipy.sparse import csr_matrix, diags, identity
 from scipy.sparse.linalg import factorized
-from skfem import Basis, ElementTetP1, ElementTriP1, asm
+from skfem import Basis, ElementTetP1, ElementTriP1, MeshTet, MeshTri, asm
 from skfem.models.poisson import laplace, mass
 
 from ...components.elements import FieldElement
-from ...components.laws import BaseLaw, BoundaryLaw, FluxLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...components.laws.utils import coordinate, displacement, integration_variable, where
 from ...components.laws.utils._operators import COLLISION_COSINE, COLLISION_SPEED, INVERSION_BOUNDARIES
 from ...components.laws.utils._phase import COORDINATE_PREFIX
 from ...components.spaces import (
     AdjacencyNeighborhood,
+    BaseSpace,
+    CellComplexSpace,
     LatticeNeighborhood,
     LatticeSpace,
-    MeshSpace,
     NetworkSpace,
     PhaseSpace,
-    SimplexSpace,
 )
 from ...errors import ValidationError
-from ...specs import NeighborReadSpec, RunStateSpec
 from ...types import Array, Indices, IntTuple
 from .._utils import domain_of, symbol
+from ..enums import ReadKind
+from ..problems import RunStateSpec
 from ..problems._collision_kernel import CollisionKernel
 from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._diffusive_limit_spec import DiffusiveLimitSpec
@@ -45,10 +46,11 @@ from ..problems._expression_printer import ExpressionPrinter
 from ..problems._field_operator_kernel import FieldOperatorKernel
 from ..problems._kernel_spec import KernelSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
+from ..problems._neighbor_read_spec import _NeighborReadSpec
 from ..problems._reference_spec import ReferenceSpec
-from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
+from ._flux_law import _FluxLaw
 
 OPERATOR_NAMES = (
     'laplacian',
@@ -76,7 +78,7 @@ FILTER_MODES = {'periodic': 'wrap', 'zero-flux': 'reflect', 'fixed': 'constant'}
 
 
 class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
-    """A lowering of the differential operators in the laws of one part to stencils.
+    """A lowering of the differential operators of the laws of a component to stencils.
 
     The lowering also returns the symbols the stencils read. `prepare(compilation)` reads the fields and the initial
     values of the compilation, and `run(laws)` returns the laws with every operator replaced by its stencil, noting the
@@ -167,7 +169,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         result: list[BaseLaw] = []
         for law in inputs or []:
-            if isinstance(law, FluxLaw) and self._get_law_has_operators(law):
+            if isinstance(law, _FluxLaw) and self._get_law_has_operators(law):
                 result.append(
                     BasePass._get_replaced(law, flux=[self._lower(SR(item)) for item in self._get_components(law)]),
                 )
@@ -325,7 +327,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 table, ghost, mode = self._get_table(base, place, total)
                 space = place.space
                 lattice = space if isinstance(space, LatticeSpace) and mode is not None else None
-                read = NeighborReadSpec(
+                read = _NeighborReadSpec(
                     table,
                     ghost,
                     None if lattice is None else lattice.shape_,
@@ -496,7 +498,9 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             )
             raise ValidationError(error_msg)
         space = next(iter(spaces.values()))
-        if not isinstance(space, LatticeSpace | NetworkSpace):
+        if not isinstance(space, LatticeSpace | NetworkSpace) or (
+            isinstance(space, CellComplexSpace) and space._is_mesh()
+        ):
             error_msg = (
                 f'A law of {self.spec.owner} applies a stencil to {expression}, which lives on a mesh. Use the '
                 'finite-element discretization.'
@@ -746,10 +750,11 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
     def _get_discretized(self, name: str, operands: list[object], place: FieldElement) -> Expression:
         """Return a local operator or inversion lowered for its field's discretization."""
-        if isinstance(place.space, SimplexSpace):
+        if place.space is not None and not place.space._supports_operator(name):
             error_msg = (
-                f'A law of {self.spec.owner} applies {name} to a field on a simplex, which only takes finite-volume '
-                'fluxes, reductions, and integrals. Write the transport as a flux of the finite-volume discretization.'
+                f'A law of {self.spec.owner} applies {name} to a field on {type(place.space).__name__}, whose cells '
+                'only take finite-volume fluxes, reductions, and integrals. Write the transport as `-divergence(flux)` '
+                'on a finite-volume field.'
             )
             raise ValidationError(error_msg)
         if place.discretization == 'spectral':
@@ -897,7 +902,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 '`inverse_helmholtz` its boundary as `boundary=`, with a number as the fixed value.'
             )
             raise ValidationError(error_msg)
-        return INVERSION_BOUNDARIES[int(code)], float(value)
+        return INVERSION_BOUNDARIES[int(code)].value, float(value)
 
     def _get_inverse(
         self,
@@ -937,7 +942,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if isinstance(space, NetworkSpace) and given is not None:
             error_msg = f'A law of {self.spec.owner} inverts on a network with a boundary. Give the inversion none.'
             raise ValidationError(error_msg)
-        if isinstance(space, MeshSpace):
+        if isinstance(space, CellComplexSpace) and space._is_mesh():
             apply = self._get_mesh_inverse(space, screening, kind, value)
         elif isinstance(space, NetworkSpace):
             apply = self._get_network_inverse(space, screening)
@@ -1179,7 +1184,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 f'A law of {self.spec.owner} takes the {name} of a finite element field, which takes Laplacians only.'
             )
             raise ValidationError(error_msg)
-        if not isinstance(place.space, MeshSpace):
+        if not isinstance(place.space, CellComplexSpace) or not place.space._is_mesh():
             error_msg = f'A law of {self.spec.owner} uses a finite element field, which needs a mesh.'
             raise ValidationError(error_msg)
         matrix = self._get_mesh_laplacian(place.space)
@@ -1390,7 +1395,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return guess
 
     @staticmethod
-    def _get_components(law: FluxLaw) -> list[object]:
+    def _get_components(law: _FluxLaw) -> list[object]:
         """Return the flux of every dimension of a flux law."""
         return list(law.flux) if isinstance(law.flux, FreeModuleElement | list | tuple) else [law.flux]
 
@@ -1400,17 +1405,18 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
         The flux of a flux law counts as its value.
         """
-        if isinstance(law, FluxLaw):
+        if isinstance(law, _FluxLaw):
             return any(FieldLowering._has_operators(SR(item)) for item in FieldLowering._get_components(law))
         return FieldLowering._has_operators(getattr(law, 'value', None))
 
     @staticmethod
-    def _get_volumes(space: object) -> npt.NDArray[np.float64] | float:
-        """Return the fraction of the volume of every cell inside a simplex domain.
+    def _get_volumes(space: BaseSpace) -> npt.NDArray[np.float64] | float:
+        """Return the fraction of the volume of every cell inside the domain of a space.
 
-        Outside a simplex space, the fraction is one.
+        A space of whole cells gives one.
         """
-        return space.volumes_ if isinstance(space, SimplexSpace) else 1.0
+        volumes = space._get_volumes()
+        return 1.0 if volumes is None else volumes
 
     @staticmethod
     def _get_over_positions(
@@ -1722,7 +1728,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
     @staticmethod
     def _get_mesh_inverse(
-        space: MeshSpace,
+        space: CellComplexSpace,
         screening: float,
         kind: str,
         fill: object,
@@ -1809,14 +1815,14 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         nodes = np.frombuffer(points).reshape(shape)
         elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
-        space = MeshSpace(nodes, elements)
-        basis = Basis(space.prepare().mesh_, ElementTriP1() if shape[0] == PLANE else ElementTetP1())
+        mesh = (MeshTri if shape[0] == PLANE else MeshTet)(nodes, elements)
+        basis = Basis(mesh, ElementTriP1() if shape[0] == PLANE else ElementTetP1())
         stiffness = asm(laplace, basis).tocsr()
         lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
         return stiffness, lumped
 
     @staticmethod
-    def _get_mesh_matrices(space: MeshSpace) -> tuple[csr_matrix, npt.NDArray[np.float64]]:
+    def _get_mesh_matrices(space: CellComplexSpace) -> tuple[csr_matrix, npt.NDArray[np.float64]]:
         """Return the stiffness matrix and lumped mass of the linear elements of a mesh.
 
         Args:
@@ -1832,7 +1838,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return FieldLowering._get_cached_mesh_matrices(points.tobytes(), cells.tobytes(), points.shape, cells.shape)
 
     @staticmethod
-    def _get_mesh_laplacian(space: MeshSpace) -> csr_matrix:
+    def _get_mesh_laplacian(space: CellComplexSpace) -> csr_matrix:
         """Return the discrete Laplacian of linear elements with lumped mass.
 
         It is `-M^-1 K`, as a sparse matrix.

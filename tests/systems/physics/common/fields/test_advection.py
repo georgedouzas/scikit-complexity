@@ -65,9 +65,9 @@ def test_run_matches_the_conservation_law_of_the_flux_v_u():
     np.testing.assert_allclose(values.sum(axis=1), values[0].sum(), rtol=1e-12)
 
 
-def test_run_without_numerical_flux_keeps_the_total_of_a_spectral_field():
-    """Test that advection without a numerical flux keeps the total of a spectral field and moves the tracer."""
-    advection = AdvectionInteraction('drift', target='tube', state='u', drift=lambda s: [1.0], riemann=None)
+def test_run_keeps_the_total_of_a_spectral_field():
+    """Test that advection keeps the total of a spectral field and moves the tracer."""
+    advection = AdvectionInteraction('drift', target='tube', state='u', drift=lambda s: [1.0])
     values = _run(advection, discretization='spectral')
     assert values[-1].sum() == pytest.approx(values[0].sum(), rel=1e-9)
     assert not np.allclose(values[-1], values[0])

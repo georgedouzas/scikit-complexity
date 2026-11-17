@@ -31,19 +31,23 @@ from ...components.spaces import (
     RadiusNeighborhood,
 )
 from ...errors import ValidationError
-from ...specs import DirectionSpec, EntrySpec, PairReadSpec, RunStateSpec, VariableSpec
+from ...specs import EntrySpec, VariableSpec
 from ...types import Array, Indices
 from ..types import Pairs
 from ._base import BaseKernel
+from ._direction_spec import _DirectionSpec
 from ._edge_row_search import EdgeRowSearch
 from ._expression_printer import ExpressionPrinter
 from ._metric_search import MetricSearch
+from ._pair_read_spec import _PairReadSpec
+from ._run_state_spec import RunStateSpec
 from ._static_search import StaticSearch
 
 SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
     ((LatticeNeighborhood, MemoryNeighborhood), (LatticeSpace, CayleySpace)),
-    ((RadiusNeighborhood, NearestNeighborhood, DelaunayNeighborhood), (ContinuousSpace,)),
+    (RadiusNeighborhood, (ContinuousSpace, LatticeSpace)),
+    ((NearestNeighborhood, DelaunayNeighborhood), (ContinuousSpace,)),
     (CofaceNeighborhood, (CellComplexSpace,)),
 )
 PLANE = 2
@@ -114,7 +118,7 @@ class NeighborhoodKernel(BaseKernel):
         *,
         group: str,
         search: NeighborSearch,
-        reads: dict[Expression, PairReadSpec],
+        reads: dict[Expression, _PairReadSpec],
         time: Expression,
         coefficients: Array | None = None,
         hyperedge: int | None = None,
@@ -453,7 +457,7 @@ class NeighborhoodKernel(BaseKernel):
         return indptr, others[order].astype(np.intp), edges[order].astype(np.intp)
 
     @staticmethod
-    def _get_lattice_rows(space: BaseSpace, neighborhood: LatticeNeighborhood | MemoryNeighborhood) -> Pairs:
+    def _get_lattice_rows(space: BaseSpace, neighborhood: BaseNeighborhood) -> Pairs:
         """Return the neighbours of every site of a space in CSR form.
 
         They come in neighbourhood order, without outside sites.
@@ -463,7 +467,7 @@ class NeighborhoodKernel(BaseKernel):
                 The prepared lattice or other space of sites.
 
             neighborhood:
-                The neighbourhood of offsets, or the memory set of a group space.
+                The neighbourhood with lattice offsets, or the memory set of a group space.
 
         Returns:
             rows:
@@ -477,7 +481,7 @@ class NeighborhoodKernel(BaseKernel):
     @staticmethod
     def _get_default_neighborhood(
         space: object,
-    ) -> AdjacencyNeighborhood | LatticeNeighborhood | MemoryNeighborhood | None:
+    ) -> BaseNeighborhood | None:
         """Return the neighbourhood that a reduction without one reads.
 
         It is a network's graph, or a lattice's or group's own.
@@ -637,9 +641,15 @@ class NeighborhoodKernel(BaseKernel):
                 return EdgeRowSearch(source, target, active, rows, directed, center=over.center).prepare()
             NeighborhoodKernel._check_rows(space, rows)
             return StaticSearch(*NeighborhoodKernel._get_network_rows(space, over)).prepare()
-        if isinstance(over, LatticeNeighborhood | MemoryNeighborhood) and isinstance(space, BaseSpace):
+        if isinstance(space, LatticeSpace | CayleySpace):
             NeighborhoodKernel._check_rows(space, rows)
             return StaticSearch(*NeighborhoodKernel._get_lattice_rows(space, over)).prepare()
+        if isinstance(over, RadiusNeighborhood) and over.metric != 'euclidean':
+            error_msg = (
+                f'The neighbourhood {over!r} measures {over.metric} distances, but a continuous space measures '
+                'euclidean ones.'
+            )
+            raise ValidationError(error_msg)
         position = NeighborhoodKernel._get_position_state(states)
         if position is None or not isinstance(space, ContinuousSpace):
             error_msg = (
@@ -652,7 +662,7 @@ class NeighborhoodKernel(BaseKernel):
         direction = None
         if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
             name = NeighborhoodKernel._get_cone_direction(over, states, continuous.n_dim_)
-            direction = DirectionSpec(entries[name], not states[name].vector) if name in entries else None
+            direction = _DirectionSpec(entries[name], not states[name].vector) if name in entries else None
             if direction is None:
                 error_msg = f'The cone reads the direction {name!r}, which the members do not hold.'
                 raise ValidationError(error_msg)

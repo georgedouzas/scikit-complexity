@@ -16,13 +16,13 @@ result with the median forecast and the requested quantiles.
 
 ### Requirement: Forecasts are compared by attractor statistics
 Given the true continuation as `truth`, `pretrained_forecast` SHALL report the symmetric mean absolute percentage error
-per step, the valid prediction time, and the largest Lyapunov exponent and the correlation dimension of the forecast
-and of the truth.
+per step and the valid prediction time as the result of `forecast_skill` of `add-learning-foundation`, and the largest
+Lyapunov exponent and the correlation dimension of the forecast and of the truth.
 
 #### Scenario: Statistics of forecast and truth
 - **WHEN** a user forecasts 1000 samples of a Lorenz trajectory with `truth` the next 1000 samples
-- **THEN** the result holds both largest exponents and both correlation dimensions, and the valid prediction time is
-  the first time the error exceeds the threshold
+- **THEN** the result holds both largest exponents and both correlation dimensions, and its skill equals
+  `forecast_skill` of the same forecast and truth with the same threshold
 
 ### Requirement: Pretrained weights are fetched once
 `pretrained_forecast` SHALL take `model`, the name of a published model or the path of a saved one. A named model SHALL

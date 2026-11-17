@@ -39,3 +39,33 @@ methods of the kind.
 #### Scenario: Wrong method for the kind
 - **WHEN** a user asks for the core with `method='louvain'`
 - **THEN** an `AnalysisError` lists `'borgatti-everett'` and `'k-core'`
+
+### Requirement: Causal networks are inferred from time series
+`causal_network(source, method=...)` SHALL return the lagged causal links between the series of a source, by PCMCI,
+convergent cross mapping, Granger tests of a vector autoregression, or transfer entropy, with the strength and p-value
+of every link and lag, the significant links at a level, and a directed graph that `network_measures` reads.
+
+#### Scenario: Known linear links
+- **WHEN** 100 seeded realisations of 500 steps of the three-variable linear model `x1(t) = 0.7 x1(t-1) + e`, `x2(t) =
+  0.8 x2(t-1) + 0.5 x1(t-1) + e`, `x3(t) = 0.5 x3(t-1) + 0.6 x2(t-2) + e` are analysed with `'pcmci'` at level 0.05
+- **THEN** the links `x1 -> x2` at lag 1 and `x2 -> x3` at lag 2 are found in at least 95% of the realisations, and the
+  share of realisations with the indirect link `x1 -> x3` is at most 0.1, close to the level as in Runge et al.
+  (1702.07007)
+
+#### Scenario: Granger on the same model
+- **WHEN** one realisation of the model is analysed with `'granger'` and `max_lag=2`
+- **THEN** the significant links are `x1 -> x2` and `x2 -> x3`, besides the links of every variable to itself
+
+#### Scenario: Cross mapping of Lorenz-63
+- **WHEN** the `x` and `y` series of a Lorenz-63 run sampled every 0.1 are analysed with `'ccm'` and library sizes from
+  100 to 5000, after Datseris and Parlitz (Fig. 7.3 and 7.4)
+- **THEN** the cross-map skill in both directions rises with the library size, its value at 5000 exceeds its value at
+  100, and both links are significant
+
+#### Scenario: Independent systems
+- **WHEN** the `x` series of two Lorenz-63 runs from different initial states are analysed with `'ccm'`
+- **THEN** no link is significant at level 0.05 with the seed fixed
+
+#### Scenario: Graph for network measures
+- **WHEN** the `graph` of a result is passed to `network_measures`
+- **THEN** it is read as a directed weighted graph with one node per variable

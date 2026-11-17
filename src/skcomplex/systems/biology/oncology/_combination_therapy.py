@@ -12,6 +12,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, exp, log, oo, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import where
@@ -19,7 +20,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -48,9 +49,6 @@ class AngiogenesisImmunotherapyTumourElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial tumour volume.
@@ -181,7 +179,6 @@ class AngiogenesisImmunotherapyTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 5000.0,
         Vb: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 625.0,
@@ -224,7 +221,7 @@ class AngiogenesisImmunotherapyTumourElement(Element):
         width: float = 1 / 24,
         doses: int = 6,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.Vb = Vb
         self.E = E
@@ -284,9 +281,6 @@ class ChemoimmunotherapyTumourElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial number of tumour cells.
@@ -420,7 +414,6 @@ class ChemoimmunotherapyTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000000.0,
         N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50000.0,
@@ -464,7 +457,7 @@ class ChemoimmunotherapyTumourElement(Element):
         width: float = 1.0,
         doses: int = 3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.N = N
         self.E = E
@@ -525,9 +518,6 @@ class ChemovirotherapyTumourElement(Element):
         label:
             The label of the tumour.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         AU:
             The initial number of uninfected cells.
 
@@ -586,7 +576,6 @@ class ChemovirotherapyTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         AU: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         AV: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -604,7 +593,7 @@ class ChemovirotherapyTumourElement(Element):
         u1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         infusion: str = 'constant',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AU = AU
         self.AV = AV
         self.V = V
@@ -653,9 +642,6 @@ class ClonalTumourElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A1:
             The initial number of cells of the first clone.
@@ -720,7 +706,6 @@ class ClonalTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 90000.0,
         A2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 40000.0,
@@ -741,7 +726,7 @@ class ClonalTumourElement(Element):
         u_chemo2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
         u_vaccine: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A1 = A1
         self.A2 = A2
         self.E = E
@@ -776,9 +761,6 @@ class GliomaBrainElement(Element):
     Args:
         label:
             The label of the brain.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         G:
             The initial number of glial cells.
@@ -861,7 +843,6 @@ class GliomaBrainElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         G: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5940000000000.0,
         N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5940000000000.0,
@@ -888,7 +869,7 @@ class GliomaBrainElement(Element):
         d_u2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
         u1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 400.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.G = G
         self.N = N
         self.AU = AU
@@ -1017,7 +998,7 @@ class ChemoimmunotherapySystem(BaseSystem):
         return kill
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour with NK cells."""
+        """Return the components of a tumour with NK cells."""
         tumour = ChemoimmunotherapyTumourElement(
             'tumour',
             A=self.A,
@@ -1270,7 +1251,7 @@ class ClonalChemoimmunotherapySystem(BaseSystem):
         self.u_vaccine = u_vaccine
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of two competing tumour clones."""
+        """Return the components of two competing tumour clones."""
         tumour = ClonalTumourElement(
             'tumour',
             A1=self.A1,
@@ -1435,7 +1416,7 @@ class ChemovirotherapySystem(BaseSystem):
         return shape
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of tumour cells, an oncolytic virus, and a drug.
+        """Return the components of tumour cells, an oncolytic virus, and a drug.
 
         The tumour cells are uninfected and infected, and the drug is chemotherapeutic.
         """
@@ -1568,7 +1549,7 @@ class GliomaChemovirotherapySystem(BaseSystem):
         return rate
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         brain = GliomaBrainElement('brain', AU=self.AU, V=self.V, u1=self.u1)
         interactions = [
             RateInteraction(
@@ -1866,7 +1847,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
     references = (BOOK, 'Teles and Lemos 2019', 'Hahnfeldt et al. 1999')
     until = 150.0
     dt = 0.25
-    observables = (ObservableSpec('toxicity', _get_total_toxicity),)
+    observables = (Observable('toxicity', _get_total_toxicity),)
 
     def __init__(
         self,
@@ -1914,7 +1895,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
         return effect
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Hahnfeldt tumour."""
+        """Return the components of the Hahnfeldt tumour."""
         tumour = AngiogenesisImmunotherapyTumourElement(
             'tumour',
             A=self.A,

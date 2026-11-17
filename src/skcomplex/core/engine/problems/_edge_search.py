@@ -6,9 +6,10 @@
 
 import numpy as np
 
-from ...specs import EntrySpec, RunStateSpec
+from ...specs import EntrySpec
 from ...types import Indices
 from ._base import BaseSearch
+from ._run_state_spec import RunStateSpec
 
 
 class EdgeSearch(BaseSearch):

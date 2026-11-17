@@ -13,10 +13,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 from ..common.exchange import ExchangeInteraction, cobb_douglas
@@ -31,9 +33,6 @@ class GoodsTraderElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         sugar:
             The holding of sugar.
@@ -60,10 +59,11 @@ class GoodsTraderElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'sugar_weight', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar_weight', 'color_range': (0.0, 1.0)}),
         *,
         sugar: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         spice: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
@@ -72,7 +72,7 @@ class GoodsTraderElement(Element):
         spice_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         salt_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sugar = sugar
         self.spice = spice
         self.salt = salt
@@ -147,8 +147,8 @@ class GoodsTradersSystem(BaseSystem):
     until = 50
     invariants: ClassVar[Mapping[str, float]] = dict.fromkeys(GOODS, 1e-6)
     observables = (
-        ObservableSpec('utility', _get_utility, group='traders', reduce='mean'),
-        *(ObservableSpec(good, group='traders', variable=good, reduce='sum') for good in GOODS),
+        Observable('utility', _get_utility, group='traders', reduce='mean'),
+        *(Observable(good, group='traders', variable=good, reduce='sum') for good in GOODS),
     )
 
     def __init__(
@@ -177,7 +177,7 @@ class GoodsTradersSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.goods not in (2, 3):
             error_msg = f'The traders barter 2 or 3 goods, but got {self.goods}.'
             raise ValueError(error_msg)

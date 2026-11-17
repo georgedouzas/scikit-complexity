@@ -8,9 +8,9 @@ import pytest
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import MissingExtraError
-from skcomplex.core.specs import RunStateSpec
 from skcomplex.systems.biology.common.metabolism import (
     ReactionSpec,
     cobra_measures,

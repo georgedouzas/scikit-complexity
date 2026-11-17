@@ -40,9 +40,6 @@ class CascadingBallElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         level:
             The initial state.
 
@@ -57,15 +54,16 @@ class CascadingBallElement(Element):
         ('balls', 'CascadingBallElement', 5)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'level'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'level'}),
         *,
         level: Annotated[float, StateSpec(domain=NN)] = 100.0,
         mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
         self.mu = mu
 
@@ -148,9 +146,6 @@ class FragmentElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         length:
             The initial size.
 
@@ -165,15 +160,16 @@ class FragmentElement(Element):
         ('fragments', 'FragmentElement', 1)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'length'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'length'}),
         *,
         length: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1000.0,
         rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.length = length
         self.rate = rate
 
@@ -246,9 +242,6 @@ class ReducingBallElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         level:
             The initial state, from 1 to `n_states`.
 
@@ -266,16 +259,17 @@ class ReducingBallElement(Element):
         ('balls', 'ReducingBallElement', 3)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'level'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'level'}),
         *,
         level: Annotated[float, StateSpec(domain=NN)] = 10.0,
         n_states: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
         lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
         self.n_states = n_states
         self.lam = lam
@@ -431,7 +425,7 @@ class FragmentationSystem(BaseSystem):
         self.rate = rate
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -506,7 +500,7 @@ class CascadingSampleSpaceReducingSystem(BaseSystem):
         self.mu = mu
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[

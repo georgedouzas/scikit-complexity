@@ -23,13 +23,20 @@ from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import count, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ...general.agents import ImitationInteraction
 from ._contributor import ContributorElement
 
 PAIR = 2
 CLIQUE = 5
 PHASES = ('play', 'imitate')
+
+
+class PlayerElement(ContributorElement):
+    """Contributor of the hypergraph public goods game, drawn by its strategy."""
+
+    visual = VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0})
 
 
 class DilemmaElement(Element):
@@ -42,9 +49,6 @@ class DilemmaElement(Element):
     Args:
         label:
             The label of the player or the group.
-
-        visual:
-            How the player is drawn, or `None` for `default_visual_`.
 
         strategy:
             The initial strategy, 1 or 0.
@@ -61,16 +65,17 @@ class DilemmaElement(Element):
         1.0
     """
 
+    visual = VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
         payoff: Annotated[float, StateSpec()] = 0.0,
         triangles: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
         self.payoff = payoff
         self.triangles = triangles
@@ -317,17 +322,16 @@ class HypergraphPublicGoodsSystem(BaseSystem):
         return hypergraph
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         hypergraph = self._get_hypergraph(self.n_nodes, self.sizes, self.hyperdegree, rng)
         graph = xgi.to_graph(hypergraph)
         strategies = (rng.random(self.n_nodes) < self.share).astype(float)
         players = GroupElement(
             'players',
-            element=ContributorElement,
+            element=PlayerElement,
             space=NetworkSpace(graph, hyperedges=hypergraph),
             values={'strategy': strategies, 'synergy': self.synergy, 'noise': self.noise},
-            visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
             on='sites',
         )
         imitation = ImitationInteraction(
@@ -459,7 +463,7 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
         return graph, triangles
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         graph, triangles = self._get_triangle_attachment(self.n_nodes, rng)
         filled = rng.random(len(triangles)) < self.simplices
@@ -472,7 +476,6 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
             element=DilemmaElement,
             space=NetworkSpace(graph, hyperedges=hyperedges),
             values={'strategy': (rng.random(self.n_nodes) < self.share).astype(float), 'triangles': held},
-            visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
             on='sites',
         )
         play = SimplicialDilemmaInteraction(

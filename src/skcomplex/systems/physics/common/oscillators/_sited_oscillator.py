@@ -7,7 +7,7 @@ from typing import Annotated
 
 import numpy.typing as npt
 
-from .....core.specs import StateSpec, VisualSpec
+from .....core.specs import StateSpec
 from ._phase_oscillator import PhaseOscillatorElement
 
 
@@ -22,9 +22,6 @@ class SitedOscillatorElement(PhaseOscillatorElement):
         label:
             The label of the oscillator or the group.
 
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
-
         theta:
             The initial phase.
 
@@ -36,7 +33,7 @@ class SitedOscillatorElement(PhaseOscillatorElement):
 
     Attributes:
         default_visual_:
-            The visual of the oscillator when it sets none.
+            How the oscillator is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.common.oscillators import SitedOscillatorElement
@@ -47,11 +44,10 @@ class SitedOscillatorElement(PhaseOscillatorElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: float = 0.0,
         omega: float = 1.0,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='site')] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, theta=theta, omega=omega)
+        super().__init__(label, theta=theta, omega=omega)
         self.x = x

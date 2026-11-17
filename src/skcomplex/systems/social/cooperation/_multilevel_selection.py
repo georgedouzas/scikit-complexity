@@ -13,15 +13,16 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, tanh
 from sage.modules.free_module_element import FreeModuleElement
+from scipy.stats import irwinhall
 
-from ....core.components.elements import FieldElement
+from ....core.components.elements import FieldElement, FiniteVolumeSpec
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import coordinate, integral_transform, integration_variable
-from ....core.components.spaces import BaseSpace, LatticeSpace, PhaseSpace, SimplexSpace
+from ....core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import AxisSpec, VisualSpec
+from ....core.specs import VisualSpec
 from ..common.kinetics import ActivityDensityElement
 
 PAIRWISE_VICTORIES = ('fermi', 'local', 'tullock')
@@ -29,10 +30,124 @@ TRIMORPHIC_VICTORIES = ('defectors', 'payoff')
 ADDITIVE_VICTORIES = ('punishers', 'payoff')
 SIMPLEX_SAMPLES = 401
 REFERENCES = ('Cooney 2024',)
-SIMPLEX_VISUAL = VisualSpec('image', {'slices': {0: 0}})
+DISCRETIZED_OPERATORS = ('laplacian', 'partial', 'upwind', 'inverse_helmholtz')
 
 
 type Fraction = Expression | npt.NDArray[np.float64]
+
+
+class SimplexSpace(PhaseSpace):
+    """A space whose extra axes are frequencies that sum to at most one.
+
+    A simplex is the set of frequencies that are nonnegative and sum to one, such as the shares of three strategies. The
+    class axes run over `[0, 1]` with the same number of cells, and the last frequency is one minus the sum of the
+    others, so two class axes hold the simplex of three frequencies. The cells cut by the slanted face are partial, and
+    each cell and face keeps the fraction of its volume or area inside the simplex. Finite-volume fluxes pass only
+    through the open part of each face, and reductions over the class axes weight each cell by its volume.
+
+    Unlike `PhaseSpace`, whose class axes are independent, it constrains the frequencies to a simplex. Choose it when a
+    density lives over the shares of several types.
+
+    It appears in many fields. Populations evolve over the shares of strategies in evolutionary game theory, genotypes
+    over allele frequencies in population genetics, and voters over the shares of parties.
+
+    Args:
+        position:
+            The lattice of the positions.
+
+        axes:
+            The class axes, each on `[0, 1]` with the same number of cells and not periodic.
+
+        limit:
+            The largest number of sites of the space.
+
+        label:
+            The name of the space in its system, such as `'grid'`.
+
+    Attributes:
+        volumes_:
+            The fraction of the volume of every cell inside the simplex, with one entry along every position axis.
+
+        apertures_:
+            The fraction of the area inside the simplex of every face along every axis of the product, one more face
+            than cells along a class axis, and one entry along the position axes.
+
+    Raises:
+        PhaseSpaceTooLargeError:
+            The product has more sites than the limit.
+
+    Examples:
+        >>> from skcomplex.core.components.spaces import AxisSpec, LatticeSpace
+        >>> from skcomplex.systems.social.cooperation import SimplexSpace
+        >>> axes = [AxisSpec('x', 10, 0.0, 1.0), AxisSpec('y', 10, 0.0, 1.0)]
+        >>> space = SimplexSpace(LatticeSpace((1,)), axes).prepare()
+        >>> space.shape_, float(space.volumes_.sum())
+        ((1, 10, 10), 50.0)
+        >>> sorted(set(space.volumes_.ravel().tolist()))
+        [0.0, 0.5, 1.0]
+    """
+
+    def _prepare(self, context: None = None) -> None:
+        """Set the sites of the phase space and the cell volumes and face apertures.
+
+        It first raises an error for class axes that are not intervals on `[0, 1]` of equal cells. They must have the
+        same number of cells.
+        """
+        super()._prepare(context)
+        sizes = {int(axis.size) for axis in self.axes}
+        unit = all(axis.low == 0.0 and axis.high == 1.0 and not axis.periodic for axis in self.axes)
+        if len(sizes) != 1 or not unit:
+            error_msg = (
+                'The class axes of a simplex space are intervals on [0, 1] with the same number of cells, such as '
+                f"`AxisSpec('x', 30, 0.0, 1.0)`, but they are {list(self.axes)!r}."
+            )
+            raise ValidationError(error_msg)
+        dimensions = len(self.axes)
+        cells = int(self.axes[0].size)
+        positions = (1,) * len(self.position_axes_)
+        indices = np.indices((cells,) * dimensions).sum(axis=0)
+        self.volumes_ = np.reshape(self._get_fraction(cells - indices, dimensions), (*positions, *indices.shape))
+        apertures = [np.ones((1,) * self.n_dim_) for _ in self.position_axes_]
+        for axis in range(dimensions):
+            faces = [cells] * dimensions
+            faces[axis] = cells + 1
+            grid = np.indices(faces)
+            others = grid.sum(axis=0) - grid[axis]
+            fraction = self._get_fraction(cells - grid[axis] - others, dimensions - 1)
+            apertures.append(np.reshape(fraction, (*positions, *fraction.shape)))
+        self.apertures_ = tuple(apertures)
+
+    def _get_volumes(self) -> npt.NDArray[np.float64]:
+        """Return the fraction of the volume of every cell inside the simplex."""
+        return self.volumes_
+
+    def _get_apertures(self) -> tuple[npt.NDArray[np.float64], ...]:
+        """Return the fraction of every face inside the simplex along every axis."""
+        return self.apertures_
+
+    def _supports_operator(self, name: str) -> bool:
+        """Check whether a field on the simplex takes an operator.
+
+        The partial cells along the slanted face take finite-volume fluxes, reductions, and integrals, but no local
+        operator of finite differences, such as `laplacian`, nor a spectral inversion.
+        """
+        return name not in DISCRETIZED_OPERATORS
+
+    @staticmethod
+    def _get_fraction(room: npt.NDArray[np.int_], dimensions: int) -> npt.NDArray[np.float64]:
+        """Return the fraction of a unit cube whose coordinates sum to at most the room.
+
+        The cube has a dimension, and the room is that of every cell.
+        """
+        if dimensions == 0:
+            return (room > 0).astype(float)
+        return np.asarray(irwinhall(dimensions).cdf(room), dtype=float)
+
+
+class GroupDensityElement(ActivityDensityElement):
+    """Density of groups over their strategy fractions, drawn as a simplex."""
+
+    visual = VisualSpec('image', {'slices': {0: 0}})
 
 
 class SelectionDriftInteraction(ConservationInteraction):
@@ -47,7 +162,7 @@ class SelectionDriftInteraction(ConservationInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field whose state is carried.
@@ -61,20 +176,13 @@ class SelectionDriftInteraction(ConservationInteraction):
         source:
             A function of the namespace that returns the source, or `None` for none.
 
-        limiter:
-            The slope limiter of the reconstruction of a finite-volume field, `'minmod'`, `'van-leer'`, or `None`.
-
-        riemann:
-            The numerical flux of a finite-volume field, `'rusanov'` or `'godunov'`, or `None` for the divergence of
-            the flux on a field of another discretization.
-
         sources:
             The paths of other elements the drift and the source read, as the namespaces `sources`. A field over the
             position lattice of a target on a phase space is read broadcast along the class axes.
 
     Raises:
         ValidationError:
-            The state is not a name, a function is not callable, or the limiter or the numerical flux is unknown.
+            The state is not a name, or a function is not callable.
 
     Examples:
         >>> from typing import Annotated
@@ -109,8 +217,6 @@ class SelectionDriftInteraction(ConservationInteraction):
         state: str = 'u',
         drift: Callable[[SimpleNamespace], object] | None = None,
         source: Callable[[SimpleNamespace], object] | None = None,
-        limiter: str | None = 'minmod',
-        riemann: str | None = 'rusanov',
         sources: Sequence[str] = (),
     ) -> None:
         super().__init__(
@@ -118,16 +224,12 @@ class SelectionDriftInteraction(ConservationInteraction):
             target=target,
             state=state,
             source=source,
-            limiter=limiter,
-            riemann=riemann,
             sources=sources,
         )
         self.drift = drift
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for an invalid state, drift, or scheme.
-
-        It raises it for a state that is not a name, a drift that is not callable, or an unknown scheme.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Raise an error for a state that is not a name or a drift that is not callable.
 
         Args:
             context:
@@ -135,8 +237,7 @@ class SelectionDriftInteraction(ConservationInteraction):
 
         Raises:
             ValidationError:
-                The type declares states, the state is not a name, a function is not callable, or the limiter or the
-                numerical flux is unknown.
+                The type declares states, the state is not a name, or a function is not callable.
         """
         super()._prepare(context)
         if not callable(self.drift):
@@ -300,7 +401,7 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         return own_share / (own_share + other_share)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, PAIRWISE_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         z, u = coordinate('z'), integration_variable('z')
@@ -331,13 +432,13 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
             space=space,
             values={'x': np.ones((1, self.cells))},
             discretization='finite-volume',
+            scheme=FiniteVolumeSpec(limiter=None),
         )
         within = SelectionDriftInteraction(
             'within',
             target='groups',
             state='x',
             drift=lambda _: [0, z * (1 - z) * advantage],
-            limiter=None,
         )
         between = RateInteraction(
             'between',
@@ -446,7 +547,7 @@ class TwoLevelReplicatorSystem(BaseSystem):
         )
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, ADDITIVE_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         z, u = coordinate('z'), integration_variable('z')
@@ -461,13 +562,13 @@ class TwoLevelReplicatorSystem(BaseSystem):
             space=space,
             values={'x': np.ones((1, self.cells))},
             discretization='finite-volume',
+            scheme=FiniteVolumeSpec(limiter=None),
         )
         within = SelectionDriftInteraction(
             'within',
             target='groups',
             state='x',
             drift=lambda _: [0, z * (1 - z) * advantage],
-            limiter=None,
         )
         between = RateInteraction(
             'between',
@@ -618,7 +719,7 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         return [0, x * ((1 - x) * punished - y * exploited), y * ((1 - y) * exploited - x * punished)]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, TRIMORPHIC_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         gain = self._get_trimorphic_victory_gain(self.victory, payoffs)
@@ -626,14 +727,14 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         space = SimplexSpace(LatticeSpace((1,)), axes)
         groups = FieldElement(
             'groups',
-            element=ActivityDensityElement,
+            element=GroupDensityElement,
             space=space,
             values={'x': 2.0 * (space.prepare().volumes_ > 0)},
             discretization='finite-volume',
-            visual=SIMPLEX_VISUAL,
+            scheme=FiniteVolumeSpec(limiter=None),
         )
         drift = self._get_simplex_drift(payoffs)
-        within = SelectionDriftInteraction('within', target='groups', state='x', drift=lambda _: drift, limiter=None)
+        within = SelectionDriftInteraction('within', target='groups', state='x', drift=lambda _: drift)
         between = RateInteraction(
             'between',
             target='groups',

@@ -24,7 +24,17 @@ from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.networks import HostElement, SpreadingInteraction
 
-HIDDEN = VisualSpec('sites', {'states': []})
+
+class AdaptiveHostElement(HostElement):
+    """Host of an adaptive network, drawn by whether it is infected."""
+
+    visual = VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1})
+
+
+class ContactEdgeElement(Element):
+    """Contact between two hosts, hidden from the drawing."""
+
+    visual = VisualSpec('sites', {'states': []})
 
 
 class ActiveHostElement(Element):
@@ -39,9 +49,6 @@ class ActiveHostElement(Element):
     Args:
         label:
             The label of the node or of the group of nodes.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         i:
             Whether the node is infected.
@@ -61,17 +68,18 @@ class ActiveHostElement(Element):
         0.1
     """
 
+    visual = VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.i = i
         self.a = a
         self.lam = lam
@@ -263,28 +271,26 @@ class AdaptiveSISSystem(BaseSystem):
         return NetworkSpace(nx.gnp_random_graph(n, k / (n - 1), seed=seed))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the SIS epidemic on a network."""
+        """Return the components of the SIS epidemic on a network."""
         space = self._get_random_network(self.n, self.k, self.seed)
         initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
         hosts = GroupElement(
             'hosts',
-            element=HostElement,
+            element=AdaptiveHostElement,
             space=space,
             on='sites',
             variable=True,
             capacity=self.n,
             values={'i': initial, 'w': self.w},
-            visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
         )
         edges = space.graph.number_of_edges()
         contacts = GroupElement(
             'contacts',
-            element=Element,
+            element=ContactEdgeElement,
             space=space,
             on='edges',
             variable=True,
             capacity=edges,
-            visual=HIDDEN,
         )
         spreading = SpreadingInteraction('spreading', target='hosts', state='i', beta=self.beta, gamma=self.gamma)
         return CompositeSystem(
@@ -388,7 +394,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         return probability
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of SIS spreading on an activity-driven temporal network.
+        """Return the components of SIS spreading on an activity-driven temporal network.
 
         The edges of the network last one step.
         """
@@ -404,16 +410,14 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
             variable=True,
             capacity=self.n,
             values={'i': initial, 'a': activities, 'lam': self.lam, 'mu': self.mu},
-            visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
         )
         contacts = GroupElement(
             'contacts',
-            element=Element,
+            element=ContactEdgeElement,
             space=space,
             on='edges',
             variable=True,
             capacity=2 * self.m * self.n,
-            visual=HIDDEN,
         )
         return CompositeSystem(
             self.label,

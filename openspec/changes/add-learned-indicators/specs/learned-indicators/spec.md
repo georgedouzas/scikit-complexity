@@ -39,6 +39,11 @@ censored to random windows, normalised by their mean absolute value, and padded 
 - **WHEN** the CNN-LSTM is trained twice with the same `random_state`
 - **THEN** the two results hold equal probabilities
 
+#### Scenario: Shared training loop
+- **WHEN** the CNN-LSTM is trained with `validation=0.2` and `patience=5`
+- **THEN** the result holds the training and validation loss of every epoch, and training stops when the validation
+  loss has not fallen for 5 epochs, as the shared loop of `add-learning-foundation` does
+
 ### Requirement: Trained classifiers are reused
 `transition_classifier` SHALL take `classifier`, the trained classifier of an earlier result, in place of training data,
 and SHALL then classify `source` without training. Giving both or neither SHALL raise `AnalysisError`.
@@ -52,12 +57,13 @@ and SHALL then classify `source` without training. Giving both or neither SHALL 
 - **THEN** `AnalysisError` is raised and names both settings
 
 ### Requirement: Irregular samples are classified
-A series SHALL be given with its sample times, and the classifier SHALL then read the time gaps as a second input
-channel, so series with irregular sampling are trained and classified, as in 2407.18693.
+A series SHALL be given with its sample times, as an observed run of `add-learning-foundation` with its own times, and
+the classifier SHALL then read the time gaps as a second input channel, so series with irregular sampling are trained
+and classified, as in 2407.18693.
 
 #### Scenario: Irregular tipping
-- **WHEN** the classifier is trained on runs of continuous normal forms sampled at random times, labelled by whether
-  they tip, and is applied to irregularly sampled runs of `RampedStochasticFoldSystem`
+- **WHEN** the classifier is trained on runs of continuous normal forms observed by `observe` at random times, labelled
+  by whether they tip, and is applied to irregularly sampled runs of `RampedStochasticFoldSystem`
 - **THEN** its accuracy on these runs is above the share of the most common class
 
 ### Requirement: Tipping probabilities are calibrated

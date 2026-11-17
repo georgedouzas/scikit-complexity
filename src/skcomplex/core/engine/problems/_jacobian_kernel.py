@@ -13,19 +13,21 @@ from sage.all__sagemath_symbolics import SR, Expression
 from scipy.special import logsumexp
 
 from ...errors import ValidationError
-from ...specs import ReadSpec, RunStateSpec
 from ...types import Array, Indices
 from .._utils import symbols_of
-from ..types import ReadKind, Sparse
+from ..enums import ReadKind
+from ..types import Sparse
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 from ._finite_volume_kernel import FiniteVolumeKernel
 from ._law_kernel import LawKernel
 from ._output_spec import OutputSpec
 from ._partials_spec import PartialsSpec
+from ._read_spec import _ReadSpec
 from ._reduction_kernel import ReductionKernel
 from ._reduction_schedule_spec import ReductionScheduleSpec
 from ._reference_spec import ReferenceSpec
+from ._run_state_spec import RunStateSpec
 from ._symmetry_spec import SymmetrySpec
 from ._too_dense import _TooDenseError
 
@@ -545,7 +547,7 @@ class JacobianKernel(BaseKernel):
             return scipy.sparse.csr_array((1, self.size), dtype=bool)
         if reduction.weights is not None:
             weights = reduction.weights
-            pattern = np.ones(weights.shape) if isinstance(weights, ReadSpec) else weights
+            pattern = np.ones(weights.shape) if isinstance(weights, _ReadSpec) else weights
             return scipy.sparse.csr_array((abs(pattern) != 0).astype(float) @ support.astype(float) != 0)
         return scipy.sparse.csr_array(np.asarray(support.astype(float).sum(axis=0)).reshape(1, -1) != 0)
 

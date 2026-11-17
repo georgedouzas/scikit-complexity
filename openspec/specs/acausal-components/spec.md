@@ -49,7 +49,7 @@ SHALL have a zero flow.
 - **THEN** the currents into the node sum to zero at every frame
 
 ### Requirement: Port components exert forces on Lagrangian coordinates
-An `EquationLaw` whose target is a coordinate of an `EulerLagrangeInteraction` SHALL add to the equation of that
+An `ConstraintLaw` whose target is a coordinate of an `EulerLagrangeInteraction` SHALL add to the equation of that
 coordinate, so a component with ports drives a mechanism.
 
 #### Scenario: Motor torque

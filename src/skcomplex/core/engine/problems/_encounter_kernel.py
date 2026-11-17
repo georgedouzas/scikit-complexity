@@ -9,10 +9,11 @@ from collections.abc import Callable
 import numba
 import numpy as np
 
-from ...specs import RunStateSpec, TableValuesSpec
 from ...types import Array, Indices
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
+from ._run_state_spec import RunStateSpec
+from ._table_values_spec import _TableValuesSpec
 
 
 @numba.njit(cache=True)
@@ -78,9 +79,9 @@ class EncounterKernel(BaseKernel):
         field: Indices,
         test: Indices,
         *,
-        rate: TableValuesSpec,
+        rate: _TableValuesSpec,
         entries: tuple[Indices, Indices, Indices],
-        probabilities: TableValuesSpec,
+        probabilities: _TableValuesSpec,
         fused: bool = False,
         positions: int = 1,
     ) -> None:
@@ -103,7 +104,7 @@ class EncounterKernel(BaseKernel):
         """
         return {}
 
-    def _get_values(self, table: TableValuesSpec, p: Array) -> Array:
+    def _get_values(self, table: _TableValuesSpec, p: Array) -> Array:
         """Return the values of the selected entries of a table at a parameter vector."""
         values = table.table
         selected = values[table.positions] if values.ndim else np.full(table.positions[0].size, values[()])

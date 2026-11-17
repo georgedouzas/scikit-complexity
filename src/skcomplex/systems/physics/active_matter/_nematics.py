@@ -17,8 +17,9 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 from sage.structure.element import Matrix
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import ConservationInteraction, GradientInteraction
+from ....core.components.interactions import ConservationInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import (
     advection,
@@ -36,7 +37,8 @@ from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import TensorShapeError, ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ...general.gradients import GradientInteraction
 
 GEL_ORDERS = ('nematic', 'polar')
 NEMATIC_BOX = 10.0
@@ -58,9 +60,6 @@ class NematicDensitySiteElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         rho:
             The initial density.
 
@@ -72,7 +71,7 @@ class NematicDensitySiteElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import NematicDensitySiteElement
@@ -85,13 +84,12 @@ class NematicDensitySiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[npt.ArrayLike, StateSpec()] = 1.0,
         Q: Annotated[npt.ArrayLike, StateSpec(tensor='traceless')] = 0.0,
         beta: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.Q = Q
         self.beta = beta
@@ -127,9 +125,6 @@ class PolarGelSiteElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         p:
             The initial polarisation.
 
@@ -156,7 +151,7 @@ class PolarGelSiteElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import PolarGelSiteElement
@@ -167,7 +162,6 @@ class PolarGelSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
         a: Annotated[float, ParameterSpec()] = -1.0,
@@ -178,7 +172,7 @@ class PolarGelSiteElement(Element):
         eta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         zeta: Annotated[float, ParameterSpec()] = -0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.p = p
         self.a = a
         self.c = c
@@ -301,9 +295,6 @@ class NematicGelSiteElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         Q:
             The initial tensor, its independent components `Q_xx` and `Q_xy`.
 
@@ -330,7 +321,7 @@ class NematicGelSiteElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import NematicGelSiteElement
@@ -343,7 +334,6 @@ class NematicGelSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         Q: Annotated[npt.ArrayLike, StateSpec(tensor='traceless')] = 0.0,
         a: Annotated[float, ParameterSpec()] = -1.0,
@@ -354,7 +344,7 @@ class NematicGelSiteElement(Element):
         eta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         zeta: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.Q = Q
         self.a = a
         self.c = c
@@ -406,7 +396,7 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field.
@@ -625,8 +615,6 @@ class DryActiveNematicsSystem(BaseSystem):
             target='nematic',
             state='rho',
             flux=flux,
-            limiter=None,
-            riemann=None,
         )
         return CompositeSystem(self.label, elements=[nematic], interactions=[energy, transport])
 
@@ -750,8 +738,8 @@ class ActiveGelsSystem(BaseSystem):
     dt = 0.025
     solver = RK4Solver(dt=5e-4)
     observables = (
-        ObservableSpec('u_x', _get_velocity_x, group='gel', reduce=_get_sites),
-        ObservableSpec('u_y', _get_velocity_y, group='gel', reduce=_get_sites),
+        Observable('u_x', _get_velocity_x, group='gel', reduce=_get_sites),
+        Observable('u_y', _get_velocity_y, group='gel', reduce=_get_sites),
     )
 
     def __init__(
@@ -800,7 +788,7 @@ class ActiveGelsSystem(BaseSystem):
         return settings
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.order not in GEL_ORDERS:
             error_msg = f'The order of the gel is {self.order!r}. Use one of {", ".join(GEL_ORDERS)}.'
             raise ValidationError(error_msg)

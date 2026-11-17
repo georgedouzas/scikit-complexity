@@ -5,10 +5,11 @@
 
 import numpy as np
 
-from ...specs import EntrySpec, RunStateSpec
-from ...specs._capacity_rows_spec import ACTIVE_THRESHOLD
+from ...specs import EntrySpec
 from ..types import EdgesFound
 from ._base import BaseSearch
+from ._capacity_rows_spec import ACTIVE_THRESHOLD
+from ._run_state_spec import RunStateSpec
 
 
 class EdgeRowSearch(BaseSearch):

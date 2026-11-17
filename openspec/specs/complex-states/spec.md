@@ -32,7 +32,7 @@ state SHALL take a real value, and the compiler SHALL reject a law whose value i
 relation that orders values SHALL take real operands.
 
 #### Scenario: Harmonic phase
-- **WHEN** a complex state `z` with `z(0) = 1` follows `Rate(z, i * omega * z)` with `omega = 2` until time 10
+- **WHEN** a complex state `z` with `z(0) = 1` follows `RateLaw(z, i * omega * z)` with `omega = 2` until time 10
 - **THEN** `z(10)` equals `exp(20 i)` within 1e-8, and the modulus stays 1 within 1e-8 at every frame
 
 #### Scenario: Real readout of a complex state
@@ -40,7 +40,7 @@ relation that orders values SHALL take real operands.
 - **THEN** the system compiles, and `r` holds the modulus of `z` after every step
 
 #### Scenario: Complex value for a real state
-- **WHEN** a real state `x` follows `Rate(x, i * x)`
+- **WHEN** a real state `x` follows `RateLaw(x, i * x)`
 - **THEN** compiling raises a named error that names the law and the state, and suggests the real part, the imaginary
   part, or a complex domain
 
@@ -73,7 +73,7 @@ states.
 - **THEN** the complex trajectory equals `u + i v` of the split trajectory within 1e-10 at every frame
 
 #### Scenario: Unitary evolution
-- **WHEN** the free Schrödinger equation `Rate(psi, i / 2 * laplacian(psi))` runs spectrally on a periodic lattice of
+- **WHEN** the free Schrödinger equation `RateLaw(psi, i / 2 * laplacian(psi))` runs spectrally on a periodic lattice of
   256 sites from a Gaussian wave packet until time 5
 - **THEN** the norm `sum(abs(psi)**2)` stays constant within 1e-8 relative error
 

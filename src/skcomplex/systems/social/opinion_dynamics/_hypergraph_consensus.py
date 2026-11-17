@@ -16,13 +16,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, oo, pi, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 TRIANGLE = 3
 
@@ -34,9 +35,6 @@ class OpinionElement(Element):
         label:
             The label of the node or the group.
 
-        visual:
-            How the node is drawn, or `None` for `default_visual_`.
-
         x:
             The initial opinion.
 
@@ -46,14 +44,15 @@ class OpinionElement(Element):
         0.5
     """
 
+    visual = VisualSpec('sites', {'states': ['x'], 'low': -1.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -65,9 +64,6 @@ class ScheduleElement(Element):
     Args:
         label:
             The label of the triangle or the group.
-
-        visual:
-            How the triangle is drawn, or `None` for `default_visual_`.
 
         phase:
             The phase of the schedule, in radians.
@@ -81,11 +77,10 @@ class ScheduleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         phase: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phase = phase
 
 
@@ -99,7 +94,7 @@ class ThreeBodyConsensusInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of nodes.
@@ -200,8 +195,8 @@ class HypergraphConsensusSystem(BaseSystem):
     until = 10.0
     dt = 0.1
     observables = (
-        ObservableSpec('mean_opinion', group='nodes', variable='x'),
-        ObservableSpec('spread', _spread, group='nodes'),
+        Observable('mean_opinion', group='nodes', variable='x'),
+        Observable('spread', _spread, group='nodes'),
     )
 
     def __init__(
@@ -222,7 +217,7 @@ class HypergraphConsensusSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         triads = [
             triad for triad in itertools.combinations(range(self.n_nodes), TRIANGLE) if rng.random() < self.triangles
@@ -233,7 +228,6 @@ class HypergraphConsensusSystem(BaseSystem):
             element=OpinionElement,
             space=space,
             values={'x': rng.uniform(-1.0, 1.0, self.n_nodes)},
-            visual=VisualSpec('sites', {'states': ['x'], 'low': -1.0, 'high': 1.0}),
             on='sites',
         )
         schedules = GroupElement(

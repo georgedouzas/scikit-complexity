@@ -15,12 +15,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import GradientInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ETDRK4Solver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
+from ...general.gradients import GradientInteraction
 
 
 class MarangoniLayerElement(Element):
@@ -29,9 +29,6 @@ class MarangoniLayerElement(Element):
     Args:
         label:
             The label of the site.
-
-        visual:
-            How the site is drawn, or `None` for none.
 
         u:
             The initial order parameter.
@@ -51,13 +48,12 @@ class MarangoniLayerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
         r: Annotated[float, ParameterSpec()] = 0.1,
         g: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.r = r
         self.g = g

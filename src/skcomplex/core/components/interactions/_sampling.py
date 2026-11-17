@@ -10,26 +10,15 @@ from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import RR, SR, ConditionSet, Expression
 
+from ...enums import ElementKind, MoveKind
 from ...errors import ValidationError
-from ...specs import (
-    BaseSpec,
-    MoveSpec,
-    ObjectiveSpec,
-    ParameterSpec,
-    RoleSpec,
-    SamplerSpec,
-    Tags,
-)
-from ...types import ElementKind
-from ..laws import ArrayUpdateLaw, BaseLaw, SampleLaw
-from ..spaces import (
-    BallNeighborhood,
-    BaseNeighborhood,
-    BaseSpace,
-)
+from ...specs import BaseSpec, ParameterSpec, RoleSpec
+from .._tags import Tags
+from ..laws import ArrayUpdateLaw, BaseLaw, MoveSpec, ObjectiveSpec, SampleLaw, SamplerSpec
+from ..spaces import BaseNeighborhood, BaseSpace, RadiusNeighborhood
 from ._interaction import Interaction
 
-MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'cluster')
+MOVES = (MoveKind.FLIP, MoveKind.RANDOM_VALUE, MoveKind.ROTATE, MoveKind.GAUSSIAN, MoveKind.CLUSTER)
 
 
 def _is_positive(value: float) -> bool:
@@ -68,7 +57,7 @@ class SamplingInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'spins'`.
+            The name of the interaction, unique among the components of its system, such as `'spins'`.
 
         target:
             The path of the group on the sites of a lattice, the nodes of a network, or the edges of a cell complex.
@@ -225,7 +214,7 @@ class SamplingInteraction(Interaction):
             error_msg = f'The objective of sampling {self.label!r} must be a function of the namespace.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown move, rule, or schedule, or a bad objective.
 
         Args:
@@ -257,7 +246,7 @@ class SamplingInteraction(Interaction):
         """
         target = getattr(self._get_member(namespace, 'target'), self.state)
         declared = getattr(self, self._get_parameter('objective'))
-        over = BallNeighborhood(metric='manhattan') if self.neighborhood is None else self.neighborhood
+        over = RadiusNeighborhood(1, metric='manhattan') if self.neighborhood is None else self.neighborhood
         objective = ObjectiveSpec(declared(namespace), over)
         intensity = self._get_intensity(namespace)
         if self.cooling is not None:

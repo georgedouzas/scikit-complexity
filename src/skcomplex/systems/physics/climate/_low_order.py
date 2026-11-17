@@ -14,7 +14,7 @@ from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -30,9 +30,6 @@ class Lorenz84Element(Element):
     Args:
         label:
             The label of the atmosphere.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial strength of the westerly jet.
@@ -66,7 +63,6 @@ class Lorenz84Element(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         y: Annotated[float, StateSpec()] = 1.0,
@@ -76,7 +72,7 @@ class Lorenz84Element(Element):
         F: Annotated[float, ParameterSpec()] = 8.0,
         G: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -114,9 +110,6 @@ class Lorenz96Element(Element):
         label:
             The label of the ring.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial values of all sites.
 
@@ -134,12 +127,11 @@ class Lorenz96Element(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 8.0,
         F: Annotated[float, ParameterSpec()] = 8.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.F = F
 
@@ -228,7 +220,7 @@ class Lorenz84System(BaseSystem):
         self.G = G
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -284,7 +276,7 @@ class Lorenz96System(BaseSystem):
         self.perturbation = perturbation
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         values = np.full(self.n_sites, float(self.F))
         values[0] += self.perturbation
         return CompositeSystem(

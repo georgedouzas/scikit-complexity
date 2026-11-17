@@ -15,14 +15,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import GradientInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ETDRK4Solver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
+from ...general.gradients import GradientInteraction
 
 
 class GinzburgLandauElement(Element):
@@ -38,9 +38,6 @@ class GinzburgLandauElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         u:
             The initial real part of the amplitude.
 
@@ -55,7 +52,7 @@ class GinzburgLandauElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.pattern_formation import GinzburgLandauElement
@@ -68,14 +65,13 @@ class GinzburgLandauElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
         v: Annotated[float, StateSpec()] = 0.0,
         b: Annotated[float, ParameterSpec()] = 1.0,
         c: Annotated[float, ParameterSpec()] = -1.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.v = v
         self.b = b
@@ -107,15 +103,12 @@ class PatternFieldElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         u:
             The initial value of the field.
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.pattern_formation import PatternFieldElement
@@ -123,8 +116,8 @@ class PatternFieldElement(Element):
         0.1
     """
 
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, u: Annotated[float, StateSpec()] = 0.0) -> None:
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, u: Annotated[float, StateSpec()] = 0.0) -> None:
+        super().__init__(label)
         self.u = u
 
 
@@ -138,7 +131,7 @@ class SwiftHohenbergEnergyInteraction(GradientInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field.
@@ -337,7 +330,7 @@ class SwiftHohenbergSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = tuple(self.shape)
         values = {'u': ComplexGinzburgLandauSystem._get_noise(shape, 0.01, self.random_state)}
         space = LatticeSpace(shape, spacing=self.length / shape[0])

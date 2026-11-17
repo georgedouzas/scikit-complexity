@@ -1,9 +1,13 @@
 """Test the `base` module."""
 
+import inspect
+
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.engine.compile import BaseCompiler, BasePass
+from skcomplex.core.engine import compile as package
+from skcomplex.core.engine.compile import BaseCompiler, BasePass, OperatorCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 
 
 def test_base_compiler_resolve_backend():
@@ -15,3 +19,24 @@ def test_base_pass_get_replaced():
     """Test `BasePass._get_replaced` on a small case."""
     x = var('x')
     assert str(BasePass._get_replaced(RateLaw(x, -x), value=-2 * x).value) == '-2*x'
+
+
+def test_public_names_are_classes():
+    """Every public name is a class."""
+    for name in package.__all__:
+        assert inspect.isclass(getattr(package, name)), name
+
+
+def test_bases_and_the_operator_compiler_are_public():
+    """The bases, the operator compiler, the flattening pass, and values are public, and the other passes private.
+
+    A compiler of a system package flattens the tree of a system with the flattening pass.
+    """
+    expected = {'BaseCompiler', 'BasePass', 'BaseLowering', 'FlattenPass', 'HilbertSpaceError', 'OperatorCompiler'}
+    assert expected <= set(package.__all__)
+    assert all(name.endswith('Spec') for name in set(package.__all__) - expected)
+    for compiler in (PassCompiler, OperatorCompiler):
+        assert issubclass(compiler, package.BaseCompiler)
+    assert not hasattr(package, PassCompiler.__name__)
+    for name in ('LayoutPass', 'ProblemPass', 'Compilation', 'ObservableEvaluator'):
+        assert not hasattr(package, name)

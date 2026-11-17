@@ -10,14 +10,13 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.laws import BaseLaw, CrossingLaw, RuleLaw
-from ...components.specs import CensusSpec, NodeSpec
+from ...components.laws import BaseLaw, EventLaw, ObjectiveLaw, RuleLaw, TopologyRequestSpec
+from ...components.spaces import StaticTime
 from ...components.systems import CompositeSystem
+from ...enums import FormKind
 from ...errors import PipelineError
-from ...specs import MatrixLawSpec, TopologyRequestSpec
-from ...specs._plan_spec import _PlanSpec
-from ...types import FormKind
 from ..backends import BaseBackend
+from ..enums import ReadKind
 from ..problems import ProblemSpec
 from ..problems._block_spec import BlockSpec
 from ..problems._declarations_spec import DeclarationsSpec
@@ -31,6 +30,7 @@ from ..problems._kernel_spec import KernelSpec
 from ..problems._linear_term_spec import LinearTermSpec
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._markov_kernel import MarkovKernel
+from ..problems._node_spec import _NodeSpec
 from ..problems._output_spec import OutputSpec
 from ..problems._problem_functions_spec import _ProblemFunctionsSpec
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
@@ -38,8 +38,10 @@ from ..problems._symmetry_spec import SymmetrySpec
 from ..problems._topology_kernel import TopologyKernel
 from ..problems._transfer_network_spec import TransferNetworkSpec
 from ..problems._transfer_state_spec import TransferStateSpec
-from ..types import ReadKind
 from ._bound_renewal_spec import BoundRenewalSpec
+from ._census_spec import _CensusSpec
+from ._matrix_law_spec import _MatrixLawSpec
+from ._plan_spec import _PlanSpec
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
 type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
@@ -211,8 +213,8 @@ class Compilation:
             The passes that ran.
     """
 
-    nodes: list[NodeSpec] | None = None
-    census: CensusSpec | None = None
+    nodes: list[_NodeSpec] | None = None
+    census: _CensusSpec | None = None
     plan: _PlanSpec | None = None
     layout: DeclarationsSpec | None = None
     specs: list[tuple[KernelSpec, BlockSpec]] | None = None
@@ -220,7 +222,7 @@ class Compilation:
     apart: Laws | None = None
     programs: Laws | None = None
     lowered: BlockLaws | None = None
-    markov: list[tuple[KernelSpec, MatrixLawSpec]] | None = None
+    markov: list[tuple[KernelSpec, _MatrixLawSpec]] | None = None
     matrices: tuple[MarkovKernel, ...] | None = None
     ordered: Laws | None = None
     delayed: Laws | None = None
@@ -240,7 +242,7 @@ class Compilation:
     problem: ProblemSpec | None = None
     delays: list[_DelayedStateSpec] | None = None
     placeholders: dict[tuple[str, int, str, int, str, ReadKind], Expression] | None = None
-    events: list[tuple[KernelSpec, CrossingLaw]] | None = None
+    events: list[tuple[KernelSpec, EventLaw]] | None = None
     renewals: list[BoundRenewalSpec] | None = None
     outputs: dict[int, list[OutputSpec]] | None = None
     written: dict[tuple[str, int], list[tuple[Expression, Expression]]] | None = None
@@ -355,3 +357,15 @@ class Compilation:
             error_msg = f'No pass has set the field {name!r} of the compilation yet. Run the pass that writes it first.'
             raise PipelineError(error_msg)
         return value
+
+    def is_static(self) -> bool:
+        """Return whether the system is static, by its time or an objective law.
+
+        Returns:
+            static:
+                Whether the system has static time or an objective law.
+        """
+        if isinstance(self.system.time, StaticTime):
+            return True
+        census = self.census
+        return census is not None and any(isinstance(record.law, ObjectiveLaw) for record in census.records)

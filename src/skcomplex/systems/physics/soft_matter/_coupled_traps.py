@@ -36,9 +36,6 @@ class TrappedSphereElement(Element):
         label:
             The label of the sphere or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -51,15 +48,16 @@ class TrappedSphereElement(Element):
         [3.0, 0.0]
     """
 
+    visual = SPHERES
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = SPHERES,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         center: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.center = center
 

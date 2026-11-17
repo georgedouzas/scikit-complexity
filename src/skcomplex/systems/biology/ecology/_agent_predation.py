@@ -43,9 +43,6 @@ class PredatorElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         meals:
             The prey the predator ate in the current step.
 
@@ -62,16 +59,17 @@ class PredatorElement(Element):
         50
     """
 
+    visual = VisualSpec('agents', {'radius': 0.4})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.4}),
         *,
         meals: Annotated[float, StateSpec(domain=NN)] = 0.0,
         conversion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         death: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.meals = meals
         self.conversion = conversion
         self.death = death
@@ -101,9 +99,6 @@ class PreyElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         birth:
             The probability of giving birth at every step.
 
@@ -114,14 +109,15 @@ class PreyElement(Element):
         200
     """
 
+    visual = VisualSpec('agents', {'radius': 0.3})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.3}),
         *,
         birth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.birth = birth
 
     @classmethod
@@ -282,7 +278,7 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         ]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of prey and predators that walk on a grid."""
+        """Return the components of prey and predators that walk on a grid."""
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers(0, [self.width, self.height], size=(self.prey + self.predators, 2))
         locations = [tuple(int(item) for item in cell) for cell in cells]

@@ -30,9 +30,6 @@ class BrownianParticleElement(Element):
         label:
             The label of the particle or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -48,16 +45,17 @@ class BrownianParticleElement(Element):
         2.0
     """
 
+    visual = POINTS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.gamma = gamma
         self.temperature = temperature

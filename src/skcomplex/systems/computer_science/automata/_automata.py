@@ -13,9 +13,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
@@ -30,9 +30,6 @@ class AntCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         color:
             The initial color, 0 for white and 1 for black.
@@ -49,12 +46,11 @@ class AntCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         color: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         ant: Annotated[float, StateSpec(domain=ZZ)] = -1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.color = color
         self.ant = ant
 
@@ -127,7 +123,7 @@ class ElementaryAutomatonSystem(BaseSystem):
                     target='cells',
                     state='alive',
                     rule=Wolfram(self.rule),
-                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
+                    neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
                 ),
             ],
         )
@@ -219,7 +215,7 @@ class GameOfLifeSystem(BaseSystem):
                     target='cells',
                     state='alive',
                     rule=life(self.born, self.survive),
-                    neighborhood=BallNeighborhood(),
+                    neighborhood=RadiusNeighborhood(1, metric='chebyshev'),
                 ),
             ],
         )
@@ -280,7 +276,7 @@ class LangtonsAntSystem(BaseSystem):
         return color, ant
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         ant = np.full(tuple(self.shape), -1.0)
         ant[self.shape[0] // 2, self.shape[1] // 2] = self.heading
         return CompositeSystem(
@@ -300,7 +296,7 @@ class LangtonsAntSystem(BaseSystem):
                     target='cells',
                     state=('color', 'ant'),
                     rule=self._get_ant_rule,
-                    neighborhood=BallNeighborhood(metric='manhattan', center='first'),
+                    neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
                     reads=('color', 'ant'),
                 ),
             ],

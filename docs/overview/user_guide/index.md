@@ -20,7 +20,7 @@ to it is a function.
 
 | scikit-learn | scikit-complexity |
 | --- | --- |
-| an estimator, such as `Ridge`, with `get_params`, `set_params`, and `clone` | a part of a system, an element, an interaction, a law, or a system, such as `SIRSystem` |
+| an estimator, such as `Ridge`, with `get_params`, `set_params`, and `clone` | a component of a system, an element, an interaction, a law, or a system, such as `SIRSystem` |
 | `Pipeline` | `CompositeSystem`, the composite of elements, interactions, and nested systems |
 | `fit` | `prepare` |
 | estimator tags | capability tags, from `get_tags()` |
@@ -63,11 +63,11 @@ Read the pages in order. Each line says what you can do after reading the page.
    [interactions](core_components/interactions.md), [laws](core_components/laws.md),
    [spaces](core_components/spaces.md), and [systems](core_components/systems.md) explain each class, the page on
    [general realizations](core_components/general.md) explains the recipes that several fields share, and
-   [Choosing parts](core_components/choosing_parts.md) leads from the features of a problem to its parts.
-5. [Build a custom system](build_a_custom_system/index.md). Write a model of hares and lynx from core parts, as a
+   [Choosing components](core_components/choosing_components.md) leads from the features of a problem to its components.
+5. [Build a custom system](build_a_custom_system/index.md). Write a model of hares and lynx from core components, as a
    subclass of a shared recipe, and as a system class.
-6. [Check a system](check.md). Read the tags and requirements of parts, and fix the validation errors a builder meets
-   most.
+6. [Check a system](check.md). Read the tags and requirements of components, and fix the validation errors a builder
+   meets most.
 7. [Simulate](simulate.md). Choose the run settings, the solver, and the backend, and read the trajectory a run
    returns.
 8. [Analyse](analyse.md). Find the analyses that apply to a system and read their results.
@@ -78,7 +78,7 @@ Read the pages in order. Each line says what you can do after reading the page.
 12. [Visualise](observe.md). Stream a run to the Rerun viewer and plot trajectories and results.
 13. [Share](share.md). Turn a model into a system class of the catalog with its inventory entry and gallery example.
 14. [Extend the library](extend_the_library.md). Give the general classes the words of your field, and find where a
-    new part belongs.
+    new component belongs.
 15. [Case studies](case_studies/index.md). Follow one system of each of three fields through the whole workflow,
     against data or an exact result.
 

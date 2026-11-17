@@ -17,6 +17,7 @@ from sage.all__sagemath_symbolics import Expression, I, arcsin, cos, exp, oo, pi
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import clip, neighbors, where
@@ -24,7 +25,7 @@ from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 SOFTENING = 1e-12
 
@@ -41,9 +42,6 @@ class MotileCellElement(Element):
     Args:
         label:
             The label of the cell or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.
@@ -81,10 +79,11 @@ class MotileCellElement(Element):
         30.0
     """
 
+    visual = VisualSpec('points', {'position': 'x', 'radius': 'R_0 / 2', 'color_by': 'theta'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
@@ -97,7 +96,7 @@ class MotileCellElement(Element):
         F_rep: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
         F_adh: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.v0 = v0
@@ -185,8 +184,8 @@ class SzaboCellsSystem(BaseSystem):
     solver = EulerMaruyamaSolver(dt=0.01)
     backend = NumbaBackend()
     observables = (
-        ObservableSpec('mean_heading', _get_heading, group='cells'),
-        ObservableSpec('polarization', _get_polarization),
+        Observable('mean_heading', _get_heading, group='cells'),
+        Observable('polarization', _get_polarization),
     )
 
     @staticmethod
@@ -276,7 +275,6 @@ class SzaboCellsSystem(BaseSystem):
                 'F_rep': self.F_rep,
                 'F_adh': self.F_adh,
             },
-            visual=VisualSpec('points', {'position': 'x', 'radius': self.R_0 / 2, 'color_by': 'theta'}),
         )
         motion = RateInteraction(
             'motion',

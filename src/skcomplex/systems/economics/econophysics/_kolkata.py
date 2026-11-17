@@ -17,11 +17,11 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction
-from ....core.components.laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 from ...general.agents import ChoiceInteraction
 
 STRATEGIES = ('random', 'crowd_avoiding')
@@ -47,9 +47,6 @@ class DinerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         restaurant:
             The restaurant chosen last, from 0 to the number of restaurants minus one.
 
@@ -69,13 +66,12 @@ class DinerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         restaurant: Annotated[float, StateSpec(domain=NN)] = 0,
         crowd: Annotated[float, StateSpec(domain=NN)] = 0,
         served: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.restaurant = restaurant
         self.crowd = crowd
         self.served = served
@@ -187,7 +183,7 @@ class RestaurantsInteraction(GroupingInteraction):
         'state'
     """
 
-    law_classes = (MatchLaw, RuleLaw, UpdateLaw)
+    law_classes = (RuleLaw, UpdateLaw)
 
     reports: ClassVar[tuple[str, ...]] = ('utilization',)
 
@@ -300,7 +296,7 @@ class KolkataRestaurantSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         n_restaurants = self.n_restaurants
         if self.strategy not in STRATEGIES:
             error_msg = f'Unknown strategy {self.strategy!r}. Use one of {STRATEGIES}.'

@@ -2,8 +2,8 @@
 
 An element holds the states of a system, the numbers that change as the system runs. An interaction reads these states
 and returns laws that change them, a space places the members of a group, and a system composes elements,
-interactions, and a space into one model. [How the parts fit](index.md) shows the families together, and the
-[elements parts page](../../../parts/elements.md) compares every element class and holds its fact sheet.
+interactions, and a space into one model. [How the components fit](index.md) shows the families together, and the
+[elements page](../../../components/elements.md) compares every element class and holds its fact sheet.
 
 ## DeclaredElement
 
@@ -78,8 +78,8 @@ from sage.sets.real_set import RealSet
 
 
 class CompartmentElement(DeclaredElement):
-    def __init__(self, label, visual=None, *, people=0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, people=0.0):
+        super().__init__(label)
         self.people = people
 
     def _declare_variables(self):
@@ -89,7 +89,7 @@ class CompartmentElement(DeclaredElement):
 CompartmentElement('susceptible', people=990.0).get_value('x')
 ```
 
-See its [fact sheet](../../../parts/elements.md#declaredelement)
+See its [fact sheet](../../../components/elements.md#declaredelement)
 and its [API entry][skcomplex.core.components.elements.DeclaredElement].
 
 ## Element
@@ -114,12 +114,11 @@ class GrowthElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         r: Annotated[float, ParameterSpec()] = 0.5,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.r = r
 
@@ -158,8 +157,8 @@ from skcomplex.core.errors import ValidationError
 
 
 class BrokenElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec(order=0)] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec(order=0)] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -181,12 +180,11 @@ class CapacitorElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         v: Annotated[float, StateSpec()] = 0.0,
         C: Annotated[float, ParameterSpec()] = 1e-3,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.C = C
 
@@ -194,7 +192,7 @@ class CapacitorElement(Element):
 CapacitorElement('c1', v=5.0).get_params()
 ```
 
-See its [fact sheet](../../../parts/elements.md#element)
+See its [fact sheet](../../../components/elements.md#element)
 and its [API entry][skcomplex.core.components.elements.Element].
 
 ## GroupElement
@@ -216,12 +214,11 @@ class StockElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         r: Annotated[float, ParameterSpec()] = 0.1,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.r = r
 
@@ -278,14 +275,14 @@ sites of a forest.
 
 ```python continuation
 class ForestElement(GroupElement):
-    def __init__(self, label, visual=None, *, size=100):
-        super().__init__(label, element=StockElement, size=size, visual=visual)
+    def __init__(self, label, *, size=100):
+        super().__init__(label, element=StockElement, size=size)
 
 
 ForestElement('forest', size=4).prepare().size_
 ```
 
-See its [fact sheet](../../../parts/elements.md#groupelement)
+See its [fact sheet](../../../components/elements.md#groupelement)
 and its [API entry][skcomplex.core.components.elements.GroupElement].
 
 ## FieldElement
@@ -309,12 +306,11 @@ class DiffusionElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
         D: Annotated[float, ParameterSpec()] = 1.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.D = D
 
@@ -341,8 +337,52 @@ river = FieldElement('river', element=DiffusionElement, space=channel, values={'
 simulate(CompositeSystem(elements=[river]), until=10, dt=10.0).get_values('river.u').round(2).tolist()
 ```
 
+On a field with `discretization='finite-volume'`, a rate `-divergence(flux)` is a conservation law. The density of
+cars on a road has the flux `ρ (1 - ρ)` of Lighthill, Whitham, and Richards. Here light traffic at density 0.2 runs into
+a jam at density 0.9.
+
+```python continuation
+import numpy as np
+
+from skcomplex.core.components.elements import FiniteVolumeSpec
+from skcomplex.core.components.laws.utils import divergence
+from skcomplex.core.engine.solvers import SSPRKSolver
+
+
+class TrafficElement(Element):
+    law_classes = (RateLaw,)
+
+    def __init__(self, label, *, rho: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.rho = rho
+
+    def _get_laws(self, namespace):
+        return [RateLaw(namespace.rho, -divergence([namespace.rho * (1 - namespace.rho)]))]
+
+
+density = np.where(np.arange(50) < 25, 0.2, 0.9)
+road = FieldElement(
+    'road',
+    element=TrafficElement,
+    space=LatticeSpace(50, spacing=0.1),
+    values={'rho': density},
+    discretization='finite-volume',
+    scheme=FiniteVolumeSpec(riemann='godunov'),
+)
+cars = simulate(CompositeSystem(elements=[road]), until=1, dt=1.0, solver=SSPRKSolver()).get_values('road.rho')
+cars.sum(axis=1).round(6).tolist(), int(np.argmax(np.diff(cars[-1])))
+```
+
+The number of cars stays 27.5, and the back of the jam moves from cell 24 to cell 23. The shock travels backwards at
+the speed `1 - 0.2 - 0.9 = -0.1`, one cell of length 0.1 in one unit of time. The `FiniteVolumeSpec` of the field
+chooses the scheme: the slope limiter `limiter` of the reconstruction in each cell, the numerical flux `riemann`
+between cells, here the exact Godunov flux, and an optional wave speed `speed`. Without a scheme the field takes the
+minmod limiter and the Rusanov flux, and the wave speeds come from the derivative of the flux.
+
 **How the engine runs it.** The compiler turns each operator of space into a stencil of the space: the Laplacian of a
-lattice reads the neighbours of each site, and that of a network reads the edges. The boundary conditions replace the
+lattice reads the neighbours of each site, and that of a network reads the edges. On a finite-volume field the
+divergence of a flux becomes the differences of the numerical flux between cells, which `SSPRKSolver` steps by the CFL
+condition while it keeps the total. The boundary conditions replace the
 values beyond the edges of a lattice. The result is one large system of ordinary differential equations, which a
 solver for stiff fields can integrate.
 
@@ -368,148 +408,15 @@ The message says that the group has 2 values of `u` for 3 members. The fix is th
 
 ```python continuation
 class RodElement(FieldElement):
-    def __init__(self, label, visual=None, *, sites=50):
-        super().__init__(label, element=DiffusionElement, space=LatticeSpace((sites,)), visual=visual)
+    def __init__(self, label, *, sites=50):
+        super().__init__(label, element=DiffusionElement, space=LatticeSpace((sites,)))
 
 
 RodElement('rod', sites=8).prepare().size_
 ```
 
-See its [fact sheet](../../../parts/elements.md#fieldelement)
+See its [fact sheet](../../../components/elements.md#fieldelement)
 and its [API entry][skcomplex.core.components.elements.FieldElement].
-
-## WordElement
-
-A `WordElement` holds a word of symbols that productions rewrite at every generation. In the algae of Lindenmayer `A`
-becomes `AB` and `B` becomes `A`, so the length of the word runs through the Fibonacci numbers.
-
-```python
-from skcomplex.core.components.elements import WordElement
-from skcomplex.core.components.laws import ProductionLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-
-
-class AlgaeElement(WordElement):
-    law_classes = (ProductionLaw,)
-
-    def _get_laws(self, namespace):
-        return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-
-
-trajectory = simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A')]), until=5)
-trajectory.get_values('algae.size').tolist()
-```
-
-The Thue and Morse sequence of symbolic dynamics comes from the same class, with `0` becoming `01` and `1` becoming
-`10`.
-
-```python continuation
-class MorseElement(WordElement):
-    law_classes = (ProductionLaw,)
-
-    def _get_laws(self, namespace):
-        return [ProductionLaw('0', '01'), ProductionLaw('1', '10')]
-
-
-simulate(CompositeSystem(elements=[MorseElement('morse', axiom='0')]), until=3).get_values('morse.size').tolist()
-```
-
-**How the engine runs it.** Each generation applies every production to every matching symbol at once. The
-rewriting solver advances one generation per unit of time and records the size of the word as the state `size`.
-
-**How it combines.** Its productions are its own laws, so it usually runs alone. A `geometry` draws the word as line
-segments, as a turtle does, for plants and fractal curves.
-
-**Limits and errors.** The word grows at every generation, so `max_size` bounds it. A symbol outside `alphabet`, or a
-word that would grow past `max_size`, raises a `RewritingError` during the run.
-
-```python continuation
-from skcomplex.core.errors import RewritingError
-
-try:
-    simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A', max_size=4)]), until=5)
-except RewritingError as error:
-    message = str(error)
-message
-```
-
-The message says that the word would reach 5 symbols at generation 3, above its maximum size 4. The fix is a larger
-`max_size` or fewer generations.
-
-**A field realization.** The subclasses above are already field realizations, the algae of biology and the sequence
-of symbolic dynamics.
-
-See its [fact sheet](../../../parts/elements.md#wordelement)
-and its [API entry][skcomplex.core.components.elements.WordElement].
-
-## PatchElement
-
-A `PatchElement` holds tiles, placed copies of basic shapes, that substitutions replace by smaller pieces at every
-generation. Keeping the outer thirds of every interval builds the Cantor set.
-
-```python
-from skcomplex.core.components.elements import PatchElement
-from skcomplex.core.components.laws import SubstitutionLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import AffineSpec, PrototileSpec
-
-
-class CantorElement(PatchElement):
-    law_classes = (SubstitutionLaw,)
-
-    def _get_laws(self, namespace):
-        thirds = [AffineSpec(scale=1 / 3), AffineSpec(scale=1 / 3, translation=(2 / 3, 0))]
-        return [SubstitutionLaw('interval', [('interval', third) for third in thirds])]
-
-
-cantor = CantorElement('cantor', prototiles=[PrototileSpec('interval', [(0, 0), (1, 0)])])
-simulate(CompositeSystem(elements=[cantor]), until=3).get_values('cantor.size').tolist()
-```
-
-Replacing every triangle by its three corner triangles builds the Sierpinski triangle of geometry.
-
-```python continuation
-class SierpinskiElement(PatchElement):
-    law_classes = (SubstitutionLaw,)
-
-    def _get_laws(self, namespace):
-        corners = [(0, 0), (1 / 2, 0), (1 / 4, 1 / 2)]
-        pieces = [('triangle', AffineSpec(scale=1 / 2, translation=corner)) for corner in corners]
-        return [SubstitutionLaw('triangle', pieces)]
-
-
-triangle = SierpinskiElement('sierpinski', prototiles=[PrototileSpec('triangle', [(0, 0), (1, 0), (1 / 2, 1)])])
-simulate(CompositeSystem(elements=[triangle]), until=3).get_values('sierpinski.size').tolist()
-```
-
-**How the engine runs it.** Each generation applies every substitution to every tile of its prototile at once, and
-the rewriting solver records the number of tiles as the state `size`.
-
-**How it combines.** Its substitutions are its own laws, so it usually runs alone, and its tiles are drawn as polygons.
-
-**Limits and errors.** Every tile must name a prototile of the patch, and `prepare` raises a `RewritingError`
-otherwise.
-
-```python continuation
-from skcomplex.core.errors import RewritingError
-
-try:
-    interval = PrototileSpec('interval', [(0, 0), (1, 0)])
-    PatchElement('patch', tiles=[('square', None)], prototiles=[interval]).prepare()
-except RewritingError as error:
-    message = str(error)
-message
-```
-
-The message names the unknown prototile `square`. The fix is a tile of the prototile `interval`.
-
-**A field realization.** The two subclasses above are realizations of mathematics, and a tiling of physics, such as
-the Penrose tiling of a quasicrystal, is written the same way.
-
-See its [fact sheet](../../../parts/elements.md#patchelement)
-and its [API entry][skcomplex.core.components.elements.PatchElement].
 
 ## BaseElement
 
@@ -522,5 +429,5 @@ from skcomplex.core.components.elements import BaseElement, Element, GroupElemen
 issubclass(Element, BaseElement), issubclass(GroupElement, BaseElement)
 ```
 
-See its [fact sheet](../../../parts/elements.md#baseelement)
+See its [fact sheet](../../../components/elements.md#baseelement)
 and its [API entry][skcomplex.core.components.elements.BaseElement].

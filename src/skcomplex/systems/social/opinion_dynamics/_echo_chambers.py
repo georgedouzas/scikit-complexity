@@ -40,9 +40,6 @@ class RadicalElement(Element):
         label:
             The label of the agent or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The opinion `x`.
 
@@ -55,15 +52,16 @@ class RadicalElement(Element):
         0.1
     """
 
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-3.0, 3.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-3.0, 3.0)}),
         *,
         opinion: Annotated[float, StateSpec()] = 0.0,
         activity: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
         self.activity = activity
 
@@ -280,7 +278,7 @@ class EchoChamberRadicalizationSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         low, power = self.least_activity ** (1 - self.exponent), 1 - self.exponent
         activities = (low + rng.random(self.n_agents) * (1 - low)) ** (1 / power)

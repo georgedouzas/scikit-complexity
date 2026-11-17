@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from skcomplex.core.components.systems import BaseSystem
+from skcomplex.core.enums import DomainTag, LawTag, SpaceTag, TimeTag
 from skcomplex.core.errors import SkcomplexError
-from skcomplex.core.specs import DOMAINS, LAWS, SPACES, TIMES
 from skcomplex.systems import all_systems
 
 ROOT = Path(str(files('gallery_tools'))).parent.parent
@@ -25,7 +25,7 @@ CITATION = re.compile(r'.+ \d{4}( |$)')
 INVENTORY_CHANGE = 'organize-system-library'
 STATUSES = re.compile(r'implemented|(pending|blocked) [a-z0-9-]+')
 PRIORITIES = ('core', 'example')
-TAGGED = {'time': TIMES, 'space': SPACES, 'laws': LAWS, 'domains': DOMAINS}
+TAGGED = {'time': TimeTag, 'space': SpaceTag, 'laws': LawTag, 'domains': DomainTag}
 CLASS_WORDS = re.compile(r'(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])')
 
 type Entry = tuple[str, str, dict[str, Any]]
@@ -203,7 +203,8 @@ def _tag_problems(name: str, entry: dict[str, Any], system_class: type[BaseSyste
     except SkcomplexError as error:
         return [*problems, f'{name} has a system class whose tags cannot be derived: {error}']
     if tags.laws is None:
-        problems.append(f'{name} has a system class whose parts do not show their law kinds, so list their law_classes')
+        error_msg = f'{name} has a system class whose components do not show their law kinds, so list their law_classes'
+        problems.append(error_msg)
     return problems
 
 

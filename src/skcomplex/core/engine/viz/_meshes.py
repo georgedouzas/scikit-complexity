@@ -10,11 +10,12 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.spaces import MeshSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
+from ...components.spaces import CellComplexSpace
 from ...errors import ValidationError
-from ..problems import BaseProblemSpec, FrameSpec
-from ._base import MODULUS, PHASE, BaseVisual
+from ..enums import ComplexComponentKind
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ._base import BaseVisual
 
 SURFACE_DIMENSION = 2
 
@@ -66,7 +67,7 @@ class MeshVisual(BaseVisual):
     def _log_mesh(
         recording: rr.RecordingStream,
         path: str,
-        mesh: MeshSpace,
+        mesh: CellComplexSpace,
         values: npt.NDArray[np.float64],
         colors: npt.NDArray[np.uint8],
     ) -> None:
@@ -74,7 +75,7 @@ class MeshVisual(BaseVisual):
 
         The triangle mesh has the values as its height.
         """
-        nodes, cells = mesh.positions_, np.asarray(mesh.cells)
+        nodes, cells = mesh.positions_, mesh.cells_
         if mesh.n_dim_ != SURFACE_DIMENSION:
             recording.log(path, rr.Points3D(nodes, colors=colors))
             return
@@ -98,11 +99,11 @@ class MeshVisual(BaseVisual):
 
         Raises:
             ValidationError:
-                The element does not lie on a mesh space.
+                The element does not lie on a mesh.
         """
         mesh = getattr(element.element, 'space', None)
-        if not isinstance(mesh, MeshSpace):
-            error_msg = f'The element {element.path} does not lie on a mesh space. Draw it with another visual.'
+        if not isinstance(mesh, CellComplexSpace) or not mesh._is_mesh():
+            error_msg = f'The element {element.path} does not lie on a mesh. Draw it with another visual.'
             raise ValidationError(error_msg)
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
@@ -115,14 +116,24 @@ class MeshVisual(BaseVisual):
             modulus, phase = np.abs(values), np.angle(values)
             self._log_mesh(
                 recording,
-                f'{path}/{MODULUS}',
+                f'{path}/{ComplexComponentKind.MODULUS}',
                 mesh,
                 modulus,
                 self._get_colors(modulus, self.low, self.high),
             )
-            self._log_mesh(recording, f'{path}/{PHASE}', mesh, phase, BaseVisual._get_phase_colors(phase))
+            self._log_mesh(
+                recording,
+                f'{path}/{ComplexComponentKind.PHASE}',
+                mesh,
+                phase,
+                BaseVisual._get_phase_colors(phase),
+            )
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return one 3D spatial view per chosen state.
 
         Meshes are drawn with the value as their height.
@@ -156,7 +167,8 @@ class MeshVisual(BaseVisual):
             path = f'{element.path}/{state}'
             if problem.states.get_entry(name).is_complex:
                 views += [
-                    rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)
+                    rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}')
+                    for part in (ComplexComponentKind.MODULUS, ComplexComponentKind.PHASE)
                 ]
             else:
                 views.append(rrb.Spatial3DView(origin=path, name=state))

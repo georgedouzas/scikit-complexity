@@ -15,9 +15,9 @@ from ....core.components.interactions import Interaction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.enums import ElementKind
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec
-from ....core.types import ElementKind
 
 STEPS = ('neighbor', 'gaussian', 'levy', 'best')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
@@ -56,7 +56,7 @@ class MovementInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group whose agents move.
@@ -196,7 +196,7 @@ class MovementInteraction(Interaction):
         if isinstance(self.step, str) and self.step in GRID_STEPS:
             self._check_grid('step', self.step, space, "step='gaussian' or step='levy', or a step function")
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown step, a rate not positive, or a bad function.
 
         Args:

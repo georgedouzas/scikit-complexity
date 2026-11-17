@@ -19,7 +19,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 from ..common.policy import PolicyRuleInteraction
 
@@ -50,9 +50,6 @@ class Mark0FirmElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         workforce:
             The workers of the firm, as a share of the households.
@@ -87,7 +84,6 @@ class Mark0FirmElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         workforce: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
@@ -97,7 +93,7 @@ class Mark0FirmElement(Element):
         profit: Annotated[float, StateSpec()] = 0.0,
         active: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.workforce = workforce
         self.demand = demand
         self.price = price
@@ -283,7 +279,7 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         self.offset = offset
         self.credit = credit
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown credit policy.
 
         Args:
@@ -587,7 +583,7 @@ class Mark0System(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         firms = GroupElement(
             'firms',

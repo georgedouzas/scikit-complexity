@@ -15,22 +15,21 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import clone
 
-from ..components.specs import ScenarioSpec
+from ..components import Observable
 from ..components.systems import BaseSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
-from ..engine.runtime import Trajectory
-from ..engine.runtime._simulate import _compile_problem, _simulate
+from ..engine.runtime import Trajectory, compile_problem, run_problem
 from ..engine.solvers import BaseSolver
+from ..enums import ExecutorKind
 from ..errors import ExperimentError, ValidationError
-from ..specs import ObservableSpec
-from ..specs._run_result_spec import _RunResultSpec
 from ._results import ExperimentResult
+from ._run_result_spec import _RunResultSpec
+from ._scenario_spec import ScenarioSpec
 from ._utils import build_system
 from .specs._task_spec import _TaskSpec
 from .types import Output, Row, Source
 
-EXECUTORS = ('serial', 'thread', 'process')
 TIME_TOLERANCE = 1e-12
 
 
@@ -114,7 +113,7 @@ def _map_calls[Argument, Value](
         ValidationError:
             The executor is unknown.
     """
-    if isinstance(executor, str) and executor not in EXECUTORS:
+    if isinstance(executor, str) and executor not in ExecutorKind:
         error_msg = f"executor = {executor!r} must be 'serial', 'thread', 'process', or an executor."
         raise ValidationError(error_msg)
     if executor == 'serial':
@@ -394,7 +393,7 @@ def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSp
         store = {} if problems is None else problems
         key = _get_structure(task, arguments)
         if key not in store:
-            store[key] = _compile_problem(system, solver=task.solver, observables=task.observables)
+            store[key] = compile_problem(system, solver=task.solver, observables=task.observables)
         compiled = store[key]
     initial_state, schedule = None, None
     if paths or task.scenario.schedule:
@@ -403,7 +402,7 @@ def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSp
         functions = _schedule(problem, task.scenario, parameters)
         initial_state = {**(settings['initial_state'] or {}), **states} if states else None
         schedule = {**(settings['schedule'] or {}), **functions} if functions else None
-    trajectory = _simulate(
+    trajectory = run_problem(
         system,
         compiled,
         until=task.until,
@@ -449,7 +448,7 @@ def _run_experiment(
     solver: BaseSolver | None,
     outputs: Sequence[Output] | None,
     warmup: float,
-    observables: Sequence[ObservableSpec],
+    observables: Sequence[Observable],
     random_state: int | None,
     executor: str | Executor,
 ) -> ExperimentResult:
@@ -512,7 +511,7 @@ def _run_experiment(
     """
     system = _check_source(source)
     _check_count('replicates', replicates)
-    if isinstance(executor, str) and executor not in EXECUTORS:
+    if isinstance(executor, str) and executor not in ExecutorKind:
         error_msg = f"executor = {executor!r} must be 'serial', 'thread', 'process', or an executor."
         raise ValidationError(error_msg)
     named = _name_analyses(analyses)

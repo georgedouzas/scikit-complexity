@@ -9,21 +9,14 @@ import pytest
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.interactions import TransferInteraction
-from skcomplex.core.components.laws import BaseLaw, RateLaw, RuleLaw, Sink, Source
+from skcomplex.core.components.laws import BaseLaw, PartnerSpec, RateLaw, RuleLaw, Sink, Source
 from skcomplex.core.components.laws.utils import bernoulli
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import (
-    ParameterSpec,
-    PartnerSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 NAMED_SHORTHANDS = {
     'random': PartnerSpec('all', 'uniform'),
@@ -40,13 +33,12 @@ class StockElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         level: Annotated[float, StateSpec()] = 0.0,
         capacity: Annotated[float, StateSpec()] = 1.0,
         clock: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
         self.capacity = capacity
         self.clock = clock
@@ -342,12 +334,11 @@ class ClientElement(StockElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         level: Annotated[float, StateSpec()] = 0.0,
         holder: Annotated[float, StateSpec(reference='holders')] = -1.0,
     ) -> None:
-        super().__init__(label, visual=visual, level=level)
+        super().__init__(label, level=level)
         self.holder = holder
 
 
@@ -450,11 +441,10 @@ class LevelElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
 
     def _get_laws(self, s):
@@ -746,12 +736,11 @@ class ReachElement(StockElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         level: Annotated[float, StateSpec()] = 0.0,
         reach: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual, level=level)
+        super().__init__(label, level=level)
         self.reach = reach
 
 
@@ -920,12 +909,11 @@ class ProviderElement(StockElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         sold: Annotated[float, StateSpec()] = 0.0,
         large: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sold = sold
         self.large = large
 

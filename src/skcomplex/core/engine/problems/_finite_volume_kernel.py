@@ -10,12 +10,12 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import SolverError, ValidationError
-from ...specs import RunStateSpec
 from ...types import Array
 from .._utils import symbol
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 from ._reference_spec import ReferenceSpec
+from ._run_state_spec import RunStateSpec
 
 TIME = symbol('t')
 STENCIL = 2

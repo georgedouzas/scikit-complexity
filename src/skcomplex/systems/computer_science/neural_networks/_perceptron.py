@@ -23,9 +23,9 @@ from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import BaseSpace, DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
+from ....core.enums import ElementKind
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, RoleSpec, StateSpec
-from ....core.types import ElementKind
 
 SENSES = ('at-least', 'at-most')
 
@@ -179,7 +179,7 @@ class SatisfiabilityInteraction(Interaction):
         self.solver = solver
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a constraint not a spec, or a bad number revealed per step.
 
         Args:
@@ -328,7 +328,7 @@ class PerceptronSatisfiabilitySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.n_weights % 2 == 0:
             error_msg = (
                 f'perceptron_satisfiability has n_weights={self.n_weights!r}. Use an odd number, so no pattern ties.'

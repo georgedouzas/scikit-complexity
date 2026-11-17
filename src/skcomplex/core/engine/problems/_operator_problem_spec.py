@@ -15,11 +15,11 @@ import numpy.typing as npt
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ...specs._run_state_spec import RunStateSpec
 from ...types import Array
 from ._base_problem_spec import BaseProblemSpec
 from ._operator_kernel import OperatorKernel
 from ._operator_lowering import OperatorLowering
+from ._run_state_spec import RunStateSpec
 
 REAL_TOLERANCE = 1e-10
 
@@ -60,6 +60,16 @@ class OperatorProblemSpec(BaseProblemSpec):
 
         cache:
             The matrices of local operators computed so far.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.engine.compile import OperatorCompiler
+        >>> from skcomplex.systems.physics.common.quantum import QubitElement
+        >>> system = CompositeSystem(elements=[GroupElement('pair', element=QubitElement, size=2)])
+        >>> problem = OperatorCompiler().prepare(system).run().problem_
+        >>> problem.dimensions, problem.subsystems
+        ((2, 2), ('pair[0]', 'pair[1]'))
     """
 
     dimensions: tuple[int, ...] = ()

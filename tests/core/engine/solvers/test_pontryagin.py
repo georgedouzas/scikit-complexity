@@ -11,7 +11,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import PontryaginSolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class QuarticElement(Element):
@@ -20,12 +20,11 @@ class QuarticElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         u: Annotated[float, ParameterSpec(adaptive=True, bounds=(-1, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.u = u
 

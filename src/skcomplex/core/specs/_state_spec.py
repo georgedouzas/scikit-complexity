@@ -9,12 +9,12 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import RR
 
+from ..enums import SymmetryKind
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
 from ._entry_spec import EntrySpec
 from ._matrix_group_spec import MatrixGroupSpec
 from ._power_series_spec import PowerSeriesSpec
-from ._tensor_spec import TENSOR_SYMMETRIES
 
 ROLES = ('position', 'site', 'direction', 'phase', 'velocity', None)
 
@@ -160,8 +160,8 @@ class StateSpec(BaseSpec):
         if self.tensor is not None and self.vector:
             error_msg = f'A state takes either vector=True or tensor={self.tensor!r}, not both.'
             raise ValidationError(error_msg)
-        if self.tensor is not None and self.tensor not in TENSOR_SYMMETRIES:
-            error_msg = f'The tensor symmetry is {self.tensor!r}. Use one of {", ".join(TENSOR_SYMMETRIES)}.'
+        if self.tensor is not None and self.tensor not in SymmetryKind:
+            error_msg = f'The tensor symmetry is {self.tensor!r}. Use one of {", ".join(SymmetryKind)}.'
             raise ValidationError(error_msg)
         if self.role not in ROLES:
             error_msg = f'The role of a state is one of {", ".join(map(repr, ROLES))}, but got {self.role!r}.'

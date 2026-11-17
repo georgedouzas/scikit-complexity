@@ -14,7 +14,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.solvers import KineticSolver, ScipyODESolver
 from skcomplex.core.errors import TagError
 from skcomplex.core.experiments import ensemble
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 
@@ -24,19 +24,18 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
 class OrnsteinUhlenbeckElement(Element):
     """Ornstein-Uhlenbeck process that relaxes to zero with white noise."""
 
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, x: Annotated[object, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, x: Annotated[object, StateSpec()] = 1.0):
+        super().__init__(label)
         self.x = x
 
     def _get_laws(self, s):

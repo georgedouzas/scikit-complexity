@@ -15,9 +15,10 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.enums import ElementKind
 from ....core.errors import SimulationError, ValidationError
 from ....core.specs import BaseSpec, ParameterSpec, RoleSpec
-from ....core.types import Array, ElementKind
+from ....core.types import Array
 
 SELECTIONS = ('tournament', 'roulette', 'proportional', 'rank')
 REPLACEMENTS = ('generational', 'moran', 'death-birth', 'truncation', 'best-mutant')
@@ -53,7 +54,7 @@ class EvolutionInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the agent group whose strategies evolve.
@@ -222,7 +223,7 @@ class EvolutionInteraction(Interaction):
                 error_msg = f'The {name} probability of {self.label!r} is {value!r}. Give a value in [0, 1].'
                 raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown variant, a bad probability, or an invalid count.
 
         Args:

@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import hill
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -33,9 +33,6 @@ class SaltzmanMaaschElement(Element):
     Args:
         label:
             The label of the climate.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial ice volume anomaly.
@@ -78,7 +75,6 @@ class SaltzmanMaaschElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = -0.2,
         y: Annotated[float, StateSpec()] = 1.0,
@@ -91,7 +87,7 @@ class SaltzmanMaaschElement(Element):
         nu: Annotated[float, ParameterSpec()] = 0.0,
         t0: Annotated[float, ParameterSpec()] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z

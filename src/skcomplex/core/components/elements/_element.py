@@ -9,9 +9,18 @@ from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import ClassVar
 
+from ...errors import ValidationError
 from ...specs import ConnectorSpec
-from ..base import BasePart
+from ..base import BaseComponent
+from ..spaces import BaseSpace
 from ._base import BaseElement
+
+RESERVED = ('label', 'size', 'space', 'values')
+RESERVED_MEANINGS = {
+    'size': 'number of members',
+    'space': 'space of the members',
+    'values': 'mapping of values by name',
+}
 
 
 class Element(BaseElement):
@@ -40,14 +49,20 @@ class Element(BaseElement):
 
     Args:
         label:
-            The name of the element, unique among the parts of its system, such as `'rabbits'`.
+            The name of the element, unique among the components of its system, such as `'rabbits'`.
 
-        visual:
-            How the element is drawn, such as `VisualSpec('line')`, or `None` for `default_visual_`.
+        values:
+            Values by name, such as `{'x': 10.0, 'm': 1.0}`, in place of a subclass that takes them as arguments.
+
+        size:
+            The number of members, each with its own values, such as `1000` molecules of a gas, or `None` for one.
+
+        space:
+            The space of the element, with one member per site, such as a lattice of cells, or `None` for none.
 
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
     Examples:
         A population and a bank deposit both grow at a rate proportional to their size, so one class serves both.
@@ -80,6 +95,47 @@ class Element(BaseElement):
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {}
     law_classes: ClassVar[tuple[type, ...]] = ()
 
+    def __init__(
+        self,
+        label: str,
+        *,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label)
+        self.values = values
+        self.size = size
+        self.space = space
+
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set `default_visual_`, checking the reserved names.
+
+        Args:
+            context:
+                The space the element inherits from its system, which an element does not read.
+
+        Raises:
+            ValidationError:
+                `size` is not a number of members, `space` is not a space, or `values` is not a mapping, as when a
+                subclass stores a quantity of its own under a reserved name.
+        """
+        super()._prepare(context)
+        size = self.size
+        checks = {
+            'size': size is None or (isinstance(size, int) and not isinstance(size, bool) and size >= 1),
+            'space': self.space is None or isinstance(self.space, BaseSpace),
+            'values': self.values is None or isinstance(self.values, Mapping),
+        }
+        for name, valid in checks.items():
+            if not valid:
+                error_msg = (
+                    f'Element {self.label!r} has {name} = {getattr(self, name)!r}, but {name} is the '
+                    f'{RESERVED_MEANINGS[name]}. The names {", ".join(RESERVED)} are reserved, so rename the value, '
+                    f'such as half_side for the half side of a table.'
+                )
+                raise ValidationError(error_msg)
+
     @classmethod
     def _get_view(cls) -> type | None:
         """Return the class of the views of the element's agents.
@@ -90,7 +146,7 @@ class Element(BaseElement):
         """
         return None
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the element for a namespace of symbols, none by default.
 
         Args:

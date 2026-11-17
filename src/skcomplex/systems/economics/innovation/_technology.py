@@ -15,12 +15,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 
 NAND = (2, 0b0111)
@@ -52,9 +53,6 @@ class PartElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         cost:
             The initial unit cost.
 
@@ -70,11 +68,10 @@ class PartElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.cost = cost
 
     @classmethod
@@ -330,9 +327,6 @@ class TechnologyElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         arity:
             The number of inputs.
 
@@ -355,13 +349,12 @@ class TechnologyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         arity: Annotated[float, StateSpec(domain=NN)] = 2,
         table: Annotated[float, StateSpec(domain=NN)] = NAND[1],
         cost: Annotated[float, StateSpec(domain=NN)] = 1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.arity = arity
         self.table = table
         self.cost = cost
@@ -416,7 +409,7 @@ class NkTechnologySystem(BaseSystem):
     topics = ('innovation', 'technology', 'learning curve', 'agents')
     references = ('Thurner et al. 2018', 'McNerney et al. 2011')
     until = 200
-    observables = (ObservableSpec('total_cost', group='components', reduce='sum', variable='cost'),)
+    observables = (Observable('total_cost', group='components', reduce='sum', variable='cost'),)
 
     def __init__(
         self,
@@ -444,7 +437,7 @@ class NkTechnologySystem(BaseSystem):
         return matrix
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the elements and interactions of the system."""
         rng = np.random.default_rng(self.random_state)
         dependencies = self._get_design_structure(self.n_components, self.d, rng)
         components = GroupElement(
@@ -502,7 +495,7 @@ class ArthurPolakSystem(BaseSystem):
         self.max_inputs = max_inputs
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the elements and interactions of the system."""
         primitives = (NAND, FALSE, TRUE)
         technologies = GroupElement(
             'technologies',

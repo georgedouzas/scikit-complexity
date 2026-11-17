@@ -21,7 +21,7 @@ from ....core.components.laws.utils import lag, mod
 from ....core.components.spaces import BaseSpace, DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from ...general.flows import LorenzElement
 
 MAPS = ('logistic', 'bernoulli')
@@ -39,9 +39,6 @@ class DelayedUnitElement(DeclaredElement):
         label:
             The label of the unit.
 
-        visual:
-            How the unit is drawn, or `None` for `default_visual_`.
-
         value:
             The initial value of `x`, also its value before the start.
 
@@ -53,7 +50,7 @@ class DelayedUnitElement(DeclaredElement):
 
     Attributes:
         default_visual_:
-            The visual of the unit when it sets none.
+            How the unit is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import DelayedUnitElement
@@ -64,13 +61,12 @@ class DelayedUnitElement(DeclaredElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: float = 0.3,
         delay: int = 1,
         variables: Mapping[str, DeclaredVariableSpec] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, variables=variables)
+        super().__init__(label, variables=variables)
         self.value = value
         self.delay = delay
 
@@ -92,15 +88,12 @@ class LogisticUnitElement(Element):
         label:
             The label of the unit.
 
-        visual:
-            How the unit is drawn, or `None` for `default_visual_`.
-
         x:
             The initial value.
 
     Attributes:
         default_visual_:
-            The visual of the unit when it sets none.
+            How the unit is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import LogisticUnitElement
@@ -111,11 +104,10 @@ class LogisticUnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -130,9 +122,6 @@ class RosslerOscillatorElement(Element):
     Args:
         label:
             The label of the oscillator.
-
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
 
         x1:
             The initial first variable.
@@ -160,7 +149,7 @@ class RosslerOscillatorElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the oscillator when it sets none.
+            How the oscillator is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import RosslerOscillatorElement
@@ -173,7 +162,6 @@ class RosslerOscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x1: Annotated[float, StateSpec()] = 1.0,
         x2: Annotated[float, StateSpec()] = 0.0,
@@ -184,7 +172,7 @@ class RosslerOscillatorElement(Element):
         c: Annotated[float, ParameterSpec()] = 5.7,
         p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x1 = x1
         self.x2 = x2
         self.x3 = x3
@@ -223,7 +211,7 @@ class AggregateAveragingInteraction(MapInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         source:
             The path of the unit whose value the aggregate reads.
@@ -276,7 +264,7 @@ class AggregateAveragingInteraction(MapInteraction):
         self.kind = kind
         self.delay = delay
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown map or a delay that is not a nonnegative integer.
 
         Args:
@@ -311,7 +299,7 @@ class DiffusiveCouplingInteraction(RateInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         source:
             The path of the element whose state the coupling reads.

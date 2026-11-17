@@ -17,7 +17,7 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class ColpittsOscillatorElement(Element):
@@ -30,9 +30,6 @@ class ColpittsOscillatorElement(Element):
     Args:
         label:
             The label of the oscillator.
-
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
 
         x:
             The initial first variable.
@@ -72,7 +69,6 @@ class ColpittsOscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.1,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -84,7 +80,7 @@ class ColpittsOscillatorElement(Element):
         d: Annotated[float, ParameterSpec()] = 1.0,
         epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -236,7 +232,7 @@ class CoupledColpittsSystem(BaseSystem):
         self.epsilon = epsilon
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         starts = ((0.1, 0.0, 0.0), (0.0, 0.1, 0.2))
         oscillators = [
             ColpittsOscillatorElement(

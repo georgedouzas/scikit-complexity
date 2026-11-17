@@ -9,13 +9,7 @@ The two strains compete for the medium.
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import CoSimulationSolver, RK4Solver
-from ..common.metabolism import (
-    BiomassElement,
-    ExchangeInteraction,
-    GrowthInteraction,
-    SubstrateElement,
-    load_network,
-)
+from ..common.metabolism import BiomassElement, ExchangeInteraction, GrowthInteraction, SubstrateElement, load_network
 
 GROWTH = 'Biomass_Ecoli_core'
 GLUCOSE_EXCHANGE = 'EX_glc__D_e'
@@ -87,7 +81,7 @@ class DynamicMultispeciesFBASystem(BaseSystem):
         self.km = km
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of two E. coli core strains that differ in glucose uptake.
+        """Return the components of two E. coli core strains that differ in glucose uptake.
 
         They differ in maximal glucose uptake on one medium.
         """

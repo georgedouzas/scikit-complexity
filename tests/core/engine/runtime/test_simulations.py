@@ -23,7 +23,7 @@ from skcomplex.core.engine.solvers import GillespieSolver, RK4Solver, ScipyODESo
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import ParameterError, SimulationError, SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import (
     ExponentialGrowthInteraction,
@@ -63,11 +63,10 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -131,12 +130,11 @@ class SaverElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         savings: Annotated[float, StateSpec()] = 0.0,
         rate: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.savings = savings
         self.rate = rate
 
@@ -156,12 +154,11 @@ class HeaterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         T: Annotated[object, StateSpec()] = 0.0,
         power: Annotated[object, ParameterSpec(adaptive=True, bounds=(0, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.T = T
         self.power = power
 
@@ -511,11 +508,10 @@ class PersonElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         health: Annotated[object, StateSpec(domain=HEALTH)] = 'susceptible',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.health = health
 
 
@@ -576,12 +572,11 @@ class ChainElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         stay: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.stay = stay
 

@@ -30,9 +30,6 @@ class SuperposedNodeElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         degree:
             The number of edges of the node.
 
@@ -45,15 +42,16 @@ class SuperposedNodeElement(Element):
         0.0
     """
 
+    visual = DEGREE_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = DEGREE_VISUAL,
         *,
         degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         clustering: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.degree = degree
         self.clustering = clustering
 
@@ -148,7 +146,7 @@ class NetworkSuperpositionSystem(BaseSystem):
         return (low**power + uniform * (high**power - low**power)) ** (1 / power)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if not 0 < self.low <= self.high <= 1:
             error_msg = (
                 f'The linking probabilities lie in [{self.low}, {self.high}]. Give bounds with 0 < low <= high <= 1.'

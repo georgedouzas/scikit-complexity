@@ -14,13 +14,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, ln, oo, pi, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import draw, logistic, neighbors
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
+from ....core.specs import StateSpec, VisualSpec
 
 MEETINGS_VISUAL = VisualSpec('sites', {'states': ['meetings']})
 SMALLEST_ANGLE = 1e-12
@@ -35,9 +36,6 @@ class CityDwellerElement(Element):
     Args:
         label:
             The label of the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         angle:
             The angle of the resident on the circle, its similarity coordinate.
@@ -57,17 +55,18 @@ class CityDwellerElement(Element):
         1.5
     """
 
+    visual = MEETINGS_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = MEETINGS_VISUAL,
         *,
         angle: Annotated[float, StateSpec()] = 0.0,
         age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         meetings: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.angle = angle
         self.age = age
         self.degree = degree
@@ -137,7 +136,7 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         'Papadopoulos et al. 2015',
     )
     until = 297
-    observables = (ObservableSpec('total_meetings', group='residents', variable='meetings', reduce='sum'),)
+    observables = (Observable('total_meetings', group='residents', variable='meetings', reduce='sum'),)
 
     def __init__(
         self,
@@ -178,7 +177,7 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         return 1 - logistic(distance, radius - 2 * ln(spread), 2 * temperature)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.exponent <= MIN_EXPONENT:
             error_msg = f'The degree exponent of the city is {self.exponent!r}. Give an exponent above {MIN_EXPONENT}.'
             raise ValidationError(error_msg)

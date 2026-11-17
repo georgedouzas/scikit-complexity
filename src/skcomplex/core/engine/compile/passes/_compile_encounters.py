@@ -10,19 +10,20 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components.elements import FieldElement
-from ....components.laws import BaseLaw, BilinearLaw
+from ....components.laws import BaseLaw
 from ....components.laws.utils import coordinate
 from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import PhaseSpace
 from ....errors import ValidationError
-from ....specs import TableValuesSpec
 from ....types import Indices
 from ..._utils import symbols_of
 from ...backends import BaseBackend
+from ...enums import ReadKind
+from ...problems._bilinear_law import BilinearLaw
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._encounter_kernel import EncounterKernel
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
+from ...problems._table_values_spec import _TableValuesSpec
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation, Laws
 
@@ -240,7 +241,7 @@ class CompileEncountersPass(BasePass):
         rates = CompileEncountersPass._get_checked_rate(law, sizes, owner, space)
         table = CompileEncountersPass._get_outcome_table(law, sizes, owner)
         grid = tuple(item.ravel().astype(np.intp) for item in np.indices(sizes[:2]))
-        rate = TableValuesSpec(
+        rate = _TableValuesSpec(
             rates,
             grid,
             CompileEncountersPass._get_parameter_indices(rates, references, owner),
@@ -248,7 +249,7 @@ class CompileEncountersPass(BasePass):
         )
         nonzero = CompileEncountersPass._get_nonzero(table)
         entries = (nonzero[0], nonzero[1], nonzero[2])
-        probabilities = TableValuesSpec(
+        probabilities = _TableValuesSpec(
             table,
             nonzero,
             CompileEncountersPass._get_parameter_indices(table, references, owner),

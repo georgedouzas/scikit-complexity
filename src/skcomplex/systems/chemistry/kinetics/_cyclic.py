@@ -12,9 +12,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 
 
@@ -30,9 +30,6 @@ class CyclicCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         level:
             The initial level, from 0 to `n - 1`.
@@ -52,13 +49,12 @@ class CyclicCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         level: Annotated[float, StateSpec(domain=NN)] = 0,
         n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 14.0,
         threshold: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
         self.n = n
         self.threshold = threshold
@@ -146,7 +142,7 @@ class CyclicCellularAutomatonSystem(BaseSystem):
                     target='cells',
                     state='level',
                     rule=self._advance_cyclically,
-                    neighborhood=BallNeighborhood(metric='manhattan', center='first'),
+                    neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
                 ),
             ],
         )

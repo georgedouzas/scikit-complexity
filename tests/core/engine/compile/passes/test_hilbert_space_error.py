@@ -6,7 +6,7 @@ from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile.passes._hilbert_space_error import HilbertSpaceError
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
-from skcomplex.core.engine.solvers import LindbladSolver
+from skcomplex.systems.physics.common.quantum import LindbladSolver
 
 from .....conftest import SpinElement
 

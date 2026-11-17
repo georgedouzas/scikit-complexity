@@ -13,7 +13,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import delayed
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
@@ -35,9 +35,6 @@ class CellCycleElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A1:
             The initial cells in G0 and G1.
@@ -72,7 +69,6 @@ class CellCycleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
         A2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.8,
@@ -83,7 +79,7 @@ class CellCycleElement(Element):
         u1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         u2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A1 = A1
         self.A2 = A2
         self.A3 = A3
@@ -110,9 +106,6 @@ class DormantCellCycleElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A0:
             The initial dormant cells.
@@ -153,7 +146,6 @@ class DormantCellCycleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A0: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 6.5,
         A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
@@ -166,7 +158,7 @@ class DormantCellCycleElement(Element):
         u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         v: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A0 = A0
         self.A1 = A1
         self.A2 = A2
@@ -199,9 +191,6 @@ class ErythropoiesisElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         L:
             The initial mature red cells.
@@ -260,7 +249,6 @@ class ErythropoiesisElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         L: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.84,
         Q: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 19.6,
@@ -279,7 +267,7 @@ class ErythropoiesisElement(Element):
         lifespan: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 120.0,
         U: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.L = L
         self.Q = Q
         self.P = P
@@ -358,7 +346,7 @@ class CellCycleChemotherapySystem(BaseSystem):
         self.v = v
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of tumour cells in cell-cycle compartments under killing."""
+        """Return the components of tumour cells in cell-cycle compartments under killing."""
         if self.dormant:
             dormant_interactions = [
                 ReactionInteraction(
@@ -505,7 +493,7 @@ class ErythropoiesisMercaptopurineSystem(BaseSystem):
         self.n = n
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the production of red cells under 6-mercaptopurine.
+        """Return the components of the production of red cells under 6-mercaptopurine.
 
         The level of the drug is constant.
         """

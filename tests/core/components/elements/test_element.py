@@ -9,6 +9,7 @@ import pytest
 from sage.all__sagemath_symbolics import var
 from sklearn.base import clone
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw, RateLaw, RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace
@@ -16,7 +17,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import LabelError, ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class TallyElement(Element):
@@ -25,12 +26,11 @@ class TallyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[float, StateSpec()] = 0.0,
         source: str = '',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
         self.source = source
 
@@ -41,12 +41,11 @@ class DecayingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec()] = 1.0,
         k: Annotated[object, ParameterSpec()] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.k = k
 
@@ -61,13 +60,12 @@ class FirmElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         debt: Annotated[float, StateSpec()] = 1.0,
         equity: Annotated[float, StateSpec()] = 2.0,
         r: Annotated[float, ParameterSpec()] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.debt = debt
         self.equity = equity
         self.r = r
@@ -83,12 +81,11 @@ class PendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(order=2)] = 0.0,
         theta_d1: float = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
 
@@ -99,12 +96,11 @@ class CounterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec()] = 0.0,
         k: Annotated[object, ParameterSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.k = k
 
@@ -119,11 +115,10 @@ class MovingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         v: Annotated[object, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
 
     def _get_laws(self, s):
@@ -137,11 +132,10 @@ class NumpyDecayElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
     def _get_laws(self, s):
@@ -163,11 +157,10 @@ class SettlerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         alive: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.alive = alive
 
     def _get_laws(self, s):
@@ -203,9 +196,9 @@ def test_element_runs_into_its_laws():
 
 
 def test_element_parameters_list_settings_and_declared_names():
-    """Test that the parameters are the label, the settings, the visual, and every state with its value."""
+    """Test that the parameters are the label, the settings, and every state with its value."""
     tally = TallyElement('size', source='farmers')
-    assert tally.get_params() == {'label': 'size', 'source': 'farmers', 'value': 0.0, 'visual': None}
+    assert tally.get_params() == {'label': 'size', 'source': 'farmers', 'value': 0.0}
     assert repr(tally) == "TallyElement(label='size', source='farmers')"
 
 
@@ -253,7 +246,7 @@ def test_expression_of_states_is_an_observable_of_the_laws():
         str(PassCompiler().prepare(system).run().problem_.equations['firm.debt'])
         == '-debt_firm*r_firm*(debt_firm/equity_firm - 1)'
     )
-    leverage = ObservableSpec('leverage', _firm_leverage)
+    leverage = Observable('leverage', _firm_leverage)
     trajectory = simulate(system, until=2, dt=0.5, observables=[leverage])
     debt, equity = trajectory.get_values('firm.debt'), trajectory.get_values('firm.equity')
     np.testing.assert_allclose(trajectory.get_values('leverage'), debt / equity)
@@ -287,3 +280,26 @@ def test_jump_increment_symbol_is_rejected():
     """Test that a jump whose increment is a parameter raises a named error naming the state and the increment."""
     with pytest.raises(ValidationError, match=r'jump of n_c has the increment k_c.*number'):
         PassCompiler().prepare(CompositeSystem(elements=[CounterElement('c')])).run()
+
+
+class _TableElement(Element):
+    """Billiard table that wrongly stores its half side under the reserved name `size`."""
+
+    def __init__(self, label: str, size: float = 1.5) -> None:
+        super().__init__(label)
+        self.size = size
+
+
+@pytest.mark.parametrize(
+    ('element', 'name'),
+    [
+        (_TableElement('table'), 'size'),
+        (Element('gas', values={'x': 1.0}, size=0), 'size'),
+        (Element('ball', values=[('x', 1.0)]), 'values'),
+        (Element('plate', values={'u': 0.0}, space='lattice'), 'space'),
+    ],
+)
+def test_prepare_rejects_a_reserved_name_used_for_a_value(element, name):
+    """Test that a reserved name holding something else than its setting raises an error naming the reserved names."""
+    with pytest.raises(ValidationError, match=rf"has {name} = .*label, size, space, values are reserved"):
+        element.prepare()

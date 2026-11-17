@@ -6,14 +6,14 @@ from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import function, var
 
 from skcomplex.core.components import interactions
-from skcomplex.core.components.elements import GroupElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import (
     BaseInteraction,
     CouplingInteraction,
     CrossingInteraction,
-    GradientInteraction,
     GroupingInteraction,
     HyperedgeInteraction,
     Interaction,
@@ -25,23 +25,26 @@ from skcomplex.core.components.interactions import (
     RateInteraction,
     SamplingInteraction,
     TopologyInteraction,
+    TrainingInteraction,
     TransferInteraction,
     TransitionInteraction,
 )
-from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws import PartnerSpec, RateLaw, TopologyRequestSpec
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
-    BallNeighborhood,
+    BaseSpace,
     ContinuousSpace,
     ContinuousTime,
     DiscreteTime,
     LatticeSpace,
+    RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.enums import ElementKind
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import BaseSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, TopologyRequestSpec
-from skcomplex.core.types import ElementKind
+from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import (
     BirthDeathInteraction,
     ChoiceInteraction,
@@ -49,6 +52,7 @@ from skcomplex.systems.general.agents import (
     ImitationInteraction,
     MovementInteraction,
 )
+from skcomplex.systems.general.gradients import GradientInteraction
 from skcomplex.systems.general.matching import MatchingInteraction
 from skcomplex.systems.general.reactions import ReactionInteraction
 from skcomplex.systems.physics.common.avalanches import TopplingInteraction
@@ -70,7 +74,7 @@ RENAMED = {
         lambda role: {
             'state': 'x',
             'rule': lambda *values: 1.0 - values[0],
-            'neighborhood': BallNeighborhood(metric='manhattan'),
+            'neighborhood': RadiusNeighborhood(1, metric='manhattan'),
         },
         True,
     ),
@@ -374,7 +378,8 @@ SPEC_VARIANTS = {
 def test_check_accepts_a_spec_for_a_variant_and_rejects_an_unknown_name(case):
     """Test that a variant argument takes a spec a subclass defines, and an unknown name lists the named values."""
     assert SPEC_VARIANTS[case](FixedSpec()).prepare() is not None
-    with pytest.raises(ValidationError, match=r'Unknown .* Use one of .*, or a spec that the part handles\.') as error:
+    match = r'Unknown .* Use one of .*, or a spec that the component handles\.'
+    with pytest.raises(ValidationError, match=match) as error:
         SPEC_VARIANTS[case]('unknown').prepare()
     assert 'BaseSpec' not in str(error.value)
 
@@ -384,7 +389,8 @@ def test_unknown_mode_of_a_map_names_only_the_accepted_values():
     with pytest.raises(ValidationError) as error:
         MapInteraction('m', target='a', state='x', function=lambda s: s.target.x, mode='add').prepare()
     message = str(error.value)
-    assert message == "Unknown mode 'add' of 'm'. Use one of 'replace', 'increment', or a spec that the part handles."
+    expected = "Unknown mode 'add' of 'm'. Use one of 'replace', 'increment', or a spec that the component handles."
+    assert message == expected
 
 
 class FixedChoiceInteraction(ChoiceInteraction):
@@ -582,7 +588,7 @@ def test_get_requirements_accepts_any_space_when_a_law_does():
 def test_every_core_interaction_declares_its_roles():
     """Test that every role of every interaction of the core names the kinds of element it accepts."""
     found = _interaction_classes()
-    assert {kind.__name__ for kind in found} == set(interactions.__all__) - {'OPTIMIZERS', 'SCHEDULES'}
+    assert {kind.__name__ for kind in found} == {name for name in interactions.__all__ if name.endswith('Interaction')}
     for kind in found:
         for name, spec in kind._get_specs().items():
             if isinstance(spec, RoleSpec) and not spec.noise:
@@ -590,9 +596,12 @@ def test_every_core_interaction_declares_its_roles():
 
 
 def test_every_core_interaction_with_laws_lists_them():
-    """Test that every interaction of the core lists its laws, apart from the bases a subclass writes laws for."""
+    """Test that every interaction of the core lists its laws.
+
+    The bases a subclass writes laws for and the training, whose solver reads its settings, state none.
+    """
     bases = {BaseInteraction, Interaction, NeighborInteraction, PairInteraction, HyperedgeInteraction}
-    for kind in set(_interaction_classes()) - bases:
+    for kind in set(_interaction_classes()) - bases - {TrainingInteraction}:
         assert kind.law_classes, kind.__name__
 
 
@@ -637,3 +646,55 @@ def test_interaction_that_writes_unlisted_laws_has_unknown_law_kinds():
     tags = CustomRateInteraction('growth', target='a', rate=1.0).get_tags()
     assert (tags.laws, tags.randomness) == (None, None)
     assert Interaction('free').get_tags().laws is None
+
+
+class FallElement(Element):
+    """Element of a falling body with a position of order two."""
+
+    def __init__(self, label: str, *, x: Annotated[float, StateSpec(order=2)] = 0.0):
+        super().__init__(label)
+        self.x = x
+
+
+class PullInteraction(Interaction):
+    """Interaction that learns a constant pull on its target when it is prepared."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()] = 'ball',
+        g: Annotated[float, ParameterSpec()] = 9.81,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.g = g
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the pull as the law of the interaction."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.target.x, context.t
+            self.laws_ = [RateLaw(x.diff(t, 2), -context.g)]
+
+
+def test_prepare_sets_laws_from_a_namespace():
+    """Preparing an interaction on a namespace of states as functions of time sets its laws."""
+    t, g = var('t g')
+    x = function('x')(t)
+    pull = PullInteraction('pull').prepare(SimpleNamespace(target=SimpleNamespace(x=x), g=g, t=t))
+    assert [(law.target, law.value) for law in pull.laws_] == [(x.diff(t, 2), -g)]
+
+
+def test_prepare_keeps_parameters_symbolic_in_a_system():
+    """The laws a system learns from an interaction read its parameters as symbols."""
+    system = System(elements=[FallElement('ball', x=10.0)], interactions=[PullInteraction('pull')]).prepare()
+    assert system.equations_["ball.x'"] == '-pull.g'
+
+
+def test_prepare_leaves_the_user_interaction_unchanged():
+    """The engine prepares a clone of an interaction for every binding, so the object the user gave has no laws."""
+    pull = PullInteraction('pull', target='bodies')
+    bodies = GroupElement('bodies', element=FallElement, size=2, values={'x': [1.0, 2.0]})
+    System(elements=[bodies], interactions=[pull]).prepare().simulate(until=1.0, dt=0.5)
+    assert not hasattr(pull, 'laws_')

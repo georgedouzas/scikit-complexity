@@ -14,11 +14,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray
 from ...general.agents import EvolutionInteraction
 
@@ -39,9 +40,6 @@ class OrganismElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         species:
             The label of the species.
 
@@ -52,16 +50,17 @@ class OrganismElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'species'})
+
     law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'species'}),
         *,
         species: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.species = species
 
     @classmethod
@@ -169,7 +168,7 @@ class NeutralBiodiversitySystem(BaseSystem):
     topics = ('neutral theory', 'biodiversity', 'speciation', 'agents', 'species abundance')
     references = ('Bertin 2021', 'Hubbell 2001', 'Vallade and Houchmandzadeh 2003')
     until = 500
-    observables = (ObservableSpec('richness', group='community', variable='species', reduce=_get_richness),)
+    observables = (Observable('richness', group='community', variable='species', reduce=_get_richness),)
 
     def __init__(
         self,
@@ -187,7 +186,7 @@ class NeutralBiodiversitySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a neutral community of constant size."""
+        """Return the components of a neutral community of constant size."""
         labels = np.random.default_rng(self.random_state).integers(self.species, size=self.individuals).astype(float)
         return CompositeSystem(
             self.label,

@@ -16,7 +16,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ExperimentError, ValidationError
 from skcomplex.core.experiments import calibrate, ensemble, orbit_diagram, sweep
 from skcomplex.core.experiments._runs import _map_calls
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
@@ -28,12 +28,11 @@ class LogisticMapElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.2,
         r: Annotated[object, ParameterSpec()] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.r = r
 
@@ -57,10 +56,10 @@ def peak(trajectory, *, variable='I.x'):
 
 
 def test_surface_holds_functions_and_results():
-    """Test that the public names are experiment functions and frozen results, and none is an estimator."""
+    """Test that the public names are experiment functions, frozen results, and values, and none is an estimator."""
     for name in experiments.__all__:
         item = getattr(experiments, name)
-        if name.endswith('Result'):
+        if name.endswith(('Result', 'Spec')):
             assert item.__dataclass_params__.frozen, name
         else:
             assert inspect.isfunction(item), name
@@ -195,13 +194,13 @@ def test_a_system_of_the_library_runs_as_an_instance_or_its_class():
 def test_runs_of_one_structure_compile_once_per_call(monkeypatch):
     """Test that runs differing by dotted paths and seeds share one compile, and model parameters compile each."""
     calls = []
-    compile_problem = experiments._runs._compile_problem
+    compile_problem = experiments._runs.compile_problem
 
     def counted(system, **settings):
         calls.append(system.get_params(deep=False))
         return compile_problem(system, **settings)
 
-    monkeypatch.setattr(experiments._runs, '_compile_problem', counted)
+    monkeypatch.setattr(experiments._runs, 'compile_problem', counted)
     rows = [{'I.x': value} for value in (1.0, 5.0, 10.0)]
     result = sweep(SIRSystem(), rows, replicates=2, until=5, outputs=['I.x'], random_state=0)
     assert len(calls) == 1

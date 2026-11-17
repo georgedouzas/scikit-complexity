@@ -7,9 +7,9 @@ from collections.abc import Callable, Sequence
 from typing import ClassVar
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec
 from ..spaces import DiscreteTime
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 
 class RuleLaw(BaseLaw):

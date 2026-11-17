@@ -3,10 +3,9 @@
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.laws import LinearProgramLaw
+from skcomplex.core.components.laws import LinearObjectiveSpec, LinearProgramLaw
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, StaticTime
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import LinearObjectiveSpec
 
 V, W = var('v w')
 

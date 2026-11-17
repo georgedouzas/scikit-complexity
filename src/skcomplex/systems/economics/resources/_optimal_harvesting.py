@@ -11,8 +11,9 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.engine.solvers import CollocationSolver
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -79,7 +80,7 @@ class OptimalHarvestingSystem(DynamicalSystem):
     until = 20.0
     dt = 0.2
     solver = CollocationSolver(objective=_get_profit, sense='max', nodes=101, scheme='trapezoidal')
-    observables = (ObservableSpec('catch', _catch),)
+    observables = (Observable('catch', _catch),)
 
     def __init__(
         self,

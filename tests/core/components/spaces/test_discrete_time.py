@@ -2,9 +2,9 @@
 
 import pytest
 
-from skcomplex.core.components.spaces import DiscreteTime
+from skcomplex.core.components.spaces import DiscreteTime, ScheduleSpec
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, ScheduleSpec
 
 
 def test_discrete_time_prepares_its_schedule():

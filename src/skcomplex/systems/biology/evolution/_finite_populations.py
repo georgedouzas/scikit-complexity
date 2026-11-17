@@ -21,8 +21,9 @@ from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import BirthDeathInteraction, EvolutionInteraction
 
@@ -54,9 +55,6 @@ class ClimberElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         genome:
             The bits of the genome.
 
@@ -79,6 +77,8 @@ class ClimberElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'fitness', 'color_range': (0.0, 1.0)})
+
     draws = True
 
     law_classes = (RuleLaw,)
@@ -86,7 +86,6 @@ class ClimberElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'fitness', 'color_range': (0.0, 1.0)}),
         *,
         genome: Annotated[float, StateSpec(domain=NN)] = 0.0,
         fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -94,7 +93,7 @@ class ClimberElement(Element):
         k: Annotated[float, ParameterSpec(domain=NN)] = 2.0,
         seed: Annotated[float, ParameterSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.genome = genome
         self.fitness = fitness
         self.n = n
@@ -177,9 +176,6 @@ class IndividualElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         trait:
             The trait, a type index or the bits of a genome.
 
@@ -193,15 +189,16 @@ class IndividualElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'trait'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'trait'}),
         *,
         trait: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
         fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.trait = trait
         self.fitness = fitness
 
@@ -209,6 +206,18 @@ class IndividualElement(Element):
     def _get_view(cls) -> type[IndividualView]:
         """Return the view of an individual, `IndividualView`."""
         return IndividualView
+
+
+class ClimbingIndividualElement(IndividualElement):
+    """Individual of a climbing population, drawn by its fitness."""
+
+    visual = VisualSpec('agents', {'color_by': 'fitness'})
+
+
+class TangledOrganismElement(IndividualElement):
+    """Organism of the Tangled Nature system, drawn by its distinct genomes."""
+
+    visual = VisualSpec('histograms', {'color_by': 'trait', 'shown': ('distinct',)})
 
 
 class AdaptiveClimbingInteraction(EvolutionInteraction):
@@ -583,7 +592,7 @@ class MoranProcessSystem(BaseSystem):
         self.mutation = mutation
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Moran process."""
+        """Return the components of the Moran process."""
         traits = np.zeros(self.size)
         traits[: self.mutants] = 1.0
         return CompositeSystem(
@@ -676,7 +685,7 @@ class TangledNatureSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Tangled Nature system."""
+        """Return the components of the Tangled Nature system."""
         genome = float(np.random.default_rng(self.random_state).integers(2**self.length))
         life_cycle = TangledNatureLifeCycleInteraction(
             'evolution',
@@ -688,17 +697,15 @@ class TangledNatureSystem(BaseSystem):
             length=self.length,
             seed=self.seed,
         )
-        visual = VisualSpec('histograms', {'color_by': 'trait', 'shown': ('distinct',)})
         return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
                     ORGANISMS,
-                    element=IndividualElement,
+                    element=TangledOrganismElement,
                     size=self.organisms,
                     values={'trait': genome},
                     variable=True,
-                    visual=visual,
                 ),
             ],
             interactions=[life_cycle],
@@ -760,18 +767,17 @@ class AdaptiveClimbingSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a finite population."""
+        """Return the components of a finite population."""
         fitness = AdaptiveClimbingInteraction._get_random_fitness(0, self.seed)
         return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
                     'population',
-                    element=IndividualElement,
+                    element=ClimbingIndividualElement,
                     size=self.size,
                     values={'trait': 0.0, 'fitness': fitness},
                     variable=True,
-                    visual=VisualSpec('agents', {'color_by': 'fitness'}),
                 ),
             ],
             interactions=[
@@ -842,7 +848,7 @@ class NKLandscapeSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         genomes = np.random.default_rng(self.random_state).integers(0, 2**self.n, size=self.climbers)
         fitness = [ClimberElement._get_nk_fitness(int(genome), self.n, self.k, self.seed) for genome in genomes]
         group = GroupElement(

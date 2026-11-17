@@ -28,6 +28,8 @@ PDM names the common ones as scripts.
   - `pdm checks dependencies`: check only the dependencies for vulnerabilities and for unused or missing ones.
   - `pdm checks security`: run only the security checks, with bandit.
   - `pdm checks docs`: check only the coverage and the format of the docstrings, with interrogate and pydoclint.
+  - `pdm checks conventions`: check only the conventions of the sources, the tests, and the documentation, with
+    `openspec/scripts/check_conventions.py`.
 
 ### Tests
 
@@ -35,6 +37,9 @@ PDM names the common ones as scripts.
   the user guide.
 - `nox -s tests -- <expression>`: run only the tests whose names match the expression.
 - `nox -s quick_tests`: run a small subset of the fast tests in a few minutes, as CI does on every push.
+
+The tests of a module `src/skcomplex/<package>/_<module>.py` live in `tests/<package>/test_<module>.py`, and every test
+file mirrors a module this way. `pdm checks conventions` checks it.
 
 ### Changelog
 
@@ -75,30 +80,33 @@ This section gives the order of work on a change.
 4. `pdm tests` runs the tests.
 5. `pdm docs serve` shows the documentation, when the change touches it or the dependencies of the project.
 
-### Where a part goes
+### Where a component goes
 
-This section decides where a new part belongs. One ordered test, the placement rule, decides where any part goes, and
-`tests/test_sources.py` checks it mechanically. The page
-[Extend the library](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/extend_the_library/#where-a-new-part-goes)
+This section decides where a new component belongs. One ordered test, the placement rule, decides where any component
+goes, and `openspec/scripts/check_conventions.py` checks it mechanically. The page [Extend the
+library](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/extend_the_library/#where-a-new-component-goes)
 of the user guide gives an example of each step.
 
 1. A structural base, such as a `Base` class, the composite system, or a base where laws run per member, edge,
    hyperedge, or pair, goes to the core.
-2. A part that the engine handles by type, through a compile pass, a kernel, a solver, a backend lowering, or an
+2. A component that the engine handles by type, through a compile pass, a kernel, a solver, a backend lowering, or an
    analysis that checks the class or its spec, goes to the core, and so does an operator generated from one function.
    It is named by its mathematics and must be cross-domain in principle.
-3. Every other part is a recipe, expressible with core parts. Its users place it. Several fields:
+3. Every other component is a recipe, expressible with core components. Its users place it. Several fields:
    `skcomplex.systems.general.<concept>`. One field with several systems: `systems/<field>/common/<family>`. One
    system: that system's module. A field with its own term names it, and `general` uses neutral names.
 4. A recipe that needs something the core cannot express reveals a missing core primitive, which enters by step 2.
    Engine support never lives inside a recipe.
 5. The core never imports `skcomplex.systems`.
 
+Analyses follow the rule by their users too. An analysis that measures what systems of several fields share goes to
+`skcomplex.core.analysis`, and an analysis of one field goes to `systems/<field>/common/<family>`.
+
 ### Module layout
 
 This section gives the order of a Python file. Every file holds the docstring, the licence header, the imports, the
 constants block, the type aliases, the other module statements, and then the definitions. The constitution in
-`openspec/constitution.md` states the rules, and `tests/test_sources.py` checks them. The checks cover the constants
+`openspec/constitution.md` states the rules, and `openspec/scripts/check_conventions.py` checks them. The checks cover the constants
 block and the values derived from it, the symbolic functions written as `BuiltinFunction` subclasses, the class that
 owns each helper, the action word that begins the name of every method, such as `get` or `check`, and the three kinds
 of module functions that stay functions.
@@ -107,7 +115,7 @@ of module functions that stay functions.
 
 This section adds a ready-made system to the catalog. A system of the catalog is a subclass of `BaseSystem` whose name
 ends in `System`. Its `__init__` takes the parameters of the model and stores each under its own name, and its hook
-`_build_system` returns the `CompositeSystem` of its parts. Its body sets these class variables:
+`_build_system` returns the `CompositeSystem` of its components. Its body sets these class variables:
 
 - `field`, the field path of a field and a subfield, such as `'engineering/processes'`,
 - `topics`, the words that `all_systems` filters by,
@@ -175,9 +183,9 @@ A new system adds these files:
 - an entry in the inventory `docs/overview/inventory.toml`,
 - a gallery example, as the next section describes.
 
-The module holds one system and the parts that only it uses. A part that several systems of one field share goes to
-the `common` package of the field, and a part that several fields share goes to `skcomplex.systems.general`, as the
-placement rule says.
+The module holds one system and the components that only it uses. A component that several systems of one field share
+goes to the `common` package of the field, and a component that several fields share goes to
+`skcomplex.systems.general`, as the placement rule says.
 
 `tests/systems/test_catalog.py` runs every listed class through one generic check. It builds the class with its
 default parameters, simulates it for ten frames while a `RerunObserver` saves the run, requires a logged frame for

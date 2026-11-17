@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from ..specs._run_result_spec import _RunResultSpec
+from ._run_result_spec import _RunResultSpec
 
 
 @dataclass(frozen=True)

@@ -19,8 +19,8 @@ BOUNDS = {'duffing.x': (-2.0, 2.0), 'duffing.x_d1': (-2.0, 2.0)}
 class ArrivalsElement(Element):
     """Count of arrivals that grows by one at a constant rate."""
 
-    def __init__(self, label, visual=None, *, count: Annotated[float, StateSpec(domain=NN)] = 0) -> None:
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, count: Annotated[float, StateSpec(domain=NN)] = 0) -> None:
+        super().__init__(label)
         self.count = count
 
     def _get_laws(self, s):

@@ -12,12 +12,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class RiceBalanceElement(Element):
@@ -30,9 +31,6 @@ class RiceBalanceElement(Element):
     Args:
         label:
             The label of the region.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         area_cultivated:
             The area under rice, in hectares.
@@ -70,7 +68,6 @@ class RiceBalanceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         area_cultivated: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 68000.0,
         population: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 2800000.0,
@@ -82,7 +79,7 @@ class RiceBalanceElement(Element):
         life_expectancy: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 65.0,
         food_per_capita: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.18,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.area_cultivated = area_cultivated
         self.population = population
         self.total_land_available = total_land_available
@@ -169,7 +166,7 @@ class RiceFoodBalanceSystem(BaseSystem):
     dt = 0.25
     observables = tuple(
         [
-            ObservableSpec(name, expression, element='region')
+            Observable(name, expression, element='region')
             for name, expression in (
                 ('food_available', _get_food_available),
                 ('food_required', _get_food_required),
@@ -213,7 +210,7 @@ class RiceFoodBalanceSystem(BaseSystem):
         return where(gap > 0, gap, 0)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         region = RiceBalanceElement(
             'region',
             area_cultivated=self.area_cultivated,

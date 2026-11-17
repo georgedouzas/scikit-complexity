@@ -21,7 +21,7 @@ from scipy import stats
 from shapely import Point, Polygon, STRtree
 
 from ...components.elements import BaseElement, GroupElement
-from ...components.laws import BaseLaw, BoundaryLaw, MatchLaw, RuleLaw, TransferLaw
+from ...components.laws import BaseLaw, BoundaryLaw, DrawSpec, RuleLaw, TransferLaw
 from ...components.spaces import (
     BaseSpace,
     ContinuousSpace,
@@ -30,26 +30,22 @@ from ...components.spaces import (
     LatticeSpace,
     NetworkSpace,
 )
-from ...components.specs import CompiledAgentsSpec
 from ...components.systems import CompositeSystem
+from ...enums import FormKind, OrderKind, VariableKind
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
-from ...specs import (
-    DEFAULT_PHASE,
-    AgentSnapshotSpec,
-    AgentStateSpec,
-    DrawSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    SupportSpec,
-)
-from ...types import Array, FormKind, OrderKind, VariableKind
+from ...types import Array
 from .._utils import declarations_of, default_of
+from ..backends import SupportSpec
+from ..compile import PhaseSpec, PhasesScheduleSpec
 from ..compile._observables import ObservableEvaluator
-from ..problems import ProblemSpec
+from ..compile._phases_schedule_spec import DEFAULT_PHASE
+from ..problems import AgentSnapshotSpec, ProblemSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ..problems._draw_kernel import DrawKernel
 from ..problems._draw_recorder import KEYWORDS
 from ..problems._metric_search import MetricSearch
 from ..types import MesaSpace
+from ._agent_state_spec import _AgentStateSpec
 from ._external import ExternalSolver
 
 MAX_SEED = 2**31 - 1
@@ -1074,7 +1070,7 @@ class MesaSolver(ExternalSolver):
         return SupportSpec(
             time={DiscreteTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace},
-            laws={RuleLaw, BoundaryLaw, TransferLaw, MatchLaw},
+            laws={RuleLaw, BoundaryLaw, TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -1156,7 +1152,7 @@ class MesaSolver(ExternalSolver):
             ]
             for spec in problem.agents
         }
-        self._classes: dict[type, CompiledAgentsSpec] = {}
+        self._classes: dict[type, _CompiledAgentsSpec] = {}
         self._view_classes: dict[type, type[AgentView]] = {}
         self.members_: dict[int, mesa.Agent] = {}
         self.system_ = _AgentSystem(self._run_rules, self._seed())
@@ -1194,7 +1190,7 @@ class MesaSolver(ExternalSolver):
         self._populating = False
         self._collect()
 
-    def _get_agent_class(self, spec: CompiledAgentsSpec) -> type:
+    def _get_agent_class(self, spec: _CompiledAgentsSpec) -> type:
         """Return the Mesa agent class of a group, created on first use."""
         for agent_class, known in self._classes.items():
             if known is spec:
@@ -1222,7 +1218,7 @@ class MesaSolver(ExternalSolver):
         self._view_classes[agent_class] = self._get_view_class(spec)
         return agent_class
 
-    def _get_agent_rules(self, spec: CompiledAgentsSpec) -> list[tuple[SystemView, RuleLaw]]:
+    def _get_agent_rules(self, spec: _CompiledAgentsSpec) -> list[tuple[SystemView, RuleLaw]]:
         """Return the rules of an agent with their views.
 
         Those of its element come first, then its member rules.
@@ -1447,7 +1443,7 @@ class MesaSolver(ExternalSolver):
         self._recount(agent, 1)
         return agent
 
-    def _populate(self, spec: CompiledAgentsSpec) -> None:
+    def _populate(self, spec: _CompiledAgentsSpec) -> None:
         """Create the initial agents of a group.
 
         They take their per-agent or shared initial values.
@@ -1462,7 +1458,7 @@ class MesaSolver(ExternalSolver):
                 location = network_nodes[index]
             self._create_agent(spec.path, location, values)
 
-    def _get_reference_of(self, spec: CompiledAgentsSpec, state: str) -> str | None:
+    def _get_reference_of(self, spec: _CompiledAgentsSpec, state: str) -> str | None:
         """Return the path of the group a reference state of a group names members of.
 
         Args:
@@ -1493,7 +1489,7 @@ class MesaSolver(ExternalSolver):
         except SimulationError:
             return None
 
-    def _resolve_references(self, spec: CompiledAgentsSpec) -> None:
+    def _resolve_references(self, spec: _CompiledAgentsSpec) -> None:
         """Turn the initial positions of the reference states of a group into ids.
 
         The ids are those of the members they name.
@@ -1523,7 +1519,7 @@ class MesaSolver(ExternalSolver):
                     raise SimulationError(error_msg)
                 setattr(agent, name, float(ids[position]) if position >= 0 else -1.0)
 
-    def _get_spec_of(self, agent: mesa.Agent) -> CompiledAgentsSpec:
+    def _get_spec_of(self, agent: mesa.Agent) -> _CompiledAgentsSpec:
         """Return the group of a Mesa agent created by the stepper.
 
         Args:
@@ -1861,7 +1857,7 @@ class MesaSolver(ExternalSolver):
             )
         reporters = {f'{path}.count': float(len(snapshot.ids)) for path, snapshot in groups.items()}
         super()._collect()
-        self.snapshot_ = AgentStateSpec(groups, {**reporters, **cast(dict[str, float], self.reports_)})
+        self.snapshot_ = _AgentStateSpec(groups, {**reporters, **cast(dict[str, float], self.reports_)})
         self.agents_ = {path: [self._get_view_of(agent) for agent in members] for path, members in agents.items()}
 
     @staticmethod
@@ -1938,7 +1934,7 @@ class MesaSolver(ExternalSolver):
     def _get_snapshot_of(
         agents: list[mesa.Agent],
         reporters: Mapping[str, Callable[[mesa.Agent], object]],
-        spec: CompiledAgentsSpec,
+        spec: _CompiledAgentsSpec,
     ) -> AgentSnapshotSpec:
         """Return the ids, reported values, and locations of agents.
 
@@ -1993,7 +1989,7 @@ class MesaSolver(ExternalSolver):
         return property(read, doc=f'Parameter {name} of the group of the agent.')
 
     @staticmethod
-    def _get_view_class(spec: CompiledAgentsSpec) -> type[AgentView]:
+    def _get_view_class(spec: _CompiledAgentsSpec) -> type[AgentView]:
         """Return the class of the views of a group's agents.
 
         The class has a property per state and parameter.
@@ -2025,7 +2021,7 @@ class MesaSolver(ExternalSolver):
         return value
 
     @staticmethod
-    def _get_member_of(spec: CompiledAgentsSpec, name: str, value: object, index: int) -> object:
+    def _get_member_of(spec: _CompiledAgentsSpec, name: str, value: object, index: int) -> object:
         """Return the initial value of one agent.
 
         It comes from a list of one object per agent, or from one shared value.
@@ -2044,7 +2040,7 @@ class MesaSolver(ExternalSolver):
         return value
 
     @staticmethod
-    def _get_agent_type(spec: CompiledAgentsSpec) -> type[BaseElement]:
+    def _get_agent_type(spec: _CompiledAgentsSpec) -> type[BaseElement]:
         """Return the element type of a compiled agent element or group."""
         return spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element)
 
@@ -2060,7 +2056,7 @@ class MesaSolver(ExternalSolver):
         return location.item() if isinstance(location, np.generic) else location
 
     @staticmethod
-    def _check_variable(spec: CompiledAgentsSpec, action: str) -> None:
+    def _check_variable(spec: _CompiledAgentsSpec, action: str) -> None:
         """Raise an error when a rule changes the size of a fixed agent element or group.
 
         Groups that are not variable have a fixed size.

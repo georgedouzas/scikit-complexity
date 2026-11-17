@@ -15,7 +15,7 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, shift_member
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.traffic import CarElement, OptimalVelocityInteraction
 
 
@@ -30,7 +30,6 @@ class LeadCarElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(role='position')] = 0.0,
         v: Annotated[object, StateSpec(role='velocity')] = 1.0,
@@ -38,7 +37,7 @@ class LeadCarElement(Element):
         amplitude: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.v = v
         self.u = u
@@ -250,7 +249,7 @@ class OptimalVelocitySystem(BaseSystem):
         self.perturbation = perturbation
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         headway = self.length / self.n_cars
         speed = self.V0 * (np.tanh(headway - self.hc) + np.tanh(self.hc))
         cars = GroupElement(
@@ -355,7 +354,7 @@ class IntelligentDriverSystem(BaseSystem):
         self.perturbation = perturbation
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         cars = GroupElement(
             'cars',
             element=CarElement,
@@ -453,7 +452,7 @@ class DelayedCarFollowingSystem(BaseSystem):
         self.power = power
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         lead = LeadCarElement('car_0', x=0.0, v=self.u, u=self.u, amplitude=self.amplitude, omega=self.omega)
         followers = [CarElement(f'car_{index}', x=-index * self.spacing, v=self.u) for index in range(1, self.n_cars)]
         interactions = [

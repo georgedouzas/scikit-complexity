@@ -10,9 +10,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
-from ...specs import AgentSnapshotSpec
-from ..problems import BaseProblemSpec
+from ..problems import AgentSnapshotSpec, BaseProblemSpec, CompiledElementSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import GRID_RADIUS, NODE_SPACING, UPWARD, BaseVisual
 
 PATH_COLOR = (86, 180, 233)
@@ -222,7 +221,11 @@ class AgentsVisual(BaseVisual):
         )
         return rrb.Spatial2DView(origin=path, name=path, visual_bounds=bounds)
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return the view of the agents.
 
         It is a graph view of the whole network, or a 2D or 3D spatial view for agents in a space, or none without one.
@@ -247,7 +250,7 @@ class AgentsVisual(BaseVisual):
             >>> type(AgentsVisual(path=problem.agents[0].path).prepare(problem).views_[0]).__name__
             'GraphView'
         """
-        if self.position is not None and isinstance(element, CompiledAgentsSpec):
+        if self.position is not None and isinstance(element, _CompiledAgentsSpec):
             if np.ndim(np.asarray(element.values[self.position])) < POSITION_RANK:
                 origin = f'{element.path}/{self.position}'
                 return [rrb.TimeSeriesView(origin=origin, name=origin, plot_legend=rrb.PlotLegend(visible=False))]

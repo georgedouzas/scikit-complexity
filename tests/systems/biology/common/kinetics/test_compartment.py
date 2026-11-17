@@ -17,7 +17,7 @@ def test_compartment_is_a_nonnegative_element_with_the_state_x():
     """Test that the realization subclasses the core atom and keeps its one state `x` in `[0, oo)`."""
     element = CompartmentElement('a', x=0.5)
     assert isinstance(element, NonnegativeElement)
-    assert element.get_params() == {'label': 'a', 'visual': None, 'x': 0.5}
+    assert element.get_params() == {'label': 'a', 'x': 0.5}
     assert element.get_states()['x'].domain == RealSet.closed_open(0, oo)
 
 

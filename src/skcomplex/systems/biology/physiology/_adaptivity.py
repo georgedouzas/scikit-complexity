@@ -17,7 +17,7 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import pulse_train, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 
 STRATEGIES = {'stimulus-response': (0.0, 0.0), 'adaptive': (0.5, 0.0), 'anticipatory': (0.5, 0.5)}
@@ -43,9 +43,6 @@ class AdaptiveResponderElement(Element):
     Args:
         label:
             The label of the system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         e:
             The initial excursion of the critical parameter.
@@ -119,7 +116,6 @@ class AdaptiveResponderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         e: Annotated[float, StateSpec()] = 0.0,
         c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
@@ -143,7 +139,7 @@ class AdaptiveResponderElement(Element):
         period: float = 10.0,
         start: float = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.e = e
         self.c = c
         self.S = S
@@ -230,7 +226,7 @@ class AdaptiveResponseCostsSystem(BaseSystem):
         self.period = period
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a system that meets recurring demands by stimulus-response."""
+        """Return the components of a system that meets recurring demands by stimulus-response."""
         if self.strategy not in STRATEGIES:
             error_msg = f'Unknown strategy {self.strategy!r}. Use one of {", ".join(STRATEGIES)}.'
             raise ValidationError(error_msg)

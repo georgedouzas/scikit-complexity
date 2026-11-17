@@ -65,14 +65,15 @@ def test_displacement_refuses_states_that_are_no_positions():
 class GridWalkerElement(Element):
     """Walker that moves to a random neighbouring cell of a periodic grid at every step."""
 
+    visual = VisualSpec('agents', {})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {}),
         *,
         steps: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.steps = steps
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -89,14 +90,15 @@ class GridWalkerElement(Element):
 class DiffuserElement(Element):
     """Particle that takes a Gaussian step of unit variance per coordinate in a periodic square at every step."""
 
+    visual = VisualSpec('agents', {})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {}),
         *,
         steps: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.steps = steps
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:

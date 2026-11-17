@@ -7,17 +7,18 @@ import pytest
 from sage.all__sagemath_symbolics import oo, var
 from sage.sets.real_set import RealSet
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import BilinearLaw, RateLaw
-from skcomplex.core.components.laws.utils import moment
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import bilinear, moment
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 CLASSES = 9
 ACTIVITIES = np.linspace(0.0, 1.0, CLASSES)
@@ -30,11 +31,10 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -44,11 +44,10 @@ class RecorderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y = y
 
 
@@ -72,7 +71,7 @@ class UpwardInteraction(Interaction):
         for candidate in range(CLASSES):
             table[candidate, :, min(candidate + 1, CLASSES - 1)] += 0.5
             table[candidate, :, candidate] += 0.5
-        return [BilinearLaw(s.population.x, s.population.x, s.population.x, s.eta, table, conserved=True)]
+        return [RateLaw(s.population.x, bilinear(s.eta, table, s.population.x, s.population.x, conserved=True))]
 
 
 class ReadMeanInteraction(Interaction):
@@ -110,9 +109,9 @@ def activity_variance(s):
 
 
 OBSERVABLES = [
-    ObservableSpec('density', density, group='wealth'),
-    ObservableSpec('mean_activity', mean_activity, group='wealth'),
-    ObservableSpec('variance', activity_variance, group='wealth'),
+    Observable('density', density, group='wealth'),
+    Observable('mean_activity', mean_activity, group='wealth'),
+    Observable('variance', activity_variance, group='wealth'),
 ]
 
 

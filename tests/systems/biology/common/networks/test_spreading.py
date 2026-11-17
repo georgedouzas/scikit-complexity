@@ -12,7 +12,7 @@ from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.biology.epidemiology import SpreadingInteraction
 
 SIDE = 20
@@ -25,11 +25,10 @@ class SiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         state: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.state = state
 
 

@@ -11,26 +11,29 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, CrossingLaw, JumpLaw, RateLaw
+from ....components.laws import BaseLaw, CallSpec, EventLaw, JumpLaw, ObjectiveLaw, RateLaw
 from ....components.spaces import LatticeSpace
-from ....components.specs import CompiledElementSpec, CompiledInteractionSpec, NodeSpec
+from ....enums import FormKind, VariableKind
 from ....errors import PipelineError, ValidationError
-from ....specs import CallSpec, LayoutSpec, VisualSpec
-from ....specs._breakpoints_spec import _BreakpointsSpec
-from ....specs._delay_spec import _DelaySpec
-from ....types import Array, FormKind, Indices, VariableKind
+from ....specs import VisualSpec
+from ....types import Array, Indices
 from ..._utils import components_of, declarations_of, symbols_of
-from ...problems import ProblemSpec
+from ...enums import ReadKind
+from ...problems import CompiledElementSpec, LayoutSpec, ProblemSpec
 from ...problems._block_spec import BlockSpec
+from ...problems._breakpoints_spec import _BreakpointsSpec
+from ...problems._compiled_interaction_spec import _CompiledInteractionSpec
 from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._delay_spec import _DelaySpec
 from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._event_kernel import EventKernel
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
+from ...problems._node_spec import _NodeSpec
 from ...problems._random_stream import RandomStream
 from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind, ScalarsFunction
+from ...types import ScalarsFunction
 from .._base import BasePass
 from .._compilation import Compilation
 from ._events import RELATIONS, SWITCHES
@@ -135,10 +138,10 @@ class ProblemPass(BasePass):
     def _get_compiled_interactions(
         blocks: list[BlockSpec],
         specs: list[tuple[KernelSpec, BlockSpec]],
-    ) -> tuple[CompiledInteractionSpec, ...]:
+    ) -> tuple[_CompiledInteractionSpec, ...]:
         """Return the interactions with the paths their roles bind to."""
         return tuple(
-            CompiledInteractionSpec(
+            _CompiledInteractionSpec(
                 path=block.node.path,
                 interaction=block.node.as_interaction,
                 roles=next(spec.roles for spec, _ in specs if spec.owner == block.node.path),
@@ -166,6 +169,25 @@ class ProblemPass(BasePass):
         )
         targets = [item.target.flat_indices for kernel in rates for item in kernel.outputs if item.target is not None]
         return np.unique(np.concatenate([np.zeros(0, dtype=np.intp), *targets]))
+
+    @staticmethod
+    def _get_objective_of(compilation: Compilation) -> Expression | None:
+        """Return the sum of the objective laws of a compilation, or `None`."""
+        records = Compilation._get_required(compilation.census, 'census').records
+        values = [SR(record.law.value) for record in records if isinstance(record.law, ObjectiveLaw)]
+        return sum(values[1:], values[0]) if values else None
+
+    @staticmethod
+    def _get_objective_targets_of(compilation: Compilation) -> Indices:
+        """Return the positions of the states the objectives are minimised over."""
+        records = Compilation._get_required(compilation.census, 'census').records
+        positions = [
+            np.arange(entry.indices.start, entry.indices.stop, dtype=np.intp)
+            for record in records
+            if isinstance(record.law, ObjectiveLaw)
+            for entry in record.targets
+        ]
+        return np.unique(np.concatenate([np.zeros(0, dtype=np.intp), *positions]))
 
     @staticmethod
     def _get_problem_of(compilation: Compilation) -> ProblemSpec:
@@ -206,8 +228,11 @@ class ProblemPass(BasePass):
                 *(ProblemPass._get_hidden_events(reduced, time, reductions) if form == FormKind.ODE else ()),
             ),
             reductions=reductions.reductions,
+            neighbourhoods=reductions.neighbourhoods,
             jacobian=compilation.jacobian,
             unknowns=ProblemPass._get_unknowns_of(compilation, form),
+            objective=ProblemPass._get_objective_of(compilation),
+            objective_targets=ProblemPass._get_objective_targets_of(compilation),
             stream=ProblemPass._get_stream_of(compilation),
             breakpoints=ProblemPass._get_breakpoints_in(reduced, events, time),
             history=ProblemPass._get_history(blocks),
@@ -368,7 +393,7 @@ class ProblemPass(BasePass):
     @staticmethod
     def _reset_function(
         spec: KernelSpec,
-        event: CrossingLaw,
+        event: EventLaw,
         time: Expression,
         reductions: ReductionScheduleSpec,
         *,
@@ -540,7 +565,7 @@ class ProblemPass(BasePass):
     @staticmethod
     def _get_breakpoints_in(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        events: list[tuple[KernelSpec, CrossingLaw]],
+        events: list[tuple[KernelSpec, EventLaw]],
         time: Expression,
     ) -> _BreakpointsSpec:
         """Return the breakpoints of time-dependent inputs in every law and event guard.
@@ -673,7 +698,7 @@ class ProblemPass(BasePass):
     @staticmethod
     def _get_function_event(
         spec: KernelSpec,
-        event: CrossingLaw,
+        event: EventLaw,
         label: str,
         reductions: ReductionScheduleSpec,
         declarations: DeclarationsSpec,
@@ -714,7 +739,7 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _compile_events(
-        events: list[tuple[KernelSpec, CrossingLaw]],
+        events: list[tuple[KernelSpec, EventLaw]],
         time: Expression,
         reductions: ReductionScheduleSpec,
         declarations: DeclarationsSpec,
@@ -841,14 +866,12 @@ class ProblemPass(BasePass):
         return history
 
     @staticmethod
-    def _get_visual_of(node: NodeSpec) -> VisualSpec:
+    def _get_visual_of(node: _NodeSpec) -> VisualSpec:
         """Return the visual of an element or a group.
 
-        It is its own visual when it sets one, and its default otherwise.
+        It is the drawing its class gives, or that a group or a field works out from its member class and space.
         """
         element = node.as_element
-        if element.visual is not None:
-            return element.visual
         prepared = 'default_visual_' in vars(element)
         default: VisualSpec = (element if prepared else element.prepare(node.space)).default_visual_
         return default

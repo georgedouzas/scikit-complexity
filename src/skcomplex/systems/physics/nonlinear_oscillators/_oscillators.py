@@ -13,16 +13,18 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import Expression, cos, exp, oo, sin, sqrt, tan
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import CrossingInteraction, HamiltonianInteraction, RateInteraction
+from ....core.components.interactions import CrossingInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative, periodic_guard
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
+from ...physics.common.mechanics import HamiltonianInteraction
 from ..common.oscillators import StuartLandauElement
 
 SPRINGS = ('tangent', 'linear')
@@ -37,7 +39,7 @@ class KickInteraction(CrossingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the oscillator whose states the kicks set.
@@ -87,9 +89,6 @@ class HenonHeilesElement(Element):
         label:
             The label of the star.
 
-        visual:
-            How the star is drawn.
-
         x:
             The initial first coordinate.
 
@@ -108,17 +107,18 @@ class HenonHeilesElement(Element):
         0.35
     """
 
+    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None}),
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.1,
         px: Annotated[float, StateSpec()] = 0.35,
         py: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.px = px
@@ -137,9 +137,6 @@ class ImpulsiveOscillatorElement(Element):
         label:
             The label of the oscillator.
 
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
-
         x:
             The initial displacement.
 
@@ -155,7 +152,7 @@ class ImpulsiveOscillatorElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the oscillator when it sets none.
+            How the oscillator is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import ImpulsiveOscillatorElement
@@ -166,14 +163,13 @@ class ImpulsiveOscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
         H: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
         omega0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.H = H
@@ -193,9 +189,6 @@ class QuadrupoleElement(Element):
     Args:
         label:
             The label of the nucleus.
-
-        visual:
-            How the nucleus is drawn.
 
         q1:
             The initial first coordinate.
@@ -218,10 +211,11 @@ class QuadrupoleElement(Element):
         0.5
     """
 
+    visual = VisualSpec('bodies', {'positions': ('q1', 'q2'), 'trail': None})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('bodies', {'positions': ('q1', 'q2'), 'trail': None}),
         *,
         q1: Annotated[float, StateSpec()] = 0.0,
         q2: Annotated[float, StateSpec()] = 1.0,
@@ -229,7 +223,7 @@ class QuadrupoleElement(Element):
         p2: Annotated[float, StateSpec()] = 0.0,
         B: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.q1 = q1
         self.q2 = q2
         self.p1 = p1
@@ -250,9 +244,6 @@ class VanDerPolElement(Element):
         label:
             The label of the oscillator.
 
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
-
         x:
             The initial displacement.
 
@@ -270,7 +261,7 @@ class VanDerPolElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the oscillator when it sets none.
+            How the oscillator is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.core.components.systems import CompositeSystem
@@ -287,7 +278,6 @@ class VanDerPolElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=2)] = 2.0,
         x_d1: float = 0.0,
@@ -295,7 +285,7 @@ class VanDerPolElement(Element):
         A: Annotated[float, ParameterSpec()] = 0.0,
         omega: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.mu = mu
@@ -399,7 +389,7 @@ class DuffingSystem(DynamicalSystem):
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return {
             'x': lambda s: (
                 -s.target.delta * derivative(s.target.x, 1)
@@ -509,7 +499,7 @@ class HenonHeilesSystem(BaseSystem):
     dt = 0.05
     solver = Yoshida4Solver(dt=0.01)
     invariants: ClassVar[Mapping[str, float]] = {'star.energy': 1e-6}
-    observables = (ObservableSpec('energy', _get_henon_heiles_energy, element='star'),)
+    observables = (Observable('energy', _get_henon_heiles_energy, element='star'),)
 
     def __init__(
         self,
@@ -532,7 +522,7 @@ class HenonHeilesSystem(BaseSystem):
         return _get_henon_heiles_energy(s.target)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[HenonHeilesElement('star', x=self.x, y=self.y, px=self.px, py=self.py)],
@@ -606,7 +596,7 @@ class StuartLandauSystem(BaseSystem):
         self.beta = beta
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -807,7 +797,7 @@ class NuclearQuadrupoleSystem(BaseSystem):
     dt = 0.05
     solver = Yoshida4Solver(dt=0.01)
     invariants: ClassVar[Mapping[str, float]] = {'nucleus.energy': 1e-6}
-    observables = (ObservableSpec('energy', _get_quadrupole_energy, element='nucleus'),)
+    observables = (Observable('energy', _get_quadrupole_energy, element='nucleus'),)
 
     def __init__(
         self,

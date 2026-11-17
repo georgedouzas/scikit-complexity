@@ -18,7 +18,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction, RepressionInteraction, SpeciesElement
 
@@ -97,9 +97,6 @@ class GlycolysisElement(DeclaredElement):
     Args:
         label:
             The label of the cell extract.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         variables:
             The declared states and parameters that replace those of the source, by name, or `None` for none.
@@ -193,9 +190,6 @@ class PhosphorylationLoopElement(Element):
         label:
             The label of the loop.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         A:
             The initial amount of unphosphorylated A.
 
@@ -250,7 +244,6 @@ class PhosphorylationLoopElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         B: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -268,7 +261,7 @@ class PhosphorylationLoopElement(Element):
         B_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         C_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.B = B
         self.C = C
@@ -380,7 +373,7 @@ class GeneralizedMassActionInteraction(Interaction):
         """
         return self.stoichiometry
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for matrices that do not match the species and the fluxes.
 
         Args:
@@ -579,7 +572,7 @@ class PhosphorylationOscillatorSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of three proteins."""
+        """Return the components of three proteins."""
         loop = PhosphorylationLoopElement(
             'loop',
             A=self.A,
@@ -737,7 +730,7 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
         self.orders = orders
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a biochemical system of power-law rates."""
+        """Return the components of a biochemical system of power-law rates."""
         species = [SpeciesElement(f'X{index}', x=float(value)) for index, value in enumerate(self.x, start=1)]
         paths = [item.label for item in species]
         if self.form == 's-system':
@@ -839,7 +832,7 @@ class GoodwinOscillatorSystem(BaseSystem):
         self.k = k
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Goodwin oscillator."""
+        """Return the components of the Goodwin oscillator."""
         initial = [0.1 * index for index in range(1, self.variables + 1)] if self.x is None else list(self.x)
         if self.variables < MIN_GOODWIN_STAGES or len(initial) != self.variables:
             error_msg = (
@@ -917,7 +910,7 @@ class GlycolysisOscillationsSystem(BaseSystem):
         self.V4 = V4
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the glycolysis of a yeast extract in a flow reactor."""
+        """Return the components of the glycolysis of a yeast extract in a flow reactor."""
         variables = {
             'flow': DeclaredVariableSpec(self.flow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
             'V4': DeclaredVariableSpec(self.V4, ParameterSpec(domain=RealSet.closed_open(0, oo))),

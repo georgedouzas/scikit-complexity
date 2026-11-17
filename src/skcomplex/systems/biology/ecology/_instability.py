@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import bernoulli, clip, normal, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class UnstablePopulationsElement(Element):
@@ -33,9 +33,6 @@ class UnstablePopulationsElement(Element):
     Args:
         label:
             The label of the populations.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial resident population.
@@ -73,7 +70,6 @@ class UnstablePopulationsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.1,
         y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -85,7 +81,7 @@ class UnstablePopulationsElement(Element):
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.eta = eta
@@ -188,7 +184,7 @@ class IntrinsicInstabilitySystem(BaseSystem):
         return clip(where(bernoulli('mutation', s.p) > 0, s.y + s.nu * s.x, grown), low=0)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of Jensen's coupled populations."""
+        """Return the components of Jensen's coupled populations."""
         populations = UnstablePopulationsElement(
             'populations',
             x=self.x,

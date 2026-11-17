@@ -10,19 +10,20 @@ from scipy.special import iv
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
+from skcomplex.core.components.laws import PartnerSpec
 from skcomplex.core.components.laws.utils import exterior_derivative, neighbors
 from skcomplex.core.components.spaces import (
-    BallNeighborhood,
     CellComplexSpace,
     CofaceNeighborhood,
     DiscreteTime,
     LatticeSpace,
+    RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, StateSpec
 from skcomplex.systems.physics.common.fields import HolonomyScoreSpec, WilsonSamplingInteraction
 
 SIDE = 16
@@ -36,11 +37,10 @@ class SiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         s: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.s = s
 
 
@@ -50,12 +50,11 @@ class AngleLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
         beta: Annotated[float, ParameterSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.beta = beta
 
@@ -243,7 +242,7 @@ def test_run_cooling_reduces_accepted_moves() -> None:
         width=0.5,
         intensity=1 / 5.0,
         schedule='colored',
-        neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
+        neighborhood=RadiusNeighborhood(1, metric='manhattan'),
         cooling=_geometric,
     )
     candidates = GroupElement('candidates', element=CandidateElement, space=LatticeSpace((200,)), on='sites')
@@ -378,12 +377,11 @@ class IsospinLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         U: Annotated[object, StateSpec(group=ISOSPIN)] = tuple(ISOSPIN.identity),
         beta: Annotated[float, ParameterSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.U = U
         self.beta = beta
 
@@ -394,12 +392,11 @@ class ColorLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         U: Annotated[object, StateSpec(group=COLOR)] = tuple(COLOR.identity),
         beta: Annotated[float, ParameterSpec()] = 4.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.U = U
         self.beta = beta
 
@@ -517,3 +514,10 @@ def test_holonomy_score_needs_a_group_on_the_edges_of_a_cell_complex():
     system = CompositeSystem(elements=[sites], interactions=[_matrix_sampling(ISOSPIN)], time=DiscreteTime())
     with pytest.raises(ValidationError, match='edges of a CellComplexSpace'):
         simulate(system, until=1, random_state=0)
+
+
+def test_variant_refuses_a_spec_and_lists_what_it_takes():
+    """Test that a move refuses a spec, and lists its names and functions."""
+    interaction = SamplingInteraction('a', target='b', state='x', objective=lambda s: 0.0, move=PartnerSpec())
+    with pytest.raises(ValidationError, match=r'Unknown move .*a function'):
+        interaction.prepare()

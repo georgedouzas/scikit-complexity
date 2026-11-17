@@ -14,13 +14,15 @@ import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction, Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.networks import RegulatedNodeElement
 
 
@@ -32,9 +34,6 @@ class RegulatedLinkElement(Element):
     Args:
         label:
             The label of the link group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         active:
             1 when the link is active, and 0 otherwise.
@@ -52,12 +51,11 @@ class RegulatedLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
         sign: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([-1, 1]))] = 1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.active = active
         self.sign = sign
 
@@ -69,7 +67,7 @@ class GiantComponentInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         nodes:
             The path of the group on the nodes, whose activity the interaction sets.
@@ -117,7 +115,7 @@ class TriadicRegulationInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         nodes:
             The path of the group on the nodes, whose activity the regulators read.
@@ -219,7 +217,7 @@ class TriadicPercolationSystem(BaseSystem):
     references = ('Sun et al. 2023', 'Millán, Sun, Torres, and Bianconi 2023')
     until = 30
     dt = 1
-    observables = (ObservableSpec('giant', group='nodes', variable='active'),)
+    observables = (Observable('giant', group='nodes', variable='active'),)
 
     def __init__(
         self,

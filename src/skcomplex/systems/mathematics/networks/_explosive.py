@@ -13,14 +13,15 @@ import networkx as nx
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
+from ....core.specs import StateSpec, VisualSpec
 
-SIZE_VISUAL = VisualSpec('sites', {'states': ['size']})
+SIZE_VISUAL = VisualSpec('sites', {'states': ['cluster_size']})
 
 
 class ClusterNodeElement(Element):
@@ -33,27 +34,25 @@ class ClusterNodeElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        size:
+        cluster_size:
             The number of nodes of the connected component of the node.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import ClusterNodeElement
-        >>> ClusterNodeElement('nodes').size
+        >>> ClusterNodeElement('nodes').cluster_size
         1.0
     """
+
+    visual = SIZE_VISUAL
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = SIZE_VISUAL,
         *,
-        size: Annotated[float, StateSpec(domain=RealSet.closed_open(1, oo))] = 1.0,
+        cluster_size: Annotated[float, StateSpec(domain=RealSet.closed_open(1, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.size = size
+        super().__init__(label)
+        self.cluster_size = cluster_size
 
 
 class ExplosivePercolationSystem(BaseSystem):
@@ -67,7 +66,7 @@ class ExplosivePercolationSystem(BaseSystem):
     of the component of every node at the start of every step. With one candidate the edges are those of an Erdős-Rényi
     graph, whose giant component grows continuously from `t = 1/2` edges per node. With two candidates the rule
     suppresses large components until the giant component jumps in a narrow window near `t = 0.888`. The system has the
-    size of the component of every node `nodes.size`.
+    size of the component of every node `nodes.cluster_size`.
 
     Args:
         n_nodes:
@@ -91,7 +90,7 @@ class ExplosivePercolationSystem(BaseSystem):
     topics = ('network', 'percolation', 'explosive percolation', 'Achlioptas process', 'giant component')
     references = ("Achlioptas, D'Souza, and Spencer 2009", 'Artime et al. 2025')
     until = 1000
-    observables = (ObservableSpec('largest', group='nodes', variable='size', reduce='max'),)
+    observables = (Observable('largest', group='nodes', variable='cluster_size', reduce='max'),)
 
     def __init__(
         self,
@@ -110,7 +109,7 @@ class ExplosivePercolationSystem(BaseSystem):
 
         The score is the product of the sizes of the components the edge joins.
         """
-        return node.size * node.source.size
+        return node.cluster_size * node.source.cluster_size
 
     def _build_system(self) -> CompositeSystem:
         """Return explosive percolation.
@@ -120,7 +119,12 @@ class ExplosivePercolationSystem(BaseSystem):
         nodes = GroupElement('nodes', element=ClusterNodeElement, on='sites', variable=True, capacity=self.n_nodes)
         links = GroupElement('links', element=Element, on='edges', variable=True, capacity=2 * self.n_nodes)
         interactions = [
-            MapInteraction('size', target='nodes', state='size', function=lambda s: components(1, reduce='size')),
+            MapInteraction(
+                'size',
+                target='nodes',
+                state='cluster_size',
+                function=lambda s: components(1, reduce='size'),
+            ),
             TopologyInteraction('linking', action='add-edge', candidates=self.candidates, score=self._get_product),
         ]
         space = NetworkSpace(nx.empty_graph(self.n_nodes))

@@ -9,12 +9,13 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.laws import BoundaryLaw, ConstraintLaw, RateLaw
+from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
 from .._utils import components_of
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ..problems._steps import step_count
 from ._base import BaseSolver
@@ -58,7 +59,7 @@ class VelocityVerletSolver(Solver):
         ...         self.x = x
         ...         self.x_d1 = x_d1
         >>> from skcomplex.core.engine.solvers import VelocityVerletSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> system = CompositeSystem(elements=[BallElement('ball', x_d1=2.0)], space=ContinuousSpace(n_dim=1))
         >>> problem = simulate(system, until=0).problem
         >>> stepper = VelocityVerletSolver(dt=0.1, random_state=0).prepare(problem)
@@ -71,8 +72,8 @@ class VelocityVerletSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            laws={RateLaw, ConstraintLaw, BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

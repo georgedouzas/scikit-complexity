@@ -32,7 +32,7 @@ class MichaelisMentenInteraction(ReactionInteraction):
 
     Args:
         label:
-            The label of the reaction, unique among the parts of its system.
+            The label of the reaction, unique among the components of its system.
 
         target:
             The path of the element, group, or field whose states the species named by a state alone are.
@@ -96,7 +96,7 @@ class MichaelisMentenInteraction(ReactionInteraction):
         self.vmax = vmax
         self.km = km
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a substrate or rates the reaction cannot take.
 
         Args:

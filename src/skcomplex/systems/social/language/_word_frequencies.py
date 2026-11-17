@@ -10,10 +10,10 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import exp
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import log_sum_exp
 from ....core.components.spaces import StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -60,6 +60,8 @@ class WordElement(Element):
         1.0
     """
 
+    visual = VisualSpec('histograms', {'color_by': 'probability'})
+
     def __init__(
         self,
         label: str,
@@ -94,7 +96,7 @@ class LeastEffortInteraction(Interaction):
         'words'
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -107,7 +109,7 @@ class LeastEffortInteraction(Interaction):
         self.target = target
         self.words = words
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equations of the exponent and of the probabilities.
 
         Args:
@@ -121,8 +123,8 @@ class LeastEffortInteraction(Interaction):
         weight = -s.target.exponent * s.words.cost
         log_partition = log_sum_exp(weight, over=s.words)
         return [
-            EquationLaw(log_partition == 0, target=s.target.exponent),
-            EquationLaw(s.words.probability == exp(weight - log_partition), target=s.words.probability),
+            ConstraintLaw(log_partition == 0, target=s.target.exponent),
+            ConstraintLaw(s.words.probability == exp(weight - log_partition), target=s.words.probability),
         ]
 
 
@@ -162,10 +164,9 @@ class MandelbrotLeastEffortSystem(BaseSystem):
         self.n_words = n_words
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         costs = np.log(np.arange(1, self.n_words + 1) + 1.0)
-        visual = VisualSpec('histograms', {'color_by': 'probability'})
-        words = GroupElement('words', element=WordElement, size=self.n_words, values={'cost': costs}, visual=visual)
+        words = GroupElement('words', element=WordElement, size=self.n_words, values={'cost': costs})
         effort = LeastEffortInteraction('effort', target='language', words='words')
         return CompositeSystem(
             self.label,

@@ -46,9 +46,6 @@ class TissueElement(Element):
         label:
             The label of the tissue or the lattice field.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         oxygen:
             The initial oxygen.
 
@@ -76,7 +73,6 @@ class TissueElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         oxygen: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         vegf: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -85,7 +81,7 @@ class TissueElement(Element):
         D_vegf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         decay_vegf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.oxygen = oxygen
         self.vegf = vegf
         self.D_oxygen = D_oxygen
@@ -120,9 +116,6 @@ class SproutElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         chemotaxis:
             How strongly VEGF draws the tip.
 
@@ -142,13 +135,12 @@ class SproutElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         chemotaxis: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
         branching: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
         activation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.chemotaxis = chemotaxis
         self.branching = branching
         self.activation = activation
@@ -188,9 +180,6 @@ class TumourCellElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         hypoxic:
             Whether the cell is hypoxic, `1`, or not, `0`.
 
@@ -219,10 +208,11 @@ class TumourCellElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'hypoxic', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'hypoxic', 'color_range': (0.0, 1.0)}),
         *,
         hypoxic: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         consumption: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
@@ -232,7 +222,7 @@ class TumourCellElement(Element):
         secretion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         necrosis: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.hypoxic = hypoxic
         self.consumption = consumption
         self.proliferation = proliferation
@@ -265,9 +255,6 @@ class VesselElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         supply:
             The oxygen supplied per step.
 
@@ -281,11 +268,10 @@ class VesselElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         supply: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.supply = supply
 
     @classmethod
@@ -562,7 +548,7 @@ class TumourAngiogenesisSystem(BaseSystem):
         ]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour."""
+        """Return the components of a tumour."""
         rng = np.random.default_rng(self.random_state)
         center = (3 * self.width // 4, self.height // 2)
         tumour = [

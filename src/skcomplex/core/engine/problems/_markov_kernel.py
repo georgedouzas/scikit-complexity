@@ -8,9 +8,9 @@ from collections.abc import Callable
 import numpy as np
 import numpy.typing as npt
 
-from ...specs import RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
+from ._run_state_spec import RunStateSpec
 
 ROW_TOLERANCE = 1e-9
 

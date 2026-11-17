@@ -2,7 +2,7 @@
 
 This page solves a system of equations that has no time axis, such as a dose-response curve, and sweeps its
 parameters. A system under a [`StaticTime`](../core_components/spaces.md#statictime) has
-[`EquationLaw`](../core_components/laws.md#equationlaw)s that name their `target`, the state each equation solves for.
+[`ConstraintLaw`](../core_components/laws.md#equationlaw)s that name their `target`, the state each equation solves for.
 A run solves them once and gives one frame.
 
 ## Equations and sweeps
@@ -20,7 +20,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import exp
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.experiments import sweep
@@ -38,8 +38,8 @@ class DoseElement(Element):
         self.survival = survival
         self.dose = dose
 
-    def _get_laws(self, s: SimpleNamespace) -> list[EquationLaw]:
-        return [EquationLaw(s.survival == exp(-0.3 * s.dose - 0.03 * s.dose**2), target=s.survival)]
+    def _get_laws(self, s: SimpleNamespace) -> list[ConstraintLaw]:
+        return [ConstraintLaw(s.survival == exp(-0.3 * s.dose - 0.03 * s.dose**2), target=s.survival)]
 
 
 def dose_response(dose: float = 2.0) -> CompositeSystem:
@@ -58,7 +58,7 @@ equations are solved in one of two ways.
 - Otherwise `RootSolver` solves them with `scipy.optimize.root` and their exact Jacobian, from the initial state as the
   guess. It raises a `SolverError` that names the equations and the largest residual when the solve does not converge.
 
-Equations combine across the parts of a system.
+Equations combine across the components of a system.
 
 - A target on a group gives one unknown per member, and reductions such as `total` couple the members.
 - The equations of one target from every element and interaction add.
@@ -71,7 +71,7 @@ that is not a state. A law that does not run under static time gives the code `l
 
 This section reduces over a group without overflow. `log_sum_exp(expression, over=None)` reduces over the members of a
 group like `total`, as `log sum_j exp(a_j)`, without overflow for values of any size. A system-level observable cannot
-reach a group from another element. So a quantity built on it is an `EquationLaw` on a scalar element, read by an
+reach a group from another element. So a quantity built on it is an `ConstraintLaw` on a scalar element, read by an
 interaction that binds the group. The random energy system of Derrida, `RandomEnergySystem` of the catalog, computes
 its entropy this way, from the energies of all the configurations of its spins.
 
@@ -85,9 +85,9 @@ round(float(trajectory.get_values('ensemble.entropy')[0]), 4)
 
 With 12 spins at temperature 2.0, the entropy per spin is 0.6309.
 
-Quenched disorder, randomness drawn once and then held fixed, is drawn when the system builds its parts. So a disorder
-average sweeps its `random_state` as an axis of `sweep`. The `replicates` of `ensemble` share one draw of the disorder
-and vary only the dynamics.
+Quenched disorder, randomness drawn once and then held fixed, is drawn when the system builds its components. So a
+disorder average sweeps its `random_state` as an axis of `sweep`. The `replicates` of `ensemble` share one draw of the
+disorder and vary only the dynamics.
 
 ## Contact clusters
 

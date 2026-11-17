@@ -11,6 +11,7 @@ import scipy.integrate
 import scipy.optimize
 from sage.all__sagemath_symbolics import SR, I, atan2, cos, exp, pi, sin, sqrt, vector
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.laws import BaseLaw, RateLaw, UpdateLaw
@@ -28,7 +29,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 GAMMA = 0.5
@@ -41,12 +42,11 @@ class OscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec()] = 0.0,
         omega: Annotated[object, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.omega = omega
 
@@ -58,8 +58,8 @@ class OscillatorElement(Element):
 class CellElement(Element):
     """Cell with a level and no dynamics of its own."""
 
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, u: Annotated[object, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, u: Annotated[object, StateSpec()] = 0.0):
+        super().__init__(label)
         self.u = u
 
 
@@ -69,13 +69,12 @@ class MoverElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
         v0: Annotated[object, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.v0 = v0
@@ -88,8 +87,8 @@ class MoverElement(Element):
 class LinkElement(Element):
     """Link of a network with a weight."""
 
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, w: Annotated[object, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, w: Annotated[object, StateSpec()] = 1.0):
+        super().__init__(label)
         self.w = w
 
 
@@ -484,8 +483,8 @@ def test_coupling_map_form_aligns_a_vicsek_flock_at_low_noise():
         time=DiscreteTime(),
     )
     observables = [
-        ObservableSpec('mean_heading', _heading, group='flock'),
-        ObservableSpec('polarization', _polarization),
+        Observable('mean_heading', _heading, group='flock'),
+        Observable('polarization', _polarization),
     ]
     trajectory = simulate(system, until=150.0, dt=1.0, random_state=0, observables=observables)
     polarization = np.asarray(trajectory.get_values('polarization'), dtype=float)
@@ -690,12 +689,11 @@ class GliderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         u: Annotated[object, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.u = u
 

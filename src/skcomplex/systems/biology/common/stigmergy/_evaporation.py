@@ -74,7 +74,7 @@ class EvaporationInteraction(RateInteraction):
         super().__init__(label, target=target, state=state)
         self.evaporation = evaporation
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a name of the rate of evaporation that is no parameter.
 
         Args:

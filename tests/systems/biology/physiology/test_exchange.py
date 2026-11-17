@@ -28,7 +28,6 @@ class _PreviousCellElement(ExchangingCellElement):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         alpha: Annotated[float, ParameterSpec()] = 1.0,
@@ -37,7 +36,7 @@ class _PreviousCellElement(ExchangingCellElement):
         xi: Annotated[float, ParameterSpec()] = 0.0,
         degree: Annotated[float, ParameterSpec()] = 0.0,
     ):
-        super().__init__(label, visual=visual, x=x, alpha=alpha, beta=beta, g=g, xi=xi)
+        super().__init__(label, x=x, alpha=alpha, beta=beta, g=g, xi=xi)
         self.degree = degree
 
     def _get_laws(self, s):

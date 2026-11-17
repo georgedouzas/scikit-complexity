@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 from scipy import stats
 
+from skcomplex.core.components.laws import DrawSpec
 from skcomplex.core.engine.problems._draw_recorder import DrawRecorder
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import DrawSpec
 
 KICK = DrawSpec('normal', 'kick')
 

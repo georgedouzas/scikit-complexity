@@ -42,9 +42,6 @@ class BalanceSheetElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         external:
             The external assets.
 
@@ -64,19 +61,20 @@ class BalanceSheetElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'status'})
+
     law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'status'}),
         *,
         external: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         equity: Annotated[float, StateSpec()] = 0.0,
         payment: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         status: Annotated[float, StateSpec(domain=NN)] = SOLVENT,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.external = external
         self.equity = equity
         self.payment = payment

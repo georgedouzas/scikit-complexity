@@ -38,9 +38,6 @@ class SquirmerElement(Element):
         label:
             The label of the squirmer or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -53,15 +50,16 @@ class SquirmerElement(Element):
         [0.0, 0.0, 1.0]
     """
 
+    visual = POINTS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         p: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.p = p
 

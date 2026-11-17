@@ -16,7 +16,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
@@ -24,14 +24,13 @@ from ....core.types import Array
 DIRECTIONS = 6
 CHANNELS = tuple(f'n{direction}' for direction in range(DIRECTIONS))
 SITE = LatticeNeighborhood(((0, 0),))
-TRIANGULAR = BallNeighborhood(metric='hexagonal')
+TRIANGULAR = RadiusNeighborhood(1, metric='hexagonal')
 VELOCITIES = np.column_stack(
     [np.cos(np.arange(DIRECTIONS) * np.pi / 3), np.sin(np.arange(DIRECTIONS) * np.pi / 3)],
 )
 HEAD_ON = (0b001001, 0b010010, 0b100100)
 TRIPLES = (0b010101, 0b101010)
 TURN_PROBABILITY = 0.5
-DENSITY_VISUAL = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
 SQUARE_DIRECTIONS = 4
 SQUARE_CHANNELS = tuple(f'n{direction}' for direction in range(SQUARE_DIRECTIONS))
 SQUARE_STEPS = ((0, 1), (1, 0), (0, -1), (-1, 0))
@@ -52,9 +51,6 @@ class HPPSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         n0:
             The initial occupation of the channel along the columns, towards higher column indices.
 
@@ -72,7 +68,7 @@ class HPPSiteElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.fluids import HPPSiteElement
@@ -80,10 +76,11 @@ class HPPSiteElement(Element):
         0
     """
 
+    visual = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n0: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         n1: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
@@ -91,7 +88,7 @@ class HPPSiteElement(Element):
         n3: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         density: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n0 = n0
         self.n1 = n1
         self.n2 = n2
@@ -139,9 +136,6 @@ class FHPSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         n0:
             The initial occupation of the channel at 0 degrees.
 
@@ -169,10 +163,11 @@ class FHPSiteElement(Element):
         0
     """
 
+    visual = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n0: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         n1: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
@@ -182,7 +177,7 @@ class FHPSiteElement(Element):
         n5: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         density: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n0 = n0
         self.n1 = n1
         self.n2 = n2
@@ -270,7 +265,7 @@ class FHPLatticeGasSystem(BaseSystem):
         return tuple(columns[DIRECTIONS * direction + (direction + 3) % DIRECTIONS] for direction in range(DIRECTIONS))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         space = LatticeSpace(tuple(self.shape), geometry='triangular').prepare()
         positions = space.positions_
         centre = positions.mean(axis=0)
@@ -286,7 +281,6 @@ class FHPLatticeGasSystem(BaseSystem):
             element=FHPSiteElement,
             space=space,
             values={'density': occupied.sum(axis=1), **channels},
-            visual=DENSITY_VISUAL,
             on='sites',
         )
         return CompositeSystem(
@@ -411,7 +405,7 @@ class HPPLatticeGasSystem(BaseSystem):
         return tuple(columns[SQUARE_DIRECTIONS * direction + direction] for direction in range(SQUARE_DIRECTIONS))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         space = LatticeSpace(tuple(self.shape), boundary='periodic').prepare()
         rng = np.random.default_rng(self.random_state)
         if self.full:
@@ -429,7 +423,6 @@ class HPPLatticeGasSystem(BaseSystem):
             element=HPPSiteElement,
             space=space,
             values={'density': occupied.sum(axis=1), **channels},
-            visual=DENSITY_VISUAL,
             on='sites',
         )
         return CompositeSystem(

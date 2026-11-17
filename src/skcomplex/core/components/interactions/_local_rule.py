@@ -7,9 +7,9 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec
-from ...types import ElementKind
 from ..laws import BaseLaw, LocalRuleLaw
 from ..spaces import BaseNeighborhood, BaseSpace
 from ._interaction import Interaction
@@ -41,7 +41,7 @@ class LocalRuleInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'life'`.
+            The name of the interaction, unique among the components of its system, such as `'life'`.
 
         target:
             The path of the group on the cells of a lattice, the nodes of a network, or a Cayley graph.
@@ -53,7 +53,7 @@ class LocalRuleInteraction(Interaction):
             The table, the totalistic rule, or the function.
 
         neighborhood:
-            The ordered neighbourhood of every cell, such as `BallNeighborhood(metric='manhattan', center='first')`.
+            The ordered neighbourhood of every cell, such as `RadiusNeighborhood(1, metric='manhattan', center=True)`.
 
         reads:
             The names of the states whose neighbourhoods a function reads, or `None` for the states it sets.
@@ -70,10 +70,10 @@ class LocalRuleInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.core.components.interactions import LocalRuleInteraction
-        >>> from skcomplex.core.components.spaces import BallNeighborhood
-        >>> from skcomplex.core.specs import TotalisticSpec
+        >>> from skcomplex.core.components.spaces import RadiusNeighborhood
+        >>> from skcomplex.core.components.laws import TotalisticSpec
         >>> parity = TotalisticSpec({1: 1, 3: 1})
-        >>> around = BallNeighborhood(metric='manhattan', n_dim=1, center='first')
+        >>> around = RadiusNeighborhood(1, metric='manhattan', center=True)
         >>> rule = LocalRuleInteraction('parity', target='cells', state='cell', rule=parity, neighborhood=around)
         >>> rule.schedule
         'synchronous'
@@ -113,7 +113,7 @@ class LocalRuleInteraction(Interaction):
         """Return the names of the states the rule sets."""
         return (self.state,) if isinstance(self.state, str) else tuple(self.state)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for states that are not names, or a bad neighbourhood.
 
         Args:

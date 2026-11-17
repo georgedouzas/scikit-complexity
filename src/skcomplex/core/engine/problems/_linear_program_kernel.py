@@ -10,11 +10,11 @@ import numpy as np
 from scipy import sparse
 
 from ...errors import InfeasibleError, SolverError
-from ...specs import RunStateSpec
 from ...types import Array, Indices
-from ..types import LinearProgramBound
+from ..enums import LinearProgramBound
 from ._base import BaseKernel
 from ._linear_program_spec import LinearProgramDualSpec, LinearProgramSpec
+from ._run_state_spec import RunStateSpec
 
 INFINITY = highspy.kHighsInf
 OBJECTIVE_TOLERANCE = 5e-10
@@ -71,7 +71,7 @@ class LinearProgramKernel(BaseKernel):
         >>> from scipy import sparse
         >>> from skcomplex.core.engine.problems._linear_program_kernel import LinearProgramKernel
         >>> from skcomplex.core.engine.problems._linear_program_spec import LinearProgramSpec
-        >>> from skcomplex.core.specs import RunStateSpec
+        >>> from skcomplex.core.engine.problems import RunStateSpec
         >>> program = LinearProgramSpec(
         ...     path='flows',
         ...     names=('flows.v',),

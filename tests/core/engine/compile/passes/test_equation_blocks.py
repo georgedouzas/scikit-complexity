@@ -10,14 +10,14 @@ from scipy.optimize import brentq
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import ConnectionInteraction, CrossingInteraction
-from skcomplex.core.components.laws import EquationLaw, NoiseLaw, RateLaw, RuleLaw
+from skcomplex.core.components.laws import ConstraintLaw, NoiseLaw, RateLaw, RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import AlgebraicStateError, SolverError, ValidationError
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
-from skcomplex.core.types import FormKind
 from skcomplex.systems.engineering.common.electrical import (
     ELECTRICAL,
     CapacitorElement,
@@ -55,7 +55,7 @@ class MissingStateElement(Element):
 
     def _get_laws(self, s):
         """Return the potential of the port."""
-        return [EquationLaw(s.p_v, 0)]
+        return [ConstraintLaw(s.p_v, 0)]
 
 
 class WatcherElement(Element):
@@ -75,7 +75,7 @@ class WatcherElement(Element):
 
     def _get_laws(self, s):
         """Return the equation of the algebraic value and the rate of the state that reads it."""
-        equation = EquationLaw(s.y + exp(s.y), 1 + s.t) if self.nonlinear else EquationLaw(s.y, 2 + s.t)
+        equation = ConstraintLaw(s.y + exp(s.y), 1 + s.t) if self.nonlinear else ConstraintLaw(s.y, 2 + s.t)
         return [equation, RateLaw(s.x, s.y)]
 
 
@@ -94,7 +94,7 @@ class VectorWatcherElement(Element):
 
     def _get_laws(self, s):
         """Return the equation of the algebraic value and the noise it scales."""
-        return [EquationLaw(s.y, 0.0), NoiseLaw(s.x, s.y)]
+        return [ConstraintLaw(s.y, 0.0), NoiseLaw(s.x, s.y)]
 
 
 class OpenChannelElement(Element):
@@ -117,7 +117,7 @@ class OpenChannelElement(Element):
 
     def _get_laws(self, s):
         """Return the current through the conductance of the channel from a potential of one."""
-        return [EquationLaw(s.a_i, s.g * (s.a_v - 1.0))]
+        return [ConstraintLaw(s.a_i, s.g * (s.a_v - 1.0))]
 
 
 def _connected(*nodes):
@@ -285,7 +285,7 @@ def test_structurally_regular_singular_block_raises_an_error():
 
         def _get_laws(self, s):
             """Return two dependent equations."""
-            return [EquationLaw(s.x + s.y, 1.0), EquationLaw(2 * s.x + 2 * s.y, 3.0)]
+            return [ConstraintLaw(s.x + s.y, 1.0), ConstraintLaw(2 * s.x + 2 * s.y, 3.0)]
 
     with pytest.raises(ValidationError, match='the system is singular'):
         PassCompiler().prepare(CompositeSystem(elements=[TwinElement('twin')])).run()
@@ -303,7 +303,7 @@ def test_nonlinear_block_without_a_solution_raises_an_error():
 
         def _get_laws(self, s):
             """Return an equation with no real solution."""
-            return [EquationLaw(s.y**2, -1.0)]
+            return [ConstraintLaw(s.y**2, -1.0)]
 
     with pytest.raises(SolverError, match='have no solution near the last values'):
         _run(CompositeSystem(elements=[HopelessElement('hopeless')]))

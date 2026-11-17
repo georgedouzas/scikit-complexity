@@ -21,7 +21,7 @@ from ....core.components.laws.utils import gradient, inverse_helmholtz, laplacia
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ETDRK4Solver, SSPRKSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 from ..common.fields import AdvectionInteraction, DiffusivityInteraction
 
@@ -39,9 +39,6 @@ class BoussinesqElement(Element):
     Args:
         label:
             The label of the site or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         omega:
             The initial vorticity.
@@ -64,14 +61,13 @@ class BoussinesqElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         omega: Annotated[float, StateSpec()] = 0.0,
         theta: Annotated[float, StateSpec()] = 0.0,
         Ra: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
         Pr: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.omega = omega
         self.theta = theta
         self.Ra = Ra
@@ -87,9 +83,6 @@ class BurgersElement(Element):
         label:
             The label of the site.
 
-        visual:
-            How the site is drawn, or `None` for none.
-
         u:
             The initial value.
 
@@ -102,11 +95,10 @@ class BurgersElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
 
 
@@ -121,9 +113,6 @@ class KuramotoSivashinskyElement(Element):
         label:
             The label of the site.
 
-        visual:
-            How the site is drawn, or `None` for none.
-
         u:
             The initial height of the front.
 
@@ -136,11 +125,10 @@ class KuramotoSivashinskyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
 
 
@@ -155,9 +143,6 @@ class ShallowWaterElement(Element):
     Args:
         label:
             The label of the site.
-
-        visual:
-            How the site is drawn, or `None` for none.
 
         h:
             The initial depth.
@@ -177,13 +162,12 @@ class ShallowWaterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         h: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
         q: Annotated[float, StateSpec()] = 0.0,
         g: Annotated[float, ParameterSpec()] = 9.81,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.h = h
         self.q = q
         self.g = g
@@ -201,9 +185,6 @@ class VorticityElement(Element):
     Args:
         label:
             The label of the site or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         omega:
             The initial vorticity.
@@ -223,13 +204,12 @@ class VorticityElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         omega: Annotated[float, StateSpec()] = 0.0,
         nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
         f: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.omega = omega
         self.nu = nu
         self.f = f
@@ -297,7 +277,6 @@ class KuramotoSivashinskySystem(BaseSystem):
             target='line',
             state='u',
             flux=lambda s: s.target.u**2 / 2,
-            riemann=None,
         )
         linear = RateInteraction(
             'linear',
@@ -339,7 +318,6 @@ def _get_flow_interactions(buoyant: bool) -> list[Interaction]:
         target='flow',
         state='omega',
         drift=lambda s: _velocity(s.target.omega),
-        riemann=None,
     )
     if not buoyant:
         viscosity = DiffusivityInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.nu)
@@ -360,7 +338,6 @@ def _get_flow_interactions(buoyant: bool) -> list[Interaction]:
             state='theta',
             drift=lambda s: _velocity(s.target.omega),
             source=lambda s: _velocity(s.target.omega)[1],
-            riemann=None,
         ),
         DiffusivityInteraction('conduction', target='flow', state='theta', coefficient=1.0),
     ]
@@ -519,7 +496,7 @@ class DecayingTurbulenceSystem(BaseSystem):
         return values / np.abs(values).max()
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = tuple(self.shape)
         vorticity = 5 * self._smooth_noise(shape, self.modes, self.random_state)
         return incompressible_flow(shape, nu=self.nu, vorticity=vorticity, label=self.label)
@@ -648,7 +625,7 @@ class BurgersSystem(BaseSystem):
         self.amplitude = amplitude
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         spacing = 2 * math.pi / self.n
         centers = (np.arange(self.n) + 0.5) * spacing
         values = {'u': self.mean + self.amplitude * np.sin(centers)}

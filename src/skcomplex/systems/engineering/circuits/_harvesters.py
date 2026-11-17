@@ -9,10 +9,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.mechanics import SpringDamperInteraction
 
 
@@ -28,7 +29,6 @@ class PiezoHarvesterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y1: Annotated[object, StateSpec(order=2)] = 0.0,
         y1_d1: float = 0.0,
@@ -45,7 +45,7 @@ class PiezoHarvesterElement(Element):
         d: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 4e-10,
         C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1e-08,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y1 = y1
         self.y1_d1 = y1_d1
         self.y2 = y2
@@ -130,7 +130,7 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
     references = ('Trzaska 2023',)
     until = 10.0
     dt = 0.01
-    observables = (ObservableSpec('voltage', _get_piezo_voltage),)
+    observables = (Observable('voltage', _get_piezo_voltage),)
 
     def __init__(
         self,
@@ -160,7 +160,7 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
         self.C = C
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         harvester = PiezoHarvesterElement(
             'harvester',
             m1=self.m1,

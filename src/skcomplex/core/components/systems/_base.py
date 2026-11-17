@@ -10,14 +10,13 @@ from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import ClassVar, TypedDict
 
-import numpy as np
 import numpy.typing as npt
-from sklearn.base import BaseEstimator
 
 from ...base import BaseConfig
 from ...errors import ValidationError
-from ...specs import ObservableSpec, Tags
-from ..base import BasePart
+from .._observable_spec import Observable
+from .._tags import Tags
+from ..base import BaseComponent
 from ..spaces import BaseSpace
 
 
@@ -36,7 +35,7 @@ class RunSettings(TypedDict):
     until: float | None
     dt: float | None
     solver: BaseConfig | None
-    observables: Sequence[ObservableSpec]
+    observables: Sequence[Observable]
     initial_state: Mapping[str, object] | None
     invariants: Mapping[str, float] | None
     schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None
@@ -44,16 +43,16 @@ class RunSettings(TypedDict):
     backend: BaseConfig | None
 
 
-class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
-    """An abstract system that builds its parts from the parameters of its model.
+class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespace]):
+    """An abstract system that builds its components from the parameters of its model.
 
     A subclass takes the parameters of its model as arguments of its `__init__`, such as the rates of an epidemic, and
     stores each under the same name, as a scikit-learn estimator does, so `get_params`, `set_params`, and `clone` work.
-    It builds its parts in the hook `_build_system`, which returns the `CompositeSystem` of its elements, interactions,
-    nested systems, space, and time. `prepare` builds the parts again when a parameter has changed since the last build,
-    and prepares them as `system_`. The tags of a system come from its parts and are never declared. The type parameter
-    `CompositeT` names the class of the composite, so `BaseSystem[CompositeSystem]` types `system_` as
-    `CompositeSystem`.
+    It builds its components in the hook `_build_system`, which returns the `CompositeSystem` of its elements,
+    interactions, nested systems, space, and time. `prepare` builds the components again when a parameter has changed
+    since the last build, and prepares them as `system_`. The tags of a system come from its components and are never
+    declared. The type parameter `CompositeT` names the class of the composite, so `BaseSystem[CompositeSystem]` types
+    `system_` as `CompositeSystem`.
 
     A subclass may give tuned run settings as class variables, which `simulate` reads for the arguments a call leaves
     out:
@@ -64,15 +63,15 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
     - `initial_state` and `schedule`: the initial values by dotted state name, and the functions of time that drive
       parameters.
 
-    Unlike `CompositeSystem`, which takes its parts as data, it writes them in terms of named model parameters. Choose
-    it when a model has parameters that users set, sweep, or calibrate, as every system of the catalog does.
+    Unlike `CompositeSystem`, which takes its components as data, it writes them in terms of named model parameters.
+    Choose it when a model has parameters that users set, sweep, or calibrate, as every system of the catalog does.
 
     It appears in many fields. The SIR model of an epidemic, the Lotka-Volterra model of predators and prey, the Ising
     model of a magnet, and the Kuramoto model of oscillators are system classes.
 
     Attributes:
         system_:
-            The composite of the parts built from the model parameters at the last `prepare`.
+            The composite of the components built from the model parameters at the last `prepare`.
 
         laws_:
             The laws the system contributes for the namespace of its last run.
@@ -105,7 +104,7 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
     until: ClassVar[float | None] = None
     dt: ClassVar[float | None] = None
     solver: ClassVar[BaseConfig | None] = None
-    observables: Sequence[ObservableSpec] = ()
+    observables: Sequence[Observable] = ()
     initial_state: ClassVar[Mapping[str, object] | None] = None
     invariants: ClassVar[Mapping[str, float] | None] = None
     schedule: ClassVar[Mapping[str, Callable[[float], float | npt.ArrayLike]] | None] = None
@@ -113,7 +112,7 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
     backend: ClassVar[BaseConfig | None] = None
 
     system_: CompositeT
-    laws_: Sequence[BasePart]
+    laws_: Sequence[BaseComponent]
 
     def __init__(self, label: str = 'system') -> None:
         """Store the label of the system.
@@ -126,58 +125,21 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
 
     @abstractmethod
     def _build_system(self) -> CompositeT:
-        """Return the composite of the parts of the system.
+        """Return the composite of the components of the system.
 
-        The parts are built from its model parameters.
+        The components are built from its model parameters.
         """
-
-    def _is_equal(self, old: object, new: object) -> bool:
-        """Return whether two values of a model parameter are equal by value.
-
-        Estimators are equal when they have the same class and equal parameters, sequences and mappings when their
-        items are equal, and arrays when they have the same shape and entries. A value that cannot be compared is
-        taken as changed.
-
-        Args:
-            old:
-                The value the parts were last built from.
-
-            new:
-                The current value.
-
-        Returns:
-            equal:
-                Whether the values are equal.
-        """
-        if old is new:
-            return True
-        if type(old) is not type(new):
-            return False
-        if isinstance(old, BaseEstimator) and isinstance(new, BaseEstimator):
-            old, new = old.get_params(deep=False), new.get_params(deep=False)
-        if isinstance(old, Mapping) and isinstance(new, Mapping):
-            equal = old.keys() == new.keys() and all(self._is_equal(old[key], new[key]) for key in old)
-        elif isinstance(old, list | tuple) and isinstance(new, list | tuple):
-            equal = len(old) == len(new) and all(self._is_equal(*pair) for pair in zip(old, new, strict=True))
-        elif isinstance(old, np.ndarray) and isinstance(new, np.ndarray):
-            equal = old.shape == new.shape and bool(np.array_equal(old, new))
-        else:
-            try:
-                equal = bool(old == new)
-            except (TypeError, ValueError):
-                equal = False
-        return equal
 
     def _get_pass_parameters(self) -> CompositeT:
-        """Return the parts of the system built from its current model parameters.
+        """Return the components of the system built from its current model parameters.
 
-        The parts are built again only when a model parameter differs by value from those of the last build, so a
-        system that fits or generates data when it builds its parts does so once per set of parameters, however often
-        `get_tags` and `prepare` read them.
+        The components are built again only when a model parameter differs by value from those of the last build, so a
+        system that fits or generates data when it builds its components does so once per set of parameters, however
+        often `get_tags` and `prepare` read them.
 
         Returns:
             system:
-                The composite of the parts.
+                The composite of the components.
 
         Raises:
             ValidationError:
@@ -189,15 +151,17 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
             return built[1]
         system = self._build_system()
         if not isinstance(system, BaseSystem) or system._build_system() is not system:
-            error_msg = f'{type(self).__name__} builds its parts as a CompositeSystem, not as {type(system).__name__}.'
+            error_msg = (
+                f'{type(self).__name__} builds its components as a CompositeSystem, not as {type(system).__name__}.'
+            )
             raise ValidationError(error_msg)
         self._built_from = (params, system)
         return system
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Pass the model parameters down to the parts, and prepare them as `system_`.
+        """Pass the model parameters down to the components, and prepare them as `system_`.
 
-        Preparing the composite of the parts checks every part.
+        Preparing the composite of the components checks every component.
 
         Args:
             context:
@@ -215,8 +179,8 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
         """
         self.laws_ = self._get_laws_of(inputs)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the laws of the prepared parts for a namespace of symbols.
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
+        """Return the laws of the prepared components for a namespace of symbols.
 
         Args:
             namespace:
@@ -224,12 +188,12 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
 
         Returns:
             laws:
-                The laws of the parts.
+                The laws of the components.
         """
         return self.system_._get_laws(namespace)
 
     def _get_tags(self) -> Tags:
-        """Return the tags derived from the parts built from the current model parameters."""
+        """Return the tags derived from the components built from the current parameters."""
         return self._get_pass_parameters()._get_tags()
 
     def get_run_settings(self) -> RunSettings:
@@ -237,7 +201,7 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
 
         `simulate` uses them for every argument a call leaves out. The settings are the class attributes `until`, `dt`,
         `solver`, `observables`, `initial_state`, `invariants`, `schedule`, `compiler`, and `backend`. A system whose
-        settings depend on its model parameters or on its built parts overrides this method.
+        settings depend on its model parameters or on its built components overrides this method.
 
         Returns:
             settings:

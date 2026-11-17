@@ -11,10 +11,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import log_sum_exp, total
 from ....core.components.spaces import StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -72,6 +72,8 @@ class EnergyLevelElement(Element):
         -1.5
     """
 
+    visual = VisualSpec('histograms', {'color_by': 'energy'})
+
     def __init__(self, label: str, energy: Annotated[float, StateSpec()] = 0.0) -> None:
         super().__init__(label)
         self.energy = energy
@@ -108,7 +110,7 @@ class BoltzmannSumInteraction(Interaction):
         0.5
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -125,7 +127,7 @@ class BoltzmannSumInteraction(Interaction):
         self.temperature = temperature
         self.n_spins = n_spins
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the log partition function, mean energy, and entropy per spin equations.
 
         Args:
@@ -141,9 +143,9 @@ class BoltzmannSumInteraction(Interaction):
         energy = total(s.levels.energy * exp(weight - log_partition), over=s.levels)
         entropy = (s.target.log_partition + s.target.energy / s.temperature) / s.n_spins
         return [
-            EquationLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
-            EquationLaw(s.target.energy == energy, target=s.target.energy),
-            EquationLaw(s.target.entropy == entropy, target=s.target.entropy),
+            ConstraintLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
+            ConstraintLaw(s.target.energy == energy, target=s.target.energy),
+            ConstraintLaw(s.target.entropy == entropy, target=s.target.entropy),
         ]
 
 
@@ -203,13 +205,11 @@ class RandomEnergySystem(BaseSystem):
         """
         size = 2**self.n_spins
         energies = np.random.default_rng(self.random_state).normal(0.0, np.sqrt(self.n_spins / 2), size)
-        visual = VisualSpec('histograms', {'color_by': 'energy'})
         levels = GroupElement(
             'levels',
             element=EnergyLevelElement,
             size=size,
             values={'energy': energies},
-            visual=visual,
         )
         sums = BoltzmannSumInteraction(
             'sums',

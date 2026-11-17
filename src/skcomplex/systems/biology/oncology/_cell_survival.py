@@ -10,9 +10,9 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import ConstraintLaw
 from ....core.components.spaces import StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec
@@ -65,7 +65,7 @@ class LinearQuadraticSurvivalElement(Element):
         30.0
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -92,7 +92,7 @@ class LinearQuadraticSurvivalElement(Element):
         self.repair_rate = repair_rate
         self.delivery_time = delivery_time
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equations of the Lea-Catcheside factor, the survival, and the dose.
 
         The dose is the biologically effective dose.
@@ -108,12 +108,12 @@ class LinearQuadraticSurvivalElement(Element):
         repaired = s.repair_rate * s.delivery_time
         protraction = 2 * (repaired - 1 + exp(-repaired)) / (s.fractions * repaired**2)
         return [
-            EquationLaw(s.protraction == protraction, target=s.protraction),
-            EquationLaw(
+            ConstraintLaw(s.protraction == protraction, target=s.protraction),
+            ConstraintLaw(
                 s.survival == exp(-s.alpha * s.dose - s.beta * protraction * s.dose**2),
                 target=s.survival,
             ),
-            EquationLaw(
+            ConstraintLaw(
                 s.effective_dose == s.dose * (1 + protraction * s.dose * s.beta / s.alpha),
                 target=s.effective_dose,
             ),
@@ -185,7 +185,7 @@ class LQCellSurvivalSystem(BaseSystem):
         self.delivery_time = delivery_time
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the linear-quadratic survival of cells after a total dose."""
+        """Return the components of the linear-quadratic survival of cells after a total dose."""
         cells = LinearQuadraticSurvivalElement(
             'cells',
             alpha=self.alpha,

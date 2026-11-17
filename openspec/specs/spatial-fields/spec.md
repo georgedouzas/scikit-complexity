@@ -12,7 +12,7 @@ The modelling layer SHALL define fields with one value per site of a lattice or 
 written for one site.
 
 #### Scenario: Uniform decay
-- **WHEN** a field on a 50 × 50 lattice decays with `Rate(u, -k * u)` from a uniform value
+- **WHEN** a field on a 50 × 50 lattice decays with `RateLaw(u, -k * u)` from a uniform value
 - **THEN** every site follows the exponential decay of the single-site equation
 
 ### Requirement: Differential operators lower to stencils

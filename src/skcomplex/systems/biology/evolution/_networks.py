@@ -18,16 +18,14 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
-from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, RuleLaw, TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import both, minimum, mod, neighbors, total, uniform, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
-
-HIDDEN = VisualSpec('sites', {'states': []})
 
 
 class ChemicalElement(Element):
@@ -43,9 +41,6 @@ class ChemicalElement(Element):
     Args:
         label:
             The label of the species or of the group of species.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The relative population.
@@ -74,6 +69,7 @@ class ChemicalElement(Element):
         10.0
     """
 
+    visual = VisualSpec('sites', {'states': ['x']})
     draws = True
 
     law_classes = (UpdateLaw,)
@@ -81,7 +77,6 @@ class ChemicalElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         tie: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
@@ -91,7 +86,7 @@ class ChemicalElement(Element):
         period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
         k: int = 1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.tie = tie
         self.fresh = fresh
@@ -147,9 +142,6 @@ class TaxonElement(Element):
         label:
             The label of the species or of the group of species.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         h:
             The field, the sum of the couplings of its dependencies.
 
@@ -162,17 +154,30 @@ class TaxonElement(Element):
         1.0
     """
 
+    visual = VisualSpec('sites', {'states': ['age']})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         h: Annotated[float, StateSpec()] = 1.0,
         age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.h = h
         self.age = age
+
+
+class CouplingEdgeElement(WeightedEdgeElement):
+    """Coupling of one species to another, hidden from the drawing."""
+
+    visual = VisualSpec('sites', {'states': []})
+
+
+class CatalyticLinkElement(Element):
+    """Catalytic link from one species to another, hidden from the drawing."""
+
+    visual = VisualSpec('sites', {'states': []})
 
 
 class CompetingSpeciesView(AgentView):
@@ -197,9 +202,6 @@ class CompetingSpeciesElement(Element):
         label:
             The label of the species or of the group of species.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The relative population.
 
@@ -215,12 +217,11 @@ class CompetingSpeciesElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         links: Annotated[object, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.links = links
 
@@ -438,7 +439,7 @@ class SoleManrubiaSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the ecosystem of Solé and Manrubia."""
+        """Return the components of the ecosystem of Solé and Manrubia."""
         rng = np.random.default_rng(self.seed)
         graph = nx.DiGraph()
         graph.add_nodes_from(range(self.n))
@@ -458,17 +459,15 @@ class SoleManrubiaSystem(BaseSystem):
             variable=True,
             capacity=2 * self.n,
             values={'h': fields},
-            visual=VisualSpec('sites', {'states': ['age']}),
         )
         edge_group = GroupElement(
             'couplings',
-            element=WeightedEdgeElement,
+            element=CouplingEdgeElement,
             space=space,
             on='edges',
             variable=True,
             capacity=4 * edges,
             values={'w': couplings, 'fresh': 0.0},
-            visual=HIDDEN,
         )
         return CompositeSystem(
             self.label,
@@ -550,7 +549,7 @@ class JainKrishnaSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system of Jain and Krishna."""
+        """Return the components of the system of Jain and Krishna."""
         rng = np.random.default_rng(self.seed)
         graph = nx.gnp_random_graph(self.n, self.p, seed=int(rng.integers(2**31)), directed=True)
         space = NetworkSpace(graph)
@@ -570,16 +569,14 @@ class JainKrishnaSystem(BaseSystem):
                 'period': float(self.period),
                 'k': max(1, round(self.p * self.n)),
             },
-            visual=VisualSpec('sites', {'states': ['x']}),
         )
         links = GroupElement(
             'links',
-            element=Element,
+            element=CatalyticLinkElement,
             space=space,
             on='edges',
             variable=True,
             capacity=self.n * self.n,
-            visual=HIDDEN,
         )
         return CompositeSystem(self.label, elements=[species, links], time=DiscreteTime())
 
@@ -639,7 +636,7 @@ class CompetitiveJainKrishnaSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Jain-Krishna model with signed interactions."""
+        """Return the components of the Jain-Krishna model with signed interactions."""
         rng = np.random.default_rng(self.seed)
         matrix = rng.uniform(-1, 1, (self.n, self.n)) * (rng.random((self.n, self.n)) < self.p)
         np.fill_diagonal(matrix, -rng.random(self.n))

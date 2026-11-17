@@ -11,9 +11,10 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ...enums import ElementKind
 from ...errors import ValidationError
-from ...specs import RoleSpec, Tags
-from ...types import ElementKind
+from ...specs import RoleSpec
+from .._tags import Tags
 from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import uniform, where
 from ..spaces import BaseSpace
@@ -44,7 +45,7 @@ class JumpInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'births'`.
+            The name of the interaction, unique among the components of its system, such as `'births'`.
 
         target:
             The path of the element or group whose states the event changes.
@@ -75,8 +76,8 @@ class JumpInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.specs import StateSpec
         >>> class AmountElement(Element):
-        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
         ...         self.x = x
         >>> from skcomplex.core.components.interactions import JumpInteraction
         >>> from skcomplex.core.components.systems import CompositeSystem
@@ -147,7 +148,7 @@ class JumpInteraction(Interaction):
             error_msg = f'The reset of the jump {self.label!r} maps states to {self.reset!r}. Give functions.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an event without one clock, changes, or a reset's wait.
 
         Args:

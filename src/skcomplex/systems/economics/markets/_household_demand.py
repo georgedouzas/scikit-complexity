@@ -14,12 +14,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 
 DEMANDS = ('cobb-douglas', 'elasticity')
@@ -38,9 +39,6 @@ class BudgetHouseholdElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         demand:
             The demand for the good.
@@ -88,7 +86,6 @@ class BudgetHouseholdElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         expenditure: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -101,7 +98,7 @@ class BudgetHouseholdElement(Element):
         initial_price: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         kind: str = 'cobb-douglas',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.demand = demand
         self.expenditure = expenditure
         self.utility = utility
@@ -230,9 +227,9 @@ class HouseholdDemandSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016',)
     until = 10
     observables = (
-        ObservableSpec('total_demand', group='households', variable='demand', reduce='sum'),
-        ObservableSpec('total_expenditure', group='households', variable='expenditure', reduce='sum'),
-        ObservableSpec('mean_utility', group='households', variable='utility', reduce='mean'),
+        Observable('total_demand', group='households', variable='demand', reduce='sum'),
+        Observable('total_expenditure', group='households', variable='expenditure', reduce='sum'),
+        Observable('mean_utility', group='households', variable='utility', reduce='mean'),
     )
 
     def __init__(
@@ -276,7 +273,7 @@ class HouseholdDemandSystem(BaseSystem):
         return np.asarray(means, dtype=float)[quintiles] + deviation * rng.normal(size=len(budgets))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         budgets = self._get_budgets(self.n_households, self.minimum, rng)
         alphas = np.clip(self._draw_by_quintile(budgets, self.shares, self.share_deviation, rng), 0.0, 1.0)

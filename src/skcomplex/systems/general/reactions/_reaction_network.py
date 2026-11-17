@@ -26,8 +26,8 @@ class ReactionNetworkSystem(BaseSystem[CompositeSystem]):
     subclass takes the parameters of its model under its own names and gives its species, reactions, and mode from the
     hooks `_get_species`, `_get_reactions`, and `_get_mode`, or its reactions as interactions from `_get_interactions`.
 
-    Unlike `CompositeSystem`, which takes any parts, it builds `NonnegativeElement` and `ReactionInteraction` parts from
-    a table of reactions. Choose it when a model is a list of reactions with rate constants.
+    Unlike `CompositeSystem`, which takes any components, it builds `NonnegativeElement` and `ReactionInteraction`
+    components from a table of reactions. Choose it when a model is a list of reactions with rate constants.
 
     It appears in many fields. Epidemics of susceptible, infected, and recovered people, enzyme kinetics of Michaelis
     and Menten, and predator and prey cycles of Lotka and Volterra are reaction networks.

@@ -11,8 +11,9 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.laws.utils import series
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -106,8 +107,8 @@ class PopulationPollutionSystem(DynamicalSystem):
     until = 50.0
     dt = 0.25
     observables = (
-        ObservableSpec('food_per_capita', _get_food_per_capita, element='region'),
-        ObservableSpec('quality_of_life', _get_quality_of_life, element='region'),
+        Observable('food_per_capita', _get_food_per_capita, element='region'),
+        Observable('quality_of_life', _get_quality_of_life, element='region'),
     )
 
     def __init__(

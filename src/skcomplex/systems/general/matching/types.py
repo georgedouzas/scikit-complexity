@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.specs import PartnerSpec
+from ....core.components.laws import PartnerSpec
 from ._batch_matching_spec import BatchMatchingSpec
 from ._continuous_matching_spec import ContinuousMatchingSpec
 from ._iterative_matching_spec import IterativeMatchingSpec

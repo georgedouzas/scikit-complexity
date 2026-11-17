@@ -14,11 +14,11 @@ import matplotlib.pyplot as plt
 from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.core.components.laws import LinearRuleSpec
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import LinearRuleSpec
 from skcomplex.systems.computer_science.automata import BinaryCellElement, LamplighterAutomatonSystem, lamplighter
 
 SYSTEM = 'lamplighter_automaton'

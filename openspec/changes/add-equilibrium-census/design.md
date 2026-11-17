@@ -37,7 +37,10 @@ does, so a new realization is the same system with another `random_state`.
   the shift 1 are the paper's defaults and stay module constants, not settings.
 - **Numeric drift and Jacobian.** A private `_census_function` reads `problem.drift`, or the next value minus the state
   for a map, at the parameter values. The Jacobian comes from `problem.jacobian.run` when the problem has an exact
-  `JacobianKernel`, and from `scipy.differentiate.jacobian` otherwise, for callable laws. Indices come from
+  `JacobianKernel`, from `jax.jacfwd` of the traced function of `JaxBackend` when the system holds learned functions of
+  `add-learning-foundation` and validates as differentiable, and from `scipy.differentiate.jacobian` otherwise, for
+  callable laws and scikit-learn regressors. Systems identified with `identify` are the cases that need the second
+  path, and the exact Jacobian keeps their indices free of finite-difference errors. Indices come from
   `np.linalg.eigvals`, with the tolerance `ZERO` that `_classify` already uses for marginal eigenvalues.
 - **`_numeric_points` is replaced** by the deflated search, so `'fixed-points'` gains it. Its symbolic path is
   unchanged.
@@ -59,6 +62,11 @@ does, so a new realization is the same system with another `random_state`.
   (2025-07-16) deflates over FEniCS and PETSc problems, not NumPy drifts. `PyDSTool` 0.91.0 (2020-01-31) is stale.
   Homotopy continuation (`HomotopyContinuation.jl`, Bertini) needs Julia or polynomial systems. So deflation is a short
   private wrapper over SciPy in the core.
+
+- **Placement.** The kind `'census'` is step 2, a kind of a core analysis that reads compiled problems, in
+  `core/analysis/_stability.py`. Domains: statistical physics of disordered systems, ecology of large communities,
+  neural networks, economics of many goods, and every system identified from data. `RandomForceFieldRelaxationSystem`
+  is step 3, one system, in `physics/statistical_mechanics`.
 
 ## Risks / Trade-offs
 

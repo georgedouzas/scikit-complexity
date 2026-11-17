@@ -13,19 +13,17 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.structure.element import Matrix
 from sage.symbolic.function import SymbolicFunction
 
-from ....components.base import BasePart
+from ....components.base import BaseComponent
 from ....components.elements import FieldElement, GroupElement
 from ....components.interactions import BaseInteraction
 from ....components.laws import (
     BaseLaw,
     BoundaryLaw,
-    CascadeLaw,
-    CrossingLaw,
-    EquationLaw,
-    ExtremalLaw,
+    CallSpec,
+    ConstraintLaw,
+    EventLaw,
     JumpLaw,
     LocalRuleLaw,
-    MatchLaw,
     NoiseLaw,
     RateLaw,
     RuleLaw,
@@ -36,26 +34,32 @@ from ....components.laws import (
 from ....components.laws.utils import laplacian, shifted
 from ....components.laws.utils._operators import _OperatorFunction
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
+from ....components.laws.utils._relaxations import relaxation_of
 from ....components.laws.utils._tensors import distribute_operators
 from ....components.spaces import CellComplexSpace, LatticeSpace
-from ....components.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....components.systems import CompositeSystem
+from ....enums import ElementKind, VariableKind
 from ....errors import RoleElementError, SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
-from ....specs import CallSpec, EntrySpec, TensorSpec
-from ....types import ElementKind, ProcessKey, VariableKind
+from ....specs import EntrySpec, TensorSpec
+from ....types import ProcessKey
 from ..._utils import components_of, declarations_of, symbol, symbols_of, vector
+from ...enums import ReadKind
+from ...problems._bilinear_law import BilinearLaw
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
+from ...problems._node_spec import _NodeSpec
 from ...problems._pair_search import PairSearch
 from ...problems._topology_kernel import TopologyKernel
-from ...types import ReadKind
 from .._base import BasePass
+from .._census_record_spec import _CensusRecordSpec
+from .._census_spec import _CensusSpec
 from .._compilation import Compilation
 from .._field_lowering import FieldLowering
 from .._observables import ObservableEvaluator
 from .._observer import Observer
+from .._relaxation_law import RelaxationLaw
 from .._renewal_law import RenewalLaw
 from ._cells import DEGREES
 from ._hyperedges import HYPEREDGE_LAWS, HyperedgeTables
@@ -147,7 +151,7 @@ class CensusPass(BasePass):
         return tuple(sorted(str(item) for item in symbols if item in handles))
 
     @staticmethod
-    def _get_component_kind(node: NodeSpec) -> ElementKind:
+    def _get_component_kind(node: _NodeSpec) -> ElementKind:
         """Return the kind of the component of a node."""
         if isinstance(node.component, GroupElement) and node.component.variable:
             return ElementKind.VARIABLE_GROUP
@@ -163,7 +167,7 @@ class CensusPass(BasePass):
 
         It is none for any other law or target.
         """
-        target = law.target if isinstance(law, EquationLaw) else None
+        target = law.target if isinstance(law, ConstraintLaw) else None
         reference = spec.references.get(target) if isinstance(target, Expression) else None
         return (reference.entry,) if reference is not None and reference.is_state else ()
 
@@ -191,7 +195,7 @@ class CensusPass(BasePass):
         observer: Observer,
         declarations: DeclarationsSpec,
         agents: set[str],
-    ) -> list[CensusRecordSpec]:
+    ) -> list[_CensusRecordSpec]:
         """Return the census records of the laws of one component."""
         records = []
         specs, _ = SpecsPass._get_specs_of(block, elements, declarations, observer)
@@ -207,7 +211,7 @@ class CensusPass(BasePass):
                 kind = CensusPass._get_component_kind(elements.get(owner, block).node)
                 processes, driven, reads = CensusPass._get_noise_census(spec, law, declarations)
                 records.append(
-                    CensusRecordSpec(
+                    _CensusRecordSpec(
                         block.node.path,
                         owner,
                         law,
@@ -226,7 +230,7 @@ class CensusPass(BasePass):
         return records
 
     @staticmethod
-    def _get_census_of(system: CompositeSystem, nodes: list[NodeSpec]) -> CensusSpec:
+    def _get_census_of(system: CompositeSystem, nodes: list[_NodeSpec]) -> _CensusSpec:
         """Return the census of the laws of a system.
 
         The errors of the components that fail are included. The census declares every component and collects its laws
@@ -266,7 +270,7 @@ class CensusPass(BasePass):
                 records += CensusPass._get_records_of(block, elements, observer, declarations, agents)
             except SkcomplexError as error:
                 errors.append((block.node.path, error))
-        return CensusSpec(system, records, errors, declarations.agents)
+        return _CensusSpec(system, records, errors, declarations.agents)
 
     @staticmethod
     def _get_renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
@@ -288,7 +292,7 @@ class CensusPass(BasePass):
             return CensusPass._get_renewal_group(spec, RenewalLaw(law.waiting, law.reset))
         if isinstance(law, RenewalLaw):
             return CensusPass._get_renewal_group(spec, law)
-        if isinstance(law, RuleLaw | MatchLaw):
+        if isinstance(law, RuleLaw):
             paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
             return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
         if TopologyKernel._request_of(law) is not None:
@@ -335,11 +339,11 @@ class CensusPass(BasePass):
         owner = CensusPass._get_special_owner(spec, law, agents)
         if owner is not None:
             return owner
-        if isinstance(law, TransferLaw | EquationLaw | CrossingLaw) or (
-            isinstance(law, CascadeLaw) and not law._get_targets()
+        if isinstance(law, TransferLaw | ConstraintLaw | EventLaw) or (
+            isinstance(law, RelaxationLaw) and not law._get_targets()
         ):
             return spec.owner
-        lattice = isinstance(law, CascadeLaw | LocalRuleLaw | ExtremalLaw | SampleLaw)
+        lattice = isinstance(law, RelaxationLaw | LocalRuleLaw | SampleLaw)
         target = law._get_targets()[0] if lattice else CensusPass._get_changed_target(spec, law)
         return spec._get_target_references(target)[0].entry.name.rpartition('.')[0]
 
@@ -751,6 +755,21 @@ class CensusPass(BasePass):
                 raise TensorSymmetryError(error_msg)
 
     @staticmethod
+    def _get_relaxation(law: BaseLaw) -> BaseLaw:
+        """Return the relaxation law of an update law of a relaxation, or the law itself."""
+        relaxation = relaxation_of(law.value) if isinstance(law, UpdateLaw) else None
+        if relaxation is None:
+            return law
+        return RelaxationLaw(
+            relaxation.drive,
+            relaxation.rules,
+            relaxation.stable,
+            relaxation.max_iterations,
+            relaxation.activity,
+            label=law.label,
+        )
+
+    @staticmethod
     def _get_component_rates(spec: KernelSpec, law: BaseLaw) -> list[BaseLaw]:
         """Return a rate law on a tensor or vector state as one rate per component.
 
@@ -817,7 +836,7 @@ class CensusPass(BasePass):
         return None
 
     @staticmethod
-    def _get_returned_laws(spec: KernelSpec, component: BasePart) -> Sequence[BasePart]:
+    def _get_returned_laws(spec: KernelSpec, component: BaseComponent) -> Sequence[BaseComponent]:
         """Return the laws a component returns.
 
         A read of a state a role does not have raises an error of the role.
@@ -838,7 +857,7 @@ class CensusPass(BasePass):
                 An interaction reads a name that the element bound to a role does not have.
         """
         try:
-            return component.prepare().run(spec.namespace).laws_
+            return component._get_prepared_laws(spec.namespace)
         except AttributeError as error:
             holder = error.obj
             if not isinstance(component, BaseInteraction) or not isinstance(holder, SimpleNamespace):
@@ -855,7 +874,7 @@ class CensusPass(BasePass):
             raise RoleElementError(error_msg) from error
 
     @staticmethod
-    def _get_declared_laws(spec: KernelSpec, component: BasePart) -> list[BaseLaw]:
+    def _get_declared_laws(spec: KernelSpec, component: BaseComponent) -> list[BaseLaw]:
         """Return the laws a component returns for its namespace.
 
         It first checks their classes against its binding.
@@ -880,8 +899,9 @@ class CensusPass(BasePass):
         if not isinstance(returned, list | tuple) or len(laws) < len(returned):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
-        split = [item for law in laws for item in CensusPass._get_component_rates(spec, law)]
-        declared = [law.prepare(spec.owner) for law in split]
+        lowered = [BilinearLaw._get_lowered(law) for law in laws]
+        split = [item for law in lowered for item in CensusPass._get_component_rates(spec, law)]
+        declared = [CensusPass._get_relaxation(law).prepare(spec.owner) for law in split]
         if spec.hyperedge is not None:
             declared = CensusPass._get_hyperedge_laws(spec, declared)
         searched = spec.pairs is not None and spec.edges is None
@@ -937,12 +957,12 @@ class CensusPass(BasePass):
         return [*rules, *checked]
 
     @staticmethod
-    def _get_component_of(node: NodeSpec) -> BasePart:
-        """Return the part whose laws describe a node, a representative member for a group."""
+    def _get_component_of(node: _NodeSpec) -> BaseComponent:
+        """Return the component whose laws describe a node, a member for a group."""
         if isinstance(node.component, GroupElement):
             group = node.component
             return group.element(group.label).set_params(**(group.values or {})).prepare()
-        if not isinstance(node.component, BasePart):
+        if not isinstance(node.component, BaseComponent):
             error_msg = f'The node {node.path} holds a {type(node.component).__name__}, which declares no laws.'
             raise TypeError(error_msg)
         return node.component

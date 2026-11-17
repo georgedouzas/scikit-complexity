@@ -5,9 +5,9 @@
 
 from collections.abc import Callable
 
-from ...specs import RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
+from ._run_state_spec import RunStateSpec
 
 
 class EventKernel(BaseKernel):

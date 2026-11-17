@@ -10,16 +10,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import BaseLaw, BoundaryLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import PipelineError, ValidationError
 from ....specs import EntrySpec
 from ..._utils import symbol, vector
+from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from ._layout import LayoutPass
@@ -182,7 +182,7 @@ class DelaysPass(BasePass):
             raise PipelineError(error_msg)
         result: list[BaseLaw] = []
         for law in laws:
-            if isinstance(law, CrossingLaw):
+            if isinstance(law, EventLaw):
                 guard = (
                     law.guard
                     if BaseLaw._is_function(law.guard)
@@ -197,7 +197,7 @@ class DelaysPass(BasePass):
                     for target, value in (law.reset or {}).items()
                 }
                 events.append(
-                    (spec, CrossingLaw(guard, reset, law.direction, law.terminal, label=law.label)),
+                    (spec, EventLaw(guard, reset, law.direction, law.terminal, label=law.label)),
                 )
             elif isinstance(law, JumpLaw):
                 result.append(

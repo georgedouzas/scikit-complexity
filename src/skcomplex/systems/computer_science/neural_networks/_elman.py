@@ -12,20 +12,14 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import exp
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, TrainingInteraction
+from ....core.components.laws import DatasetSpec
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import (
-    DatasetSpec,
-    ObservableSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array
 
 TRAINED = ('input.D', 'recurrence.A', 'readout.W', 'hidden.b', 'outputs.c')
@@ -42,9 +36,6 @@ class HiddenUnitElement(Element):
     Args:
         label:
             The label of the element or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         s:
             The activity in `(0, 1)`.
@@ -64,13 +55,12 @@ class HiddenUnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         s: Annotated[float, StateSpec()] = 0.5,
         u: Annotated[float, StateSpec()] = 0.0,
         b: Annotated[float, ParameterSpec(adaptive=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.s = s
         self.u = u
         self.b = b
@@ -85,9 +75,6 @@ class InputUnitElement(Element):
         label:
             The label of the element or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The input.
 
@@ -100,11 +87,10 @@ class InputUnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -116,9 +102,6 @@ class OutputUnitElement(Element):
     Args:
         label:
             The label of the element or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         y:
             The prediction in `(0, 1)`.
@@ -138,13 +121,12 @@ class OutputUnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y: Annotated[float, StateSpec()] = 0.5,
         c: Annotated[float, ParameterSpec(adaptive=True)] = 0.0,
         target: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y = y
         self.c = c
         self.target = target
@@ -161,7 +143,7 @@ class InputCouplingInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of hidden units.
@@ -213,7 +195,7 @@ class ReadoutCouplingInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of output units.
@@ -271,7 +253,7 @@ class RecurrenceCouplingInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of hidden units.
@@ -460,14 +442,14 @@ class ElmanNetworkSystem(BaseSystem):
             'training',
             system='net',
             trained=TRAINED,
-            loss=ObservableSpec('error', group='outputs', reduce='sum', expression=self._get_squared_error),
+            loss=Observable('error', group='outputs', reduce='sum', expression=self._get_squared_error),
             data=data,
             learning_rate=self.learning_rate,
             batch_size=self.batch_size,
             truncation=self.truncation,
             metrics=(
-                ObservableSpec('xor_error', group='outputs', reduce='sum', expression=self._get_squared_error),
-                ObservableSpec('random_error', group='outputs', reduce='sum', expression=self._get_squared_error),
+                Observable('xor_error', group='outputs', reduce='sum', expression=self._get_squared_error),
+                Observable('random_error', group='outputs', reduce='sum', expression=self._get_squared_error),
             ),
         )
         return CompositeSystem(self.label, systems=[net], interactions=[training], time=DiscreteTime())

@@ -10,12 +10,12 @@ from sage.groups.matrix_gps.finitely_generated import MatrixGroup
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import BallNeighborhood, CayleySpace, MemoryNeighborhood
+from skcomplex.core.components.laws import LocalRuleLaw, TableSpec, TotalisticSpec
+from skcomplex.core.components.spaces import CayleySpace, LatticeNeighborhood, MemoryNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SpaceTooLargeError, ValidationError
-from skcomplex.core.specs import StateSpec, TableSpec, TotalisticSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 HEISENBERG = (((1, 1, 0), (0, 1, 0), (0, 0, 1)), ((1, 0, 0), (0, 1, 1), (0, 0, 1)))
 GRIGORCHUK = 'a = (1, 1)(1, 2), b = (a, c), c = (a, d), d = (1, b)'
@@ -42,11 +42,10 @@ class CellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.alive = alive
 
     def _get_laws(self, s):
@@ -60,11 +59,10 @@ class CopyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.alive = alive
 
     def _get_laws(self, s):
@@ -111,7 +109,7 @@ def test_cayley_space_index_table_needs_a_memory_set():
     """Test that a neighbourhood of offsets and a word of unknown generators are rejected on a Cayley space."""
     space = CayleySpace(PermutationGroup([[(1, 2)]])).prepare()
     with pytest.raises(ValidationError, match='memory set'):
-        space._get_index_table(BallNeighborhood(n_dim=1, center='inline'))
+        space._get_index_table(LatticeNeighborhood(((-1,), (0,), (1,))))
     with pytest.raises(ValidationError, match='not a generator'):
         space._get_index_table(MemoryNeighborhood(('z',)))
 

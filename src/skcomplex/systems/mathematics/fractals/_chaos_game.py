@@ -50,9 +50,6 @@ class ChaosPointElement(Element):
         label:
             The label of the point or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         p:
             The initial position.
 
@@ -62,14 +59,15 @@ class ChaosPointElement(Element):
         (0.5, 0.5)
     """
 
+    visual = VisualSpec('points', {'position': 'p', 'radius': 0.004, 'states': ()})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('points', {'position': 'p', 'radius': 0.004, 'states': ()}),
         *,
         p: Annotated[object, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.p = p
 
 
@@ -83,7 +81,7 @@ class RandomAffineMapInteraction(MapInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or group whose position the map sets.
@@ -123,7 +121,7 @@ class RandomAffineMapInteraction(MapInteraction):
         self.maps = maps
         self.weights = weights
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for invalid weights or maps.
 
         The weights must match the maps, and every map must have six coefficients.

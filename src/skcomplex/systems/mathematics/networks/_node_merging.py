@@ -32,9 +32,6 @@ class MergingNodeElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         degree:
             The number of edges of the node.
 
@@ -44,14 +41,15 @@ class MergingNodeElement(Element):
         0.0
     """
 
+    visual = DEGREE_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = DEGREE_VISUAL,
         *,
         degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.degree = degree
 
 

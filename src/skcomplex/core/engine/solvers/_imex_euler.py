@@ -26,7 +26,7 @@ class IMEXEulerSolver(SplitSolver):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
         >>> from skcomplex.core.engine.solvers import IMEXEulerSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> problem = simulate(HeatDiffusionSystem((16, 16)), until=0).problem
         >>> stepper = IMEXEulerSolver(dt=1.0, random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 10.0)).state_

@@ -18,7 +18,7 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import convolve, displacement, where
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class NeuralFieldSiteElement(Element):
@@ -33,9 +33,6 @@ class NeuralFieldSiteElement(Element):
     Args:
         label:
             The label of the site or the field.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
 
         u:
             The initial membrane potential.
@@ -61,7 +58,6 @@ class NeuralFieldSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -69,7 +65,7 @@ class NeuralFieldSiteElement(Element):
         A: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.tau = tau
         self.h = h
@@ -159,7 +155,7 @@ class AmariNeuralFieldSystem(BaseSystem):
         return rate
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Amari neural field.
+        """Return the components of the Amari neural field.
 
         Its lateral inhibition holds a stationary bump of activity.
         """

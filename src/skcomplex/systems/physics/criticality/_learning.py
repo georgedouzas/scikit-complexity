@@ -15,12 +15,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import total, uniform, where
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 
 
@@ -35,9 +36,6 @@ class LearningAgentElement(Element):
     Args:
         label:
             The label of the agent or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         sigma:
             The initial action, -1 or 1.
@@ -67,7 +65,6 @@ class LearningAgentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         sigma: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         Q: Annotated[float, StateSpec()] = 0.0,
@@ -75,7 +72,7 @@ class LearningAgentElement(Element):
         temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         couplings: npt.ArrayLike | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sigma = sigma
         self.Q = Q
         self.alpha = alpha
@@ -167,7 +164,7 @@ class SKGameSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _get_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_observables(system: CompositeSystem) -> list[Observable]:
         """Return the observable of the mean reward per agent of the SK game."""
         agents = system.elements[0]
         if not isinstance(agents, GroupElement) or agents.values is None:
@@ -175,7 +172,7 @@ class SKGameSystem(BaseSystem):
             raise ValidationError(error_msg)
         couplings = np.asarray(agents.values['couplings'], dtype=float)
         return [
-            ObservableSpec(
+            Observable(
                 'reward',
                 group='agents',
                 variable='sigma',
@@ -186,14 +183,14 @@ class SKGameSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         settings['observables'] = tuple(self._get_observables(self._build_system()))
         return settings
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_agents), (self.n_agents, self.n_agents)), 1)
         agents = GroupElement(

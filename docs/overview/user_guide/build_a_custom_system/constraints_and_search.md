@@ -19,7 +19,7 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
-from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
+from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
@@ -38,7 +38,7 @@ anneal = SamplingInteraction(
     objective=lambda s: (s.target.x - 2) ** 2,
     move='gaussian',
     cooling=lambda t: 1 / (1 + t),
-    neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
+    neighborhood=RadiusNeighborhood(1, metric='manhattan'),
 )
 candidates = GroupElement('candidates', element=CandidateElement, space=LatticeSpace(20), on='sites')
 system = CompositeSystem(elements=[candidates], interactions=[anneal], time=DiscreteTime())

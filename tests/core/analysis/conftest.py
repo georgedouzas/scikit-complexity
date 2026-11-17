@@ -5,6 +5,9 @@ import pytest
 from scipy import sparse
 from scipy.sparse import csgraph
 
+from skcomplex.core.analysis import ModeDecompositionResult, ReservoirResult, SparseIdentificationResult
+from skcomplex.core.engine.runtime import simulate
+
 ISING_SIZES = (16, 32, 64)
 ISING_TEMPERATURES = (2.15, 2.20, 2.25, 2.30, 2.35, 2.40, 2.45)
 BURN_IN = 200
@@ -48,3 +51,20 @@ def ising_magnetizations() -> dict[int, list[np.ndarray]]:
     return {
         side: [_magnetizations(side, temperature, rng) for temperature in ISING_TEMPERATURES] for side in ISING_SIZES
     }
+
+
+def _damped_rotation() -> np.ndarray:
+    """Return a damped rotation of two variables, sampled every 0.05."""
+    times = 0.05 * np.arange(200.0)
+    return np.column_stack([np.exp(-0.5 * times) * np.cos(2 * times), np.exp(-0.5 * times) * np.sin(2 * times)])
+
+
+def _last_values(
+    analysis: ModeDecompositionResult | ReservoirResult | SparseIdentificationResult,
+    states: list[str],
+    until: float,
+    dt: float,
+) -> list[float]:
+    """Return the last values of states of the surrogate of an analysis."""
+    trajectory = simulate(analysis.system, until=until, dt=dt)
+    return [float(np.ravel(trajectory.get_values(f'surrogate.{state}'))[-1]) for state in states]

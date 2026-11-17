@@ -14,6 +14,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
@@ -21,17 +22,10 @@ from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SimulationError
-from ....core.specs import (
-    ObservableSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
 from ...general.matching.types import MatchingRule
@@ -64,9 +58,6 @@ class HerderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         income:
             The milk income of the herder in the last step.
 
@@ -92,7 +83,6 @@ class HerderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         income: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         herd: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -100,7 +90,7 @@ class HerderElement(Element):
         newborn: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
         quota: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo), adaptive=True)] = UNLIMITED,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.income = income
         self.herd = herd
         self.upkeep = upkeep
@@ -129,9 +119,6 @@ class CowElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         owner:
             The id of the herder that owns the cow, given initially as its position in the group `herders`.
 
@@ -145,17 +132,18 @@ class CowElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'energy'})
+
     law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'energy'}),
         *,
         owner: Annotated[float, StateSpec(reference='herders')] = -1.0,
         energy: Annotated[float, StateSpec()] = 4.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.owner = owner
         self.energy = energy
 
@@ -199,9 +187,6 @@ class PastureElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         grass:
             The grass on the cell.
 
@@ -221,19 +206,20 @@ class PastureElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 2.0)})
+
     law_classes = (RuleLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 2.0)}),
         *,
         grass: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
         capacity: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 2.0,
         regrowth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
         seed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.grass = grass
         self.capacity = capacity
         self.regrowth = regrowth
@@ -520,9 +506,9 @@ class TragedyOfTheCommonsSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 sec. 10.2', 'Hardin 1968')
     until = 100
     observables = (
-        ObservableSpec('grass', group='meadow', variable='grass', reduce='sum'),
-        ObservableSpec('herd', group='cows', variable='energy', reduce='count'),
-        ObservableSpec('quota', group='herders', variable='quota', reduce='mean'),
+        Observable('grass', group='meadow', variable='grass', reduce='sum'),
+        Observable('herd', group='cows', variable='energy', reduce='count'),
+        Observable('quota', group='herders', variable='quota', reduce='mean'),
     )
 
     @staticmethod
@@ -633,7 +619,7 @@ class TragedyOfTheCommonsSystem(BaseSystem):
         ]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
         meadow = GroupElement(

@@ -8,10 +8,12 @@ vector space whose unit vectors are the possible states.
 
 This section finds the two lowest energies of a chain of four spins, the Heisenberg chain of the catalog. The analysis
 `operator_measures` diagonalises the generator of the system exactly, and `n_states` sets how many of the lowest
-eigenvalues it returns.
+eigenvalues it returns. It measures quantum systems only, so it lives in the quantum package of physics,
+`skcomplex.systems.physics.common.quantum`, beside the qubit and the bosonic mode, rather than in
+`skcomplex.core.analysis`.
 
 ```python
-from skcomplex.core.analysis import operator_measures
+from skcomplex.systems.physics.common.quantum import operator_measures
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 
 spectrum = operator_measures(QuantumHeisenbergSystem(n_sites=4), n_states=2)
@@ -20,10 +22,9 @@ spectrum.energies.round(6).tolist()
 
 The two lowest energies are -2.0 and -1.0, in units of the coupling.
 
-The core names this machinery for its mathematics, linear operator dynamics on tensor products, while the physics
-systems keep the words of physics. For example,
-[`GeneratorLaw`](../core_components/laws.md#generatorlaw) takes a Hermitian operator, which physics calls a
-Hamiltonian.
+The core names the machinery of operators for its mathematics, linear operator dynamics on tensor products, while the
+quantum package of physics keeps the words of physics. It holds the Hilbert space of a subsystem, the laws that build
+the Hamiltonian and the dissipators, and the solvers that run them.
 
 Every subsystem holds its state `psi` in the Hilbert space of a `HilbertSpec`, which names its operators. A subsystem
 of your own declares the operators it needs. Typical subsystems have these operators.
@@ -35,78 +36,28 @@ of your own declares the operators it needs. Typical subsystems have these opera
 
 A group of subsystems, such as a [`GroupElement`](../core_components/elements.md#groupelement) of spins on `'sites'`,
 is the tensor product of the spaces of its members, in member order. The initial state of every subsystem is a basis
-label, an index, or a vector.
+label, an index, or a vector. The `HilbertSpec` names the compiler of quantum systems, so `simulate` compiles a system
+of such elements to the operator form by itself.
 
 ## Operators and laws
 
 This section writes the generator of a system from the operators of its subsystems. A spin one half is an
 [`Element`](../core_components/elements.md#element) whose state `psi` lives in the two-dimensional space of a
-`HilbertSpec` with the three spin components. Neighbouring spins on a ring of six sites exchange their spin with the
-coupling `J`, the Heisenberg exchange `J (Sx Sx + Sy Sy + Sz Sz)`. A
+`HilbertSpec` with the three spin components. Neighbouring spins on a ring exchange their spin with the coupling `J`,
+the Heisenberg exchange `J (Sx Sx + Sy Sy + Sz Sz)`. A
 [`NeighborInteraction`](../core_components/interactions.md#neighborinteraction) writes the exchange once for a bond and
-returns it as a `GeneratorLaw`. The chain starts in the alternating state up, down, up, down, up, down, and the
-observable `sz` records the expectation of `Sz` at every site.
+returns it as a `GeneratorLaw`, as the Heisenberg chain of the catalog does. Here the chain has six sites and starts in
+the alternating state up, down, up, down, up, down, and its observable `sz` records the expectation of `Sz` at every
+site.
 
 ```python
-from typing import Annotated
-
 import numpy as np
-from sage.all__sagemath_symbolics import CC
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import NeighborInteraction
-from skcomplex.core.components.laws import GeneratorLaw
-from skcomplex.core.components.laws.utils import local_operator
-from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 
-PAULI = {
-    'x': (np.array([[0, 0.5], [0.5, 0]]), True),
-    'y': (np.array([[0, -0.5j], [0.5j, 0]]), True),
-    'z': (np.array([[0.5, 0], [0, -0.5]]), True),
-}
-SPIN_HALF = HilbertSpec(2, PAULI, basis={'up': 0, 'down': 1})
-
-
-class SpinElement(Element):
-    def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC)] = 'up', *, hilbert=SPIN_HALF):
-        super().__init__(label)
-        self.psi = psi
-        self.hilbert = hilbert
-
-
-class ExchangeInteraction(NeighborInteraction):
-    def __init__(self, label, *, target: Annotated[str, RoleSpec()], J: Annotated[float, ParameterSpec()] = 1.0):
-        super().__init__(label)
-        self.target = target
-        self.J = J
-
-    def _get_laws(self, s):
-        a, b = s.source.psi, s.target.psi
-        exchange = sum(local_operator(a, name) * local_operator(b, name) for name in ('x', 'y', 'z'))
-        return [GeneratorLaw(s.J * exchange)]
-
-
-def sz(member):
-    return local_operator(member.psi, 'z')
-
-
-def sites(values):
-    return values
-
-
-chain = CompositeSystem(
-    elements=[
-        GroupElement(
-            'chain', element=SpinElement, space=LatticeSpace(6), on='sites', values={'psi': ['up', 'down'] * 3}
-        ),
-    ],
-    interactions=[ExchangeInteraction('exchange', target='chain')],
-)
-observables = [ObservableSpec('sz', sz, group='chain', reduce=sites)]
-trajectory = simulate(chain, until=2.0, dt=0.5, observables=observables)
+chain = QuantumHeisenbergSystem(n_sites=6, initial='neel')
+trajectory = simulate(chain, until=2.0, dt=0.5)
 trajectory.get_values('sz').shape, round(float(np.ptp(trajectory.get_values('energy'))), 8)
 ```
 
@@ -115,11 +66,12 @@ the unitary evolution conserves it exactly.
 
 Laws name the operators of a subsystem with `local_operator(s.psi, name)`, from
 `skcomplex.core.components.laws.utils`. Operators combine by sums, numbers, and symbolic coefficients of parameters
-and time. `operator_product` and `dagger` keep the order of products and adjoints. Two laws build the dynamics.
+and time. `operator_product` and `dagger` keep the order of products and adjoints. Two laws of the quantum package
+build the dynamics.
 
 - `GeneratorLaw(operator)` adds to the generator, with `ħ = 1`.
-- [`DissipatorLaw(operator, rate)`](../core_components/laws.md#dissipatorlaw) adds a Lindblad dissipator, a term that
-  lets the system lose energy or coherence to its surroundings, which makes the system open.
+- `DissipatorLaw(operator, rate)` adds a Lindblad dissipator, a term that lets the system lose energy or coherence to
+  its surroundings, which makes the system open.
 
 A `NeighborInteraction` is written once for a bond, with `s.source` and `s.target`. It acts on every pair of
 neighbours of the space of the group that its one role binds, here the
@@ -133,16 +85,16 @@ A whole-system initial state, such as an entangled vector or `'ground'`, is give
 
 This section chooses how the state evolves, records the expectations of operators, and diagonalises the generator
 exactly. `simulate` compiles a system of quantum elements to the operator form. Its state is stored as complex pairs
-under `<system>.state`, a pure state for a closed system and a density matrix for an open one. Its solvers hand every
-frame to QuTiP.
+under `<system>.state`, a pure state for a closed system and a density matrix for an open one. The solvers of the
+quantum package hand every frame to QuTiP.
 
 - `UnitarySolver` solves the Schrödinger equation.
 - `LindbladSolver`, the default, solves the master equation.
 - `JumpTrajectoriesSolver` draws quantum jumps from the random stream of the run.
 
-An `ObservableSpec` whose expression is an operator records its expectation. One over a group gives one value per
-member when its `reduce` keeps the values, as `sites` does above. Every quantum run also records its `energy`, and its
-`purity` when it is open. Groups on a lattice stream the space-time image of their local expectations to Rerun.
+An `Observable` whose expression is an operator records its expectation. One over a group gives one value per
+member when its `reduce` keeps the values, as `sz` of the chain does. Every quantum run also records its `energy`, and
+its `purity` when it is open. Groups on a lattice stream the space-time image of their local expectations to Rerun.
 
 `operator_measures(system, kind=...)` analyses quantum systems by its kind.
 

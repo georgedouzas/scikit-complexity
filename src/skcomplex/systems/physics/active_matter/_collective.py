@@ -42,9 +42,6 @@ class PolarFluidElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         rho:
             The initial density.
 
@@ -89,7 +86,6 @@ class PolarFluidElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         vx: Annotated[float, StateSpec()] = 0.0,
@@ -102,7 +98,7 @@ class PolarFluidElement(Element):
         D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.vx = vx
         self.vy = vy
@@ -220,7 +216,7 @@ class CuckerSmaleAlignmentInteraction(PairInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         first:
             The path of the group or particle of the first members.
@@ -300,7 +296,7 @@ class PhoreticAttractionInteraction(PairInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         first:
             The path of the group or particle of the first members.
@@ -563,7 +559,7 @@ class LivingCrystalsSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         system = MotilityInducedPhaseSeparationSystem._get_active_disks(
             self.n_particles,
             self.size,
@@ -590,6 +586,12 @@ class LivingCrystalsSystem(BaseSystem):
         )
         interactions = [*system.interactions, repulsion, attraction]
         return CompositeSystem(self.label, elements=system.elements, interactions=interactions, space=system.space)
+
+
+class BirdElement(PointElement):
+    """Point drawn at its position and coloured by its velocity."""
+
+    visual = VisualSpec('points', {'position': 'x', 'color_by': 'x_d1', 'states': ()})
 
 
 class CuckerSmaleFlockingSystem(BaseSystem):
@@ -657,13 +659,12 @@ class CuckerSmaleFlockingSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         birds = GroupElement(
             'birds',
-            element=PointElement,
+            element=BirdElement,
             size=self.n_agents,
             values={
                 'x': rng.uniform(0.0, self.size, (self.n_agents, 2)),
                 'x_d1': rng.normal(0.0, 1.0, (self.n_agents, 2)),
             },
-            visual=VisualSpec('points', {'position': 'x', 'color_by': 'x_d1', 'states': ()}),
         )
         alignment = CuckerSmaleAlignmentInteraction(
             'align',
@@ -760,7 +761,7 @@ class TonerTuSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         values = {

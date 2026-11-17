@@ -15,9 +15,10 @@ from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import (
+    StepSpec,
     VelocityVerletSolver,
 )
-from skcomplex.core.specs import ParameterSpec, StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class BallElement(Element):
@@ -28,9 +29,8 @@ class BallElement(Element):
         label: str,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
-        visual: VisualSpec | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
 

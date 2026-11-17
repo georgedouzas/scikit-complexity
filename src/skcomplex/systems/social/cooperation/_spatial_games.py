@@ -20,8 +20,9 @@ from ....core.components.interactions import GroupingInteraction, LocalRuleInter
 from ....core.components.laws.utils import count, total
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array, Pair
 from ...general.agents import ImitationInteraction
 from ._contributor import ContributorElement
@@ -49,9 +50,6 @@ class IteratedPrisonerElement(Element):
     Args:
         label:
             The label of the player or the lattice group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
 
         strategy:
             The number `n` of intended cooperation rounds, from 0, always defect, to `rounds`, always cooperate.
@@ -86,7 +84,6 @@ class IteratedPrisonerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         strategy: Annotated[float, StateSpec(domain=NN)] = 0.0,
         rounds: Annotated[int, ParameterSpec(domain=NN)] = 7,
@@ -97,7 +94,7 @@ class IteratedPrisonerElement(Element):
         mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.01,
         extremes: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
         self.rounds = rounds
         self.reward = reward
@@ -118,9 +115,6 @@ class PrisonerElement(Element):
         label:
             The label of the player or the lattice group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         strategy:
             The initial strategy, 1 or 0.
 
@@ -139,13 +133,12 @@ class PrisonerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
         temptation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.85,
         noise: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
         self.temptation = temptation
         self.noise = noise
@@ -318,7 +311,7 @@ class PrisonersDilemmaInteraction(LocalRuleInteraction):
         super().__init__(label, target=target, state='strategy', rule=self._play, neighborhood=SQUARE, stochastic=True)
         self.imitation = imitation
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown imitation.
 
         Args:
@@ -515,7 +508,7 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         players = GroupElement(
             'players',
             element=PrisonerElement,
@@ -595,7 +588,7 @@ class PublicGoodsGameSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         strategies = SpatialPrisonersDilemmaSystem._get_random_strategies(self.shape, self.share, self.random_state)
         players = GroupElement(
             'players',
@@ -707,7 +700,7 @@ class IteratedLatticeDilemmaSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         if self.extremes:
             strategies = self.rounds * rng.integers(2, size=tuple(self.shape)).astype(float)

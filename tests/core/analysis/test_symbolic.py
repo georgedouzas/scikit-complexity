@@ -1,5 +1,6 @@
 """Test the symbolic analysis of systems."""
 
+import math
 from typing import Annotated
 
 import numpy as np
@@ -8,6 +9,7 @@ from sage.all__sagemath_symbolics import SR, cos, diff, function, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.analysis import symbolic
+from skcomplex.core.analysis._symbolic import _MittagLefflerFunction
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
@@ -15,10 +17,9 @@ from skcomplex.core.components.laws.utils import derivative, lag
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import RecoveryInteraction
@@ -31,6 +32,7 @@ from skcomplex.systems.physics.common.particles import (
     HarmonicPotentialInteraction,
     MassPointElement,
 )
+from skcomplex.systems.physics.common.quantum import QuantumCompiler
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 
 from ...conftest import CallableGrowthInteraction, HoldingElement
@@ -42,12 +44,47 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
+
+
+class RelaxingElement(Element):
+    """Element whose state relaxes with a Caputo derivative of order 0.6."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: Annotated[float, StateSpec(order=0.6)] = 2.0,
+        lam: Annotated[float, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.lam = lam
+
+    def _get_laws(self, s):
+        """Return the relaxation rate."""
+        return [RateLaw(s.x, -s.lam * s.x)]
+
+
+class SaturatingElement(Element):
+    """Element whose fractional state follows a nonlinear law."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: Annotated[float, StateSpec(order=0.6)] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+
+    def _get_laws(self, s):
+        """Return the logistic rate."""
+        return [RateLaw(s.x, s.x * (1 - s.x))]
 
 
 def test_equations_of_logistic_growth():
@@ -195,14 +232,13 @@ class PendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec(order=2)] = 0.1,
         theta_d1: float = 0.0,
         g: Annotated[object, ParameterSpec()] = 9.81,
         l: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
         self.g = g
@@ -219,14 +255,13 @@ class SmallAngleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec(order=2)] = 0.1,
         theta_d1: float = 0.0,
         g: Annotated[object, ParameterSpec()] = 9.81,
         l: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
         self.g = g
@@ -243,13 +278,12 @@ class ThirdOrderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(order=3, initial=(1.0, 0.0))] = 0.0,
         x_d2: float = 0.0,
         x_d1: float = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d2 = x_d2
         self.x_d1 = x_d1
@@ -265,14 +299,13 @@ class FirstOrderPendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec()] = 0.1,
         omega: Annotated[object, StateSpec()] = 0.0,
         g: Annotated[object, ParameterSpec()] = 9.81,
         l: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.omega = omega
         self.g = g
@@ -289,12 +322,11 @@ class FibonacciElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(lags=1, initial=(1.0,))] = 1.0,
         x_lag1: float = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_lag1 = x_lag1
 
@@ -368,13 +400,12 @@ def test_remaining_sign_question_names_parameter():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec(order=2)] = 0.1,
             x_d1: float = 0.0,
             k: Annotated[object, ParameterSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.x_d1 = x_d1
             self.k = k
@@ -389,14 +420,14 @@ def test_remaining_sign_question_names_parameter():
 
 def test_symbolic_refuses_rewriting_systems_with_an_analysis_error():
     """Test that a system of words raises the analysis error of a form without equations, not a compiling error."""
-    with pytest.raises(AnalysisError, match='rewrites words or patches'):
+    with pytest.raises(AnalysisError, match='rewriting system form, which has no equations'):
         symbolic(KochCurveSystem())
 
 
 def test_hamiltonian_prints_operators_and_equations_refuse():
     """Test that an operator system prints its Hamiltonian and has no state equations."""
     system = QuantumHeisenbergSystem(n_sites=2, boundary='open').prepare().system_
-    problem = OperatorCompiler().prepare(system).run().problem_
+    problem = QuantumCompiler().prepare(system).run().problem_
     hamiltonian = symbolic(problem, kind='hamiltonian').hamiltonian
     assert {'J_exchange', 'delta_exchange', 'h_field'} <= {str(variable) for variable in hamiltonian.variables()}
     assert 'local_operator(psi_chain_0, x)*local_operator(psi_chain_1, x)' in str(hamiltonian)
@@ -408,3 +439,82 @@ def test_settings_the_kind_ignores_are_rejected():
     """Test that the initial state, which only solving reads, is rejected for the equations."""
     with pytest.raises(AnalysisError, match='does not read use_initial_state'):
         symbolic(LogisticGrowthSystem().prepare().system_, use_initial_state=True)
+
+
+def test_mittag_leffler_exponential_case():
+    """Test that E_(1, 1)(z) equals exp(z) within 1e-12."""
+    z = np.linspace(-20.0, 5.0, 51)
+    assert np.max(np.abs(_MittagLefflerFunction._get_mittag_leffler(1.0, 1.0, z) - np.exp(z))) < 1e-12
+
+
+@pytest.mark.parametrize(
+    ('alpha', 'beta', 'z', 'expected'),
+    [
+        (0.5, 1.0, -1.0, math.exp(1.0) * math.erfc(1.0)),
+        (0.5, 1.0, -10.0, math.exp(100.0) * math.erfc(10.0)),
+        (2.0, 1.0, -4.0, math.cos(2.0)),
+        (2.0, 2.0, -4.0, math.sin(2.0) / 2.0),
+        (1.0, 2.0, 1.5, math.expm1(1.5) / 1.5),
+    ],
+)
+def test_mittag_leffler_closed_forms(alpha, beta, z, expected):
+    """Test that the function matches its closed forms in error functions and trigonometric functions."""
+    assert float(_MittagLefflerFunction._get_mittag_leffler(alpha, beta, z)) == pytest.approx(expected, rel=1e-12)
+
+
+def test_mittag_leffler_asymptotic_matches_series():
+    """Test that the asymptotic expansion for large arguments continues the series without a jump."""
+    alpha = 0.6
+    edge = -(50.0**alpha)
+    below, above = _MittagLefflerFunction._get_mittag_leffler(alpha, 1.0, np.array([edge * 1.0001, edge * 0.9999]))
+    assert below == pytest.approx(above, rel=1e-3)
+    assert float(_MittagLefflerFunction._get_mittag_leffler(alpha, 1.0, -1e6)) == pytest.approx(
+        1e-6 / math.gamma(1 - alpha),
+        rel=1e-5,
+    )
+
+
+def test_mittag_leffler_complex_arguments():
+    """Test that complex arguments give complex values, with E_(2, 1)(-z^2) = cos(z)."""
+    value = _MittagLefflerFunction._get_mittag_leffler(2.0, 1.0, np.array([-((1.0 + 0.5j) ** 2)]))
+    assert np.iscomplexobj(value)
+    assert value[0] == pytest.approx(np.cos(1.0 + 0.5j), rel=1e-12)
+
+
+def test_mittag_leffler_rejects_nonpositive_alpha():
+    """Test that a nonpositive first parameter is rejected."""
+    with pytest.raises(AnalysisError, match='alpha'):
+        _MittagLefflerFunction._get_mittag_leffler(0.0, 1.0, 1.0)
+
+
+def test_solve_symbolically_fractional_relaxation():
+    """Test that linear fractional relaxation is solved by the Mittag-Leffler function of its order."""
+    system = CompositeSystem(elements=[RelaxingElement('r')])
+    solution = symbolic(system, kind='solve', use_initial_state=True).solutions['r.x']
+    assert str(solution) == 'x_r(t) == 2*mittag_leffler(3/5, 1, -lam_r*t^(3/5))'
+    symbols = {str(item): item for item in solution.rhs().variables()}
+    value = float(solution.rhs().subs({symbols['t']: 2.0, symbols['lam_r']: 0.5}))
+    assert value == pytest.approx(
+        2 * float(_MittagLefflerFunction._get_mittag_leffler(0.6, 1.0, -0.5 * 2.0**0.6)),
+        rel=1e-12,
+    )
+    assert 'x_r(0)' in str(symbolic(system, kind='solve').solutions['r.x'])
+
+
+def test_equations_of_fractional_state_write_caputo_derivative():
+    """Test that the equation of a fractional state writes its Caputo derivative of the exact order."""
+    assert (
+        str(symbolic(CompositeSystem(elements=[RelaxingElement('r')])).equations['r.x'])
+        == 'caputo(x_r(t), t, 3/5) == -lam_r*x_r(t)'
+    )
+
+
+def test_solve_symbolically_rejects_nonlinear_fractional_law():
+    """Test that a nonlinear fractional law has no exact solution."""
+    with pytest.raises(AnalysisError, match='linear fractional relaxation'):
+        symbolic(CompositeSystem(elements=[SaturatingElement('s')]), kind='solve')
+
+
+def test_mittag_leffler_of_order_one_half_at_minus_one():
+    """Test that `E_(1/2, 1)(-1)` is `exp(1) erfc(1)`, about 0.427584."""
+    assert round(float(_MittagLefflerFunction._get_mittag_leffler(0.5, 1.0, -1.0)), 6) == 0.427584

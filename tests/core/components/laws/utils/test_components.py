@@ -17,7 +17,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import RoleSpec, StateSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 SEEDS = pytest.mark.parametrize('seed', [0, 1, 2])
@@ -29,11 +29,10 @@ class ValueElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
 
 

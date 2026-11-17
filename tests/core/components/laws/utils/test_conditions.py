@@ -14,7 +14,7 @@ from skcomplex.core.components.laws.utils import both, either, mod, where
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._expression_printer import ExpressionPrinter
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 
 def test_functions_stay_unevaluated_on_symbols():
@@ -89,11 +89,10 @@ def test_condition_on_a_nested_modulo_of_time_compiles():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             y: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.y = y
 
         def _get_laws(self, s):

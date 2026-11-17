@@ -12,8 +12,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import RateInteraction
-from .....core.specs import ParameterSpec, RoleSpec, WienerProcessSpec
+from .....core.components.interactions import RateInteraction, WienerProcessSpec
+from .....core.specs import ParameterSpec, RoleSpec
 
 
 class GeometricBrownianMotionInteraction(RateInteraction):
@@ -43,7 +43,7 @@ class GeometricBrownianMotionInteraction(RateInteraction):
 
     Examples:
         >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionInteraction
-        >>> from skcomplex.core.specs import WienerProcessSpec
+        >>> from skcomplex.core.components.interactions import WienerProcessSpec
         >>> GeometricBrownianMotionInteraction('gbm', target='stock', sigma=0.3).sigma
         0.3
         >>> market = WienerProcessSpec('market', dimension=2)

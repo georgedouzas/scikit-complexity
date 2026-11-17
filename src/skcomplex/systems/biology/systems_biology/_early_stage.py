@@ -69,21 +69,28 @@ class PathCellElement(Element):
         amino:
             The index of the amino acid of the residue.
 
+        cells:
+            The number of cells of the path, whose last one is the brightest colour of the drawing.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import PathCellElement
         >>> PathCellElement('residue').cell
         0.0
     """
 
+    visual = VisualSpec('image', {'states': ('cell',), 'low': 0.0, 'high': 'cells - 1'})
+
     def __init__(
         self,
         label: str,
         cell: Annotated[float, StateSpec()] = 0.0,
         amino: Annotated[float, ParameterSpec()] = 0.0,
+        cells: Annotated[float, ParameterSpec()] = float(CELLS),
     ) -> None:
         super().__init__(label)
         self.cell = cell
         self.amino = amino
+        self.cells = cells
 
 
 class EllipsePath(BaseConfig[None, Array]):
@@ -346,7 +353,7 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
         return float(energies[amino.astype(int), row.astype(int)].sum())
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         import_extra('Bio.PDB', 'early_stage_folding_intermediate', 'structures')
         if self.temperature <= 0:
             error_msg = f'The temperature of the system must be positive, but it is {self.temperature}.'
@@ -361,8 +368,7 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
                     'residues',
                     element=PathCellElement,
                     space=LatticeSpace((1, len(names)), boundary='fixed'),
-                    values={'amino': amino[None]},
-                    visual=VisualSpec('image', {'states': ('cell',), 'low': 0.0, 'high': float(self.cells - 1)}),
+                    values={'amino': amino[None], 'cells': float(self.cells)},
                     on='sites',
                 ),
             ],

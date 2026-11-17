@@ -38,9 +38,6 @@ class DepotParticleElement(Element):
         label:
             The label of the particle or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -71,6 +68,8 @@ class DepotParticleElement(Element):
         10.0
     """
 
+    visual = POINTS
+
     law_classes = (
         NoiseLaw,
         RateLaw,
@@ -79,7 +78,6 @@ class DepotParticleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         v: Annotated[npt.ArrayLike, StateSpec(vector=True, role='velocity')] = 0.0,
@@ -90,7 +88,7 @@ class DepotParticleElement(Element):
         d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.v = v
         self.e = e
@@ -135,9 +133,6 @@ class InertialActiveParticleElement(Element):
         label:
             The label of the particle or the group.
 
-        visual:
-            How the particle is drawn.
-
         x:
             The initial position.
 
@@ -171,6 +166,8 @@ class InertialActiveParticleElement(Element):
         0.5
     """
 
+    visual = POINTS
+
     law_classes = (
         NoiseLaw,
         RateLaw,
@@ -179,7 +176,6 @@ class InertialActiveParticleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
@@ -191,7 +187,7 @@ class InertialActiveParticleElement(Element):
         D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.theta = theta
@@ -234,9 +230,6 @@ class OrnsteinUhlenbeckParticleElement(Element):
         label:
             The label of the particle or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -258,6 +251,8 @@ class OrnsteinUhlenbeckParticleElement(Element):
         1.0
     """
 
+    visual = POINTS
+
     law_classes = (
         NoiseLaw,
         RateLaw,
@@ -266,7 +261,6 @@ class OrnsteinUhlenbeckParticleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         u: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
@@ -274,7 +268,7 @@ class OrnsteinUhlenbeckParticleElement(Element):
         D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.u = u
         self.tau = tau
@@ -331,9 +325,6 @@ class TumblerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         theta:
             The initial direction.
 
@@ -352,6 +343,8 @@ class TumblerElement(Element):
         0.1
     """
 
+    visual = VisualSpec('agents', {'color_by': 'theta'})
+
     draws = True
 
     law_classes = (RuleLaw,)
@@ -359,14 +352,13 @@ class TumblerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'theta'}),
         *,
         theta: Annotated[float, StateSpec(role='direction')] = 0.0,
         speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         tumble_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.speed = speed
         self.tumble_rate = tumble_rate
@@ -715,7 +707,7 @@ class RunAndTumbleSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_agents, self.size, self.random_state)
         group = GroupElement(
             'bacteria',
@@ -798,7 +790,7 @@ class DepotBrownianParticlesSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         velocities = np.random.default_rng(self.random_state).normal(0.0, 0.01, (self.n_particles, 2))
         group = GroupElement(
             'walkers',
@@ -888,7 +880,7 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
             'swimmers',

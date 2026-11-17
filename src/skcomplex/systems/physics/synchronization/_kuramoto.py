@@ -38,7 +38,7 @@ class DelayedCouplingInteraction(RateInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         source:
             The path of the oscillator whose delayed phase the coupling reads.
@@ -240,7 +240,7 @@ class KuramotoSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         oscillators = GroupElement(
             'oscillators',
@@ -264,6 +264,12 @@ class KuramotoSystem(BaseSystem):
             elements=[oscillators],
             interactions=[coupling],
         )
+
+
+class RingOscillatorElement(PhaseOscillatorElement):
+    """Phase oscillator drawn on the phase ring."""
+
+    visual = VisualSpec('phase_ring', {'phase': 'theta'})
 
 
 class KuramotoSakaguchiChimeraSystem(BaseSystem):
@@ -332,23 +338,21 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         alpha, mu, nu = math.pi / 2 - self.beta, (1 + self.A) / 2, (1 - self.A) / 2
         populations = [
             GroupElement(
                 'first',
-                element=PhaseOscillatorElement,
+                element=RingOscillatorElement,
                 size=self.n_oscillators,
                 values={'theta': rng.normal(0.0, self.spread, self.n_oscillators), 'omega': 0.0},
-                visual=VisualSpec('phase_ring', {'phase': 'theta'}),
             ),
             GroupElement(
                 'second',
-                element=PhaseOscillatorElement,
+                element=RingOscillatorElement,
                 size=self.n_oscillators,
                 values={'theta': KuramotoSystem._spread_phases(self.n_oscillators, self.seed + 1), 'omega': 0.0},
-                visual=VisualSpec('phase_ring', {'phase': 'theta'}),
             ),
         ]
         interactions: list[BaseInteraction] = [
@@ -370,6 +374,12 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
             elements=populations,
             interactions=interactions,
         )
+
+
+class RingSitedOscillatorElement(SitedOscillatorElement):
+    """Phase oscillator with a place, drawn on the phase ring at its place."""
+
+    visual = VisualSpec('phase_ring', {'phase': 'theta', 'position': 'x'})
 
 
 class NonlocalRingChimeraSystem(BaseSystem):
@@ -439,14 +449,13 @@ class NonlocalRingChimeraSystem(BaseSystem):
         weight = 1 / (2 * self.R)
         ring = GroupElement(
             'ring',
-            element=SitedOscillatorElement,
+            element=RingSitedOscillatorElement,
             size=self.n_oscillators,
             values={
                 'theta': KuramotoSystem._spread_phases(self.n_oscillators, self.seed),
                 'omega': self.omega,
                 'x': np.arange(self.n_oscillators, dtype=float).reshape(-1, 1),
             },
-            visual=VisualSpec('phase_ring', {'phase': 'theta', 'position': 'x'}),
         )
         return CompositeSystem(
             self.label,

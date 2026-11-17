@@ -15,16 +15,16 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.spins import SpinSamplingInteraction
 
-SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
-NEAREST = BallNeighborhood(metric='manhattan')
+NEAREST = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
 
 
 class BondSpinElement(Element):
@@ -39,9 +39,6 @@ class BondSpinElement(Element):
     Args:
         label:
             The label of the spin or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         spin:
             The initial spin, 1 or -1.
@@ -70,10 +67,11 @@ class BondSpinElement(Element):
         -1.0
     """
 
+    visual = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         J_up: Annotated[float, StateSpec()] = 1.0,
@@ -83,7 +81,7 @@ class BondSpinElement(Element):
         h: Annotated[float, ParameterSpec()] = 0.0,
         temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.spin = spin
         self.J_up = J_up
         self.J_left = J_left
@@ -101,9 +99,6 @@ class MattisSpinElement(BondSpinElement):
     Args:
         label:
             The label of the spin or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         spin:
             The initial spin, 1 or -1.
@@ -135,10 +130,11 @@ class MattisSpinElement(BondSpinElement):
         -1.0
     """
 
+    visual = VisualSpec('image', {'states': ()})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         spin: float = 1.0,
         J_up: float = 1.0,
@@ -151,7 +147,6 @@ class MattisSpinElement(BondSpinElement):
     ) -> None:
         super().__init__(
             label,
-            visual=visual,
             spin=spin,
             J_up=J_up,
             J_left=J_left,
@@ -173,7 +168,7 @@ class BondSamplingInteraction(SpinSamplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the lattice group of spins.
@@ -181,7 +176,7 @@ class BondSamplingInteraction(SpinSamplingInteraction):
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import BondSamplingInteraction
         >>> BondSamplingInteraction('sampling', target='spins').neighborhood
-        BallNeighborhood(metric='manhattan')
+        LatticeNeighborhood(offsets=((-1, 0), (0, -1), (0, 1), (1, 0)))
     """
 
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
@@ -243,7 +238,7 @@ class EdwardsAndersonSystem(BaseSystem):
     references = ('Edwards and Anderson 1975', 'Bertin 2021', 'Binder and Young 1986')
     until = 500
     dt = 5
-    observables = (ObservableSpec('magnetization', group='spins', variable='spin'),)
+    observables = (Observable('magnetization', group='spins', variable='spin'),)
 
     @staticmethod
     def _get_square(size: int | Sequence[int]) -> tuple[int, int]:
@@ -313,7 +308,6 @@ class EdwardsAndersonSystem(BaseSystem):
                 'temperature': self.temperature,
                 **EdwardsAndersonSystem._get_bond_states(right, down),
             },
-            visual=SPIN_IMAGE,
             on='sites',
         )
         return CompositeSystem(
@@ -372,8 +366,8 @@ class MattisSpinGlassSystem(BaseSystem):
     until = 300
     dt = 2
     observables = (
-        ObservableSpec('magnetization', group='spins', variable='spin'),
-        ObservableSpec('overlap', _get_overlap, group='spins'),
+        Observable('magnetization', group='spins', variable='spin'),
+        Observable('overlap', _get_overlap, group='spins'),
     )
 
     def __init__(
@@ -394,7 +388,7 @@ class MattisSpinGlassSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = EdwardsAndersonSystem._get_square(self.size)
         rng = np.random.default_rng(self.random_state)
         pattern = rng.choice([-1.0, 1.0], size=shape)
@@ -412,7 +406,6 @@ class MattisSpinGlassSystem(BaseSystem):
                 'temperature': self.temperature,
                 **EdwardsAndersonSystem._get_bond_states(right, down),
             },
-            visual=VisualSpec('image', {'states': ()}),
             on='sites',
         )
         return CompositeSystem(

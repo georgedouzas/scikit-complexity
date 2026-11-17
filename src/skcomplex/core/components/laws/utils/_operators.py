@@ -10,11 +10,12 @@ from sage.all__sagemath_symbolics import SR, Expression, oo, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.function import BuiltinFunction
 
+from ....enums import BoundaryKind
 from ....errors import ValidationError
 
 COLLISION_SPEED = SR.symbol('collision_speed', domain='real')
 COLLISION_COSINE = SR.symbol('collision_cosine', domain='real')
-INVERSION_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
+INVERSION_BOUNDARIES = (BoundaryKind.PERIODIC, BoundaryKind.ZERO_FLUX, BoundaryKind.FIXED)
 ORDERS = (1, 3)
 
 

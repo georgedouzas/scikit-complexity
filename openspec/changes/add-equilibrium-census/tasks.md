@@ -9,9 +9,10 @@
 - [ ] 2.2 Add the kind `'census'` with the settings `parameters`, `starts`, `bounds`, `realizations`, and `random_state`, the index of every point, and the counts by index, and verify the bistable flow, the saddle of a map, and the same-seed scenarios with tests
 - [ ] 2.3 Raise `AnalysisError` for forms other than ODE and map, and verify the SDE scenario with a test
 - [ ] 2.4 Verify with tests that a group of 200 relaxing members and a system with a callable rate law are accepted by the census
-- [ ] 2.5 Add realizations by `set_params(random_state=seed)` with the mean count, typical count, and both complexities, raising `AnalysisError` for a system without `random_state`, and verify both behaviours with tests
-- [ ] 2.6 Add the new `StabilityResult` fields with their docstrings and a doctest of the census on the bistable flow, and verify the doctest runs
-- [ ] 2.7 Document the census in the stability section of `docs/overview/user_guide/analyse.md`, stating that counts are lower bounds that grow with the starts, and verify the page builds
+- [ ] 2.5 Once `add-learning-foundation` is applied, take the Jacobian of systems with learned laws by `jax.jacfwd` of the JAX lowering, and verify the identified-system-with-a-learned-law scenario
+- [ ] 2.6 Add realizations by `set_params(random_state=seed)` with the mean count, typical count, and both complexities, raising `AnalysisError` for a system without `random_state`, and verify both behaviours with tests
+- [ ] 2.7 Add the new `StabilityResult` fields with their docstrings and a doctest of the census on the bistable flow, and verify the doctest runs
+- [ ] 2.8 Document the census in the stability section of `docs/overview/user_guide/analyse.md`, stating that counts are lower bounds that grow with the starts, and verify the page builds
 
 ## 3. Random force field relaxation system
 

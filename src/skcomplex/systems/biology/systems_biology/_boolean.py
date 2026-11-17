@@ -146,7 +146,7 @@ class RandomBooleanNetworkSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a Kauffman random Boolean network."""
+        """Return the components of a Kauffman random Boolean network."""
         if not 1 <= self.k <= self.n_nodes:
             error_msg = (
                 f'k = {self.k} inputs per node must be between 1 and the number of nodes, n_nodes = {self.n_nodes}.'
@@ -206,7 +206,7 @@ class YeastCellCycleSystem(BaseSystem):
         self.active = active
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Boolean network of the yeast cell cycle of Li et al.
+        """Return the components of the Boolean network of the yeast cell cycle of Li et al.
 
         The yeast is the budding yeast.
         """

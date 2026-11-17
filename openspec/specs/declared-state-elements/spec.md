@@ -21,15 +21,15 @@ them as it treats annotated constructor arguments.
 - **WHEN** a user clones an element declared from data
 - **THEN** the clone has the same states and specs, and a change to the clone's parameters leaves the original unchanged
 
-### Requirement: The library generates no part classes
+### Requirement: The library generates no component classes
 
-No module of the library SHALL set `__signature__` or build a part with `type()`.
+No module of the library SHALL set `__signature__` or build a component with `type()`.
 
 #### Scenario: Source check
 
 - **WHEN** the test suite scans the modules of the library
-- **THEN** it finds no `__signature__` assignment and no part built with `type()`; the Mesa agent and view classes that
-  `MesaSolver` builds are not parts
+- **THEN** it finds no `__signature__` assignment and no component built with `type()`, and the Mesa agent and view
+  classes that `MesaSolver` builds are not components
 
 ### Requirement: Moved systems keep their results
 

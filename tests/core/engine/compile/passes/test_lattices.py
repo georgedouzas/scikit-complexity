@@ -1,4 +1,4 @@
-"""Test triangular lattices, lattice laws on graphs, neighbour sums, colored schedules, and extremal updates."""
+"""Test triangular lattices, lattice laws on graphs, neighbour sums, and colored schedules."""
 
 import itertools
 from typing import Annotated
@@ -11,37 +11,34 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.laws import ExtremalLaw, LocalRuleLaw, SampleLaw
+from skcomplex.core.components.laws import (
+    LinearRuleSpec,
+    LocalRuleLaw,
+    MoveSpec,
+    ObjectiveSpec,
+    OuterTotalisticSpec,
+    SampleLaw,
+    SamplerSpec,
+    TableSpec,
+    TotalisticSpec,
+)
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
-    BallNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
     NetworkSpace,
+    RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.problems._extremal_kernel import ExtremalKernel
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver, SiteVisual
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import (
-    ExtremalRecordSpec,
-    LinearRuleSpec,
-    MoveSpec,
-    ObjectiveSpec,
-    OuterTotalisticSpec,
-    ParameterSpec,
-    SamplerSpec,
-    StateSpec,
-    TableSpec,
-    TotalisticSpec,
-    VisualSpec,
-)
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.physics.criticality import HexagonalForestFireSystem
 from skcomplex.systems.physics.statistical_mechanics import GraphIsingSystem
 
@@ -52,11 +49,10 @@ class BurnElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         fire: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.fire = fire
 
     def _get_laws(self, s):
@@ -64,7 +60,7 @@ class BurnElement(Element):
         return [
             LocalRuleLaw(
                 s.fire,
-                BallNeighborhood(metric='hexagonal', center='first'),
+                RadiusNeighborhood(1, metric='hexagonal', center=True),
                 lambda *values: np.max(values, axis=0),
             ),
         ]
@@ -76,16 +72,21 @@ class LifeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         alive: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.alive = alive
 
     def _get_laws(self, s):
         """Return the Game of Life rule on the Moore neighbourhood."""
-        return [LocalRuleLaw(s.alive, BallNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
+        return [
+            LocalRuleLaw(
+                s.alive,
+                RadiusNeighborhood(1, metric='chebyshev'),
+                OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}),
+            ),
+        ]
 
 
 class GraphLifeElement(LifeElement):
@@ -94,29 +95,6 @@ class GraphLifeElement(LifeElement):
     def _get_laws(self, s):
         """Return the Game of Life rule on the adjacent nodes."""
         return [LocalRuleLaw(s.alive, AdjacencyNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
-
-
-def _renew(value, random):
-    """Return new uniform values."""
-    return random
-
-
-class FitnessElement(Element):
-    """Fitness element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        value: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.value = value
-
-    def _get_laws(self, s):
-        """Return the laws of the fitness element."""
-        return [ExtremalLaw(s.value, LatticeNeighborhood(((-1,), (1,))), _renew, repeat=7, label='update')]
 
 
 def _ising_magnetization(trajectory):
@@ -140,7 +118,7 @@ def test_triangular_neighbours_wrap_on_torus_at_unit_distance():
     space = LatticeSpace((10, 10), geometry='triangular').prepare()
     neighbours = [
         tuple(np.unravel_index(site, space.shape_))
-        for site in space._get_neighbors(0, BallNeighborhood(metric='hexagonal'))
+        for site in space._get_neighbors(0, RadiusNeighborhood(1, metric='hexagonal'))
     ]
     assert len(set(neighbours)) == 6
     assert {(0, 9), (9, 0), (9, 1)} <= set(neighbours)
@@ -155,7 +133,7 @@ def test_triangular_neighbours_wrap_on_torus_at_unit_distance():
 def test_triangular_opposite_directions_return_to_start():
     """Test that a step in direction k and a step in direction k + 3 return to the starting site."""
     space = LatticeSpace((7, 9), geometry='triangular').prepare()
-    table = space._get_index_table(BallNeighborhood(metric='hexagonal'))
+    table = space._get_index_table(RadiusNeighborhood(1, metric='hexagonal'))
     for site in range(space.size_):
         for k in range(6):
             assert table[table[site, k], (k + 3) % 6] == site
@@ -193,13 +171,13 @@ def test_network_index_table_pads_with_size():
     table = space._get_index_table(AdjacencyNeighborhood(center=True))
     assert table.tolist() == [[0, 1, 2, 3], [1, 0, 4, 4], [2, 0, 4, 4], [3, 0, 4, 4]]
     with pytest.raises(ValidationError, match='adjacency neighbourhood'):
-        space._get_neighbors(0, BallNeighborhood())
+        space._get_neighbors(0, RadiusNeighborhood(1, metric='chebyshev'))
 
 
 def test_grid_graph_matches_square_lattice():
     """Test that a glider gives the same configurations on a periodic lattice and on its Moore graph for 40 steps."""
     lattice = LatticeSpace((20, 20)).prepare()
-    table = lattice._get_index_table(BallNeighborhood())
+    table = lattice._get_index_table(RadiusNeighborhood(1, metric='chebyshev'))
     graph = nx.Graph()
     graph.add_nodes_from(range(lattice.size_))
     graph.add_edges_from((site, int(other)) for site, row in enumerate(table) for other in row)
@@ -236,11 +214,10 @@ def test_totalistic_rule_counts_real_neighbours_on_star():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
@@ -271,11 +248,10 @@ def test_function_rule_reads_degrees_on_star():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
@@ -297,11 +273,10 @@ def test_lattice_groups_on_networks_reject_tables_and_capacities():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
@@ -336,13 +311,12 @@ def test_neighbor_sum_ignores_padding():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             theta: Annotated[object, StateSpec()] = 0.0,
             J: Annotated[object, ParameterSpec()] = 1.3,
             temperature: Annotated[object, ParameterSpec()] = 0.5,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.theta = theta
             self.J = J
             self.temperature = temperature
@@ -408,12 +382,11 @@ def test_colored_schedule_partitions_triangular_lattice():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             spin: Annotated[object, StateSpec()] = 1.0,
             temperature: Annotated[object, ParameterSpec()] = 2.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.spin = spin
             self.temperature = temperature
 
@@ -422,8 +395,8 @@ def test_colored_schedule_partitions_triangular_lattice():
             return [
                 SampleLaw(
                     ObjectiveSpec(
-                        -s.spin * sum(neighbors(s.spin, BallNeighborhood(metric='hexagonal'), reduce='each')),
-                        BallNeighborhood(metric='hexagonal'),
+                        -s.spin * sum(neighbors(s.spin, RadiusNeighborhood(1, metric='hexagonal'), reduce='each')),
+                        RadiusNeighborhood(1, metric='hexagonal'),
                     ),
                     MoveSpec(s.spin),
                     SamplerSpec('metropolis', 1 / s.temperature, schedule='colored'),
@@ -447,7 +420,9 @@ def test_colored_schedule_partitions_triangular_lattice():
 @pytest.mark.parametrize('space', [LatticeSpace((6, 6), geometry='triangular'), NetworkSpace(nx.cycle_graph(6))])
 def test_checkerboard_rejected_where_it_does_not_apply(space):
     """Test that the checkerboard schedule on a triangular lattice or a graph names the law and the colored schedule."""
-    neighborhood = BallNeighborhood(metric='hexagonal') if isinstance(space, LatticeSpace) else AdjacencyNeighborhood()
+    neighborhood = (
+        RadiusNeighborhood(1, metric='hexagonal') if isinstance(space, LatticeSpace) else AdjacencyNeighborhood()
+    )
 
     class FlipElement(Element):
         """Flip element."""
@@ -455,11 +430,10 @@ def test_checkerboard_rejected_where_it_does_not_apply(space):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             spin: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.spin = spin
 
         def _get_laws(self, s):
@@ -470,119 +444,6 @@ def test_checkerboard_rejected_where_it_does_not_apply(space):
         PassCompiler().prepare(
             CompositeSystem(elements=[GroupElement('spins', element=FlipElement, space=space, on='sites')]),
         ).run()
-
-
-def test_extremal_changes_only_the_neighbourhood():
-    """Test that one extremal update on a ring of 100 changes the minimum and its two neighbours only."""
-
-    class OnceElement(Element):
-        """Once element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            value: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.value = value
-
-        def _get_laws(self, s):
-            """Return the laws of the once element."""
-            return [ExtremalLaw(s.value, BallNeighborhood(n_dim=1, center='inline'), _renew)]
-
-    values = np.random.default_rng(0).random(100)
-    trajectory = simulate(
-        CompositeSystem(
-            elements=[
-                GroupElement(
-                    'ring',
-                    element=OnceElement,
-                    space=LatticeSpace(100),
-                    values={'value': values},
-                    on='sites',
-                ),
-            ],
-        ),
-        until=1,
-        dt=1,
-    )
-    site = int(np.argmin(values))
-    changed = np.flatnonzero(trajectory.states[-1] != values)
-    assert sorted(changed.tolist()) == sorted([(site - 1) % 100, site, (site + 1) % 100])
-    (event,) = trajectory.events
-    assert event == ExtremalRecordSpec('ring', 1.0, site, float(values[site]))
-
-
-def test_extremal_maximum_and_ties():
-    """Test that an extremal law on the largest value breaks ties among equal values with the random stream."""
-
-    class TopElement(Element):
-        """Top element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            value: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.value = value
-
-        def _get_laws(self, s):
-            """Return the laws of the top element."""
-            return [ExtremalLaw(s.value, AdjacencyNeighborhood(), _renew, extremum='max', repeat=20)]
-
-    system = CompositeSystem(
-        elements=[
-            GroupElement(
-                'nodes',
-                element=TopElement,
-                space=NetworkSpace(nx.path_graph(10)),
-                values={'value': np.full(10, 2.0)},
-                on='sites',
-            ),
-        ],
-    )
-    events = simulate(system, until=1, dt=1, random_state=0).events
-    assert events[0].value == 2.0
-    assert all(event.value <= 2.0 for event in events)
-    with pytest.raises(ValidationError, match='extremum'):
-        ExtremalLaw(None, AdjacencyNeighborhood(), _renew, extremum='median').prepare()
-
-
-def test_extremal_runs_are_reproducible_across_backends():
-    """Test that two runs on the NumPy and two on the Numba backend give identical lattices and events."""
-    values = np.random.default_rng(1).random(50)
-    runs = []
-    for backend in (NumpyBackend, NumpyBackend, NumbaBackend, NumbaBackend):
-        system = CompositeSystem(
-            elements=[
-                GroupElement(
-                    'ring',
-                    element=FitnessElement,
-                    space=LatticeSpace(50),
-                    values={'value': values},
-                    on='sites',
-                ),
-            ],
-        )
-        trajectory = simulate(system, until=20, dt=1, backend=backend(), random_state=7)
-        runs.append((trajectory.get_values('ring.value'), trajectory.events))
-    system = CompositeSystem(
-        elements=[
-            GroupElement('ring', element=FitnessElement, space=LatticeSpace(50), values={'value': values}, on='sites'),
-        ],
-    )
-    compiled = PassCompiler(backend=NumbaBackend()).prepare(system).run().problem_
-    assert isinstance(compiled.lattice[0], ExtremalKernel)
-    assert compiled.lattice[0].loop is not None
-    for states, events in runs[1:]:
-        assert np.array_equal(states, runs[0][0])
-        assert events == runs[0][1]
-    assert len(runs[0][1]) == 140
 
 
 def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
@@ -648,8 +509,14 @@ def test_life_simulation_agrees_with_the_run_of_its_law():
     rule = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
     space = LatticeSpace((5, 5))
     cells = GroupElement('cells', element=OnOffElement, space=space, values={'alive': start}, on='sites')
-    life = LocalRuleInteraction('life', target='cells', state='alive', rule=rule, neighborhood=BallNeighborhood())
+    life = LocalRuleInteraction(
+        'life',
+        target='cells',
+        state='alive',
+        rule=rule,
+        neighborhood=RadiusNeighborhood(1, metric='chebyshev'),
+    )
     trajectory = simulate(CompositeSystem(elements=[cells], interactions=[life]), until=1, dt=1)
-    law = LocalRuleLaw(var('alive'), BallNeighborhood(), rule).prepare()
+    law = LocalRuleLaw(var('alive'), RadiusNeighborhood(1, metric='chebyshev'), rule).prepare()
     image = law.run({'space': space, 'alive': start.astype(int)}).value_
     np.testing.assert_array_equal(trajectory.get_values('cells.alive')[-1].astype(int), image)

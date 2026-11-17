@@ -15,9 +15,8 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix
 from sage.modules.free_module_element import FreeModuleElement
 from scipy.optimize import root
 
-from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import BaseLaw, BoundaryLaw, CallSpec, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import SolverError, ValidationError
-from ....specs import CallSpec, IssueSpec
 from ....specs._base_spec import BaseSpec
 from ....types import Array
 from ..._utils import symbols_of, vector
@@ -28,6 +27,7 @@ from ...problems._relation_spec import _RelationSpec
 from .._algebraic_law import AlgebraicLaw
 from .._base import BaseLowering, BasePass
 from .._compilation import Compilation, Laws
+from .._issue_spec import IssueSpec
 from .._laws import KERNEL_FREE_LAWS
 from .._renewal_law import RenewalLaw
 
@@ -456,14 +456,14 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         if isinstance(law, JumpLaw):
             rate = self._get_substituted(law.rate, time, owner)
             return law if rate is law.rate else BasePass._get_replaced(law, rate=rate)
-        if isinstance(law, CrossingLaw | RenewalLaw):
+        if isinstance(law, EventLaw | RenewalLaw):
             return self._copy_with_event_solutions(law, owner)
         if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
             value = self._get_substituted(law.value, time, owner)
             return law if value is law.value else BasePass._get_replaced(law, value=value)
         return law
 
-    def _copy_with_event_solutions(self, law: CrossingLaw | RenewalLaw, owner: str) -> BaseLaw:
+    def _copy_with_event_solutions(self, law: EventLaw | RenewalLaw, owner: str) -> BaseLaw:
         """Return an event or renewal that reads the symbolic solutions.
 
         Its guard, waiting time, and reset read them.

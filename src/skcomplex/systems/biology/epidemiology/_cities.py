@@ -47,9 +47,6 @@ class CommuterElement(Element):
         label:
             The label of the person or of the group of people.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         home:
             The location of the home.
 
@@ -65,16 +62,17 @@ class CommuterElement(Element):
         12.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 2.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 2.0)}),
         *,
         home: Annotated[float, StateSpec(domain=NN)] = 0.0,
         work: Annotated[float, StateSpec(domain=NN)] = 0.0,
         health: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.home = home
         self.work = work
         self.health = health
@@ -245,7 +243,7 @@ class EpisimsCitySystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a synthetic city in the spirit of EpiSims."""
+        """Return the components of a synthetic city in the spirit of EpiSims."""
         rng = np.random.default_rng(self.seed)
         homes = rng.integers(0, max(1, round(self.people / self.household)), self.people)
         n_homes = int(homes.max()) + 1

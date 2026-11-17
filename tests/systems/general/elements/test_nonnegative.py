@@ -16,7 +16,7 @@ from skcomplex.systems.general.elements import NonnegativeElement
 
 def test_nonnegative_lists_its_value_as_a_parameter():
     """Test that a nonnegative element lists its label, its visual, and its value `x`."""
-    assert NonnegativeElement('S', x=990).get_params() == {'label': 'S', 'visual': None, 'x': 990}
+    assert NonnegativeElement('S', x=990).get_params() == {'label': 'S', 'x': 990}
 
 
 def test_nonnegative_state_has_a_nonnegative_domain():

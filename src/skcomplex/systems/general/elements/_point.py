@@ -8,7 +8,6 @@ from typing import Annotated
 import numpy.typing as npt
 
 from ....core.components.elements import Element
-from ....core.components.spaces import BaseSpace
 from ....core.specs import StateSpec, VisualSpec
 
 
@@ -34,9 +33,6 @@ class PointElement(Element):
         x_d1:
             The initial value of the first derivative of the vector state. A number applies to every component.
 
-        visual:
-            How the point is drawn, or `None` for `default_visual_`.
-
     Attributes:
         default_visual_:
             Points at the values of `x`.
@@ -51,23 +47,14 @@ class PointElement(Element):
         [2.0, 0.0]
     """
 
+    visual = VisualSpec('points', {'position': 'x'})
+
     def __init__(
         self,
         label: str,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
-        visual: VisualSpec | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `default_visual_`, points at the values of `x`.
-
-        Args:
-            context:
-                The space the element inherits from its system, which the element does not read.
-        """
-        super()._prepare(context)
-        self.default_visual_ = VisualSpec('points', {'position': 'x'})

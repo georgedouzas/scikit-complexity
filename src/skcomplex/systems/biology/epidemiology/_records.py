@@ -19,7 +19,7 @@ from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import uniform, where
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec
 
 
 class PathogenElement(Element):
@@ -30,9 +30,6 @@ class PathogenElement(Element):
     Args:
         label:
             The label of the pathogen.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         eta:
             The strength of the strain of the current season.
@@ -50,11 +47,10 @@ class PathogenElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         eta: Annotated[float, StateSpec(domain=RealSet.closed_open(0, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.eta = eta
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -80,9 +76,6 @@ class ResidentElement(Element):
         label:
             The label of the resident or of the group of residents.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         R:
             The resistance, between 0 and 1, where 1 is immunity.
 
@@ -98,12 +91,11 @@ class ResidentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         R: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.5,
         infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.R = R
         self.infected = infected
 
@@ -211,7 +203,7 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of yearly strains that infect less resistant residents.
+        """Return the components of yearly strains that infect less resistant residents.
 
         A strain infects every resident less resistant than its strength.
         """

@@ -17,13 +17,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, fast_callable, oo
 from sage.sets.real_set import RealSet
 
+from .....core.components import Tags
 from .....core.components.interactions import Interaction
-from .....core.components.laws import BaseLaw, RateLaw, UpdateLaw
+from .....core.components.laws import BaseLaw, CallSpec, RateLaw, UpdateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import NamespaceFunction, PairPotential, Target
+from .....core.enums import ElementKind
 from .....core.errors import ValidationError
-from .....core.specs import CallSpec, ParameterSpec, RoleSpec, Tags
-from .....core.types import Array, ElementKind
+from .....core.specs import ParameterSpec, RoleSpec
+from .....core.types import Array
 
 TENSORS = ('free-draining', 'oseen', 'rotne-prager-yamakawa')
 FORMS = ('rate', 'map')
@@ -227,7 +229,7 @@ class StokesianMobilityInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of spheres.
@@ -363,7 +365,7 @@ class StokesianMobilityInteraction(Interaction):
         self.temperature = temperature
         self.dt = dt
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown variant, a bad function, or continuous noise.
 
         The noise may not run in continuous time.

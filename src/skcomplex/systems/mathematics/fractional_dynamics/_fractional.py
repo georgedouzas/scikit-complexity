@@ -13,7 +13,7 @@ from typing import Annotated
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -28,9 +28,6 @@ class VanDerPolElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial displacement.
@@ -52,13 +49,12 @@ class VanDerPolElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 2.0,
         y: Annotated[float, StateSpec()] = 0.0,
         mu: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.mu = mu
@@ -119,13 +115,12 @@ def van_der_pol_type(order: float) -> type[VanDerPolElement]:
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[float, StateSpec(order=order)] = 2.0,
             y: Annotated[float, StateSpec(order=order)] = 0.0,
             mu: float = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual, x=x, y=y, mu=mu)
+            super().__init__(label, x=x, y=y, mu=mu)
 
     return _published(FractionalElement, _type_name('FractionalVanDerPol', order))
 
@@ -189,7 +184,7 @@ class FractionalRelaxationSystem(DynamicalSystem):
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return {
             'x': lambda s: -s.target.lam * s.target.x,
         }

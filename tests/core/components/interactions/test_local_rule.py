@@ -7,11 +7,12 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
+from skcomplex.core.components.laws import TableSpec, TotalisticSpec
+from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, TableSpec, TotalisticSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 SIZE = 9
 
@@ -22,12 +23,11 @@ class CellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         c: Annotated[float, StateSpec()] = 0.0,
         m: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.c = c
         self.m = m
 
@@ -55,7 +55,7 @@ def test_totalistic_rule_of_the_neighbours_draws_rule_90():
         target='cells',
         state='c',
         rule=parity,
-        neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
+        neighborhood=RadiusNeighborhood(1, metric='manhattan'),
     )
     values = _run(rule, 2).get_values('cells.c')
     assert values[1].tolist() == [0, 0, 0, 1, 0, 1, 0, 0, 0]
@@ -65,7 +65,7 @@ def test_totalistic_rule_of_the_neighbours_draws_rule_90():
 def test_table_rule_reads_the_ordered_neighbourhood():
     """Test that a table of the ordered neighbourhood moves a live cell one site to the right."""
     shift = TableSpec({(0, 1, 0): 1, (1, 0, 0): 0}, default=0)
-    around = BallNeighborhood(metric='manhattan', n_dim=1, center='first')
+    around = RadiusNeighborhood(1, metric='manhattan', center=True)
     rule = LocalRuleInteraction('shift', target='cells', state='c', rule=shift, neighborhood=around)
     values = _run(rule, 1).get_values('cells.c')
     assert int(np.argmax(values[1])) == int(np.argmax(values[0])) + 1
@@ -73,7 +73,7 @@ def test_table_rule_reads_the_ordered_neighbourhood():
 
 def test_function_rule_sets_two_states_together():
     """Test that a function rule sets two states, the shifted value and a mark of the cells that changed."""
-    around = BallNeighborhood(metric='manhattan', n_dim=1, center='first')
+    around = RadiusNeighborhood(1, metric='manhattan', center=True)
 
     def shift(*values):
         c, _, right, m = values[:4]
@@ -94,7 +94,7 @@ def test_check_rejects_states_and_neighbourhoods_it_cannot_read(arguments, match
     defaults = {
         'state': 'c',
         'rule': TotalisticSpec({1: 1}),
-        'neighborhood': BallNeighborhood(metric='manhattan', n_dim=1),
+        'neighborhood': RadiusNeighborhood(1, metric='manhattan'),
     }
     with pytest.raises(ValidationError, match=match):
         LocalRuleInteraction('rule', target='cells', **(defaults | arguments)).prepare()

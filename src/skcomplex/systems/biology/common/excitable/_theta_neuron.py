@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import cos, pi
 
 from .....core.components.elements import Element
 from .....core.components.laws import BaseLaw, RateLaw
-from .....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.specs import ParameterSpec, StateSpec
 
 
 class ThetaNeuronElement(Element):
@@ -28,9 +28,6 @@ class ThetaNeuronElement(Element):
     Args:
         label:
             The label of the neuron or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         theta:
             The initial phase.
@@ -50,12 +47,11 @@ class ThetaNeuronElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
         eta: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.eta = eta
 

@@ -15,16 +15,23 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression, cos, sin, sqrt
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import codifferential, exterior_derivative, mean
 from ....core.components.spaces import CellComplexSpace, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, VisualSpec
+from ....core.specs import VisualSpec
 from ..common.oscillators import LinkElement, PhaseOscillatorElement
 
 MODELS = ('NL', 'NLT')
+
+
+class LinkOscillatorElement(PhaseOscillatorElement):
+    """Phase oscillator on a link, drawn as a cell coloured by its phase."""
+
+    visual = VisualSpec('cell', {'state': 'theta'})
 
 
 class TopologicalKuramotoSystem(BaseSystem):
@@ -185,12 +192,12 @@ class TopologicalKuramotoSystem(BaseSystem):
         )
 
     @staticmethod
-    def _get_topological_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_topological_observables(system: CompositeSystem) -> list[Observable]:
         """Return the order parameters of the node phases and the link phase projections."""
         space = system.elements[0].space.prepare()
         return [
-            ObservableSpec('node_order', function=TopologicalKuramotoSystem._get_node_order),
-            ObservableSpec(
+            Observable('node_order', function=TopologicalKuramotoSystem._get_node_order),
+            Observable(
                 'link_order',
                 function=partial(TopologicalKuramotoSystem._link_order, *space.incidences_[:2]),
             ),
@@ -199,14 +206,14 @@ class TopologicalKuramotoSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         settings['observables'] = tuple(self._get_topological_observables(self._build_system()))
         return settings
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.model not in MODELS:
             error_msg = f'Unknown model {self.model!r}. Use one of {", ".join(MODELS)}.'
             raise ValidationError(error_msg)
@@ -226,11 +233,10 @@ class TopologicalKuramotoSystem(BaseSystem):
         )
         links = GroupElement(
             'links',
-            element=PhaseOscillatorElement,
+            element=LinkOscillatorElement,
             space=space,
             on='edges',
             values={'theta': rng.uniform(-np.pi, np.pi, n_links), 'omega': rng.normal(0.0, self.width, n_links)},
-            visual=VisualSpec('cell', {'state': 'theta'}),
         )
         interactions = [
             RateInteraction(

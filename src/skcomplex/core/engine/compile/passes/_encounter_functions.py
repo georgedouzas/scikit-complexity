@@ -8,8 +8,8 @@ from dataclasses import replace
 import numpy as np
 
 from ....errors import PipelineError
-from ....specs import RunStateSpec
 from ....types import Array, VectorFunction
+from ...problems import RunStateSpec
 from ...problems._encounter_kernel import EncounterKernel
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from .._base import BasePass

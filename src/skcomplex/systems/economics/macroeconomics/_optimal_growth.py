@@ -11,8 +11,9 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression, exp, log, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.engine.solvers import CollocationSolver
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -93,7 +94,7 @@ class OptimalConsumptionSystem(DynamicalSystem):
         sense='max',
         nodes=81,
     )
-    observables = (ObservableSpec('saving_rate', _get_saving_rate),)
+    observables = (Observable('saving_rate', _get_saving_rate),)
 
     def __init__(
         self,
@@ -138,7 +139,7 @@ class OptimalConsumptionSystem(DynamicalSystem):
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return {
             'k': self._get_net_saving,
         }

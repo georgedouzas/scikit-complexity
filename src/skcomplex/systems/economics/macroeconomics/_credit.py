@@ -14,12 +14,14 @@ from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerSwitchSpec
 
 
@@ -55,9 +57,6 @@ class FirmElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         net_worth:
             The initial net worth.
@@ -108,7 +107,6 @@ class FirmElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         net_worth: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -124,7 +122,7 @@ class FirmElement(Element):
         volatility: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         entry: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.net_worth = net_worth
         self.demand = demand
         self.bid = bid
@@ -244,9 +242,6 @@ class LenderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         equity:
             The initial equity.
 
@@ -278,7 +273,6 @@ class LenderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         equity: Annotated[float, StateSpec()] = 100.0,
         ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -288,7 +282,7 @@ class LenderElement(Element):
         alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         capital_ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.equity = equity
         self.ask = ask
         self.supply = supply
@@ -525,14 +519,14 @@ class CreditNetworksSystem(BaseSystem):
     references = ('Caiani et al. 2016 ch. 2', 'Delli Gatti et al. 2010')
     until = 100
     observables = (
-        ObservableSpec('herfindahl', group='banks', variable='lent', reduce=_get_herfindahl),
-        ObservableSpec('largest_share', group='banks', variable='lent', reduce=_get_largest_share),
-        ObservableSpec('bank_equity', group='banks', variable='equity', reduce='sum'),
-        ObservableSpec('firm_worth', group='firms', variable='net_worth', reduce='sum'),
-        ObservableSpec('returns', group='firms', variable='gross_return', reduce='sum'),
-        ObservableSpec('injected', group='firms', variable='injected', reduce='sum'),
-        ObservableSpec('defaults', group='firms', variable='defaulted', reduce='sum'),
-        ObservableSpec('bad_debt', group='banks', variable='losses', reduce='sum'),
+        Observable('herfindahl', group='banks', variable='lent', reduce=_get_herfindahl),
+        Observable('largest_share', group='banks', variable='lent', reduce=_get_largest_share),
+        Observable('bank_equity', group='banks', variable='equity', reduce='sum'),
+        Observable('firm_worth', group='firms', variable='net_worth', reduce='sum'),
+        Observable('returns', group='firms', variable='gross_return', reduce='sum'),
+        Observable('injected', group='firms', variable='injected', reduce='sum'),
+        Observable('defaults', group='firms', variable='defaulted', reduce='sum'),
+        Observable('bad_debt', group='banks', variable='losses', reduce='sum'),
     )
 
     def __init__(
@@ -579,7 +573,7 @@ class CreditNetworksSystem(BaseSystem):
         bank.lent += trade.quantity
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         lenders = GroupElement(
             'banks',

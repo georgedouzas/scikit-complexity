@@ -13,15 +13,16 @@ from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 from scipy.special import expit, softmax
 
-from ....core.components.base import BasePart
-from ....core.components.interactions import SCHEDULES, Interaction
+from ....core.components import Tags
+from ....core.components.base import BaseComponent
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, uniform, where
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.enums import ElementKind, ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, Tags
-from ....core.types import ElementKind
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec
 
 RULES = ('logit', 'metropolis', 'fermi', 'best')
 FORMS = ('symbolic', 'agent')
@@ -54,7 +55,7 @@ class ChoiceInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or group whose members choose.
@@ -170,7 +171,7 @@ class ChoiceInteraction(Interaction):
         """Raise an error for an unknown variant or a symbolic choice not synchronous."""
         self._check_variant('rule', self.rule, RULES, (BaseSpec,))
         for name, value, variants in (
-            ('schedule', self.schedule, SCHEDULES),
+            ('schedule', self.schedule, tuple(ScheduleKind)),
             ('form', self.form, FORMS),
             ('proposal', self.proposal, PROPOSALS),
             ('ties', self.ties, TIES),
@@ -185,7 +186,7 @@ class ChoiceInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown variant, fewer than two options, or a bad utility.
 
         Args:
@@ -329,7 +330,7 @@ class ChoiceInteraction(Interaction):
         """
         self._update_agents(system, self.schedule, self._get_choice, self._set_choice)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the update of the state of every revising member, or the agent-form rule.
 
         The agent form returns its rule instead.

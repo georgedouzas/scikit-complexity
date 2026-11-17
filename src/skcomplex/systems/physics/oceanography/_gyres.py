@@ -13,13 +13,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import inverse_helmholtz, partial
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.fields import AdvectionInteraction, DiffusivityInteraction
 
 
@@ -35,9 +36,6 @@ class QuasiGeostrophicSiteElement(Element):
     Args:
         label:
             The label of the site or the basin.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
 
         zeta:
             The initial relative potential vorticity.
@@ -63,7 +61,6 @@ class QuasiGeostrophicSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         zeta: Annotated[float, StateSpec()] = 0.0,
         beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -71,7 +68,7 @@ class QuasiGeostrophicSiteElement(Element):
         nu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1e-4,
         curl: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.zeta = zeta
         self.beta = beta
         self.Rd = Rd
@@ -146,7 +143,7 @@ class DoubleGyreSystem(BaseSystem):
     until = 400.0
     dt = 0.4
     solver = RK4Solver(dt=0.4)
-    observables = (ObservableSpec('psi', _get_streamfunction, group='basin', reduce=_get_sites),)
+    observables = (Observable('psi', _get_streamfunction, group='basin', reduce=_get_sites),)
 
     def __init__(
         self,
@@ -219,8 +216,6 @@ class DoubleGyreSystem(BaseSystem):
             state='zeta',
             drift=self._get_velocity,
             source=self._get_beta_drift,
-            limiter=None,
-            riemann=None,
         )
         wind = RateInteraction('wind', target='basin', state='zeta', rate=self._get_wind)
         viscosity = DiffusivityInteraction('viscosity', target='basin', state='zeta', coefficient=self._get_viscosity)

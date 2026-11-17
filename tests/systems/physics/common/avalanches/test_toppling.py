@@ -9,15 +9,15 @@ import pytest
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
-    BallNeighborhood,
     DiscreteTime,
     LatticeSpace,
     NetworkSpace,
+    RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import RoleSpec, StateSpec
 from skcomplex.systems.physics.common.avalanches import TopplingInteraction
 
 SIDE = 50
@@ -32,11 +32,10 @@ class SiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         height: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.height = height
 
 
@@ -95,7 +94,7 @@ def test_redistribution_keeps_the_grains_inside_a_periodic_lattice():
         2,
         1,
         share=1,
-        neighborhood=BallNeighborhood(metric='manhattan', n_dim=1, center='first'),
+        neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
     )
     assert trajectory.states[-1].tolist() == [1.0] * 5
     (event,) = trajectory.events
@@ -151,7 +150,7 @@ def test_random_mode_drives_a_stochastic_sandpile_to_a_stationary_density():
     [
         ({'mode': 'flip'}, 'Unknown mode'),
         ({'drive': 1.0}, 'callable'),
-        ({'neighborhood': BallNeighborhood(metric='manhattan')}, 'center=True'),
+        ({'neighborhood': RadiusNeighborhood(1, metric='manhattan')}, 'center=True'),
         ({'mode': 'random', 'neighborhood': AdjacencyNeighborhood(center=True)}, 'lattice neighbourhood'),
         ({'mode': 'random', 'threshold': 3.0, 'share': 2.0}, 'divides the threshold'),
     ],

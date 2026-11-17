@@ -13,10 +13,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, TransferInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ImmunizingDegreeClassElement(Element):
@@ -34,9 +35,6 @@ class ImmunizingDegreeClassElement(Element):
     Args:
         label:
             The label of the class or the group of classes.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         s:
             The initial susceptible density.
@@ -73,7 +71,6 @@ class ImmunizingDegreeClassElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         s: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.999,
         i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
@@ -83,7 +80,7 @@ class ImmunizingDegreeClassElement(Element):
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         P: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.s = s
         self.i = i
         self.r = r
@@ -154,8 +151,8 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
     until = 100.0
     dt = 0.5
     observables = (
-        ObservableSpec('infected', _get_infected_share, group='network', reduce='sum'),
-        ObservableSpec('recovered', _get_recovered_share, group='network', reduce='sum'),
+        Observable('infected', _get_infected_share, group='network', reduce='sum'),
+        Observable('recovered', _get_recovered_share, group='network', reduce='sum'),
     )
 
     def __init__(
@@ -204,7 +201,7 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
         return namespace.source.mu * namespace.source.i
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the SIR epidemic on an uncorrelated power-law network."""
+        """Return the components of the SIR epidemic on an uncorrelated power-law network."""
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
         classes = GroupElement(

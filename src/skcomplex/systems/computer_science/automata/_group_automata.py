@@ -12,17 +12,18 @@ import numpy as np
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
+from ....core.components.laws import TotalisticSpec
 from ....core.components.spaces import (
-    BallNeighborhood,
     CayleySpace,
     LatticeNeighborhood,
     LatticeSpace,
     MemoryNeighborhood,
 )
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, SubshiftSpec, TotalisticSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, SubshiftSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 from ._generator_neighborhood import GeneratorNeighborhood
@@ -43,9 +44,6 @@ class GoldenCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         alive:
             The initial value, 0 or 1.
 
@@ -58,11 +56,10 @@ class GoldenCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         alive: Annotated[float, StateSpec(domain=GOLDEN_MEAN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.alive = alive
 
 
@@ -74,9 +71,6 @@ class LaplacianCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         value:
             The initial value, an integer from 0 to `modulus - 1`.
@@ -93,12 +87,11 @@ class LaplacianCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[float, StateSpec(domain=ZZ)] = 0,
         modulus: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
         self.modulus = modulus
 
@@ -137,7 +130,7 @@ class FreeGroupAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 20
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     @staticmethod
     def _get_majority(center: Array, *values: Array, degree: Array) -> Array:
@@ -196,7 +189,7 @@ class FreeGroupAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         space = CayleySpace(free_group(self.rank), ball=self.radius)
         return FreeGroupAutomatonSystem._get_majority_system(
             self.label,
@@ -238,7 +231,7 @@ class LamplighterAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023', 'Grigorchuk and Zuk 2001')
     until = 20
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,
@@ -254,7 +247,7 @@ class LamplighterAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         space = CayleySpace(lamplighter(), ball=self.radius)
         cells = FreeGroupAutomatonSystem._get_random_cells(space.prepare().size_, self.density, self.random_state)
         parity = TotalisticSpec({total: total % 2 for total in range(len(LAMPLIGHTER_MEMORY.elements) + 1)})
@@ -305,7 +298,7 @@ class HeisenbergAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 20
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,
@@ -321,7 +314,7 @@ class HeisenbergAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         space = CayleySpace(heisenberg(), ball=self.radius)
         return FreeGroupAutomatonSystem._get_majority_system(
             self.label,
@@ -369,7 +362,7 @@ class BaumslagSolitarAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023', 'Baumslag and Solitar 1962')
     until = 20
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,
@@ -434,7 +427,7 @@ class LinearRingAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 40
     dt = 1
-    observables = (ObservableSpec('mean', group='cells', variable='value'),)
+    observables = (Observable('mean', group='cells', variable='value'),)
 
     def __init__(
         self,
@@ -479,7 +472,7 @@ class LinearRingAutomatonSystem(BaseSystem):
                     target='cells',
                     state='value',
                     rule=self._get_laplacian,
-                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
+                    neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
                 ),
             ],
         )
@@ -513,7 +506,7 @@ class SubshiftsSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023', 'Lind and Marcus 1995')
     until = 50
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,
@@ -535,13 +528,13 @@ class SubshiftsSystem(BaseSystem):
         return np.where(blocked, center, flipped)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         flips = LocalRuleInteraction(
             'flips',
             target='cells',
             state='alive',
             rule=self._get_golden_move,
-            neighborhood=BallNeighborhood(n_dim=1, center='inline'),
+            neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
             schedule='random-sequential',
             stochastic=True,
         )
@@ -583,7 +576,7 @@ class GrigorchukAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023', 'Grigorchuk 1984')
     until = 20
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,

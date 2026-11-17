@@ -180,7 +180,7 @@ source = "scm"
 
 [tool.pdm.build]
 package-dir = "src"
-editable-backend = "editables"
+editable-backend = "path"
 
 [tool.pdm.scripts]
 clean = "nox --error-on-external-run -R -s clean"
@@ -263,7 +263,7 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 
 [tool.ruff.lint.flake8-bugbear]
 # Specs are frozen dataclasses, so a spec in a default argument is shared safely.
-extend-immutable-calls = ["skcomplex.core.specs.VisualSpec", "skcomplex.core.specs.HilbertSpec", "skcomplex.systems.general.matching.RandomSearchSpec", "skcomplex.systems.general.matching._random_search_spec.RandomSearchSpec", "skcomplex.systems.computer_science.evolutionary_computation._optimisers.DifferentialEvolutionSpec"]
+extend-immutable-calls = ["skcomplex.core.specs.VisualSpec", "skcomplex.systems.physics.common.quantum.HilbertSpec", "skcomplex.systems.physics.common.quantum._hilbert_spec.HilbertSpec", "skcomplex.systems.general.matching.RandomSearchSpec", "skcomplex.systems.general.matching._random_search_spec.RandomSearchSpec", "skcomplex.systems.computer_science.evolutionary_computation._optimisers.DifferentialEvolutionSpec"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core.components.base` or `sage.all__sagemath_symbolics`."
@@ -365,16 +365,17 @@ DEP002 = [
 root_package = "skcomplex"
 
 [[tool.importlinter.contracts]]
-name = "Experiments build on analysis, which builds on the engine, which builds on the core, which builds on the root modules"
+name = "Experiments build on analysis, which builds on systems, which build on the engine, which builds on the components, which build on the root modules"
 type = "layers"
 layers = [
     "skcomplex.core.experiments",
     "skcomplex.core.analysis",
+    "skcomplex.core.systems",
     "skcomplex.core.engine",
     "skcomplex.core.components",
     "skcomplex.core.specs",
     "skcomplex.core.base",
-    "skcomplex.core.types | skcomplex.core.errors",
+    "skcomplex.core.types | skcomplex.core.enums | skcomplex.core.errors",
 ]
 
 [[tool.importlinter.contracts]]
@@ -382,7 +383,6 @@ name = "Core packages import only the packages listed before them"
 type = "layers"
 containers = ["skcomplex.core.components"]
 layers = [
-    "specs",
     "systems",
     "elements | interactions",
     "laws",
@@ -400,6 +400,15 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
+name = "System modules of the core import only the modules listed after them"
+type = "layers"
+containers = ["skcomplex.core.systems"]
+layers = [
+    "_system",
+    "_base",
+]
+
+[[tool.importlinter.contracts]]
 name = "Engine packages import only the packages listed before them"
 type = "layers"
 containers = ["skcomplex.core.engine"]
@@ -411,7 +420,7 @@ layers = [
     "compile",
     "backends",
     "problems",
-    "types",
+    "types | enums",
 ]
 
 [[tool.importlinter.contracts]]
@@ -420,6 +429,7 @@ type = "forbidden"
 source_modules = [
     "skcomplex.core.analysis",
     "skcomplex.core.components",
+    "skcomplex.core.systems",
     "skcomplex.core.engine",
     "skcomplex.core.experiments",
 ]
@@ -728,4 +738,5 @@ docs = [
     "griffelib>=2.0",
     'pandas>=2.2.2',
     "matplotlib>=3.9",
+    "mkdocs-redirects>=1.2.3",
 ]
