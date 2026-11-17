@@ -15,14 +15,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution, motifs, network_measures
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import NetworkStructureAnalysisSystem
 
 SYSTEM = 'network_structure_analysis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(NetworkStructureAnalysisSystem(null_samples=0, random_state=0), until=1, observers=[observer])
+trajectory = (
+    NetworkStructureAnalysisSystem(null_samples=0, random_state=0).prepare().simulate(until=1, observers=[observer])
+)
 
 # %%
 # Degrees and motifs

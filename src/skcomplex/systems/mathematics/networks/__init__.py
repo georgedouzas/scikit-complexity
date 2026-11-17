@@ -8,10 +8,12 @@ from ..common.networks import NetworkNodeElement, RegulatedNodeElement, VertexEl
 from ._davidsen_ebel_bornholdt import ClosingNodeElement, DavidsenEbelBornholdtSystem
 from ._duplication_deletion import DuplicatingNodeElement, DuplicationDeletionSystem
 from ._ensembles import (
+    AttackInteraction,
     ConfigurationModelSystem,
     DependentNodeElement,
     EnsembleNodeElement,
     FailingElement,
+    InterdependenceInteraction,
     InterdependentNetworkCascadeSystem,
     KroneckerGraphSystem,
     NetworkAttackSystem,
@@ -69,6 +71,7 @@ from ._triadic import (
 )
 
 __all__: list[str] = [
+    'AttackInteraction',
     'BarabasiAlbertSystem',
     'ClosingNodeElement',
     'ClusterNodeElement',
@@ -87,6 +90,7 @@ __all__: list[str] = [
     'GrowingSimplicialComplexSystem',
     'HolmeKimSystem',
     'HypergraphRandomWalkSystem',
+    'InterdependenceInteraction',
     'InterdependentNetworkCascadeSystem',
     'KroneckerGraphSystem',
     'LoadedNodeElement',

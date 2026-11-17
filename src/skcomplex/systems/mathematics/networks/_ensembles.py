@@ -17,13 +17,20 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
+from ....core.components.laws import TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import components, maximum, mod, neighbors, where
-from ....core.components.spaces import DiscreteTime, LayerSpec, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace, DiscreteTime, LayerSpec, NetworkSpace
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.systems import BaseSystem, System
 from ..common.networks import NetworkNodeElement
 from ..common.networks._regulated_node import ACTIVITY_VISUAL
 from ..common.networks._vertex import DEGREE_VISUAL
@@ -33,19 +40,19 @@ STRATEGIES = ('random', 'targeted')
 
 
 class DependentNodeElement(Element):
-    """Node of two interdependent networks.
+    """Nodes of two interdependent networks, each functional or not by its value `active`.
 
-    The node is functional while it belongs to the giant component of both.
-
-    The node stands for a pair of nodes, one of each network, that depend on each other, so it fails when either of
-    them leaves the giant component of the functional nodes of its network.
+    A node stands for a pair of nodes, one of each network, that depend on each other.
 
     Args:
         label:
-            The label of the node group.
+            The label of the nodes.
 
         active:
-            Whether the node is functional, 1 or 0.
+            Whether a node is functional, 1 or 0, one per node or shared.
+
+        space:
+            The network of two layers with one node per site, or `None` for one node.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import DependentNodeElement
@@ -59,10 +66,53 @@ class DependentNodeElement(Element):
         self,
         label: str,
         *,
-        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        active: Annotated[object, FiniteEnumeratedSet([0, 1])] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.active = active
+
+
+class InterdependenceInteraction(Interaction):
+    """Failure of every node that leaves the giant component of the functional nodes of either network.
+
+    The steps alternate between the two networks: even steps keep the nodes of the giant component of the graph of the
+    network, and odd steps those of the giant component of the layer `layer`, among the nodes functional so far.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The nodes whose values `active` the cascade sets.
+
+        layer:
+            The name of the layer of the second network.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import InterdependenceInteraction
+        >>> InterdependenceInteraction('cascade').layer
+        'dependent'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'nodes', layer: str = 'dependent') -> None:
+        super().__init__(label)
+        self.target = target
+        self.layer = layer
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the activity that survives the giant component of the network of the step as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            node = context.target
+            both = node.active * node.other.active
+            first = components(both, reduce='giant')
+            second = components(both, over=AdjacencyNeighborhood(layer=self.layer), reduce='giant')
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(node.active, node.active * where(mod(context.t, 2) < 1, first, second)),
+            ]
 
 
 class EnsembleNodeElement(Element):
@@ -101,30 +151,22 @@ class EnsembleNodeElement(Element):
 
 
 class FailingElement(Element):
-    """Node of a network under failures or attacks.
-
-    The node has its degree and the parameters of its removal.
-
-    The removal of the system reads the parameters: every step a node fails with probability `rate` under random
-    failures, and under a targeted attack the nodes of the largest degree are removed, one degree class per step.
+    """Nodes of a network under failures or attacks, each with its degree `degree`.
 
     Args:
         label:
-            The label of the node group.
+            The label of the nodes.
 
         degree:
-            The number of edges of the node, read at the start of every step.
+            The initial number of edges of every node, one per node or shared.
 
-        rate:
-            The probability that a node fails in a step under random failures.
-
-        targeted:
-            1 for a targeted attack on the nodes of the largest degree and 0 for random failures.
+        space:
+            The network with one node per site, or `None` for one node.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import FailingElement
-        >>> FailingElement('nodes', targeted=1).targeted
-        1
+        >>> FailingElement('nodes', degree=3.0).degree
+        3.0
     """
 
     visual = DEGREE_VISUAL
@@ -133,15 +175,58 @@ class FailingElement(Element):
         self,
         label: str,
         *,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        targeted: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        degree: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.degree = degree
-        self.rate = rate
 
+
+class AttackInteraction(Interaction):
+    """Removal of the nodes of a network by random failures or by an attack on the nodes of the largest degree.
+
+    The degree of every node is read from the edges at the start of every step. Under random failures every node fails
+    with the probability `rate` per step, and under a targeted attack the nodes of the largest degree are removed, one
+    degree class per step.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The nodes whose degrees the interaction sets and that fail.
+
+        rate:
+            The probability that a node fails in a step under random failures.
+
+        targeted:
+            Whether the nodes of the largest degree are attacked, in place of random failures.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import AttackInteraction
+        >>> AttackInteraction('removal', targeted=False).targeted
+        False
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role = 'nodes', rate: float = 0.01, targeted: bool = True) -> None:
+        super().__init__(label)
+        self.target = target
+        self.rate = rate
         self.targeted = targeted
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the degrees and the removals as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            degree = neighbors(1)
+            removal = where(degree - maximum(degree) >= 0, 1, 0) if self.targeted else context.rate
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(context.target.degree, degree),
+                UpdateLaw(TopologyRequestSpec('remove-node'), removal),
+            ]
 
 
 class NetworkAttackSystem(BaseSystem):
@@ -173,14 +258,19 @@ class NetworkAttackSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The strategy is unknown.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import NetworkAttackSystem
-        >>> trajectory = simulate(NetworkAttackSystem(50), until=3, random_state=0)
+        >>> trajectory = NetworkAttackSystem(50).prepare().simulate(until=3, random_state=0)
         >>> int(trajectory.get_network(-1).nodes.size) < 50
         True
     """
@@ -189,33 +279,6 @@ class NetworkAttackSystem(BaseSystem):
     topics = ('network', 'robustness', 'percolation', 'attack', 'scale-free')
     references = ('Albert, Jeong, and Barabási 2000', 'Cohen et al. 2000', 'Ramasco 2020')
     until = 100
-
-    @staticmethod
-    def _get_degree() -> MapInteraction:
-        """Return the map that sets the degree of every node from its edges.
-
-        The map runs at the start of a step.
-        """
-        return MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
-
-    @staticmethod
-    def _get_variable_network(
-        element: type[Element],
-        space: NetworkSpace,
-        capacity: int,
-        **values: object,
-    ) -> list[GroupElement]:
-        """Return the variable groups on the nodes and the edges of a network."""
-        nodes = GroupElement(
-            'nodes',
-            element=element,
-            on='sites',
-            variable=True,
-            capacity=space.prepare().size_,
-            values=values,
-        )
-        links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
-        return [nodes, links]
 
     def __init__(
         self,
@@ -226,49 +289,33 @@ class NetworkAttackSystem(BaseSystem):
         rate: float = 0.01,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.edges = edges
         self.strategy = strategy
         self.rate = rate
         self.random_state = random_state
 
-    @staticmethod
-    def _get_removal(s: SimpleNamespace) -> object:
-        """Return the probability that a node is removed in a step.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Barabási-Albert network and the removal of its nodes.
 
-        The node is removed at random or as a node of the largest degree.
+        Raises:
+            ValidationError:
+                The strategy is unknown.
         """
-        degree = neighbors(1)
-        hub = where(s.source.targeted * (degree - maximum(degree)) >= 0, s.source.targeted, 0)
-        return (1 - s.source.targeted) * s.source.rate + hub
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+        super()._prepare(context)
         if self.strategy not in STRATEGIES:
             error_msg = f'Unknown strategy {self.strategy!r}. Use one of {", ".join(STRATEGIES)}.'
             raise ValidationError(error_msg)
         space = NetworkSpace(nx.barabasi_albert_graph(self.n_nodes, self.edges, seed=self.random_state))
-        targeted = float(self.strategy == 'targeted')
-        groups = NetworkAttackSystem._get_variable_network(
-            FailingElement,
-            space,
-            space.graph.number_of_edges(),
-            rate=self.rate,
-            targeted=targeted,
-        )
-        removal = TopologyInteraction('removal', target='nodes', action='remove-node', probability=self._get_removal)
-        return CompositeSystem(
-            self.label,
-            elements=groups,
-            interactions=[NetworkAttackSystem._get_degree(), removal],
-            space=space,
-            time=DiscreteTime(),
-        )
+        removal = AttackInteraction('removal', target='nodes', rate=self.rate, targeted=self.strategy == 'targeted')
+        self.system_ = System(self.label, elements=[FailingElement('nodes', space=space)], interactions=[removal])
 
 
-class RandomGraphEnsemblesSystem(BaseSystem):
+class RandomGraphEnsemblesSystem(OldBaseSystem):
     """The construction of an Erdős-Rényi or a Watts-Strogatz random graph.
 
     The graph is built one step of new edges at a time.
@@ -334,6 +381,25 @@ class RandomGraphEnsemblesSystem(BaseSystem):
         self.rewiring = rewiring
         self.steps = steps
 
+    @staticmethod
+    def _get_degree() -> MapInteraction:
+        """Return the map that sets the degree of every node from its edges."""
+        return MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
+
+    @staticmethod
+    def _get_variable_network(space: NetworkSpace, capacity: int, **values: object) -> list[GroupElement]:
+        """Return the variable groups on the nodes and the edges of a network."""
+        nodes = GroupElement(
+            'nodes',
+            element=EnsembleNodeElement,
+            on='sites',
+            variable=True,
+            capacity=space.prepare().size_,
+            values=values,
+        )
+        links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
+        return [nodes, links]
+
     def _build_system(self) -> CompositeSystem:
         """Return the components of the system, built from its model parameters."""
         if self.ensemble not in ENSEMBLES:
@@ -342,8 +408,7 @@ class RandomGraphEnsemblesSystem(BaseSystem):
         if self.ensemble == 'erdos_renyi':
             space = NetworkSpace(nx.empty_graph(self.n_nodes))
             rate = self.mean_degree / 2 / self.steps
-            groups = NetworkAttackSystem._get_variable_network(
-                EnsembleNodeElement,
+            groups = RandomGraphEnsemblesSystem._get_variable_network(
                 space,
                 int(np.ceil(1.5 * self.mean_degree * self.n_nodes / 2)) + 10,
                 rate=rate,
@@ -357,18 +422,18 @@ class RandomGraphEnsemblesSystem(BaseSystem):
             return CompositeSystem(
                 self.label,
                 elements=groups,
-                interactions=[NetworkAttackSystem._get_degree(), linking],
+                interactions=[RandomGraphEnsemblesSystem._get_degree(), linking],
                 space=space,
                 time=DiscreteTime(),
             )
         space = NetworkSpace(nx.watts_strogatz_graph(self.n_nodes, int(self.mean_degree), 0.0))
         rate = 1 - (1 - self.rewiring) ** (1 / self.steps)
-        groups = NetworkAttackSystem._get_variable_network(EnsembleNodeElement, space, space.graph.number_of_edges())
+        groups = RandomGraphEnsemblesSystem._get_variable_network(space, space.graph.number_of_edges())
         rewiring = TopologyInteraction('rewiring', target='nodes', action='rewire', probability=rate)
         return CompositeSystem(
             self.label,
             elements=groups,
-            interactions=[NetworkAttackSystem._get_degree(), rewiring],
+            interactions=[RandomGraphEnsemblesSystem._get_degree(), rewiring],
             space=space,
             time=DiscreteTime(),
         )
@@ -397,10 +462,16 @@ class KroneckerGraphSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.mathematics.networks import KroneckerGraphSystem
-        >>> KroneckerGraphSystem(nx.path_graph(3), nx.path_graph(2)).prepare().system_.elements[0].prepare().size_
+        >>> KroneckerGraphSystem(nx.path_graph(3), nx.path_graph(2)).prepare().system_.elements[0].size
         6
     """
 
@@ -411,23 +482,16 @@ class KroneckerGraphSystem(BaseSystem):
     dt = 1
 
     @staticmethod
-    def _get_node_group(graph: nx.Graph) -> GroupElement:
-        """Return the group on the nodes of a static network.
-
-        The group has the degree and the clustering of every node.
-        """
+    def _get_static_system(label: str, graph: nx.Graph) -> System:
+        """Return the system of a static network whose nodes hold their degree and clustering."""
         clustering = nx.clustering(graph)
-        nodes = list(graph.nodes())
-        return GroupElement(
+        nodes = NetworkNodeElement(
             'nodes',
-            element=NetworkNodeElement,
-            size=len(nodes),
-            values={
-                'degree': np.asarray([graph.degree(node) for node in nodes], dtype=float),
-                'clustering': np.asarray([clustering[node] for node in nodes], dtype=float),
-            },
-            location=nodes,
+            degree=np.asarray([graph.degree(node) for node in graph], dtype=float),
+            clustering=np.asarray([clustering[node] for node in graph], dtype=float),
+            size=graph.number_of_nodes(),
         )
+        return System(label, elements=[nodes], space=NetworkSpace(graph))
 
     def __init__(
         self,
@@ -436,26 +500,22 @@ class KroneckerGraphSystem(BaseSystem):
         *,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.first = first
         self.second = second
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Kronecker graph of two graphs.
-
-        Its adjacency matrix is the Kronecker product of theirs.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the network and its nodes."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         first = nx.barabasi_albert_graph(30, 2, seed=int(rng.integers(2**31))) if self.first is None else self.first
         second = nx.barabasi_albert_graph(20, 1, seed=int(rng.integers(2**31))) if self.second is None else self.second
         graph = nx.convert_node_labels_to_integers(nx.tensor_product(first, second), label_attribute='pair')
-        return CompositeSystem(
-            self.label,
-            elements=[KroneckerGraphSystem._get_node_group(graph)],
-            space=NetworkSpace(graph),
-        )
+        self.system_ = KroneckerGraphSystem._get_static_system(self.label, graph)
 
 
 class ConfigurationModelSystem(BaseSystem):
@@ -492,6 +552,12 @@ class ConfigurationModelSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The degree sum of a given sequence is odd, or rewiring cannot make the graph simple.
@@ -499,7 +565,7 @@ class ConfigurationModelSystem(BaseSystem):
     Examples:
         >>> from skcomplex.systems.mathematics.networks import ConfigurationModelSystem
         >>> system = ConfigurationModelSystem([3, 3, 2, 2, 2]).prepare().system_
-        >>> system.elements[0].values['degree'].tolist()
+        >>> system.elements[0].degree.tolist()
         [3.0, 3.0, 2.0, 2.0, 2.0]
     """
 
@@ -519,8 +585,10 @@ class ConfigurationModelSystem(BaseSystem):
         simple: bool = True,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.degrees = degrees
         self.n_nodes = n_nodes
         self.exponent = exponent
@@ -565,11 +633,9 @@ class ConfigurationModelSystem(BaseSystem):
         error_msg = 'The degree sequence admits no simple graph reachable by rewiring. Give a sparser degree sequence.'
         raise ValidationError(error_msg)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the configuration model.
-
-        It is the maximally random network of a given degree sequence.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the network and its nodes."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         if self.degrees is None:
             support = np.arange(self.min_degree, max(self.min_degree, int(np.sqrt(self.n_nodes))) + 1)
@@ -586,11 +652,7 @@ class ConfigurationModelSystem(BaseSystem):
         graph = nx.Graph()
         graph.add_nodes_from(range(drawn.size))
         graph.add_edges_from(links)
-        return CompositeSystem(
-            self.label,
-            elements=[KroneckerGraphSystem._get_node_group(graph)],
-            space=NetworkSpace(graph),
-        )
+        self.system_ = KroneckerGraphSystem._get_static_system(self.label, graph)
 
 
 class InterdependentNetworkCascadeSystem(BaseSystem):
@@ -623,11 +685,16 @@ class InterdependentNetworkCascadeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import InterdependentNetworkCascadeSystem
-        >>> system = InterdependentNetworkCascadeSystem(200, p=0.3).prepare().system_
-        >>> int(simulate(system, until=20).get_values('nodes.active')[-1].sum())
+        >>> system = InterdependentNetworkCascadeSystem(200, p=0.3).prepare()
+        >>> int(system.simulate(until=20).get_values('nodes.active')[-1].sum())
         0
     """
 
@@ -644,38 +711,23 @@ class InterdependentNetworkCascadeSystem(BaseSystem):
         p: float = 0.8,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.mean_degree = mean_degree
         self.p = p
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the cascade of failures between two networks.
-
-        The nodes of the networks depend on each other.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the network and its nodes."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         probability = self.mean_degree / (self.n_nodes - 1)
         first = nx.gnp_random_graph(self.n_nodes, probability, seed=int(rng.integers(2**31)))
         second = LayerSpec('dependent', nx.gnp_random_graph(self.n_nodes, probability, seed=int(rng.integers(2**31))))
-        space = NetworkSpace(first, layers=[second])
         functional = (rng.uniform(size=self.n_nodes) < self.p).astype(float)
-        nodes = GroupElement(
-            'nodes',
-            element=DependentNodeElement,
-            space=space,
-            values={'active': functional},
-            on='sites',
-        )
-
-        def _get_cascade(s: SimpleNamespace) -> object:
-            """Return the activity of a node after the failures of the network of the step."""
-            both = s.target.active * s.target.other.active
-            first_giant = components(both, reduce='giant')
-            second_giant = components(both, over=second, reduce='giant')
-            return s.target.active * where(mod(s.t, 2) < 1, first_giant, second_giant)
-
-        cascade = MapInteraction('cascade', target='nodes', state='active', function=_get_cascade)
-        return CompositeSystem(self.label, elements=[nodes], interactions=[cascade], time=DiscreteTime())
+        nodes = DependentNodeElement('nodes', active=functional, space=NetworkSpace(first, layers=[second]))
+        cascade = InterdependenceInteraction('cascade', target='nodes', layer='dependent')
+        self.system_ = System(self.label, elements=[nodes], interactions=[cascade])

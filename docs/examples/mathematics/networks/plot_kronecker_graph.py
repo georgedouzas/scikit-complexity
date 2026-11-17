@@ -15,7 +15,6 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import KroneckerGraphSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(KroneckerGraphSystem(), observers=[observer])
+trajectory = KroneckerGraphSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Degrees multiply
