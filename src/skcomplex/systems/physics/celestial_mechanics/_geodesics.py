@@ -10,18 +10,20 @@ solver that keeps the conserved energy, angular momentum, and norm of a geodesic
 # License: MIT
 
 import math
-from typing import Annotated
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import QQ, SR, Expression, cos, matrix, sin
 from sage.structure.element import Matrix
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ValidationError
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import VisualSpec
+from ....core.systems import BaseSystem, System
 from ..common.relativity import GeodesicInteraction, SpacetimeSpace
 
 R_INDEX = 1
@@ -45,9 +47,9 @@ class GeodesicParticleElement(Element):
 
     The mass is central, and the particle has its four-velocity.
 
-    The position is a vector state of order 2 in the Schwarzschild or Boyer-Lindquist coordinates of the space, and its
-    companion `x_d1` is the four-velocity, the derivative of the position by the proper time of a massive particle or by
-    the affine parameter of a light ray. The particle is drawn in the equatorial plane, at `(r cos phi, r sin phi)`.
+    The position is a vector in the Schwarzschild or Boyer-Lindquist coordinates of the space, and its derivative `x'`
+    is the four-velocity, the derivative of the position by the proper time of a massive particle or by the affine
+    parameter of a light ray. The particle is drawn in the equatorial plane, at `(r cos phi, r sin phi)`.
 
     Args:
         label:
@@ -56,8 +58,8 @@ class GeodesicParticleElement(Element):
         x:
             The initial position `(t, r, theta, phi)`.
 
-        x_d1:
-            The initial four-velocity.
+        values:
+            Further values by name, such as the initial four-velocity `x'`, or `None`.
 
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import GeodesicParticleElement
@@ -77,12 +79,12 @@ class GeodesicParticleElement(Element):
     def __init__(
         self,
         label: str,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2)] = 0.0,
-        x_d1: npt.ArrayLike = 0.0,
+        x: npt.ArrayLike = (0.0, 0.0, 0.0, 0.0),
+        *,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values)
         self.x = x
-        self.x_d1 = x_d1
 
 
 class SchwarzschildSpace(SpacetimeSpace):
@@ -238,7 +240,7 @@ class SchwarzschildPrecessionSystem(BaseSystem):
     `E² = (1 - 2M/r) (1 + L²/r²) + (dr/dτ)²`. Unlike a Kepler ellipse, the orbit does not close: the periapsis advances
     by `6 π M / (a (1 - e²))` per turn when the orbit is far from the horizon, or `6 π G M / (c² a (1 - e²))` in other
     units, which accounts for the anomalous 43 arcseconds per century of Mercury. The system has the position
-    `particle.x = (t, r, theta, phi)` and the four-velocity `particle.x_d1`.
+    `particle.x = (t, r, theta, phi)` and the four-velocity `particle.x'`.
 
     Args:
         semi_major_axis:
@@ -252,6 +254,12 @@ class SchwarzschildPrecessionSystem(BaseSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Raises:
         ValidationError:
@@ -268,7 +276,6 @@ class SchwarzschildPrecessionSystem(BaseSystem):
     references = ('Schwichtenberg 2020', 'Satz 2022', 'Schwarzschild 1916', 'Einstein 1915', 'Carroll 2004')
     until = 20000.0
     dt = 10.0
-    solver = GEODESIC_SOLVER
 
     def __init__(
         self,
@@ -277,17 +284,22 @@ class SchwarzschildPrecessionSystem(BaseSystem):
         *,
         mass: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.semi_major_axis = semi_major_axis
         self.eccentricity = eccentricity
         self.mass = mass
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a massive particle on a bound orbit around a static mass.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a massive particle on a bound orbit around a static mass.
 
-        Its perihelion advances every turn.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         if not 0 <= self.eccentricity < 1:
             error_msg = f'The eccentricity is {self.eccentricity!r}. Give a value in [0, 1) for a bound orbit.'
             raise ValidationError(error_msg)
@@ -309,11 +321,17 @@ class SchwarzschildPrecessionSystem(BaseSystem):
         particle = GeodesicParticleElement(
             'particle',
             x=[0.0, periapsis, EQUATOR, 0.0],
-            x_d1=[energy / lapses[0], 0.0, 0.0, math.sqrt(momentum_squared) / periapsis**2],
+            values={"x'": [energy / lapses[0], 0.0, 0.0, math.sqrt(momentum_squared) / periapsis**2]},
         )
         space = SchwarzschildSpace(mass=self.mass)
         geodesic = GeodesicInteraction('geodesic', target='particle', space=space)
-        return CompositeSystem(self.label, elements=[particle], interactions=[geodesic], space=space)
+        self.system_ = System(
+            self.label,
+            elements=[particle],
+            interactions=[geodesic],
+            space=space,
+            solver=GEODESIC_SOLVER,
+        )
 
 
 class LightBendingSystem(BaseSystem):
@@ -324,7 +342,7 @@ class LightBendingSystem(BaseSystem):
     by the impact parameter `b`, aimed parallel to the axis, with the energy `E = 1` and the angular momentum `L = b`.
     Far from the mass the ray bends by `4 M / b`, twice the Newtonian deflection of a particle at the speed of light, as
     the eclipse of 1919 measured for starlight that grazes the Sun. The system has the position `photon.x = (t, r,
-    theta, phi)` and the tangent `photon.x_d1`.
+    theta, phi)` and the tangent `photon.x'`.
 
     Args:
         impact_parameter:
@@ -339,6 +357,12 @@ class LightBendingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The ray would be captured by the mass, its impact parameter being at most `3 √3 M`, or it starts closer
@@ -346,7 +370,7 @@ class LightBendingSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import LightBendingSystem
-        >>> round(LightBendingSystem().prepare().system_.elements[0].x_d1[0], 4)
+        >>> round(LightBendingSystem().prepare().system_.elements[0].values["x'"][0], 4)
         1.001
     """
 
@@ -355,7 +379,6 @@ class LightBendingSystem(BaseSystem):
     references = ('Schwichtenberg 2020', 'Satz 2022', 'Einstein 1915', 'Dyson, Eddington, and Davidson 1920')
     until = 4000.0
     dt = 4.0
-    solver = GEODESIC_SOLVER
 
     def __init__(
         self,
@@ -364,14 +387,22 @@ class LightBendingSystem(BaseSystem):
         *,
         mass: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.impact_parameter = impact_parameter
         self.distance = distance
         self.mass = mass
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a light ray that passes a static mass and is deflected towards it."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a light ray that passes a static mass and is deflected towards it.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if self.impact_parameter <= 3 * math.sqrt(3) * self.mass:
             error_msg = (
                 f'The impact parameter {self.impact_parameter} is at most 3 √3 M = {3 * math.sqrt(3) * self.mass}, so '
@@ -387,11 +418,17 @@ class LightBendingSystem(BaseSystem):
         photon = GeodesicParticleElement(
             'photon',
             x=[0.0, radius, EQUATOR, math.atan2(self.impact_parameter, -self.distance)],
-            x_d1=[1 / lapse, radial, 0.0, -self.impact_parameter / radius**2],
+            values={"x'": [1 / lapse, radial, 0.0, -self.impact_parameter / radius**2]},
         )
         space = SchwarzschildSpace(mass=self.mass)
         geodesic = GeodesicInteraction('geodesic', target='photon', space=space)
-        return CompositeSystem(self.label, elements=[photon], interactions=[geodesic], space=space)
+        self.system_ = System(
+            self.label,
+            elements=[photon],
+            interactions=[geodesic],
+            space=space,
+            solver=GEODESIC_SOLVER,
+        )
 
 
 class KerrFrameDraggingSystem(BaseSystem):
@@ -404,7 +441,7 @@ class KerrFrameDraggingSystem(BaseSystem):
     momentum `L = g_tφ dt/dτ + g_φφ dφ/dτ = 0`. A particle without angular momentum around a static mass falls straight
     in, but the spin drags the frames around it: the particle turns with the angular velocity `dφ/dt = -g_tφ / g_φφ = 2
     M a / (r³ + a² r + 2 M a²)` of the frames at its radius, faster as it falls. The system has the position `particle.x
-    = (t, r, theta, phi)` and the four-velocity `particle.x_d1`.
+    = (t, r, theta, phi)` and the four-velocity `particle.x'`.
 
     Args:
         radius:
@@ -419,13 +456,19 @@ class KerrFrameDraggingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The particle starts inside the ergosphere, at a radius of at most `2 M`.
 
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import KerrFrameDraggingSystem
-        >>> round(KerrFrameDraggingSystem().prepare().system_.elements[0].x_d1[3], 5)
+        >>> round(KerrFrameDraggingSystem().prepare().system_.elements[0].values["x'"][3], 5)
         0.00199
     """
 
@@ -434,7 +477,6 @@ class KerrFrameDraggingSystem(BaseSystem):
     references = ('Schwichtenberg 2020', 'Kerr 1963', 'Bardeen, Press, and Teukolsky 1972')
     until = 33.0
     dt = 0.1
-    solver = GEODESIC_SOLVER
 
     def __init__(
         self,
@@ -443,17 +485,22 @@ class KerrFrameDraggingSystem(BaseSystem):
         mass: float = 1.0,
         spin: float = 0.9,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.radius = radius
         self.mass = mass
         self.spin = spin
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a particle without angular momentum that falls into a spinning mass.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a particle without angular momentum that falls into a spinning mass.
 
-        The mass drags the particle around it.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         if self.radius <= 2 * self.mass:
             error_msg = (
                 f'The radius {self.radius} is inside the ergosphere at 2 M = {2 * self.mass}. Give a larger radius.'
@@ -468,7 +515,13 @@ class KerrFrameDraggingSystem(BaseSystem):
         particle = GeodesicParticleElement(
             'particle',
             x=[0.0, self.radius, EQUATOR, 0.0],
-            x_d1=[rate, 0.0, 0.0, omega * rate],
+            values={"x'": [rate, 0.0, 0.0, omega * rate]},
         )
         geodesic = GeodesicInteraction('geodesic', target='particle', space=space)
-        return CompositeSystem(self.label, elements=[particle], interactions=[geodesic], space=space)
+        self.system_ = System(
+            self.label,
+            elements=[particle],
+            interactions=[geodesic],
+            space=space,
+            solver=GEODESIC_SOLVER,
+        )

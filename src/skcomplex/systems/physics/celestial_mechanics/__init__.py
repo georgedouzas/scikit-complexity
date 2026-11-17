@@ -17,15 +17,24 @@ from ._orbits import (
     NBodySystem,
     RestrictedThreeBodySystem,
     RotatingFrameBodyElement,
+    RotatingFrameMotionInteraction,
     SitnikovBodyElement,
     SitnikovSystem,
     TwoBodyOrbitSystem,
 )
-from ._spin_orbit import DumbbellElement, KeplerianDumbbellSystem, RelativisticOrbitSystem
+from ._spin_orbit import (
+    DumbbellElement,
+    DumbbellMotionInteraction,
+    EinsteinOrbitInteraction,
+    KeplerianDumbbellSystem,
+    RelativisticOrbitSystem,
+)
 
 __all__: list[str] = [
     'DipoleChargeElement',
     'DumbbellElement',
+    'DumbbellMotionInteraction',
+    'EinsteinOrbitInteraction',
     'GeodesicParticleElement',
     'KeplerBodyElement',
     'KeplerianDumbbellSystem',
@@ -36,6 +45,7 @@ __all__: list[str] = [
     'RelativisticOrbitSystem',
     'RestrictedThreeBodySystem',
     'RotatingFrameBodyElement',
+    'RotatingFrameMotionInteraction',
     'SchwarzschildPrecessionSystem',
     'SchwarzschildSpace',
     'SitnikovBodyElement',

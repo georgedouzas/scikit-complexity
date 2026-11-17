@@ -12,7 +12,6 @@ around with it, and the particle turns faster the deeper it falls.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.celestial_mechanics import KerrFrameDraggingSystem
@@ -22,7 +21,7 @@ SYSTEM = 'kerr_frame_dragging'
 system = KerrFrameDraggingSystem(radius=10.0, spin=0.9)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-trajectory = simulate(system, solver=solver, observers=[observer])
+trajectory = system.set_params(solver=solver).prepare().simulate(observers=[observer])
 
 # %%
 # Angular velocity of the frames
@@ -31,7 +30,7 @@ trajectory = simulate(system, solver=solver, observers=[observer])
 # `dφ/dt = 2 M a / (r³ + a² r + 2 M a²)` that the term `g_tφ` of the metric sets.
 
 x = np.asarray(trajectory.get_values('particle.x'))
-u = np.asarray(trajectory.get_values('particle.x_d1'))
+u = np.asarray(trajectory.get_values("particle.x'"))
 radius, angle = x[:, 1], x[:, 3]
 fig, (path, rate) = plt.subplots(1, 2, figsize=(10, 4))
 path.plot(radius * np.cos(angle), radius * np.sin(angle))

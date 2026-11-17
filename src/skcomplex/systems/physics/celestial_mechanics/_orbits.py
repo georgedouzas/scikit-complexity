@@ -15,19 +15,23 @@ from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt
+from sage.all__sagemath_symbolics import SR, Expression, cos, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver, Yoshida4Solver
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.gradients import GradientInteraction
 from ...physics.common.mechanics import HamiltonianInteraction
-from ..common.particles import MassPointElement, PotentialEnergyInteraction
 from .types import Preset
 
 FIGURE_EIGHT: Preset = (
@@ -123,8 +127,8 @@ class RotatingFrameBodyElement(Element):
 
     The frame rotates with two primaries.
 
-    The states are of order 1, and the momenta are `px = x' - y` and `py = y' + x` for the unit angular velocity of the
-    frame. The primaries of masses `1 - mu` and `mu` sit at `(-mu, 0)` and `(1 - mu, 0)`.
+    The momenta are `px = x' - y` and `py = y' + x` for the unit angular velocity of the frame. The primaries of masses
+    `1 - mu` and `mu` sit at `(-mu, 0)` and `(1 - mu, 0)`.
 
     Args:
         label:
@@ -157,11 +161,11 @@ class RotatingFrameBodyElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 0.5,
-        y: Annotated[float, StateSpec()] = 0.0,
-        px: Annotated[float, StateSpec()] = 0.0,
-        py: Annotated[float, StateSpec()] = 0.5,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01215,
+        x: float = 0.5,
+        y: float = 0.0,
+        px: float = 0.0,
+        py: float = 0.5,
+        mu: Annotated[float, RealSet.open(0, oo)] = 0.01215,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -211,10 +215,12 @@ class SitnikovBodyElement(Element):
         self.e = e
 
 
-class GravityInteraction(PotentialEnergyInteraction):
+class GravityInteraction(Interaction):
     """Newtonian gravity between two particles.
 
-    The energy is `-G * m_first * m_second / |x_first - x_second|`, and its gradient moves both particles.
+    The energy is `-G * m_first * m_second / |x_first - x_second|`, and its gradient moves both particles: the first
+    follows `x_first'' = -G m_second (x_first - x_second) / |x_first - x_second|³` and the second the opposite pull
+    `x_second'' = G m_first (x_first - x_second) / |x_first - x_second|³`.
 
     Args:
         label:
@@ -229,47 +235,40 @@ class GravityInteraction(PotentialEnergyInteraction):
         G:
             The gravitational constant.
 
-        states:
-            The name of the vector state that holds the positions of the particles.
-
-        divisor:
-            The name of the state or parameter that holds the masses of the particles.
-
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics._orbits import GravityInteraction
         >>> GravityInteraction('gravity', first='sun', second='earth', G=1.0).G
         1.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        G: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        states: str = 'x',
-        divisor: str = 'm',
+        first: Role,
+        second: Role,
+        G: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, target=first, states=states, divisor=divisor)
+        super().__init__(label)
         self.first = first
         self.second = second
         self.G = G
 
-    def _get_potential(self, s: SimpleNamespace) -> Expression:
-        """Return `-G * m_first * m_second / |x_first - x_second|`.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the accelerations of the positions `x` of both particles, whose masses are `m`.
 
         Args:
-            s:
-                The namespace of the symbols the energy can use.
-
-        Returns:
-            energy:
-                The potential energy as a symbolic expression.
+            context:
+                The namespace of the particles, the time `t`, and the parameters.
         """
-        gap = getattr(s.first, self._get_names()[0]) - getattr(s.second, self._get_names()[0])
-        masses = getattr(s.first, str(self.divisor)) * getattr(s.second, str(self.divisor))
-        return -s.G * masses / sqrt(gap.dot_product(gap))
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            first, second = context.first, context.second
+            gap = first.x - second.x
+            pull = context.G * gap / sqrt(gap.dot_product(gap)) ** 3
+            self.laws_ = [RateLaw(first.x, -second.m * pull, order=2), RateLaw(second.x, first.m * pull, order=2)]
 
 
 def _get_kepler_energy(body: SimpleNamespace) -> Expression:
@@ -280,7 +279,7 @@ def _get_kepler_energy(body: SimpleNamespace) -> Expression:
     return (body.px**2 + body.py**2) / 2 - body.G * body.mass / sqrt(body.x**2 + body.y**2)
 
 
-class TwoBodyOrbitSystem(BaseSystem):
+class TwoBodyOrbitSystem(OldBaseSystem):
     """A light planet orbiting a heavy star under Newtonian gravity.
 
     The system is the Kepler problem of their separation.
@@ -386,6 +385,12 @@ class NBodySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The preset is unknown.
@@ -411,8 +416,10 @@ class NBodySystem(BaseSystem):
         velocities: Sequence[Sequence[float]] | None = None,
         G: float | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.preset = preset
         self.masses = masses
         self.positions = positions
@@ -430,15 +437,21 @@ class NBodySystem(BaseSystem):
             raise ValidationError(error_msg)
         return PRESETS[name]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return bodies in the plane that attract pairwise by Newtonian gravity."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of bodies in the plane that attract pairwise by Newtonian gravity.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         preset_G, preset_masses, preset_positions, preset_velocities = self._get_preset(self.preset)
         masses = preset_masses if self.masses is None else self.masses
         positions = preset_positions if self.positions is None else self.positions
         velocities = preset_velocities if self.velocities is None else self.velocities
         G = preset_G if self.G is None else self.G
         bodies = [
-            MassPointElement(f'body_{index}', x=list(position), x_d1=list(velocity), m=mass)
+            Element(f'body_{index}', values={'x': list(position), "x'": list(velocity), 'm': mass})
             for index, (mass, position, velocity) in enumerate(zip(masses, positions, velocities, strict=True))
         ]
         attractions = [
@@ -450,7 +463,7 @@ class NBodySystem(BaseSystem):
             )
             for first, second in itertools.combinations(range(len(bodies)), 2)
         ]
-        return CompositeSystem(self.label, elements=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))
+        self.system_ = System(self.label, elements=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))
 
 
 def _get_rotating_frame_energy(body: SimpleNamespace) -> Expression:
@@ -462,6 +475,53 @@ def _get_rotating_frame_energy(body: SimpleNamespace) -> Expression:
     second = sqrt((body.x - 1 + body.mu) ** 2 + body.y**2)
     kinetic = (body.px**2 + body.py**2) / 2 + body.y * body.px - body.x * body.py
     return kinetic - (1 - body.mu) / first - body.mu / second
+
+
+class RotatingFrameMotionInteraction(Interaction):
+    """Motion of a light body in the frame that rotates with two primaries.
+
+    The coordinates `(x, y)` and the momenta `(px, py)` of the target follow Hamilton's equations `q' = dH/dp` and
+    `p' = -dH/dq` of `H = (px² + py²) / 2 + y px - x py - (1 - mu) / r1 - mu / r2`, with the distances `r1` and `r2` to
+    the primaries at `(-mu, 0)` and `(1 - mu, 0)` and the mass fraction `mu` of the target.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the light body.
+
+    Examples:
+        >>> from skcomplex.systems.physics.celestial_mechanics import RotatingFrameMotionInteraction
+        >>> RotatingFrameMotionInteraction('motion', target='body').target
+        'body'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the coordinates and the momenta of the light body.
+
+        Args:
+            context:
+                The namespace of the light body and the time `t`.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            body = context.target
+            t = context.t
+            names = ('x', 'y', 'px', 'py')
+            values = [getattr(body, name) for name in names]
+            symbols = [SR.symbol(f'_{name}') for name in names]
+            x, y, px, py = symbols
+            hamiltonian = _get_rotating_frame_energy(SimpleNamespace(x=x, y=y, px=px, py=py, mu=body.mu))
+            back = dict(zip(symbols, values, strict=True))
+            rates = [hamiltonian.diff(px), hamiltonian.diff(py), -hamiltonian.diff(x), -hamiltonian.diff(y)]
+            self.laws_ = [RateLaw(value.diff(t), rate.subs(back)) for value, rate in zip(values, rates, strict=True)]
 
 
 class RestrictedThreeBodySystem(BaseSystem):
@@ -500,6 +560,12 @@ class RestrictedThreeBodySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import RestrictedThreeBodySystem
         >>> RestrictedThreeBodySystem(mu=0.1).prepare().system_.elements[0].mu
@@ -511,7 +577,6 @@ class RestrictedThreeBodySystem(BaseSystem):
     references = ('Dilão 2023', 'Szebehely 1967')
     until = 20.0
     dt = 0.02
-    solver = RK4Solver()
     invariants: ClassVar[Mapping[str, float]] = {'body.energy': 1e-6}
     observables = (Observable('energy', _get_rotating_frame_energy, element='body'),)
 
@@ -524,46 +589,37 @@ class RestrictedThreeBodySystem(BaseSystem):
         *,
         mu: float = 0.01215,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.vx = vx
         self.vy = vy
         self.mu = mu
 
-    @staticmethod
-    def _get_rotating_frame_hamiltonian(s: SimpleNamespace) -> Expression:
-        """Return the Hamiltonian of the rotating frame of the target."""
-        return _get_rotating_frame_energy(s.target)
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a light body in the frame that rotates with two primaries.
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        return CompositeSystem(
-            self.label,
-            elements=[
-                RotatingFrameBodyElement(
-                    'body',
-                    x=self.x,
-                    y=self.y,
-                    px=self.vx - self.y,
-                    py=self.vy + self.x,
-                    mu=self.mu,
-                ),
-            ],
-            interactions=[
-                HamiltonianInteraction(
-                    'motion',
-                    target='body',
-                    coordinates=('x', 'y'),
-                    momenta=('px', 'py'),
-                    hamiltonian=self._get_rotating_frame_hamiltonian,
-                ),
-            ],
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        body = RotatingFrameBodyElement(
+            'body',
+            x=self.x,
+            y=self.y,
+            px=self.vx - self.y,
+            py=self.vy + self.x,
+            mu=self.mu,
         )
+        motion = RotatingFrameMotionInteraction('motion', target='body')
+        self.system_ = System(self.label, elements=[body], interactions=[motion], solver=RK4Solver())
 
 
-class SitnikovSystem(BaseSystem):
+class SitnikovSystem(OldBaseSystem):
     """A light body moving on the axis through the mass centre of two equal primaries.
 
     The axis is normal to their orbit.

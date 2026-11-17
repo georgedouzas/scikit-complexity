@@ -14,7 +14,6 @@ quantity of the rotating frame, although at this energy a narrow neck towards th
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.celestial_mechanics import RestrictedThreeBodySystem
 
@@ -24,7 +23,7 @@ MU = 0.01215
 
 system = RestrictedThreeBodySystem(x=0.5, y=0.0, vx=0.0, vy=1.0, mu=MU)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
-trajectory = simulate(system, until=40, observers=[observer])
+trajectory = system.prepare().simulate(until=40, observers=[observer])
 
 # %%
 # Jacobi constant and the forbidden region
