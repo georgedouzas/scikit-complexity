@@ -6,29 +6,28 @@ The module covers stochastic climate and the delayed oscillator of El Niño.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.laws.utils import delayed
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec
-from ...general.dynamics import DynamicalSystem
-from ...general.dynamics.types import Equations
-from ..common.particles import RelaxationTimeInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class ClimateAnomalyElement(Element):
     """Slow temperature anomaly of Hasselmann's stochastic climate.
 
-    The anomaly has its feedback rate and weather noise.
-
-    The relaxation of `HasselmannSystem` damps the anomaly at the rate `lam` and drives it with weather noise of
-    amplitude `sigma`.
+    The feedback of `HasselmannSystem` damps the anomaly and weather noise drives it.
 
     Args:
         label:
@@ -37,6 +36,30 @@ class ClimateAnomalyElement(Element):
         T:
             The initial temperature anomaly.
 
+    Examples:
+        >>> from skcomplex.systems.physics.climate import ClimateAnomalyElement
+        >>> ClimateAnomalyElement('ocean', T=0.5).T
+        0.5
+    """
+
+    def __init__(self, label: str, *, T: float = 0.0) -> None:
+        super().__init__(label)
+        self.T = T
+
+
+class ClimateFeedbackInteraction(Interaction):
+    """Feedback that damps a temperature anomaly under weather noise.
+
+    The anomaly `T` of the target follows `dT = -lam T dt + sigma dW`, the relaxation to zero over the time `1 / lam`
+    with white weather noise of amplitude `sigma`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the anomaly.
+
         lam:
             The feedback rate that damps the anomaly.
 
@@ -44,23 +67,37 @@ class ClimateAnomalyElement(Element):
             The amplitude of the weather noise.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import ClimateAnomalyElement
-        >>> ClimateAnomalyElement('ocean').lam
+        >>> from skcomplex.systems.physics.climate import ClimateFeedbackInteraction
+        >>> ClimateFeedbackInteraction('feedback', target='ocean').lam
         0.5
     """
+
+    law_classes = (RateLaw, NoiseLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        T: Annotated[float, StateSpec()] = 0.0,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        target: Role,
+        lam: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        sigma: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
     ) -> None:
         super().__init__(label)
-        self.T = T
+        self.target = target
         self.lam = lam
         self.sigma = sigma
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the relaxation of the anomaly and its weather noise.
+
+        Args:
+            context:
+                The namespace of the anomaly, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            T = context.target.T
+            self.laws_ = [RateLaw(T.diff(context.t), (0.0 - T) / (1 / context.lam)), NoiseLaw(T, context.sigma)]
 
 
 class HasselmannSystem(BaseSystem):
@@ -69,7 +106,8 @@ class HasselmannSystem(BaseSystem):
     Fast weather noise drives a slow, damped temperature anomaly.
 
     The anomaly follows `dT = -lam T dt + sigma dW`, an Ornstein-Uhlenbeck process whose red spectrum integrates white
-    weather noise, with the stationary variance `sigma^2 / (2 lam)`. The system has the anomaly `ocean.T`.
+    weather noise, with the stationary variance `sigma^2 / (2 lam)`. The system runs with `EulerMaruyamaSolver(dt=0.01)`
+    and has the anomaly `ocean.T`.
 
     Args:
         T:
@@ -84,9 +122,15 @@ class HasselmannSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import HasselmannSystem
-        >>> HasselmannSystem(lam=0.1).prepare().system_.elements[0].lam
+        >>> HasselmannSystem(lam=0.1).prepare().system_.interactions[0].lam
         0.1
     """
 
@@ -95,7 +139,6 @@ class HasselmannSystem(BaseSystem):
     references = ('Hasselmann 1976', 'Ghil and Lucarini 2020')
     until = 100.0
     dt = 0.1
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -104,40 +147,77 @@ class HasselmannSystem(BaseSystem):
         lam: float = 0.5,
         sigma: float = 0.3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.T = T
         self.lam = lam
         self.sigma = sigma
 
-    @staticmethod
-    def _get_damping_time(s: SimpleNamespace) -> Expression:
-        """Return the damping time `1 / lam` of the temperature anomaly."""
-        return 1 / s.target.lam
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the anomaly damped by its feedback under weather noise.
 
-    @staticmethod
-    def _get_weather(s: SimpleNamespace) -> Expression:
-        """Return the amplitude `sigma` of the weather noise."""
-        return s.target.sigma
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        feedback = RelaxationTimeInteraction(
-            'feedback',
-            target='ocean',
-            state='T',
-            goal=0.0,
-            time=self._get_damping_time,
-            noise=self._get_weather,
-        )
-        return CompositeSystem(
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[ClimateAnomalyElement('ocean', T=self.T, lam=self.lam, sigma=self.sigma)],
-            interactions=[feedback],
+            elements=[ClimateAnomalyElement('ocean', T=self.T)],
+            interactions=[ClimateFeedbackInteraction('feedback', target='ocean', lam=self.lam, sigma=self.sigma)],
+            solver=EulerMaruyamaSolver(dt=0.01),
         )
 
 
-class ENSOSystem(DynamicalSystem):
+class DelayedOscillatorInteraction(Interaction):
+    """Local growth and delayed feedback of a temperature anomaly.
+
+    The anomaly `T` of the target follows `T' = T - T^3 - alpha T(t - delta)`, a growth saturated by the cube and
+    damped by its own value a delay `delta` earlier.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the anomaly.
+
+        alpha:
+            The strength of the delayed negative feedback.
+
+        delta:
+            The delay of the feedback.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import DelayedOscillatorInteraction
+        >>> DelayedOscillatorInteraction('oscillator', target='pacific', delta=4.0).delta
+        4.0
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role, alpha: float = 0.75, delta: float = 6.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.alpha = alpha
+        self.delta = delta
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate of the anomaly with its delayed feedback.
+
+        Args:
+            context:
+                The namespace of the anomaly, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            T, t = context.target.T, context.t
+            self.laws_ = [RateLaw(T.diff(t), T - T**3 - context.alpha * T(t=t - context.delta))]
+
+
+class ENSOSystem(BaseSystem):
     """The delayed oscillator of El Niño of Suarez and Schopf.
 
     The oscillator is `dT/dt = T - T^3 - alpha T(t - delta)`.
@@ -160,9 +240,15 @@ class ENSOSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import ENSOSystem
-        >>> ENSOSystem(delta=4.0).prepare().system_.elements[0].get_value('delta')
+        >>> ENSOSystem(delta=4.0).prepare().system_.interactions[0].delta
         4.0
     """
 
@@ -179,31 +265,26 @@ class ENSOSystem(DynamicalSystem):
         alpha: float = 0.75,
         delta: float = 6.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label, solver=solver, backend=backend)
         self.T = T
         self.alpha = alpha
         self.delta = delta
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'pacific'
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the anomaly of the eastern Pacific and its delayed feedback.
 
-    def _get_states(self) -> dict[str, object]:
-        """Return the initial value of every state."""
-        return {
-            'T': self.T,
-        }
-
-    def _get_parameters(self) -> dict[str, object]:
-        """Return the parameters of the equations."""
-        return {
-            'alpha': self.alpha,
-            'delta': self.delta,
-        }
-
-    def _get_equations(self) -> Equations:
-        """Return the local growth and saturation of the anomaly, and its delayed feedback."""
-        return {
-            'T': lambda s: s.target.T - s.target.T**3 - s.target.alpha * delayed(s.target.T, s.target.delta),
-        }
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[Element('pacific', values={'T': self.T})],
+            interactions=[
+                DelayedOscillatorInteraction('oscillator', target='pacific', alpha=self.alpha, delta=self.delta),
+            ],
+        )

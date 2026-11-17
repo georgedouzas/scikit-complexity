@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import EnergyReturnSystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(EnergyReturnSystem(), until=250, dt=1.0, observers=[observer], random_state=0)
+trajectory = EnergyReturnSystem().prepare().simulate(until=250, dt=1.0, observers=[observer], random_state=0)
 
 # %%
 # Three peaks

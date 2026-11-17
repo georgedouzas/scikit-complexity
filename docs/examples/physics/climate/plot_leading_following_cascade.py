@@ -13,8 +13,6 @@ starts to oscillate instead.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import LeadingFollowingCascadeSystem
 
@@ -22,14 +20,7 @@ SYSTEM = 'leading_following_cascade'
 
 system = LeadingFollowingCascadeSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulate(
-    system.prepare().system_,
-    until=500,
-    dt=0.5,
-    solver=EulerMaruyamaSolver(dt=0.01),
-    observers=[observer],
-    random_state=0,
-)
+system.prepare().simulate(until=500, dt=0.5, observers=[observer], random_state=0)
 
 # %%
 # Domino cascade or not
@@ -39,26 +30,14 @@ simulate(
 
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 for coupling in (0.2, 0.4):
-    trajectory = simulate(
-        LeadingFollowingCascadeSystem(coupling=coupling).prepare().system_,
-        until=500,
-        dt=0.5,
-        solver=EulerMaruyamaSolver(dt=0.01),
-        random_state=0,
-    )
+    trajectory = LeadingFollowingCascadeSystem(coupling=coupling).prepare().simulate(until=500, dt=0.5, random_state=0)
     times = np.asarray(trajectory.times)
     axes[0].plot(times, np.ravel(trajectory.get_values('follower.y')), label=f'follower, coupling = {coupling}')
 axes[0].plot(times, np.ravel(trajectory.get_values('leader.x')), '--', color='black', label='leader')
 axes[0].set_xlabel('time')
 axes[0].set_title('Fold follower')
 axes[0].legend()
-trajectory = simulate(
-    LeadingFollowingCascadeSystem(follower='hopf').prepare().system_,
-    until=500,
-    dt=0.5,
-    solver=EulerMaruyamaSolver(dt=0.01),
-    random_state=0,
-)
+trajectory = LeadingFollowingCascadeSystem(follower='hopf').prepare().simulate(until=500, dt=0.5, random_state=0)
 axes[1].plot(np.asarray(trajectory.times), np.ravel(trajectory.get_values('follower.y')), label='Hopf follower')
 axes[1].plot(
     np.asarray(trajectory.times),

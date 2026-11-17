@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import spectrum
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import SaltzmanGlaciationSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'saltzman_glaciation'
 
 system = SaltzmanGlaciationSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # The 100 kyr cycle
@@ -29,7 +28,7 @@ trajectory = simulate(system, observers=[observer])
 # On the limit cycle ice volume and carbon dioxide should trace one closed loop, and the power spectrum of a long run of
 # ice volume should peak at a period near 100 kyr.
 
-run = simulate(SaltzmanGlaciationSystem(), until=400)
+run = SaltzmanGlaciationSystem().prepare().simulate(until=400)
 settled = run.times > 20
 ice, carbon = run.get_values('climate.x')[settled], run.get_values('climate.y')[settled]
 power = spectrum(ice, dt=0.05)

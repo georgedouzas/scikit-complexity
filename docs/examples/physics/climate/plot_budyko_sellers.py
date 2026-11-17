@@ -14,7 +14,6 @@ Earth.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import BudykoSellersSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'budyko_sellers'
 
 system = BudykoSellersSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, until=16, dt=0.25, observers=[observer])
+trajectory = system.prepare().simulate(until=16, dt=0.25, observers=[observer])
 
 # %%
 # Two climates under one sun
@@ -33,7 +32,7 @@ trajectory = simulate(system, until=16, dt=0.25, observers=[observer])
 
 x = (np.arange(30) + 0.5) / 30
 warm = trajectory.get_lattice('bands.T')[-1]
-cold = simulate(BudykoSellersSystem(T=-40.0)).get_lattice('bands.T')[-1]
+cold = BudykoSellersSystem(T=-40.0).prepare().simulate().get_lattice('bands.T')[-1]
 latitude = np.degrees(np.arcsin(x))
 fig, ax = plt.subplots(figsize=(6, 4.5))
 ax.plot(latitude, warm, 'o-', markersize=3, color='C3', label='started at 15 °C')

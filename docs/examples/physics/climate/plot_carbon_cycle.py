@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import CarbonCycleSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 system = CarbonCycleSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # A threshold for the excursion
@@ -49,7 +48,7 @@ starts = np.linspace(2050.0, 2190.0, 29)
 peaks = []
 fig, (runs, response) = plt.subplots(1, 2, figsize=(10, 4))
 for w0 in starts:
-    run = simulate(CarbonCycleSystem(w=w0))
+    run = CarbonCycleSystem(w=w0).prepare().simulate()
     peaks.append(run.get_values('ocean.c').max())
     if w0 in starts[::7]:
         runs.plot(run.times, run.get_values('ocean.c'), linewidth=1, label=f'w0 = {w0:.0f}')

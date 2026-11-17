@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -10,22 +11,24 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, vector
 
+from ....core.components import Observable
 from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
-from ...general.dynamics import DynamicalSystem
-from ...general.dynamics.types import Equations
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 class Lorenz84Element(Element):
     """Atmosphere of Lorenz-84.
 
-    The general circulation is reduced to a westerly jet and a travelling wave of eddies.
-
-    The jet `x` and the cosine and sine phases `y` and `z` of the eddies follow `dx/dt = -y^2 - z^2 - a x + a F`,
-    `dy/dt = x y - b x z - y + G`, and `dz/dt = b x y + x z - z`.
+    The general circulation is reduced to a westerly jet `x` and a travelling wave of eddies, whose cosine and sine
+    phases are `y` and `z`. `Lorenz84Interaction` gives their laws.
 
     Args:
         label:
@@ -40,6 +43,32 @@ class Lorenz84Element(Element):
         z:
             The initial sine phase of the eddies.
 
+    Examples:
+        >>> from skcomplex.systems.physics.climate import Lorenz84Element
+        >>> Lorenz84Element('atmosphere', x=2.0).x
+        2.0
+    """
+
+    def __init__(self, label: str, *, x: float = 1.0, y: float = 1.0, z: float = 1.0) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.z = z
+
+
+class Lorenz84Interaction(Interaction):
+    """Forcing and damping of the jet of Lorenz-84 and its exchange with the eddies.
+
+    The jet `x` and the phases `y` and `z` of the eddies of the target follow `x' = -y^2 - z^2 - a x + a F`,
+    `y' = x y - b x z - y + G`, and `z' = b x y + x z - z`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the atmosphere.
+
         a:
             The damping of the jet relative to the eddies.
 
@@ -53,8 +82,8 @@ class Lorenz84Element(Element):
             The forcing of the eddies by the land-sea contrast.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import Lorenz84Element
-        >>> Lorenz84Element('atmosphere').F
+        >>> from skcomplex.systems.physics.climate import Lorenz84Interaction
+        >>> Lorenz84Interaction('circulation', target='atmosphere').F
         8.0
     """
 
@@ -64,39 +93,35 @@ class Lorenz84Element(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        y: Annotated[float, StateSpec()] = 1.0,
-        z: Annotated[float, StateSpec()] = 1.0,
-        a: Annotated[float, ParameterSpec()] = 0.25,
-        b: Annotated[float, ParameterSpec()] = 4.0,
-        F: Annotated[float, ParameterSpec()] = 8.0,
-        G: Annotated[float, ParameterSpec()] = 1.0,
+        target: Role,
+        a: float = 0.25,
+        b: float = 4.0,
+        F: float = 8.0,
+        G: float = 1.0,
     ) -> None:
         super().__init__(label)
-        self.x = x
-        self.y = y
-        self.z = z
+        self.target = target
         self.a = a
         self.b = b
         self.F = F
         self.G = G
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the forcing and damping of the jet and its exchange with the eddies.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the jet and of both phases of the eddies.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws of the jet and of both phases of the eddies.
+            context:
+                The namespace of the atmosphere, the time `t`, and the parameters.
         """
-        return [
-            RateLaw(s.x, -(s.y**2) - s.z**2 - s.a * s.x + s.a * s.F),
-            RateLaw(s.y, s.x * s.y - s.b * s.x * s.z - s.y + s.G),
-            RateLaw(s.z, s.b * s.x * s.y + s.x * s.z - s.z),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, y, z, t = context.target.x, context.target.y, context.target.z, context.t
+            a, b = context.a, context.b
+            self.laws_ = [
+                RateLaw(x.diff(t), -(y**2) - z**2 - a * x + a * context.F),
+                RateLaw(y.diff(t), x * y - b * x * z - y + context.G),
+                RateLaw(z.diff(t), b * x * y + x * z - z),
+            ]
 
 
 class Lorenz96Element(Element):
@@ -186,9 +211,15 @@ class Lorenz84System(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import Lorenz84System
-        >>> Lorenz84System(G=1.25).prepare().system_.elements[0].G
+        >>> Lorenz84System(G=1.25).prepare().system_.interactions[0].G
         1.25
     """
 
@@ -209,8 +240,10 @@ class Lorenz84System(BaseSystem):
         F: float = 8.0,
         G: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -219,17 +252,24 @@ class Lorenz84System(BaseSystem):
         self.F = F
         self.G = G
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the jet and the eddies of the atmosphere.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[
-                Lorenz84Element('atmosphere', x=self.x, y=self.y, z=self.z, a=self.a, b=self.b, F=self.F, G=self.G),
+            elements=[Lorenz84Element('atmosphere', x=self.x, y=self.y, z=self.z)],
+            interactions=[
+                Lorenz84Interaction('circulation', target='atmosphere', a=self.a, b=self.b, F=self.F, G=self.G),
             ],
         )
 
 
-class Lorenz96System(BaseSystem):
+class Lorenz96System(OldBaseSystem):
     """Lorenz-96 on a ring of sites around a latitude circle.
 
     Every site follows `dx_i/dt = (x_{i+1} - x_{i-2}) x_{i-1} - x_i + F`.
@@ -286,7 +326,69 @@ class Lorenz96System(BaseSystem):
         )
 
 
-class GeodynamoSystem(DynamicalSystem):
+class GeodynamoInteraction(Interaction):
+    """Growth and damping of the fields of Gissinger's geodynamo and the forcing of its flow.
+
+    The quadrupolar field `Q`, the dipolar field `D`, and the velocity `V` of the target follow `Q' = mu Q - V D`,
+    `D' = -nu D + V Q`, and `V' = Gamma - V + Q D`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the dynamo.
+
+        mu:
+            The growth rate of the quadrupole.
+
+        nu:
+            The damping rate of the dipole.
+
+        Gamma:
+            The forcing of the flow.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import GeodynamoInteraction
+        >>> GeodynamoInteraction('dynamics', target='dynamo').mu
+        0.119
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        mu: float = 0.119,
+        nu: float = 0.1,
+        Gamma: float = 0.9,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.mu = mu
+        self.nu = nu
+        self.Gamma = Gamma
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of both fields and of the velocity.
+
+        Args:
+            context:
+                The namespace of the dynamo, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            Q, D, V, t = context.target.Q, context.target.D, context.target.V, context.t
+            self.laws_ = [
+                RateLaw(Q.diff(t), context.mu * Q - V * D),
+                RateLaw(D.diff(t), -context.nu * D + V * Q),
+                RateLaw(V.diff(t), context.Gamma - V + Q * D),
+            ]
+
+
+class GeodynamoSystem(BaseSystem):
     """Gissinger's geodynamo, whose dipole field reverses at irregular times.
 
     The quadrupolar field `Q`, the dipolar field `D`, and the velocity `V` follow `dQ/dt = mu Q - V D`, `dD/dt = -nu D +
@@ -315,9 +417,15 @@ class GeodynamoSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import GeodynamoSystem
-        >>> GeodynamoSystem(mu=0.12).prepare().system_.elements[0].get_value('mu')
+        >>> GeodynamoSystem(mu=0.12).prepare().system_.interactions[0].mu
         0.12
     """
 
@@ -337,8 +445,10 @@ class GeodynamoSystem(DynamicalSystem):
         nu: float = 0.1,
         Gamma: float = 0.9,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label, solver=solver, backend=backend)
         self.Q = Q
         self.D = D
         self.V = V
@@ -346,30 +456,16 @@ class GeodynamoSystem(DynamicalSystem):
         self.nu = nu
         self.Gamma = Gamma
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'dynamo'
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the fields and the flow of the dynamo.
 
-    def _get_states(self) -> dict[str, object]:
-        """Return the initial value of every state."""
-        return {
-            'Q': self.Q,
-            'D': self.D,
-            'V': self.V,
-        }
-
-    def _get_parameters(self) -> dict[str, object]:
-        """Return the parameters of the equations."""
-        return {
-            'mu': self.mu,
-            'nu': self.nu,
-            'Gamma': self.Gamma,
-        }
-
-    def _get_equations(self) -> Equations:
-        """Return the growth and damping of both fields and the forcing of the flow."""
-        return {
-            'Q': lambda s: s.target.mu * s.target.Q - s.target.V * s.target.D,
-            'D': lambda s: -s.target.nu * s.target.D + s.target.V * s.target.Q,
-            'V': lambda s: s.target.Gamma - s.target.V + s.target.Q * s.target.D,
-        }
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[Element('dynamo', values={'Q': self.Q, 'D': self.D, 'V': self.V})],
+            interactions=[GeodynamoInteraction('dynamics', target='dynamo', mu=self.mu, nu=self.nu, Gamma=self.Gamma)],
+        )
