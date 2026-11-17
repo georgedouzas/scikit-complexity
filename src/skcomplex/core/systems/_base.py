@@ -42,6 +42,11 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         system_:
             The prepared `System` of the components built from the model parameters.
 
+        initial_state_:
+            The initial values that `simulate` uses when a call gives none, the tuned `initial_state` unless `_prepare`
+            sets them from the model parameters, such as `{"bob.theta'": self.omega}` for the initial angular velocity
+            of a pendulum.
+
     See Also:
         System: The system of components that every ready-made system builds.
 
@@ -65,6 +70,7 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     schedule: ClassVar[Mapping[str, Callable[[float], float | npt.ArrayLike]] | None] = None
 
     system_: BaseSystem
+    initial_state_: Mapping[str, object] | None
     states_: tuple[str, ...]
     parameters_: tuple[str, ...]
     equations_: dict[str, str]
@@ -137,13 +143,16 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Check the model parameters and set `system_`, the `System` of the components.
 
-        A subclass starts with `super()._prepare(context)`, which checks the label.
+        A subclass starts with `super()._prepare(context)`, which checks the label and sets `initial_state_` to the
+        tuned `initial_state`. A subclass whose initial values depend on its model parameters sets `initial_state_`
+        after it.
 
         Args:
             context:
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
+        self.initial_state_ = self.initial_state
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Set `laws_`, the laws of the system for a namespace of symbols.
@@ -206,8 +215,8 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
                 The time between frames, or `None` for the tuned one.
 
             initial_state:
-                Initial values by dotted state name, such as `{'ball.x': 20.0}`, or `None` for the tuned or the declared
-                ones.
+                Initial values by dotted state name, such as `{'ball.x': 20.0}`, or `None` for those of `initial_state_`
+                or the declared ones.
 
             random_state:
                 The seed or the generator of the random numbers of the run, or `None` for fresh entropy.
@@ -260,7 +269,7 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
             compiled,
             until=self.until if until is None else until,
             dt=self.dt if dt is None else dt,
-            initial_state=self.initial_state if initial_state is None else initial_state,
+            initial_state=self.initial_state_ if initial_state is None else initial_state,
             solver=prepared.solver_ if observables else None,
             backend=prepared._backend,
             observables=observables,

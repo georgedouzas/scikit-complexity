@@ -80,3 +80,29 @@ def test_prepare_exposes_what_the_built_system_learned() -> None:
     assert system.form_ == 'ordinary differential equations'
     assert system.equations_ == system.system_.equations_
     assert system.solver_ is system.system_.solver_
+
+
+class StockedMeadowSystem(MeadowSystem):
+    """System of one Lotka-Volterra meadow whose initial prey is a model parameter."""
+
+    def __init__(self, label: str = 'system', r: float = 1.1, prey: float = 40.0) -> None:
+        super().__init__(label, r)
+        self.prey = prey
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the meadow and its initial prey."""
+        super()._prepare(context)
+        self.initial_state_ = {'meadow/prey.x': self.prey}
+
+
+def test_prepare_sets_initial_state_from_model_parameters() -> None:
+    """Initial values set in `_prepare` start a run that gives none, and a run that gives some uses those."""
+    system = StockedMeadowSystem(prey=12.0).prepare()
+    assert system.simulate(until=1.0).get_values('meadow/prey.x')[0] == pytest.approx(12.0)
+    other = system.simulate(until=1.0, initial_state={'meadow/prey.x': 5.0})
+    assert other.get_values('meadow/prey.x')[0] == pytest.approx(5.0)
+
+
+def test_prepare_sets_initial_state_to_tuned_one() -> None:
+    """A system that sets no initial values in `_prepare` takes its tuned ones."""
+    assert MeadowSystem().prepare().initial_state_ is None
