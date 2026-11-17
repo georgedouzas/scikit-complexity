@@ -15,7 +15,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import scaling
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.fractals import ChaosGameSystem
 
@@ -28,7 +27,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(ChaosGameSystem(preset='sierpinski', n_points=20000), observers=[observer], random_state=0)
+trajectory = (
+    ChaosGameSystem(preset='sierpinski', n_points=20000).prepare().simulate(observers=[observer], random_state=0)
+)
 # Rerun's 2D views point y downward, so the last cloud is logged again with y flipped to stand the triangle upright.
 last = trajectory.get_values('points.p')[-1]
 observer.recording_.log('upright', rr.Points2D(last * [1, -1], radii=0.002, colors=[200, 90, 220]), static=True)
@@ -48,7 +49,7 @@ grid[cells[:, 1], cells[:, 0]] = True
 sizes = np.array([1, 2, 4, 8, 16, 32])
 counts = [grid.reshape(128 // size, size, 128 // size, size).any(axis=(1, 3)).sum() for size in sizes]
 dimension = scaling(grid, kind='box-counting', scales=sizes).exponent
-fern = simulate(ChaosGameSystem(preset='barnsley', n_points=20000), dt=30, random_state=0)
+fern = ChaosGameSystem(preset='barnsley', n_points=20000).prepare().simulate(dt=30, random_state=0)
 leaves = fern.get_values('points.p')[-1]
 fig, (boxes, plant) = plt.subplots(1, 2, figsize=(10, 4.5))
 boxes.loglog(sizes, counts, 'o', label='occupied boxes')
