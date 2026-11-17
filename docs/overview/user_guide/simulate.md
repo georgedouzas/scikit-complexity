@@ -506,7 +506,7 @@ class Heating(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             room, t = context.room, context.t
-            self.laws_ = [RateLaw(room.T.diff(t), -context.k * room.T + context.heater.on)]
+            self.laws_ = [RateLaw(room.T.diff(t), -context.k * room.T + context.heater.power)]
 
 
 class Thermostat(Interaction):
@@ -518,12 +518,12 @@ class Thermostat(Interaction):
     def _prepare(self, context=None):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.heater.on, (context.room.T < 5) * 1.0)]
+            self.laws_ = [UpdateLaw(context.heater.power, (context.room.T < 5) * 1.0)]
 
 
 house = System(
     systems=[
-        System('control', elements=[Element('heater', values={'on': 0.0})]),
+        System('control', elements=[Element('heater', values={'power': 0.0})]),
         System('house', elements=[Element('room', values={'T': 0.0})]),
     ],
     interactions=[
@@ -532,7 +532,7 @@ house = System(
     ],
 ).prepare()
 trajectory = house.simulate(until=60, dt=1)
-house.form_, set(trajectory.get_values('control/heater.on').tolist())
+house.form_, set(trajectory.get_values('control/heater.power').tolist())
 ```
 
 The thermostat changes the heater once a minute, and the room warms or cools in continuous time in between.
