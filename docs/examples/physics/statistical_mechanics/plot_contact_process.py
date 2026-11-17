@@ -15,7 +15,6 @@ irregular clusters that keep splitting, merging, and dying out. The view shows a
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import ContactProcessSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'contact_process'
 
 system = ContactProcessSystem(shape=(128, 128), rate=1.75, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, until=500, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=500, observers=[observer], random_state=0)
 
 # %%
 # Absorbing-state transition
@@ -36,7 +35,7 @@ trajectory = simulate(system, until=500, observers=[observer], random_state=0)
 rates = np.linspace(1.0, 4.0, 16)
 densities = []
 for rate in rates:
-    run = simulate(ContactProcessSystem(shape=(64, 64), rate=rate, random_state=1), until=1500, random_state=1)
+    run = ContactProcessSystem(shape=(64, 64), rate=rate, random_state=1).prepare().simulate(until=1500, random_state=1)
     densities.append(run.get_values('lattice.infected')[1000:].mean())
 grid = np.linspace(1.0, 4.0, 200)
 fig, ax = plt.subplots(figsize=(7, 4))

@@ -15,7 +15,7 @@ import numpy.typing as npt
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import LocalRuleLaw
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -211,7 +211,7 @@ class LatticeGasCollisionInteraction(Interaction):
         'triangular'
     """
 
-    law_classes = (LocalRuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(self, label: str, *, target: Role, geometry: str = 'square') -> None:
         super().__init__(label)
@@ -261,10 +261,10 @@ class LatticeGasCollisionInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             if self.geometry == 'square':
                 channels = tuple(getattr(context.target, name) for name in SQUARE_CHANNELS)
-                self.laws_ = [LocalRuleLaw(channels, SITE, self._collide_square, label=self.label)]
+                self.laws_ = [UpdateLaw(channels, self._collide_square, neighborhood=SITE, label=self.label)]
             else:
                 channels = tuple(getattr(context.target, name) for name in CHANNELS)
-                law = LocalRuleLaw(channels, SITE, self._collide_triangular, stochastic=True, label=self.label)
+                law = UpdateLaw(channels, self._collide_triangular, neighborhood=SITE, label=self.label)
                 self.laws_ = [law]
 
 
@@ -291,7 +291,7 @@ class LatticeGasPropagationInteraction(Interaction):
         'square'
     """
 
-    law_classes = (LocalRuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(self, label: str, *, target: Role, geometry: str = 'square') -> None:
         super().__init__(label)
@@ -329,10 +329,12 @@ class LatticeGasPropagationInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             if self.geometry == 'square':
                 channels = tuple(getattr(context.target, name) for name in SQUARE_CHANNELS)
-                self.laws_ = [LocalRuleLaw(channels, ARRIVALS, self._propagate_square, label=self.label)]
+                self.laws_ = [UpdateLaw(channels, self._propagate_square, neighborhood=ARRIVALS, label=self.label)]
             else:
                 channels = tuple(getattr(context.target, name) for name in CHANNELS)
-                self.laws_ = [LocalRuleLaw(channels, TRIANGULAR, self._propagate_triangular, label=self.label)]
+                self.laws_ = [
+                    UpdateLaw(channels, self._propagate_triangular, neighborhood=TRIANGULAR, label=self.label),
+                ]
 
 
 class ParticleCountInteraction(Interaction):
@@ -354,7 +356,7 @@ class ParticleCountInteraction(Interaction):
         ('n0', 'n1')
     """
 
-    law_classes = (LocalRuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(self, label: str, *, target: Role, channels: Sequence[str] = SQUARE_CHANNELS) -> None:
         super().__init__(label)
@@ -376,7 +378,8 @@ class ParticleCountInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             reads = tuple(getattr(context.target, name) for name in self.channels)
-            self.laws_ = [LocalRuleLaw(context.target.density, SITE, self._count, reads=reads, label=self.label)]
+            law = UpdateLaw(context.target.density, self._count, neighborhood=SITE, reads=reads, label=self.label)
+            self.laws_ = [law]
 
 
 class FHPLatticeGasSystem(BaseSystem):
