@@ -455,7 +455,7 @@ def test_checkerboard_rejected_where_it_does_not_apply(space):
 
 def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     """Test that a triangular forest fire logs one colored cell per site at its position at every logged step."""
-    trajectory = simulate(HexagonalForestFireSystem((12, 10)).prepare().system_, until=1, dt=1)
+    trajectory = HexagonalForestFireSystem((12, 10)).prepare().simulate(until=1, dt=1)
     frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], trajectory.problem)
     recording = Recording()
     (SiteVisual(path=trajectory.problem.elements[0].path, recording=recording).prepare(trajectory.problem).run(frame))
@@ -466,7 +466,7 @@ def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     assert np.allclose(positions, LatticeSpace((12, 10), geometry='triangular').prepare().positions_)
     assert len(points.colors.as_arrow_array()) == 120
     observer = RerunObserver('forest', save_path=tmp_path / 'forest.rrd')
-    simulate(HexagonalForestFireSystem((12, 10)).prepare().system_, until=3, dt=1, observers=[observer])
+    HexagonalForestFireSystem((12, 10)).prepare().simulate(until=3, dt=1, observers=[observer])
     assert observer.logged_frames_ == 4
     assert (tmp_path / 'forest.rrd').stat().st_size > 0
 

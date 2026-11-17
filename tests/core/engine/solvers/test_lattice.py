@@ -351,9 +351,9 @@ def test_unknown_schedule_is_rejected():
 
 def test_forest_fire_is_reproducible():
     """Test that two forest fires with the same seed give identical lattices at every step."""
-    first = simulate(ForestFireSystem((30, 30)).prepare().system_, until=30, dt=1, random_state=7).states
-    second = simulate(ForestFireSystem((30, 30)).prepare().system_, until=30, dt=1, random_state=7).states
-    third = simulate(ForestFireSystem((30, 30)).prepare().system_, until=30, dt=1, random_state=8).states
+    first = ForestFireSystem((30, 30)).prepare().simulate(until=30, dt=1, random_state=7).states
+    second = ForestFireSystem((30, 30)).prepare().simulate(until=30, dt=1, random_state=7).states
+    third = ForestFireSystem((30, 30)).prepare().simulate(until=30, dt=1, random_state=8).states
     assert np.array_equal(first, second)
     assert not np.array_equal(first, third)
 

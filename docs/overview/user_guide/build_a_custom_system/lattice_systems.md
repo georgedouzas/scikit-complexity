@@ -119,11 +119,10 @@ falls on a random site, and a site with four grains or more topples and gives on
 catalog class `SandpileSystem` records the size of every avalanche.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.criticality import SandpileSystem
 
 sandpile = SandpileSystem(shape=(20, 20))
-trajectory = simulate(sandpile, until=2000, dt=100, random_state=0)
+trajectory = sandpile.prepare().simulate(until=2000, dt=100, random_state=0)
 max(event.size for event in trajectory.events)
 ```
 

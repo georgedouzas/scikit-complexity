@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution, events
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.criticality import SandpileSystem
 
@@ -24,7 +23,7 @@ SYSTEM = 'sandpile'
 
 system = SandpileSystem(shape=(48, 48), random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=14950, dt=50, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=14950, dt=50, observers=[observer], random_state=0)
 
 # %%
 # Self-organized criticality

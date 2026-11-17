@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import Expression
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import LocalRuleLaw, UpdateLaw
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import draw, either, where
 from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
@@ -108,7 +108,7 @@ class ToppleInteraction(Interaction):
         4
     """
 
-    law_classes = (LocalRuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(self, label: str, *, target: Role, threshold: int = 4) -> None:
         super().__init__(label)
@@ -130,7 +130,9 @@ class ToppleInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             neighborhood = RadiusNeighborhood(1, metric='manhattan', center=True)
-            self.laws_ = [LocalRuleLaw(context.target.height, neighborhood, self._get_topple, label=self.label)]
+            self.laws_ = [
+                UpdateLaw(context.target.height, self._get_topple, neighborhood=neighborhood, label=self.label),
+            ]
 
 
 def _get_active(site: SimpleNamespace) -> Expression:
