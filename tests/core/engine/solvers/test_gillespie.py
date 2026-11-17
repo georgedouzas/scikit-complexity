@@ -76,7 +76,7 @@ def test_compiled_gillespie_runs_serial_kernels():
 
 def _sir_firings():
     """Return a recorded Gillespie run of the stochastic SIR system and the law of infection."""
-    trajectory = simulate(SIRSystem(stochastic=True), until=60, random_state=1, record_draws=True)
+    trajectory = SIRSystem(stochastic=True).prepare().simulate(until=60, random_state=1, record_draws=True)
     problem = trajectory.problem
     rates = problem.propensities(0.0, problem.initial_state, problem.initial_parameters)
     infection = int(np.argmax(np.isclose(rates, 0.0003 * 990 * 10)))
@@ -101,7 +101,7 @@ def test_gillespie_replay_gives_the_path_log_likelihood_at_other_rates():
     """Test the replayed log-likelihood against the closed form of a jump process path."""
     trajectory, infection = _sir_firings()
     beta, gamma = 0.0004, 0.15
-    replayed = simulate(SIRSystem(stochastic=True, beta=beta, gamma=gamma), until=60, replay=trajectory)
+    replayed = SIRSystem(stochastic=True, beta=beta, gamma=gamma).prepare().simulate(until=60, replay=trajectory)
     np.testing.assert_array_equal(replayed.states, trajectory.states)
     susceptible, infected, last, expected = 990.0, 10.0, 0.0, 0.0
     for fired_at, law in zip(trajectory.draws.firing_times, trajectory.draws.firing_laws, strict=True):

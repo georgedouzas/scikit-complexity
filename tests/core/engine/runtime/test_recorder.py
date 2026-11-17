@@ -22,7 +22,7 @@ def test_recorder_builds_the_trajectory_of_its_frames():
 def test_recorder_keeps_one_row_of_parameters_that_stay_the_same():
     """Test that frames share unchanged parameters, so large constant parameters take no memory per frame."""
     recorder = RecorderObserver()
-    simulate(SIRSystem().prepare().system_, until=2, dt=1, observers=[recorder])
+    SIRSystem().prepare().simulate(until=2, dt=1, observers=[recorder])
     parameters = recorder.trajectory_.parameters
     assert parameters.shape[0] == 3
     assert parameters.shape[1] > 0

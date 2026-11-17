@@ -543,7 +543,7 @@ def test_state_conditions_restart_the_integrator_without_stalling():
     """Test that the bathtub drains without a stall warning, keeps its water nonnegative, and records no events."""
     with warnings.catch_warnings():
         warnings.simplefilter('error')
-        trajectory = simulate(BathtubSystem(water=20.0).prepare().system_, until=6, dt=1)
+        trajectory = BathtubSystem(water=20.0).prepare().simulate(until=6, dt=1)
     assert np.all(np.asarray(trajectory.get_values('tub.water')) >= -1e-6)
     assert not trajectory.events
 
