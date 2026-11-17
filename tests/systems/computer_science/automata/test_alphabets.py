@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 from sage.all__sagemath_gap import PermutationGroup
 
-from skcomplex.core.components.spaces import StateTranslationNeighborhood
 from skcomplex.core.errors import ParameterError
 from skcomplex.systems.computer_science.automata import (
     GroupDifferenceAutomatonSystem,
@@ -15,6 +14,7 @@ from skcomplex.systems.computer_science.automata import (
     SelfIndexedShiftSystem,
     SubtractionAutomatonSystem,
 )
+from skcomplex.systems.computer_science.common.automata import StateTranslationNeighborhood
 
 from ..conftest import _run
 

@@ -170,6 +170,10 @@ class LatticeSpace(BaseSpace):
         """
         return LatticeSpace(self.shape_, boundary=boundary, fill=fill).prepare()
 
+    def _has_sites(self) -> bool:
+        """Check whether the space has sites joined by neighbours, which its cells are."""
+        return True
+
     def _get_default_neighborhood(self) -> RadiusNeighborhood:
         """Return the neighbourhood agents query, the unit ball under the lattice metric."""
         return RadiusNeighborhood(1, metric=self.metric_)

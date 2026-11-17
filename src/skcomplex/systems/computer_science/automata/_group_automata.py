@@ -17,14 +17,13 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws import TotalisticSpec
 from ....core.components.spaces import (
-    CayleySpace,
     LatticeNeighborhood,
     LatticeSpace,
-    MemoryNeighborhood,
 )
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, SubshiftSpec
 from ....core.types import Array
+from ..common.automata import CayleySpace, MemoryNeighborhood
 from ._binary_cell import BinaryCellElement
 from ._generator_neighborhood import GeneratorNeighborhood
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter

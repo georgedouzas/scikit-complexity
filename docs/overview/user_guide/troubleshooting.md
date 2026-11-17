@@ -451,24 +451,26 @@ here a lattice of five by five sites, or a `size`.
 
 ## SpaceTooLargeError
 
-A space that would hold more sites than its limit raises this error before it allocates them. The Cayley graph of the
-free group on two generators is infinite.
+A space that would hold more sites than its limit raises this error before it allocates them. The Cayley graph of a
+group in the automata of `skcomplex.systems.computer_science.automata` raises it past 100000 sites, such as the ball of
+radius eleven of the free group in `FreeGroupAutomatonSystem(radius=11)`, and a phase space raises its subclass
+`PhaseSpaceTooLargeError`. Catching this error catches both. Here a phase space of fifty by fifty positions and 32
+speeds is too large for its limit.
 
 ```python
-from sage.all__sagemath_gap import libgap
-
-from skcomplex.core.components.spaces import CayleySpace
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from skcomplex.core.errors import SpaceTooLargeError
 
+speeds = [AxisSpec('v', 32, -4.0, 4.0)]
 try:
-    CayleySpace(libgap.FreeGroup(['a', 'b'])).prepare()
+    PhaseSpace(LatticeSpace((50, 50)), speeds, limit=10_000).prepare()
 except SpaceTooLargeError as error:
     message = str(error)
-message, CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2).prepare().size_
+message, PhaseSpace(LatticeSpace((10, 10)), speeds, limit=10_000).prepare().size_
 ```
 
-The message reads "The group space has more than 100000 sites. Ask for a smaller ball or a finite quotient, or raise
-max_sites." The fix `ball=2` keeps the 17 words of length at most two.
+The message reads "The phase space would take 80000 sites, above its limit of 10000." The fix uses fewer cells, here a
+lattice of ten by ten with 3200 sites. For the ball of a group, the fix is a smaller radius or a finite quotient.
 
 ## PhaseSpaceTooLargeError
 

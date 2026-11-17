@@ -534,6 +534,7 @@ type = "forbidden"
 source_modules = ["skcomplex.systems.biology"]
 forbidden_modules = [
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
@@ -547,6 +548,7 @@ type = "forbidden"
 source_modules = ["skcomplex.systems.chemistry"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
@@ -575,6 +577,7 @@ source_modules = ["skcomplex.systems.economics"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
@@ -588,6 +591,7 @@ source_modules = ["skcomplex.systems.engineering"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
@@ -601,6 +605,7 @@ source_modules = ["skcomplex.systems.mathematics"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.physics.common",
@@ -614,6 +619,7 @@ source_modules = ["skcomplex.systems.physics"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
@@ -627,6 +633,7 @@ source_modules = ["skcomplex.systems.social"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
@@ -639,6 +646,7 @@ type = "forbidden"
 source_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",

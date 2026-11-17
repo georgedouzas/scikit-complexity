@@ -12,7 +12,7 @@ import qutip
 import scipy.sparse as sp
 from qutip.solver import solver_base
 
-from .....core.components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from .....core.components.spaces import BaseSpace, ContinuousTime
 from .....core.engine.backends import SupportSpec
 from .....core.engine.problems import OperatorKernel, OperatorProblemSpec, RunStateSpec
 from .....core.engine.solvers import BaseSolver
@@ -57,7 +57,7 @@ class OperatorSolver(BaseSolver[OperatorProblemSpec]):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            space={None, BaseSpace},
             laws={GeneratorLaw, DissipatorLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )

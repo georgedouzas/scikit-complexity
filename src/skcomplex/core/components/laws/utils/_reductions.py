@@ -20,7 +20,6 @@ from ...spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
     LayerSpec,
-    MemoryNeighborhood,
     NearestNeighborhood,
     RadiusNeighborhood,
 )
@@ -750,11 +749,7 @@ def neighbors(
         (2, neighbor(spin, 0))
     """
     if reduce == 'each':
-        items: tuple[object, ...] | None
-        if isinstance(over, MemoryNeighborhood):
-            items = over.prepare().elements_
-        else:
-            items = over._get_offsets() if isinstance(over, BaseNeighborhood) else None
+        items = over._get_slots() if isinstance(over, BaseNeighborhood) else None
         if items is None:
             error_msg = (
                 f"The reduction 'each' reads a neighbourhood whose offsets are known before its lattice, such as a "

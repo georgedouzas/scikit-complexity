@@ -15,13 +15,12 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 from shapely import Polygon
 
-from .spaces import DelaunayNeighborhood, LatticeNeighborhood, MemoryNeighborhood
+from .spaces import DelaunayNeighborhood
 
 type Target = Expression | FreeModuleElement
 type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
 type Feasibility = Callable[[AgentViewProtocol, AgentViewProtocol], bool]
 type Pairing = Callable[[Sequence[object], Sequence[object], np.random.Generator, int], list[tuple[object, object]]]
-type Reach = LatticeNeighborhood | MemoryNeighborhood
 type NamespaceFunction = Callable[[SimpleNamespace], Target]
 type PairPotential = Callable[[SimpleNamespace, Expression], Expression]
 type Combination = Callable[[SimpleNamespace, Target], Target]
