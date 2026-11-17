@@ -371,7 +371,10 @@ class PayneSystem(BaseSystem):
             time=lambda s: s.target.tau,
         )
         self.system_ = System(
-            self.label, elements=[road], interactions=[density, flow, relaxation], solver=SSPRKSolver()
+            self.label,
+            elements=[road],
+            interactions=[density, flow, relaxation],
+            solver=SSPRKSolver(),
         )
 
 
@@ -694,5 +697,8 @@ class GktTrafficSystem(BaseSystem):
             source=self._get_gkt_relaxation,
         )
         self.system_ = System(
-            self.label, elements=[road], interactions=[vehicles, momentum], solver=SSPRKSolver(cfl=0.4)
+            self.label,
+            elements=[road],
+            interactions=[vehicles, momentum],
+            solver=SSPRKSolver(cfl=0.4),
         )

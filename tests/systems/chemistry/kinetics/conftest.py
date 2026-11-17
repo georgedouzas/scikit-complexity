@@ -7,7 +7,11 @@ from skcomplex.core.systems import BaseSystem as PreparedSystem
 
 
 def _run(
-    system: BaseSystem | PreparedSystem, until: float, dt: float, *, solver: BaseSolver | None = None
+    system: BaseSystem | PreparedSystem,
+    until: float,
+    dt: float,
+    *,
+    solver: BaseSolver | None = None,
 ) -> Trajectory:
     """Return the trajectory of a system, with its tuned solver unless one is given."""
     if not isinstance(system, PreparedSystem):
