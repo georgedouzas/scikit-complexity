@@ -1,6 +1,7 @@
 """Test the `_observables` module of `skcomplex.core.engine.compile`."""
 
 import dataclasses
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -22,7 +23,7 @@ from skcomplex.core.engine.compile.passes._operator_compiler import OperatorComp
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
-from skcomplex.core.systems import BaseSystem
+from skcomplex.core.systems import BaseSystem, System
 from skcomplex.systems import all_systems
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.economics.resources import HarvestingSystem
@@ -612,3 +613,41 @@ def test_observable_of_an_element_rejects_a_delay_no_law_uses():
             until=1,
             observables=[observed],
         )
+
+
+class SpringInteraction(Interaction):
+    """Spring `x'' = -x` of the element it binds."""
+
+    def __init__(self, label, *, target: Annotated[str, RoleSpec()] = 'mass'):
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.target.x, context.t
+            self.laws_ = [RateLaw(x.diff(t, 2), -x)]
+
+
+def _spring_energy(s):
+    """Return the energy `(x'^2 + x^2) / 2` of the mass."""
+    return (s.mass.x.diff(s.t) ** 2 + s.mass.x**2) / 2
+
+
+def _spring_jerk(s):
+    """Return the third derivative of the position, which no law reads."""
+    return s.mass.x.diff(s.t, 3)
+
+
+def test_observable_reads_the_derivative_of_a_plain_element():
+    """Test that an observable reads `x'` of a plain element as `s.mass.x.diff(s.t)`, so the energy is conserved."""
+    system = System(elements=[Element('mass', values={'x': 1.0})], interactions=[SpringInteraction('spring')])
+    trajectory = system.prepare().simulate(until=3.0, dt=0.5, observables=[Observable('energy', _spring_energy)])
+    np.testing.assert_allclose(trajectory.get_values('energy'), 0.5, rtol=1e-3)
+
+
+def test_observable_of_a_derivative_the_system_does_not_hold_raises():
+    """Test that an observable of a derivative that no law reads raises an error that names it."""
+    system = System(elements=[Element('mass', values={'x': 1.0})], interactions=[SpringInteraction('spring')])
+    with pytest.raises(ValidationError, match=r"mass\.x'''"):
+        system.prepare().simulate(until=1.0, observables=[Observable('jerk', _spring_jerk)])

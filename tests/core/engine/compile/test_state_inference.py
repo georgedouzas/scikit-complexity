@@ -16,7 +16,14 @@ from skcomplex.core.analysis import alignment, displacement
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ConstraintLaw, NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.laws import (
+    BoundaryLaw,
+    ConstraintLaw,
+    NoiseLaw,
+    RateLaw,
+    TopologyRequestSpec,
+    UpdateLaw,
+)
 from skcomplex.core.components.laws.utils import laplacian, neighbors
 from skcomplex.core.components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.errors import ValidationError
@@ -630,3 +637,29 @@ def test_get_declared_reads_the_step_of_a_position_as_its_velocity():
     system = System(elements=[walkers], interactions=[Drift('drift')]).prepare()
     trajectory = system.simulate(until=2, dt=1)
     assert alignment(trajectory, kind='mean-vector').order == pytest.approx([1 / 3] * 3)
+
+
+class Brake(Interaction):
+    """Controller that sets the force on a cart to `-2 x'` after every step, while the cart moves as `x'' = force`."""
+
+    def __init__(self, label: str, *, cart: Role = 'cart') -> None:
+        super().__init__(label)
+        self.cart = cart
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the motion and the force the controller sets."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            cart, t = context.cart, context.t
+            speed = cart.x.diff(t)
+            self.laws_: list[BaseComponent] = [RateLaw(speed.diff(t), cart.force), BoundaryLaw(cart.force, -2 * speed)]
+
+
+def test_get_declared_holds_a_value_a_controller_sets_after_every_step():
+    """Test that a value of a plain element that a controller sets after every step holds within the step."""
+    cart = Element('cart', values={'x': 0.0, 'force': 0.0})
+    system = System(elements=[cart], interactions=[Brake('brake')]).prepare()
+    trajectory = system.simulate(until=1.0, dt=0.5, initial_state={"cart.x'": 1.0})
+    assert 'cart.force' in system.states_
+    assert system.equations_['cart.force'] == '0'
+    assert trajectory.get_values('cart.force')[1:] == pytest.approx(-2 * trajectory.get_values("cart.x'")[1:])

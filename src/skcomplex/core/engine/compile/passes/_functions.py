@@ -387,7 +387,8 @@ class FunctionsPass(BasePass):
 
         It is `None` for the default phase alone. The phases are those of the `PhasesScheduleSpec` of the discrete time
         of the system and its nested systems, with the default phase first unless a schedule places it, and a phase
-        without update laws is left out.
+        without update laws is left out. Without a schedule of phases, the phases run in the order their update laws
+        first appear, so the order of the interactions of a system orders them.
 
         Args:
             compilation:
@@ -410,6 +411,7 @@ class FunctionsPass(BasePass):
         for kernel in lowered.kernels.get(UpdateLaw, []):
             _, law = lowered.laws[id(kernel.outputs[0])]
             kernels[(law.phase if isinstance(law, UpdateLaw) else None) or DEFAULT_PHASE].append(kernel)
+        declared = declared or [PhaseSpec(name) for name in kernels if name != DEFAULT_PHASE]
         names = [phase.name for phase in declared]
         if set(kernels) <= {DEFAULT_PHASE} and DEFAULT_PHASE not in names:
             return None

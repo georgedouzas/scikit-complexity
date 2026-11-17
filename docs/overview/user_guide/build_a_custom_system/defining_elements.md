@@ -59,7 +59,10 @@ scikit-learn estimator. A class annotates each variable with `typing.Annotated` 
 - The constructor takes the label first and every other argument by keyword. It stores each value unmodified under its
   own name.
 - The domain of a state or a parameter is a Sage set, such as `RR`, `ZZ`, `CC`, `RealSet.closed_open(0, oo)`, or
-  `FiniteEnumeratedSet(['S', 'I', 'R'])`.
+  `FiniteEnumeratedSet(['S', 'I', 'R'])`. An interaction that sets its laws in `_prepare` takes the allowed values of
+  an argument from `Annotated` alone, as the values of an element do, such as
+  `rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.5`, and preparing a system with a rate outside them raises
+  an error that names it.
 - `_get_laws(s)` returns the laws of the class, and returns none by default.
 - `get_params`, `set_params`, `clone`, and `repr` follow the scikit-learn estimator contract, so every component clones
   with its values.

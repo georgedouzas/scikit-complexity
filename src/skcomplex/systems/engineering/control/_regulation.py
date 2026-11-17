@@ -19,14 +19,13 @@ from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, BoundaryLaw, ConstraintLaw, RateLaw
-from ....core.components.laws.utils import clip, derivative
+from ....core.components.laws import BoundaryLaw, ConstraintLaw, RateLaw
+from ....core.components.laws.utils import clip
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, Role, RoleSpec
 from ....core.systems import BaseSystem, System
 
 GRAVITY = 9.81
@@ -95,67 +94,44 @@ class CartPendulumInteraction(Interaction):
         ]
 
 
-class DrivenOscillatorElement(Element):
-    """Damped harmonic oscillator that a bounded force drives.
+class DrivenOscillatorInteraction(Interaction):
+    """Motion of a damped harmonic oscillator that a force per unit mass drives.
 
-    It follows `x'' = -omega^2 x - 2 zeta omega x' + force`.
+    It follows `x'' = -omega^2 x - 2 zeta omega x' + force`, with the natural frequency `omega`, the damping ratio
+    `zeta`, and the control input `force` of the element it binds. A controller that sets `force`, such as
+    `StateFeedbackInteraction`, closes the loop, and without one `force` is a parameter that `linearization` takes as a
+    control.
 
     Args:
         label:
-            The label of the oscillator.
+            The label of the interaction.
 
-        x:
-            The initial displacement.
-
-        x_d1:
-            The initial velocity.
-
-        force:
-            The force per unit mass, the control input.
-
-        omega:
-            The natural frequency.
-
-        zeta:
-            The damping ratio.
+        target:
+            The path of the oscillator, with the values `x`, `force`, `omega`, and `zeta`.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import DrivenOscillatorElement
-        >>> DrivenOscillatorElement('oscillator', x=1.0).omega
-        1.0
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.engineering.control import DrivenOscillatorInteraction
+        >>> oscillator = Element('oscillator', values={'x': 1.0, 'force': 0.0, 'omega': 1.0, 'zeta': 0.0})
+        >>> motion = DrivenOscillatorInteraction('motion', target='oscillator')
+        >>> System(elements=[oscillator], interactions=[motion]).prepare().states_
+        ('oscillator.x', "oscillator.x'")
     """
 
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[float, StateSpec(order=2)] = 0.0,
-        x_d1: float = 0.0,
-        force: Annotated[float, ParameterSpec(adaptive=True, bounds=(-FORCE_LIMIT, FORCE_LIMIT))] = 0.0,
-        omega: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        zeta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
-        self.force = force
-        self.omega = omega
-        self.zeta = zeta
+        self.target = target
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate of the velocity.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.x, -(s.omega**2) * s.x - 2 * s.zeta * s.omega * derivative(s.x, 1) + s.force)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the acceleration of the oscillator."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        oscillator, t = context.target, context.t
+        x, omega = oscillator.x, oscillator.omega
+        acceleration = -(omega**2) * x - 2 * oscillator.zeta * omega * x.diff(t) + oscillator.force
+        self.laws_: list[BaseComponent] = [RateLaw(x.diff(t, 2), acceleration)]
 
 
 class PIDInteraction(Interaction):
@@ -267,7 +243,8 @@ class StateFeedbackInteraction(Interaction):
             The name of the adaptive parameter of the plant that the controller sets.
 
         states:
-            The names of the fed back states of the plant, such as `('x', 'x_d1')` for a position and its velocity.
+            The names of the fed back states of the plant, with a prime for a derivative, such as `('x', "x'")` for a
+            position and its velocity.
 
         gain:
             The gain of every state, in the order of `states`.
@@ -278,7 +255,7 @@ class StateFeedbackInteraction(Interaction):
     Examples:
         >>> from skcomplex.systems.engineering.control import StateFeedbackInteraction
         >>> StateFeedbackInteraction(
-        ...     'regulator', plant='mass', control='force', states=('x', 'x_d1'), gain=(1.0, 1.7)
+        ...     'regulator', plant='mass', control='force', states=('x', "x'"), gain=(1.0, 1.7)
         ... ).gain
         (1.0, 1.7)
     """
@@ -307,11 +284,9 @@ class StateFeedbackInteraction(Interaction):
         super()._prepare(context)
         if not isinstance(context, SimpleNamespace):
             return
-        plant = context.plant
-        feedback = -sum(
-            (float(gain) * getattr(plant, name) for name, gain in zip(self.states, self.gain, strict=True)),
-            0,
-        )
+        plant, t = context.plant, context.t
+        read = [getattr(plant, name.rstrip("'")).diff(t, name.count("'")) for name in self.states]
+        feedback = -sum((float(gain) * value for value, gain in zip(read, self.gain, strict=True)), 0)
         self.laws_: list[BaseComponent] = [
             BoundaryLaw(getattr(plant, self.control), clip(feedback, *(self.limits or (None, None)))),
         ]
@@ -424,7 +399,7 @@ class PidInvertedPendulumSystem(BaseSystem):
 def _get_oscillator_energy(s: SimpleNamespace) -> Expression:
     """Return the energy per unit mass of the oscillator, `(x'^2 + omega^2 x^2) / 2`."""
     oscillator = s.oscillator
-    energy: Expression = (oscillator.x_d1**2 + oscillator.omega**2 * oscillator.x**2) / 2
+    energy: Expression = (oscillator.x.diff(s.t) ** 2 + oscillator.omega**2 * oscillator.x**2) / 2
     return energy
 
 
@@ -496,9 +471,11 @@ class LqrOscillatorSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components of the system built from its model parameters."""
         super()._prepare(context)
-        oscillator = DrivenOscillatorElement('oscillator', x=self.x, omega=self.omega, zeta=self.zeta)
+        values = {'x': self.x, 'force': 0.0, 'omega': self.omega, 'zeta': self.zeta}
+        oscillator = Element('oscillator', values=values)
+        motion = DrivenOscillatorInteraction('motion', target='oscillator')
         linear = linearization(
-            CompositeSystem(elements=[oscillator]),
+            System(elements=[oscillator], interactions=[motion]),
             controls=['oscillator.force'],
             state_weights=self.q * np.eye(2),
             control_weights=[[self.r]],
@@ -516,4 +493,9 @@ class LqrOscillatorSystem(BaseSystem):
             gain=tuple(float(value) for value in gain[0]),
             limits=(-FORCE_LIMIT, FORCE_LIMIT),
         )
-        self.system_ = System(self.label, elements=[oscillator], interactions=[regulator], solver=RK4Solver(dt=0.001))
+        self.system_ = System(
+            self.label,
+            elements=[oscillator],
+            interactions=[regulator, motion],
+            solver=RK4Solver(dt=0.001),
+        )

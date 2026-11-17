@@ -15,11 +15,17 @@ from ._control import (
     ThermalConductorElement,
     ThermostatSystem,
 )
-from ._koopman import ControlInputElement, KoopmanModelPredictiveControlSystem, PlantStateElement
+from ._koopman import (
+    ControlInputElement,
+    KoopmanModelPredictiveControlSystem,
+    PlantInteraction,
+    PlantStateElement,
+    PredictiveControlInteraction,
+)
 from ._minimum_time_control import BangBangPlantElement, MinimumTimeControlSystem
 from ._regulation import (
     CartPendulumInteraction,
-    DrivenOscillatorElement,
+    DrivenOscillatorInteraction,
     LqrOscillatorSystem,
     PIDInteraction,
     PidInvertedPendulumSystem,
@@ -32,7 +38,7 @@ __all__: list[str] = [
     'CartPendulumInteraction',
     'ControlInputElement',
     'ConvectionElement',
-    'DrivenOscillatorElement',
+    'DrivenOscillatorInteraction',
     'HeatCapacityElement',
     'HeatedRoomSystem',
     'HeatingResistorElement',
@@ -43,7 +49,9 @@ __all__: list[str] = [
     'PendulumSwingUpSystem',
     'PidInvertedPendulumSystem',
     'PidLoopSystem',
+    'PlantInteraction',
     'PlantStateElement',
+    'PredictiveControlInteraction',
     'SatelliteTransferSystem',
     'StateFeedbackInteraction',
     'ThermalConductorElement',

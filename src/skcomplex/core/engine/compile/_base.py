@@ -108,7 +108,8 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         """Attach the observables to a system and set the issues it finds.
 
         It first raises an error for a wrong backend or observable. The backend must be a backend and every observable
-        an observable spec.
+        an observable spec. A `System` or a ready-made system of the catalog compiles the composite of its
+        components.
 
         Args:
             context:
@@ -125,6 +126,9 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         if wrong:
             error_msg = f'The observables hold a {type(wrong[0]).__name__}. Pass observable specs.'
             raise ValidationError(error_msg)
+        get_composite = getattr(context, '_get_composite', None)
+        if not isinstance(context, CompositeSystem) and callable(get_composite):
+            context = get_composite()
         if not isinstance(context, CompositeSystem):
             error_msg = f'A compiler prepares on a system, not on a {type(context).__name__}.'
             raise ValidationError(error_msg)

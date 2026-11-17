@@ -15,12 +15,14 @@ from sage.all__sagemath_symbolics import QQ, SR, LaurentPolynomialRing, matrix
 from sage.rings.polynomial.laurent_polynomial import LaurentPolynomial
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.structure.element import Matrix
+from sklearn.base import clone
 
 from ..components.elements import GroupElement
-from ..components.interactions import LocalRuleInteraction
+from ..components.interactions import BaseInteraction, LocalRuleInteraction
 from ..components.laws import LinearRuleSpec, LocalRuleLaw, OuterTotalisticSpec, TableSpec, TotalisticSpec
 from ..components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
 from ..components.systems import CompositeSystem
+from ..engine.compile._pass_compiler import PassCompiler
 from ..enums import DataKind
 from ..errors import AnalysisError
 from ..specs import BaseSpec, SubshiftSpec
@@ -220,7 +222,7 @@ def automaton(
     tries: int = 200,
     random_state: int | np.random.Generator | None = None,
     max_radius: int = 2,
-    second: CompositeSystem | None = None,
+    second: Source | None = None,
     configuration: npt.ArrayLike | None = None,
     site: int = 0,
     steps: int = 1,
@@ -230,8 +232,10 @@ def automaton(
 ) -> AutomatonResult:
     """Return a decision or a measure of a cellular automaton or subshift of a system.
 
-    The function reads a `CompositeSystem`. An automaton is a group of cells with one synchronous and deterministic
-    `LocalRuleInteraction`, and it is linear when the rule is a `LinearRuleSpec`. The number of values of a cell comes
+    The function reads a `System`, a ready-made system, or a `CompositeSystem`. An automaton is a group of cells,
+    such as `Element('cells', values={'alive': 0}, space=LatticeSpace(20))`, with one synchronous and deterministic
+    local rule, a `LocalRuleInteraction` or an interaction that sets a `LocalRuleLaw`, and it is linear when the rule
+    is a `LinearRuleSpec`. The number of values of a cell comes
     from the finite domain of the state, or else from the rule. A subshift is a group with a state whose domain is a
     `SubshiftSpec`.
 
@@ -371,7 +375,8 @@ def automaton(
         >>> automaton(golden, kind='entropy', windows=windows).entropy.round(3).tolist()
         [0.706]
     """
-    source = _composite(source)
+    source = _get_declared(source)
+    second = None if second is None else _get_second(second)
     _check_choice('automaton', 'kind', kind, KINDS)
     _check_settings(
         automaton,
@@ -570,12 +575,73 @@ def _get_space(system: CompositeSystem, element: GroupElement) -> BaseSpace:
     return _fitted(space)
 
 
+def _get_declared(source: Source) -> Source:
+    """Return the composite of a system with its plain elements declared.
+
+    Any other source is returned as it is.
+    """
+    source = _composite(source)
+    return PassCompiler()._get_declared_system(source) if isinstance(source, CompositeSystem) else source
+
+
+def _get_second(source: Source) -> CompositeSystem:
+    """Return the declared composite of the second automaton of a composition.
+
+    Raises:
+        AnalysisError:
+            The second automaton is not a system.
+    """
+    declared = _get_declared(source)
+    if not isinstance(declared, CompositeSystem):
+        error_msg = f'automaton composes with a system, not {type(source).__name__}. Give a System.'
+        raise AnalysisError(error_msg)
+    return declared
+
+
+def _get_local_rule(interaction: BaseInteraction, system: CompositeSystem) -> LocalRuleInteraction | None:
+    """Return the local rule an interaction states, or `None` without one.
+
+    The rule is returned as a `LocalRuleInteraction`.
+
+    An interaction that sets its laws in `_prepare`, such as one that sets `LocalRuleLaw(s.target.alive, ...)`, is
+    prepared on the states of the elements its roles bind, and its first local rule law becomes the interaction.
+    """
+    if isinstance(interaction, LocalRuleInteraction):
+        return interaction
+    if not interaction._is_preparing_laws():
+        return None
+    roles = {}
+    for role in interaction.get_requirements().roles:
+        path = getattr(interaction, role, None)
+        element = next((item for item in system.elements if item.label == path), None)
+        if element is None or not isinstance(path, str):
+            return None
+        roles[role] = (path, SimpleNamespace(**{name: SR.var(name) for name in element.get_states()}))
+    namespace = SimpleNamespace(**{role: states for role, (_, states) in roles.items()}, t=SR.var('t'))
+    laws = clone(interaction).prepare(namespace).laws_
+    law = next((item for item in laws if isinstance(item, LocalRuleLaw)), None)
+    if law is None:
+        return None
+    path = next(path for path, states in roles.values() if str(law._get_targets()[0]) in vars(states))
+    return LocalRuleInteraction(
+        interaction.label,
+        target=path,
+        state=str(law._get_targets()[0]) if len(law._get_targets()) == 1 else tuple(map(str, law._get_targets())),
+        rule=law.rule,
+        neighborhood=law.over,
+        reads=None if law.reads is None else tuple(map(str, law.reads)),
+        schedule=law.schedule,
+        stochastic=law.stochastic,
+    )
+
+
 def _find_rule(system: CompositeSystem) -> LocalRuleInteraction | None:
     """Return the local rule of a system.
 
     The result is `None` without one, and an error is raised for several.
     """
-    rules = [item for item in system.interactions if isinstance(item, LocalRuleInteraction)]
+    found = [_get_local_rule(item, system) for item in system.interactions]
+    rules = [item for item in found if item is not None]
     if len(rules) > 1:
         names = ', '.join(rule.label for rule in rules)
         error_msg = f'An automaton has one local rule, but the system has {names}. Give it one.'
@@ -669,8 +735,8 @@ def _get_local_map(automaton: _AutomatonSpec) -> IntArray:
         return np.empty(0, dtype=np.int64)
     if automaton.states is None:
         error_msg = (
-            f'A rule {law.rule!r} on a state without a finite domain has no number of values. Declare the state with '
-            '`StateSpec(domain=FiniteEnumeratedSet([0, 1]))`.'
+            f'A rule {law.rule!r} on a state without a finite domain has no number of values. Give the state its '
+            'allowed values, such as `alive: Annotated[int, {0, 1}]`.'
         )
         raise AnalysisError(error_msg)
     width = _get_table(automaton, automaton.space).shape[1]

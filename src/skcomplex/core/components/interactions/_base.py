@@ -5,7 +5,8 @@
 
 import inspect
 from collections.abc import Callable, Collection, Mapping, Sequence
-from dataclasses import replace
+from dataclasses import fields as dataclass_fields
+from dataclasses import is_dataclass, replace
 from types import SimpleNamespace
 from typing import ClassVar
 
@@ -13,6 +14,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression, function, vector
 from sage.modules.free_module_element import FreeModuleElement
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.symbolic.operators import FDerivativeOperator
 from sklearn.base import clone
 
@@ -158,16 +160,35 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
         An argument annotated with a spec keeps its spec, and a role or a setting that is no number declares nothing.
         An `int` is an integer, a `float` a real, and a `complex` a complex parameter, such as the `c` of `z**2 + c`.
+        The allowed values of an argument come from `Annotated`, as for the values of an element, such as
+        `k: Annotated[float, RealSet.open(0, oo)] = 1.0` for a positive rate.
         """
         if not self._is_preparing_laws():
             return {}
         specs = self._get_specs()
+        allowed = self._get_allowed()
         return {
-            name: DeclaredVariableSpec(value, ParameterSpec(domain=self._get_domain_of(value)))
+            name: DeclaredVariableSpec(value, ParameterSpec(domain=allowed.get(name, self._get_domain_of(value))))
             for name, value in self.get_params(deep=False).items()
             if name not in specs and name != 'label' and isinstance(value, int | float | complex)
             if not isinstance(value, bool)
         }
+
+    @classmethod
+    def _get_allowed(cls) -> dict[str, object]:
+        """Return the allowed values `Annotated` gives each argument, by name.
+
+        A set, such as `{0, 1}`, is a finite set of values, and any other container of values, such as
+        `RealSet.open(0, oo)`, is taken as it is.
+        """
+        allowed: dict[str, object] = {}
+        for name, argument in inspect.signature(cls.__init__, eval_str=True).parameters.items():
+            for item in getattr(cls._get_annotated(argument.annotation), '__metadata__', ()):
+                if isinstance(item, set | frozenset):
+                    allowed[name] = FiniteEnumeratedSet(sorted(item, key=str))
+                elif hasattr(item, '__contains__') and not isinstance(item, str | BaseSpec):
+                    allowed[name] = item
+        return allowed
 
     @staticmethod
     def _get_domain_of(value: complex) -> object:
@@ -258,6 +279,24 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         return value.operator()(*operands)
 
     @staticmethod
+    def _get_translated_spec[SpecT: BaseSpec](
+        spec: SpecT,
+        time: Expression,
+        symbols: Mapping[str, Expression],
+        discrete: bool,
+    ) -> SpecT:
+        """Return a spec of a law with the states of its fields translated.
+
+        The arguments of a `CallSpec` are such fields.
+        """
+        fields = {item.name: getattr(spec, item.name) for item in dataclass_fields(spec) if item.init}
+        translated = {
+            name: BaseInteraction._get_translated(item, time, symbols, discrete) for name, item in fields.items()
+        }
+        changed = {name: item for name, item in translated.items() if item is not fields[name]}
+        return replace(spec, **changed) if changed else spec
+
+    @staticmethod
     def _get_law_in_states(law: BaseComponent, time: Expression, symbols: Mapping[str, Expression]) -> BaseComponent:
         """Return a law written with functions of time as a law of the states."""
         if not symbols:
@@ -265,7 +304,11 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         discrete = isinstance(law, UpdateLaw)
         params = law.get_params(deep=False)
         translated = {
-            name: BaseInteraction._get_translated(item, time, symbols, discrete)
+            name: (
+                BaseInteraction._get_translated_spec(item, time, symbols, discrete)
+                if isinstance(item, BaseSpec) and is_dataclass(item)
+                else BaseInteraction._get_translated(item, time, symbols, discrete)
+            )
             for name, item in params.items()
             if name != 'label'
         }

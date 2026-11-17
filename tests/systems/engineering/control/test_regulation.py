@@ -5,10 +5,10 @@ import pytest
 
 from skcomplex.core.analysis import linearization
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.systems import System
 from skcomplex.systems.engineering.control import (
     CartPendulumInteraction,
+    DrivenOscillatorInteraction,
     LqrOscillatorSystem,
     PidInvertedPendulumSystem,
 )
@@ -34,8 +34,9 @@ def test_lqr_oscillator_comes_to_rest():
 
 def test_lqr_oscillator_is_controllable():
     """Test that the oscillator with its force as control is controllable."""
-    plant = CompositeSystem(elements=list(LqrOscillatorSystem().prepare().system_.elements))
-    assert linearization(plant).controllability == 2
+    motion = DrivenOscillatorInteraction('motion', target='oscillator')
+    plant = System(elements=list(LqrOscillatorSystem().prepare().system_.elements), interactions=[motion])
+    assert linearization(plant, controls=['oscillator.force']).controllability == 2
 
 
 def test_pendulum_without_control_falls():

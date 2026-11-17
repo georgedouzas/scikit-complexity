@@ -87,6 +87,18 @@ def test_lower_without_phases_reads_the_states_at_the_start_of_the_step(backend)
     assert values.tolist() == [[0.0, 0.0], [1.0, 0.0], [2.0, 1.0], [3.0, 2.0]]
 
 
+@BACKENDS
+def test_lower_runs_phases_without_a_schedule_in_the_order_of_their_laws(backend):
+    """Test that phases no schedule declares run in the order their laws appear, so the copy reads the new count."""
+    system = CompositeSystem(
+        elements=[CounterElement('c')],
+        interactions=[CountThenCopyInteraction('steps', counter='c')],
+    )
+    system.interactions[0].set_params(count='count', copy='copy')
+    values = _run(system, 3, backend)
+    assert values.tolist() == [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]
+
+
 def test_lower_runs_the_default_phase_first_and_reversed_phases_in_their_order():
     """Test that laws without a phase run first, and that a schedule of reversed phases copies before it counts."""
     assert _run(_system(PhaseSpec('copy'), count=None), 2, NumpyBackend())[1:].tolist() == [[1.0, 1.0], [2.0, 2.0]]

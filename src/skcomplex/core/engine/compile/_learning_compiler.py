@@ -114,8 +114,8 @@ class _LearningCompiler(BaseCompiler):
     def _get_setting_issues(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the issues of the time and the solver of a system that trains."""
         issues = []
-        if not isinstance(system.time, DiscreteTime):
-            given = type(system.time).__name__ if system.time is not None else 'no time'
+        if system.time is not None and not isinstance(system.time, DiscreteTime):
+            given = type(system.time).__name__
             message = f'The training {training.label} needs DiscreteTime, one step per epoch, not {given}.'
             issues.append(IssueSpec('law-time', training.label, message, 'Declare `DiscreteTime()` for the system.'))
         if self.solver is not None and self._get_form_of(type(self.solver)) != FormKind.LEARNING:

@@ -9,8 +9,7 @@ on a loss of the runs of the inner system.
 
 This section fits the decay rate of the map `x -> a x` to the series `0.8^k`, starting from the guess `a = 0.5`. The
 [`Element`](../core_components/elements.md#element) declares the trained rate with `ParameterSpec(adaptive=True)` and
-returns an [`UpdateLaw`](../core_components/laws.md#updatelaw), and a nested system `decay` under a
-[`DiscreteTime`](../core_components/spaces.md#discretetime) holds it. A
+returns an [`UpdateLaw`](../core_components/laws.md#updatelaw), and a nested system `decay` holds it. A
 [`TrainingInteraction`](../core_components/interactions.md#traininginteraction) binds the nested system, reads the
 observed series from a `DatasetSpec`, and minimises the squared error over 300 epochs.
 
@@ -22,12 +21,10 @@ import numpy as np
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import TrainingInteraction
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.components.laws import DatasetSpec
 from skcomplex.core.components import Observable
+from skcomplex.core.systems import System
 
 
 class DecayElement(Element):
@@ -53,7 +50,7 @@ def squared_error(s):
 
 
 series = 0.8 ** np.arange(1, 11)
-system = CompositeSystem('decay', elements=[DecayElement('unit')], time=DiscreteTime())
+system = System('decay', elements=[DecayElement('unit')])
 training = TrainingInteraction(
     'fit',
     system='decay',
@@ -63,8 +60,8 @@ training = TrainingInteraction(
     learning_rate=0.05,
     batch_size=1,
 )
-fitting = CompositeSystem('fitting', systems=[system], interactions=[training], time=DiscreteTime())
-trajectory = simulate(fitting, until=300, random_state=0)
+fitting = System('fitting', systems=[system], interactions=[training])
+trajectory = fitting.prepare().simulate(until=300, random_state=0)
 round(float(trajectory.get_values('decay/unit.a')[-1]), 3), bool(trajectory.get_values('fit/loss')[-1] < 1e-6)
 ```
 
@@ -74,7 +71,8 @@ The trained rate is 0.8, the rate of the data, and the loss of the last epoch is
 - The inner system is a nested system, such as `decay` above.
 - Its trained parameters are declared `ParameterSpec(adaptive=True)`.
 - The interaction binds the inner system through its role `system`.
-- The outer system runs under `DiscreteTime()`, one step per epoch.
+- Each system keeps the time its laws imply. The inner map steps through its inputs, and the outer system steps once
+  per epoch, so no time is given to either.
 
 `TrainingInteraction` states no laws of its own, since `GradientDescentSolver` reads its settings, and it differs
 from [`GradientInteraction`](../core_components/general.md#gradientinteraction).

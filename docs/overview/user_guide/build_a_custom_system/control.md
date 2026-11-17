@@ -170,8 +170,10 @@ as `lambda s: s.plant.x**2`.
 This section closes the loop with a controller of your own. The core holds no feedback controller, because a
 controller is an [`Interaction`](../core_components/interactions.md#interaction) that you write.
 
-- Its control input is an adaptive parameter of the plant, and it sets that parameter with a
-  [`BoundaryLaw`](../core_components/laws.md#boundarylaw).
+- Its control input is a plain value of the plant, such as the `force` of
+  `Element('cart', values={'x': 0.0, 'force': 0.0})`, and it sets that value with a
+  [`BoundaryLaw`](../core_components/laws.md#boundarylaw). A value that a boundary law sets is a state that holds
+  within a solver step, so the plant declares nothing.
 - A proportional-integral-derivative controller sets it to `kp e + ki ∫ e dt - kd y'`, from the error
   `e = setpoint - y` of a measured state. It adds a `RateLaw` for the integral of the error on an element of its own.
 - A state feedback controller sets it to `-K x`.
@@ -185,40 +187,42 @@ This section linearises a system near an operating point, checks that it can be 
 linear-quadratic regulator. A system is controllable when its inputs can steer every state, and observable when its
 outputs reveal every state. The analysis `linearization(system, controls=..., outputs=..., at=...)` finds the
 state-space matrices `A`, `B`, `C`, and `D` of a system under continuous time near an operating point, from its
-symbolic Jacobians. The controls are named by their adaptive parameters. A cart on a rail, pushed by a bounded force,
-serves as the system, and its position is the output.
+symbolic Jacobians. The controls are named by their dotted names. They are parameters that no law of the plant changes,
+such as the force `cart.force` below, or adaptive parameters. A cart on a rail, pushed by a force, serves as the system,
+and its position is the output.
 
 ```python
-from typing import Annotated
+from types import SimpleNamespace
 
 from skcomplex.core.analysis import linearization
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class CartElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        v: Annotated[float, StateSpec()] = 0.0,
-        force: Annotated[float, ParameterSpec(adaptive=True, bounds=(-1, 1))] = 0.0,
-    ):
+class Push(Interaction):
+    def __init__(self, label, *, target: Role):
         super().__init__(label)
-        self.x = x
-        self.v = v
-        self.force = force
+        self.target = target
 
-    def _get_laws(self, s):
-        return [RateLaw(s.x, s.v), RateLaw(s.v, s.force)]
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            cart, t = context.target, context.t
+            self.laws_ = [RateLaw(cart.x.diff(t, 2), cart.force)]
 
 
-cart = CompositeSystem(elements=[CartElement('cart')])
-linear = linearization(cart, outputs=['cart.x'], state_weights=[[1, 0], [0, 1]], control_weights=[[1]])
-linear.controllability, linear.observability
+cart = System(elements=[Element('cart', values={'x': 0.0, 'force': 0.0})], interactions=[Push('push', target='cart')])
+linear = linearization(
+    cart,
+    controls=['cart.force'],
+    outputs=['cart.x'],
+    state_weights=[[1, 0], [0, 1]],
+    control_weights=[[1]],
+)
+linear.states, linear.controllability, linear.observability
 ```
 
 The controllability and the observability are both 2, the ranks of the Kalman matrices, so the force steers both
@@ -229,7 +233,8 @@ gain of the linear-quadratic regulator, from the solution of the Riccati equatio
 linear.gain.round(3).tolist()
 ```
 
-The gain is `[[1.0, 1.732]]`, which is `[1, sqrt(3)]`, so the regulator pushes with the force `-x - 1.732 v`.
+The gain is `[[1.0, 1.732]]`, which is `[1, sqrt(3)]`, so the regulator pushes with the force `-x - 1.732 x'`. The
+states are `cart.x` and `cart.x'`, named with a prime for the derivative as in trajectories.
 
 The systems of the catalog with optimal controls are `OptimalHarvestingSystem` in resources, `OptimalConsumptionSystem`
 in macroeconomics, `SIRVaccinationSystem` in epidemiology, and `OptimalChemotherapySystem` and

@@ -68,6 +68,24 @@ message.splitlines()[1][:80]
 The message says that the expression of the observable `'total'` cannot be pickled, and asks for a module-level
 function or a symbolic expression instead of a lambda or a local function.
 
+An observable reads the derivatives of a state as a law does, with `x.diff(s.t)`. The oscillator of
+`LqrOscillatorSystem` moves by `x'' = -x + force`, so its speed `x'` is a state the observable can read.
+
+```python continuation
+from skcomplex.systems.engineering.control import LqrOscillatorSystem
+
+
+def speed(s):
+    return s.oscillator.x.diff(s.t)
+
+
+regulated = LqrOscillatorSystem().prepare().simulate(observables=[Observable('speed', speed)])
+np.allclose(regulated.get_values('speed'), regulated.get_values("oscillator.x'"))
+```
+
+The observable equals the recorded derivative `oscillator.x'` at every frame. A derivative that no law reads, such as
+the third derivative of `x` here, raises an error that names it.
+
 ### Observables of a group
 
 A group holds many identical members, and an observable may reduce a variable of every member to one number. The

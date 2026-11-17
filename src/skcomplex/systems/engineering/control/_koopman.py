@@ -8,27 +8,31 @@ The surrogates are fitted by mode decomposition with control.
 
 import functools
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, cos, sin
+from sage.sets.real_set import RealSet
 from scipy.optimize import lsq_linear
 from sklearn.base import TransformerMixin
 from sklearn.preprocessing import PolynomialFeatures
 
 from ....core.analysis import ModeDecompositionResult, mode_decomposition
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction, RateInteraction
-from ....core.components.laws import CallSpec
-from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.runtime import Trajectory, simulate
+from ....core.components.interactions import Interaction
+from ....core.components.laws import CallSpec, RateLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.runtime import Trajectory
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 DUFFING_A, DUFFING_B, DUFFING_D = 1.0, -1.0, -0.3
@@ -37,35 +41,37 @@ VAN_DER_POL_MU = 2.0
 MOTOR_LA, MOTOR_RA, MOTOR_KM, MOTOR_J, MOTOR_B, MOTOR_TAU, MOTOR_UA = 0.314, 12.345, 0.253, 0.00441, 0.00732, 1.47, 60.0
 
 
-def _duffing_rates(s: SimpleNamespace, *, limit: float, step: float) -> tuple[Expression, Expression]:
+def _duffing_rates(plant: SimpleNamespace, control: Expression, t: Expression, step: float) -> tuple[Expression, ...]:
     """Return the rates per sample of the forced Duffing oscillator.
 
     The oscillator is that of the review of Brunton et al., figure 6.6. The second derivative is
     `x'' = a x + b x^3 + d x' + f cos(w t) + (3 + cos(x)) u`.
     """
-    plant, control = s.target, limit * s.sources[0].u
-    force = DUFFING_FORCE * cos(DUFFING_FREQUENCY * step * s.t)
+    force = DUFFING_FORCE * cos(DUFFING_FREQUENCY * step * t)
     gain = 3 + cos(plant.x)
     acceleration = DUFFING_A * plant.x + DUFFING_B * plant.x**3 + DUFFING_D * plant.y + force + gain * control
     return step * plant.y, step * acceleration
 
 
-def _van_der_pol_rates(s: SimpleNamespace, *, limit: float, step: float) -> tuple[Expression, Expression]:
+def _van_der_pol_rates(
+    plant: SimpleNamespace,
+    control: Expression,
+    t: Expression,
+    step: float,
+) -> tuple[Expression, ...]:
     """Return the rates per sample of the Van der Pol oscillator.
 
     The oscillator is `x'' = mu (1 - x^2) x' - x + u`.
     """
-    plant, control = s.target, limit * s.sources[0].u
     acceleration = VAN_DER_POL_MU * (1 - plant.x**2) * plant.y - plant.x + control
     return step * plant.y, step * acceleration
 
 
-def _motor_rates(s: SimpleNamespace, *, limit: float, step: float) -> tuple[Expression, Expression]:
+def _motor_rates(plant: SimpleNamespace, control: Expression, t: Expression, step: float) -> tuple[Expression, ...]:
     """Return the rates per sample of a bilinear DC motor.
 
     They are the rates of the current and the angular velocity.
     """
-    plant, control = s.target, limit * s.sources[0].u
     current = -MOTOR_RA / MOTOR_LA * plant.x - MOTOR_KM / MOTOR_LA * plant.y * control + MOTOR_UA / MOTOR_LA
     velocity = -MOTOR_B / MOTOR_J * plant.y + MOTOR_KM / MOTOR_J * plant.x * control - MOTOR_TAU / MOTOR_J
     return step * current, step * velocity
@@ -98,7 +104,7 @@ class _PlantCase:
     The settings are the sampling, input limit, start domain, horizon, weight, and reference.
     """
 
-    rates: Callable[..., tuple[Expression, Expression]]
+    rates: Callable[..., tuple[Expression, ...]]
     step: float
     limit: float
     low: float
@@ -137,9 +143,7 @@ PLANTS = {
 
 
 class ControlInputElement(Element):
-    """Control input that a plant reads, a bounded adaptive parameter.
-
-    It is scaled to the interval from -1 to 1.
+    """Control input that a plant reads, scaled to the interval from -1 to 1.
 
     Args:
         label:
@@ -154,18 +158,13 @@ class ControlInputElement(Element):
         0.5
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        u: Annotated[float, ParameterSpec(adaptive=True, bounds=(-1.0, 1.0))] = 0.0,
-    ) -> None:
+    def __init__(self, label: str, *, u: Annotated[float, RealSet.closed(-1, 1)] = 0.0) -> None:
         super().__init__(label)
         self.u = u
 
 
 class PlantStateElement(Element):
-    """State of a plant with two variables, whose rates a pair of interactions gives.
+    """State of a plant with two variables, whose rates `PlantInteraction` gives.
 
     Args:
         label:
@@ -183,16 +182,63 @@ class PlantStateElement(Element):
         0.5
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
+    def __init__(self, label: str, *, x: float = 0.0, y: float = 0.0) -> None:
         super().__init__(label)
         self.x = x
         self.y = y
+
+
+class PlantInteraction(Interaction):
+    """Rates of the two variables of a plant that reads a bounded control input.
+
+    The plant is the forced Duffing oscillator, the Van der Pol oscillator, or the bilinear DC motor of figure 6.6 of
+    the review of Brunton et al., with one time unit per sample of the controller. The plant reads `limit * u`, so
+    the input `u` of the control element stays between -1 and 1.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        plant:
+            The path of the plant, with the variables `x` and `y`.
+
+        control:
+            The path of the control input, with the value `u`.
+
+        kind:
+            `'duffing'`, `'van_der_pol'`, or `'motor'`.
+
+    Examples:
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.engineering.control import ControlInputElement, PlantInteraction, PlantStateElement
+        >>> elements = [PlantStateElement('plant'), ControlInputElement('input')]
+        >>> rates = PlantInteraction('rates', plant='plant', control='input')
+        >>> System(elements=elements, interactions=[rates]).prepare().states_
+        ('plant.x', 'plant.y')
+    """
+
+    def __init__(self, label: str, *, plant: Role, control: Role, kind: str = 'duffing') -> None:
+        super().__init__(label)
+        self.plant = plant
+        self.control = control
+        self.kind = kind
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the two variables of the plant.
+
+        Raises:
+            ValidationError:
+                The kind of plant is unknown.
+        """
+        super()._prepare(context)
+        if self.kind not in PLANTS:
+            error_msg = f'The plant {self.kind!r} is unknown. Use one of {", ".join(PLANTS)}.'
+            raise ValidationError(error_msg)
+        if not isinstance(context, SimpleNamespace):
+            return
+        case, plant, t = PLANTS[self.kind], context.plant, context.t
+        rates = case.rates(plant, case.limit * context.control.u, t, case.step)
+        self.laws_: list[BaseComponent] = [RateLaw(plant.x.diff(t), rates[0]), RateLaw(plant.y.diff(t), rates[1])]
 
 
 class _PredictiveProblem:
@@ -265,6 +311,59 @@ class _PredictiveProblem:
         return float(lsq_linear(problem, target, bounds=(-1.0, 1.0)).x[0])
 
 
+class PredictiveControlInteraction(Interaction):
+    """Controller that sets a control input once per sample from the two variables of a plant.
+
+    The next input is `policy(t, x, y)`, such as the first input of a tracking problem solved over a horizon, or 0
+    without a policy. The input is the target of an update, so a system that holds the controller steps it once per
+    unit of time while a continuous plant beside it holds the input between samples.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        control:
+            The path of the control input, with the value `u`.
+
+        plant:
+            The path of the plant, with the variables `x` and `y`.
+
+        policy:
+            The function `f(t, x, y)` of the next input, or `None` to hold the input at 0.
+
+    Examples:
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.engineering.control import ControlInputElement, PredictiveControlInteraction
+        >>> from skcomplex.systems.engineering.control import PlantStateElement
+        >>> elements = [ControlInputElement('input'), PlantStateElement('plant')]
+        >>> policy = PredictiveControlInteraction('policy', control='input', plant='plant')
+        >>> System(elements=elements, interactions=[policy]).prepare().form_
+        'discrete map'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        control: Role,
+        plant: Role,
+        policy: Callable[[float, float, float], float] | None = None,
+    ) -> None:
+        super().__init__(label)
+        self.control = control
+        self.plant = plant
+        self.policy = policy
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the update of the control input."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        plant = context.plant
+        value = 0.0 if self.policy is None else CallSpec(self.policy, (plant.x, plant.y))
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.control.u, value)]
+
+
 class KoopmanModelPredictiveControlSystem(BaseSystem):
     """A plant that a discrete-time controller steers with model predictive control.
 
@@ -272,7 +371,8 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
     range, drawn every sample, and fits `mode_decomposition` with the input to the runs. The controller lifts the states
     with the dictionary, condenses the quadratic tracking cost over the horizon with the matrices of the surrogate,
     solves the bounded least squares problem with `scipy.optimize.lsq_linear`, and sets the input to the first value of
-    the solution. The plant reads the input through a role, and `CoSimulationSolver` holds it between samples. The
+    the solution. The controller updates the input, so the nested system `controller` steps once per unit of time,
+    and the rates of the nested system `plant` run in continuous time between the steps, holding the input. The
     plants are those of figure 6.6 of the review of Brunton et al.: the forced Duffing oscillator
     `x'' = a x + b x^3 + d x' + f cos(w t) + (3 + cos(x)) u`, the Van der Pol oscillator
     `x'' = -x - mu (x^2 - 1) x' + u`, and the bilinear DC motor, whose second variable is the output that tracks the
@@ -311,15 +411,21 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The plant is unknown.
 
     Examples:
         >>> from skcomplex.systems.engineering.control import KoopmanModelPredictiveControlSystem
-        >>> system = KoopmanModelPredictiveControlSystem('motor', controlled=False).prepare().system_
-        >>> [subsystem.label for subsystem in system.systems]
-        ['controller', 'plant']
+        >>> system = KoopmanModelPredictiveControlSystem('motor', controlled=False).prepare()
+        >>> [subsystem.label for subsystem in system.system_.systems], system.form_
+        (['controller', 'plant'], 'co-simulation')
     """
 
     field = 'engineering/control'
@@ -327,66 +433,6 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
     references = ('Korda and Mezić 2018', 'Brunton et al. 2022')
     until = 100.0
     dt = 1.0
-
-    @staticmethod
-    def _get_plant_interactions(case: _PlantCase, target: str, source: str) -> list[RateInteraction]:
-        """Return the rates of the two variables of a plant.
-
-        The plant reads its input from a source.
-        """
-        rates = functools.partial(case.rates, limit=case.limit, step=case.step)
-        return [
-            RateInteraction(
-                name,
-                target=target,
-                state=name,
-                sources=[source],
-                rate=functools.partial(KoopmanModelPredictiveControlSystem._get_rate_at, rates=rates, index=index),
-            )
-            for index, name in enumerate(('x', 'y'))
-        ]
-
-    @staticmethod
-    def _get_rate_at(
-        s: SimpleNamespace,
-        *,
-        rates: Callable[[SimpleNamespace], tuple[Expression, Expression]],
-        index: int,
-    ) -> Expression:
-        """Return one of the two rates of a plant."""
-        return rates(s)[index]
-
-    @staticmethod
-    def _run_training(case: _PlantCase, duration: int, rng: np.random.Generator) -> Trajectory:
-        """Return a run of the plant under a random binary input.
-
-        The input is drawn every sample, from a random state.
-        """
-        system = CompositeSystem(
-            elements=[
-                PlantStateElement('plant', x=rng.uniform(case.low, case.high), y=rng.uniform(case.low, case.high)),
-                ControlInputElement('input'),
-            ],
-            interactions=KoopmanModelPredictiveControlSystem._get_plant_interactions(case, 'plant', 'input'),
-            time=ContinuousTime(),
-        )
-        values = rng.choice((-1.0, 1.0), duration + 1)
-        return simulate(
-            system,
-            until=float(duration),
-            dt=1.0,
-            schedule={'input.u': functools.partial(KoopmanModelPredictiveControlSystem._get_held_value, values=values)},
-        )
-
-    @staticmethod
-    def _get_held_value(t: float, *, values: Array) -> float:
-        """Return the input of the sample at a time in samples."""
-        return float(values[min(round(t), len(values) - 1)])
-
-    @staticmethod
-    def _get_reference(s: SimpleNamespace, *, step: float, symbolic: Callable[[Expression], Expression]) -> Expression:
-        """Return the reference at the time of the system, which counts samples."""
-        return symbolic(step * s.t)
 
     def __init__(
         self,
@@ -400,8 +446,10 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
         duration: int = 1000,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.plant = plant
         self.controlled = controlled
         self.dictionary = dictionary
@@ -411,35 +459,37 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
         self.duration = duration
         self.random_state = random_state
 
+    def _run_training(self, case: _PlantCase, rng: np.random.Generator) -> Trajectory:
+        """Return a run of the plant under a random binary input, drawn every sample."""
+        system = System(
+            elements=[
+                PlantStateElement('plant', x=rng.uniform(case.low, case.high), y=rng.uniform(case.low, case.high)),
+                ControlInputElement('input'),
+            ],
+            interactions=[PlantInteraction('rates', plant='plant', control='input', kind=self.plant)],
+        )
+        values = rng.choice((-1.0, 1.0), self.duration + 1)
+        held = functools.partial(self._get_held_value, values=values)
+        return system.prepare().simulate(until=float(self.duration), dt=1.0, schedule={'input.u': held})
+
     @staticmethod
-    def _hold(s: SimpleNamespace, *, problem: _PredictiveProblem | None) -> object:
-        """Return the next input of the controller.
-
-        It is the solution of the tracking problem, or 0 without one.
-        """
-        if problem is None:
-            return 0.0
-        plant = s.sources[0]
-        return CallSpec(problem.get_control, (plant.x, plant.y))
+    def _get_held_value(t: float, *, values: Array) -> float:
+        """Return the input of the sample at a time in samples."""
+        return float(values[min(round(t), len(values) - 1)])
 
     @staticmethod
-    def _fit_problem(
-        case: _PlantCase,
-        dictionary: TransformerMixin | None,
-        n_runs: int,
-        duration: int,
-        random_state: int | np.random.Generator | None,
-    ) -> _PredictiveProblem:
-        """Return the tracking problem of a plant on its fitted surrogate.
+    def _get_reference(s: SimpleNamespace, *, step: float, symbolic: Callable[[Expression], Expression]) -> Expression:
+        """Return the reference at the time of the system, which counts samples."""
+        return symbolic(step * s.t)
 
-        The surrogate is fitted to its training runs.
-        """
-        rng = np.random.default_rng(random_state)
+    def _fit_problem(self, case: _PlantCase) -> _PredictiveProblem:
+        """Return the tracking problem of the plant on the surrogate fitted to its training runs."""
+        rng = np.random.default_rng(self.random_state)
         surrogate = mode_decomposition(
-            [KoopmanModelPredictiveControlSystem._run_training(case, duration, rng) for _ in range(n_runs)],
+            [self._run_training(case, rng) for _ in range(self.n_runs)],
             variables=['plant.x', 'plant.y'],
             inputs=['input.u'],
-            dictionary=PolynomialFeatures(3, include_bias=False) if dictionary is None else dictionary,
+            dictionary=PolynomialFeatures(3, include_bias=False) if self.dictionary is None else self.dictionary,
             validation=0.0,
         )
         output = surrogate.labels.index('plant.y')
@@ -452,48 +502,34 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
             reference=case.reference,
         ).prepare()
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the controller and the plant built from the model parameters.
+
+        Raises:
+            ValidationError:
+                The plant is unknown.
+        """
+        super()._prepare(context)
         if self.plant not in PLANTS:
             error_msg = f'The plant {self.plant!r} is unknown. Use one of {", ".join(PLANTS)}.'
             raise ValidationError(error_msg)
         case = PLANTS[self.plant]
-        problem = (
-            self._fit_problem(case, self.dictionary, self.n_runs, self.duration, self.random_state)
-            if self.controlled
-            else None
-        )
-        controller = MapInteraction(
-            'policy',
-            target='controller/input',
-            state='u',
-            sources=['plant/state'],
-            function=functools.partial(self._hold, problem=problem),
-        )
-        return CompositeSystem(
+        policy = self._fit_problem(case).get_control if self.controlled else None
+        reference = functools.partial(self._get_reference, step=case.step, symbolic=case.symbolic_reference)
+        self.observables_ = (*self.observables_, Observable('reference', reference))
+        self.system_ = System(
             self.label,
             systems=[
-                CompositeSystem('controller', elements=[ControlInputElement('input')], time=DiscreteTime()),
-                CompositeSystem(
-                    'plant',
-                    elements=[PlantStateElement('state', x=self.x, y=self.y)],
-                    time=ContinuousTime(),
-                ),
+                System('controller', elements=[ControlInputElement('input')]),
+                System('plant', elements=[PlantStateElement('state', x=self.x, y=self.y)]),
             ],
             interactions=[
-                controller,
-                *KoopmanModelPredictiveControlSystem._get_plant_interactions(case, 'plant/state', 'controller/input'),
+                PredictiveControlInteraction(
+                    'policy',
+                    control='controller/input',
+                    plant='plant/state',
+                    policy=policy,
+                ),
+                PlantInteraction('rates', plant='plant/state', control='controller/input', kind=self.plant),
             ],
         )
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the reference of the plant as an observable."""
-        case = PLANTS[self.plant]
-        reference = functools.partial(
-            KoopmanModelPredictiveControlSystem._get_reference,
-            step=case.step,
-            symbolic=case.symbolic_reference,
-        )
-        settings = super().get_run_settings()
-        settings['observables'] = [Observable('reference', reference)]
-        return settings

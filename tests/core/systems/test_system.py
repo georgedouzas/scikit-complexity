@@ -250,3 +250,59 @@ def test_one_reaction_runs_as_jumps_or_as_its_mean_with_two_solvers():
     assert (jumps.form_, mean.form_) == ('jump process', 'ordinary differential equations')
     assert float(jumps.simulate(until=1.0, random_state=0).get_values('A.n')[-1]).is_integer()
     assert mean.simulate(until=1.0).get_values('A.n')[-1] == pytest.approx(100 * np.exp(-1), rel=1e-4)
+
+
+class _Hold(Interaction):
+    """Controller that sets its input once per step to the negative half of the plant."""
+
+    def __init__(self, label: str, *, control: Role = 'input', plant: Role = 'plant') -> None:
+        super().__init__(label)
+        self.control = control
+        self.plant = plant
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next input."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.control.u, -context.plant.x / 2)]
+
+
+class _Plant(Interaction):
+    """Plant that relaxes towards its input, `x' = -x + u`."""
+
+    def __init__(self, label: str, *, plant: Role = 'plant', control: Role = 'input') -> None:
+        super().__init__(label)
+        self.plant = plant
+        self.control = control
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate of the plant."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.plant.x, context.t
+            self.laws_: list[BaseComponent] = [RateLaw(x.diff(t), -x + context.control.u)]
+
+
+def test_nested_systems_keep_the_time_their_laws_imply() -> None:
+    """A discrete controller steps once per unit of time next to a continuous plant that holds its input."""
+    system = System(
+        systems=[
+            System('control', elements=[Element('input', values={'u': 0.0})]),
+            System('house', elements=[Element('plant', values={'x': 1.0})]),
+        ],
+        interactions=[
+            _Hold('policy', control='control/input', plant='house/plant'),
+            _Plant('rate', plant='house/plant', control='control/input'),
+        ],
+    ).prepare()
+    trajectory = system.simulate(until=2.0, dt=1.0)
+    first = 1.5 * np.exp(-1) - 0.5
+    assert system.form_ == 'co-simulation'
+    assert trajectory.get_values('control/input.u') == pytest.approx([0.0, -0.5, -first / 2], rel=1e-4)
+    assert trajectory.get_values('house/plant.x')[1] == pytest.approx(first, rel=1e-4)
+
+
+def test_system_without_laws_is_static() -> None:
+    """A system whose values no law changes reports a static problem."""
+    system = System(elements=[Element('ball', values={'x': 1.0, 'm': 2.0})]).prepare()
+    assert (system.form_, system.states_, system.parameters_) == ('static solution', (), ('ball.x', 'ball.m'))

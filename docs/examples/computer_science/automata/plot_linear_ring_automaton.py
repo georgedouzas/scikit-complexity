@@ -9,20 +9,16 @@ cell per step on each side, as the coefficients of `(x + 1/x - 2)^t` reduced mod
 # %%
 # The space-time image shows the ring at every step, the oldest at the top, colored by value.
 
-from typing import Annotated
-
 import matplotlib.pyplot as plt
 import numpy as np
-from sage.all__sagemath_symbolics import ZZ
 
 from skcomplex.core.analysis import automaton
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import LinearRuleSpec
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import LinearRingAutomatonSystem
 
 SYSTEM = 'linear_ring_automaton'
@@ -40,18 +36,10 @@ trajectory = system.prepare().simulate(observers=[observer])
 # on the integers its Laurent polynomial is surjective, not being zero, but not invertible, not being a monomial.
 
 
-class FieldCellElement(Element):
-    """Cell over GF(3), whose declared state `value` the analysis of automata reads."""
-
-    def __init__(self, label, *, value: Annotated[float, StateSpec(domain=ZZ)] = 0):
-        super().__init__(label)
-        self.value = value
-
-
 values = trajectory.get_values('cells.value')
 steps = np.arange(values.shape[0])
-laplacian = CompositeSystem(
-    elements=[GroupElement('cells', element=FieldCellElement, space=LatticeSpace(101), on='sites')],
+laplacian = System(
+    elements=[Element('cells', values={'value': 0}, space=LatticeSpace(101))],
     interactions=[
         LocalRuleInteraction(
             'laplacian',

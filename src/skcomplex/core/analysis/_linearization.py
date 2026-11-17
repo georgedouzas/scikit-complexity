@@ -12,6 +12,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from scipy.linalg import solve_continuous_are
 
 from ..engine.problems import ProblemSpec
+from ..engine.runtime import Trajectory
 from ..enums import DataKind, FormKind
 from ..errors import AnalysisError, ValidationError
 from ..types import Array
@@ -47,7 +48,8 @@ class LinearizationResult:
             The feedthrough matrix, the Jacobian of the outputs by the controls.
 
         states:
-            The names of the state components, in the order of the rows of `A`.
+            The names of the state components, in the order of the rows of `A`, with a prime for a derivative, such as
+            `"cart.x'"`.
 
         controls:
             The names of the controls, in the order of the columns of `B`.
@@ -90,8 +92,9 @@ def linearization(
     """Return the linear state-space system of a system near an operating point.
 
     The system is `x' = A x + B u`, `y = C x + D u`. The matrices are the Jacobians of the rates and of the outputs,
-    derived symbolically and evaluated at the operating point. The controls are adaptive parameters, named by their
-    dotted names, and the outputs are states or controls. The system is controllable when the rank of `[B, AB, ...,
+    derived symbolically and evaluated at the operating point. The controls are parameters or adaptive parameters,
+    named by their dotted names, such as the force `'cart.force'` that no law of the plant changes, and the outputs are
+    states or controls. The system is controllable when the rank of `[B, AB, ...,
     A^(n-1) B]` equals the number of states, and observable when the rank of `[C; CA; ...; C A^(n-1)]` does. With
     weights of the states and the controls, the gain `K` of the linear-quadratic regulator `u = -K x` minimises `∫ (x' Q
     x + u' R u) dt` over an infinite horizon, from the continuous algebraic Riccati equation that SciPy solves.
@@ -104,7 +107,8 @@ def linearization(
             The system, its compiled problem, or a trajectory of it.
 
         controls:
-            The dotted names of the adaptive parameters that are inputs, or `None` for the bounded ones.
+            The dotted names of the parameters or adaptive parameters that are inputs, or `None` for the bounded
+            adaptive parameters.
 
         outputs:
             The dotted names of the states and controls that are outputs, or `None` for every state.
@@ -168,17 +172,23 @@ def linearization(
         error_msg = f'linearization takes systems under continuous time, but the system is a {problem.form}.'
         raise ValidationError(error_msg)
     adaptive = problem.adaptive_parameters
-    chosen = [name for name, item in adaptive.items() if item.bounds is not None] if controls is None else controls
-    inputs = _checked_names(chosen, list(adaptive), 'adaptive parameters')
     dynamics = StabilityResult._get_dynamics_of(problem)
+    display = Trajectory._get_display_name
+    internal = {display(name): name for name in [*dynamics.names, *adaptive, *problem.parameters.names]}
+    chosen = [name for name, item in adaptive.items() if item.bounds is not None] if controls is None else controls
+    known = [display(name) for name in [*adaptive, *problem.parameters.names]]
+    inputs = [internal[name] for name in _checked_names(chosen, known, 'parameters or adaptive parameters')]
     states = [name for name in dynamics.names if name not in inputs]
-    observed = _checked_names(states if outputs is None else outputs, [*states, *inputs], 'states or controls')
+    named = [display(name) for name in [*states, *inputs]]
+    wanted = [display(name) for name in states] if outputs is None else outputs
+    observed = [internal[name] for name in _checked_names(wanted, named, 'states or controls')]
     values = _initial_values(problem)
-    values.update(at or {})
+    values.update({internal.get(name, name): value for name, value in (at or {}).items()})
     by_name = dict(zip(dynamics.names, dynamics.symbols, strict=True))
+    by_name.update({name: problem.symbols[name] for name in inputs if name not in by_name})
     rates = dict(zip(dynamics.names, dynamics.rates, strict=True))
-    point = {by_name[name]: float(value) for name, value in values.items() if name in by_name}
-    point.update(dynamics.parameters)
+    point = dict(dynamics.parameters)
+    point.update({by_name[name]: float(value) for name, value in values.items() if name in by_name})
     point[dynamics.time] = 0.0
     state_matrix = _evaluated([[rates[row].diff(by_name[column]) for column in states] for row in states], point)
     input_matrix = _evaluated([[rates[row].diff(by_name[column]) for column in inputs] for row in states], point)
@@ -201,9 +211,9 @@ def linearization(
         B=input_matrix,
         C=output_matrix,
         D=feedthrough,
-        states=tuple(states),
-        controls=tuple(inputs),
-        outputs=tuple(observed),
+        states=tuple(display(name) for name in states),
+        controls=tuple(display(name) for name in inputs),
+        outputs=tuple(display(name) for name in observed),
         controllability=_controllability(state_matrix, input_matrix),
         observability=_controllability(state_matrix.T, output_matrix.T),
         gain=gain,
