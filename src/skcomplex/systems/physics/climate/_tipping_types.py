@@ -125,7 +125,7 @@ class FoldFollowerInteraction(Interaction):
 
 
 class HopfFollowerElement(Element):
-    """Follower of a cascade in the Hopf normal form, the parts `y` and `z` of its complex amplitude.
+    """Follower of a cascade in the Hopf normal form, whose complex amplitude is `y + i z`.
 
     Args:
         label:
