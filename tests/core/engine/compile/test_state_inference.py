@@ -407,6 +407,37 @@ class Ground(Interaction):
             ]
 
 
+class Loop(Interaction):
+    """Series RLC loop whose charge follows `L q'' + R q' + q / C = 0`, written as one equation."""
+
+    def __init__(self, label: str, *, target: Role = 'loop', L: float = 1.0, R: float = 0.5, C: float = 0.25) -> None:
+        super().__init__(label)
+        self.target = target
+        self.L = L
+        self.R = R
+        self.C = C
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the voltage law of the loop."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            q, t = context.target.q, context.t
+            self.laws_: list[BaseComponent] = [
+                ConstraintLaw(context.L * q.diff(t, 2) + context.R * q.diff(t) + q / context.C == 0),
+            ]
+
+
+def test_get_declared_reads_the_order_of_a_state_from_the_derivatives_of_a_constraint():
+    """Test that a constraint that reads `q''` gives `q` order 2, and the charge decays as `exp(-t / 4) cos(w t)`."""
+    loop = Element('loop', values={'q': 1.0, "q'": -0.25})
+    system = System(elements=[loop], interactions=[Loop('kvl')]).prepare()
+    assert system.states_ == ('loop.q', "loop.q'")
+    trajectory = system.simulate(until=5.0, dt=0.5)
+    frequency = np.sqrt(4 - 1 / 16)
+    expected = np.exp(-trajectory.times / 4) * np.cos(frequency * trajectory.times)
+    assert trajectory.get_values('loop.q') == pytest.approx(expected, abs=1e-3)
+
+
 def test_get_declared_balances_the_currents_of_three_resistors():
     """Test that the currents of three resistors into the node they share sum to zero at every frame."""
     nodes = [Element(name, values={'v': 0.0}) for name in ('n', 'a1', 'a2', 'g')]

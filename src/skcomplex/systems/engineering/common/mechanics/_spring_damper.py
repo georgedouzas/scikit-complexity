@@ -1,133 +1,116 @@
-"""Define the spring and damper between two coordinates of one element.
-
-Each coordinate is divided by its own mass.
-"""
+"""Define the spring and damper between two coordinates of one element."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
 from .....core.components.base import BaseComponent
-from .....core.components.laws import RateLaw
-from .....core.components.laws.utils import derivative
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import RoleSpec
-from ....general.gradients import GradientInteraction
+from .....core.specs import ParameterSpec, Role
 
 N_STATES = 2
 
 
-class SpringDamperInteraction(GradientInteraction):
+class SpringDamperInteraction(Interaction):
     """Linear spring and damper between two coordinates `x1` and `x2` of one element.
 
-    The coordinates have order 2. The spring is the gradient of the energy `k (x1 - x2)^2 / 2`, and the damper adds
-    `-b (x1' - x2')` to the first coordinate and its opposite to the second, both divided by the divisor of every
-    coordinate, such as its own mass. The stiffness and the damping are named parameters of the element.
+    The spring pulls the coordinates together with the force `-k (x1 - x2)` and the damper with `-b (x1' - x2')`. Both
+    forces accelerate the first coordinate divided by its mass and the second, with the opposite sign, divided by its
+    own, as the suspension between the body and the wheel of a car or the pad between a rail and its sleeper.
 
     Args:
         label:
             The label of the interaction.
 
         target:
-            The path of the element with the two coordinates.
+            The path of the element with the two coordinates and their masses.
 
         states:
             The names of the two coordinates.
 
-        stiffness:
-            The name of the parameter of the stiffness `k`.
+        masses:
+            The names of the masses of the two coordinates.
 
-        damping:
-            The name of the parameter of the damping `b`.
+        k:
+            The stiffness of the spring.
 
-        divisor:
-            The divisor of both coordinates, or a mapping from every coordinate to its own divisor.
+        b:
+            The damping of the damper.
 
     Raises:
         ValidationError:
-            The states are not two names, the stiffness or the damping is not a name, or a divisor is invalid.
+            The states or the masses are not two names.
 
     Examples:
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.engineering.common.mechanics import SpringDamperInteraction
-        >>> SpringDamperInteraction('suspension', target='car', states=('y1', 'y2')).stiffness
-        'k'
+        >>> car = Element('car', values={'x1': 0.1, 'x2': 0.0, 'm1': 250.0, 'm2': 30.0})
+        >>> suspension = SpringDamperInteraction('suspension', target='car', k=16000.0, b=1000.0)
+        >>> System(elements=[car], interactions=[suspension]).prepare().states_
+        ('car.x1', "car.x1'", 'car.x2', "car.x2'")
     """
 
-    law_classes = (RateLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         states: Sequence[str] = ('x1', 'x2'),
-        stiffness: str = 'k',
-        damping: str = 'b',
-        divisor: str | Callable[[SimpleNamespace], object] | Mapping[str, str] | None = None,
+        masses: Sequence[str] = ('m1', 'm2'),
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, target=target, states=states, divisor=divisor)
-        self.stiffness = stiffness
-        self.damping = damping
+        super().__init__(label)
+        self.target = target
+        self.states = states
+        self.masses = masses
+        self.k = k
+        self.b = b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for invalid states, stiffness, or damping.
-
-        The states must be two names, and the stiffness and the damping names.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_names(self) -> None:
+        """Raise an error for states or masses that are not two names.
 
         Raises:
             ValidationError:
-                The states are not two names, the stiffness or the damping is not a name, or a divisor is invalid.
+                The states or the masses are not two names.
         """
-        super()._prepare(context)
-        if len(self._get_names()) != N_STATES:
-            error_msg = f'{self.label!r} joins the states {self.states!r}. Give two states.'
-            raise ValidationError(error_msg)
-        for name in (self.stiffness, self.damping):
-            if not (isinstance(name, str) and name.isidentifier()):
-                error_msg = f'{self.label!r} reads the parameter {name!r}. Give the name of a parameter.'
+        for name, value in (('states', self.states), ('masses', self.masses)):
+            names = [value] if isinstance(value, str) else list(value)
+            if len(names) != N_STATES or not all(isinstance(item, str) and item.isidentifier() for item in names):
+                error_msg = f'{self.label!r} has the {name} {value!r}. Give two names, such as ("y1", "y2").'
                 raise ValidationError(error_msg)
 
-    def _get_potential(self, namespace: SimpleNamespace) -> Expression:
-        """Return the energy `k (x1 - x2)^2 / 2` of the spring.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the accelerations of both coordinates by the spring and by the damper.
 
-        Args:
-            namespace:
-                The namespace of the symbols the energy can use.
-
-        Returns:
-            energy:
-                The energy of the spring.
+        Raises:
+            ValidationError:
+                The states or the masses are not two names.
         """
-        first, second = (getattr(namespace.target, name) for name in self._get_names())
-        return getattr(namespace.target, self.stiffness) * (first - second) ** 2 / 2
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
-        """Return the rates of the spring and of the damper of both coordinates.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws of the two coordinates.
-        """
-        laws = super()._get_laws(namespace)
-        member = namespace.target
-        names = self._get_names()
-        first, second = (getattr(member, name) for name in names)
-        force = -getattr(member, self.damping) * (derivative(first, 1) - derivative(second, 1))
-        for name, state, sign in ((names[0], first, 1), (names[1], second, -1)):
-            divisor = self._get_divisor(member, name)
-            laws.append(RateLaw(state, sign * force if divisor is None else sign * force / divisor))
-        return laws
+        self._check_names()
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        member, t = context.target, context.t
+        first, second = (getattr(member, name) for name in self.states)
+        spring = -context.k * (first - second)
+        damper = -context.b * (first.diff(t) - second.diff(t))
+        laws: list[BaseComponent] = []
+        for state, mass, sign in ((first, self.masses[0], 1), (second, self.masses[1], -1)):
+            laws += [
+                RateLaw(state.diff(t, 2), sign * spring / getattr(member, mass)),
+                RateLaw(state.diff(t, 2), sign * damper / getattr(member, mass)),
+            ]
+        self.laws_ = laws

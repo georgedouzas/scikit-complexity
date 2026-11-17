@@ -274,6 +274,23 @@ class _StateInference:
         return any(isinstance(value, Expression) and bool(value.find(marker)) for value in law._get_values())
 
     @staticmethod
+    def _get_derivative_orders(law: BaseLaw, named: Mapping[str, str]) -> dict[str, int]:
+        """Return the highest derivative a law reads of every value, by its dotted name.
+
+        An equation such as `L q'' + R q' + q / C == 0` reads the second derivative of `q`, so `q` has order 2.
+        """
+        orders: dict[str, int] = {}
+        for value in law._get_values():
+            if not isinstance(value, Expression):
+                continue
+            for found in value.find(derivative(SR.wild(0), SR.wild(1))):
+                state, steps = found.operands()
+                if str(state) in named and SR(steps).is_integer():
+                    name = named[str(state)]
+                    orders[name] = max(int(steps), orders.get(name, 0))
+        return orders
+
+    @staticmethod
     def _get_order(name: str, order: float, known: float | None) -> float:
         """Return the higher of two orders of a value, both integers or equal.
 
@@ -300,6 +317,8 @@ class _StateInference:
 
         A value that only constraints without derivatives determine has order 0, as the potential of a circuit node
         whose currents must balance, and a value that rate laws give a fractional derivative has its fractional order.
+        A value whose derivative of order `k` a constraint reads has order `k` at least, as the charge of
+        `L q'' + R q' + q / C == 0`.
         """
         census = Compilation._get_required(compilation.census, 'census')
         layout = Compilation._get_required(compilation.layout, 'layout')
@@ -321,6 +340,9 @@ class _StateInference:
                 order = 1 if _StateInference._has_derivative(law) else 0
             for name in names:
                 orders[name] = _StateInference._get_order(name, order, orders.get(name))
+            if isinstance(law, ConstraintLaw):
+                for name, steps in _StateInference._get_derivative_orders(law, named).items():
+                    orders[name] = _StateInference._get_order(name, steps, orders.get(name))
         return orders, lags
 
     def get_declared(self, system: CompositeSystem) -> CompositeSystem:

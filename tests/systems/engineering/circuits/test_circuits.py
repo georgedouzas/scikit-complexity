@@ -74,9 +74,8 @@ def test_tunnel_diode_limit_cycle_amplitude():
 
 def test_impulsive_circuit_kicks_the_rate():
     """Test that every impulse fires once per period and raises the rate by `A / (L C)`."""
-    system = ImpulsiveCircuitsSystem(A=0.5, L=2.0, C=0.5, T=2.0).prepare().system_
-    trajectory = system.simulate(until=10, dt=0.05)
-    rate = trajectory.problem.states.names.index('circuit.x_d1')
+    trajectory = ImpulsiveCircuitsSystem(A=0.5, L=2.0, C=0.5, T=2.0).prepare().simulate(until=10, dt=0.05)
+    rate = trajectory.names.index("circuit.x'")
     events = [event for event in trajectory.events if event.label == 'impulse']
     assert [round(event.time, 6) for event in events] == [2.0, 4.0, 6.0, 8.0, 10.0][: len(events)]
     assert len(events) >= 4

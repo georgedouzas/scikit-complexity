@@ -15,7 +15,7 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
-from ....core.components.laws.utils import derivative, where
+from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
@@ -29,69 +29,66 @@ from ..common.signals import PulseInteraction
 CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 
 
-class CircuitElement(Element):
-    """RLC circuit whose charge follows `L q'' + R q' + q / C = V cos(ω t)`."""
+class KirchhoffVoltageInteraction(Interaction):
+    """Kirchhoff's voltage law of a series RLC loop driven by a sinusoidal source.
 
-    law_classes = (ConstraintLaw,)
+    The charge `q` of the loop follows `L q'' + R q' + q / C = V cos(omega t)`, with the inductance `L`, the resistance
+    `R`, and the capacitance `C` of the loop. The same equation rings down a loop without a source, `V = 0`, and holds
+    for a mass on a damped spring, with the mass, the damping, and the compliance in place of `L`, `R`, and `C`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the loop, which holds the charge and the values `L`, `R`, and `C`.
+
+        state:
+            The name of the charge of the loop.
+
+        V:
+            The amplitude of the source voltage.
+
+        omega:
+            The angular frequency of the source.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.engineering.circuits import KirchhoffVoltageInteraction
+        >>> loop = Element('loop', values={'q': 1.0, 'L': 1.0, 'R': 0.1, 'C': 1.0})
+        >>> System(elements=[loop], interactions=[KirchhoffVoltageInteraction('kvl', target='loop')]).prepare().states_
+        ('loop.q', "loop.q'")
+    """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ConstraintLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        q: Annotated[object, StateSpec(order=2)] = 1.0,
-        q_d1: float = 0.0,
-        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        R: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        V: Annotated[object, ParameterSpec()] = 0.0,
-        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Role,
+        state: str = 'q',
+        V: float = 0.0,
+        omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label)
-        self.q = q
-        self.q_d1 = q_d1
-        self.L = L
-        self.R = R
-        self.C = C
+        self.target = target
+        self.state = state
         self.V = V
         self.omega = omega
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the equation of the charge."""
-        return [
-            ConstraintLaw(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
-        ]
-
-
-class KickedCircuitElement(Element):
-    """RLC circuit ringing down freely between impulses.
-
-    The impulses of strength `A` kick its rate.
-    """
-
-    law_classes = (ConstraintLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec(order=2)] = 0.0,
-        x_d1: float = 0.0,
-        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        R: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        A: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
-        self.L = L
-        self.R = R
-        self.C = C
-        self.A = A
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the free equation of the circuit between impulses."""
-        return [ConstraintLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the voltage law of the loop."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        loop, t = context.target, context.t
+        q = getattr(loop, self.state)
+        law = ConstraintLaw(
+            loop.L * q.diff(t, 2) + loop.R * q.diff(t) + q / loop.C == context.V * cos(context.omega * t),
+        )
+        self.laws_: list[BaseComponent] = [law]
 
 
 class ChuaCircuitElement(Element):
@@ -361,8 +358,8 @@ class MixedModeChuaInteraction(Interaction):
 class RlcCircuitSystem(BaseSystem):
     """A series RLC circuit written as Kirchhoff's voltage law.
 
-    The law is `L q'' + R q' + q / C = V cos(ω t)`. The system has the circuit `circuit`, whose charge has order 2 and
-    current `circuit.q_d1`.
+    The law is `L q'' + R q' + q / C = V cos(ω t)`. The system has the charge `circuit.q` and the current
+    `circuit.q'`.
 
     Args:
         q:
@@ -397,8 +394,8 @@ class RlcCircuitSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.circuits import RlcCircuitSystem
-        >>> RlcCircuitSystem(R=0.5).prepare().system_.elements[0].R
-        0.5
+        >>> RlcCircuitSystem(R=0.5).prepare().states_
+        ('circuit.q', "circuit.q'")
     """
 
     field = 'engineering/circuits'
@@ -431,22 +428,13 @@ class RlcCircuitSystem(BaseSystem):
         self.omega = omega
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set `system_` to the components of the system built from its model parameters."""
+        """Set `system_` to the loop and its voltage law."""
         super()._prepare(context)
+        values = {'q': self.q, "q'": self.current, 'L': self.L, 'R': self.R, 'C': self.C}
         self.system_ = System(
             self.label,
-            elements=[
-                CircuitElement(
-                    'circuit',
-                    q=self.q,
-                    q_d1=self.current,
-                    L=self.L,
-                    R=self.R,
-                    C=self.C,
-                    V=self.V,
-                    omega=self.omega,
-                ),
-            ],
+            elements=[Element('circuit', values=values)],
+            interactions=[KirchhoffVoltageInteraction('kvl', target='circuit', V=self.V, omega=self.omega)],
         )
 
 
@@ -838,10 +826,10 @@ class TunnelDiodeOscillatorSystem(DynamicalSystem):
 class ImpulsiveCircuitsSystem(BaseSystem):
     """An RLC circuit driven by a periodic train of current impulses.
 
-    It follows `L C x'' + R C x' + x = A Σ δ(t - k T)`. Every impulse is an event that raises the rate of change `x'` by
-    `A / (L C)`, and between impulses the circuit rings down freely. The response settles on a periodic, non-sinusoidal
-    waveform of period `T`. The system has the response `circuit.x` and its rate `circuit.x_d1`, kicked by the impulses
-    `impulse`.
+    It follows `L x'' + R x' + x / C = (A / C) Σ δ(t - k T)`. Every impulse is an event that raises the rate of
+    change `x'` by `A / (L C)`, and between impulses the circuit rings down freely. The response settles on a periodic,
+    non-sinusoidal waveform of period `T`. The system has the response `circuit.x` and its rate `circuit.x'`, kicked by
+    the impulses `impulse`.
 
     Args:
         x:
@@ -910,9 +898,15 @@ class ImpulsiveCircuitsSystem(BaseSystem):
         self.T = T
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set `system_` to the components of the system built from its model parameters."""
+        """Set `system_` to the circuit, the impulses, and the voltage law of the free circuit."""
         super()._prepare(context)
-        circuit = KickedCircuitElement('circuit', x=self.x, x_d1=self.current, L=self.L, R=self.R, C=self.C, A=self.A)
-        kick = {'x_d1': lambda s: s.target.x_d1 + s.target.A / (s.target.L * s.target.C)}
-        impulse = PulseInteraction('impulse', target='circuit', reset=kick, period=self.T)
-        self.system_ = System(self.label, elements=[circuit], interactions=[impulse])
+        values = {'x': self.x, "x'": self.current, 'L': self.L, 'R': self.R, 'C': self.C}
+        kick = {"x'": lambda s: s.target.x.diff(s.t) + self.A / (s.target.L * s.target.C)}
+        self.system_ = System(
+            self.label,
+            elements=[Element('circuit', values=values)],
+            interactions=[
+                PulseInteraction('impulse', target='circuit', reset=kick, period=self.T),
+                KirchhoffVoltageInteraction('free', target='circuit', state='x'),
+            ],
+        )

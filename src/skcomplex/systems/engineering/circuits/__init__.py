@@ -2,8 +2,8 @@
 
 from ._circuits import (
     ChuaSystem,
-    CircuitElement,
     ImpulsiveCircuitsSystem,
+    KirchhoffVoltageInteraction,
     MemristorOscillatorSystem,
     MixedModeChuaSystem,
     RlcCircuitSystem,
@@ -24,12 +24,12 @@ from ._memristive_mixed_mode_oscillator import (
 
 __all__: list[str] = [
     'ChuaSystem',
-    'CircuitElement',
     'ColpittsCouplingInteraction',
     'ColpittsDynamicsInteraction',
     'ColpittsOscillatorElement',
     'CoupledColpittsSystem',
     'ImpulsiveCircuitsSystem',
+    'KirchhoffVoltageInteraction',
     'MemristiveCircuitElement',
     'MemristiveDynamicsInteraction',
     'MemristiveMixedModeOscillatorSystem',

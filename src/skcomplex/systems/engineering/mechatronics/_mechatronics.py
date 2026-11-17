@@ -14,13 +14,15 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.mechanics import EulerLagrangeInteraction
 from ..common.electrical import GroundElement, InductorElement, ResistorElement, TwoPinElement, VoltageSourceElement
@@ -109,39 +111,23 @@ class InertiaElement(Element):
         self.b = b
 
 
-class QuarterCarElement(Element):
-    """Body of displacement `y1` and wheel of displacement `y2`.
+class TireInteraction(Interaction):
+    """Tire spring between a wheel and a road that steps up to `height` at the time `at`.
 
-    A tire lies between the wheel and a road step. The element holds the tire, whose force on the wheel is
-    `kt (road - y2)`, and a suspension interaction joins the body and the wheel.
+    The tire pushes the wheel with the force `kt (road - y)`, which accelerates the wheel divided by its mass.
 
     Args:
         label:
-            The label of the element, unique among the components of its system.
+            The label of the interaction, unique among the components of its system.
 
-        y1:
-            The initial displacement of the body.
+        target:
+            The path of the element that holds the wheel.
 
-        y1_d1:
-            The initial velocity of the body.
+        state:
+            The name of the displacement of the wheel.
 
-        y2:
-            The initial displacement of the wheel.
-
-        y2_d1:
-            The initial velocity of the wheel.
-
-        m1:
-            The mass of the body.
-
-        m2:
-            The mass of the wheel.
-
-        k:
-            The stiffness of the suspension.
-
-        b:
-            The damping of the suspension.
+        mass:
+            The name of the mass of the wheel.
 
         kt:
             The stiffness of the tire.
@@ -153,9 +139,9 @@ class QuarterCarElement(Element):
             The time of the road step.
 
     Examples:
-        >>> from skcomplex.systems.engineering.mechatronics import QuarterCarElement
-        >>> QuarterCarElement('car', height=0.05).height
-        0.05
+        >>> from skcomplex.systems.engineering.mechatronics import TireInteraction
+        >>> TireInteraction('tire', target='car', height=0.1).height
+        0.1
     """
 
     law_classes = (RateLaw,)
@@ -164,34 +150,29 @@ class QuarterCarElement(Element):
         self,
         label: str,
         *,
-        y1: Annotated[object, StateSpec(order=2)] = 0.0,
-        y1_d1: object = 0.0,
-        y2: Annotated[object, StateSpec(order=2)] = 0.0,
-        y2_d1: object = 0.0,
-        m1: Annotated[object, ParameterSpec(domain=POSITIVE)] = 250.0,
-        m2: Annotated[object, ParameterSpec(domain=POSITIVE)] = 30.0,
-        k: Annotated[object, ParameterSpec(domain=POSITIVE)] = 16000.0,
-        b: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1000.0,
-        kt: Annotated[object, ParameterSpec(domain=POSITIVE)] = 160000.0,
-        height: Annotated[object, ParameterSpec()] = 0.05,
-        at: Annotated[object, ParameterSpec()] = 0.5,
+        target: Role,
+        state: str = 'y2',
+        mass: str = 'm2',
+        kt: Annotated[float, ParameterSpec(domain=POSITIVE)] = 160000.0,
+        height: float = 0.05,
+        at: float = 0.5,
     ) -> None:
         super().__init__(label)
-        self.y1 = y1
-        self.y1_d1 = y1_d1
-        self.y2 = y2
-        self.y2_d1 = y2_d1
-        self.m1 = m1
-        self.m2 = m2
-        self.k = k
-        self.b = b
+        self.target = target
+        self.state = state
+        self.mass = mass
         self.kt = kt
         self.height = height
         self.at = at
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the acceleration of the wheel by the tire, the suspension apart."""
-        return [RateLaw(s.y2, s.kt * (step(s.t, s.at, s.height) - s.y2) / s.m2)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the acceleration of the wheel by the tire."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        wheel, t = getattr(context.target, self.state), context.t
+        force = context.kt * (step(t, context.at, context.height) - wheel)
+        self.laws_: list[BaseComponent] = [RateLaw(wheel.diff(t, 2), force / getattr(context.target, self.mass))]
 
 
 class MotorCouplingInteraction(Interaction):
@@ -381,8 +362,8 @@ class DcMotorSystem(BaseSystem):
 
 def _get_spring_energy(s: SimpleNamespace) -> Expression:
     """Return the energy of the suspension spring and of the tire on the road step."""
-    road = step(s.t, s.car.at, s.car.height)
-    energy: Expression = s.car.k * (s.car.y1 - s.car.y2) ** 2 / 2 + s.car.kt * (s.car.y2 - road) ** 2 / 2
+    road = step(s.t, s.tire.at, s.tire.height)
+    energy: Expression = s.suspension.k * (s.car.y1 - s.car.y2) ** 2 / 2 + s.tire.kt * (s.car.y2 - road) ** 2 / 2
     return energy
 
 
@@ -426,7 +407,7 @@ class QuarterCarSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.mechatronics import QuarterCarSystem
-        >>> QuarterCarSystem(height=0.1).prepare().system_.elements[0].height
+        >>> QuarterCarSystem(height=0.1).prepare().system_.interactions[0].height
         0.1
     """
 
@@ -463,22 +444,14 @@ class QuarterCarSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components of the system built from its model parameters."""
         super()._prepare(context)
-        car = QuarterCarElement(
-            'car',
-            m1=self.m1,
-            m2=self.m2,
-            k=self.k,
-            b=self.b,
-            kt=self.kt,
-            height=self.height,
-            at=self.at,
-        )
+        car = Element('car', values={'y1': 0.0, 'y2': 0.0, 'm1': self.m1, 'm2': self.m2})
         suspension = SpringDamperInteraction(
             'suspension',
             target='car',
             states=('y1', 'y2'),
-            stiffness='k',
-            damping='b',
-            divisor={'y1': 'm1', 'y2': 'm2'},
+            masses=('m1', 'm2'),
+            k=self.k,
+            b=self.b,
         )
-        self.system_ = System(self.label, elements=[car], interactions=[suspension])
+        tire = TireInteraction('tire', target='car', kt=self.kt, height=self.height, at=self.at)
+        self.system_ = System(self.label, elements=[car], interactions=[tire, suspension])
