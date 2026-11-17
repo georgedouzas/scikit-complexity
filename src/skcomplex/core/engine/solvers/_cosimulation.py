@@ -26,12 +26,9 @@ from ...components.laws import (
     UpdateLaw,
 )
 from ...components.spaces import (
-    CayleySpace,
-    ContinuousSpace,
+    BaseSpace,
     ContinuousTime,
     DiscreteTime,
-    LatticeSpace,
-    NetworkSpace,
 )
 from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import ContextError, SolverError, ValidationError
@@ -123,7 +120,7 @@ class CoSimulationSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime, DiscreteTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            space={None, BaseSpace},
             laws={
                 RateLaw,
                 NoiseLaw,

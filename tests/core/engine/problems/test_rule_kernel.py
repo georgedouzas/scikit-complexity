@@ -12,16 +12,15 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import TotalisticSpec
 from skcomplex.core.components.spaces import (
-    CayleySpace,
     LatticeNeighborhood,
     LatticeSpace,
-    StateTranslationNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PowerSeriesSpec, StateSpec
 from skcomplex.systems.computer_science.automata import PowerSeriesCellElement
+from skcomplex.systems.computer_science.common.automata import CayleySpace, StateTranslationNeighborhood
 
 SYMMETRIC = PermutationGroup([[(1, 2)], [(1, 2, 3)], [(3, 4)]])
 FORWARD = LatticeNeighborhood(((0,), (1,)))

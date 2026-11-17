@@ -238,7 +238,6 @@ Both populations are drawn by a `ScalarsVisual`, one at the path `prey` and one 
 | `'histograms'` | `HistogramVisual` | histograms of agents or of groups without a space |
 | `'image'` | `ImageVisual` | every state of a lattice group as an image coloured by value |
 | `'sites'` | `SiteVisual` | every state of a non-square lattice group as coloured sites |
-| `'cayley'` | `CayleyVisual` | every state of a lattice group on a group space as a graph |
 | `'mesh'` | `MeshVisual` | every state of a finite element field as a triangle mesh |
 | `'cell'` | `CellVisual` | a state on the edges or faces of a complex |
 | `'phase_ring'` | `PhaseRingVisual` | the wrapped phases of oscillators against their position |
@@ -247,6 +246,10 @@ Both populations are drawn by a `ScalarsVisual`, one at the path `prey` and one 
 | `'matrix'` | `MatrixVisual` | a matrix-valued state or parameter as an image |
 | `'expectations'` | `ExpectationVisual` | the local expectations of operator elements and groups |
 | `'linear_program'` | `LinearProgramVisual` | the linear program of an element |
+
+A visual of a system package has no kind and is named by its class, as `VisualSpec(CayleyVisual)` does. `CayleyVisual`
+of [`skcomplex.systems.computer_science.common.automata`][skcomplex.systems.computer_science.common.automata] draws
+every state of a lattice group on the Cayley graph of a group, and a group on such a space takes it by default.
 
 The default visuals follow the kind of element:
 

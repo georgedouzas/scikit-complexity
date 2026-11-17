@@ -10,17 +10,19 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.components.laws import LinearRuleSpec, LocalRuleLaw, OuterTotalisticSpec, TableSpec, TotalisticSpec
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
-    CayleySpace,
     ContinuousTime,
     DiscreteTime,
     LatticeNeighborhood,
     LatticeSpace,
-    MemoryNeighborhood,
     RadiusNeighborhood,
-    StateTranslationNeighborhood,
 )
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.computer_science.automata import Wolfram
+from skcomplex.systems.computer_science.common.automata import (
+    CayleySpace,
+    MemoryNeighborhood,
+    StateTranslationNeighborhood,
+)
 
 LIFE = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 
@@ -42,7 +44,7 @@ def test_local_rule_targets_one_state_or_several_together():
 
 
 def test_local_rule_requires_discrete_time_on_sites():
-    """Test that a local rule runs in discrete time on a lattice, a network, or a Cayley graph."""
+    """Test that a local rule runs in discrete time on a lattice, a network, or another space with sites."""
     requirements = LocalRuleLaw(
         var('cell'),
         LatticeNeighborhood(((-1,), (0,), (1,))),
@@ -50,7 +52,7 @@ def test_local_rule_requires_discrete_time_on_sites():
     )._get_requirements()
     assert requirements.time == (DiscreteTime,)
     assert LatticeSpace in requirements.space
-    assert CayleySpace in requirements.space
+    assert requirements.sites
     assert ContinuousTime not in requirements.time
 
 

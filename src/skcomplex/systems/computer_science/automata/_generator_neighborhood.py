@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.components.spaces import MemoryNeighborhood
+from ..common.automata import MemoryNeighborhood
 
 
 class GeneratorNeighborhood(MemoryNeighborhood):

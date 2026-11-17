@@ -14,9 +14,8 @@ from scipy.sparse.linalg import SuperLU, splu
 from ...components.elements import FieldElement
 from ...components.laws import BoundaryLaw, LinearProgramLaw, RateLaw, TransferLaw
 from ...components.spaces import (
-    CayleySpace,
+    BaseSpace,
     CellComplexSpace,
-    ContinuousSpace,
     ContinuousTime,
     LatticeNeighborhood,
     LatticeSpace,
@@ -70,7 +69,7 @@ class SplitSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            space={None, BaseSpace},
             laws={LinearProgramLaw, RateLaw, BoundaryLaw, TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )

@@ -301,40 +301,31 @@ disordered lattices.
 
 ## Reads that follow the state, and series in the cells
 
-This section builds rules whose reads depend on the configuration and states whose values are formal power series. A
-[`StateTranslationNeighborhood`](../core_components/spaces.md#statetranslationneighborhood) chooses the cell a rule
-reads from the state itself, such as the map `τ(x)(g) = x(g · x(g))` whose alphabet is the group itself. A cell of a
-[`CayleySpace`](../core_components/spaces.md#cayleyspace) holds an element of a group as the number of its site, and the
-rule reads the cells at `g x(g) s` for the words `s` of the neighbourhood. Here a
-[`LocalRuleInteraction`](../core_components/interactions.md#localruleinteraction) applies the map once on the
-symmetric group of three letters, whose six elements are the sites.
+This section builds rules whose reads depend on the configuration and states whose values are formal power series. The
+neighbourhood `StateTranslationNeighborhood` of
+[`skcomplex.systems.computer_science.common.automata`][skcomplex.systems.computer_science.common.automata] chooses the
+cell a rule reads from the state itself, such as the map `τ(x)(g) = x(g · x(g))` whose alphabet is the group itself. A
+cell of a `CayleySpace` of the same package holds an element of a group as the number of its site, and the rule reads
+the cells at `g x(g) s` for the words `s` of the neighbourhood. `SelfIndexedShiftSystem` of
+`skcomplex.systems.computer_science.automata` writes the map as a
+[`LocalRuleInteraction`](../core_components/interactions.md#localruleinteraction) with this neighbourhood. Here it runs
+once on the symmetric group of three letters, whose six elements are the sites.
 
 ```python
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_gap import SymmetricGroup
-from sage.all__sagemath_symbolics import ZZ
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import (
-    CayleySpace,
-    LatticeNeighborhood,
-    LatticeSpace,
-    StateTranslationNeighborhood,
-)
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PowerSeriesSpec, StateSpec
+from skcomplex.systems.computer_science.automata import SelfIndexedShiftSystem
 
 RING = PowerSeriesSpec(order=4, field='QQ')
-
-
-class GroupValuedElement(Element):
-    def __init__(self, label, *, value: Annotated[float, StateSpec(domain=ZZ)] = 0):
-        super().__init__(label)
-        self.value = value
 
 
 class SeriesElement(Element):
@@ -343,23 +334,7 @@ class SeriesElement(Element):
         self.value = value
 
 
-group = CayleySpace(SymmetricGroup(3))
-shift = CompositeSystem(
-    elements=[
-        GroupElement(
-            'cells', element=GroupValuedElement, space=group, on='sites', values={'value': [1, 2, 3, 4, 5, 0]}
-        ),
-    ],
-    interactions=[
-        LocalRuleInteraction(
-            'translation',
-            target='cells',
-            state='value',
-            rule=lambda value: value,
-            neighborhood=StateTranslationNeighborhood(),
-        ),
-    ],
-)
+shift = SelfIndexedShiftSystem(SymmetricGroup(3), radius=None, initial=[1, 2, 3, 4, 5, 0])
 simulate(shift, until=1).get_values('cells.value')[-1].tolist()
 ```
 

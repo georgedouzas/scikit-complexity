@@ -24,6 +24,9 @@ class _InteractionRequirementSpec(RequirementSpec):
         space:
             The space classes its laws run in, or empty when one of them runs in any.
 
+        sites:
+            Whether one of its laws also runs on any other space with sites.
+
         roles:
             The role of every name, whose `states` hold the names of the states it reads for this interaction.
 

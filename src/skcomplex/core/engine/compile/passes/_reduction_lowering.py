@@ -26,12 +26,11 @@ from ....components.laws.utils._contractions import contractions_in
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.spaces import (
     AdjacencyNeighborhood,
+    BaseNeighborhood,
     CellComplexSpace,
     CofaceNeighborhood,
     ContinuousSpace,
     DelaunayNeighborhood,
-    LatticeNeighborhood,
-    MemoryNeighborhood,
     NearestNeighborhood,
     NetworkSpace,
     RadiusNeighborhood,
@@ -1184,15 +1183,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 if block.node.active is not None
                 else None
             )
-            if not isinstance(
-                over,
-                AdjacencyNeighborhood
-                | LatticeNeighborhood
-                | MemoryNeighborhood
-                | RadiusNeighborhood
-                | NearestNeighborhood
-                | DelaunayNeighborhood,
-            ):
+            searched = AdjacencyNeighborhood | RadiusNeighborhood | NearestNeighborhood | DelaunayNeighborhood
+            if not isinstance(over, BaseNeighborhood) or (not isinstance(over, searched) and over._get_slots() is None):
                 error_msg = (
                     f'The neighbourhood reduction {reduction.call} of {group} reduces over {over!r}, which is not a '
                     'neighbourhood. Reduce over a lattice, network, memory, Radius, Nearest, Cone, or Delaunay '

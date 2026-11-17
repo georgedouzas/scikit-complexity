@@ -15,7 +15,7 @@ from ...components.laws import (
     RateLaw,
     TransferLaw,
 )
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from ...components.spaces import BaseSpace, ContinuousTime
 from ...enums import NoiseKind, OrderKind
 from ...types import Array
 from ..backends import SupportSpec
@@ -53,7 +53,7 @@ class HeunSolver(SDESolver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            space={None, BaseSpace},
             laws={LinearProgramLaw, RateLaw, ConstraintLaw, EventLaw, BoundaryLaw, TransferLaw, NoiseLaw},
             noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},
             orders=frozenset({OrderKind.INTEGER}),

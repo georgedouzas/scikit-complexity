@@ -269,6 +269,10 @@ class NetworkSpace(BaseSpace):
             for start, stop in zip(self.incidence_.indptr[:-1], self.incidence_.indptr[1:], strict=True)
         )
 
+    def _has_sites(self) -> bool:
+        """Check whether the space has sites joined by neighbours, which its nodes are."""
+        return True
+
     def _get_default_neighborhood(self) -> AdjacencyNeighborhood:
         """Return the neighbours along the edges of the graph."""
         return AdjacencyNeighborhood()

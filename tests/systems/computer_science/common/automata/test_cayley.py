@@ -1,4 +1,4 @@
-"""Test the `_cayley` module of `skcomplex.core.components.spaces`."""
+"""Test the `_cayley` module of `skcomplex.systems.computer_science.common.automata`."""
 
 from typing import Annotated
 
@@ -11,16 +11,26 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw, TableSpec, TotalisticSpec
-from skcomplex.core.components.spaces import CayleySpace, LatticeNeighborhood, MemoryNeighborhood
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import SpaceTooLargeError, ValidationError
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.errors import SpaceError, SpaceTooLargeError, ValidationError
 from skcomplex.core.specs import StateSpec
+from skcomplex.systems.computer_science.common.automata import (
+    CayleySpace,
+    CayleyVisual,
+    MemoryNeighborhood,
+    StateTranslationNeighborhood,
+)
+from skcomplex.systems.computer_science.common.automata import _cayley as cayley
 
 HEISENBERG = (((1, 1, 0), (0, 1, 0), (0, 0, 1)), ((1, 0, 0), (0, 1, 1), (0, 0, 1)))
 GRIGORCHUK = 'a = (1, 1)(1, 2), b = (a, c), c = (a, d), d = (1, b)'
 MAJORITY = TotalisticSpec({3: 1, 4: 1, 5: 1})
 FREE_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1', 'b', 'b^-1'))
+SYMMETRIC = PermutationGroup([[(1, 2)], [(1, 2, 3)]])
 
 
 def _grigorchuk():
@@ -125,7 +135,7 @@ def test_cayley_space_edges_join_sites_by_generators():
     space = CayleySpace(PermutationGroup([[(1, 2, 3, 4)]])).prepare()
     assert sorted((first, second) for first, second, _ in space.edges_) == [(0, 1), (1, 3), (2, 0), (3, 2)]
     assert len(space._get_neighbor_pairs()) == 4
-    assert (space.periodic_, space.default_visual_) == (True, 'cayley')
+    assert (space.periodic_, space.default_visual_) == (True, CayleyVisual)
 
 
 def test_cayley_space_solves_a_finitely_presented_group():
@@ -215,3 +225,129 @@ def test_local_rule_runs_on_a_level_quotient():
     alive = _run(system, 3).get_values('cells.alive')
     assert space.size_ == 8
     assert (alive.sum(axis=1) == cells.sum()).all()
+
+
+def test_memory_neighbourhood_keeps_its_words_in_order():
+    """Test that a memory set prepares its words as strings in the given order."""
+    assert MemoryNeighborhood(['a*b', '1', 'a^-1']).prepare().elements_ == ('a*b', '1', 'a^-1')
+
+
+def test_neighborhood_keeps_its_words():
+    """Test that the neighbourhood holds the words read after the translation, the identity by default."""
+    assert StateTranslationNeighborhood().prepare().elements_ == ('1',)
+    assert StateTranslationNeighborhood(['1', 'a']).prepare().elements_ == ('1', 'a')
+
+
+def test_translation_table_of_a_finite_group_is_its_cayley_table():
+    """Test that the products of a finite group have the identity, are associative, and permute every row."""
+    space = CayleySpace(SYMMETRIC).prepare()
+    table = space._get_translation_table(StateTranslationNeighborhood())[:, :, 0]
+    sites = np.arange(space.size_)
+    np.testing.assert_array_equal(table[:, 0], sites)
+    np.testing.assert_array_equal(table[0], sites)
+    np.testing.assert_array_equal(np.sort(table, axis=1), np.broadcast_to(sites, table.shape))
+    for first in sites:
+        for second in sites:
+            np.testing.assert_array_equal(table[table[first, second]], table[first][table[second]])
+    letter = space.words_.index('a')
+    np.testing.assert_array_equal(table[:, letter], space.generator_table_[:, 0])
+
+
+def test_translation_table_reads_words_after_the_product():
+    """Test that a word of the memory set multiplies the product on the right."""
+    space = CayleySpace(SYMMETRIC).prepare()
+    table = space._get_translation_table(StateTranslationNeighborhood(('1', 'a')))
+    letter = space.generator_table_[:, 0]
+    np.testing.assert_array_equal(table[:, :, 1], letter[table[:, :, 0]])
+
+
+def test_translation_table_of_a_ball_leaves_it_outside():
+    """Test that a product outside a ball of the free group is the number of sites."""
+    space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2).prepare()
+    table = space._get_translation_table(StateTranslationNeighborhood())[:, :, 0]
+    lengths = space.lengths_
+    inside = lengths[:, None] + lengths[None, :] <= 2
+    assert np.all(table[inside] < space.size_)
+    assert np.all((table == space.size_) | (lengths[np.minimum(table, space.size_ - 1)] <= 2))
+    assert (table == space.size_).any()
+
+
+def test_translation_table_rejects_other_neighborhoods_spaces_and_large_tables(monkeypatch):
+    """Test that the hook takes a translated memory on a group space within the size limit."""
+    space = CayleySpace(SYMMETRIC).prepare()
+    with pytest.raises(ValidationError, match='translates a memory set'):
+        space._get_translation_table(MemoryNeighborhood(('1',)))
+    with pytest.raises(SpaceError, match='no group space'):
+        LatticeSpace(5).prepare()._get_translation_table(StateTranslationNeighborhood())
+    monkeypatch.setattr(cayley, 'MAX_PRODUCTS', 20)
+    with pytest.raises(SpaceTooLargeError, match='finite quotient'):
+        space._get_translation_table(StateTranslationNeighborhood())
+
+
+class ParityElement(Element):
+    """Cell that takes the parity of itself and the cells at its generators."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+    ) -> None:
+        super().__init__(label)
+        self.alive = alive
+
+    def _get_laws(self, s):
+        """Return the parity rule."""
+        return [LocalRuleLaw(s.alive, MemoryNeighborhood(('1', 'a', 'b')), TotalisticSpec({1: 1, 3: 1}))]
+
+
+class Logs:
+    """Recording stand-in that keeps the entity paths, archetypes, and static flags it receives."""
+
+    def __init__(self):
+        self.logs = []
+
+    def log(self, path, archetype, static=False):
+        """Keep a logged entity."""
+        self.logs.append((path, archetype, static))
+
+
+def _trajectory():
+    """Return the trajectory of the parity rule on a ball of radius 3 of the free group of rank 2."""
+    space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=3).prepare()
+    cells = np.zeros(space.size_)
+    cells[0] = 1.0
+    return simulate(
+        CompositeSystem(
+            elements=[GroupElement('cells', element=ParityElement, space=space, values={'alive': cells}, on='sites')],
+        ),
+        until=2,
+    )
+
+
+def test_cayley_visual_logs_nodes_on_rings_and_edges_once():
+    """Test that the nodes sit on rings by word length, colored by state, and the edges are logged once as static."""
+    trajectory = _trajectory()
+    problem = trajectory.problem
+    logs = Logs()
+    visual = CayleyVisual(path=problem.elements[0].path, recording=logs).prepare(problem)
+    for _ in range(2):
+        visual.run(FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], problem))
+    nodes = [archetype for path, archetype, static in logs.logs if not static]
+    edges = [archetype for path, archetype, static in logs.logs if static]
+    assert len(nodes) == 2
+    assert len(edges) == 1
+    positions = np.asarray(nodes[0].positions.as_arrow_array().to_pylist())
+    space = problem.elements[0].element.space
+    np.testing.assert_allclose(np.linalg.norm(positions, axis=1) / 40.0, space.lengths_)
+    assert len(edges[0].edges.as_arrow_array().to_pylist()) == len(space.edges_)
+
+
+def test_cayley_visual_views_are_graph_views():
+    """Test that a group on a group space defaults to the Cayley visual, whose view is a graph view of its state."""
+    trajectory = _trajectory()
+    problem = trajectory.problem
+    views = CayleyVisual(path=problem.elements[0].path).prepare(problem).views_
+    assert [(type(view).__name__, str(view.origin)) for view in views] == [('GraphView', 'cells/alive')]
+    assert problem.elements[0].visual.kind is CayleyVisual
+    assert RerunObserver(blueprint='default').prepare(problem).blueprint_ is not None

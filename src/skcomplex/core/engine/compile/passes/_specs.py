@@ -24,7 +24,6 @@ from ....components.interactions import (
 from ....components.laws.utils._reductions import MAX_NEIGHBOR_HYPEREDGE_SIZE
 from ....components.spaces import (
     BaseSpace,
-    CayleySpace,
     CellComplexSpace,
     ContinuousSpace,
     LatticeSpace,
@@ -621,7 +620,7 @@ class SpecsPass(BasePass):
                 raise RoleError(error_msg)
             sources, targets = space.edges_[layer]
             size = space.size_
-        elif isinstance(space, LatticeSpace | CayleySpace) and edges is None and layer is None:
+        elif isinstance(space, BaseSpace) and space._has_sites() and edges is None and layer is None:
             size = int(space.size_ or 0)
             pairs = np.array(space.prepare()._get_neighbor_pairs(), dtype=np.intp).reshape(-1, 2)
             sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()
@@ -886,14 +885,9 @@ class SpecsPass(BasePass):
             )
             and not (isinstance(node.component, BaseInteraction) and node.component._get_layer() is not None)
         )
-        if (
-            others is not None
-            or spread
-            or (
-                edges is None
-                and not isinstance(SpecsPass._get_group_space(nodes), LatticeSpace | NetworkSpace | CayleySpace)
-            )
-        ):
+        group_space = SpecsPass._get_group_space(nodes)
+        sites = group_space is not None and group_space._has_sites()
+        if others is not None or spread or (edges is None and not sites):
             spec = SpecsPass._get_ends_spec(
                 block,
                 nodes,
