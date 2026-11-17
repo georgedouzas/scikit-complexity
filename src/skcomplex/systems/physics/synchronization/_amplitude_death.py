@@ -37,9 +37,9 @@ class StuartLandauInteraction(Interaction):
 
     The flow is the normal form of a supercritical Hopf bifurcation. For `mu > 0` the oscillator settles on the limit
     cycle of radius `sqrt(mu / kappa)`, which it turns at the frequency `tau (omega - beta mu)`, and for `mu < 0` it
-    decays to the fixed point 0. The target holds the parts `x` and `y` and the parameters `mu`, `omega`, `beta`,
-    `kappa`, and `tau`, one of each per member of a group, as for a laser near threshold, a chemical oscillator, or a
-    neuron that starts to fire.
+    decays to the fixed point 0. The target holds the values `x` and `y` of `z` and the parameters `mu`, `omega`,
+    `beta`, `kappa`, and `tau`, one of each per member of a group, as for a laser near threshold, a chemical oscillator,
+    or a neuron that starts to fire.
 
     Args:
         label:
