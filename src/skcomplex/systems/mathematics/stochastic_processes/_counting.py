@@ -7,21 +7,18 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import NN, oo
+from sage.all__sagemath_symbolics import NN
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, MapInteraction
-from ....core.components.laws import JumpLaw
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import JumpLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
-from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 
 
@@ -83,37 +80,32 @@ class PoissonEventsInteraction(Interaction):
 
 
 class BernoulliTrialView(AgentView):
-    """View of a Bernoulli trial, with its states and parameters as attributes."""
+    """View of a sequence of Bernoulli trials, with its values as attributes."""
 
     outcome: float
     successes: float
-    p: float
 
 
 class BernoulliTrialElement(Element):
-    """Sequence of independent trials and the count of its successes.
-
-    Each trial is a success with the same probability.
+    """Sequences of trials, each with the outcome `outcome` of its last trial and its number `successes` of successes.
 
     Args:
         label:
-            The label of the agent or group.
+            The label of the sequences.
 
         outcome:
-            The initial outcome, 1 for a success and 0 for a failure.
+            The initial outcome, 1 for a success and 0 for a failure, one per sequence or shared.
 
         successes:
-            The initial number of successes.
+            The initial number of successes, one per sequence or shared.
 
-        p:
-            The probability of a success.
+        size:
+            The number of sequences, or `None` for one.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.mathematics.stochastic_processes import BernoulliTrialElement
-        >>> group = GroupElement('trials', element=BernoulliTrialElement, size=4, values={'p': 0.2})
-        >>> group.label, group.element.__name__, group.size
-        ('trials', 'BernoulliTrialElement', 4)
+        >>> BernoulliTrialElement('trials', successes=2.0, size=4).successes
+        2.0
     """
 
     visual = VisualSpec('histograms', {'color_by': 'successes'})
@@ -122,25 +114,62 @@ class BernoulliTrialElement(Element):
         self,
         label: str,
         *,
-        outcome: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        successes: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        outcome: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        successes: Annotated[object, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.outcome = outcome
         self.successes = successes
-        self.p = p
 
     @classmethod
     def _get_view(cls) -> type[BernoulliTrialView]:
-        """Return the view of the agents.
-
-        The view types their states and parameters.
-        """
+        """Return the view of the sequences, which types their values."""
         return BernoulliTrialView
 
 
-class BernoulliProcessSystem(OldBaseSystem):
+class BernoulliTrialInteraction(Interaction):
+    """A Bernoulli trial at every step, a success with the probability `p`, counted in `successes`.
+
+    Every sequence runs the rule once per step.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The sequences whose outcomes and numbers of successes the rule sets.
+
+        p:
+            The probability of a success.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import BernoulliTrialInteraction
+        >>> BernoulliTrialInteraction('trial', p=0.2).p
+        0.2
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role = 'trials', p: float = 0.5) -> None:
+        super().__init__(label)
+        self.target = target
+        self.p = p
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the trial of every sequence as the rule."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._try)]
+
+    def _try(self, agent: BernoulliTrialView, system: SystemView) -> None:
+        """Run one trial of a sequence and count its success."""
+        agent.outcome = float(system.rng.random() < self.p)
+        agent.successes += agent.outcome
+
+
+class BernoulliProcessSystem(BaseSystem):
     """Independent Bernoulli processes, one success or failure per step.
 
     Their success counts are binomial.
@@ -157,13 +186,17 @@ class BernoulliProcessSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import BernoulliProcessSystem
-        >>> BernoulliProcessSystem(3).prepare().system_.elements[0].prepare().size_
+        >>> BernoulliProcessSystem(3).prepare().system_.elements[0].size
         3
     """
-
-    draws = True
 
     field = 'mathematics/stochastic_processes'
     topics = ('counting process', 'agents', 'independent trials')
@@ -176,34 +209,20 @@ class BernoulliProcessSystem(OldBaseSystem):
         *,
         p: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sequences = n_sequences
         self.p = p
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        trial = MapInteraction(
-            'trial',
-            target='trials',
-            state='outcome',
-            function=lambda agent, system: float(system.rng.random() < agent.p),
-            form='agent',
-        )
-        count = MapInteraction(
-            'count',
-            target='trials',
-            state='successes',
-            function=lambda agent, system: agent.outcome,
-            mode='increment',
-            form='agent',
-        )
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the sequences and their trials."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement('trials', element=BernoulliTrialElement, size=self.n_sequences, values={'p': self.p}),
-            ],
-            interactions=[trial, count],
+            elements=[BernoulliTrialElement('trials', size=self.n_sequences)],
+            interactions=[BernoulliTrialInteraction('trial', target='trials', p=self.p)],
         )
 
 

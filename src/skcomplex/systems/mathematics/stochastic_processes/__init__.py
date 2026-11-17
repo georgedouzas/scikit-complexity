@@ -3,10 +3,15 @@
 The package covers random walks, Markov sources, counting, urn, branching, and sample-space-reducing processes.
 """
 
-from ._branching import GaltonWatsonSystem, IndividualElement
+from ._branching import (
+    BranchingInteraction,
+    GaltonWatsonSystem,
+    IndividualElement,
+)
 from ._counting import (
     BernoulliProcessSystem,
     BernoulliTrialElement,
+    BernoulliTrialInteraction,
     PoissonCounterElement,
     PoissonEventsInteraction,
     PoissonProcessSystem,
@@ -32,11 +37,12 @@ from ._random_maps import (
     RandomBranchMapSystem,
 )
 from ._reducing import (
-    CascadingBallElement,
+    BallElement,
+    BreakingInteraction,
+    CascadeInteraction,
     CascadingSampleSpaceReducingSystem,
     FragmentationSystem,
     FragmentElement,
-    ReducingBallElement,
     ReducingJumpInteraction,
     SampleSpaceReducingSystem,
 )
@@ -74,10 +80,14 @@ __all__: list[str] = [
     'AgeingRandomWalkSystem',
     'AgeingStepInteraction',
     'AgeingWalkerElement',
+    'BallElement',
     'BernoulliProcessSystem',
     'BernoulliTrialElement',
+    'BernoulliTrialInteraction',
     'BirthDeathQueueSystem',
-    'CascadingBallElement',
+    'BranchingInteraction',
+    'BreakingInteraction',
+    'CascadeInteraction',
     'CascadingSampleSpaceReducingSystem',
     'ExponentialGrowthAtRandomTimesSystem',
     'FragmentElement',
@@ -113,7 +123,6 @@ __all__: list[str] = [
     'RandomWalkSystem',
     'RandomWalkWithMemorySystem',
     'RandomWalkerElement',
-    'ReducingBallElement',
     'ReducingJumpInteraction',
     'SampleSpaceReducingSystem',
     'ServiceInteraction',

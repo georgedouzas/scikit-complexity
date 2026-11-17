@@ -3,48 +3,47 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import NN
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ...general.agents import BirthDeathInteraction
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 
 
 class IndividualView(AgentView):
-    """View of an individual of a branching process.
-
-    The view has the states and parameters of the individual as attributes.
-    """
+    """View of an individual of a branching process, with its values as attributes."""
 
     generation: float
-    m: float
 
 
 class IndividualElement(Element):
-    """Individual of a Galton-Watson process.
-
-    The life cycle of the system replaces the individual by its offspring.
+    """Individuals of a branching process, each with its generation `generation`.
 
     Args:
         label:
-            The label of the agent or group.
+            The label of the individuals.
 
         generation:
-            The initial generation.
+            The initial generation, one per individual or shared.
 
-        m:
-            The mean number of offspring.
+        size:
+            The number of individuals, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import IndividualElement
-        >>> group = GroupElement('population', element=IndividualElement, size=10, values={'m': 1.5})
-        >>> group.label, group.element.__name__, group.size
-        ('population', 'IndividualElement', 10)
+        >>> IndividualElement('population', size=10).size
+        10
     """
 
     visual = VisualSpec('agents', {'color_by': 'generation'})
@@ -53,20 +52,58 @@ class IndividualElement(Element):
         self,
         label: str,
         *,
-        generation: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        generation: Annotated[object, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.generation = generation
-        self.m = m
 
     @classmethod
     def _get_view(cls) -> type[IndividualView]:
-        """Return the view of the agents.
-
-        The view types their states and parameters.
-        """
+        """Return the view of the individuals, which types their values."""
         return IndividualView
+
+
+class BranchingInteraction(Interaction):
+    """Replacement of every individual by a Poisson number of offspring of mean `m` at every step.
+
+    The offspring belong to the next generation and act from the next step on, so every step is one generation.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The individuals that reproduce and die.
+
+        m:
+            The mean number of offspring of an individual.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import BranchingInteraction
+        >>> BranchingInteraction('reproduction', m=1.5).m
+        1.5
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role = 'population', m: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.m = m
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the reproduction of every individual as the rule."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._reproduce)]
+
+    def _reproduce(self, agent: IndividualView, system: SystemView) -> None:
+        """Create the offspring of an individual and remove it."""
+        for _ in range(int(system.rng.poisson(self.m))):
+            agent.create(generation=agent.generation + 1)
+        agent.remove()
 
 
 class GaltonWatsonSystem(BaseSystem):
@@ -88,9 +125,15 @@ class GaltonWatsonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import GaltonWatsonSystem
-        >>> GaltonWatsonSystem(5, m=1.2).prepare().system_.elements[0].prepare().size_
+        >>> GaltonWatsonSystem(5, m=1.2).prepare().system_.elements[0].size
         5
     """
 
@@ -105,35 +148,18 @@ class GaltonWatsonSystem(BaseSystem):
         *,
         m: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_individuals = n_individuals
         self.m = m
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a Galton-Watson branching process with Poisson offspring.
-
-        Every step is one generation.
-        """
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the first generation and its reproduction."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'population',
-                    element=IndividualElement,
-                    size=self.n_individuals,
-                    values={'m': self.m},
-                    variable=True,
-                ),
-            ],
-            interactions=[
-                BirthDeathInteraction(
-                    'reproduction',
-                    target='population',
-                    birth=1.0,
-                    offspring=lambda agent, system: int(system.rng.poisson(agent.m)),
-                    values=lambda agent, system: {'generation': agent.generation + 1},
-                    replace=True,
-                ),
-            ],
+            elements=[IndividualElement('population', size=self.n_individuals)],
+            interactions=[BranchingInteraction('reproduction', target='population', m=self.m)],
         )
