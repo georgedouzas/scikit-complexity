@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import NetworkDiffusionSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'network_diffusion'
 
 graph = nx.karate_club_graph()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(NetworkDiffusionSystem(graph=graph), until=0.6, dt=0.01, observers=[observer])
+trajectory = NetworkDiffusionSystem(graph=graph).prepare().simulate(until=0.6, dt=0.01, observers=[observer])
 contents = trajectory.get_values('nodes.u')
 
 # %%
@@ -32,7 +31,7 @@ contents = trajectory.get_values('nodes.u')
 # times as `exp(-D λ2 t)`, with `λ2` the algebraic connectivity of the club, the smallest nonzero eigenvalue of its
 # Laplacian.
 
-run = simulate(NetworkDiffusionSystem(graph=graph), until=20)
+run = NetworkDiffusionSystem(graph=graph).prepare().simulate(until=20)
 distance = np.linalg.norm(run.get_values('nodes.u') - 1 / graph.number_of_nodes(), axis=1)
 connectivity = nx.algebraic_connectivity(graph, weight=None, seed=0)
 fig, (decay, by_distance) = plt.subplots(1, 2, figsize=(11, 4))

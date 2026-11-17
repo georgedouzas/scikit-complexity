@@ -189,7 +189,7 @@ def test_system_class_matches_components():
 
 def test_simulate_uses_the_tuned_settings():
     """Test that simulating a system class uses its tuned time between frames."""
-    trajectory = simulate(SIRSystem(), until=20.0)
+    trajectory = SIRSystem().prepare().simulate(until=20.0)
     assert trajectory.times[-1] == 20.0
     assert trajectory.times[1] - trajectory.times[0] == SIRSystem.dt
 

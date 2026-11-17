@@ -783,11 +783,10 @@ space is `none`.
 
 ```python
 from skcomplex.core.analysis import network_measures
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import TagError
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
-trajectory = simulate(SIRSystem(), until=10)
+trajectory = SIRSystem().prepare().simulate(until=10)
 try:
     network_measures(trajectory)
 except TagError as error:
