@@ -62,7 +62,7 @@ from ._particles import (
     TumblerElement,
     TumblerView,
 )
-from ._polymers import ActiveBeadElement, ActivePolymerSystem
+from ._polymers import ActiveBeadElement, ActivePolymerSystem, ActiveRouseInteraction
 from ._squirmers import SquirmerElement, SquirmerSlipInteraction, SquirmersSystem
 from ._system_b import ActiveCahnHilliardInteraction, ActiveScalarElement, ActiveSystemBSystem
 
@@ -76,6 +76,7 @@ __all__: list[str] = [
     'ActiveParticleElement',
     'ActivePassiveFlockingSystem',
     'ActivePolymerSystem',
+    'ActiveRouseInteraction',
     'ActiveScalarElement',
     'ActiveSystemBSystem',
     'ActiveViscoelasticGelSystem',
