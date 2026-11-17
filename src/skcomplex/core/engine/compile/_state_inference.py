@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...components.base import BaseComponent
-from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement, Quantity
+from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement, Period, Quantity
 from ...components.laws import (
     BaseLaw,
     ConstraintLaw,
@@ -220,6 +220,18 @@ class _StateInference:
                 return item.name
         return None
 
+    @staticmethod
+    def _get_period(annotation: object) -> float | None:
+        """Return the period in the `Annotated` of a value, or `None`.
+
+        A value annotated as `Annotated[float, Period(2 * pi)]` wraps around after every step.
+        """
+        for item in get_args(annotation)[1:] if get_origin(annotation) is Annotated else ():
+            if isinstance(item, Period):
+                item._check()
+                return float(item.length)
+        return None
+
     def _get_spec(
         self,
         element: Element,
@@ -230,12 +242,14 @@ class _StateInference:
         lags: int = 0,
         starting: Mapping[int, object] | None = None,
         role: str | None = None,
+        moving: bool = False,
     ) -> DeclaredVariableSpec:
         """Return the declaration of a value as a state or a parameter.
 
         The starting values of the derivatives or past values a law reads are given by their index, and a missing one
         is zero for a derivative and the value itself for a past value. A state with the role `'position'` is a
-        position that walks, particle analyses, and drawings read.
+        position that walks, particle analyses, and drawings read. A periodic value wraps around after every step, and
+        analyses read it as a heading when its element moves in a space and as a phase otherwise.
 
         Raises:
             ValidationError:
@@ -245,6 +259,9 @@ class _StateInference:
         annotation = inspect.Parameter.empty if parameter is None else parameter.annotation
         domain = self._get_domain(annotation, value)
         quantity = self._get_quantity(annotation)
+        period = self._get_period(annotation)
+        if period is not None and role is None:
+            role = 'direction' if moving else 'phase'
         vector, n_dim, tensor = element._get_shape_of(value)
         value = element._get_matrix_entries(value, tensor)
         starting = {index: element._get_matrix_entries(item, tensor) for index, item in (starting or {}).items()}
@@ -281,6 +298,7 @@ class _StateInference:
             order=steps,
             lags=lags,
             initial=initial,
+            period=period,
             role=role,
             quantity=quantity,
         )
@@ -596,6 +614,7 @@ class _StateInference:
                     for index, given in starting.get(name, {}).items()
                 },
                 role='position' if name in axes else 'velocity' if name in velocities else None,
+                moving=any(axis in values for axis in axes),
             )
             tensor = element._get_shape_of(member)[2]
             if np.ndim(np.asarray(value, dtype=object)) > 0:

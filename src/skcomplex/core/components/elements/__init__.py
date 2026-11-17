@@ -9,6 +9,7 @@ from ._declared import DeclaredElement
 from ._element import Element
 from ._field import FieldElement
 from ._group import GroupElement
+from ._period import Period
 from ._quantity import Quantity
 
 __all__: list[str] = [
@@ -17,5 +18,6 @@ __all__: list[str] = [
     'Element',
     'FieldElement',
     'GroupElement',
+    'Period',
     'Quantity',
 ]
