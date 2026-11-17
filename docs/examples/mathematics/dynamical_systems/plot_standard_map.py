@@ -16,7 +16,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import StandardMapSystem
 
@@ -25,7 +24,8 @@ SYSTEM = 'standard_map'
 
 def orbits(K, starts, until):
     """Return the angle and the unwrapped momentum of the orbits from several starting points."""
-    runs = [simulate(StandardMapSystem(theta=theta, p=p, K=K), until=until) for theta, p in starts]
+    system = StandardMapSystem(K=K).prepare()
+    runs = [system.simulate(until, initial_state={'map.theta': theta, 'map.p': p}) for theta, p in starts]
     return np.array([run.get_values('map.theta') for run in runs]), np.array([run.get_values('map.p') for run in runs])
 
 
@@ -48,7 +48,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=4)
-trajectory = simulate(StandardMapSystem(), observers=[observer])
+trajectory = StandardMapSystem().prepare().simulate(observers=[observer])
 rng = np.random.default_rng(0)
 starts = np.column_stack([np.linspace(0.1, 2 * np.pi - 0.1, 40), np.linspace(0.05, 2 * np.pi - 0.05, 40)])
 theta, p = orbits(1.2, starts, until=400)

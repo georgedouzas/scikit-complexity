@@ -4,15 +4,23 @@
 # License: MIT
 
 import math
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import abs_symbolic, cos, exp, pi, sin
 
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction, MapInteraction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import mod, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.spaces import BaseSpace
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -52,7 +60,7 @@ class LogisticMapElement(Element):
         self.r = r
 
 
-class LogisticMapSystem(BaseSystem):
+class LogisticMapSystem(OldBaseSystem):
     """The logistic map `x_{t+1} = r x_t (1 - x_t)`.
 
     The map reaches chaos through period doubling as `r` grows.
@@ -187,14 +195,49 @@ class HenonMapSystem(DynamicalSystem):
         }
 
 
-class StandardMapSystem(DynamicalSystem):
+class StandardMapInteraction(Interaction):
+    """The kick of the Chirikov standard map `p' = p + K sin θ`, `θ' = θ + p'`.
+
+    The angle is taken modulo 2π and the momentum is kept on the real line.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The element whose angle `theta` and momentum `p` the map moves.
+
+        K:
+            The kick strength.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import StandardMapInteraction
+        >>> StandardMapInteraction('kick', target='map', K=0.5).K
+        0.5
+    """
+
+    def __init__(self, label: str, *, target: Role = 'map', K: float = 1.2) -> None:
+        super().__init__(label)
+        self.target = target
+        self.K = K
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the kick of the momentum and the rotation of the angle as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            theta, p = context.target.theta, context.target.p
+            kicked = p + context.K * sin(theta)
+            self.laws_: list[BaseComponent] = [UpdateLaw(p, kicked), UpdateLaw(theta, mod(theta + kicked, 2 * pi))]
+
+
+class StandardMapSystem(BaseSystem):
     """The Chirikov standard map `p' = p + K sin θ`, `θ' = θ + p'`.
 
     The map has global chaos above K ≈ 0.9716.
 
     The last invariant circle that spans the angle, the golden-mean torus, breaks at K ≈ 0.971635. The angle is taken
     modulo 2π and the momentum is kept on the real line, so its spread measures diffusion. The system has the states
-    `map.theta` and `map.p`.
+    `map.theta` and `map.p`, and the kick strength `kick.K`.
 
     Args:
         theta:
@@ -211,8 +254,11 @@ class StandardMapSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import StandardMapSystem
-        >>> StandardMapSystem(K=0.5).prepare().system_.elements[0].get_value('K')
-        0.5
+        >>> system = StandardMapSystem(K=0.5).prepare()
+        >>> system.states_
+        ('map.theta', 'map.p')
+        >>> system.simulate(until=2).get_values('map.p').round(3).tolist()
+        [3.883, 3.883, 3.545]
     """
 
     field = 'mathematics/dynamical_systems'
@@ -229,38 +275,19 @@ class StandardMapSystem(DynamicalSystem):
         K: float = 1.2,
         label: str = 'system',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label)
         self.theta = theta
         self.p = p
         self.K = K
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'map'
-
-    def _get_time(self) -> str:
-        """Return the discrete time of the map."""
-        return 'discrete'
-
-    def _get_states(self) -> dict[str, object]:
-        """Return the initial value of every state."""
-        return {
-            'theta': self.theta,
-            'p': self.p,
-        }
-
-    def _get_parameters(self) -> dict[str, object]:
-        """Return the parameters of the equations."""
-        return {
-            'K': self.K,
-        }
-
-    def _get_equations(self) -> Equations:
-        """Return the Chirikov standard map `p' = p + K sin θ`, `θ' = θ + p'`."""
-        return {
-            'p': lambda s: s.target.p + s.target.K * sin(s.target.theta),
-            'theta': lambda s: mod(s.target.theta + s.target.p + s.target.K * sin(s.target.theta), 2 * pi),
-        }
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the map and its kick."""
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[Element('map', values={'theta': self.theta, 'p': self.p})],
+            interactions=[StandardMapInteraction('kick', target='map', K=self.K)],
+        )
 
 
 class CircleMapSystem(DynamicalSystem):
