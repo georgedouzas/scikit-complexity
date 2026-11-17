@@ -12,14 +12,13 @@ outbreak, ever smaller waves follow until the infection settles at an endemic le
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import SIRSSystem
 
 SYSTEM = 'sirs'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(SIRSSystem(), observers=[observer])
+trajectory = SIRSSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Damped waves to the endemic equilibrium

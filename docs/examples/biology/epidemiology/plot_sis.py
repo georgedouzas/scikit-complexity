@@ -13,14 +13,13 @@ individual, so the level fluctuates.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import SISSystem
 
 SYSTEM = 'sis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(SISSystem(stochastic=True), observers=[observer], random_state=0)
+trajectory = SISSystem(stochastic=True).prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Logistic growth of the infected

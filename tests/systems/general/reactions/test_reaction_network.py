@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.general.reactions import ReactionNetworkSystem
 
 DIMERIZATION = {'binding': ({'A': 2}, {'D': 1}, 0.01), 'unbinding': ({'D': 1}, {'A': 2}, 0.1)}
@@ -22,10 +21,10 @@ def test_reaction_network_builds_an_element_per_species_and_a_reaction_per_row()
 
 def test_reaction_network_rate_equations_reach_the_equilibrium_of_product_propensities():
     """Test that the dimerization `2 A <-> D` settles where `k_binding A^2 = k_unbinding D` and conserves `A + 2 D`."""
-    trajectory = simulate(
-        ReactionNetworkSystem(species={'A': 100.0, 'D': 0.0}, reactions=DIMERIZATION),
-        until=200.0,
-        dt=1.0,
+    trajectory = (
+        ReactionNetworkSystem(species={'A': 100.0, 'D': 0.0}, reactions=DIMERIZATION)
+        .prepare()
+        .simulate(until=200.0, dt=1.0)
     )
     monomers, dimers = trajectory.get_values('A.x'), trajectory.get_values('D.x')
     np.testing.assert_allclose(monomers + 2 * dimers, 100.0, rtol=1e-6)
@@ -35,7 +34,7 @@ def test_reaction_network_rate_equations_reach_the_equilibrium_of_product_propen
 def test_reaction_network_takes_sources_and_sinks_as_empty_sides():
     """Test that a reaction without reactants is a source and one without products a sink."""
     reactions = {'birth': ({}, {'X': 1}, 2.0), 'death': ({'X': 1}, {}, 0.5)}
-    trajectory = simulate(ReactionNetworkSystem(species={'X': 0.0}, reactions=reactions), until=40.0, dt=1.0)
+    trajectory = ReactionNetworkSystem(species={'X': 0.0}, reactions=reactions).prepare().simulate(until=40.0, dt=1.0)
     assert trajectory.get_values('X.x')[-1] == pytest.approx(4.0, rel=1e-3)
 
 
@@ -43,7 +42,7 @@ def test_reaction_network_jumps_move_whole_units():
     """Test that the mode `'jump'` gives integer amounts of a stochastic system that conserve the total."""
     system = ReactionNetworkSystem(species={'A': 100.0, 'D': 0.0}, reactions=DIMERIZATION, mode='jump')
     assert system.get_tags().randomness == 'stochastic'
-    states = simulate(system, until=20.0, dt=1.0, random_state=0).states
+    states = system.prepare().simulate(until=20.0, dt=1.0, random_state=0).states
     np.testing.assert_array_equal(states, np.round(states))
     np.testing.assert_allclose(states @ np.array([1.0, 2.0]), 100.0)
 
