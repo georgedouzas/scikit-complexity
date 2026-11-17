@@ -3,8 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.systems.engineering.traffic import (
     GktTrafficSystem,
     KernerKonhauserSystem,
@@ -15,7 +13,7 @@ from skcomplex.systems.engineering.traffic import (
 
 def test_lighthill_whitham_richards_shock_speed():
     """Test that the shock between free and queued traffic moves at the Rankine-Hugoniot speed."""
-    trajectory = simulate(LighthillWhithamRichardsSystem().prepare().system_, until=1.0, dt=0.05, solver=SSPRKSolver())
+    trajectory = LighthillWhithamRichardsSystem().prepare().system_.simulate(until=1.0, dt=0.05)
     density = trajectory.get_values('road.rho')[-1]
     centers = (np.arange(200) + 0.5) / 200
     assert centers[np.argmax(np.diff(density))] == pytest.approx(0.5 + (1 - 1.1), abs=0.01)
@@ -23,17 +21,17 @@ def test_lighthill_whitham_richards_shock_speed():
 
 def test_payne_conserves_cars_and_keeps_equilibrium():
     """Test that the Payne system conserves the cars and keeps uniform flow at the equilibrium speed."""
-    trajectory = simulate(PayneSystem(50).prepare().system_, until=0.5, dt=0.1, solver=SSPRKSolver())
+    trajectory = PayneSystem(50).prepare().system_.simulate(until=0.5, dt=0.1)
     assert trajectory.get_values('road.rho').sum(axis=1) == pytest.approx(
         np.full(6, trajectory.get_values('road.rho')[0].sum()),
     )
-    uniform = simulate(PayneSystem(50, bump=0.0).prepare().system_, until=0.5, dt=0.1, solver=SSPRKSolver())
+    uniform = PayneSystem(50, bump=0.0).prepare().system_.simulate(until=0.5, dt=0.1)
     assert np.ptp(uniform.get_values('road.q')[-1]) < 1e-12
 
 
 def test_kerner_konhauser_forms_a_cluster():
     """Test that a small bump of density grows into a dense cluster while the cars are conserved."""
-    trajectory = simulate(KernerKonhauserSystem().prepare().system_, until=40, dt=10.0, solver=SSPRKSolver(cfl=0.15))
+    trajectory = KernerKonhauserSystem().prepare().system_.simulate(until=40, dt=10.0)
     density = trajectory.get_values('road.rho')
     assert density[-1].max() > 0.35
     assert density.sum(axis=1)[-1] == pytest.approx(density.sum(axis=1)[0])
@@ -42,10 +40,10 @@ def test_kerner_konhauser_forms_a_cluster():
 def test_gkt_traffic_forms_stop_and_go_waves_at_unstable_densities():
     """Test that a perturbation decays in light traffic and grows into clusters with upstream-moving fronts."""
     light = np.asarray(
-        simulate(GktTrafficSystem(density=15.0, amplitude=10.0)).get_values('road.rho'),
+        GktTrafficSystem(density=15.0, amplitude=10.0).prepare().simulate().get_values('road.rho'),
     )
     assert np.ptp(light[-1]) < 0.5 * np.ptp(light[0])
-    density = np.asarray(simulate(GktTrafficSystem()).get_values('road.rho'))
+    density = np.asarray(GktTrafficSystem().prepare().simulate().get_values('road.rho'))
     assert np.ptp(density[-1]) > 20.0
     assert density.sum(axis=1)[-1] == pytest.approx(density.sum(axis=1)[0])
     spacing, lag = 10.0 / 200, 10
