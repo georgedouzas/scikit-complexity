@@ -43,6 +43,22 @@ from skcomplex.core.specs import Role, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
 
+SITES = 16
+WAVE = 1.0 + 0.5 * np.sin(2 * np.pi * np.arange(SITES) / SITES) + np.eye(SITES)[3]
+FIELDS = {
+    'zero-flux': ({'boundary': {'u': 'zero-flux'}}, False, RK4Solver(dt=0.01)),
+    'fixed': ({'boundary': {'u': ('fixed', 2.0)}}, False, RK4Solver(dt=0.01)),
+    'periodic': ({'boundary': {'u': 'periodic'}}, False, RK4Solver(dt=0.01)),
+    'spectral': ({'discretization': 'spectral'}, False, ETDRK4Solver(dt=0.01)),
+    'symmetry': ({'discretization': 'spectral', 'symmetry': {'u': ('odd',)}}, False, ETDRK4Solver(dt=0.01)),
+    'finite-volume': ({'discretization': 'finite-volume'}, True, SSPRKSolver()),
+    'godunov': (
+        {'discretization': 'finite-volume', 'scheme': FiniteVolumeSpec(limiter='van-leer', riemann='godunov')},
+        True,
+        SSPRKSolver(),
+    ),
+}
+
 
 class Particle(Element):
     """Particle with a position and a mass, declared by nothing but its arguments."""
@@ -822,23 +838,6 @@ class Transport(Interaction):
             self.laws_: list[BaseComponent] = [
                 RateLaw(u.diff(context.t), -divergence([u**2 / 2]) if self.flux else laplacian(u)),
             ]
-
-
-SITES = 16
-WAVE = 1.0 + 0.5 * np.sin(2 * np.pi * np.arange(SITES) / SITES) + np.eye(SITES)[3]
-FIELDS = {
-    'zero-flux': ({'boundary': {'u': 'zero-flux'}}, False, RK4Solver(dt=0.01)),
-    'fixed': ({'boundary': {'u': ('fixed', 2.0)}}, False, RK4Solver(dt=0.01)),
-    'periodic': ({'boundary': {'u': 'periodic'}}, False, RK4Solver(dt=0.01)),
-    'spectral': ({'discretization': 'spectral'}, False, ETDRK4Solver(dt=0.01)),
-    'symmetry': ({'discretization': 'spectral', 'symmetry': {'u': ('odd',)}}, False, ETDRK4Solver(dt=0.01)),
-    'finite-volume': ({'discretization': 'finite-volume'}, True, SSPRKSolver()),
-    'godunov': (
-        {'discretization': 'finite-volume', 'scheme': FiniteVolumeSpec(limiter='van-leer', riemann='godunov')},
-        True,
-        SSPRKSolver(),
-    ),
-}
 
 
 @pytest.mark.parametrize('name', list(FIELDS))

@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem, GrayScottSystem, SchnakenbergSystem
