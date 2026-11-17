@@ -32,13 +32,10 @@ from ....components.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
     BaseSpace,
-    CayleySpace,
     CellComplexSpace,
     CofaceNeighborhood,
     LatticeSpace,
-    MemoryNeighborhood,
     NetworkSpace,
-    StateTranslationNeighborhood,
 )
 from ....errors import SpaceError, ValidationError
 from ....types import Array, Indices
@@ -180,7 +177,7 @@ class LatticeProblemPass(BasePass):
             block = declarations.blocks.get(owner)
             space = block.node.space if block is not None else None
             is_lattice = block is not None and block.node.members is not None and not block.node.is_agent
-            if reference.is_state and is_lattice and isinstance(space, LatticeSpace | NetworkSpace | CayleySpace):
+            if reference.is_state and is_lattice and isinstance(space, BaseSpace) and space._has_sites():
                 part = (getattr(block.node.component, 'on', None) if block is not None else None) or 'sites'
                 rows = None if part == 'sites' else entry.rows
                 states[item] = _LatticeStateSpec(entry.name, entry.start, space, part, rows, entry.columns)
@@ -265,11 +262,7 @@ class LatticeProblemPass(BasePass):
     @staticmethod
     def _get_center_columns(neighborhood: BaseNeighborhood, space: BaseSpace) -> int:
         """Return the number of columns of a neighbourhood that read the site itself."""
-        if isinstance(neighborhood, AdjacencyNeighborhood):
-            return int(neighborhood.center)
-        if isinstance(neighborhood, MemoryNeighborhood):
-            return sum(element.strip() in {'', '1'} for element in neighborhood.prepare().elements_)
-        return sum(not any(offset) for offset in neighborhood._get_offsets(space.n_dim_) or ())
+        return neighborhood._count_centers(space.n_dim_)
 
     @staticmethod
     def _check_checkerboard(
@@ -699,7 +692,7 @@ class LatticeProblemPass(BasePass):
             ValidationError:
                 The first read state has several components, or the space translates no memory set.
         """
-        if not isinstance(law.over, StateTranslationNeighborhood):
+        if not law.over._is_translated():
             return None
         if reads[0].components > 1:
             error_msg = f'{owner} translates its memory by {reads[0].name}, which holds several components per site.'
@@ -797,7 +790,8 @@ class LatticeProblemPass(BasePass):
         over = objective.over
         if not isinstance(over, BaseNeighborhood) or (
             over._get_offsets(target.space.n_dim_) is None
-            and not isinstance(over, AdjacencyNeighborhood | MemoryNeighborhood)
+            and over._get_slots() is None
+            and not isinstance(over, AdjacencyNeighborhood)
         ):
             error_msg = (
                 f'{owner} sum over a {type(over).__name__}. Sum over a lattice, adjacency, or memory neighbourhood.'

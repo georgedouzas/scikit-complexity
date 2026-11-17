@@ -21,7 +21,6 @@ type Partition = npt.ArrayLike | Callable[[AnyArray], npt.ArrayLike]
 type Source = Trajectory | BaseSystem | nx.Graph | NetworkSnapshotSpec | npt.ArrayLike
 type Run = Trajectory | npt.ArrayLike
 type Runs = Source | list[Run]
-type Item = str | tuple[int, ...]
 
 
 class ReservoirNodeProtocol(Protocol):

@@ -9,7 +9,6 @@ from sage.all__sagemath_gap import libgap
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
-    CayleySpace,
     LatticeNeighborhood,
     LatticeSpace,
     NetworkSpace,
@@ -19,6 +18,7 @@ from skcomplex.core.engine._utils import declarations_of
 from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
 from skcomplex.core.enums import VariableKind
 from skcomplex.core.specs import StateSpec
+from skcomplex.systems.computer_science.common.automata import CayleySpace
 
 
 def test_neighborhood_kernel_get_neighbor_sets():

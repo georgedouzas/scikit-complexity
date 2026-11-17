@@ -697,6 +697,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         return _InteractionRequirementSpec(
             time=self._get_accepted([need.time for need in needs]),
             space=self._get_accepted([need.space for need in needs]),
+            sites=any(need.sites for need in needs),
             roles={
                 name: replace(spec, states=self._get_state_names(spec.states))
                 for name, spec in self._get_specs().items()

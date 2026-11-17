@@ -54,14 +54,12 @@ from skcomplex.core.components.laws.utils import (
 )
 from skcomplex.core.components.spaces import (
     AxisSpec,
-    CayleySpace,
     CellComplexSpace,
     CofaceNeighborhood,
     ContinuousSpace,
     ContinuousTime,
     DiscreteTime,
     LatticeSpace,
-    MemoryNeighborhood,
     NetworkSpace,
     PhaseSpace,
 )
@@ -95,6 +93,7 @@ from skcomplex.systems.biology.common.populations import (
 )
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem, PredationInteraction
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction
+from skcomplex.systems.computer_science.common.automata import CayleySpace, CayleyVisual, MemoryNeighborhood
 from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.systems.physics.common.particles import (
@@ -2000,7 +1999,7 @@ def test_group_space_draws_an_image_member_as_the_group_space():
     group = GroupElement('spins', element=ImageSpinElement, space=space, on='sites')
     report = PassCompiler().prepare(CompositeSystem(elements=[group])).report_
     assert not [issue for issue in report.issues if 'visual' in issue.code]
-    assert group.prepare().default_visual_.kind == 'cayley'
+    assert group.prepare().default_visual_.kind is CayleyVisual
 
 
 def test_group_space_reports_a_ball_above_the_site_limit():

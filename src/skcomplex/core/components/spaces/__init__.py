@@ -11,7 +11,6 @@ once.
 from ._adjacency import AdjacencyNeighborhood
 from ._axis_spec import AxisSpec
 from ._base import BaseNeighborhood, BaseSpace, BaseTime
-from ._cayley import CayleySpace
 from ._cell_complex import CellComplexSpace
 from ._coface import CofaceNeighborhood
 from ._continuous import ContinuousSpace
@@ -21,13 +20,11 @@ from ._discrete_time import DiscreteTime
 from ._lattice import LatticeSpace
 from ._lattice_neighborhood import LatticeNeighborhood
 from ._layer_spec import LayerSpec
-from ._memory import MemoryNeighborhood
 from ._nearest import NearestNeighborhood
 from ._network import NetworkSpace
 from ._phase import PhaseSpace
 from ._radius import RadiusNeighborhood
 from ._schedule_spec import ScheduleSpec
-from ._state_translation import StateTranslationNeighborhood
 from ._static_time import StaticTime
 
 __all__: list[str] = [
@@ -36,7 +33,6 @@ __all__: list[str] = [
     'BaseNeighborhood',
     'BaseSpace',
     'BaseTime',
-    'CayleySpace',
     'CellComplexSpace',
     'CofaceNeighborhood',
     'ContinuousSpace',
@@ -46,12 +42,10 @@ __all__: list[str] = [
     'LatticeNeighborhood',
     'LatticeSpace',
     'LayerSpec',
-    'MemoryNeighborhood',
     'NearestNeighborhood',
     'NetworkSpace',
     'PhaseSpace',
     'RadiusNeighborhood',
     'ScheduleSpec',
-    'StateTranslationNeighborhood',
     'StaticTime',
 ]

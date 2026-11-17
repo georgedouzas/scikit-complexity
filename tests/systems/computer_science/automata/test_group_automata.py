@@ -4,10 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import automaton
-from skcomplex.core.components.spaces import MemoryNeighborhood
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.viz import CayleyVisual
 from skcomplex.systems.computer_science.automata import (
     BaumslagSolitarAutomatonSystem,
     FreeGroupAutomatonSystem,
@@ -18,6 +16,7 @@ from skcomplex.systems.computer_science.automata import (
     LinearRingAutomatonSystem,
     SubshiftsSystem,
 )
+from skcomplex.systems.computer_science.common.automata import CayleyVisual, MemoryNeighborhood
 
 from .conftest import GRIGORCHUK_BALLS
 

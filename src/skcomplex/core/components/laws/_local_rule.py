@@ -16,13 +16,10 @@ from ...types import IntArray
 from ..spaces import (
     BaseNeighborhood,
     BaseSpace,
-    CayleySpace,
     DiscreteTime,
     LatticeNeighborhood,
     LatticeSpace,
-    MemoryNeighborhood,
     NetworkSpace,
-    StateTranslationNeighborhood,
 )
 from ._base import BaseLaw
 from ._linear_rule_spec import LinearRuleSpec
@@ -32,7 +29,6 @@ from ._table_spec import TableSpec
 from ._totalistic_spec import TotalisticSpec
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')
-IDENTITY = '1'
 TABLE_AXES = 2
 
 
@@ -60,8 +56,8 @@ class LocalRuleLaw(BaseLaw):
 
         over:
             The neighbourhood whose values the rule reads: a lattice neighbourhood of offsets, an adjacency on a
-            network, a memory of group elements on a group space, or a memory translated by the group element that
-            the first read state holds at every site, `StateTranslationNeighborhood`.
+            network, or a neighbourhood of a space outside the core, such as a memory of group elements on a group
+            space, which may move with the group element that the first read state holds at every site.
 
         rule:
             A function, a `TableSpec`, a `TotalisticSpec` rule, an `OuterTotalisticSpec` rule, a `LinearRuleSpec`, or an
@@ -133,9 +129,9 @@ class LocalRuleLaw(BaseLaw):
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the rule requires of a system.
 
-        It requires discrete time on a lattice, a network, or a Cayley graph.
+        It requires discrete time on a space of sites, such as a lattice, a network, or a Cayley graph.
         """
-        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace, CayleySpace))
+        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace), sites=True)
 
     def _prepare(self, context: str | None = None) -> None:
         """Raise an error for an unknown schedule or an invalid rule spec.
@@ -163,11 +159,12 @@ class LocalRuleLaw(BaseLaw):
         """Return the neighbourhood the rule reads on a prepared space.
 
         A neighbourhood with lattice offsets becomes the list of its offsets on the space. For an outer totalistic
-        rule, the site itself comes first.
+        rule, the site itself comes first, where the neighbourhood puts it or else as the zero offset.
         """
         outer = isinstance(self._get_rule(), OuterTotalisticSpec)
-        if outer and isinstance(self.over, MemoryNeighborhood):
-            return MemoryNeighborhood((IDENTITY, *self.over.elements))
+        centered = self.over._get_centered() if outer else None
+        if centered is not None:
+            return centered
         offsets = self.over._get_offsets(space.n_dim_)
         if offsets is None and outer:
             error_msg = f'A run reads an outer totalistic rule on offsets or a memory set, not on {self.over!r}.'
@@ -193,7 +190,7 @@ class LocalRuleLaw(BaseLaw):
                 One row per site and one column per neighbour, with leading axes of the configurations when translated.
         """
         neighborhood = self._get_neighborhood(space)
-        if not isinstance(neighborhood, StateTranslationNeighborhood):
+        if not neighborhood._is_translated():
             return space._get_index_table(neighborhood)
         translations = space._get_translation_table(neighborhood)
         size = translations.shape[0]

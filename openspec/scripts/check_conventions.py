@@ -158,6 +158,12 @@ FIELDS = (
     'social',
 )
 CONNECTOR_PACKAGES = ('core/components', 'core/engine')
+MOVED_CLASSES = re.compile(
+    r'\b(?:HamiltonianInteraction|EulerLagrangeInteraction|GradientInteraction|ExtremalLaw|SimplexSpace|CascadeLaw'
+    r'|GeneratorLaw|DissipatorLaw|HilbertSpec|QuantumCompiler|ProductionLaw|SubstitutionLaw|WordElement|PatchElement'
+    r'|RewritingCompiler|MatchLaw|GradientStepLaw|FluxLaw|CayleySpace|CayleyVisual|MemoryNeighborhood'
+    r'|StateTranslationNeighborhood)\b',
+)
 TYPE_ARGUMENTS = 3
 SERVED_FIELDS = 2
 PART_WORD = re.compile(r'(?<![\w`-])parts?(?![\w`-])', re.IGNORECASE)
@@ -2009,6 +2015,19 @@ def check_connectors_live_in_the_library(root: Path) -> list[str]:
     ]
 
 
+def check_core_names_no_moved_class(root: Path) -> list[str]:
+    """Return every line of the core that names a class moved from the core to the systems.
+
+    A private name that ends like one, such as `_FluxLaw`, is not a moved class.
+    """
+    return [
+        f'{path.relative_to(root)}:{number}: names the moved class {match.group(0)}'
+        for path in sorted((root / SOURCE / 'core').rglob('*.py'))
+        for number, line in enumerate(path.read_text().splitlines(), start=1)
+        for match in MOVED_CLASSES.finditer(line)
+    ]
+
+
 def _mirrored_module(path: Path) -> Path | None:
     """Return the module a test file tests, or nothing when no module of the package carries its name."""
     name = path.stem.removeprefix('test_')
@@ -2291,6 +2310,7 @@ CHECKS = (
     check_no_system_module_imports_another,
     check_every_general_module_serves_two_fields,
     check_connectors_live_in_the_library,
+    check_core_names_no_moved_class,
     check_elements_keep_reserved_names_for_settings,
 )
 

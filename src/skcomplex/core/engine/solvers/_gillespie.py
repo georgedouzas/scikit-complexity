@@ -7,7 +7,7 @@
 import numpy as np
 
 from ...components.laws import BoundaryLaw, JumpLaw, TransferLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from ...components.spaces import BaseSpace, ContinuousTime
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError, ValidationError
 from ...types import Array
@@ -57,7 +57,7 @@ class GillespieSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            space={None, BaseSpace},
             laws={JumpLaw, BoundaryLaw, TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
