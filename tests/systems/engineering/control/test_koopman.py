@@ -34,10 +34,14 @@ def test_koopman_model_predictive_control_tracks_reference(plant, until):
 def test_koopman_model_predictive_control_duffing_reads_the_input_through_its_gain():
     """Test that the input of the forced Duffing oscillator enters through `(3 + cos(x)) u`, as the review writes it."""
     x, y, control = 0.7, -0.2, 0.5
-    namespace = SimpleNamespace(plant=SimpleNamespace(x=x, y=y), control=SimpleNamespace(u=control), t=SR(0))
+    namespace = SimpleNamespace(
+        plant=SimpleNamespace(x=SR(x), y=SR(y)),
+        control=SimpleNamespace(u=SR(control)),
+        t=SR.var('t'),
+    )
     rates = PlantInteraction('rates', plant='plant', control='input', kind='duffing').prepare(namespace)
     expected = x - x**3 - 0.3 * y + 0.5 + (3 + np.cos(x)) * 0.5 * control
-    assert float(rates.laws_[1].value) == pytest.approx(0.1 * expected)
+    assert float(rates.laws_[1].value.subs(t=0)) == pytest.approx(0.1 * expected)
 
 
 def test_koopman_model_predictive_control_keeps_input_in_bounds():

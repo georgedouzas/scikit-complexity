@@ -579,7 +579,9 @@ The share of cooperators falls from 0.46 to 0.04 over 30 steps.
   Numba backends. Each reads the states the phases before it set.
 - Laws without a phase run in the default phase, first unless the schedule places it.
 - The draws of a step are made once, before the first phase.
-- A law in a phase the schedule does not declare raises `ValidationError`.
+- Without a schedule of phases, the phases run in the order their laws first appear, so the order of the
+  interactions of a system orders them. With a schedule, a law in a phase it does not declare raises
+  `ValidationError`.
 
 ## Reductions over neighbourhoods
 

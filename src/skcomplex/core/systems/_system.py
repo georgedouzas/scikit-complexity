@@ -96,7 +96,8 @@ class System(BaseSystem):
                 The interactions, which change the states through their laws.
 
             systems:
-                The nested systems, each with a label of its own.
+                The nested systems, each with a label of its own. Each keeps the time its own laws imply, so a
+                nested system of updates steps once per unit of time beside a nested system of rates.
 
             space:
                 The space the elements live on, or `None` for none.
