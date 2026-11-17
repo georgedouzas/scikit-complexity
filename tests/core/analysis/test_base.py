@@ -290,7 +290,7 @@ def test_snapshots_of_phases():
 
 def test_networks_of_a_network_space():
     """Test that a field on a network gives its graph at every frame."""
-    trajectory = simulate(NetworkDiffusionSystem(), until=0.5, random_state=0)
+    trajectory = NetworkDiffusionSystem().prepare().simulate(until=0.5, random_state=0)
     graphs = _read_networks(trajectory)
     assert len(graphs) == len(trajectory.times)
     assert nx.is_isomorphic(graphs[0], nx.karate_club_graph())

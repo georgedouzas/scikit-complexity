@@ -12,7 +12,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 system = SIRSystem()
-trajectory = simulate(system)
+trajectory = system.prepare().simulate()
 sorted(system.get_tags().laws), sorted(system.get_tags().time), trajectory.get_values('R.x')[-1].round(1)
 ```
 

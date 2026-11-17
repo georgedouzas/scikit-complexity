@@ -165,7 +165,7 @@ hook and calls the parent for the rest, so the infection, the recovery, the stoc
 keep working.
 
 ```python continuation
-simulate(SIRSystem()).get_values('I.x').max().round(), simulate(vaccinated).get_values('I.x').max().round()
+SIRSystem().prepare().simulate().get_values('I.x').max().round(), vaccinated.prepare().simulate().get_values('I.x').max().round()
 ```
 
 Vaccination lowers the peak of the epidemic from 304 to 132 infected people. The subclass is an estimator like its
@@ -173,7 +173,7 @@ parent, so every function of the library takes it.
 
 ```python continuation
 stochastic = vaccinated.set_params(stochastic=True)
-stochastic.get_tags().randomness, simulate(stochastic, random_state=0).get_values('I.x').max()
+stochastic.get_tags().randomness, stochastic.prepare().simulate(random_state=0).get_values('I.x').max()
 ```
 
 With `stochastic=True` the system is `'stochastic'`, and the run with the seed 0 peaks at 110 infected people. The

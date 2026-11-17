@@ -51,7 +51,7 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 
 epidemic = SIRSystem(stochastic=True)
 tags = epidemic.get_tags()
-tags.laws, tags.randomness, simulate(epidemic, random_state=0).get_values('I.x').max()
+tags.laws, tags.randomness, epidemic.prepare().simulate(random_state=0).get_values('I.x').max()
 ```
 
 The laws are of the kind `'jump'`, the system is `'stochastic'`, and the run with the seed 0 peaks at 252 infected
@@ -167,14 +167,12 @@ A ready-made system nests in the same way, through its components. Give each nes
 class has the label `system` by default, and nest the composite `system_` of its components.
 
 ```python
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
-island = LotkaVolterraSystem(label='island').prepare().system_
-town = SIRSystem(label='town').prepare().system_
-trajectory = simulate(CompositeSystem(systems=[island, town]), until=5, dt=0.1)
+islands = System(systems=[LotkaVolterraSystem(label='island'), SIRSystem(label='town')])
+trajectory = islands.prepare().simulate(until=5, dt=0.1)
 trajectory.get_values('town/I.x')[-1].round(1)
 ```
 

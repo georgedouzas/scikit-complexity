@@ -138,7 +138,7 @@ def test_event_likelihood_recovers_the_confidence_of_deffuant():
 
 def test_event_likelihood_recovers_the_rates_of_a_gillespie_run():
     """Test that the event likelihood of one Gillespie run of 1000 people recovers beta and gamma within 10%."""
-    recorded = simulate(SIRSystem(stochastic=True), until=100, random_state=0, record_draws=True)
+    recorded = SIRSystem(stochastic=True).prepare().simulate(until=100, random_state=0, record_draws=True)
     bounds = {'beta': (0.0001, 0.001), 'gamma': (0.02, 0.5)}
     result = calibrate(SIRSystem(stochastic=True), recorded, bounds, loss='events', random_state=0)
     assert result.estimates['beta'] == pytest.approx(0.0003, rel=0.1)
@@ -272,7 +272,7 @@ def test_abc_smc_covers_the_rates_of_a_stochastic_epidemic():
 
 def test_abc_smc_compares_summary_statistics():
     """Test that ABC-SMC compares the summaries of the series, here the three final counts."""
-    truth = simulate(SIRSystem(48, 2, beta=0.006, stochastic=True), until=30, random_state=0)
+    truth = SIRSystem(48, 2, beta=0.006, stochastic=True).prepare().simulate(until=30, random_state=0)
     times = np.arange(0.0, 31.0, 5.0)
     data = {path: (times, np.interp(times, truth.times, truth.get_values(path))) for path in ('S.x', 'I.x', 'R.x')}
 
