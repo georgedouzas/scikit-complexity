@@ -3,13 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import ClassVar
 
 from ...errors import ValidationError
-from ..spaces import DiscreteTime
+from ..spaces import BaseNeighborhood, DiscreteTime
 from ..types import Target
 from ._base import BaseLaw
+from ._local_rule import SCHEDULES, LocalRuleLaw
 from ._requirement_spec import RequirementSpec
 from ._topology_request_spec import TopologyRequestSpec
 
@@ -30,6 +33,14 @@ class UpdateLaw(BaseLaw):
     agent rule, such as `UpdateLaw(s.target, move)` with `def move(agent, system): agent.x += system.rng.normal()`.
     Every member of the group runs the rule at each step, and the rule may add and remove members.
 
+    With `neighborhood`, the law is a local rule of the cells of a lattice or the nodes of a network. Its value reads
+    the ordered values of the neighbours of every cell, such as `UpdateLaw(s.target.alive, life(), neighborhood=MOORE)`
+    for the Game of Life. The value is then a `TableSpec`, a `TotalisticSpec`, an `OuterTotalisticSpec`, a
+    `LinearRuleSpec`, an object whose `get_table()` returns a `TableSpec`, or a function. A function receives one array
+    per neighbour of every read state, in neighbourhood order, and the parameters of the element by keyword. It also
+    receives `random`, a uniform number per cell, and `degree`, the number of neighbours of every cell, when it names
+    them. It returns the next values of the target, or one array per state when the target is a tuple of states.
+
     Unlike `RateLaw`, which gives a derivative in continuous time, it gives the next value in discrete time. Choose it
     when the model steps, such as a map, a generation, or a round.
 
@@ -39,11 +50,12 @@ class UpdateLaw(BaseLaw):
     Args:
         target:
             The symbol of a scalar state, the column of symbols of a vector state, a `TopologyRequestSpec`, whose
-            value is the probability that the request fires, or the group of a role, whose members run a rule.
+            value is the probability that the request fires, the group of a role, whose members run a rule, or a tuple
+            of states that a local rule sets together.
 
         value:
-            A symbolic expression, a `Call`, or a callable `f(t, values)` that gives the next value, or the rule
-            `rule(agent, system)` of the members of a group.
+            A symbolic expression, a `Call`, or a callable `f(t, values)` that gives the next value, the rule
+            `rule(agent, system)` of the members of a group, or the rule of the cells of a local rule.
 
         label:
             The name of the law, or the empty string for a law without one.
@@ -62,9 +74,23 @@ class UpdateLaw(BaseLaw):
         phase:
             The name of the phase of the step the law runs in, or `None` for the default phase.
 
+        neighborhood:
+            The ordered neighbours of every cell that a local rule reads, such as
+            `RadiusNeighborhood(1, metric='chebyshev')`, or `None` for a law of one member.
+
+        reads:
+            The states whose neighbours a local rule reads, or `None` for its targets.
+
+        schedule:
+            The order in which a local rule updates the cells, or `None` for all at once. `'synchronous'` updates
+            every cell from the previous values, `'random-sequential'` one cell at a time in a random order,
+            `'random-site'` as many cells chosen at random, `'checkerboard'` the two sublattices of a square lattice in
+            turn, and `'colored'` the classes of a proper coloring of the neighbour graph in turn.
+
     Raises:
         ValidationError:
-            The value is a NumPy array, or an increment law has a source.
+            The value is a NumPy array, an increment law has a source, or a local rule has a neighbourhood that is no
+            neighbourhood, an unknown schedule, or a setting of a law of one member.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -76,13 +102,22 @@ class UpdateLaw(BaseLaw):
         True
         >>> UpdateLaw(x, x + 1, phase='imitate').phase
         'imitate'
+
+        A local rule reads the ordered neighbours of every cell:
+
+        >>> from skcomplex.core.components.laws import TotalisticSpec
+        >>> from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
+        >>> around = RadiusNeighborhood(1, center=True)
+        >>> parity = UpdateLaw(x, TotalisticSpec(lambda total: total % 2), neighborhood=around)
+        >>> parity.prepare().run({'space': LatticeSpace(5), 'x': [0, 0, 1, 0, 0]}).value_.tolist()
+        [0, 1, 1, 1, 0]
     """
 
     law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,
-        target: Target | TopologyRequestSpec | SimpleNamespace,
+        target: Target | tuple[Target, ...] | TopologyRequestSpec | SimpleNamespace,
         value: object,
         *,
         label: str = '',
@@ -90,6 +125,9 @@ class UpdateLaw(BaseLaw):
         source: float | None = None,
         order: object = None,
         phase: str | None = None,
+        neighborhood: BaseNeighborhood | None = None,
+        reads: Sequence[Target] | None = None,
+        schedule: str | None = None,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -98,9 +136,14 @@ class UpdateLaw(BaseLaw):
         self.source = source
         self.order = order
         self.phase = phase
+        self.neighborhood = neighborhood
+        self.reads = reads
+        self.schedule = schedule
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return the state the update sets."""
+        """Return the state the update sets, or the states a local rule sets together."""
+        if self.neighborhood is not None and isinstance(self.target, tuple):
+            return self.target
         return (self.target,)
 
     @classmethod
@@ -108,8 +151,69 @@ class UpdateLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
+    @staticmethod
+    def _is_stochastic(value: object) -> bool:
+        """Return whether a function names the keyword `random` in its signature."""
+        if not callable(value):
+            return False
+        try:
+            parameter = inspect.signature(value).parameters.get('random')
+        except (TypeError, ValueError):
+            return False
+        return parameter is not None and parameter.kind in {parameter.KEYWORD_ONLY, parameter.POSITIONAL_OR_KEYWORD}
+
+    def _get_local_rule(self) -> LocalRuleLaw:
+        """Return the local rule that the engine runs for a law with a neighbourhood.
+
+        A function value that names `random` receives a uniform number per cell.
+
+        Raises:
+            ValidationError:
+                The law has no neighbourhood.
+        """
+        if self.neighborhood is None:
+            error_msg = f'The update law {self.label!r} has no neighbourhood, so it is no local rule.'
+            raise ValidationError(error_msg)
+        return LocalRuleLaw(
+            self.target,
+            self.neighborhood,
+            self.value,
+            reads=None if self.reads is None else tuple(self.reads),
+            schedule=self.schedule or 'synchronous',
+            stochastic=self._is_stochastic(self.value),
+            label=self.label,
+        )
+
+    def _check_local_rule(self) -> None:
+        """Raise an error for a bad neighbourhood or schedule of a local rule.
+
+        A setting of a law of one member, such as `phase`, is an error too.
+        """
+        if self.neighborhood is None:
+            if self.reads is not None or self.schedule is not None:
+                error_msg = (
+                    f'The update law {self.label!r} has `reads` or `schedule` but no neighbourhood. Only a local rule '
+                    "takes them, such as UpdateLaw(s.target.x, rule, neighborhood=MOORE, schedule='checkerboard')."
+                )
+                raise ValidationError(error_msg)
+            return
+        if not isinstance(self.neighborhood, BaseNeighborhood):
+            error_msg = f'The neighbourhood of the update law {self.label!r} is {self.neighborhood!r}. Give one.'
+            raise ValidationError(error_msg)
+        if self.schedule is not None and self.schedule not in SCHEDULES:
+            error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}.'
+            raise ValidationError(error_msg)
+        settings = {'increment': self.increment, 'source': self.source, 'order': self.order, 'phase': self.phase}
+        given = [name for name, item in settings.items() if item is not None and item is not False]
+        if given:
+            error_msg = (
+                f'The update law {self.label!r} has a neighbourhood and {", ".join(given)}, which only a law of one '
+                'member takes. A local rule sets every cell from its neighbours at once or by its schedule.'
+            )
+            raise ValidationError(error_msg)
+
     def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for a value that is a NumPy array, or an increment with a source.
+        """Raise an error for an array value, an increment with a source, or a bad rule.
 
         Args:
             context:
@@ -117,7 +221,8 @@ class UpdateLaw(BaseLaw):
 
         Raises:
             ValidationError:
-                The value is a NumPy array, or an increment law has a source.
+                The value is a NumPy array, an increment law has a source, or a local rule has a neighbourhood that
+                is no neighbourhood, an unknown schedule, or a setting of a law of one member.
         """
         super()._prepare(context)
         self._check_array('value')
@@ -127,12 +232,17 @@ class UpdateLaw(BaseLaw):
                 'every value, so give it no source.'
             )
             raise ValidationError(error_msg)
+        self._check_local_rule()
 
     def _run(self, inputs: object) -> None:
         """Set `value_` to the next value at given values of the symbols it reads.
 
         Args:
             inputs:
-                A mapping from the name of every symbol the law reads to its value.
+                A mapping from the name of every symbol the law reads to its value, and for a local rule `space`, the
+                space of the cells.
         """
+        if self.neighborhood is not None:
+            self.value_ = self._get_local_rule().prepare().run(inputs).value_
+            return
         self.value_ = self._evaluate(self.value, inputs)

@@ -18,10 +18,12 @@ from ..engine.backends import BaseBackend, JaxBackend, NumbaBackend, NumpyBacken
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._neighborhood_kernel import NeighborhoodKernel
 from ..engine.problems._reduction_kernel import ReductionKernel
+from ..engine.problems._rule_kernel import RuleKernel
 from ..engine.runtime import Trajectory, compile_problem
 from ..engine.solvers import BaseSolver
 from ..enums import FormKind
 from ..errors import ValidationError
+from ..specs import EntrySpec
 from ._base import AUTO, BaseSystem
 
 SETTINGS = ('space', 'solver', 'backend')
@@ -209,6 +211,25 @@ class System(BaseSystem):
         weight = '' if str(kernel.weight) == '1' else f', weight={self._get_readable(kernel.weight, names)}'
         return f"neighbors({argument}{weight}, reduce='{kernel.kind}')"
 
+    @staticmethod
+    def _get_readable_rules(problem: BaseProblemSpec, entries: Sequence[EntrySpec]) -> dict[str, str]:
+        """Return the local rules of a problem as text, by the states they set.
+
+        A rule reads the ordered values of the neighbours of a cell, such as
+        `life(neighbors(cells.alive, reduce='each'))`, and the rules of one state run one after the other.
+        """
+        names = {entry.name: entry.generic_names for entry in entries}
+        display = Trajectory._get_display_name
+        rules: dict[str, list[str]] = {}
+        for step in getattr(problem, 'lattice', None) or ():
+            if not isinstance(step, RuleKernel):
+                continue
+            reads = ', '.join(f"neighbors({display(state.name)}, reduce='each')" for state in step.reads)
+            for state in step.targets:
+                for name in names.get(state.name, ()):
+                    rules.setdefault(display(name), []).append(f'{step.name}({reads})')
+        return {name: ', then '.join(items) for name, items in rules.items()}
+
     def _set_learned(self, problem: BaseProblemSpec) -> None:
         """Set the names, the readable equations, and the form of a compiled problem."""
         states = getattr(problem, 'states', None)
@@ -240,6 +261,7 @@ class System(BaseSystem):
             readable[str(kernel.symbol)] = self._get_readable_neighbours(kernel, readable)
         equations: Mapping[str, object] = getattr(problem, 'equations', {})
         self.equations_ = {display(name): self._get_readable(value, readable) for name, value in equations.items()}
+        self.equations_.update(self._get_readable_rules(problem, state_entries))
         form = str(problem.form)
         if problem.form == FormKind.ODE and getattr(problem, 'algebraic', None) is not None:
             form = 'differential-algebraic equations'
@@ -256,8 +278,10 @@ class System(BaseSystem):
         self._check_runners()
         self._composite = self._get_composite()
         solver = self.solver if isinstance(self.solver, BaseSolver) else None
-        self._problem, self.solver_ = compile_problem(self._composite, solver=solver, observables=context or ())
         self._backend = self.backend if isinstance(self.backend, BaseBackend) else None
+        self._problem, self.solver_ = compile_problem(
+            self._composite, solver=solver, backend=self._backend, observables=context or (),
+        )
         self.backend_ = self._backend or self._get_backend_of(self._problem)
         self._set_learned(self._problem)
         self.system_ = self

@@ -100,6 +100,9 @@ class RuleKernel(BaseKernel):
             The site of `g h s` for every site `g`, group element `h`, and word `s` of a memory set translated by the
             value of the first read state, or `None` for the fixed table. With it, every step reads the table at the
             values of that state, and a value that names no site reads the fill value.
+
+        name:
+            The name of the rule that the equations of a system show, such as `life`.
     """
 
     values_: None
@@ -120,6 +123,7 @@ class RuleKernel(BaseKernel):
         degrees: Array | None = None,
         classes: tuple[Indices, ...] = (),
         translations: Indices | None = None,
+        name: str = '',
     ) -> None:
         self.owner = owner
         self.targets = targets
@@ -134,6 +138,7 @@ class RuleKernel(BaseKernel):
         self.degrees = degrees
         self.classes = classes
         self.translations = translations
+        self.name = name
 
     @property
     def space(self) -> BaseSpace:

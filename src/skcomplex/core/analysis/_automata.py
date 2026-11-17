@@ -19,7 +19,14 @@ from sklearn.base import clone
 
 from ..components.elements import GroupElement
 from ..components.interactions import BaseInteraction, LocalRuleInteraction
-from ..components.laws import LinearRuleSpec, LocalRuleLaw, OuterTotalisticSpec, TableSpec, TotalisticSpec
+from ..components.laws import (
+    LinearRuleSpec,
+    LocalRuleLaw,
+    OuterTotalisticSpec,
+    TableSpec,
+    TotalisticSpec,
+    UpdateLaw,
+)
 from ..components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
 from ..components.systems import CompositeSystem
 from ..engine.compile._pass_compiler import PassCompiler
@@ -234,8 +241,8 @@ def automaton(
 
     The function reads a `System`, a ready-made system, or a `CompositeSystem`. An automaton is a group of cells,
     such as `Element('cells', values={'alive': 0}, space=LatticeSpace(20))`, with one synchronous and deterministic
-    local rule, a `LocalRuleInteraction` or an interaction that sets a `LocalRuleLaw`, and it is linear when the rule
-    is a `LinearRuleSpec`. The number of values of a cell comes
+    local rule, a `LocalRuleInteraction` or an interaction that sets an `UpdateLaw` with a neighbourhood, and it is
+    linear when the rule is a `LinearRuleSpec`. The number of values of a cell comes
     from the finite domain of the state, or else from the rule. A subshift is a group with a state whose domain is a
     `SubshiftSpec`.
 
@@ -603,8 +610,9 @@ def _get_local_rule(interaction: BaseInteraction, system: CompositeSystem) -> Lo
 
     The rule is returned as a `LocalRuleInteraction`.
 
-    An interaction that sets its laws in `_prepare`, such as one that sets `LocalRuleLaw(s.target.alive, ...)`, is
-    prepared on the states of the elements its roles bind, and its first local rule law becomes the interaction.
+    An interaction that sets its laws in `_prepare`, such as one that sets
+    `UpdateLaw(s.target.alive, rule, neighborhood=...)`, is prepared on the states of the elements its roles bind, and
+    its first local rule becomes the interaction.
     """
     if isinstance(interaction, LocalRuleInteraction):
         return interaction
@@ -618,7 +626,10 @@ def _get_local_rule(interaction: BaseInteraction, system: CompositeSystem) -> Lo
             return None
         roles[role] = (path, SimpleNamespace(**{name: SR.var(name) for name in element.get_states()}))
     namespace = SimpleNamespace(**{role: states for role, (_, states) in roles.items()}, t=SR.var('t'))
-    laws = clone(interaction).prepare(namespace).laws_
+    laws = [
+        item._get_local_rule() if isinstance(item, UpdateLaw) and item.neighborhood is not None else item
+        for item in clone(interaction).prepare(namespace).laws_
+    ]
     law = next((item for item in laws if isinstance(item, LocalRuleLaw)), None)
     if law is None:
         return None

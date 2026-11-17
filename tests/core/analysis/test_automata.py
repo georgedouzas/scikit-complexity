@@ -15,7 +15,14 @@ from scipy.linalg import circulant
 from skcomplex.core.analysis import automaton, entropy
 from skcomplex.core.components.elements import DeclaredElement, Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, LocalRuleInteraction
-from skcomplex.core.components.laws import LinearRuleSpec, LocalRuleLaw, OuterTotalisticSpec, TableSpec, TotalisticSpec
+from skcomplex.core.components.laws import (
+    LinearRuleSpec,
+    LocalRuleLaw,
+    OuterTotalisticSpec,
+    TableSpec,
+    TotalisticSpec,
+    UpdateLaw,
+)
 from skcomplex.core.components.spaces import (
     LatticeNeighborhood,
     LatticeSpace,
@@ -536,7 +543,7 @@ def test_golden_mean_shift_samples_admissible_configurations():
 
 
 class ParityInteraction(Interaction):
-    """Parity of every cell and its two neighbours on a ring, as a local rule law."""
+    """Parity of every cell and its two neighbours on a ring, as an update law with a neighbourhood."""
 
     def __init__(self, label, *, target: Role):
         super().__init__(label)
@@ -546,7 +553,8 @@ class ParityInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             parity = TotalisticSpec({total: total % 2 for total in range(4)})
-            self.laws_ = [LocalRuleLaw(context.target.alive, LatticeNeighborhood(((-1,), (0,), (1,))), parity)]
+            neighborhood = LatticeNeighborhood(((-1,), (0,), (1,)))
+            self.laws_ = [UpdateLaw(context.target.alive, parity, neighborhood=neighborhood)]
 
 
 def test_automaton_of_a_system_with_plain_cells():
@@ -559,8 +567,8 @@ def test_automaton_of_a_system_with_plain_cells():
     assert not _automaton('injective', system, infinite=True).injective
 
 
-def test_automaton_of_an_interaction_that_sets_a_local_rule_law():
-    """Test that an interaction whose `_prepare` sets a local rule law on cells of allowed values is an automaton."""
+def test_automaton_of_an_interaction_that_sets_an_update_with_a_neighbourhood():
+    """Test that an interaction whose `_prepare` sets an update law with a neighbourhood is an automaton."""
     cells = Element('cells', values={'alive': np.zeros(5, dtype=int)}, space=LatticeSpace(5))
     system = System(elements=[cells], interactions=[ParityInteraction('parity', target='cells')])
     declared = _automaton_system(

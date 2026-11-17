@@ -30,7 +30,14 @@ from skcomplex.core.components.interactions import (
     TransferInteraction,
     TransitionInteraction,
 )
-from skcomplex.core.components.laws import CallSpec, PartnerSpec, RateLaw, TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.laws import (
+    CallSpec,
+    PartnerSpec,
+    RateLaw,
+    TopologyRequestSpec,
+    TotalisticSpec,
+    UpdateLaw,
+)
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     BaseSpace,
@@ -738,6 +745,37 @@ def test_rule_that_is_no_function_of_an_agent_and_the_system_raises(rule):
     interaction = RuleInteraction('shift', target='walkers', rule=rule)
     with pytest.raises(ValidationError, match='A rule is a function of one agent and the system'):
         interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(x=var('x'))))
+
+
+class ParityInteraction(Interaction):
+    """Interaction whose law sets every cell to the parity of its neighbourhood."""
+
+    def __init__(self, label, *, target: Role = 'cells', phase=None):
+        super().__init__(label)
+        self.target = target
+        self.phase = phase
+
+    def _prepare(self, context):
+        """Set the parity of the cells as a local rule."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            parity = TotalisticSpec(lambda total: total % 2)
+            neighborhood = RadiusNeighborhood(1, center=True)
+            self.laws_ = [UpdateLaw(context.target.alive, parity, neighborhood=neighborhood, phase=self.phase)]
+
+
+def test_update_with_a_neighborhood_is_a_local_rule():
+    """Test that an update law with a neighbourhood runs as a local rule of the states of the cells."""
+    alive = var('alive')
+    laws = ParityInteraction('parity').prepare().run(SimpleNamespace(target=SimpleNamespace(alive=alive))).laws_
+    assert [(type(law).__name__, law.targets, law.label) for law in laws] == [('LocalRuleLaw', alive, '')]
+
+
+def test_local_rule_with_a_setting_of_one_member_raises():
+    """Test that a local rule rejects a phase, which only an update of one member takes."""
+    interaction = ParityInteraction('parity', phase='move')
+    with pytest.raises(ValidationError, match='neighbourhood and phase'):
+        interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(alive=var('alive'))))
 
 
 def test_rule_on_a_namespace_no_role_binds_raises():
