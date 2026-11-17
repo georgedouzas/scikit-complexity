@@ -14,10 +14,13 @@ from ._mechanics import (
     DrivenDampedOscillatorSystem,
     ElasticCollisionInteraction,
     HangingBallElement,
+    HangingSwingInteraction,
     HarmonicOscillatorSystem,
     NewtonsCradleSystem,
+    PendulumSwingInteraction,
     PendulumSystem,
     ProjectileSystem,
+    UniformGravityInteraction,
 )
 from ._pendulums import (
     BallisticPendulumElement,
@@ -49,6 +52,7 @@ from ._rotations import (
     RotatingSwingElement,
     RotatingSwingInteraction,
     RotatingSwingSystem,
+    RotationInteraction,
 )
 from ._springs import ElasticLinkInteraction, TwoMassSpringDamperSystem
 from ._wells import ExponentialWellInteraction, ParticleInAWellSystem
@@ -80,6 +84,7 @@ __all__: list[str] = [
     'GyroscopeElement',
     'GyroscopeInteraction',
     'HangingBallElement',
+    'HangingSwingInteraction',
     'HarmonicForceInteraction',
     'HarmonicOscillatorSystem',
     'HuygensClocksSystem',
@@ -93,6 +98,7 @@ __all__: list[str] = [
     'PendulumElement',
     'PendulumInteraction',
     'PendulumSpringInteraction',
+    'PendulumSwingInteraction',
     'PendulumSystem',
     'ProjectileSystem',
     'RotatingBallElement',
@@ -100,7 +106,9 @@ __all__: list[str] = [
     'RotatingSwingElement',
     'RotatingSwingInteraction',
     'RotatingSwingSystem',
+    'RotationInteraction',
     'StickSlipInteraction',
     'SupportSpringInteraction',
     'TwoMassSpringDamperSystem',
+    'UniformGravityInteraction',
 ]

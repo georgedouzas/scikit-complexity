@@ -19,7 +19,7 @@ def test_pendulum_equation_is_newtons_law():
 
 def test_newtons_cradle_passes_momentum():
     """Test that the cradle conserves momentum through collisions and moves the last ball."""
-    trajectory = simulate(NewtonsCradleSystem(n_balls=3), until=0.2)
+    trajectory = NewtonsCradleSystem(n_balls=3).prepare().simulate(until=0.2)
     velocities = trajectory.states[:, 1::2]
     assert [event.label for event in trajectory.events][:2] == ['collision_0', 'collision_1']
     assert velocities[-1, -1] > 0.4

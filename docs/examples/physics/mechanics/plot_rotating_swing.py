@@ -16,7 +16,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import RotatingSwingSystem
 
@@ -37,7 +36,7 @@ class SwingObserver(RerunObserver):
         super()._run(frame)
         if frame is not None and frame.step % self.interval == 0:
             self.recording_.log('chairs/chain_angle', rr.Scalars(frame.get_value('swing.theta')))
-            self.recording_.log('chairs/stand_speed', rr.Scalars(frame.get_value('swing.phi_d1')))
+            self.recording_.log('chairs/stand_speed', rr.Scalars(frame.get_value("swing.phi'")))
 
 
 blueprint = rrb.Blueprint(
@@ -48,7 +47,7 @@ blueprint = rrb.Blueprint(
 )
 system = RotatingSwingSystem(omega=2.0, theta=0.1)
 observer = SwingObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Angular momentum and the equilibrium angle
@@ -59,7 +58,7 @@ trajectory = simulate(system, observers=[observer])
 
 times = np.asarray(trajectory.times)
 theta = np.ravel(trajectory.get_values('swing.theta'))
-speed = np.ravel(trajectory.get_values('swing.phi_d1'))
+speed = np.ravel(trajectory.get_values("swing.phi'"))
 momentum = (10.0 + 8 * (1 + np.sin(theta)) ** 2) * speed
 grid = np.linspace(0.0, 1.5, 3000)
 steady_speed = momentum[0] / (10.0 + 8 * (1 + np.sin(grid)) ** 2)
