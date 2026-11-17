@@ -64,11 +64,12 @@ from ._particles import (
 )
 from ._polymers import ActiveBeadElement, ActivePolymerSystem
 from ._squirmers import SquirmerElement, SquirmerSlipInteraction, SquirmersSystem
-from ._system_b import ActiveScalarElement, ActiveSystemBSystem
+from ._system_b import ActiveCahnHilliardInteraction, ActiveScalarElement, ActiveSystemBSystem
 
 __all__: list[str] = [
     'ActiveBeadElement',
     'ActiveBrownianParticlesSystem',
+    'ActiveCahnHilliardInteraction',
     'ActiveDiffusionInteraction',
     'ActiveGelsSystem',
     'ActiveOrnsteinUhlenbeckParticlesSystem',

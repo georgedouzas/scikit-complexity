@@ -19,7 +19,6 @@ import numpy as np
 
 from skcomplex.core.analysis import spectrum
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import ActiveSystemBSystem
 
@@ -27,7 +26,7 @@ SYSTEM = 'active_system_b'
 
 system = ActiveSystemBSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], random_state=0)
+trajectory = system.set_params(backend=NumbaBackend()).prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Arrested coarsening
