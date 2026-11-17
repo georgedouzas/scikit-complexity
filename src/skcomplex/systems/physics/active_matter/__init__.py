@@ -49,7 +49,11 @@ from ._nematics import (
     NematicGelSiteElement,
     PolarGelSiteElement,
 )
-from ._nonreciprocal import NonreciprocalMoverElement, NonreciprocalVicsekSystem
+from ._nonreciprocal import (
+    NonreciprocalAlignmentInteraction,
+    NonreciprocalMoverElement,
+    NonreciprocalVicsekSystem,
+)
 from ._particles import (
     ActiveBrownianParticlesSystem,
     ActiveOrnsteinUhlenbeckParticlesSystem,
@@ -121,6 +125,7 @@ __all__: list[str] = [
     'NematicDensitySiteElement',
     'NematicGelSiteElement',
     'NematicParticleElement',
+    'NonreciprocalAlignmentInteraction',
     'NonreciprocalMoverElement',
     'NonreciprocalVicsekSystem',
     'OrnsteinUhlenbeckParticleElement',
