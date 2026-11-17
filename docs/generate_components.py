@@ -918,7 +918,8 @@ def _general_systems() -> list[str]:
 
     A catalog system is listed under the nearest general system it subclasses.
     """
-    general = [*(getattr(dynamics, name) for name in dynamics.__all__), ReactionNetworkSystem]
+    systems = (getattr(dynamics, name) for name in dynamics.__all__ if name.endswith('System'))
+    general = [*systems, ReactionNetworkSystem]
     rows = []
     for system in general:
         users = [
