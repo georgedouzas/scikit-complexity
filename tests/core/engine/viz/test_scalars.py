@@ -50,7 +50,7 @@ def test_scalars_visual_leaves_out_lag_companions():
 
 def test_scalars_visual_logs_chosen_components():
     """Test that a scalars visual with chosen components logs only those components of a vector state."""
-    problem, frame = _first_frame(Lorenz96System().prepare().system_)
+    problem, frame = _first_frame(Lorenz96System().prepare()._get_composite())
     logs = Logs()
     (ScalarsVisual(components=[0, 1, 2], path=problem.elements[0].path, recording=logs).prepare(problem).run(frame))
     scalars = [item for item in logs.of('ring/x') if type(item).__name__ == 'Scalars']
