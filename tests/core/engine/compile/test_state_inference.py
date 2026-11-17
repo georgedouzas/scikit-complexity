@@ -174,6 +174,32 @@ def test_get_declared_reads_lags():
     assert system.equations_['economy.y[-1]'] == 'economy.y'
 
 
+def test_get_declared_starts_a_derivative_from_a_value():
+    """Test that a value named with a prime starts the derivative, as a ball thrown upwards at 3 m/s."""
+    ball = Element('ball', values={'x': 10.0, "x'": 3.0})
+    trajectory = System(elements=[ball], interactions=[Gravity('gravity')]).prepare().simulate(until=1.0, dt=0.5)
+    assert trajectory.get_values("ball.x'")[0] == pytest.approx(3.0)
+    assert trajectory.get_values('ball.x')[-1] == pytest.approx(10.0 + 3.0 - 9.81 / 2)
+
+
+def test_get_declared_starts_past_values_from_values():
+    """Test that values named with past indices start the lags, and a missing one is the value itself."""
+    economy = Element('economy', values={'y': 1.0, 'y[-2]': 0.5})
+    system = System(elements=[economy], interactions=[Accelerator('samuelson')]).prepare()
+    values = system.simulate(until=1, dt=1).get_values('economy.y')
+    assert values.tolist() == pytest.approx([1.0, 1 + 1.2 * 1.0 - 0.5 * 0.5])
+
+
+@pytest.mark.parametrize(
+    ('values', 'message'),
+    [({'x': 1.0, "z'": 1.0}, "no single value named 'z'"), ({'x': 1.0, "x''": 1.0}, "of 'x' at index 2")],
+)
+def test_get_declared_rejects_unread_starting_values(values, message):
+    """Test that a starting value of an unknown value, or of a derivative no law reads, raises an error."""
+    with pytest.raises(ValidationError, match=message):
+        System(elements=[Element('ball', values=values)], interactions=[Gravity('gravity')]).prepare()
+
+
 def test_get_declared_rejects_two_orders():
     """Laws that give two orders of one state raise an error."""
     with pytest.raises(ValidationError, match='order'):

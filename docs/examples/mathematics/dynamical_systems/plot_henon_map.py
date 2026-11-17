@@ -16,7 +16,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import scaling
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import HenonMapSystem
 
@@ -41,7 +40,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=12)
-trajectory = simulate(HenonMapSystem(), until=3000, observers=[observer])
+trajectory = HenonMapSystem().prepare().simulate(3000, observers=[observer])
 points = np.column_stack([trajectory.get_values('map.x'), -trajectory.get_values('map.y')])[10:]
 observer.recording_.log('attractor', rr.Points2D(100 * points, radii=0.5, colors=[90, 170, 255]), static=True)
 observer.recording_.flush()
@@ -54,7 +53,7 @@ observer.recording_.flush()
 # close to the 1.21 that Grassberger and Procaccia measured.
 
 orbit = np.column_stack([trajectory.get_values('map.x'), trajectory.get_values('map.y')])[10:]
-long_orbit = simulate(HenonMapSystem(), until=100_000)
+long_orbit = HenonMapSystem().prepare().simulate(100_000)
 long_orbit = np.column_stack([long_orbit.get_values('map.x'), long_orbit.get_values('map.y')])[10:]
 dimension = scaling(long_orbit[:20000], kind='correlation-dimension').exponent
 fig, (whole, zoom) = plt.subplots(1, 2, figsize=(10, 4))

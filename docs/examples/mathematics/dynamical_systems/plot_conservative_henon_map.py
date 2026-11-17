@@ -16,7 +16,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import ConservativeHenonMapSystem
 
@@ -41,10 +40,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=5)
-trajectory = simulate(ConservativeHenonMapSystem(), observers=[observer])
+trajectory = ConservativeHenonMapSystem().prepare().simulate(observers=[observer])
 orbits = []
 for x in np.linspace(0.02, 0.8, 40):
-    trajectory = simulate(ConservativeHenonMapSystem(x=x), until=500)
+    trajectory = ConservativeHenonMapSystem(x=x).prepare().simulate(500)
     orbit = np.column_stack([trajectory.get_values('map.x'), trajectory.get_values('map.y')])
     orbits.append(orbit[np.all(np.abs(orbit) < 1.2, axis=1)])
 points = np.concatenate(orbits)
@@ -65,7 +64,7 @@ observer.recording_.flush()
 
 def bounded(x, nu):
     """Return whether the orbit of `(x, 0)` stays within 10 of the origin for 1000 steps."""
-    trajectory = simulate(ConservativeHenonMapSystem(x=x, nu=nu))
+    trajectory = ConservativeHenonMapSystem(x=x, nu=nu).prepare().simulate()
     return bool(np.all(np.abs(trajectory.get_values('map.x')) < 10))
 
 

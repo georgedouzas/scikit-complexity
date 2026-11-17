@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import inspect
+import re
 from collections.abc import Callable, Mapping
 from typing import get_args, get_origin
 
@@ -25,6 +26,7 @@ from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values')
 BOOLEAN = FiniteEnumeratedSet([0, 1])
+STARTING = re.compile(r"(?P<name>[A-Za-z_]\w*)(?:(?P<primes>'+)|\[-(?P<lag>[1-9]\d*)\])")
 
 
 class _StateInference:
@@ -43,17 +45,47 @@ class _StateInference:
 
     @staticmethod
     def _get_values(element: Element) -> dict[str, object]:
-        """Return the values of a plain element by name, from its arguments and `values`."""
-        given = dict(element.values or {})
+        """Return the values of a plain element by name, from its arguments and `values`.
+
+        The starting values of derivatives and past values, such as `"x'"` or `'y[-1]'`, are left out.
+        """
+        given = {name: value for name, value in (element.values or {}).items() if not STARTING.fullmatch(name)}
         for name in given:
             if name in RESERVED or not name.isidentifier():
                 error_msg = (
                     f'Element {element.label!r} cannot take a value named {name!r}. Values need Python names that are '
-                    f'not one of {", ".join(RESERVED)}, such as values={{"x": 10.0}}.'
+                    f'not one of {", ".join(RESERVED)}, such as values={{"x": 10.0}}, or the name of a value with '
+                    "primes or a past index, such as values={\"x'\": 1.0} or values={'y[-1]': 0.5}."
                 )
                 raise ValidationError(error_msg)
         arguments = {name: value for name, value in element.get_params(deep=False).items() if name not in RESERVED}
         return arguments | given
+
+    @staticmethod
+    def _get_starting(element: Element, values: Mapping[str, object]) -> dict[str, dict[int, object]]:
+        """Return the starting values of the derivatives and past values of an element, by value and index.
+
+        A derivative named with `k` primes and a past value named with the index `-k` both have the index `k`.
+
+        Raises:
+            ValidationError:
+                A starting value names no value of the element, or the element has many members.
+        """
+        starting: dict[str, dict[int, object]] = {}
+        for name, value in (element.values or {}).items():
+            found = STARTING.fullmatch(name)
+            if found is None:
+                continue
+            base = found.group('name')
+            if base not in values or element.size is not None or element.space is not None:
+                error_msg = (
+                    f'Element {element.label!r} takes the starting value {name!r}, but it has no single value named '
+                    f'{base!r}. Give it with the value, such as values={{{base!r}: 0.0, {name!r}: 1.0}}.'
+                )
+                raise ValidationError(error_msg)
+            index = len(found.group('primes')) if found.group('primes') else int(found.group('lag'))
+            starting.setdefault(base, {})[index] = value
+        return starting
 
     @staticmethod
     def _get_count(element: Element) -> int | None:
@@ -111,20 +143,41 @@ class _StateInference:
         name: str,
         value: object,
         order: int | None,
+        *,
         lags: int = 0,
+        starting: Mapping[int, object] | None = None,
     ) -> DeclaredVariableSpec:
-        """Return the declaration of a value as a state or a parameter."""
+        """Return the declaration of a value as a state or a parameter.
+
+        The starting values of the derivatives or past values a law reads are given by their index, and a missing one
+        is zero for a derivative and the value itself for a past value.
+
+        Raises:
+            ValidationError:
+                A starting value is given for a parameter, or for a derivative or past value no law reads.
+        """
         parameter = inspect.signature(type(element)).parameters.get(name)
         annotation = inspect.Parameter.empty if parameter is None else parameter.annotation
         domain = self._get_domain(annotation, value)
         vector = np.ndim(np.asarray(value, dtype=object)) > 0
+        starting = starting or {}
+        count = lags or max((order or 1) - 1, 0)
+        unread = sorted(index for index in starting if index > count)
+        if unread and order is not None:
+            error_msg = (
+                f'Element {element.label!r} takes a starting value of {name!r} at index {unread[0]}, but its laws read '
+                f'{count} derivatives or past values of it.'
+            )
+            raise ValidationError(error_msg)
         if order is None:
             return DeclaredVariableSpec(value, ParameterSpec(domain=domain, vector=vector))
         if order == 0:
             return DeclaredVariableSpec(value, StateSpec(domain=domain, vector=vector, algebraic=True))
+        missing = value if lags else 0.0
+        initial = tuple(starting.get(index, missing) for index in range(1, count + 1)) if starting else ()
         return DeclaredVariableSpec(
             value,
-            StateSpec(domain=domain, vector=vector, order=1 if lags else order, lags=lags),
+            StateSpec(domain=domain, vector=vector, order=1 if lags else order, lags=lags, initial=initial),
         )
 
     def _replace(
@@ -223,7 +276,7 @@ class _StateInference:
             return system
 
         def probe(element: Element, path: str) -> list[BaseElement]:
-            return self._get_declared_elements(element, lambda name: 1, lambda name: 0)
+            return self._get_declared_elements(element, lambda name: 1, lambda name: 0, probing=True)
 
         compilation = self.census(self._replace(system, probe))
         orders, lags = self._get_orders(compilation)
@@ -257,18 +310,28 @@ class _StateInference:
         order: Callable[[str], int | None],
         lags: Callable[[str], int],
         rewired: bool = False,
+        probing: bool = False,
     ) -> list[BaseElement]:
         """Return the declared element of a plain element, or a group of declared members.
 
         On a network whose edges the laws change, the members are a variable group of nodes, with a variable group on
-        the edges named after the element, such as `voters_edges`.
+        the edges named after the element, such as `voters_edges`. The probe that finds the orders reads no starting
+        values of derivatives or past values.
         """
         values = self._get_values(element)
+        starting = {} if probing else self._get_starting(element, values)
         count = self._get_count(element)
         variables = {}
         for name, value in values.items():
             member = self._get_member_value(element, name, value, count)
-            variables[name] = self._get_spec(element, name, member, order(name), lags(name))
+            variables[name] = self._get_spec(
+                element,
+                name,
+                member,
+                order(name),
+                lags=lags(name),
+                starting=starting.get(name),
+            )
         if count is None:
             return [DeclaredElement(element.label, variables=variables)]
         arrays = {name: value for name, value in values.items() if np.ndim(np.asarray(value, dtype=object)) > 0}
