@@ -15,7 +15,7 @@ from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt
+from sage.all__sagemath_symbolics import SR, Expression, cos, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
@@ -30,7 +30,6 @@ from ....core.engine.solvers import BaseSolver, RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
 from ....core.systems import BaseSystem, System
-from ...general.gradients import GradientInteraction
 from ...physics.common.mechanics import HamiltonianInteraction
 from .types import Preset
 
@@ -65,7 +64,7 @@ class KeplerBodyElement(Element):
 
     The planet is that of the Kepler problem.
 
-    The states are of order 1, and the star of mass `mass` sits at the origin.
+    The star of mass `mass` sits at the origin.
 
     Args:
         label:
@@ -101,12 +100,12 @@ class KeplerBodyElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 10.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-        px: Annotated[float, StateSpec()] = 0.0,
-        py: Annotated[float, StateSpec()] = 10.0,
-        G: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        mass: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
+        x: float = 10.0,
+        y: float = 0.0,
+        px: float = 0.0,
+        py: float = 10.0,
+        G: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        mass: Annotated[float, RealSet.open(0, oo)] = 1000.0,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -176,11 +175,10 @@ class RotatingFrameBodyElement(Element):
 
 
 class SitnikovBodyElement(Element):
-    """Light body at the height `z`, of order 2, on the axis of two equal primaries.
+    """Light body at the height `z` on the axis of two equal primaries.
 
-    The axis runs through the centre of mass of the primaries.
-
-    The primaries orbit with the eccentricity `e`.
+    The axis runs through the centre of mass of the primaries, which orbit with the eccentricity `e`. The vertical
+    velocity is `z'`.
 
     Args:
         label:
@@ -189,11 +187,11 @@ class SitnikovBodyElement(Element):
         z:
             The initial height.
 
-        z_d1:
-            The initial vertical velocity.
-
         e:
             The eccentricity of the primaries' orbits.
+
+        values:
+            Further values by name, such as an initial velocity named with a prime, or `None`.
 
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import SitnikovBodyElement
@@ -205,14 +203,54 @@ class SitnikovBodyElement(Element):
         self,
         label: str,
         *,
-        z: Annotated[float, StateSpec(order=2)] = 0.5,
-        z_d1: float = 0.0,
-        e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        z: float = 0.5,
+        e: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values)
         self.z = z
-        self.z_d1 = z_d1
         self.e = e
+
+
+class SitnikovGravityInteraction(Interaction):
+    """Pull of two equal primaries on a light body on their axis, `z'' = -dV/dz`.
+
+    The primaries of mass 1/2 sit at the distance `r(t) = (1 - e cos t) / 2` from the axis, with the eccentricity `e` of
+    the target, so the body at the height `z` has the potential `V = -1 / sqrt(z² + r(t)²)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the body.
+
+    Examples:
+        >>> from skcomplex.systems.physics.celestial_mechanics import SitnikovGravityInteraction
+        >>> SitnikovGravityInteraction('gravity', target='body').target
+        'body'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the acceleration of the height of the body.
+
+        Args:
+            context:
+                The namespace of the body and the time `t`.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            body, t = context.target, context.t
+            height = SR.symbol('_z')
+            distance = (1 - body.e * cos(t)) / 2
+            potential = -1 / sqrt(height**2 + distance**2)
+            self.laws_ = [RateLaw(body.z.diff(t, 2), -potential.diff(height).subs({height: body.z}))]
 
 
 class GravityInteraction(Interaction):
@@ -279,7 +317,7 @@ def _get_kepler_energy(body: SimpleNamespace) -> Expression:
     return (body.px**2 + body.py**2) / 2 - body.G * body.mass / sqrt(body.x**2 + body.y**2)
 
 
-class TwoBodyOrbitSystem(OldBaseSystem):
+class TwoBodyOrbitSystem(BaseSystem):
     """A light planet orbiting a heavy star under Newtonian gravity.
 
     The system is the Kepler problem of their separation.
@@ -305,6 +343,12 @@ class TwoBodyOrbitSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import TwoBodyOrbitSystem
         >>> [element.label for element in TwoBodyOrbitSystem().prepare().system_.elements]
@@ -316,7 +360,6 @@ class TwoBodyOrbitSystem(OldBaseSystem):
     references = ('Kepler 1609', 'Newton 1687')
     until = 6.0
     dt = 0.01
-    solver = Yoshida4Solver()
     invariants: ClassVar[Mapping[str, float]] = {'planet.energy': 1e-6}
     observables = (Observable('energy', _get_kepler_energy, element='planet'),)
 
@@ -328,8 +371,10 @@ class TwoBodyOrbitSystem(OldBaseSystem):
         mass: float = 1000.0,
         radius: float = 10.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.eccentricity = eccentricity
         self.G = G
         self.mass = mass
@@ -340,10 +385,16 @@ class TwoBodyOrbitSystem(OldBaseSystem):
         """Return the Hamiltonian of the Kepler problem of the target."""
         return _get_kepler_energy(s.target)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a light planet orbiting a heavy star, integrated by the symplectic Yoshida method.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         speed = float(np.sqrt(self.G * self.mass * (1 + self.eccentricity) / self.radius))
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[KeplerBodyElement('planet', x=self.radius, y=0.0, px=0.0, py=speed, G=self.G, mass=self.mass)],
             interactions=[
@@ -355,6 +406,7 @@ class TwoBodyOrbitSystem(OldBaseSystem):
                     hamiltonian=self._get_kepler_hamiltonian,
                 ),
             ],
+            solver=Yoshida4Solver(),
         )
 
 
@@ -576,7 +628,7 @@ class RestrictedThreeBodySystem(OldBaseSystem):
         )
 
 
-class SitnikovSystem(OldBaseSystem):
+class SitnikovSystem(BaseSystem):
     """A light body moving on the axis through the mass centre of two equal primaries.
 
     The axis is normal to their orbit.
@@ -584,7 +636,8 @@ class SitnikovSystem(OldBaseSystem):
     The primaries of mass 1/2 orbit their centre of mass with unit mean separation and period `2π`, at distance `r(t) =
     (1 - e cos t) / 2` from it to first order in the eccentricity `e`, and the light body follows `z'' = -z / (z² +
     r(t)²)^(3/2)`. For circular primaries the energy `z'²/2 - 1 / √(z² + 1/4)` is conserved and the motion is
-    integrable, and eccentric primaries make bounded orbits chaotic. The system has the height `body.z` of order 2.
+    integrable, and eccentric primaries make bounded orbits chaotic. The system has the height `body.z` and the vertical
+    velocity `body.z'`.
 
     Args:
         z:
@@ -598,6 +651,12 @@ class SitnikovSystem(OldBaseSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import SitnikovSystem
@@ -618,27 +677,24 @@ class SitnikovSystem(OldBaseSystem):
         *,
         e: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.z = z
         self.vz = vz
         self.e = e
 
-    @staticmethod
-    def _get_sitnikov_potential(s: SimpleNamespace) -> Expression:
-        """Return the potential `-1 / sqrt(z² + r(t)²)` of the two primaries.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a light body on the axis of two equal primaries.
 
-        The primaries are at the distance `r(t)` from the axis.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        distance = (1 - s.target.e * cos(s.t)) / 2
-        return -1 / sqrt(s.target.z**2 + distance**2)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[SitnikovBodyElement('body', z=self.z, z_d1=self.vz, e=self.e)],
-            interactions=[
-                GradientInteraction('gravity', target='body', states='z', potential=self._get_sitnikov_potential),
-            ],
+            elements=[SitnikovBodyElement('body', z=self.z, e=self.e, values={"z'": self.vz})],
+            interactions=[SitnikovGravityInteraction('gravity', target='body')],
         )

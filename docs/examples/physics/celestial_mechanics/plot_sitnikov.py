@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import section
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.celestial_mechanics import SitnikovSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'sitnikov'
 
 system = SitnikovSystem(z=0.9, vz=0.0, e=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Stroboscopic section
@@ -41,7 +40,7 @@ for height in np.linspace(0.1, 1.5, 12):
         n_points=300,
         transient=0,
     )
-    z, velocity = points.values['body.z'], points.values['body.z_d1']
+    z, velocity = points.values['body.z'], points.values["body.z'"]
     near = np.abs(z) < 3
     ax.plot(z[near], velocity[near], '.', markersize=1.5)
 ax.set_xlabel('z')

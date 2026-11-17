@@ -14,7 +14,6 @@ approach and crawling at its farthest point, so that the line to the star sweeps
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.celestial_mechanics import TwoBodyOrbitSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'two_body_orbit'
 
 system = TwoBodyOrbitSystem(eccentricity=0.6, mass=1000.0, radius=10.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, until=24.8, dt=0.05, observers=[observer])
+trajectory = system.prepare().simulate(until=24.8, dt=0.05, observers=[observer])
 
 # %%
 # Kepler's first and second laws

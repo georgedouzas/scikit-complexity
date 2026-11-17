@@ -120,7 +120,7 @@ def test_bodies_visual_rejects_positions_of_wrong_shape():
 
 def test_bodies_visual_draws_a_path_in_three_dimensions():
     """Test that a body with three coordinates is drawn as a 3D point with a 3D fading path in a 3D view."""
-    problem, frames = _frames(StormerProblemSystem().prepare().system_, steps=5, dt=0.02)
+    problem, frames = _frames(StormerProblemSystem().prepare()._get_composite(), steps=5, dt=0.02)
     logs = Logs()
     visual = BodiesVisual(('x', 'y', 'z'), path=problem.elements[0].path, recording=logs).prepare(problem)
     for frame in frames:
