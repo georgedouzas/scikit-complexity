@@ -29,7 +29,7 @@ def test_scalars_visual_gives_states_distinct_colors():
 
 def test_scalars_visual_colors_elements_apart():
     """Test that the first states of two elements get distinct series colors."""
-    problem, frame = _first_frame(CoupledPendulumsSystem().prepare().system_)
+    problem, frame = _first_frame(CoupledPendulumsSystem().prepare()._get_composite())
     logs = Logs()
     for element in problem.elements:
         ScalarsVisual(path=element.path, recording=logs).prepare(frame.problem).run(frame)

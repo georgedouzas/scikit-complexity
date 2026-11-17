@@ -86,7 +86,9 @@ def test_circuit_and_oscillator_agree():
     """Test that the RLC circuit and the damped oscillator agree to the solver tolerance for equal coefficients."""
     charge = RlcCircuitSystem(L=2.0, R=0.4, C=1 / 8, V=0.5, omega=1.3).prepare().simulate().get_values('circuit.q')
     displacement = (
-        simulate(DrivenDampedOscillatorSystem(m=2.0, c=0.4, k=8.0, F=0.5, omega=1.3), random_state=0)
+        DrivenDampedOscillatorSystem(m=2.0, c=0.4, k=8.0, F=0.5, omega=1.3)
+        .prepare()
+        .simulate(random_state=0)
         .get_values('mass.x')
         .ravel()
     )

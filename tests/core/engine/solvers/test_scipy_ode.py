@@ -120,7 +120,7 @@ def test_simulation_runs_stiff_system_with_default_solver():
 
 def test_simulation_default_solver_keeps_accuracy_of_non_stiff_system():
     """Test that a harmonic oscillator run with the default solver matches the analytic solution within 1e-5."""
-    trajectory = simulate(HarmonicOscillatorSystem().prepare().system_, until=10)
+    trajectory = HarmonicOscillatorSystem().prepare().simulate(until=10)
     np.testing.assert_allclose(trajectory.states[-1], [np.cos(10), -np.sin(10)], rtol=1e-5)
 
 

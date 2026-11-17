@@ -371,10 +371,9 @@ class of the subfield of `skcomplex.systems` in brackets.
   noise.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.mechanics import BouncingBallSystem
 
-len(simulate(BouncingBallSystem()).events) > 0
+len(BouncingBallSystem().prepare().simulate().events) > 0
 ```
 
 The bouncing ball of the catalog records its impacts as events, so the block returns `True`.

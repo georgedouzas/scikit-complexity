@@ -28,8 +28,9 @@ from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec, VisualSpec
 from ...general.mechanics import EulerLagrangeInteraction
-from ..common.mechanics import LagrangianInteraction, PendulumElement, PendulumInteraction
+from ..common.mechanics import LagrangianInteraction
 from ..common.particles import LinearDragInteraction, RestoringForceInteraction
+from ._mechanics import PendulumSwingInteraction
 
 DIRECTIONS = ('vertical', 'horizontal')
 
@@ -160,9 +161,8 @@ class CartPendulumElement(Element):
 class ClockPendulumElement(Element):
     """Pendulum clock, a pendulum of angle `theta` hanging from a support.
 
-    The support is at the horizontal position `x`.
-
-    The angle and the position have order 2. The motion comes from `ClockPendulumInteraction`.
+    The support is at the horizontal position `x`. The motion comes from `ClockPendulumInteraction`, and the velocities
+    are `theta'` and `x'`.
 
     Args:
         label:
@@ -171,14 +171,8 @@ class ClockPendulumElement(Element):
         theta:
             The initial angle of the pendulum.
 
-        theta_d1:
-            The initial angular velocity of the pendulum.
-
         x:
             The initial position of the support.
-
-        x_d1:
-            The initial velocity of the support.
 
         m:
             The mass of the bob.
@@ -201,6 +195,9 @@ class ClockPendulumElement(Element):
         theta_c:
             The angle below which the escapement pumps energy in.
 
+        values:
+            Further values by name, such as an initial velocity named with a prime, or `None`.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import ClockPendulumElement
         >>> ClockPendulumElement('clock', lam=0.2).lam
@@ -211,23 +208,20 @@ class ClockPendulumElement(Element):
         self,
         label: str,
         *,
-        theta: Annotated[float, StateSpec(order=2)] = 0.2,
-        theta_d1: float = 0.0,
-        x: Annotated[float, StateSpec(order=2)] = 0.0,
-        x_d1: float = 0.0,
-        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        M: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 9.8,
-        rho: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        theta_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        theta: float = 0.2,
+        x: float = 0.0,
+        m: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        l: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        M: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        g: Annotated[float, RealSet.open(0, oo)] = 9.8,
+        rho: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        lam: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        theta_c: Annotated[float, RealSet.open(0, oo)] = 0.1,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values)
         self.theta = theta
-        self.theta_d1 = theta_d1
         self.x = x
-        self.x_d1 = x_d1
         self.m = m
         self.l = l
         self.M = M
@@ -435,7 +429,7 @@ class CartPendulumInteraction(LagrangianInteraction):
         return kinetic + p.m2 * p.g * p.l * cos(theta)
 
 
-class ClockPendulumInteraction(EulerLagrangeInteraction):
+class ClockPendulumInteraction(LagrangianInteraction):
     """Motion of a pendulum clock on a moving support.
 
     The motion is the Euler-Lagrange equations with the escapement.
@@ -453,35 +447,57 @@ class ClockPendulumInteraction(EulerLagrangeInteraction):
 
     Examples:
         >>> from skcomplex.systems.physics.mechanics import ClockPendulumInteraction
-        >>> ClockPendulumInteraction('motion', target='clock').states
-        ('theta', 'x')
+        >>> ClockPendulumInteraction('motion', target='clock').target
+        'clock'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, states=('theta', 'x'), dissipation=self._get_escapement)
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
 
-    @staticmethod
-    def _get_escapement(namespace: SimpleNamespace) -> Expression:
+    def _get_coordinates(self, context: SimpleNamespace) -> list[Expression]:
+        """Return the angle of the pendulum and the position of its support."""
+        return [context.target.theta, context.target.x]
+
+    def _get_dissipation(
+        self,
+        context: SimpleNamespace,
+        positions: list[Expression],
+        velocities: list[Expression],
+    ) -> Expression:
         """Return the Rayleigh dissipation of the escapement and of the support damping."""
-        p = namespace.target
-        escapement = p.lam * p.l * sign(abs(p.theta) - p.theta_c) * derivative(p.theta, 1) ** 2
-        return escapement + p.rho * derivative(p.x, 1) ** 2
+        p = context.target
+        w, v = velocities
+        escapement = p.lam * p.l * sign(abs(positions[0]) - p.theta_c) * w**2
+        return escapement + p.rho * v**2
 
-    def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
+    def _get_lagrangian(
+        self,
+        context: SimpleNamespace,
+        positions: list[Expression],
+        velocities: list[Expression],
+    ) -> Expression:
         """Return the Lagrangian of the pendulum and its support.
 
         Args:
-            namespace:
-                The namespace of the symbols the Lagrangian can use.
+            context:
+                The namespace of the clock and the time `t`.
+
+            positions:
+                The symbols of the angle and the position of the support.
+
+            velocities:
+                The symbols of the angular velocity and the velocity of the support.
 
         Returns:
             lagrangian:
                 The Lagrangian.
         """
-        p = namespace.target
-        v, w = derivative(p.x, 1), derivative(p.theta, 1)
-        kinetic = (p.M + p.m) * v**2 / 2 + p.m * p.l * v * w * cos(p.theta) + p.m * p.l**2 * w**2 / 2
-        return kinetic + p.m * p.g * p.l * cos(p.theta)
+        p = context.target
+        theta = positions[0]
+        w, v = velocities
+        kinetic = (p.M + p.m) * v**2 / 2 + p.m * p.l * v * w * cos(theta) + p.m * p.l**2 * w**2 / 2
+        return kinetic + p.m * p.g * p.l * cos(theta)
 
 
 class DoublePendulumInteraction(EulerLagrangeInteraction):
@@ -709,14 +725,14 @@ class ParametricPendulumInteraction(LagrangianInteraction):
         return velocities[0] ** 2 / 2 + p.g / p.l * (1 + drive) * cos(theta)
 
 
-class PendulumSpringInteraction(EulerLagrangeInteraction):
+class PendulumSpringInteraction(Interaction):
     """Spring between the bobs of two pendulums.
 
     The spring stretches with the horizontal distance of the bobs.
 
-    The spring of stiffness `k` adds the Lagrangian `-k (l2 sin θ2 - l1 sin θ1)² / 2` to the Euler-Lagrange equations
-    of the two angles, so its torque on every pendulum divides by the moment of inertia `m l²` of the pendulum's own
-    Lagrangian.
+    The spring of stiffness `k` has the energy `k (l2 sin θ2 - l1 sin θ1)² / 2`. Its torque on every pendulum divides by
+    the moment of inertia `m l²` of that pendulum, so the first follows `θ1'' = k (l2 sin θ2 - l1 sin θ1) cos θ1 / (m1
+    l1)` and the second `θ2'' = -k (l2 sin θ2 - l1 sin θ1) cos θ2 / (m2 l2)`, besides their own swing.
 
     Args:
         label:
@@ -737,40 +753,51 @@ class PendulumSpringInteraction(EulerLagrangeInteraction):
         2.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        first: Role,
+        second: Role,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, target=first, states='theta')
+        super().__init__(label)
         self.first = first
         self.second = second
         self.k = k
 
-    def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
-        """Return minus the energy of the spring.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the angular accelerations that the spring gives the two pendulums.
 
         Args:
-            namespace:
-                The namespace of the symbols the Lagrangian can use, with `first` and `second`.
-
-        Returns:
-            lagrangian:
-                The Lagrangian of the spring.
+            context:
+                The namespace of the two pendulums, the time `t`, and the stiffness.
         """
-        first, second = namespace.first, namespace.second
-        stretch = second.l * sin(second.theta) - first.l * sin(first.theta)
-        return -namespace.k * stretch**2 / 2
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            first, second, t = context.first, context.second, context.t
+            stretch = second.l * sin(second.theta) - first.l * sin(first.theta)
+            self.laws_ = [
+                RateLaw(
+                    first.theta.diff(t, 2),
+                    context.k * stretch * first.l * cos(first.theta) / (first.m * first.l**2),
+                ),
+                RateLaw(
+                    second.theta.diff(t, 2),
+                    -context.k * stretch * second.l * cos(second.theta) / (second.m * second.l**2),
+                ),
+            ]
 
 
-class SupportSpringInteraction(EulerLagrangeInteraction):
+class SupportSpringInteraction(Interaction):
     """Spring of stiffness `k` between the supports of two pendulum clocks.
 
-    The spring adds the Lagrangian `-k (x2 - x1)² / 2` to the Euler-Lagrange equations of the supports, so every clock
-    answers with the accelerations of its support and its pendulum through the mass matrix of its own Lagrangian.
+    The spring pulls the supports with the forces `±k (x2 - x1)`. Every clock answers with the accelerations of its
+    support and its pendulum through its mass matrix `[[m l², m l cos θ], [m l cos θ, M + m]]`, so a force `Q` on the
+    support gives `θ'' = -m l cos θ Q / D` and `x'' = m l² Q / D`, with the determinant `D = m l² (M + m) - (m l cos
+    θ)²`.
 
     Args:
         label:
@@ -791,31 +818,41 @@ class SupportSpringInteraction(EulerLagrangeInteraction):
         2.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        first: Role,
+        second: Role,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, target=first, states='x')
+        super().__init__(label)
         self.first = first
         self.second = second
         self.k = k
 
-    def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
-        """Return minus the energy of the spring.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the accelerations that the spring gives the supports and the pendulums of the two clocks.
 
         Args:
-            namespace:
-                The namespace of the symbols the Lagrangian can use, with `first` and `second`.
-
-        Returns:
-            lagrangian:
-                The Lagrangian of the spring.
+            context:
+                The namespace of the two clocks, the time `t`, and the stiffness.
         """
-        return -namespace.k * (namespace.second.x - namespace.first.x) ** 2 / 2
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            first, second, t = context.first, context.second, context.t
+            pull = context.k * (second.x - first.x)
+            laws = []
+            for clock, force in ((first, pull), (second, -pull)):
+                coupling = clock.m * clock.l * cos(clock.theta)
+                determinant = clock.m * clock.l**2 * (clock.M + clock.m) - coupling**2
+                laws += [
+                    RateLaw(clock.theta.diff(t, 2), -coupling * force / determinant),
+                    RateLaw(clock.x.diff(t, 2), clock.m * clock.l**2 * force / determinant),
+                ]
+            self.laws_ = laws
 
 
 class DoublePendulumSystem(BaseSystem):
@@ -918,7 +955,7 @@ class DoublePendulumSystem(BaseSystem):
         )
 
 
-class CoupledPendulumsSystem(BaseSystem):
+class CoupledPendulumsSystem(systems.BaseSystem):
     """Two pendulums whose bobs are joined by a spring.
 
     The pendulums pass their energy back and forth.
@@ -926,7 +963,8 @@ class CoupledPendulumsSystem(BaseSystem):
     The spring stretches with the horizontal distance `l2 sin θ2 - l1 sin θ1` of the bobs and adds the torque `k l1 (l2
     sin θ2 - l1 sin θ1) cos θ1` to the first pendulum and the opposite one to the second. Identical pendulums have the
     normal modes `sqrt(g / l)` in phase and `sqrt(g / l + 2 k / m)` in antiphase. The system has the pendulums `left`
-    and `right` and their angles `left.theta` and `right.theta`.
+    and `right`, their angles `left.theta` and `right.theta`, and their angular velocities `left.theta'` and
+    `right.theta'`.
 
     Args:
         theta1:
@@ -956,6 +994,12 @@ class CoupledPendulumsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import CoupledPendulumsSystem
         >>> CoupledPendulumsSystem(k=2.0).prepare().system_.interactions[0].k
@@ -980,8 +1024,10 @@ class CoupledPendulumsSystem(BaseSystem):
         l2: float = 1.0,
         g: float = 9.81,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.theta1 = theta1
         self.theta2 = theta2
         self.k = k
@@ -991,21 +1037,24 @@ class CoupledPendulumsSystem(BaseSystem):
         self.l2 = l2
         self.g = g
 
-    def _build_system(self) -> CompositeSystem:
-        """Return two pendulums whose bobs are joined by a spring.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of two pendulums whose bobs are joined by a spring.
 
-        The pendulums pass their energy back and forth.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = systems.System(
             self.label,
             elements=[
-                PendulumElement('left', theta=self.theta1, m=self.m1, l=self.l1, g=self.g),
-                PendulumElement('right', theta=self.theta2, m=self.m2, l=self.l2, g=self.g),
+                Element('left', values={'theta': self.theta1, 'm': self.m1, 'l': self.l1, 'g': self.g}),
+                Element('right', values={'theta': self.theta2, 'm': self.m2, 'l': self.l2, 'g': self.g}),
             ],
             interactions=[
                 PendulumSpringInteraction('spring', first='left', second='right', k=self.k),
-                PendulumInteraction('left_swing', target='left'),
-                PendulumInteraction('right_swing', target='right'),
+                PendulumSwingInteraction('left_swing', target='left'),
+                PendulumSwingInteraction('right_swing', target='right'),
             ],
         )
 
@@ -1499,7 +1548,7 @@ class BallisticPendulumSystem(systems.BaseSystem):
         )
 
 
-class HuygensClocksSystem(BaseSystem):
+class HuygensClocksSystem(systems.BaseSystem):
     """Pendulum clocks on supports joined by springs.
 
     The clocks synchronize through the motion of the supports.
@@ -1510,7 +1559,8 @@ class HuygensClocksSystem(BaseSystem):
     sgn(|θ| - θ_c)` is `-2 λ` for `|θ| < θ_c`, pumping energy in, and `2 λ` beyond, so every clock has a limit cycle.
     With `λ = 0` the clocks are plain pendulums. Two identical clocks synchronize in antiphase. The first clock starts
     at `theta`, away from the switch of the escapement at `θ_c`, and the others at rest. The system has the angles
-    `clock_<i>.theta` and the support positions `clock_<i>.x`, all of order 2.
+    `clock_<i>.theta` and the support positions `clock_<i>.x`, with their velocities `clock_<i>.theta'` and
+    `clock_<i>.x'`.
 
     Args:
         n_clocks:
@@ -1546,6 +1596,12 @@ class HuygensClocksSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import HuygensClocksSystem
         >>> len(HuygensClocksSystem(3).prepare().system_.interactions)
@@ -1572,8 +1628,10 @@ class HuygensClocksSystem(BaseSystem):
         lam: float = 0.1,
         theta_c: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_clocks = n_clocks
         self.theta = theta
         self.k = k
@@ -1585,8 +1643,14 @@ class HuygensClocksSystem(BaseSystem):
         self.lam = lam
         self.theta_c = theta_c
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of pendulum clocks on supports joined by springs.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         clocks = [
             ClockPendulumElement(
                 f'clock_{index}',
@@ -1608,4 +1672,4 @@ class HuygensClocksSystem(BaseSystem):
         motions = [
             ClockPendulumInteraction(f'motion_{index}', target=f'clock_{index}') for index in range(self.n_clocks)
         ]
-        return CompositeSystem(self.label, elements=clocks, interactions=[*springs, *motions])
+        self.system_ = systems.System(self.label, elements=clocks, interactions=[*springs, *motions])
