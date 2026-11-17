@@ -24,6 +24,7 @@ from skcomplex.core.components.laws import (
 )
 from skcomplex.core.components.laws.utils import mean, neighbors
 from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
+from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.solvers import (
     EulerMaruyamaSolver,
     GillespieSolver,
@@ -116,6 +117,13 @@ def test_prepare_uses_named_solver() -> None:
     system = meadow_system(solver=RK4Solver()).prepare()
     assert isinstance(system.solver_, RK4Solver)
     assert system.simulate(until=1.0, dt=0.01).times[-1] == pytest.approx(1.0)
+
+
+def test_prepare_compiles_for_the_named_backend() -> None:
+    """A backend given to the system is the one its problem is compiled for, not only the one that runs it."""
+    system = System('ecology', systems=[LotkaVolterraSystem(label='meadow')], backend=NumbaBackend()).prepare()
+    assert isinstance(system.backend_, NumbaBackend)
+    assert system._problem.backend == 'numba'
 
 
 def test_prepare_rejects_bad_solver() -> None:
