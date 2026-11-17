@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -11,144 +11,111 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import ConnectionInteraction, CrossingInteraction
-from ....core.components.laws import BaseLaw, ConstraintLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, ConstraintLaw, EventLaw
 from ....core.components.laws.utils import clip, derivative, sign, step, where
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import ConnectorSpec, DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, Role, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
-from ..common.electrical import ELECTRICAL, GroundElement, TwoPinElement, VoltageSourceElement
+from ..common.electrical import BranchInteraction, GroundInteraction, VoltageSourceInteraction
 
 DISTURBANCE_TIME = 10.0
 CHANGE_TIME = 20.0
 HOURS_PER_DAY = 24.0
-THERMAL = ConnectorSpec('thermal', potential='T', flow='Q')
 POSITIVE = RealSet.open(0, oo)
 
 
-class HeatCapacityElement(Element):
-    """Body of one temperature `T`, with `C T' = a_Q` and `T = a_T`.
+class HeatCapacityInteraction(Interaction):
+    """Heat capacity `C` of a node of temperature `T`, which stores the heat `C T'` that flows into the node.
+
+    The heat flows of the components that join a node add into its balance, which is zero, so with a capacity the node
+    warms at `T' = Q / C` under the net heat flow `Q` into it.
 
     Args:
         label:
-            The label of the element, unique among the components of its system.
+            The label of the interaction, unique among the components of its system.
 
-        a_T:
-            The temperature of the port.
-
-        a_Q:
-            The heat flow into the port.
-
-        T:
-            The initial temperature of the body.
+        node:
+            The path of the node, an element with the temperature `T`.
 
         C:
             The heat capacity.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import HeatCapacityElement
-        >>> HeatCapacityElement('room', T=15.0).T
-        15.0
+        >>> from skcomplex.systems.engineering.control import HeatCapacityInteraction
+        >>> HeatCapacityInteraction('air', node='room', C=2e5).C
+        200000.0
     """
 
-    law_classes = (ConstraintLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ConstraintLaw,)
 
-    ports: ClassVar[Mapping[str, ConnectorSpec]] = {'a': THERMAL}
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        a_T: Annotated[object, StateSpec(algebraic=True)] = 0.0,
-        a_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
-        T: Annotated[object, StateSpec()] = 20.0,
-        C: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
-    ) -> None:
+    def __init__(self, label: str, *, node: Role, C: Annotated[float, POSITIVE] = 1.0) -> None:
         super().__init__(label)
-        self.a_T = a_T
-        self.a_Q = a_Q
-        self.T = T
+        self.node = node
         self.C = C
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the heat balance of the body and the temperature of its port."""
-        return [ConstraintLaw(s.C * derivative(s.T, 1), s.a_Q), ConstraintLaw(s.T, s.a_T)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the heat the capacity stores as a term of the balance of the node."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            T = context.node.T
+            self.laws_: list[BaseComponent] = [ConstraintLaw(-context.C * T.diff(context.t), 0, target=T)]
 
 
-class ThermalConductorElement(Element):
-    """Conductor between two ports.
-
-    It has the heat flow `a_Q = G (a_T - b_T)` and `a_Q + b_Q = 0`.
+class ThermalConductorInteraction(Interaction):
+    """Conductor of the heat flow `G (a.T - b.T)` from the node `a` to the node `b`.
 
     Args:
         label:
-            The label of the element, unique among the components of its system.
+            The label of the interaction, unique among the components of its system.
 
-        a_T:
-            The temperature of the first port.
+        a:
+            The path of the node the heat leaves.
 
-        a_Q:
-            The heat flow into the first port.
-
-        b_T:
-            The temperature of the second port.
-
-        b_Q:
-            The heat flow into the second port.
+        b:
+            The path of the node the heat enters.
 
         G:
             The thermal conductance.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import ThermalConductorElement
-        >>> ThermalConductorElement('wall', G=2.0).G
+        >>> from skcomplex.systems.engineering.control import ThermalConductorInteraction
+        >>> ThermalConductorInteraction('wall', a='room', b='outside', G=2.0).G
         2.0
     """
 
-    law_classes = (ConstraintLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ConstraintLaw,)
 
-    ports: ClassVar[Mapping[str, ConnectorSpec]] = {'a': THERMAL, 'b': THERMAL}
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        a_T: Annotated[object, StateSpec(algebraic=True)] = 0.0,
-        a_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
-        b_T: Annotated[object, StateSpec(algebraic=True)] = 0.0,
-        b_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
-        G: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
-    ) -> None:
+    def __init__(self, label: str, *, a: Role, b: Role, G: Annotated[float, POSITIVE] = 1.0) -> None:
         super().__init__(label)
-        self.a_T = a_T
-        self.a_Q = a_Q
-        self.b_T = b_T
-        self.b_Q = b_Q
+        self.a = a
+        self.b = b
         self.G = G
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the heat flow through the conductor and its balance."""
-        return [ConstraintLaw(s.a_Q, s.G * (s.a_T - s.b_T)), ConstraintLaw(s.a_Q + s.b_Q, 0)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the heat flow as a term of the balances of both nodes."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            a, b = context.a.T, context.b.T
+            flow = context.G * (a - b)
+            self.laws_: list[BaseComponent] = [ConstraintLaw(-flow, 0, target=a), ConstraintLaw(flow, 0, target=b)]
 
 
-class ConvectionElement(Element):
-    """Surface that exchanges heat with a fluid of a fixed temperature.
-
-    It has `a_Q = h (a_T - fluid)`.
+class ConvectionInteraction(Interaction):
+    """Surface of a node that loses the heat flow `h (T - fluid)` to a fluid of a fixed temperature.
 
     Args:
         label:
-            The label of the element, unique among the components of its system.
+            The label of the interaction, unique among the components of its system.
 
-        a_T:
-            The temperature of the port.
-
-        a_Q:
-            The heat flow into the port.
+        node:
+            The path of the node, an element with the temperature `T`.
 
         h:
             The convective conductance of the surface.
@@ -157,109 +124,149 @@ class ConvectionElement(Element):
             The temperature of the fluid.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import ConvectionElement
-        >>> ConvectionElement('outside', fluid=5.0).fluid
+        >>> from skcomplex.systems.engineering.control import ConvectionInteraction
+        >>> ConvectionInteraction('outside', node='wall', fluid=5.0).fluid
         5.0
     """
 
-    law_classes = (ConstraintLaw,)
-
-    ports: ClassVar[Mapping[str, ConnectorSpec]] = {'a': THERMAL}
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ConstraintLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        a_T: Annotated[object, StateSpec(algebraic=True)] = 0.0,
-        a_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
-        h: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
-        fluid: Annotated[object, ParameterSpec()] = 0.0,
+        node: Role,
+        h: Annotated[float, POSITIVE] = 1.0,
+        fluid: float = 0.0,
     ) -> None:
         super().__init__(label)
-        self.a_T = a_T
-        self.a_Q = a_Q
+        self.node = node
         self.h = h
         self.fluid = fluid
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the heat flow into the fluid."""
-        return [ConstraintLaw(s.a_Q, s.h * (s.a_T - s.fluid))]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the heat lost to the fluid as a term of the balance of the node."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            T = context.node.T
+            self.laws_: list[BaseComponent] = [ConstraintLaw(-context.h * (T - context.fluid), 0, target=T)]
 
 
-class HeatingResistorElement(TwoPinElement):
-    """Resistor that delivers its electric power to a thermal port `h`.
+class HeatingResistorInteraction(BranchInteraction):
+    """Resistor between the electrical nodes `a` and `b` that heats the thermal node `heated`.
 
-    It delivers the power while its switch `on` is closed. The current is `on (p_v - n_v) / R`, and the heat flow into
-    the thermal port is `-(p_v - n_v) p_i`.
+    It conducts while the value `closed` of the element `switch` is 1. Its current is `closed (a.v - b.v) / R`, and
+    the power it dissipates, the voltage times the current, flows into the heated node.
 
     Args:
         label:
-            The label of the element, unique among the components of its system.
+            The label of the interaction, unique among the components of its system.
 
-        p_v:
-            The potential of the positive pin.
+        a:
+            The path of the electrical node the current leaves.
 
-        p_i:
-            The current into the positive pin.
+        b:
+            The path of the electrical node the current enters.
 
-        n_v:
-            The potential of the negative pin.
+        heated:
+            The path of the thermal node the heat enters, an element with the temperature `T`.
 
-        n_i:
-            The current into the negative pin.
-
-        h_T:
-            The temperature of the thermal port.
-
-        h_Q:
-            The heat flow into the thermal port.
-
-        on:
-            The initial position of the switch, 1 for closed and 0 for open.
+        switch:
+            The path of the element that holds the switch `closed`, 1 for closed and 0 for open.
 
         R:
             The resistance.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import HeatingResistorElement
-        >>> sorted(HeatingResistorElement.ports)
-        ['h', 'n', 'p']
+        >>> from skcomplex.systems.engineering.control import HeatingResistorInteraction
+        >>> HeatingResistorInteraction('heating', a='supply', b='neutral', heated='room', switch='heater', R=25.0).R
+        25.0
     """
-
-    ports: ClassVar[Mapping[str, ConnectorSpec]] = {'p': ELECTRICAL, 'n': ELECTRICAL, 'h': THERMAL}
 
     def __init__(
         self,
         label: str,
         *,
-        p_v: object = 0.0,
-        p_i: object = 0.0,
-        n_v: object = 0.0,
-        n_i: object = 0.0,
-        h_T: Annotated[object, StateSpec(algebraic=True)] = 0.0,
-        h_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
-        on: Annotated[object, StateSpec()] = 1.0,
-        R: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
+        a: Role,
+        b: Role,
+        heated: Role,
+        switch: Role,
+        R: Annotated[float, POSITIVE] = 1.0,
     ) -> None:
-        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
-        self.h_T = h_T
-        self.h_Q = h_Q
-        self.on = on
+        super().__init__(label, a=a, b=b)
+        self.heated = heated
+        self.switch = switch
         self.R = R
 
-    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the switched current of the resistor and the heat it delivers.
+    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the switched current into both electrical balances and the power into the thermal balance."""
+        voltage = s.a.v - s.b.v
+        current = s.switch.closed * voltage / s.R
+        return [
+            ConstraintLaw(-current, 0, target=s.a.v),
+            ConstraintLaw(current, 0, target=s.b.v),
+            ConstraintLaw(voltage * current, 0, target=s.heated.T),
+        ]
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
 
-        Returns:
-            laws:
-                The equation laws of the branch.
-        """
-        voltage = s.p_v - s.n_v
-        return [ConstraintLaw(s.R * s.p_i, s.on * voltage), ConstraintLaw(s.h_Q, -voltage * s.p_i)]
+class SwitchInteraction(Interaction):
+    """Switch that opens or closes when the temperature of a sensor crosses a threshold.
+
+    When the temperature `T` of `sensor` crosses `threshold` in `direction`, the value `closed` of `switch` becomes
+    `value`, as a thermostat switches a heater or a pressure switch a pump.
+
+    Args:
+        label:
+            The label of the interaction, which names its events.
+
+        sensor:
+            The path of the element whose temperature `T` the switch watches.
+
+        switch:
+            The path of the element that holds the switch `closed`.
+
+        threshold:
+            The temperature at which the switch acts.
+
+        value:
+            The value the switch takes, 1 for closed and 0 for open.
+
+        direction:
+            The direction of the crossing, 1 when the temperature rises and -1 when it falls.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.control import SwitchInteraction
+        >>> SwitchInteraction('open_switch', sensor='room', switch='heater', threshold=20.5, value=0.0).direction
+        1
+    """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (EventLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        sensor: Role,
+        switch: Role,
+        threshold: float = 0.0,
+        value: float = 0.0,
+        direction: int = 1,
+    ) -> None:
+        super().__init__(label)
+        self.sensor = sensor
+        self.switch = switch
+        self.threshold = threshold
+        self.value = value
+        self.direction = direction
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the crossing of the threshold and the value of the switch it sets."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            guard = context.sensor.T - context.threshold
+            self.laws_: list[BaseComponent] = [
+                EventLaw(guard, {context.switch.closed: context.value}, direction=self.direction),
+            ]
 
 
 class ThermostatSystem(DynamicalSystem):
@@ -685,9 +692,9 @@ class SatelliteTransferSystem(DynamicalSystem):
 
 
 def _get_heating_power(s: SimpleNamespace) -> Expression:
-    """Return the heat that the resistor delivers to the room."""
-    heat: Expression = -s.heater.h_Q
-    return heat
+    """Return the power that the source delivers to the heater."""
+    power: Expression = -(s.supply.v - s.neutral.v) * s.source.i
+    return power
 
 
 class HeatedRoomSystem(BaseSystem):
@@ -696,7 +703,7 @@ class HeatedRoomSystem(BaseSystem):
     It is heated under a thermostat with hysteresis. A voltage source drives a heating resistor whose heat enters the
     room, and the room loses heat through a wall of its own heat capacity to the outside air. The thermostat opens the
     switch of the resistor when the room rises through `setting + band / 2` and closes it when the room falls through
-    `setting - band / 2`. The system has the room temperature `room.T` and the switch `heater.on`, in seconds.
+    `setting - band / 2`. The system has the room temperature `room.T` and the switch `heater.closed`, in seconds.
 
     Args:
         T:
@@ -740,8 +747,8 @@ class HeatedRoomSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.control import HeatedRoomSystem
-        >>> HeatedRoomSystem(setting=22.0).prepare().system_.interactions[-1].direction
-        -1
+        >>> HeatedRoomSystem(setting=22.0).prepare().system_.interactions[-1].threshold
+        21.5
     """
 
     field = 'engineering/control'
@@ -787,31 +794,36 @@ class HeatedRoomSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[
-                VoltageSourceElement('source', V=self.V),
-                HeatingResistorElement('heater', R=self.R),
-                GroundElement('ground'),
-                HeatCapacityElement('room', T=self.T, C=self.C),
-                ThermalConductorElement('inner', G=self.wall_conductance),
-                HeatCapacityElement('wall', T=self.outside, C=self.wall_capacity),
-                ConvectionElement('surface', h=self.surface_conductance, fluid=self.outside),
+                Element('supply', values={'v': 0.0}),
+                Element('neutral', values={'v': 0.0}),
+                Element('source', values={'i': 0.0}),
+                Element('earth', values={'i': 0.0}),
+                Element('heater', values={'closed': 1.0}),
+                Element('room', values={'T': self.T}),
+                Element('wall', values={'T': self.outside}),
             ],
             interactions=[
-                ConnectionInteraction('supply', members=['source', 'heater'], ports=['p', 'p']),
-                ConnectionInteraction('neutral', members=['source', 'heater', 'ground'], ports=['n', 'n', 'p']),
-                ConnectionInteraction('air', members=['heater', 'room', 'inner'], ports=['h', 'a', 'a']),
-                ConnectionInteraction('masonry', members=['inner', 'wall', 'surface'], ports=['b', 'a', 'a']),
-                CrossingInteraction(
-                    'open_switch',
-                    target='heater',
-                    guard=lambda s: s.target.h_T - upper,
-                    reset={'on': lambda s: 0.0},
-                    direction=1,
+                VoltageSourceInteraction('mains', a='supply', b='neutral', branch='source', V=self.V),
+                GroundInteraction('ground', node='neutral', branch='earth'),
+                HeatingResistorInteraction(
+                    'heating',
+                    a='supply',
+                    b='neutral',
+                    heated='room',
+                    switch='heater',
+                    R=self.R,
                 ),
-                CrossingInteraction(
+                HeatCapacityInteraction('air', node='room', C=self.C),
+                ThermalConductorInteraction('inner', a='room', b='wall', G=self.wall_conductance),
+                HeatCapacityInteraction('masonry', node='wall', C=self.wall_capacity),
+                ConvectionInteraction('surface', node='wall', h=self.surface_conductance, fluid=self.outside),
+                SwitchInteraction('open_switch', sensor='room', switch='heater', threshold=upper, value=0.0),
+                SwitchInteraction(
                     'close_switch',
-                    target='heater',
-                    guard=lambda s: s.target.h_T - lower,
-                    reset={'on': lambda s: 1.0},
+                    sensor='room',
+                    switch='heater',
+                    threshold=lower,
+                    value=1.0,
                     direction=-1,
                 ),
             ],

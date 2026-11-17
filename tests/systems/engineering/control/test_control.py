@@ -3,20 +3,18 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.interactions import ConnectionInteraction
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.elements import Element
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.specs import ConnectorSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.engineering.control import (
-    THERMAL,
-    ConvectionElement,
-    HeatCapacityElement,
+    ConvectionInteraction,
+    HeatCapacityInteraction,
     HeatedRoomSystem,
     PendulumSwingUpSystem,
     PidLoopSystem,
     SatelliteTransferSystem,
-    ThermalConductorElement,
+    ThermalConductorInteraction,
     ThermostatSystem,
 )
 
@@ -71,7 +69,7 @@ def test_heated_room_stays_within_the_band_of_its_thermostat():
     closed = [event for event in trajectory.events if event.label == 'close_switch']
     assert len(opened) >= 2
     assert len(closed) >= 2
-    assert set(np.unique(trajectory.get_values('heater.on'))) == {0.0, 1.0}
+    assert set(np.unique(trajectory.get_values('heater.closed'))) == {0.0, 1.0}
 
 
 def test_heated_room_records_the_power_of_its_heater():
@@ -80,26 +78,17 @@ def test_heated_room_records_the_power_of_its_heater():
     assert np.allclose(trajectory.get_values('power').ravel(), 230.0**2 / 25.0)
 
 
-def test_thermal_connector_is_a_connector():
-    """Test that the thermal connector carries a temperature and a heat flow."""
-    assert isinstance(THERMAL, ConnectorSpec)
-    assert (THERMAL.potential, THERMAL.flow) == ('T', 'Q')
-
-
 def test_body_cools_through_a_conductor_and_convection_in_closed_form():
     """Test that a body cools towards a fluid at the rate of the conductance in series with the convection."""
-    system = CompositeSystem(
-        elements=[
-            HeatCapacityElement('body', T=80.0, C=4.0),
-            ThermalConductorElement('wall', G=2.0),
-            ConvectionElement('surface', h=2.0, fluid=20.0),
-        ],
+    system = System(
+        elements=[Element('body', values={'T': 80.0}), Element('skin', values={'T': 0.0})],
         interactions=[
-            ConnectionInteraction('inner', members=['body', 'wall'], ports=['a', 'a']),
-            ConnectionInteraction('outer', members=['wall', 'surface'], ports=['b', 'a']),
+            HeatCapacityInteraction('capacity', node='body', C=4.0),
+            ThermalConductorInteraction('wall', a='body', b='skin', G=2.0),
+            ConvectionInteraction('surface', node='skin', h=2.0, fluid=20.0),
         ],
     )
-    trajectory = simulate(system, until=5.0, dt=0.5)
+    trajectory = system.prepare().simulate(until=5.0, dt=0.5)
     expected = 20.0 + 60.0 * np.exp(-trajectory.times * (2.0 * 2.0 / (2.0 + 2.0)) / 4.0)
     assert np.allclose(trajectory.get_values('body.T').ravel(), expected, rtol=1e-4)
-    assert np.allclose(trajectory.get_values('wall.b_T').ravel(), (expected + 20.0) / 2, rtol=1e-4)
+    assert np.allclose(trajectory.get_values('skin.T').ravel(), (expected + 20.0) / 2, rtol=1e-4)
