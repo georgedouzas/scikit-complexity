@@ -16,65 +16,49 @@ from sage.sets.real_set import RealSet
 
 from ....core.analysis import linearization
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, BoundaryLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import clip, derivative
+from ....core.components.spaces import BaseSpace
 from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec
 from ....core.systems import BaseSystem, System
 
 GRAVITY = 9.81
 FORCE_LIMIT = 50.0
 
 
-class CartPendulumElement(Element):
-    """Inverted pendulum on a cart that a bounded horizontal force pushes.
+class CartPendulumInteraction(Interaction):
+    """Motion of an inverted pendulum on a cart that a bounded horizontal force pushes.
 
     It follows Åström and Murray. The cart of mass `M` at position `x` carries a point mass `m` at the end of a rod of
     length `l`, at the angle `theta` from upright, positive towards negative `x`. The equations of motion are
     `(M + m) x'' - m l theta'' cos(theta) + m l theta'^2 sin(theta) = force` and
     `l theta'' - x'' cos(theta) = g sin(theta)`, so upright is unstable and a positive force tilts the pendulum back
-    from a positive angle.
+    from a positive angle. The cart holds `x`, `theta`, the control input `force`, and its masses and length.
 
     Args:
         label:
-            The label of the cart.
+            The label of the interaction.
 
-        x:
-            The initial position of the cart.
-
-        x_d1:
-            The initial velocity of the cart.
-
-        theta:
-            The initial angle from upright.
-
-        theta_d1:
-            The initial angular velocity.
-
-        force:
-            The horizontal force on the cart, the control input.
-
-        M:
-            The mass of the cart.
-
-        m:
-            The mass at the end of the rod.
-
-        l:
-            The length of the rod.
+        target:
+            The path of the cart.
 
         g:
             The acceleration of gravity.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import CartPendulumElement
-        >>> CartPendulumElement('cart', theta=0.1).theta
-        0.1
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.engineering.control import CartPendulumInteraction
+        >>> cart = Element('cart', values={'x': 0.0, 'theta': 0.1, 'force': 0.0, 'M': 1.0, 'm': 0.1, 'l': 0.5})
+        >>> System(elements=[cart], interactions=[CartPendulumInteraction('motion', target='cart')]).prepare().states_
+        ('cart.x', "cart.x'", 'cart.theta', "cart.theta'")
     """
 
     law_classes = (ConstraintLaw,)
@@ -83,48 +67,31 @@ class CartPendulumElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(order=2)] = 0.0,
-        x_d1: float = 0.0,
-        theta: Annotated[float, StateSpec(order=2)] = 0.0,
-        theta_d1: float = 0.0,
-        force: Annotated[float, ParameterSpec(adaptive=True, bounds=(-FORCE_LIMIT, FORCE_LIMIT))] = 0.0,
-        M: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        target: Role,
         g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = GRAVITY,
     ) -> None:
         super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
-        self.theta = theta
-        self.theta_d1 = theta_d1
-        self.force = force
-        self.M = M
-        self.m = m
-        self.l = l
+        self.target = target
         self.g = g
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the equations of motion of the cart and the pendulum.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        x_acceleration, theta_acceleration = derivative(s.x, 2), derivative(s.theta, 2)
-        spin = derivative(s.theta, 1)
-        return [
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the equations of motion of the cart and the pendulum."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        cart, t = context.target, context.t
+        x_acceleration, theta_acceleration = cart.x.diff(t, 2), cart.theta.diff(t, 2)
+        spin = cart.theta.diff(t)
+        self.laws_: list[BaseComponent] = [
             ConstraintLaw(
-                (s.M + s.m) * x_acceleration
-                - s.m * s.l * theta_acceleration * cos(s.theta)
-                + s.m * s.l * spin**2 * sin(s.theta)
-                == s.force,
+                (cart.M + cart.m) * x_acceleration
+                - cart.m * cart.l * theta_acceleration * cos(cart.theta)
+                + cart.m * cart.l * spin**2 * sin(cart.theta)
+                == cart.force,
             ),
-            ConstraintLaw(s.l * theta_acceleration - x_acceleration * cos(s.theta) == s.g * sin(s.theta)),
+            ConstraintLaw(
+                cart.l * theta_acceleration - x_acceleration * cos(cart.theta) == context.g * sin(cart.theta),
+            ),
         ]
 
 
@@ -191,41 +158,15 @@ class DrivenOscillatorElement(Element):
         return [RateLaw(s.x, -(s.omega**2) * s.x - 2 * s.zeta * s.omega * derivative(s.x, 1) + s.force)]
 
 
-class IntegratorElement(Element):
-    """Element that holds the integral of a signal, whose rate a controller sets.
-
-    Args:
-        label:
-            The label of the integrator.
-
-        value:
-            The initial value of the integral.
-
-    Examples:
-        >>> from skcomplex.systems.engineering.control import IntegratorElement
-        >>> IntegratorElement('memory').value
-        0.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        value: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.value = value
-
-
 class PIDInteraction(Interaction):
     """Proportional-integral-derivative controller of a control input of a plant.
 
     It sets the control input from the error of a measure. The error is `e = setpoint - y` for the measured state `y`,
     and the controller sets the control input to `u = kp e + ki I - kd y'`, clipped to the limits, with the derivative
-    taken on the measure. The integral `I' = e` of the error lives in an `IntegratorElement` bound to the role
-    `integrator`. The control input is an adaptive parameter of the plant, which the controller sets after every solver
-    step, so it holds within a step like a sampled controller. The derivative term reads the first derivative of the
-    measure, so a measure with a derivative term is a state of order 2.
+    taken on the measure. The integral `I' = e` of the error is the value `value` of the element bound to the role
+    `integrator`, such as `Element('memory', values={'value': 0.0})`. The controller sets the control input of the
+    plant after every solver step, so it holds within a step like a sampled controller. The derivative term reads
+    the first derivative of the measure, so a measure with a derivative term is a state of order 2.
 
     Args:
         label:
@@ -291,24 +232,19 @@ class PIDInteraction(Interaction):
         self.measure = measure
         self.limits = limits
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate of the integral of the error and the control input it sets.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate of the integral of the error and the control input it sets."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s, value = context, context.integrator.value
         measured = getattr(s.plant, self.measure)
         error = s.setpoint - measured
-        output = s.kp * error + s.ki * s.integrator.value
+        output = s.kp * error + s.ki * value
         if self.kd != 0:
-            output -= s.kd * derivative(measured, 1)
-        return [
-            RateLaw(s.integrator.value, error),
+            output -= s.kd * measured.diff(s.t)
+        self.laws_: list[BaseComponent] = [
+            RateLaw(value.diff(s.t), error),
             BoundaryLaw(getattr(s.plant, self.control), clip(output, *(self.limits or (None, None)))),
         ]
 
@@ -366,22 +302,19 @@ class StateFeedbackInteraction(Interaction):
         self.gain = gain
         self.limits = limits
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the control input the feedback sets.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the control input the feedback sets."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        plant = context.plant
         feedback = -sum(
-            (float(gain) * getattr(s.plant, name) for name, gain in zip(self.states, self.gain, strict=True)),
+            (float(gain) * getattr(plant, name) for name, gain in zip(self.states, self.gain, strict=True)),
             0,
         )
-        return [BoundaryLaw(getattr(s.plant, self.control), clip(feedback, *(self.limits or (None, None))))]
+        self.laws_: list[BaseComponent] = [
+            BoundaryLaw(getattr(plant, self.control), clip(feedback, *(self.limits or (None, None)))),
+        ]
 
 
 def _get_tilt(s: SimpleNamespace) -> Expression:
@@ -468,7 +401,7 @@ class PidInvertedPendulumSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components of the system built from its model parameters."""
         super()._prepare(context)
-        cart = CartPendulumElement('cart', theta=self.theta, M=self.M, m=self.m, l=self.l)
+        values = {'x': 0.0, 'theta': self.theta, 'force': 0.0, 'M': self.M, 'm': self.m, 'l': self.l}
         controller = PIDInteraction(
             'pid',
             plant='cart',
@@ -482,8 +415,8 @@ class PidInvertedPendulumSystem(BaseSystem):
         )
         self.system_ = System(
             self.label,
-            elements=[cart, IntegratorElement('memory')],
-            interactions=[controller],
+            elements=[Element('cart', values=values), Element('memory', values={'value': 0.0})],
+            interactions=[controller, CartPendulumInteraction('motion', target='cart')],
             solver=RK4Solver(dt=0.001),
         )
 

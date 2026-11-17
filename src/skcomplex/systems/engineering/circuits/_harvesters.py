@@ -51,7 +51,7 @@ class RoadInteraction(Interaction):
             The angular frequency of the road profile.
 
     Examples:
-        >>> from skcomplex.systems.engineering.circuits._harvesters import RoadInteraction
+        >>> from skcomplex.systems.engineering.circuits import RoadInteraction
         >>> RoadInteraction('road', target='harvester', A=0.02).A
         0.02
     """

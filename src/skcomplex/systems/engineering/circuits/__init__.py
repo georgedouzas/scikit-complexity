@@ -15,7 +15,7 @@ from ._coupled_colpitts import (
     ColpittsOscillatorElement,
     CoupledColpittsSystem,
 )
-from ._harvesters import VibrationEnergyHarvesterSystem
+from ._harvesters import RoadInteraction, VibrationEnergyHarvesterSystem
 from ._memristive_mixed_mode_oscillator import (
     MemristiveCircuitElement,
     MemristiveDynamicsInteraction,
@@ -36,6 +36,7 @@ __all__: list[str] = [
     'MemristorOscillatorSystem',
     'MixedModeChuaSystem',
     'RlcCircuitSystem',
+    'RoadInteraction',
     'TunnelDiodeOscillatorSystem',
     'VibrationEnergyHarvesterSystem',
 ]

@@ -61,7 +61,7 @@ class WheelLoadInteraction(Interaction):
             The time between the two wheels of a bogie.
 
     Examples:
-        >>> from skcomplex.systems.engineering.power_systems._electromechanics import WheelLoadInteraction
+        >>> from skcomplex.systems.engineering.power_systems import WheelLoadInteraction
         >>> WheelLoadInteraction('wheels', target='rail', F=500.0).F
         500.0
     """
@@ -134,7 +134,7 @@ class BallastInteraction(Interaction):
             The cubic coefficient of the nonlinear term.
 
     Examples:
-        >>> from skcomplex.systems.engineering.power_systems._electromechanics import BallastInteraction
+        >>> from skcomplex.systems.engineering.power_systems import BallastInteraction
         >>> BallastInteraction('ballast', target='rail', k2=500.0).k2
         500.0
     """
