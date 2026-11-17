@@ -17,12 +17,12 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EventLaw, RateLaw
-from ....core.components.laws.utils import derivative, periodic_guard
+from ....core.components.laws.utils import periodic_guard
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
