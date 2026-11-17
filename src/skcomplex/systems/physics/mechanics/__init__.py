@@ -18,7 +18,6 @@ from ._mechanics import (
     HangingSwingInteraction,
     HarmonicOscillatorSystem,
     NewtonsCradleSystem,
-    PendulumSwingInteraction,
     PendulumSystem,
     ProjectileSystem,
     UniformGravityInteraction,
@@ -57,7 +56,7 @@ from ._rotations import (
     RotatingSwingSystem,
     RotationInteraction,
 )
-from ._springs import ElasticLinkInteraction, PeriodicForceInteraction, TwoMassSpringDamperSystem
+from ._springs import ElasticLinkInteraction, TwoMassSpringDamperSystem
 from ._wells import ExponentialWellInteraction, ParticleInAWellSystem
 
 __all__: list[str] = [
@@ -103,9 +102,7 @@ __all__: list[str] = [
     'ParametricPendulumSystem',
     'ParticleInAWellSystem',
     'PendulumSpringInteraction',
-    'PendulumSwingInteraction',
     'PendulumSystem',
-    'PeriodicForceInteraction',
     'ProjectileSystem',
     'RotatingBallElement',
     'RotatingBallsOnRodsSystem',

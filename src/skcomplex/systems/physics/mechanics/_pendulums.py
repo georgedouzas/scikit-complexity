@@ -28,9 +28,8 @@ from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec, VisualSpec
 from ...general.mechanics import EulerLagrangeInteraction
-from ..common.mechanics import LagrangianInteraction
+from ..common.mechanics import LagrangianInteraction, PendulumSwingInteraction
 from ..common.particles import LinearDragInteraction, RestoringForceInteraction
-from ._mechanics import PendulumSwingInteraction
 
 DIRECTIONS = ('vertical', 'horizontal')
 

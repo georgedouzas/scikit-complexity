@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR, Expression, cos, oo
+from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.real_set import RealSet
 
 from ....core import systems
@@ -23,9 +23,8 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.specs import Role, VisualSpec
-from ..common.mechanics import LagrangianInteraction
-from ..common.particles import LinearDragInteraction, RestoringForceInteraction
-from ._springs import PeriodicForceInteraction
+from ..common.mechanics import PendulumSwingInteraction
+from ..common.particles import LinearDragInteraction, PeriodicForceInteraction, RestoringForceInteraction
 
 WALL_POINTS = 200
 GRAVITY = 9.81
@@ -425,59 +424,6 @@ class DiscWallInteraction(Interaction):
             scale = 2 * speed / sum((n**2 for n in normal), SR(0))
             reset = {v: v - scale * n for v, n in zip(velocities, normal, strict=True)}
             self.laws_ = [EventLaw(guard, reset, direction=1, label=self.label)]
-
-
-class PendulumSwingInteraction(LagrangianInteraction):
-    """Motion of a pendulum, the Euler-Lagrange equation of `L = m l² θ'² / 2 + m g l cos θ`.
-
-    The equation is Newton's law `m l² θ'' = -m g l sin θ` for the angle `θ` of the target, whose mass `m`, length
-    `l`, and gravity `g` are values of the target.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the pendulum.
-
-    Examples:
-        >>> from skcomplex.systems.physics.mechanics import PendulumSwingInteraction
-        >>> PendulumSwingInteraction('swing', target='bob').target
-        'bob'
-    """
-
-    def __init__(self, label: str, *, target: Role) -> None:
-        super().__init__(label)
-        self.target = target
-
-    def _get_coordinates(self, context: SimpleNamespace) -> list[Expression]:
-        """Return the angle of the pendulum."""
-        return [context.target.theta]
-
-    def _get_lagrangian(
-        self,
-        context: SimpleNamespace,
-        positions: list[Expression],
-        velocities: list[Expression],
-    ) -> Expression:
-        """Return the Lagrangian `m l² θ'² / 2 + m g l cos θ` of the pendulum.
-
-        Args:
-            context:
-                The namespace of the pendulum and the time `t`.
-
-            positions:
-                The symbol of the angle.
-
-            velocities:
-                The symbol of the angular velocity.
-
-        Returns:
-            lagrangian:
-                The Lagrangian.
-        """
-        bob = context.target
-        return bob.m * bob.l**2 * velocities[0] ** 2 / 2 + bob.m * bob.g * bob.l * cos(positions[0])
 
 
 class ProjectileSystem(systems.BaseSystem):

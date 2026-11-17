@@ -32,9 +32,9 @@ from ..common.oscillators import (
     PhaseOscillatorElement,
     PhaseRotationInteraction,
     SitedOscillatorElement,
+    StuartLandauInteraction,
     order_parameter,
 )
-from ._amplitude_death import StuartLandauInteraction
 
 
 class DelayedCouplingInteraction(Interaction):
