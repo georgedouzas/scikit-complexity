@@ -10,13 +10,14 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
+from ....core.components import Observable
 from ....core.components.elements import FieldElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.dynamics import ReactionDiffusionSystem
 from ...general.reactions import ReactionInteraction
@@ -237,7 +238,6 @@ class BrusselatorSystem(BaseSystem):
     references = ('Prigogine and Lefever 1968', 'Gros 2015')
     until = 100.0
     dt = 1.0
-    solver = RK4Solver(dt=0.01)
 
     @staticmethod
     def _get_diffusions() -> list[RateInteraction]:
@@ -295,8 +295,9 @@ class BrusselatorSystem(BaseSystem):
             ReactionInteraction('decay', target='cells', reactants={'u': 1}),
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the field near its steady state, its reactions, and its diffusions."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the field near its steady state, its reactions, and its diffusions."""
+        super()._prepare(context)
         shape = tuple(self.shape)
         values = {
             'u': self.a + GrayScottSystem._get_noise(shape, 0.01, self.random_state),
@@ -306,10 +307,11 @@ class BrusselatorSystem(BaseSystem):
             'Du': self.Du,
             'Dv': self.Dv,
         }
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[FieldElement('cells', element=BrusselatorElement, space=LatticeSpace(shape), values=values)],
             interactions=[*self._get_reactions(), *BrusselatorSystem._get_diffusions()],
+            solver=RK4Solver(dt=0.01),
         )
 
 

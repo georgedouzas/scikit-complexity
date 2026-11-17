@@ -16,13 +16,23 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...components.base import BaseComponent
 from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement
-from ...components.laws import BaseLaw, ConstraintLaw, JumpLaw, NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
+from ...components.laws import (
+    BaseLaw,
+    ConstraintLaw,
+    JumpLaw,
+    NoiseLaw,
+    RateLaw,
+    RuleLaw,
+    TopologyRequestSpec,
+    UpdateLaw,
+)
 from ...components.laws.utils import derivative, lag
 from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind
 from ...errors import ValidationError
 from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from .._utils import bound_labels
 from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values')
@@ -172,7 +182,7 @@ class _StateInference:
         element: Element,
         name: str,
         value: object,
-        order: int | None,
+        order: float | None,
         *,
         lags: int = 0,
         starting: Mapping[int, object] | None = None,
@@ -193,7 +203,7 @@ class _StateInference:
         domain = self._get_domain(annotation, value)
         vector = np.ndim(np.asarray(value, dtype=object)) > 0
         starting = starting or {}
-        count = lags or max((order or 1) - 1, 0)
+        count = lags or max(int(order or 1) - 1, 0)
         unread = sorted(index for index in starting if index > count)
         if unread and order is not None:
             error_msg = (
@@ -264,11 +274,32 @@ class _StateInference:
         return any(isinstance(value, Expression) and bool(value.find(marker)) for value in law._get_values())
 
     @staticmethod
-    def _get_orders(compilation: Compilation) -> tuple[dict[str, int], dict[str, int]]:
+    def _get_order(name: str, order: float, known: float | None) -> float:
+        """Return the higher of two orders of a value, both integers or equal.
+
+        A fractional order matches only itself.
+
+        Raises:
+            ValidationError:
+                The value has a fractional order and another order.
+        """
+        if known is None or known == order:
+            return order
+        if not float(order).is_integer() or not float(known).is_integer():
+            fractional, other = (known, order) if float(order).is_integer() else (order, known)
+            error_msg = (
+                f'The value {name} has a fractional derivative of order {fractional} and a derivative of order '
+                f'{other}. Give every rate law of {name} the same target, such as `fractional(x, {fractional})`.'
+            )
+            raise ValidationError(error_msg)
+        return max(order, known)
+
+    @staticmethod
+    def _get_orders(compilation: Compilation) -> tuple[dict[str, float], dict[str, int]]:
         """Return the order and the past values of every value the laws use.
 
         A value that only constraints without derivatives determine has order 0, as the potential of a circuit node
-        whose currents must balance.
+        whose currents must balance, and a value that rate laws give a fractional derivative has its fractional order.
         """
         census = Compilation._get_required(compilation.census, 'census')
         layout = Compilation._get_required(compilation.layout, 'layout')
@@ -277,7 +308,7 @@ class _StateInference:
             for block in layout.blocks.values()
             for variable, entry in block.entries.items()
         }
-        orders: dict[str, int] = {}
+        orders: dict[str, float] = {}
         lags: dict[str, int] = {}
         for record in census.records:
             law = record.law
@@ -289,7 +320,7 @@ class _StateInference:
                 names.append(named[str(law.target)])
                 order = 1 if _StateInference._has_derivative(law) else 0
             for name in names:
-                orders[name] = max(order, orders.get(name, 0))
+                orders[name] = _StateInference._get_order(name, order, orders.get(name))
         return orders, lags
 
     def get_declared(self, system: CompositeSystem) -> CompositeSystem:
@@ -312,13 +343,15 @@ class _StateInference:
         compilation = self.census(self._replace(system, probe))
         orders, lags = self._get_orders(compilation)
         kinds = self._get_topology_kinds(compilation)
+        agents = self._get_agent_groups(compilation)
 
         def declare(element: Element, path: str) -> list[BaseElement]:
             return self._get_declared_elements(
                 element,
-                lambda name: orders.get(f'{path}.{name}'),
+                (lambda name: 1) if path in agents else (lambda name: orders.get(f'{path}.{name}')),
                 lambda name: lags.get(f'{path}.{name}', 0),
                 kinds,
+                agents=path in agents,
             )
 
         return self._replace(system, declare)
@@ -336,25 +369,42 @@ class _StateInference:
                 kinds.update(item.kind for item in law.changes or {} if isinstance(item, TopologyRequestSpec))
         return frozenset(kinds)
 
+    @staticmethod
+    def _get_agent_groups(compilation: Compilation) -> set[str]:
+        """Return the paths of the groups whose members run agent rules."""
+        census = Compilation._get_required(compilation.census, 'census')
+        nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
+        groups: set[str] = set()
+        for record in census.records:
+            node = nodes.get(record.path)
+            if not isinstance(record.law, RuleLaw) or record.law.members is None or node is None:
+                continue
+            groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, record.law.members)))
+        return groups
+
     def _get_declared_elements(
         self,
         element: Element,
-        order: Callable[[str], int | None],
+        order: Callable[[str], float | None],
         lags: Callable[[str], int],
         kinds: frozenset[str] = frozenset(),
         probing: bool = False,
+        *,
+        agents: bool = False,
     ) -> list[BaseElement]:
         """Return the declared element of a plain element, or a group of declared members.
 
         On a network whose edges the laws change, the members are a variable group of nodes, with a variable group on
         the edges named after the element, such as `voters_edges`. When the laws also add or remove nodes, every value
-        of a node is a state, since it comes and goes with its node, and the group has room for twice its nodes. A value
-        named after an axis of a continuous space is a position, also when no law changes it. The probe that finds the
-        orders reads no starting values of derivatives or past values.
+        of a node is a state, since it comes and goes with its node, and the group has room for twice its nodes. The
+        members of a group that runs agent rules are agents, whose rules may change every value and add or remove
+        members, so every value is a state and the group is variable, and a single element that runs them is a group of
+        one agent. A value named after an axis of a continuous space is a position, also when no law changes it. The
+        probe that finds the orders reads no starting values of derivatives or past values.
         """
         values = self._get_values(element)
         starting = {} if probing else self._get_starting(element, values)
-        count = self._get_count(element)
+        count = self._get_count(element) or (1 if agents else None)
         network = bool(kinds) and isinstance(element.space, NetworkSpace)
         growing = network and bool(kinds & MEMBERSHIP)
         axes = self._get_axes(element)
@@ -411,5 +461,6 @@ class _StateInference:
             space=element.space,
             on=None if element.space is None else 'sites',
             values=values,
+            variable=agents,
         )
         return [group]

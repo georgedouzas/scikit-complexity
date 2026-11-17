@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
@@ -20,8 +21,9 @@ from ...errors import SpaceError, ValidationError
 from ...specs import BaseSpec, DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from .._tags import Tags
 from ..base import BaseComponent
-from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw, UpdateLaw
+from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw, RuleLaw, UpdateLaw
 from ..laws.utils import delayed, derivative, lag
+from ..laws.utils._fractional import fractional_of
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._interaction_requirement_spec import _InteractionRequirementSpec
@@ -272,9 +274,26 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     @staticmethod
     def _get_normalized(law: BaseComponent) -> BaseComponent:
-        """Return a law on a derivative of order `k` as a law on the state of order `k`."""
+        """Return a law on a derivative of order `k` as a law on the state of order `k`.
+
+        A rate law on the fractional derivative `fractional(x, alpha)` becomes a rate law on `x` of the order `alpha`.
+
+        Raises:
+            ValidationError:
+                A fractional derivative is the target of a law other than a rate law, or of no state.
+        """
         if not isinstance(law, RateLaw | NoiseLaw) or not isinstance(law.target, Expression):
             return law
+        found = fractional_of(law.target)
+        if found is not None:
+            state, order = found
+            if not isinstance(law, RateLaw) or not state.is_symbol():
+                error_msg = (
+                    f'A {type(law).__name__} targets a fractional derivative, but only a RateLaw of a state takes one, '
+                    'such as `RateLaw(fractional(s.target.x, 0.5), -s.k * s.target.x)`.'
+                )
+                raise ValidationError(error_msg)
+            return clone(law).set_params(target=state, order=1 if order == 1 else order)
         if law.target.operator() is not derivative:
             return law if law.order is not None else clone(law).set_params(order=1)
         state, order = law.target.operands()
@@ -296,7 +315,48 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         functional = SimpleNamespace(**roles)
         prepared = clone(self)
         prepared.prepare(functional)
-        return [self._get_normalized(self._get_law_in_states(law, time, functions)) for law in prepared.laws_]
+        return [
+            self._get_rule(law, roles) or self._get_normalized(self._get_law_in_states(law, time, functions))
+            for law in prepared.laws_
+        ]
+
+    def _get_rule(self, law: BaseComponent, roles: Mapping[str, object]) -> RuleLaw | None:
+        """Return the agent rule that an update law of a group states, or `None`.
+
+        An update law whose target is a bound group, such as `UpdateLaw(s.target, move)`, is an agent rule: its value
+        is a function `move(agent, system)` that reads and changes one member, and every member runs it at each step.
+
+        Raises:
+            ValidationError:
+                The target is a group but the value is no function of an agent and the system, or the target is a
+                namespace that no role binds.
+        """
+        if not isinstance(law, UpdateLaw) or not isinstance(law.target, SimpleNamespace):
+            return None
+        role = next((name for name, item in roles.items() if item is law.target), None)
+        if role is None:
+            error_msg = (
+                f'An update law of {self.label!r} targets {law.target!r}, which no role binds. A rule targets the '
+                'group of a role, such as UpdateLaw(s.target, move).'
+            )
+            raise ValidationError(error_msg)
+        rule = law.value
+        if not callable(rule) or not self._is_rule(rule):
+            error_msg = (
+                f'The update law of {self.label!r} on the group of {role!r} has the value {rule!r}. A rule is a '
+                'function of one agent and the system, such as def move(agent, system): agent.x += 1.'
+            )
+            raise ValidationError(error_msg)
+        return RuleLaw(rule, law.phase, members=role, label=law.label)
+
+    @staticmethod
+    def _is_rule(rule: Callable[..., object]) -> bool:
+        """Return whether a function takes two arguments, the agent and the system."""
+        try:
+            inspect.signature(rule).bind(None, None)
+        except (TypeError, ValueError):
+            return False
+        return True
 
     def _prepare_on(self, space: BaseSpace | SimpleNamespace | None) -> None:
         """Check the interaction on the space of its system, learning no laws."""

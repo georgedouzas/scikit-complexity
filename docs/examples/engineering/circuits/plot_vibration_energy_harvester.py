@@ -14,7 +14,6 @@ its two natural frequencies.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.circuits import VibrationEnergyHarvesterSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'vibration_energy_harvester'
 
 system = VibrationEnergyHarvesterSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Frequency response of the voltage
@@ -37,7 +36,7 @@ frequencies = np.linspace(2.0, 100.0, 50)
 amplitudes = []
 for omega in frequencies:
     system_system = VibrationEnergyHarvesterSystem(omega=omega)
-    run = simulate(system_system)
+    run = system_system.prepare().simulate()
     amplitudes.append(np.abs(run.get_values('voltage')[-300:]).max())
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.semilogy(frequencies, amplitudes, 'o-', markersize=3, label='simulated voltage amplitude')

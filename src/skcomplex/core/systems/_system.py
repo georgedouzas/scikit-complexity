@@ -215,7 +215,9 @@ class System(BaseSystem):
         state_entries = list(states.entries) if states is not None else []
         parameter_entries = list(parameters.entries) if parameters is not None else []
         display = Trajectory._get_display_name
-        self.states_ = tuple(display(name) for entry in state_entries for name in entry.generic_names)
+        agents = [f'{group.path}.{name}' for group in getattr(problem, 'agents', ()) for name in group.states]
+        names = [display(name) for entry in state_entries for name in entry.generic_names]
+        self.states_ = tuple(dict.fromkeys([*names, *agents]))
         self.parameters_ = tuple(display(name) for entry in parameter_entries for name in entry.generic_names)
         symbols: Mapping[str, object] = getattr(problem, 'symbols', {})
         readable = {

@@ -6,16 +6,18 @@ The jumps are jump processes and the Langevin equations are chemical Langevin eq
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction, ReactionNetworkSystem
 from ...general.reactions.types import ReactionTable
 
@@ -222,7 +224,6 @@ class ChemicalLangevinEquationSystem(BaseSystem):
     references = ('Schlögl 1972', 'Gillespie 2000', 'Trzaska 2023')
     until = 200.0
     dt = 0.05
-    solver = EulerMaruyamaSolver(dt=1e-3)
 
     def __init__(
         self,
@@ -269,11 +270,12 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         reactor = s.reactants[0]
         return reactor.c4 * reactor.x
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the reactor and the four channels of Schlögl's reaction.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the reactor and the four channels of Schlögl's reaction.
 
         The channels are chemical Langevin equations.
         """
+        super()._prepare(context)
         reactor = SchloglElement(
             'reactor',
             x=self.x,
@@ -284,7 +286,7 @@ class ChemicalLangevinEquationSystem(BaseSystem):
             A=self.A,
             B=self.B,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[reactor],
             interactions=[
@@ -305,6 +307,7 @@ class ChemicalLangevinEquationSystem(BaseSystem):
                 ReactionInteraction('production', products={X: 1}, propensity=self._get_production, mode='langevin'),
                 ReactionInteraction('conversion', reactants={X: 1}, propensity=self._get_conversion, mode='langevin'),
             ],
+            solver=EulerMaruyamaSolver(dt=1e-3),
         )
 
 

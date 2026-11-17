@@ -532,3 +532,32 @@ def test_get_declared_maps_a_complex_value():
     for _ in range(3):
         expected.append(expected[-1] ** 2 - 0.4 + 0.6j)
     assert system.simulate(until=3, dt=1).get_values('point.z') == pytest.approx(expected)
+
+
+class Wander(Interaction):
+    """Interaction whose rule moves every member of its target by its speed."""
+
+    def __init__(self, label: str, *, target: Role = 'walkers') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the members as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.wander)]
+
+    def wander(self, agent: object, system: object) -> None:
+        """Move an agent by its speed, or remove it once it passes ten."""
+        agent.x += agent.speed
+        if agent.x > 10:
+            agent.remove()
+
+
+def test_get_declared_makes_every_value_of_an_agent_group_a_state():
+    """Test that a rule may change every value of its agents and remove them, so all are states of a variable group."""
+    walkers = Element('walkers', values={'x': 0.0, 'speed': [2.0, 4.0, 6.0]}, size=3)
+    system = System(elements=[walkers], interactions=[Wander('wander')]).prepare()
+    assert system.states_ == ('walkers.x', 'walkers.speed')
+    trajectory = system.simulate(until=3)
+    assert trajectory.get_values('walkers.count').tolist() == [3.0, 3.0, 2.0, 1.0]

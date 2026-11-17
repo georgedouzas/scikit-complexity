@@ -13,7 +13,6 @@ damps the ringing so the oscillation decays exponentially.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.circuits import RlcCircuitSystem
 
@@ -23,7 +22,7 @@ L, R, C = 1.0, 0.1, 1.0
 
 system = RlcCircuitSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Damped ringing and resonance
@@ -38,7 +37,7 @@ exact = np.exp(-R * times / (2 * L)) * (np.cos(omega_d * times) + R / (2 * L * o
 frequencies = np.linspace(0.5, 1.5, 21)
 amplitudes = []
 for omega in frequencies:
-    driven = simulate(RlcCircuitSystem(q=0.0, V=0.1, omega=omega), until=150, dt=0.1)
+    driven = RlcCircuitSystem(q=0.0, V=0.1, omega=omega).prepare().simulate(until=150, dt=0.1)
     amplitudes.append(np.abs(driven.get_values('circuit.q')[-300:]).max())
 grid = np.linspace(0.5, 1.5, 300)
 fig, (ringing, resonance) = plt.subplots(1, 2, figsize=(10, 4))

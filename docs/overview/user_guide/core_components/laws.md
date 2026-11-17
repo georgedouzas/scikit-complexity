@@ -445,6 +445,86 @@ max_iterations." The condition `z < 0` never holds for heights, and the fix is `
 neuronal avalanches. A field also wraps the drive and the relaxation in one interaction, with the threshold and the
 share as its arguments, as `TopplingInteraction` does for the physics packages.
 
+## fractional
+
+The function `fractional` of `skcomplex.core.components.laws.utils` is the Caputo derivative of a fractional order.
+A `RateLaw` whose target is `fractional(x, alpha)` states `D^alpha x = f`, with the order `alpha` between 0 and 1. The
+derivative weighs the whole past of the state, so a state it moves remembers its history. Charge in a dielectric,
+stress in a viscoelastic material, and a drug held in tissue relax this way, slower than any exponential.
+
+Here a state relaxes as `D^0.5 x = -k x` from 1.0. The exact solution is the Mittag-Leffler function
+`E_0.5(-k t^0.5)`, which equals `erfcx(k t^0.5)` for this order.
+
+```python
+from types import SimpleNamespace
+
+import numpy as np
+from scipy.special import erfcx
+
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import fractional
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+
+class AnomalousRelaxation(Interaction):
+    def __init__(self, label, *, target: Role = 'charge', k=0.8, alpha=0.5):
+        super().__init__(label)
+        self.target = target
+        self.k = k
+        self.alpha = alpha
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            self.laws_ = [RateLaw(fractional(x, self.alpha), -context.k * x)]
+
+
+system = System(
+    elements=[Element('charge', values={'x': 1.0})],
+    interactions=[AnomalousRelaxation('relax')],
+).prepare()
+trajectory = system.simulate(5.0, dt=0.5)
+error = np.abs(trajectory.get_values('charge.x') - erfcx(0.8 * np.sqrt(trajectory.times))).max()
+system.form_, type(system.solver_).__name__, bool(error < 1e-4)
+```
+
+The system prepares fractional differential equations, picks the predictor-corrector `FractionalABMSolver`, and
+follows the exact solution to within `1e-4`.
+
+**How the engine runs it.** Sage has no fractional derivative, so `fractional` carries the order and `prepare` reads
+it. The state gets the order of its derivative, and a system with such a state is solved by a Caputo solver on a fixed
+grid from the start of the run: `FractionalABMSolver` by default, or `L1Solver` and `GrunwaldLetnikovSolver` given as
+the system's `solver`. The order 1 is the ordinary first derivative, so a sweep over the order reaches the ordinary
+equation, solved by the default solver of ordinary equations.
+
+**How it combines.** Several rate laws on one fractional derivative add up, as for any state, and other states of the
+same system keep their ordinary derivatives. The order is a number of the interaction, such as `self.alpha`, so
+`set_params(relax__alpha=0.7)` followed by `prepare()` changes it.
+
+**Limits and errors.** An order that is no number in `(0, 1]`, or a derivative of anything but a state, raises a
+`ValidationError` when the law is written. Every rate law of a state takes the same order, so a state with a fractional
+and an ordinary rate law raises an error naming both orders, and so does a `NoiseLaw` that targets a fractional
+derivative, since no solver integrates noise of a fractional order.
+
+```python continuation
+from sage.all__sagemath_symbolics import var
+
+from skcomplex.core.errors import ValidationError
+
+try:
+    fractional(var('x'), 1.5)
+except ValidationError as raised:
+    message = str(raised)
+message
+```
+
+The message reads "The order of a fractional derivative is a number in (0, 1], but got 1.5. Give an order such as
+`fractional(x, 0.5)`."
+
 ## EventLaw
 
 A `EventLaw` resets states, or ends the run, when an expression of the states, its guard, crosses zero. A ball

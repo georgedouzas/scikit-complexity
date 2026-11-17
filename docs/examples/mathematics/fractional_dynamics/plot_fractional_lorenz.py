@@ -16,7 +16,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.fractional_dynamics import FractionalLorenzSystem
 
@@ -43,7 +42,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=4)
-trajectory = simulate(FractionalLorenzSystem(), until=40, observers=[observer])
+trajectory = FractionalLorenzSystem().prepare().simulate(until=40, observers=[observer])
 points = np.column_stack([trajectory.get_values(f'lorenz.{state}') for state in 'xyz'])
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.15, colors=[255, 170, 40]), static=True)
 observer.recording_.flush()

@@ -11,14 +11,13 @@ cycle: the concentrations `u` and `v` oscillate out of phase with a fixed amplit
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.kinetics import BrusselatorODESystem
 
 SYSTEM = 'brusselator_ode'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(BrusselatorODESystem(), observers=[observer])
+trajectory = BrusselatorODESystem().prepare().simulate(observers=[observer])
 
 # %%
 # One limit cycle from every initial state
@@ -28,7 +27,7 @@ trajectory = simulate(BrusselatorODESystem(), observers=[observer])
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for u0, v0 in [(1.0, 3.2), (0.5, 0.5), (4.0, 1.0), (3.0, 5.0)]:
-    run = simulate(BrusselatorODESystem(u=u0, v=v0), until=100, dt=0.05)
+    run = BrusselatorODESystem(u=u0, v=v0).prepare().simulate(until=100, dt=0.05)
     ax.plot(run.get_values('reactor.u'), run.get_values('reactor.v'), linewidth=0.8, alpha=0.7)
     ax.plot(u0, v0, 'o', color='gray', markersize=4)
 late = trajectory.times > 30

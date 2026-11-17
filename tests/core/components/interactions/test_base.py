@@ -29,7 +29,7 @@ from skcomplex.core.components.interactions import (
     TransferInteraction,
     TransitionInteraction,
 )
-from skcomplex.core.components.laws import PartnerSpec, RateLaw, TopologyRequestSpec
+from skcomplex.core.components.laws import PartnerSpec, RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     BaseSpace,
@@ -43,7 +43,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.enums import ElementKind
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import BaseSpec, ParameterSpec, Role, RoleSpec, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import (
     BirthDeathInteraction,
@@ -698,3 +698,49 @@ def test_prepare_leaves_the_user_interaction_unchanged():
     bodies = GroupElement('bodies', element=FallElement, size=2, values={'x': [1.0, 2.0]})
     System(elements=[bodies], interactions=[pull]).prepare().simulate(until=1.0, dt=0.5)
     assert not hasattr(pull, 'laws_')
+
+
+class RuleInteraction(Interaction):
+    """Interaction whose law is an update of the group of its target with a given value."""
+
+    def __init__(self, label, *, target: Role, rule=None, bound=True):
+        super().__init__(label)
+        self.target = target
+        self.rule = rule
+        self.bound = bound
+
+    def _prepare(self, context):
+        """Set the update of the bound group, or of a namespace no role binds."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            target = context.target if self.bound else SimpleNamespace()
+            self.laws_ = [UpdateLaw(target, self.rule, phase='move')]
+
+
+def _shift(agent, system):
+    """Add one to the value of an agent."""
+    agent.x += 1
+
+
+def test_update_of_a_group_with_a_function_is_an_agent_rule():
+    """Test that an update law whose target is a bound group runs its function for every member of the role."""
+    walkers = SimpleNamespace(x=var('x'))
+    laws = RuleInteraction('shift', target='walkers', rule=_shift).prepare().run(SimpleNamespace(target=walkers)).laws_
+    assert [(type(law).__name__, law.function, law.members, law.phase) for law in laws] == [
+        ('RuleLaw', _shift, 'target', 'move'),
+    ]
+
+
+@pytest.mark.parametrize('rule', [3.0, lambda agent: None, lambda agent, system, extra: None])
+def test_rule_that_is_no_function_of_an_agent_and_the_system_raises(rule):
+    """Test that the value of an update law of a group must be a function of one agent and the system."""
+    interaction = RuleInteraction('shift', target='walkers', rule=rule)
+    with pytest.raises(ValidationError, match='A rule is a function of one agent and the system'):
+        interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(x=var('x'))))
+
+
+def test_rule_on_a_namespace_no_role_binds_raises():
+    """Test that an update law targets the group of a role, not a namespace of its own."""
+    interaction = RuleInteraction('shift', target='walkers', rule=_shift, bound=False)
+    with pytest.raises(ValidationError, match='which no role binds'):
+        interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(x=var('x'))))

@@ -1858,7 +1858,7 @@ See its [API entry][skcomplex.systems.general.matching].
 
 Traders quote prices in one phase and trade in a batch auction in the next, while a clerk sets a fee from the volume
 traded. The phases and the clerk are components of the core, which the section
-[Phases, institutions, and learning](../build_a_custom_system/agent_based_systems.md#phases-institutions-and-learning)
+[Activation and phases](../build_a_custom_system/agent_based_systems.md#activation-and-phases)
 explains.
 
 ```python

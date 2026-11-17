@@ -249,6 +249,8 @@ numerically. It sums the power series in arbitrary precision with Sage for moder
 expansion for large ones.
 `symbolic(system)` writes a Caputo derivative as `caputo(x(t), t, alpha)`.
 
-The order belongs to the element type, so a sweep over orders builds one system per order. These ready-made systems of
-`skcomplex.systems.mathematics.fractional_dynamics` take the order as a model parameter: `FractionalRelaxationSystem`,
-`FractionalOscillatorSystem`, `FractionalVanDerPolSystem`, and `FractionalLorenzSystem`.
+An interaction states the same relaxation as `RateLaw(fractional(x, 0.6), -x)`, with the order in the target of the
+law, as the [`fractional`](../core_components/laws.md#fractional) section of the laws page shows. These ready-made
+systems of `skcomplex.systems.mathematics.fractional_dynamics` are written this way and take the order as a model
+parameter: `FractionalRelaxationSystem`, `FractionalOscillatorSystem`, `FractionalVanDerPolSystem`, and
+`FractionalLorenzSystem`.

@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.kinetics import NanoparticleCoronaSystem
 
@@ -37,7 +36,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(NanoparticleCoronaSystem(), observers=[observer])
+trajectory = NanoparticleCoronaSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Composition of the corona and its equilibrium
@@ -46,7 +45,7 @@ trajectory = simulate(NanoparticleCoronaSystem(), observers=[observer])
 # affinity `n_i alpha_i P_i / delta_i`, so it should end up holding nearly all the nanoparticles, after albumin held
 # most of them first. A run of ten hours with a logarithmic time axis shows both phases.
 
-long_run = simulate(NanoparticleCoronaSystem(), until=36000, dt=10.0)
+long_run = NanoparticleCoronaSystem().prepare().simulate(until=36000, dt=10.0)
 fig, (shares, balance) = plt.subplots(1, 2, figsize=(10, 4))
 total = 36.0
 hours = long_run.times[1:] / 3600

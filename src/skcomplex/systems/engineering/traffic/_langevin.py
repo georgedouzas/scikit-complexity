@@ -6,6 +6,7 @@ The equations are those of the density of the cars. The speed is set by the loca
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,13 +14,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import divergence, laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ..common.traffic import CarElement, OptimalVelocityInteraction, SpeedAdaptationInteraction
 
 
@@ -196,7 +198,6 @@ class LangevinTrafficSystem(BaseSystem):
     references = ('Bertin 2021',)
     until = 200.0
     dt = 1.0
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -217,8 +218,9 @@ class LangevinTrafficSystem(BaseSystem):
         self.rho_max = rho_max
         self.D1 = D1
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         density = self.n_cars / self.length
         positions = np.arange(self.n_cars) * self.length / self.n_cars
         cars = GroupElement(
@@ -236,7 +238,7 @@ class LangevinTrafficSystem(BaseSystem):
             D1=self.D1,
             road_length=self.length,
         )
-        return CompositeSystem(self.label, elements=[cars], interactions=[driving])
+        self.system_ = System(self.label, elements=[cars], interactions=[driving], solver=EulerMaruyamaSolver(dt=0.01))
 
 
 class TrafficDensityEquationSystem(BaseSystem):
@@ -295,7 +297,6 @@ class TrafficDensityEquationSystem(BaseSystem):
     references = ('Bertin 2021',)
     until = 400.0
     dt = 4.0
-    solver = RK4Solver(dt=0.1)
 
     def __init__(
         self,
@@ -322,8 +323,9 @@ class TrafficDensityEquationSystem(BaseSystem):
         self.perturbation = perturbation
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         rho = self.density * (1 + self.perturbation * rng.standard_normal(self.n))
         values = {
@@ -336,4 +338,4 @@ class TrafficDensityEquationSystem(BaseSystem):
         }
         space = LatticeSpace(self.n, spacing=self.length / self.n)
         road = FieldElement('road', element=TrafficMomentsElement, space=space, values=values)
-        return CompositeSystem(self.label, elements=[road])
+        self.system_ = System(self.label, elements=[road], solver=RK4Solver(dt=0.1))

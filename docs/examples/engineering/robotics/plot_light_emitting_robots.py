@@ -16,14 +16,13 @@ before it arrives and speeds up before it leaves, so the robots avoid each other
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.robotics import LightEmittingRobotsSystem
 
 SYSTEM = 'light_emitting_robots'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(LightEmittingRobotsSystem(), observers=[observer])
+trajectory = LightEmittingRobotsSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Delay against prediction
@@ -34,7 +33,7 @@ trajectory = simulate(LightEmittingRobotsSystem(), observers=[observer])
 
 fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 for ax, delay in zip(axes, (10.0, 0.0, -10.0), strict=True):
-    trajectory = simulate(LightEmittingRobotsSystem(n_robots=20, delay=delay), until=600)
+    trajectory = LightEmittingRobotsSystem(n_robots=20, delay=delay).prepare().simulate(until=600)
     snapshot = trajectory.get_agents('robots', 600)
     positions = np.asarray(snapshot.locations)
     ax.scatter(positions[:, 0], positions[:, 1], c=snapshot.values['light'], vmin=0, vmax=10)

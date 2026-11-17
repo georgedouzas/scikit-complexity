@@ -4,19 +4,23 @@ The package covers relaxation, oscillators, and chaotic flows whose states have 
 """
 
 from ._fractional import (
+    FractionalLorenzInteraction,
     FractionalLorenzSystem,
+    FractionalOscillatorInteraction,
     FractionalOscillatorSystem,
+    FractionalRelaxationInteraction,
     FractionalRelaxationSystem,
+    FractionalVanDerPolInteraction,
     FractionalVanDerPolSystem,
-    VanDerPolElement,
-    van_der_pol_type,
 )
 
 __all__: list[str] = [
+    'FractionalLorenzInteraction',
     'FractionalLorenzSystem',
+    'FractionalOscillatorInteraction',
     'FractionalOscillatorSystem',
+    'FractionalRelaxationInteraction',
     'FractionalRelaxationSystem',
+    'FractionalVanDerPolInteraction',
     'FractionalVanDerPolSystem',
-    'VanDerPolElement',
-    'van_der_pol_type',
 ]

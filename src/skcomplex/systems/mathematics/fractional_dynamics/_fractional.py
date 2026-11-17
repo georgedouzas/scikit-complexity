@@ -6,42 +6,40 @@ The module covers relaxation, oscillators, and chaotic flows with Caputo derivat
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from functools import cache
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
-from ...general.dynamics import DynamicalSystem
-from ...general.dynamics.types import Equations
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import fractional
+from ....core.components.spaces import BaseSpace
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
-class VanDerPolElement(Element):
-    """Van der Pol oscillator `x' = y`, `y' = mu (1 - x^2) y - x`.
-
-    The oscillator has two first-order states.
-
-    Its fractional subclasses replace both derivatives by Caputo derivatives of one order.
+class FractionalRelaxationInteraction(Interaction):
+    """The law of fractional relaxation `D^alpha x = -lam x`.
 
     Args:
         label:
-            The label of the element.
+            The label of the interaction.
 
-        x:
-            The initial displacement.
+        target:
+            The element whose state `x` relaxes.
 
-        y:
-            The initial derivative of the displacement.
+        order:
+            The order `alpha` of the Caputo derivative, in `(0, 1]`.
 
-        mu:
-            The strength of the nonlinear damping.
+        lam:
+            The relaxation rate.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.fractional_dynamics import VanDerPolElement
-        >>> VanDerPolElement('oscillator', mu=2.0).mu
-        2.0
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalRelaxationInteraction
+        >>> FractionalRelaxationInteraction('relaxation_law', target='relaxation', order=0.5).order
+        0.5
     """
 
     law_classes = (RateLaw,)
@@ -50,82 +48,24 @@ class VanDerPolElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 2.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-        mu: Annotated[float, ParameterSpec()] = 1.0,
+        target: Role = 'relaxation',
+        order: float = 0.6,
+        lam: float = 1.0,
     ) -> None:
         super().__init__(label)
-        self.x = x
-        self.y = y
-        self.mu = mu
+        self.target = target
+        self.order = order
+        self.lam = lam
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the displacement and its derivative.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [RateLaw(s.x, s.y), RateLaw(s.y, s.mu * (1 - s.x**2) * s.y - s.x)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the fractional derivative of the state as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            self.laws_: list[BaseComponent] = [RateLaw(fractional(x, self.order), -context.lam * x)]
 
 
-def _published[ElementT: Element](element_type: type[ElementT], name: str) -> type[ElementT]:
-    """Return an element type after naming it and binding it to its name in the module.
-
-    The binding makes the type pickle by reference.
-    """
-    element_type.__name__ = element_type.__qualname__ = name
-    globals()[name] = element_type
-    return element_type
-
-
-def _type_name(prefix: str, order: float) -> str:
-    """Return the name of the element type of an order.
-
-    The name holds the order with `p` for the decimal point.
-    """
-    return f'{prefix}_{repr(order).replace(".", "p")}'
-
-
-@cache
-def van_der_pol_type(order: float) -> type[VanDerPolElement]:
-    """Return the element type of the fractional Van der Pol system of an order.
-
-    The system is `D^alpha x = y`, `D^alpha y = mu (1 - x^2) y - x`.
-
-    Args:
-        order:
-            The order `alpha` of the Caputo derivatives of `x` and `y`.
-
-    Returns:
-        element_type:
-            The subclass of `VanDerPolElement` whose states have the order, the same for equal orders.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.fractional_dynamics import van_der_pol_type
-        >>> van_der_pol_type(0.9).__name__
-        'FractionalVanDerPol_0p9'
-    """
-
-    class FractionalElement(VanDerPolElement):
-        def __init__(
-            self,
-            label: str,
-            *,
-            x: Annotated[float, StateSpec(order=order)] = 2.0,
-            y: Annotated[float, StateSpec(order=order)] = 0.0,
-            mu: float = 1.0,
-        ) -> None:
-            super().__init__(label, x=x, y=y, mu=mu)
-
-    return _published(FractionalElement, _type_name('FractionalVanDerPol', order))
-
-
-class FractionalRelaxationSystem(DynamicalSystem):
+class FractionalRelaxationSystem(BaseSystem):
     """Fractional relaxation `D^alpha x = -lambda x`.
 
     The relaxation decays as the Mittag-Leffler function `E_alpha`.
@@ -149,7 +89,7 @@ class FractionalRelaxationSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalRelaxationSystem
-        >>> FractionalRelaxationSystem(order=0.5).prepare().system_.elements[0].get_value('lam')
+        >>> FractionalRelaxationSystem(order=0.5).prepare().system_.interactions[0].lam
         1.0
     """
 
@@ -167,30 +107,84 @@ class FractionalRelaxationSystem(DynamicalSystem):
         lam: float = 1.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label)
         self.x = x
         self.order = order
         self.lam = lam
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'relaxation'
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the relaxation."""
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[Element('relaxation', values={'x': self.x})],
+            interactions=[
+                FractionalRelaxationInteraction(
+                    'relaxation_law',
+                    target='relaxation',
+                    order=float(self.order),
+                    lam=self.lam,
+                ),
+            ],
+        )
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states, with the order of their Caputo derivatives, and the parameters."""
-        return {
-            'x': DeclaredVariableSpec(self.x, StateSpec(order=float(self.order))),
-            'lam': DeclaredVariableSpec(self.lam, ParameterSpec()),
-        }
 
-    def _get_equations(self) -> Equations:
-        """Return the components of the system, built from its model parameters."""
-        return {
-            'x': lambda s: -s.target.lam * s.target.x,
-        }
+class FractionalOscillatorInteraction(Interaction):
+    """The laws of the fractional damped oscillator.
+
+    The oscillator is `D^alpha x = v`, `D^alpha v = -omega^2 x - 2 gamma v`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The element whose states `x` and `v` oscillate.
+
+        order:
+            The order `alpha` of the Caputo derivatives, in `(0, 1]`.
+
+        omega:
+            The angular frequency.
+
+        gamma:
+            The damping rate.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalOscillatorInteraction
+        >>> FractionalOscillatorInteraction('oscillator_law', target='oscillator', omega=2.0).omega
+        2.0
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role = 'oscillator',
+        order: float = 0.8,
+        omega: float = 1.0,
+        gamma: float = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.order = order
+        self.omega = omega
+        self.gamma = gamma
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the fractional derivatives of the displacement and its rate as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, v = context.target.x, context.target.v
+            self.laws_: list[BaseComponent] = [
+                RateLaw(fractional(x, self.order), v),
+                RateLaw(fractional(v, self.order), -(context.omega**2) * x - 2 * context.gamma * v),
+            ]
 
 
-class FractionalOscillatorSystem(DynamicalSystem):
+class FractionalOscillatorSystem(BaseSystem):
     """The fractional damped oscillator.
 
     The oscillator is `D^alpha x = v`, `D^alpha v = -omega^2 x - 2 gamma v`.
@@ -220,7 +214,7 @@ class FractionalOscillatorSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalOscillatorSystem
-        >>> FractionalOscillatorSystem(order=0.9).prepare().system_.elements[0].get_value('omega')
+        >>> FractionalOscillatorSystem(order=0.9).prepare().system_.interactions[0].omega
         1.0
     """
 
@@ -240,32 +234,79 @@ class FractionalOscillatorSystem(DynamicalSystem):
         gamma: float = 0.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label)
         self.x = x
         self.v = v
         self.order = order
         self.omega = omega
         self.gamma = gamma
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'oscillator'
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the oscillator."""
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[Element('oscillator', values={'x': self.x, 'v': self.v})],
+            interactions=[
+                FractionalOscillatorInteraction(
+                    'oscillator_law',
+                    target='oscillator',
+                    order=float(self.order),
+                    omega=self.omega,
+                    gamma=self.gamma,
+                ),
+            ],
+        )
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states, with the order of their Caputo derivatives, and the parameters."""
-        return {
-            'x': DeclaredVariableSpec(self.x, StateSpec(order=float(self.order))),
-            'v': DeclaredVariableSpec(self.v, StateSpec(order=float(self.order))),
-            'omega': DeclaredVariableSpec(self.omega, ParameterSpec()),
-            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec()),
-        }
 
-    def _get_equations(self) -> Equations:
-        """Return the fractional damped oscillator."""
-        return {
-            'x': lambda s: s.target.v,
-            'v': lambda s: -(s.target.omega**2) * s.target.x - 2 * s.target.gamma * s.target.v,
-        }
+class FractionalVanDerPolInteraction(Interaction):
+    """The laws of the fractional Van der Pol oscillator.
+
+    The oscillator is `D^alpha x = y`, `D^alpha y = mu (1 - x^2) y - x`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The element whose states `x` and `y` oscillate.
+
+        order:
+            The order `alpha` of the Caputo derivatives, in `(0, 1]`.
+
+        mu:
+            The strength of the nonlinear damping.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalVanDerPolInteraction
+        >>> FractionalVanDerPolInteraction('oscillator_law', target='oscillator', mu=2.0).mu
+        2.0
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role = 'oscillator',
+        order: float = 0.9,
+        mu: float = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.order = order
+        self.mu = mu
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the fractional derivatives of the displacement and its rate as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, y = context.target.x, context.target.y
+            self.laws_: list[BaseComponent] = [
+                RateLaw(fractional(x, self.order), y),
+                RateLaw(fractional(y, self.order), context.mu * (1 - x**2) * y - x),
+            ]
 
 
 class FractionalVanDerPolSystem(BaseSystem):
@@ -294,7 +335,7 @@ class FractionalVanDerPolSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalVanDerPolSystem
-        >>> FractionalVanDerPolSystem(mu=2.0).prepare().system_.elements[0].mu
+        >>> FractionalVanDerPolSystem(mu=2.0).prepare().system_.interactions[0].mu
         2.0
     """
 
@@ -319,18 +360,85 @@ class FractionalVanDerPolSystem(BaseSystem):
         self.order = order
         self.mu = mu
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the fractional Van der Pol oscillator.
-
-        The oscillator is `D^alpha x = y`, `D^alpha y = mu (1 - x^2) y - x`.
-        """
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the oscillator."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[van_der_pol_type(float(self.order))('oscillator', x=self.x, y=self.y, mu=self.mu)],
+            elements=[Element('oscillator', values={'x': self.x, 'y': self.y})],
+            interactions=[
+                FractionalVanDerPolInteraction(
+                    'oscillator_law',
+                    target='oscillator',
+                    order=float(self.order),
+                    mu=self.mu,
+                ),
+            ],
         )
 
 
-class FractionalLorenzSystem(DynamicalSystem):
+class FractionalLorenzInteraction(Interaction):
+    """The laws of the fractional Lorenz flow of Grigorenko and Grigorenko.
+
+    The flow is `D^q x = sigma (y - x)`, `D^q y = x (rho - z) - y`, `D^q z = x y - beta z`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The element whose states `x`, `y`, and `z` the flow moves.
+
+        order:
+            The order `q` of the Caputo derivatives of all three states, in `(0, 1]`.
+
+        sigma:
+            The Prandtl number.
+
+        rho:
+            The Rayleigh number relative to its critical value.
+
+        beta:
+            The geometric factor.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalLorenzInteraction
+        >>> FractionalLorenzInteraction('flow', target='lorenz', rho=20.0).rho
+        20.0
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role = 'lorenz',
+        order: float = 0.995,
+        sigma: float = 10.0,
+        rho: float = 28.0,
+        beta: float = 8 / 3,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.order = order
+        self.sigma = sigma
+        self.rho = rho
+        self.beta = beta
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the fractional derivatives of the three coordinates as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, y, z = context.target.x, context.target.y, context.target.z
+            self.laws_: list[BaseComponent] = [
+                RateLaw(fractional(x, self.order), context.sigma * (y - x)),
+                RateLaw(fractional(y, self.order), x * (context.rho - z) - y),
+                RateLaw(fractional(z, self.order), x * y - context.beta * z),
+            ]
+
+
+class FractionalLorenzSystem(BaseSystem):
     """The fractional Lorenz flow of Grigorenko and Grigorenko.
 
     The flow is chaotic for orders close enough to 1.
@@ -367,7 +475,7 @@ class FractionalLorenzSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalLorenzSystem
-        >>> FractionalLorenzSystem(rho=20.0).prepare().system_.elements[0].get_value('rho')
+        >>> FractionalLorenzSystem(rho=20.0).prepare().system_.interactions[0].rho
         20.0
     """
 
@@ -389,7 +497,7 @@ class FractionalLorenzSystem(DynamicalSystem):
         beta: float = 8 / 3,
         label: str = 'system',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -398,25 +506,20 @@ class FractionalLorenzSystem(DynamicalSystem):
         self.rho = rho
         self.beta = beta
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'lorenz'
-
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states, with the order of their Caputo derivatives, and the parameters."""
-        return {
-            'x': DeclaredVariableSpec(self.x, StateSpec(order=float(self.order))),
-            'y': DeclaredVariableSpec(self.y, StateSpec(order=float(self.order))),
-            'z': DeclaredVariableSpec(self.z, StateSpec(order=float(self.order))),
-            'sigma': DeclaredVariableSpec(self.sigma, ParameterSpec()),
-            'rho': DeclaredVariableSpec(self.rho, ParameterSpec()),
-            'beta': DeclaredVariableSpec(self.beta, ParameterSpec()),
-        }
-
-    def _get_equations(self) -> Equations:
-        """Return the fractional Lorenz flow of Grigorenko and Grigorenko."""
-        return {
-            'x': lambda s: s.target.sigma * (s.target.y - s.target.x),
-            'y': lambda s: s.target.x * (s.target.rho - s.target.z) - s.target.y,
-            'z': lambda s: s.target.x * s.target.y - s.target.beta * s.target.z,
-        }
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the flow."""
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[Element('lorenz', values={'x': self.x, 'y': self.y, 'z': self.z})],
+            interactions=[
+                FractionalLorenzInteraction(
+                    'flow',
+                    target='lorenz',
+                    order=float(self.order),
+                    sigma=self.sigma,
+                    rho=self.rho,
+                    beta=self.beta,
+                ),
+            ],
+        )
