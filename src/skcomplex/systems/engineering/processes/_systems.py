@@ -7,6 +7,7 @@ Engineered systems move the stocks between holders.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -17,8 +18,8 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.components.laws.utils import clip, distributed_delay, minimum, series, step
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 MONTHS_PER_YEAR = 12.0
 HUSK_SHARE = 0.2
@@ -488,8 +489,9 @@ class RiceMillingSystem(BaseSystem):
         self.capacity = capacity
         self.expansion_time = expansion_time
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         mill = RiceMillElement(
             'mill',
             paddy=self.harvest,
@@ -503,7 +505,7 @@ class RiceMillingSystem(BaseSystem):
             outturn=self.outturn,
             expansion_time=self.expansion_time,
         )
-        return CompositeSystem(self.label, elements=[mill])
+        self.system_ = System(self.label, elements=[mill])
 
 
 class SolidWasteSystem(BaseSystem):
@@ -582,8 +584,9 @@ class SolidWasteSystem(BaseSystem):
         self.composting_share = composting_share
         self.landfill_capacity = landfill_capacity
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         city = WasteSystemElement(
             'city',
             population=self.population,
@@ -594,7 +597,7 @@ class SolidWasteSystem(BaseSystem):
             composting_share=self.composting_share,
             landfill_capacity=self.landfill_capacity,
         )
-        return CompositeSystem(self.label, elements=[city])
+        self.system_ = System(self.label, elements=[city])
 
 
 class FoodReliefSystem(BaseSystem):
@@ -669,8 +672,9 @@ class FoodReliefSystem(BaseSystem):
         self.cover = cover
         self.stock_time = stock_time
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         relief = ReliefPipelineElement(
             'relief',
             affected=self.affected,
@@ -680,7 +684,7 @@ class FoodReliefSystem(BaseSystem):
             cover=self.cover,
             stock_time=self.stock_time,
         )
-        return CompositeSystem(self.label, elements=[relief])
+        self.system_ = System(self.label, elements=[relief])
 
 
 class IrrigationSystem(BaseSystem):
@@ -759,8 +763,9 @@ class IrrigationSystem(BaseSystem):
         self.canal_loss = canal_loss
         self.pump_capacity = pump_capacity
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         scheme = IrrigationSchemeElement(
             'scheme',
             river_inflow=self.river_inflow,
@@ -770,4 +775,4 @@ class IrrigationSystem(BaseSystem):
             canal_loss=self.canal_loss,
             pump_capacity=self.pump_capacity,
         )
-        return CompositeSystem(self.label, elements=[scheme])
+        self.system_ = System(self.label, elements=[scheme])

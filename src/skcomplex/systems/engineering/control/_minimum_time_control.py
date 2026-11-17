@@ -6,18 +6,20 @@ A sampled bang-bang control steers it.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, abs_symbolic, sqrt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import sign, where
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ..common.signals import PulseInteraction
 
 PLANTS = {'free_particle': 0.0, 'harmonic_oscillator': -1.0, 'saddle': 1.0}
@@ -206,8 +208,9 @@ class MinimumTimeControlSystem(BaseSystem):
         self.plant = plant
         self.interval = interval
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         if self.plant not in PLANTS:
             error_msg = f'Unknown plant {self.plant!r}. Use one of {", ".join(PLANTS)}.'
             raise ParameterError(error_msg)
@@ -216,7 +219,7 @@ class MinimumTimeControlSystem(BaseSystem):
             raise ParameterError(error_msg)
         start = float(BangBangPlantElement._get_control(self.plant, self.x, self.v))
         sample = {'u': lambda s: BangBangPlantElement._get_control(self.plant, s.target.x, s.target.y)}
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[BangBangPlantElement('plant', x=self.x, y=self.v, u=start, a=PLANTS[self.plant])],
             interactions=[

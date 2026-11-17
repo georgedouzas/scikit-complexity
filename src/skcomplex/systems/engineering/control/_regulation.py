@@ -20,10 +20,11 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, BoundaryLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import clip, derivative
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.systems import CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 GRAVITY = 9.81
 FORCE_LIMIT = 50.0
@@ -432,7 +433,6 @@ class PidInvertedPendulumSystem(BaseSystem):
     references = ('Åström and Murray 2008',)
     until = 5.0
     dt = 0.05
-    solver = RK4Solver(dt=0.001)
     observables = (Observable('tilt', _get_tilt),)
 
     def __init__(
@@ -456,8 +456,9 @@ class PidInvertedPendulumSystem(BaseSystem):
         self.m = m
         self.l = l
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         cart = CartPendulumElement('cart', theta=self.theta, M=self.M, m=self.m, l=self.l)
         controller = PIDInteraction(
             'pid',
@@ -470,7 +471,12 @@ class PidInvertedPendulumSystem(BaseSystem):
             kd=self.kd,
             limits=(-FORCE_LIMIT, FORCE_LIMIT),
         )
-        return CompositeSystem(self.label, elements=[cart, IntegratorElement('memory')], interactions=[controller])
+        self.system_ = System(
+            self.label,
+            elements=[cart, IntegratorElement('memory')],
+            interactions=[controller],
+            solver=RK4Solver(dt=0.001),
+        )
 
 
 def _get_oscillator_energy(s: SimpleNamespace) -> Expression:
@@ -518,7 +524,6 @@ class LqrOscillatorSystem(BaseSystem):
     references = ('Åström and Murray 2008',)
     until = 10.0
     dt = 0.05
-    solver = RK4Solver(dt=0.001)
     observables = (Observable('energy', _get_oscillator_energy),)
 
     def __init__(
@@ -538,8 +543,9 @@ class LqrOscillatorSystem(BaseSystem):
         self.q = q
         self.r = r
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         oscillator = DrivenOscillatorElement('oscillator', x=self.x, omega=self.omega, zeta=self.zeta)
         linear = linearization(
             CompositeSystem(elements=[oscillator]),
@@ -560,4 +566,4 @@ class LqrOscillatorSystem(BaseSystem):
             gain=tuple(float(value) for value in gain[0]),
             limits=(-FORCE_LIMIT, FORCE_LIMIT),
         )
-        return CompositeSystem(self.label, elements=[oscillator], interactions=[regulator])
+        self.system_ = System(self.label, elements=[oscillator], interactions=[regulator], solver=RK4Solver(dt=0.001))

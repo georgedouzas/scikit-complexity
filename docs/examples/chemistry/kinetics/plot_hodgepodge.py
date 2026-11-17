@@ -15,14 +15,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import correlation
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.kinetics import HodgepodgeSystem
 
 SYSTEM = 'hodgepodge'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-trajectory = simulate(HodgepodgeSystem(random_state=0), until=600, observers=[observer])
+trajectory = HodgepodgeSystem(random_state=0).prepare().simulate(until=600, observers=[observer])
 
 # %%
 # Every cell repeats one cycle

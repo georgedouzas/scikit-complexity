@@ -43,7 +43,7 @@ def test_chemical_langevin_equation_keeps_both_states():
 @pytest.mark.slow
 def test_chemical_langevin_equation_switches_by_noise():
     """Test that the default Schlögl reaction switches between its low and its high state within 200 time units."""
-    trajectory = simulate(ChemicalLangevinEquationSystem(), random_state=0)
+    trajectory = ChemicalLangevinEquationSystem().prepare().simulate(random_state=0)
     late = trajectory.get_values('reactor.x')[trajectory.times > 20]
     assert late.min() < 30.0
     assert late.max() > 90.0

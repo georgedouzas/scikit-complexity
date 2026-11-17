@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.circuits import ImpulsiveCircuitsSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 system = ImpulsiveCircuitsSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=6)
-trajectory = simulate(system, until=150, dt=0.1, observers=[observer])
+trajectory = system.prepare().simulate(until=150, dt=0.1, observers=[observer])
 
 # %%
 # The periodic response

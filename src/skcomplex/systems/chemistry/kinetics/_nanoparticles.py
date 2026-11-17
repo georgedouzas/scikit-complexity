@@ -9,9 +9,10 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.elements import NonnegativeElement
 from ...general.reactions import ReactionInteraction
 
@@ -98,7 +99,6 @@ class NanoparticleCoronaSystem(BaseSystem):
     references = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Dell\'Orco et al. 2010')
     until = 10800.0
     dt = 60.0
-    solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-12)
 
     def __init__(
         self,
@@ -129,11 +129,12 @@ class NanoparticleCoronaSystem(BaseSystem):
         """
         return 4 * (radius + protein_radius) ** 2 / protein_radius**2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the nanoparticles, the proteins, and the binding and release reactions.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the nanoparticles, the proteins, and the binding and release reactions.
 
         The proteins are free and bound, and every protein binds and is released.
         """
+        super()._prepare(context)
         elements = [SpeciesElement('nanoparticle', x=self.nanoparticle)]
         interactions: list[ReactionInteraction] = []
         rows = zip(
@@ -163,4 +164,9 @@ class NanoparticleCoronaSystem(BaseSystem):
                     k=delta,
                 ),
             ]
-        return CompositeSystem(self.label, elements=elements, interactions=interactions)
+        self.system_ = System(
+            self.label,
+            elements=elements,
+            interactions=interactions,
+            solver=ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-12),
+        )

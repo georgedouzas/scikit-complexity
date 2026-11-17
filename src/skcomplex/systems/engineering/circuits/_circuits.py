@@ -3,59 +3,29 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, where
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import BaseSpace
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, Role, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.signals import PulseInteraction
 
 CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
-
-
-class ChuaCircuitElement(Element):
-    """Chua circuit with the piecewise-linear current of its diode."""
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 0.1,
-        y: Annotated[object, StateSpec()] = 0.0,
-        z: Annotated[object, StateSpec()] = 0.0,
-        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.6,
-        beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 28.0,
-        m0: Annotated[object, ParameterSpec()] = -8 / 7,
-        m1: Annotated[object, ParameterSpec()] = -5 / 7,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.y = y
-        self.z = z
-        self.alpha = alpha
-        self.beta = beta
-        self.m0 = m0
-        self.m1 = m1
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the states of the circuit."""
-        return [
-            RateLaw(s.x, s.alpha * (s.y - s.x - s.m1 * s.x - (s.m0 - s.m1) * (abs(s.x + 1) - abs(s.x - 1)) / 2)),
-            RateLaw(s.y, s.x - s.y + s.z),
-            RateLaw(s.z, -s.beta * s.y),
-        ]
 
 
 class CircuitElement(Element):
@@ -123,80 +93,159 @@ class KickedCircuitElement(Element):
         return [ConstraintLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0)]
 
 
-class MixedModeChuaCircuitElement(Element):
-    """Slow-fast Chua circuit whose oscillations mix small and large amplitudes."""
+class ChuaCircuitElement(Element):
+    """Chua circuit, with the voltages `x` and `y` of its capacitors and the current `z` of its inductor.
 
-    law_classes = (RateLaw,)
+    The interactions of `ChuaSystem` and `MixedModeChuaSystem` change the three states.
+
+    Args:
+        label:
+            The label of the circuit.
+
+        x:
+            The initial voltage of the first capacitor.
+
+        y:
+            The initial voltage of the second capacitor.
+
+        z:
+            The initial current of the inductor.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.circuits._circuits import ChuaCircuitElement
+        >>> ChuaCircuitElement('circuit', x=1.0).x
+        1.0
+    """
+
+    def __init__(self, label: str, *, x: float = 0.1, y: float = 0.0, z: float = 0.0) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.z = z
+
+
+class ChuaInteraction(Interaction):
+    """Chua circuit with the piecewise-linear current of its diode, which gives the double scroll.
+
+    The states follow `x' = alpha (y - x - m1 x - (m0 - m1) (|x + 1| - |x - 1|) / 2)`, `y' = x - y + z`, and
+    `z' = -beta y`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the circuit.
+
+        alpha:
+            The ratio of the capacitances.
+
+        beta:
+            The ratio of the inductance to the second capacitance.
+
+        m0:
+            The inner slope of the diode.
+
+        m1:
+            The outer slope of the diode.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.circuits._circuits import ChuaInteraction
+        >>> ChuaInteraction('chua', target='circuit').alpha
+        15.6
+    """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[object, StateSpec()] = 0.01,
-        y: Annotated[object, StateSpec()] = 0.0,
-        z: Annotated[object, StateSpec()] = 0.0,
-        epsilon: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        a: Annotated[object, ParameterSpec()] = 1.5,
-        b: Annotated[object, ParameterSpec()] = -1.0,
-        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        R: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.005,
-        c: Annotated[object, ParameterSpec()] = 0.00053,
+        target: Role,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 15.6,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 28.0,
+        m0: Annotated[float, ParameterSpec()] = -8 / 7,
+        m1: Annotated[float, ParameterSpec()] = -5 / 7,
     ) -> None:
         super().__init__(label)
-        self.x = x
-        self.y = y
-        self.z = z
-        self.epsilon = epsilon
-        self.a = a
-        self.b = b
+        self.target = target
         self.alpha = alpha
-        self.R = R
         self.beta = beta
-        self.c = c
+        self.m0 = m0
+        self.m1 = m1
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the states of the circuit."""
-        return [
-            RateLaw(s.x, (-s.y + (s.a + s.b * s.x) * s.x**2) / s.epsilon),
-            RateLaw(s.y, s.alpha * (s.x - s.R * s.y - s.z)),
-            RateLaw(s.z, s.c - s.beta * s.y),
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the states of the circuit.
+
+        Args:
+            context:
+                The space the interaction inherits from its system, or the namespace of the circuit.
+        """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s, x, y, z = context, context.target.x, context.target.y, context.target.z
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x.diff(s.t), s.alpha * (y - x - s.m1 * x - (s.m0 - s.m1) * (abs(x + 1) - abs(x - 1)) / 2)),
+            RateLaw(y.diff(s.t), x - y + z),
+            RateLaw(z.diff(s.t), -s.beta * y),
         ]
 
 
-class MultiscrollChuaCircuitElement(Element):
-    """Chua circuit with a sine nonlinearity that gives attractors of many scrolls."""
+class MultiscrollChuaInteraction(Interaction):
+    """Chua circuit with a sine diode, which gives attractors of many scrolls.
+
+    The states follow `x' = alpha (y - f(x))`, `y' = x - y + z`, and `z' = -beta y`, with
+    `f(x) = -b sin(pi x / (2 a))`, continued linearly beyond `|x| = 2 a c`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the circuit.
+
+        alpha:
+            The ratio of the capacitances.
+
+        beta:
+            The ratio of the inductance to the second capacitance.
+
+        a:
+            The half period of the sine in `x`.
+
+        b:
+            The amplitude of the sine.
+
+        c:
+            The number of half periods on each side, beyond which the diode is linear.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.circuits._circuits import MultiscrollChuaInteraction
+        >>> MultiscrollChuaInteraction('chua', target='circuit').alpha
+        10.82
+    """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 1.0,
-        z: Annotated[object, StateSpec()] = 0.0,
-        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.82,
-        beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 14.286,
-        a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
-        b: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.11,
-        c: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        target: Role,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.82,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 14.286,
+        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
+        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.11,
+        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
     ) -> None:
         super().__init__(label)
-        self.x = x
-        self.y = y
-        self.z = z
+        self.target = target
         self.alpha = alpha
         self.beta = beta
         self.a = a
         self.b = b
         self.c = c
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the states of the circuit."""
-        return [
-            RateLaw(s.x, s.alpha * (s.y - MultiscrollChuaCircuitElement._scroll_nonlinearity(s.x, s.a, s.b, s.c))),
-            RateLaw(s.y, s.x - s.y + s.z),
-            RateLaw(s.z, -s.beta * s.y),
-        ]
 
     @staticmethod
     def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Expression) -> Expression:
@@ -207,6 +256,105 @@ class MultiscrollChuaCircuitElement(Element):
         edge = 2 * a * c
         slope = b * pi / (2 * a)
         return where(x >= edge, slope * (x - edge), where(x <= -edge, slope * (x + edge), -b * sin(pi * x / (2 * a))))
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the states of the circuit.
+
+        Args:
+            context:
+                The space the interaction inherits from its system, or the namespace of the circuit.
+        """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s, x, y, z = context, context.target.x, context.target.y, context.target.z
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x.diff(s.t), s.alpha * (y - self._scroll_nonlinearity(x, s.a, s.b, s.c))),
+            RateLaw(y.diff(s.t), x - y + z),
+            RateLaw(z.diff(s.t), -s.beta * y),
+        ]
+
+
+class MixedModeChuaInteraction(Interaction):
+    """Slow-fast Chua circuit whose oscillations mix small and large amplitudes.
+
+    The states follow `epsilon x' = -y + (a + b x) x^2`, `y' = alpha (x - R y - z)`, and `z' = c - beta y`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the circuit.
+
+        epsilon:
+            The first capacitance, which sets the fast time scale.
+
+        a:
+            The quadratic coefficient of the diode.
+
+        b:
+            The cubic coefficient of the diode.
+
+        alpha:
+            The inverse inductance.
+
+        R:
+            The resistance.
+
+        beta:
+            The gain of the controlled source over the second capacitance.
+
+        c:
+            The offset of the controlled source.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.circuits._circuits import MixedModeChuaInteraction
+        >>> MixedModeChuaInteraction('chua', target='circuit').c
+        0.00053
+    """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        a: Annotated[float, ParameterSpec()] = 1.5,
+        b: Annotated[float, ParameterSpec()] = -1.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        R: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.005,
+        c: Annotated[float, ParameterSpec()] = 0.00053,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.epsilon = epsilon
+        self.a = a
+        self.b = b
+        self.alpha = alpha
+        self.R = R
+        self.beta = beta
+        self.c = c
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the states of the circuit.
+
+        Args:
+            context:
+                The space the interaction inherits from its system, or the namespace of the circuit.
+        """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s, x, y, z = context, context.target.x, context.target.y, context.target.z
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x.diff(s.t), (-y + (s.a + s.b * x) * x**2) / s.epsilon),
+            RateLaw(y.diff(s.t), s.alpha * (x - s.R * y - z)),
+            RateLaw(z.diff(s.t), s.c - s.beta * y),
+        ]
 
 
 class RlcCircuitSystem(BaseSystem):
@@ -273,9 +421,10 @@ class RlcCircuitSystem(BaseSystem):
         self.V = V
         self.omega = omega
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[
                 CircuitElement(
@@ -334,7 +483,7 @@ class ChuaSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.circuits import ChuaSystem
-        >>> ChuaSystem(nonlinearity='sine').prepare().system_.elements[0].alpha
+        >>> ChuaSystem(nonlinearity='sine').prepare().system_.interactions[0].alpha
         10.82
     """
 
@@ -363,15 +512,23 @@ class ChuaSystem(BaseSystem):
         self.alpha = alpha
         self.beta = beta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         if self.nonlinearity not in CHUA_NONLINEARITIES:
             error_msg = f"Unknown nonlinearity {self.nonlinearity!r}. Use 'piecewise-linear' or 'sine'."
             raise ParameterError(error_msg)
-        element = ChuaCircuitElement if self.nonlinearity == 'piecewise-linear' else MultiscrollChuaCircuitElement
-        initial = {'x': self.x, 'y': self.y, 'alpha': self.alpha, 'beta': self.beta}
-        values: dict[str, float] = {name: value for name, value in initial.items() if value is not None}
-        return CompositeSystem(self.label, elements=[element('circuit', z=self.z).set_params(**values)])
+        sine = self.nonlinearity == 'sine'
+        start = (1.0, 1.0) if sine else (0.1, 0.0)
+        x = start[0] if self.x is None else self.x
+        y = start[1] if self.y is None else self.y
+        circuit = ChuaCircuitElement('circuit', x=x, y=y, z=self.z)
+        kind = MultiscrollChuaInteraction if sine else ChuaInteraction
+        settings = {
+            name: value for name, value in {'alpha': self.alpha, 'beta': self.beta}.items() if value is not None
+        }
+        chua = kind('chua', target='circuit').set_params(**settings)
+        self.system_ = System(self.label, elements=[circuit], interactions=[chua])
 
 
 class MixedModeChuaSystem(BaseSystem):
@@ -418,7 +575,7 @@ class MixedModeChuaSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.circuits import MixedModeChuaSystem
-        >>> MixedModeChuaSystem(c=0.0).prepare().system_.elements[0].c
+        >>> MixedModeChuaSystem(c=0.0).prepare().system_.interactions[0].c
         0.0
     """
 
@@ -427,7 +584,6 @@ class MixedModeChuaSystem(BaseSystem):
     references = ('Krupa, Popović, and Kopell 2008', 'Trzaska 2023')
     until = 200.0
     dt = 0.5
-    solver = ScipyODESolver(method='Radau')
 
     def __init__(
         self,
@@ -456,13 +612,13 @@ class MixedModeChuaSystem(BaseSystem):
         self.beta = beta
         self.c = c
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        circuit = MixedModeChuaCircuitElement(
-            'circuit',
-            x=self.x,
-            y=self.y,
-            z=self.z,
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
+        circuit = ChuaCircuitElement('circuit', x=self.x, y=self.y, z=self.z)
+        chua = MixedModeChuaInteraction(
+            'chua',
+            target='circuit',
             epsilon=self.epsilon,
             a=self.a,
             b=self.b,
@@ -471,7 +627,12 @@ class MixedModeChuaSystem(BaseSystem):
             beta=self.beta,
             c=self.c,
         )
-        return CompositeSystem(self.label, elements=[circuit])
+        self.system_ = System(
+            self.label,
+            elements=[circuit],
+            interactions=[chua],
+            solver=ScipyODESolver(method='Radau'),
+        )
 
 
 class MemristorOscillatorSystem(DynamicalSystem):
@@ -715,9 +876,10 @@ class ImpulsiveCircuitsSystem(BaseSystem):
         self.A = A
         self.T = T
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         circuit = KickedCircuitElement('circuit', x=self.x, x_d1=self.current, L=self.L, R=self.R, C=self.C, A=self.A)
         kick = {'x_d1': lambda s: s.target.x_d1 + s.target.A / (s.target.L * s.target.C)}
         impulse = PulseInteraction('impulse', target='circuit', reset=kick, period=self.T)
-        return CompositeSystem(self.label, elements=[circuit], interactions=[impulse])
+        self.system_ = System(self.label, elements=[circuit], interactions=[impulse])

@@ -14,7 +14,6 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.processes import SolidWasteSystem
 
@@ -30,7 +29,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=5)
-trajectory = simulate(SolidWasteSystem(), observers=[observer])
+trajectory = SolidWasteSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Filling the landfill

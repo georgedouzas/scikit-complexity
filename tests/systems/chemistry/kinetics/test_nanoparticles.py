@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.chemistry.kinetics import NanoparticleCoronaSystem, SpeciesElement
 from skcomplex.systems.general.elements import NonnegativeElement
@@ -13,7 +12,8 @@ PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')
 def test_nanoparticle_corona_shows_the_vroman_effect():
     """Test that albumin covers the nanoparticles first and that lipoprotein replaces it, conserving every species."""
     solver = ScipyODESolver(method='LSODA', rtol=1e-10, atol=1e-14)
-    trajectory = simulate(NanoparticleCoronaSystem(), until=36000.0, solver=solver)
+    system = NanoparticleCoronaSystem().prepare().system_.set_params(solver=solver).prepare()
+    trajectory = system.simulate(until=36000.0, dt=NanoparticleCoronaSystem.dt)
     free = trajectory.get_values('nanoparticle.x')
     bound = {name: trajectory.get_values(f'{name}_corona.x') for name in PROTEINS}
     assert np.allclose(free + sum(bound.values()), 36.0, rtol=1e-8)

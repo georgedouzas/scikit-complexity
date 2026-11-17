@@ -17,7 +17,6 @@ import numpy as np
 
 from skcomplex.core.analysis import linearization
 from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.control import LqrOscillatorSystem
 
@@ -25,7 +24,7 @@ SYSTEM = 'lqr_oscillator'
 
 system = LqrOscillatorSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # The decay rate of the closed loop
