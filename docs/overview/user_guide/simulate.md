@@ -209,7 +209,7 @@ reactions = {
     'deaths': ({'lynx': 1}, {}, 0.80),
 }
 jumps = ReactionNetworkSystem(species={'hares': 30, 'lynx': 4}, reactions=reactions, mode='jump')
-runs = [simulate(jumps, until=20, dt=1.0, random_state=seed).get_values('hares.x')[:6].tolist() for seed in (0, 0, 1)]
+runs = [jumps.prepare().simulate(until=20, dt=1.0, random_state=seed).get_values('hares.x')[:6].tolist() for seed in (0, 0, 1)]
 jumps.get_tags().randomness, runs
 ```
 
@@ -221,7 +221,7 @@ hares, 30, 41, 58, 78, 44, and 9, and the seed 1 gives another path, 30, 49, 64,
 A random run answers a question the equations cannot, such as how often the lynx die out within ten years.
 
 ```python continuation
-ends = [simulate(jumps, until=10, dt=1.0, random_state=seed).get_values('lynx.x')[-1] for seed in range(20)]
+ends = [jumps.prepare().simulate(until=10, dt=1.0, random_state=seed).get_values('lynx.x')[-1] for seed in range(20)]
 sum(end == 0 for end in ends)
 ```
 
@@ -237,7 +237,7 @@ number of equal steps on NumPy and Numba, and the Gillespie solver draws its eve
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 
 paths = [
-    simulate(jumps, until=20, dt=1.0, random_state=0, backend=backend).get_values('hares.x')
+    jumps.set_params(backend=backend).prepare().simulate(until=20, dt=1.0, random_state=0).get_values('hares.x')
     for backend in (NumpyBackend(), NumbaBackend())
 ]
 bool((paths[0] == paths[1]).all())
@@ -257,12 +257,12 @@ distribution from its own parameters and states, and its trajectory holds the to
 draws as `log_probability`.
 
 ```python continuation
-recorded = simulate(jumps, until=20, dt=1.0, random_state=0, record_draws=True)
+recorded = jumps.prepare().simulate(until=20, dt=1.0, random_state=0, record_draws=True)
 scores = {}
 for birth_rate in (0.45, 0.55, 0.65):
     changed = {**reactions, 'births': ({'hares': 1}, {'hares': 2}, birth_rate)}
     candidate = ReactionNetworkSystem(species={'hares': 30, 'lynx': 4}, reactions=changed, mode='jump')
-    replayed = simulate(candidate, until=20, dt=1.0, random_state=0, replay=recorded)
+    replayed = candidate.prepare().simulate(until=20, dt=1.0, random_state=0, replay=recorded)
     scores[birth_rate] = round(float(replayed.log_probability), 1)
 len(recorded.draws.firing_times), bool((replayed.states == recorded.states).all()), scores
 ```

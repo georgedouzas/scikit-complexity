@@ -107,7 +107,7 @@ def test_permutation_entropy_of_fields_of_two_domains():
     settings = {'dimension': (2, 2), 'ties': 'random', 'random_state': 0}
     spins = IsingSystem(size=64, temperature=10.0).prepare().simulate(until=20, random_state=0)
     hot = _entropy('permutation', spins, **settings)[-1]
-    spots = simulate(GrayScottSystem(), random_state=0)
+    spots = GrayScottSystem().prepare().simulate(random_state=0)
     pattern = _entropy('permutation', spots, **settings)[-1]
     assert hot > 0.98
     assert pattern < hot - 0.1

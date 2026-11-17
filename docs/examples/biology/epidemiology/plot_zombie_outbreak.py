@@ -11,14 +11,13 @@ rise again, so whatever the humans do the outbreak ends in the doomsday state wh
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import ZombieOutbreakSystem
 
 SYSTEM = 'zombie_outbreak'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(ZombieOutbreakSystem(), observers=[observer])
+trajectory = ZombieOutbreakSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Doomsday and the conserved total

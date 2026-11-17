@@ -13,14 +13,13 @@ to fill the tumour's capacity.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import DrugResistanceSwitchingSystem
 
 SYSTEM = 'drug_resistance_switching'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(DrugResistanceSwitchingSystem(), dt=0.5, observers=[observer], until=120)
+trajectory = DrugResistanceSwitchingSystem().prepare().simulate(dt=0.5, observers=[observer], until=120)
 
 # %%
 # Spontaneous and induced resistance
@@ -28,7 +27,7 @@ trajectory = simulate(DrugResistanceSwitchingSystem(), dt=0.5, observers=[observ
 # Without induction, resistance arises only from the rare spontaneous mutations and takes much longer to fill the
 # tumour. With induction the resistant cells should reach half the capacity in less than half the time.
 
-spontaneous = simulate(DrugResistanceSwitchingSystem(alpha_m=0.0), dt=0.5, until=120)
+spontaneous = DrugResistanceSwitchingSystem(alpha_m=0.0).prepare().simulate(dt=0.5, until=120)
 induced = trajectory
 fig, (resistant, sensitive) = plt.subplots(1, 2, figsize=(10, 4))
 resistant.plot(induced.times, induced.get_values('tumour.Rm'), label='induced, alpha_m = 0.01')

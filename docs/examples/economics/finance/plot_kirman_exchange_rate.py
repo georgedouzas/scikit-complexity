@@ -14,14 +14,13 @@ rate comes and goes with the chartists.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import KirmanExchangeRateSystem
 
 SYSTEM = 'kirman_exchange_rate'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=20)
-trajectory = simulate(KirmanExchangeRateSystem(), observers=[observer])
+trajectory = KirmanExchangeRateSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Regimes and volatility

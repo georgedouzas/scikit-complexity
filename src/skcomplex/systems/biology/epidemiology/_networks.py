@@ -18,7 +18,9 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -208,8 +210,8 @@ class MetapopulationSystem(NetworkDynamicalSystem):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.biology.epidemiology import MetapopulationSystem
-        >>> MetapopulationSystem(nx.path_graph(4)).prepare().system_.elements[0].prepare().size_
-        4
+        >>> MetapopulationSystem(nx.path_graph(4)).prepare().simulate(until=0.0).get_values('cities.S').shape
+        (1, 4)
     """
 
     field = 'biology/epidemiology'
@@ -228,8 +230,10 @@ class MetapopulationSystem(NetworkDynamicalSystem):
         gamma: float = 0.1,
         D: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.graph = graph
         self.population = population
         self.infected = infected
@@ -245,20 +249,16 @@ class MetapopulationSystem(NetworkDynamicalSystem):
         """Return the label of the field of the nodes."""
         return 'cities'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the compartments, the infected ones in the first node, and the rates."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the compartments, the infected ones in the first node."""
         size = nx.number_of_nodes(self._get_graph())
         sick = np.zeros(size)
         sick[0] = self.infected
-        nonnegative = RealSet.closed_open(0, oo)
-        return {
-            'S': DeclaredVariableSpec(np.full(size, self.population) - sick, StateSpec(domain=nonnegative)),
-            'I': DeclaredVariableSpec(sick, StateSpec(domain=nonnegative)),
-            'R': DeclaredVariableSpec(np.zeros(size), StateSpec(domain=nonnegative)),
-            'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=nonnegative)),
-            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=nonnegative)),
-            'D': DeclaredVariableSpec(self.D, ParameterSpec(domain=nonnegative)),
-        }
+        return {'S': np.full(size, self.population) - sick, 'I': sick, 'R': np.zeros(size)}
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the rates."""
+        return {'beta': self.beta, 'gamma': self.gamma, 'D': self.D}
 
     def _get_equations(self) -> Equations:
         """Return the infections, recoveries, and hops of every node."""

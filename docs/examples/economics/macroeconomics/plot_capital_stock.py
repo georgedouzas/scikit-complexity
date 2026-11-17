@@ -14,7 +14,6 @@ depreciation compete, and whichever dominates makes the stock grow or decay expo
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.macroeconomics import CapitalStockSystem
 
@@ -23,7 +22,7 @@ OUTPUT, LIFETIME, UNTIL = 1 / 3, 15.0, 50.0
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 system = CapitalStockSystem(capital=100.0, investment_fraction=0.25, output_per_capital=OUTPUT, lifetime=LIFETIME)
-trajectory = simulate(system, until=UNTIL, observers=[observer])
+trajectory = system.prepare().simulate(until=UNTIL, observers=[observer])
 
 # %%
 # Loop dominance
@@ -42,7 +41,7 @@ for index, fraction in enumerate(fractions):
         output_per_capital=OUTPUT,
         lifetime=LIFETIME,
     )
-    trajectory = simulate(system, until=UNTIL)
+    trajectory = system.prepare().simulate(until=UNTIL)
     rate = fraction * OUTPUT - 1 / LIFETIME
     paths.semilogy(
         trajectory.times[::3],

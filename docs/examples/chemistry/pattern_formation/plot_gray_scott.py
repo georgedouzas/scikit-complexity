@@ -12,14 +12,13 @@ domain with a pattern of separate spots, while the substrate `u` is used up wher
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
 
 SYSTEM = 'gray_scott'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='cells/v', interval=2)
-trajectory = simulate(GrayScottSystem(random_state=0), until=10000, observers=[observer])
+trajectory = GrayScottSystem(random_state=0).prepare().simulate(until=10000, observers=[observer])
 
 # %%
 # Final pattern and its radial power spectrum

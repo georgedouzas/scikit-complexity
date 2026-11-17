@@ -266,7 +266,7 @@ The class runs like any system, with its constants as model parameters.
 
 ```python continuation
 system = module.PeopleSystem(birth_fraction=0.04)
-trajectory = simulate(system)
+trajectory = system.prepare().simulate()
 trajectory.get_values('people.births')[0], trajectory.get_values('people.doubling_share')[0]
 ```
 
@@ -312,7 +312,7 @@ The default solver finds the exact solution. Vensim and Stella integrate with Eu
 differs from it by the Euler error of the time step of the file.
 
 ```python continuation
-stepped = simulate(system, until=module.UNTIL, dt=module.DT, solver=EulerSolver(dt=module.DT))
+stepped = system.set_params(solver=EulerSolver(dt=module.DT)).prepare().simulate(until=module.UNTIL, dt=module.DT)
 final = stepped.get_values('people.population')[-1]
 round(float(final), 3)
 ```

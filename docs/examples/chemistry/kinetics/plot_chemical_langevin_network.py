@@ -13,14 +13,13 @@ while the total enzyme `E + C` and the total substrate `S + C + P` stay exactly 
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.kinetics import ChemicalLangevinNetworkSystem, MichaelisMentenSystem
 
 SYSTEM = 'chemical_langevin_network'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(ChemicalLangevinNetworkSystem(), observers=[observer], random_state=0)
+trajectory = ChemicalLangevinNetworkSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Fluctuations around the rate equations and exact conservation
@@ -29,7 +28,7 @@ trajectory = simulate(ChemicalLangevinNetworkSystem(), observers=[observer], ran
 # mean zero. One increment drives every species of a reaction, so the totals `E + C` and `S + C + P` should stay at 100
 # and 300 to rounding error at every frame.
 
-deterministic = simulate(MichaelisMentenSystem())
+deterministic = MichaelisMentenSystem().prepare().simulate()
 enzyme = trajectory.get_values('E.x') + trajectory.get_values('C.x')
 substrate = trajectory.get_values('S.x') + trajectory.get_values('C.x') + trajectory.get_values('P.x')
 fig, (amounts, totals) = plt.subplots(1, 2, figsize=(10, 4))

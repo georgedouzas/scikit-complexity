@@ -36,7 +36,7 @@ def test_coagulation_positive_feedback_is_all_or_nothing():
 
 def test_steering_signal_shifts_the_set_point_and_releases_it():
     """Test that the loop holds `x = 1`, climbs to the steered set point while the signal acts, and returns after."""
-    trajectory = simulate(SteerableFeedbackLoopSystem(), dt=0.5, until=60)
+    trajectory = SteerableFeedbackLoopSystem().prepare().simulate(dt=0.5, until=60)
     product, times = trajectory.get_values('loop.x'), trajectory.times
     assert product[(times > 15) & (times < 20)] == pytest.approx(1.0, abs=1e-3)
     assert product[(times > 35) & (times < 40)] == pytest.approx(1.2911656, abs=1e-3)
@@ -45,6 +45,6 @@ def test_steering_signal_shifts_the_set_point_and_releases_it():
 
 def test_a_long_transmission_delay_makes_the_loop_oscillate():
     """Test that a transmission delay long against the response of the loop turns regulation into oscillations."""
-    trajectory = simulate(SteerableFeedbackLoopSystem(tau=3.0, steering=0.0).prepare().system_, until=60, dt=0.5)
+    trajectory = SteerableFeedbackLoopSystem(tau=3.0, steering=0.0).prepare().simulate(until=60, dt=0.5)
     late = trajectory.get_values('loop.x')[60:]
     assert np.ptp(late) > 0.8

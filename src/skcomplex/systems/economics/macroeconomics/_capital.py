@@ -8,10 +8,10 @@ It reinvests its output.
 
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -41,7 +41,7 @@ class CapitalStockSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import CapitalStockSystem
-        >>> CapitalStockSystem(lifetime=20.0).prepare().system_.elements[0].get_value('lifetime')
+        >>> CapitalStockSystem(lifetime=20.0).prepare().system_.elements[0].values['lifetime']
         20.0
     """
 
@@ -59,8 +59,10 @@ class CapitalStockSystem(DynamicalSystem):
         output_per_capital: float = 1 / 3,
         lifetime: float = 15.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.capital = capital
         self.investment_fraction = investment_fraction
         self.output_per_capital = output_per_capital
@@ -77,19 +79,18 @@ class CapitalStockSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'economy'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'K': DeclaredVariableSpec(self.capital, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'investment_fraction': DeclaredVariableSpec(
-                self.investment_fraction,
-                ParameterSpec(domain=RealSet.closed_open(0, oo)),
-            ),
-            'output_per_capital': DeclaredVariableSpec(
-                self.output_per_capital,
-                ParameterSpec(domain=RealSet.open(0, oo)),
-            ),
-            'lifetime': DeclaredVariableSpec(self.lifetime, ParameterSpec(domain=RealSet.open(0, oo))),
+            'K': self.capital,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'investment_fraction': self.investment_fraction,
+            'output_per_capital': self.output_per_capital,
+            'lifetime': self.lifetime,
         }
 
     def _get_equations(self) -> Equations:

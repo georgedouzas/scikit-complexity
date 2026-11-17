@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import stability
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import MinProteinSkeletonSystem
@@ -26,11 +25,10 @@ from skcomplex.systems.biology.systems_biology import MinProteinSkeletonSystem
 SYSTEM = 'min_protein_skeleton'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = simulate(
-    MinProteinSkeletonSystem(),
-    solver=ScipyODESolver(method='BDF', jacobian='exact'),
-    observers=[observer],
-    random_state=0,
+simulation = (
+    MinProteinSkeletonSystem(solver=ScipyODESolver(method='BDF', jacobian='exact'))
+    .prepare()
+    .simulate(observers=[observer], random_state=0)
 )
 
 # %%
@@ -44,7 +42,7 @@ simulation = simulate(
 trajectory = simulation
 mind_total = sum(trajectory.get_values(f'cell.{name}') for name in ('md', 'mde', 'cdt', 'cdd')).sum(axis=1)
 mine_total = sum(trajectory.get_values(f'cell.{name}') for name in ('mde', 'ce')).sum(axis=1)
-relation = stability(MinProteinSkeletonSystem(n_sites=512, length=400.0).prepare().system_, kind='dispersion')
+relation = stability(MinProteinSkeletonSystem(n_sites=512, length=400.0), kind='dispersion')
 order = np.argsort(relation.magnitudes)
 
 fig, (rates, totals) = plt.subplots(1, 2, figsize=(10, 4))

@@ -4,15 +4,15 @@ It also holds the controllers that close them.
 """
 
 from ._control import (
-    THERMAL,
-    ConvectionElement,
-    HeatCapacityElement,
+    ConvectionInteraction,
+    HeatCapacityInteraction,
     HeatedRoomSystem,
-    HeatingResistorElement,
+    HeatingResistorInteraction,
     PendulumSwingUpSystem,
     PidLoopSystem,
     SatelliteTransferSystem,
-    ThermalConductorElement,
+    SwitchInteraction,
+    ThermalConductorInteraction,
     ThermostatSystem,
 )
 from ._koopman import (
@@ -33,15 +33,14 @@ from ._regulation import (
 )
 
 __all__: list[str] = [
-    'THERMAL',
     'BangBangPlantElement',
     'CartPendulumInteraction',
     'ControlInputElement',
-    'ConvectionElement',
+    'ConvectionInteraction',
     'DrivenOscillatorInteraction',
-    'HeatCapacityElement',
+    'HeatCapacityInteraction',
     'HeatedRoomSystem',
-    'HeatingResistorElement',
+    'HeatingResistorInteraction',
     'KoopmanModelPredictiveControlSystem',
     'LqrOscillatorSystem',
     'MinimumTimeControlSystem',
@@ -54,6 +53,7 @@ __all__: list[str] = [
     'PredictiveControlInteraction',
     'SatelliteTransferSystem',
     'StateFeedbackInteraction',
-    'ThermalConductorElement',
+    'SwitchInteraction',
+    'ThermalConductorInteraction',
     'ThermostatSystem',
 ]

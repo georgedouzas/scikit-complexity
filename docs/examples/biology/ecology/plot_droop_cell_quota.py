@@ -13,14 +13,13 @@ growth rate to exceed the death rate.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import DroopCellQuotaSystem
 
 SYSTEM = 'droop_cell_quota'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(DroopCellQuotaSystem(Q=1.0, d=0.45), observers=[observer])
+trajectory = DroopCellQuotaSystem(Q=1.0, d=0.45).prepare().simulate(observers=[observer])
 
 # %%
 # Quota equilibrium

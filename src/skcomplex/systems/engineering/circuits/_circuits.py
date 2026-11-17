@@ -20,7 +20,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, Role, StateSpec
+from ....core.specs import ParameterSpec, Role
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -683,7 +683,7 @@ class MemristorOscillatorSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.circuits import MemristorOscillatorSystem
-        >>> MemristorOscillatorSystem(L=2.0).prepare().system_.elements[0].get_value('L')
+        >>> MemristorOscillatorSystem(L=2.0).prepare().system_.elements[0].values['L']
         2.0
     """
 
@@ -704,8 +704,10 @@ class MemristorOscillatorSystem(DynamicalSystem):
         alpha: float = 0.6,
         beta: float = 1.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.v = v
         self.i = i
         self.w = w
@@ -718,16 +720,21 @@ class MemristorOscillatorSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'circuit'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'v': DeclaredVariableSpec(self.v, StateSpec()),
-            'i': DeclaredVariableSpec(self.i, StateSpec()),
-            'w': DeclaredVariableSpec(self.w, StateSpec()),
-            'C': DeclaredVariableSpec(self.C, ParameterSpec(domain=RealSet.open(0, oo))),
-            'L': DeclaredVariableSpec(self.L, ParameterSpec(domain=RealSet.open(0, oo))),
-            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'v': self.v,
+            'i': self.i,
+            'w': self.w,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'C': self.C,
+            'L': self.L,
+            'alpha': self.alpha,
+            'beta': self.beta,
         }
 
     def _get_equations(self) -> Equations:
@@ -771,7 +778,7 @@ class TunnelDiodeOscillatorSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.circuits import TunnelDiodeOscillatorSystem
-        >>> TunnelDiodeOscillatorSystem(alpha=2.0).prepare().system_.elements[0].get_value('alpha')
+        >>> TunnelDiodeOscillatorSystem(alpha=2.0).prepare().system_.elements[0].values['alpha']
         2.0
     """
 
@@ -791,8 +798,10 @@ class TunnelDiodeOscillatorSystem(DynamicalSystem):
         alpha: float = 1.0,
         gamma: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.V = V
         self.i = i
         self.L = L
@@ -804,15 +813,20 @@ class TunnelDiodeOscillatorSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'circuit'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'V': DeclaredVariableSpec(self.V, StateSpec()),
-            'i': DeclaredVariableSpec(self.i, StateSpec()),
-            'L': DeclaredVariableSpec(self.L, ParameterSpec(domain=RealSet.open(0, oo))),
-            'C': DeclaredVariableSpec(self.C, ParameterSpec(domain=RealSet.open(0, oo))),
-            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec(domain=RealSet.open(0, oo))),
-            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=RealSet.open(0, oo))),
+            'V': self.V,
+            'i': self.i,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'L': self.L,
+            'C': self.C,
+            'alpha': self.alpha,
+            'gamma': self.gamma,
         }
 
     def _get_equations(self) -> Equations:

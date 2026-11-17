@@ -13,7 +13,6 @@ settles a little below the setting, at the temperature where the furnace makes u
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.control import ThermostatSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'thermostat'
 
 system = ThermostatSystem(swing=5.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, until=48, observers=[observer])
+trajectory = system.prepare().simulate(until=48, observers=[observer])
 
 # %%
 # The steady room temperature
@@ -30,7 +29,7 @@ trajectory = simulate(system, until=48, observers=[observer])
 # setting by a gap that grows with the leak. Runs with several leaks, without the daily swing, should end on that line.
 
 leaks = np.linspace(0.02, 0.5, 13)
-steady = [(simulate(ThermostatSystem(leak=leak), until=72).get_values('room.T')[-1]) for leak in leaks]
+steady = [(ThermostatSystem(leak=leak).prepare().simulate(until=72).get_values('room.T')[-1]) for leak in leaks]
 grid = np.linspace(0.0, 0.5, 100)
 fig, (day, theory) = plt.subplots(1, 2, figsize=(10, 4))
 day.plot(trajectory.times, trajectory.get_values('room.T'), label='room')

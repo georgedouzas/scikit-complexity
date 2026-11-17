@@ -7,11 +7,10 @@ from collections.abc import Callable
 from types import SimpleNamespace
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
 from ....core.components.spaces import LatticeSpace
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import ReactionDiffusionSystem
 from ...general.dynamics.types import Equations
 
@@ -63,8 +62,10 @@ class FisherKPPSystem(ReactionDiffusionSystem):
         spacing: float = 0.25,
         front: float = 0.05,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.length = length
         self.D = D
         self.r = r
@@ -76,20 +77,21 @@ class FisherKPPSystem(ReactionDiffusionSystem):
         return 'line'
 
     def _get_space(self) -> LatticeSpace:
-        """Return the line of the sites."""
-        return LatticeSpace(self.length, spacing=self.spacing)
+        """Return the line of the sites, whose reflecting ends let no density through."""
+        return LatticeSpace(self.length, spacing=self.spacing, boundary='reflecting')
 
-    def _get_boundaries(self) -> dict[str, str]:
-        """Return the zero-flux boundary of the density."""
-        return {'u': 'zero-flux'}
-
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the density, occupied on the left of the line, and the parameters."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         u = (np.arange(self.length) < self.front * self.length).astype(float)
         return {
-            'u': DeclaredVariableSpec(u, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'D': DeclaredVariableSpec(self.D, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'r': DeclaredVariableSpec(self.r, ParameterSpec()),
+            'u': u,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'D': self.D,
+            'r': self.r,
         }
 
     def _get_equations(self) -> Equations:

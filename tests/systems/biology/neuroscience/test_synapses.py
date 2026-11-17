@@ -2,13 +2,12 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.neuroscience import AdaptrodeSystem
 
 
 def test_adaptrode_keeps_long_term_memory():
     """Test that the Adaptrode weights order by time scale during input and that the slow weight outlasts it."""
-    trajectory = simulate(AdaptrodeSystem(), dt=1, until=400)
+    trajectory = AdaptrodeSystem().prepare().simulate(dt=1, until=400)
     w0, w1, w2 = (trajectory.get_values(f'synapse.w{index}') for index in range(3))
     during = (trajectory.times > 100) & (trajectory.times < 150)
     assert np.all(w0[during] > w1[during])

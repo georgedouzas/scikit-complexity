@@ -19,7 +19,9 @@ from ....core.components.interactions import TopologyInteraction, TransitionInte
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.networks import HostElement, SpreadingInteraction
@@ -120,8 +122,8 @@ class QuenchedMeanFieldSISSystem(NetworkDynamicalSystem):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.biology.epidemiology import QuenchedMeanFieldSISSystem
-        >>> QuenchedMeanFieldSISSystem(nx.cycle_graph(10)).prepare().system_.elements[0].prepare().size_
-        10
+        >>> QuenchedMeanFieldSISSystem(nx.cycle_graph(10)).prepare().simulate(until=0.0).get_values('nodes.p').shape
+        (1, 10)
     """
 
     field = 'biology/epidemiology'
@@ -140,8 +142,10 @@ class QuenchedMeanFieldSISSystem(NetworkDynamicalSystem):
         p: float = 0.05,
         seed: int | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.graph = graph
         self.n = n
         self.m = m
@@ -157,12 +161,16 @@ class QuenchedMeanFieldSISSystem(NetworkDynamicalSystem):
         """Return the label of the field of the nodes."""
         return 'nodes'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the infection probability and the spreading rate."""
-        nonnegative = RealSet.closed_open(0, oo)
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'p': DeclaredVariableSpec(self.p, StateSpec(domain=nonnegative)),
-            'lam': DeclaredVariableSpec(self.lam, ParameterSpec(domain=nonnegative)),
+            'p': self.p,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'lam': self.lam,
         }
 
     def _get_equations(self) -> Equations:

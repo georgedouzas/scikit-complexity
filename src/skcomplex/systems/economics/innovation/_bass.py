@@ -8,10 +8,10 @@ The product diffuses through innovators and imitators.
 
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import StockFlowSystem
 from ...general.dynamics.types import FlowTable
 
@@ -48,7 +48,7 @@ class BassDiffusionSystem(StockFlowSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.innovation import BassDiffusionSystem
-        >>> BassDiffusionSystem(market=500.0, adopters=10.0).prepare().system_.elements[0].get_value('P')
+        >>> BassDiffusionSystem(market=500.0, adopters=10.0).prepare().system_.elements[0].values['P']
         490.0
     """
 
@@ -66,8 +66,10 @@ class BassDiffusionSystem(StockFlowSystem):
         p: float = 0.03,
         q: float = 0.38,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.market = market
         self.adopters = adopters
         self.p = p
@@ -86,16 +88,18 @@ class BassDiffusionSystem(StockFlowSystem):
         """Return the label of the element that holds the stocks."""
         return 'market'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the stocks and the parameters with their specs."""
+    def _get_stocks(self) -> dict[str, object]:
+        """Return the initial value of every stock by name."""
         return {
-            'P': DeclaredVariableSpec(
-                self.market - self.adopters,
-                StateSpec(domain=RealSet.closed_open(0, oo), quantity='people'),
-            ),
-            'A': DeclaredVariableSpec(self.adopters, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')),
-            'p': DeclaredVariableSpec(self.p, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'q': DeclaredVariableSpec(self.q, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'P': self.market - self.adopters,
+            'A': self.adopters,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'p': self.p,
+            'q': self.q,
         }
 
     def _get_flows(self) -> FlowTable:

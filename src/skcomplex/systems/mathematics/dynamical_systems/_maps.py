@@ -360,7 +360,7 @@ class CircleMapSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import CircleMapSystem
-        >>> CircleMapSystem(K=1.0).prepare().system_.elements[0].get_value('K')
+        >>> CircleMapSystem(K=1.0).prepare().system_.elements[0].values['K']
         1.0
     """
 
@@ -377,8 +377,10 @@ class CircleMapSystem(DynamicalSystem):
         Omega: float = 0.25,
         K: float = 0.9,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.theta = theta
         self.Omega = Omega
         self.K = K
@@ -433,7 +435,7 @@ class TentMapSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import TentMapSystem
-        >>> TentMapSystem(mu=1.5).prepare().system_.elements[0].get_value('mu')
+        >>> TentMapSystem(mu=1.5).prepare().system_.elements[0].values['mu']
         1.5
     """
 
@@ -449,8 +451,10 @@ class TentMapSystem(DynamicalSystem):
         *,
         mu: float = 1.99,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.x = x
         self.mu = mu
 
@@ -1421,7 +1425,7 @@ class CDNMapSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import CDNMapSystem
-        >>> CDNMapSystem(beta=-0.3).prepare().system_.elements[0].get_value('beta')
+        >>> CDNMapSystem(beta=-0.3).prepare().system_.elements[0].values['beta']
         -0.3
     """
 
@@ -1438,8 +1442,10 @@ class CDNMapSystem(DynamicalSystem):
         alpha: float = 2.8,
         beta: float = -0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.x = x
         self.alpha = alpha
         self.beta = beta

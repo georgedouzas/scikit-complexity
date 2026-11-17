@@ -16,7 +16,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
@@ -39,7 +38,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(SIRSystem(stochastic=True), until=160, dt=1.0, observers=[observer], random_state=0)
+trajectory = SIRSystem(stochastic=True).prepare().simulate(until=160, dt=1.0, observers=[observer], random_state=0)
 
 # %%
 # Final size of the epidemic

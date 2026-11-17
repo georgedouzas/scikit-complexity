@@ -346,7 +346,7 @@ isomerization = ReactionNetworkSystem(
     species={'A': 10.0, 'B': 0.0},
     reactions={'forth': ({'A': 1}, {'B': 1}, 0.3), 'back': ({'B': 1}, {'A': 1}, 0.1)},
 )
-round(float(simulate(isomerization, until=50.0, dt=1.0).get_values('A.x')[-1]), 3)
+round(float(isomerization.prepare().simulate(until=50.0, dt=1.0).get_values('A.x')[-1]), 3)
 ```
 
 The amount of `A` relaxes to 2.5, which is `0.1 / (0.3 + 0.1)` of the total.
@@ -361,7 +361,7 @@ sir = ReactionNetworkSystem(
     species={'S': 990.0, 'I': 10.0, 'R': 0.0},
     reactions={'infection': ({'S': 1, 'I': 1}, {'I': 2}, 5e-4), 'recovery': ({'I': 1}, {'R': 1}, 0.1)},
 )
-simulate(sir, until=50, dt=10.0).get_values('I.x').round(1).tolist()
+sir.prepare().simulate(until=50, dt=10.0).get_values('I.x').round(1).tolist()
 ```
 
 The infected follow the curve of the epidemic of the previous section, 10, 294.4, 400.3, 175.0, 68.6, and 26.4 every
@@ -421,7 +421,7 @@ class OutbreakSystem(ReactionNetworkSystem):
         return {'infection': ({'S': 1, 'I': 1}, {'I': 2}, self.beta), 'recovery': ({'I': 1}, {'R': 1}, self.gamma)}
 
 
-simulate(OutbreakSystem(gamma=0.2), until=50, dt=25.0).get_values('I.x').round(1).tolist()
+OutbreakSystem(gamma=0.2).prepare().simulate(until=50, dt=25.0).get_values('I.x').round(1).tolist()
 ```
 
 With a faster recovery of 0.2 a day the infected number 132.1 at day 25 and 4.1 at day 50, so the outbreak stays
@@ -740,7 +740,7 @@ populations = DynamicalSystem(
     },
     element='populations',
 )
-round(float(simulate(populations, until=20.0, dt=1.0).get_values('populations.e')[-1]), 3)
+round(float(populations.prepare().simulate(until=20.0, dt=1.0).get_values('populations.e')[-1]), 3)
 ```
 
 The excitatory activity `e` is 0.272 at time 20.
@@ -761,7 +761,7 @@ economy = DynamicalSystem(
     time='discrete',
     element='economy',
 )
-simulate(economy, until=3).get_values('economy.y').round(3).tolist()
+economy.prepare().simulate(until=3).get_values('economy.y').round(3).tolist()
 ```
 
 The income runs through 1.0, 1.5, 1.875, and 2.031, a damped oscillation around the level `g / (1 - c)`, which is 2.
@@ -815,7 +815,7 @@ class LogisticSystem(DynamicalSystem):
         return {'r': self.r, 'K': self.K}
 
 
-round(float(simulate(LogisticSystem(), until=10.0, dt=10.0).get_values('state.n')[-1]), 2)
+round(float(LogisticSystem().prepare().simulate(until=10.0, dt=10.0).get_values('state.n')[-1]), 2)
 ```
 
 The population approaches its capacity of 100 and reaches 99.96 at time 10.
@@ -841,7 +841,7 @@ cells = NetworkDynamicalSystem(
     parameters={'tau': 10.0, 'g': 0.5},
     element='cells',
 )
-simulate(cells, until=5.0, dt=1.0).get_values('cells.v')[-1].round(3).tolist()
+cells.prepare().simulate(until=5.0, dt=1.0).get_values('cells.v')[-1].round(3).tolist()
 ```
 
 After five units of time the voltages are 0.154, 0.152, 0.15, and 0.152. The charge of the first cell has spread over
@@ -857,7 +857,7 @@ rooms = NetworkDynamicalSystem(
     coupling={'u': lambda s: s.other.u - s.member.u},
     element='rooms',
 )
-simulate(rooms, until=10.0, dt=10.0).get_values('rooms.u')[-1].round(3).tolist()
+rooms.prepare().simulate(until=10.0, dt=10.0).get_values('rooms.u')[-1].round(3).tolist()
 ```
 
 The rooms reach the same temperature, 1.0 each, and the total stays 3.
@@ -909,7 +909,7 @@ front = ReactionDiffusionSystem(
     boundary='reflecting',
     parameters={'r': 1.0},
 )
-density = simulate(front, until=10.0, dt=5.0).get_values('medium.u')[-1]
+density = front.prepare().simulate(until=10.0, dt=5.0).get_values('medium.u')[-1]
 int((density > 0.5).sum())
 ```
 
@@ -928,7 +928,7 @@ channel = ReactionDiffusionSystem(
     boundary='reflecting',
     parameters={'k': 0.1},
 )
-round(float(simulate(channel, until=5.0, dt=5.0).get_values('medium.u')[-1].sum()), 3)
+round(float(channel.prepare().simulate(until=5.0, dt=5.0).get_values('medium.u')[-1].sum()), 3)
 ```
 
 The total falls to 0.607, which is `exp(-0.5)`, since diffusion keeps the total and only the decay removes it.
@@ -982,7 +982,7 @@ race = StockFlowSystem(
     parameters={'k': 0.1},
     element='nations',
 )
-trajectory = simulate(race, until=10.0, dt=5.0)
+trajectory = race.prepare().simulate(until=10.0, dt=5.0)
 trajectory.get_values('nations.a').round(3).tolist(), trajectory.get_values('nations.arming_a').round(3).tolist()
 ```
 
@@ -999,7 +999,7 @@ tub = StockFlowSystem(
     flows={'tap': (None, 'water', 1.0), 'drain': ('water', None, lambda s: 0.5 * s.source.water)},
     element='tub',
 )
-simulate(tub, until=10.0, dt=5.0).get_values('tub.water').round(3).tolist()
+tub.prepare().simulate(until=10.0, dt=5.0).get_values('tub.water').round(3).tolist()
 ```
 
 The water rises to 1.836 at time 5 and to 1.987 at time 10, towards the level 2 where the drain matches the tap.

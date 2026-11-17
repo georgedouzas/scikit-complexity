@@ -13,7 +13,9 @@ from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import lag, series
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, RoleSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.populations import (
@@ -493,7 +495,7 @@ class FibonacciRabbitsSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import FibonacciRabbitsSystem
-        >>> FibonacciRabbitsSystem().prepare().system_.elements[0].get_value('pairs')
+        >>> FibonacciRabbitsSystem().prepare().system_.elements[0].values['pairs']
         1.0
     """
 
@@ -509,8 +511,10 @@ class FibonacciRabbitsSystem(DynamicalSystem):
         previous: float = 0.0,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.pairs = pairs
         self.previous = previous
 
@@ -522,14 +526,16 @@ class FibonacciRabbitsSystem(DynamicalSystem):
         """Return the discrete time of the map."""
         return 'discrete'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'pairs': DeclaredVariableSpec(
-                self.pairs,
-                StateSpec(domain=RealSet.closed_open(0, oo), lags=1, initial=(0.0,)),
-            ),
+            'pairs': self.pairs,
+            'pairs[-1]': 0.0,
         }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {}
 
     def _get_equations(self) -> Equations:
         """Return the components of Fibonacci's rabbits."""
@@ -629,7 +635,7 @@ class PenaeidShrimpSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import PenaeidShrimpSystem
-        >>> PenaeidShrimpSystem().prepare().system_.elements[0].get_value('K')
+        >>> PenaeidShrimpSystem().prepare().system_.elements[0].values['K']
         0.013
     """
 
@@ -649,8 +655,10 @@ class PenaeidShrimpSystem(DynamicalSystem):
         L_inf: float = 29.9,
         K: float = 0.013,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.gut = gut
         self.biomass = biomass
         self.ration = ration
@@ -662,22 +670,27 @@ class PenaeidShrimpSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'shrimp'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'gut': DeclaredVariableSpec(self.gut, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'biomass': DeclaredVariableSpec(self.biomass, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'gonads': DeclaredVariableSpec(0.0001, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'length': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'ration': DeclaredVariableSpec(self.ration, ParameterSpec(domain=RealSet.open(0, oo))),
-            'k': DeclaredVariableSpec(0.12, ParameterSpec(domain=RealSet.open(0, oo))),
-            'assimilation': DeclaredVariableSpec(0.8, ParameterSpec(domain=RealSet.open(0, oo))),
-            'respiration': DeclaredVariableSpec(self.respiration, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'phi': DeclaredVariableSpec(5.0, ParameterSpec(domain=RealSet.open(0, oo))),
-            'gsi': DeclaredVariableSpec(0.05, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'egg_weight': DeclaredVariableSpec(2.0e-6, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'L_inf': DeclaredVariableSpec(self.L_inf, ParameterSpec(domain=RealSet.open(0, oo))),
-            'K': DeclaredVariableSpec(self.K, ParameterSpec(domain=RealSet.open(0, oo))),
+            'gut': self.gut,
+            'biomass': self.biomass,
+            'gonads': 0.0001,
+            'length': 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'ration': self.ration,
+            'k': 0.12,
+            'assimilation': 0.8,
+            'respiration': self.respiration,
+            'phi': 5.0,
+            'gsi': 0.05,
+            'egg_weight': 2.0e-6,
+            'L_inf': self.L_inf,
+            'K': self.K,
         }
 
     def _get_equations(self) -> Equations:

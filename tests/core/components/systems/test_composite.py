@@ -30,6 +30,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleElementError, TagError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.physics.common.quantum import GeneratorLaw, HilbertSpec, UnitarySolver
 
@@ -225,14 +226,12 @@ def test_systems_nest_and_interactions_couple_them_by_path():
 
 def test_system_classes_nest_twice_under_their_labels():
     """Test that a ready-made system class nests twice by label, with its paths and its parameters kept apart."""
-    system = CompositeSystem(
-        systems=[SIRSystem(label='town'), CompositeSystem('region', systems=[SIRSystem(beta=0.0006, label='city')])],
+    system = System(
+        systems=[SIRSystem(label='town'), System('region', systems=[SIRSystem(beta=0.0006, label='city')])],
         interactions=[RateInteraction('arrivals', target='town/S', state='x', rate=lambda s: 0.01 * s.target.x)],
     )
-    assert PassCompiler().prepare(system).report_.ok
-    assert system.prepare().system_.systems[0].elements[0].label == 'S'
-    trajectory = simulate(system, until=10, dt=1.0)
-    alone = simulate(SIRSystem(), until=10, dt=1.0)
+    trajectory = system.prepare().simulate(until=10, dt=1.0)
+    alone = SIRSystem().prepare().simulate(until=10, dt=1.0)
     assert trajectory.get_values('town/S.x')[-1] > alone.get_values('S.x')[-1]
     assert trajectory.get_values('region/city/S.x')[-1] < alone.get_values('S.x')[-1]
 

@@ -14,7 +14,6 @@ rule, and the economy saves a falling share of its output as it grows richer.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.macroeconomics import OptimalConsumptionSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'optimal_consumption'
 
 system = OptimalConsumptionSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # The Euler equation
