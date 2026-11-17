@@ -6,34 +6,76 @@ The module covers random walks, persistent and autoregressive walks, and diffusi
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, ZZ, oo, sqrt
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import NN, ZZ, sqrt
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import JumpInteraction, MapInteraction, RateInteraction
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, normal
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 
 
 class MemoryWalkerElement(Element):
-    """Walker on the real line whose velocity is an autoregressive process.
-
-    The process has the memory `alpha` and the noise `sigma`.
+    """Walkers on the real line, each with its position `x` and its velocity `v`.
 
     Args:
         label:
-            The label of the walker or the group.
+            The label of the walkers.
 
         x:
-            The initial position.
+            The initial position, one per walker or shared.
 
         v:
-            The initial velocity.
+            The initial velocity, one per walker or shared.
+
+        size:
+            The number of walkers, or `None` for one.
+
+        space:
+            The line the walkers live on, whose axis `x` makes `x` their position, or `None`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import MemoryWalkerElement
+        >>> MemoryWalkerElement('walker', v=0.3).v
+        0.3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = 0.0,
+        v: object = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space)
+        self.x = x
+        self.v = v
+
+
+class MemoryStepInteraction(Interaction):
+    """Step of a walk whose velocity is an autoregressive process, `x <- x + v` and `v <- alpha v + xi`.
+
+    The noise `xi` is normal with mean 0 and deviation `sigma`, drawn anew at every step for every walker.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The walkers whose positions `x` and velocities `v` the step sets.
 
         alpha:
             The memory of the velocity.
@@ -42,76 +84,155 @@ class MemoryWalkerElement(Element):
             The deviation of the noise of the velocity.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import MemoryWalkerElement
-        >>> MemoryWalkerElement('walker', alpha=0.3).alpha
+        >>> from skcomplex.systems.mathematics.stochastic_processes import MemoryStepInteraction
+        >>> MemoryStepInteraction('step', alpha=0.3).alpha
         0.3
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role = 'walkers', alpha: float = 0.5, sigma: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.alpha = alpha
+        self.sigma = sigma
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next position and the next velocity as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, v = context.target.x, context.target.v
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(x, x + v),
+                UpdateLaw(v, context.alpha * v + normal('xi', 0, context.sigma)),
+            ]
+
+
+class PersistentWalkerElement(Element):
+    """Walkers on the integers, each with its direction `d = ±1` and its position `x`.
+
+    Args:
+        label:
+            The label of the walkers.
+
+        d:
+            The initial direction, 1 or -1, one per walker or shared.
+
+        x:
+            The initial position, one per walker or shared.
+
+        size:
+            The number of walkers, or `None` for one.
+
+        space:
+            The line the walkers live on, whose axis `x` makes `x` their position, or `None`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import PersistentWalkerElement
+        >>> PersistentWalkerElement('walker', d=-1.0).d
+        -1.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(role='position')] = 0.0,
-        v: Annotated[float, StateSpec(role='velocity')] = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        d: Annotated[object, ZZ] = 1.0,
+        x: Annotated[object, ZZ] = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
+        self.d = d
         self.x = x
-        self.v = v
-        self.alpha = alpha
-        self.sigma = sigma
 
 
-class PersistentWalkerElement(Element):
-    """Walker on the integers with a direction `d = ±1`.
+class PersistentStepInteraction(Interaction):
+    """Step of a persistent walk, `x <- x + d`, whose direction `d` reverses with the probability `1 - persistence`.
 
-    The walker keeps the direction with the probability `persistence`.
+    The reversal is drawn anew at every step for every walker.
 
     Args:
         label:
-            The label of the walker or the group.
+            The label of the interaction.
 
-        d:
-            The initial direction, 1 or -1.
-
-        x:
-            The initial position.
+        target:
+            The walkers whose directions `d` and positions `x` the step sets.
 
         persistence:
             The probability of keeping the direction at a step.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import PersistentWalkerElement
-        >>> PersistentWalkerElement('walker', persistence=0.9).persistence
+        >>> from skcomplex.systems.mathematics.stochastic_processes import PersistentStepInteraction
+        >>> PersistentStepInteraction('step', persistence=0.9).persistence
         0.9
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role = 'walkers', persistence: float = 0.8) -> None:
+        super().__init__(label)
+        self.target = target
+        self.persistence = persistence
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next direction and the next position as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            d, x = context.target.d, context.target.x
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(d, d * (1 - 2 * bernoulli('turn', 1 - context.persistence))),
+                UpdateLaw(x, x + d),
+            ]
+
+
+class RandomWalkerElement(Element):
+    """Walkers on the integers, each with its position `x`.
+
+    Args:
+        label:
+            The label of the walkers.
+
+        x:
+            The initial position, one per walker or shared.
+
+        size:
+            The number of walkers, or `None` for one.
+
+        space:
+            The line the walkers live on, whose axis `x` makes `x` their position, or `None`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import RandomWalkerElement
+        >>> RandomWalkerElement('walker', x=2.0).x
+        2.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        d: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        x: Annotated[float, StateSpec(domain=ZZ, role='position')] = 0.0,
-        persistence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        x: Annotated[object, ZZ] = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
-        self.d = d
+        super().__init__(label, size=size, space=space)
         self.x = x
-        self.persistence = persistence
 
 
-class RandomWalkerElement(Element):
-    """Walker on the integers that steps at the rate `rate`.
+class RandomStepInteraction(Interaction):
+    """Steps of a walker on the integers at the rate `rate`, each up with the probability `bias`.
 
-    The walker steps up with the probability `bias`.
+    The walker steps up at the rate `rate * bias` and down at the rate `rate * (1 - bias)`.
 
     Args:
         label:
-            The label of the walker or the group.
+            The label of the interaction.
 
-        x:
-            The initial position.
+        target:
+            The walkers whose positions `x` the steps change.
 
         rate:
             The rate of steps.
@@ -120,36 +241,73 @@ class RandomWalkerElement(Element):
             The probability that a step goes up.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import RandomWalkerElement
-        >>> RandomWalkerElement('walker', bias=0.7).bias
+        >>> from skcomplex.systems.mathematics.stochastic_processes import RandomStepInteraction
+        >>> RandomStepInteraction('steps', bias=0.7).bias
         0.7
+    """
+
+    law_classes = (JumpLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'walkers', rate: float = 1.0, bias: float = 0.5) -> None:
+        super().__init__(label)
+        self.target = target
+        self.rate = rate
+        self.bias = bias
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the steps up and down as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            self.laws_: list[BaseComponent] = [
+                JumpLaw(context.rate * context.bias, {x: 1}),
+                JumpLaw(context.rate * (1 - context.bias), {x: -1}),
+            ]
+
+
+class WeakeningParticleElement(Element):
+    """Particles on the real line, each with its position `x`.
+
+    Args:
+        label:
+            The label of the particles.
+
+        x:
+            The initial position, one per particle or shared.
+
+        size:
+            The number of particles, or `None` for one.
+
+        space:
+            The line the particles live on, whose axis `x` makes `x` their position, or `None`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import WeakeningParticleElement
+        >>> WeakeningParticleElement('particle', x=0.5).x
+        0.5
     """
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=ZZ, role='position')] = 0.0,
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        bias: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        x: object = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.x = x
-        self.rate = rate
-        self.bias = bias
 
 
-class WeakeningParticleElement(Element):
-    """Brownian particle on the real line held by a restoring force of stiffness `k`.
-
-    The force weakens beyond `ell`.
+class WeakeningForceInteraction(Interaction):
+    """Brownian motion in a restoring force that weakens with distance, `dx = -k x / (1 + x²/ℓ²) dt + √(2D) dW`.
 
     Args:
         label:
-            The label of the particle or the group.
+            The label of the interaction.
 
-        x:
-            The initial position.
+        target:
+            The particles whose positions `x` the force and the noise move.
 
         k:
             The stiffness of the force near the origin.
@@ -161,64 +319,66 @@ class WeakeningParticleElement(Element):
             The diffusion coefficient.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import WeakeningParticleElement
-        >>> WeakeningParticleElement('particle', D=0.5).D
+        >>> from skcomplex.systems.mathematics.stochastic_processes import WeakeningForceInteraction
+        >>> WeakeningForceInteraction('force', D=0.5).D
         0.5
     """
+
+    law_classes = (RateLaw, NoiseLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(role='position')] = 0.0,
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        ell: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
+        target: Role = 'particles',
+        k: float = 1.0,
+        ell: float = 1.0,
+        D: float = 0.25,
     ) -> None:
         super().__init__(label)
-        self.x = x
+        self.target = target
         self.k = k
         self.ell = ell
         self.D = D
 
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the restoring force and the noise as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            self.laws_: list[BaseComponent] = [
+                RateLaw(x, -context.k * x / (1 + (x / context.ell) ** 2)),
+                NoiseLaw(x, sqrt(2 * context.D)),
+            ]
+
 
 class AgeingWalkerView(AgentView):
-    """View of an ageing walker, with its states and parameters as attributes."""
+    """View of an ageing walker, with its values as attributes."""
 
     x: float
     ups: float
-    p: float
-    nu: float
 
 
 class AgeingWalkerElement(Element):
-    """Walker whose probability to step up decays with its number of earlier up steps.
-
-    After `k` up steps, the next step is up with probability `p / (1 + k)^nu` and down otherwise. The walker remembers
-    its number of up steps at the end of the last step, from which its step follows.
+    """Walkers on the integers, each with its position `x` and its number `ups` of up steps.
 
     Args:
         label:
-            The label of the agent or group.
+            The label of the walkers.
 
         x:
-            The initial position.
+            The initial position, one per walker or shared.
 
         ups:
-            The initial number of up steps.
+            The initial number of up steps, one per walker or shared.
 
-        p:
-            The probability of the first up step.
-
-        nu:
-            The exponent of the decay of the up probability with the number of up steps.
+        size:
+            The number of walkers, or `None` for one.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.mathematics.stochastic_processes import AgeingWalkerElement
-        >>> group = GroupElement('walkers', element=AgeingWalkerElement, size=10, values={'nu': 0.5})
-        >>> group.label, group.element.__name__, group.size
-        ('walkers', 'AgeingWalkerElement', 10)
+        >>> AgeingWalkerElement('walkers', ups=3.0, size=10).ups
+        3.0
     """
 
     visual = VisualSpec('agents', {'color_by': 'x'})
@@ -227,24 +387,64 @@ class AgeingWalkerElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=ZZ, role='position')] = 0.0,
-        ups: Annotated[float, StateSpec(domain=NN, lags=1)] = 0.0,
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x: Annotated[object, ZZ] = 0.0,
+        ups: Annotated[object, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.x = x
         self.ups = ups
-        self.p = p
-        self.nu = nu
 
     @classmethod
     def _get_view(cls) -> type[AgeingWalkerView]:
-        """Return the view of the agents.
-
-        The view types their states and parameters.
-        """
+        """Return the view of the walkers, which types their values."""
         return AgeingWalkerView
+
+
+class AgeingStepInteraction(Interaction):
+    """Step of an ageing walker, up with the probability `p / (1 + k)^nu` after `k` up steps and down otherwise.
+
+    Every walker runs the rule once per step.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The walkers whose positions `x` and numbers `ups` of up steps the rule sets.
+
+        p:
+            The probability of the first up step.
+
+        nu:
+            The exponent of the decay of the up probability with the number of up steps.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import AgeingStepInteraction
+        >>> AgeingStepInteraction('step', nu=0.5).nu
+        0.5
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role = 'walkers', p: float = 0.5, nu: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.p = p
+        self.nu = nu
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the step of every walker as the rule."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._step)]
+
+    def _step(self, agent: AgeingWalkerView, system: SystemView) -> None:
+        """Step one walker up or down, counting its up steps."""
+        up = float(system.rng.random() < self.p / (1 + agent.ups) ** self.nu)
+        agent.ups += up
+        agent.x += 2 * up - 1
 
 
 class RandomWalkSystem(BaseSystem):
@@ -268,9 +468,15 @@ class RandomWalkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import RandomWalkSystem
-        >>> RandomWalkSystem(20).prepare().system_.elements[0].prepare().size_
+        >>> RandomWalkSystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -287,31 +493,20 @@ class RandomWalkSystem(BaseSystem):
         rate: float = 1.0,
         bias: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.rate = rate
         self.bias = bias
 
-    def _build_system(self) -> CompositeSystem:
-        """Return independent walkers on the integers that step at random times.
-
-        This is a continuous-time random walk.
-        """
-        walkers = GroupElement(
-            'walkers',
-            element=RandomWalkerElement,
-            size=self.n_walkers,
-            values={'rate': self.rate, 'bias': self.bias},
-        )
-        up = JumpInteraction('up', target='walkers', changes={'x': 1}, rate=lambda s: s.target.rate * s.target.bias)
-        down = JumpInteraction(
-            'down',
-            target='walkers',
-            changes={'x': -1},
-            rate=lambda s: s.target.rate * (1 - s.target.bias),
-        )
-        return CompositeSystem(self.label, elements=[walkers], interactions=[up, down])
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the walkers on a line and their steps."""
+        super()._prepare(context)
+        walkers = RandomWalkerElement('walkers', size=self.n_walkers, space=ContinuousSpace(n_dim=1))
+        steps = RandomStepInteraction('steps', target='walkers', rate=self.rate, bias=self.bias)
+        self.system_ = System(self.label, elements=[walkers], interactions=[steps])
 
 
 class WeakeningOrnsteinUhlenbeckSystem(BaseSystem):
@@ -337,9 +532,15 @@ class WeakeningOrnsteinUhlenbeckSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import WeakeningOrnsteinUhlenbeckSystem
-        >>> WeakeningOrnsteinUhlenbeckSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> WeakeningOrnsteinUhlenbeckSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -357,29 +558,21 @@ class WeakeningOrnsteinUhlenbeckSystem(BaseSystem):
         ell: float = 1.0,
         D: float = 0.25,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.k = k
         self.ell = ell
         self.D = D
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Brownian particles held by a restoring force that weakens with distance."""
-        particles = GroupElement(
-            'particles',
-            element=WeakeningParticleElement,
-            size=self.n_particles,
-            values={'k': self.k, 'ell': self.ell, 'D': self.D},
-        )
-        restoring = RateInteraction(
-            'restoring',
-            target='particles',
-            state='x',
-            rate=lambda s: -s.target.k * s.target.x / (1 + (s.target.x / s.target.ell) ** 2),
-            noise=lambda s: sqrt(2 * s.target.D),
-        )
-        return CompositeSystem(self.label, elements=[particles], interactions=[restoring])
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the particles on a line and the force that holds them."""
+        super()._prepare(context)
+        particles = WeakeningParticleElement('particles', size=self.n_particles, space=ContinuousSpace(n_dim=1))
+        restoring = WeakeningForceInteraction('restoring', target='particles', k=self.k, ell=self.ell, D=self.D)
+        self.system_ = System(self.label, elements=[particles], interactions=[restoring])
 
 
 class AgeingRandomWalkSystem(BaseSystem):
@@ -403,13 +596,17 @@ class AgeingRandomWalkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import AgeingRandomWalkSystem
-        >>> AgeingRandomWalkSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> AgeingRandomWalkSystem(5).prepare().system_.elements[0].size
         5
     """
-
-    draws = True
 
     field = 'mathematics/stochastic_processes'
     topics = ('random walk', 'agents', 'history dependence', 'ageing')
@@ -423,45 +620,20 @@ class AgeingRandomWalkSystem(BaseSystem):
         p: float = 0.5,
         nu: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.p = p
         self.nu = nu
 
-    def _build_system(self) -> CompositeSystem:
-        """Return ageing random walks.
-
-        The up steps become rarer the more of them a walker has taken.
-        """
-        ageing = MapInteraction(
-            'ageing',
-            target='walkers',
-            state='ups',
-            function=lambda agent, system: float(system.rng.random() < agent.p / (1 + agent.ups) ** agent.nu),
-            mode='increment',
-            form='agent',
-        )
-        step = MapInteraction(
-            'step',
-            target='walkers',
-            state='x',
-            function=lambda agent, system: 2 * (agent.ups - agent.get_lags('ups')[-1]) - 1,
-            mode='increment',
-            form='agent',
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[
-                GroupElement(
-                    'walkers',
-                    element=AgeingWalkerElement,
-                    size=self.n_walkers,
-                    values={'p': self.p, 'nu': self.nu},
-                ),
-            ],
-            interactions=[ageing, step],
-        )
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the walkers and the rule of their steps."""
+        super()._prepare(context)
+        step = AgeingStepInteraction('step', target='walkers', p=self.p, nu=self.nu)
+        walkers = AgeingWalkerElement('walkers', size=self.n_walkers)
+        self.system_ = System(self.label, elements=[walkers], interactions=[step])
 
 
 class PersistentRandomWalkSystem(BaseSystem):
@@ -487,13 +659,17 @@ class PersistentRandomWalkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import PersistentRandomWalkSystem
-        >>> PersistentRandomWalkSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> PersistentRandomWalkSystem(10).prepare().system_.elements[0].size
         10
     """
-
-    draws = True
 
     field = 'mathematics/stochastic_processes'
     topics = ('random walk', 'discrete map', 'persistence', 'diffusion')
@@ -508,38 +684,21 @@ class PersistentRandomWalkSystem(BaseSystem):
         persistence: float = 0.8,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.persistence = persistence
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return walkers on the integers that keep the direction of their last step.
-
-        A walker keeps the direction with a probability.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the walkers on a line and their persistent steps."""
+        super()._prepare(context)
         directions = np.random.default_rng(self.random_state).choice([-1.0, 1.0], size=self.n_walkers)
-        walkers = GroupElement(
-            'walkers',
-            element=PersistentWalkerElement,
-            size=self.n_walkers,
-            values={'d': directions, 'persistence': self.persistence},
-        )
-        turn = MapInteraction(
-            'turn',
-            target='walkers',
-            state='d',
-            function=lambda s: s.target.d * (1 - 2 * bernoulli('turn', 1 - s.target.persistence)),
-        )
-        step = MapInteraction(
-            'step',
-            target='walkers',
-            state='x',
-            function=lambda s: s.target.d,
-            mode='increment',
-        )
-        return CompositeSystem(self.label, elements=[walkers], interactions=[turn, step])
+        walkers = PersistentWalkerElement('walkers', d=directions, size=self.n_walkers, space=ContinuousSpace(n_dim=1))
+        step = PersistentStepInteraction('step', target='walkers', persistence=self.persistence)
+        self.system_ = System(self.label, elements=[walkers], interactions=[step])
 
 
 class RandomWalkWithMemorySystem(BaseSystem):
@@ -565,13 +724,17 @@ class RandomWalkWithMemorySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import RandomWalkWithMemorySystem
-        >>> RandomWalkWithMemorySystem(10).prepare().system_.elements[0].prepare().size_
+        >>> RandomWalkWithMemorySystem(10).prepare().system_.elements[0].size
         10
     """
-
-    draws = True
 
     field = 'mathematics/stochastic_processes'
     topics = ('random walk', 'discrete map', 'memory', 'autoregressive')
@@ -586,28 +749,17 @@ class RandomWalkWithMemorySystem(BaseSystem):
         alpha: float = 0.5,
         sigma: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.alpha = alpha
         self.sigma = sigma
 
-    def _build_system(self) -> CompositeSystem:
-        """Return random walks whose velocity is an autoregressive process.
-
-        The walks follow `x ← x + v` and `v ← alpha v + xi`.
-        """
-        walkers = GroupElement(
-            'walkers',
-            element=MemoryWalkerElement,
-            size=self.n_walkers,
-            values={'alpha': self.alpha, 'sigma': self.sigma},
-        )
-        step = MapInteraction('step', target='walkers', state='x', function=lambda s: s.target.v, mode='increment')
-        velocity = MapInteraction(
-            'velocity',
-            target='walkers',
-            state='v',
-            function=lambda s: s.target.alpha * s.target.v + normal('xi', 0, s.target.sigma),
-        )
-        return CompositeSystem(self.label, elements=[walkers], interactions=[step, velocity])
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the walkers on a line and their steps."""
+        super()._prepare(context)
+        walkers = MemoryWalkerElement('walkers', size=self.n_walkers, space=ContinuousSpace(n_dim=1))
+        step = MemoryStepInteraction('step', target='walkers', alpha=self.alpha, sigma=self.sigma)
+        self.system_ = System(self.label, elements=[walkers], interactions=[step])

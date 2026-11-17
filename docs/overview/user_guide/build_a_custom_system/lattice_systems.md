@@ -335,7 +335,7 @@ class SeriesElement(Element):
 
 
 shift = SelfIndexedShiftSystem(SymmetricGroup(3), radius=None, initial=[1, 2, 3, 4, 5, 0])
-simulate(shift, until=1).get_values('cells.value')[-1].tolist()
+shift.prepare().simulate(until=1).get_values('cells.value')[-1].tolist()
 ```
 
 The map sends the values `[1, 2, 3, 4, 5, 0]` to `[2.0, 1.0, 0.0, 3.0, 3.0, 0.0]`.

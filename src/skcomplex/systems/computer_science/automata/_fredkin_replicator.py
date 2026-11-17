@@ -11,12 +11,13 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import LocalRuleInteraction
+from ....core.components import Observable
 from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ._binary_cell import BinaryCellElement
-from ._codes import life
+from ._life_rule import LifeRuleInteraction
 
 HALF_CELL = 0.5
 
@@ -46,9 +47,15 @@ class FredkinReplicatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import FredkinReplicatorSystem
-        >>> int(FredkinReplicatorSystem((32, 32)).prepare().system_.elements[0].values['alive'].sum())
+        >>> int(FredkinReplicatorSystem((32, 32)).prepare().system_.elements[0].alive.sum())
         32
     """
 
@@ -65,36 +72,32 @@ class FredkinReplicatorSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         radius: float = 4.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.initial = initial
         self.radius = radius
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Fredkin's parity automaton.
-
-        Its local law copies any initial pattern into translated replicas.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the cells, a circumference by default, and their parity rule."""
+        super()._prepare(context)
         if self.initial is None:
             rows, columns = np.indices(tuple(self.shape))
             distance = np.hypot(rows - self.shape[0] // 2, columns - self.shape[1] // 2)
             values = (np.abs(distance - self.radius) < HALF_CELL).astype(float)
         else:
             values = np.asarray(self.initial, dtype=float)
-        space = LatticeSpace(tuple(self.shape))
-        return CompositeSystem(
+        parity = LifeRuleInteraction(
+            'rule',
+            target='cells',
+            born=(1, 3),
+            survive=(1, 3),
+            neighborhood=RadiusNeighborhood(1, metric='manhattan'),
+        )
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': values}, on='sites'),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'rule',
-                    target='cells',
-                    state='alive',
-                    rule=life((1, 3), (1, 3)),
-                    neighborhood=RadiusNeighborhood(1, metric='manhattan'),
-                ),
-            ],
+            elements=[BinaryCellElement('cells', alive=values.ravel(), space=LatticeSpace(tuple(self.shape)))],
+            interactions=[parity],
         )

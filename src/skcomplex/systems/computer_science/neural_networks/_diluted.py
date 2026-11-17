@@ -7,6 +7,7 @@ Its updates are parallel and stochastic.
 # License: MIT
 
 import functools
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -18,8 +19,10 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import total
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.agents import ChoiceInteraction
 
 
@@ -101,6 +104,12 @@ class DilutedHopfieldSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import DilutedHopfieldSystem
         >>> DilutedHopfieldSystem(200, connectivity=10).prepare().system_.elements[0].prepare().size_
@@ -124,8 +133,10 @@ class DilutedHopfieldSystem(BaseSystem):
         overlap: float = 0.3,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_neurons = n_neurons
         self.connectivity = connectivity
         self.load = load
@@ -154,11 +165,9 @@ class DilutedHopfieldSystem(BaseSystem):
         """
         return s.target.beta * option * total(s.target.spin, weights=couplings)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the asymmetric diluted Hopfield network.
-
-        It recalls a stored pattern below its memory capacity.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         n_patterns = max(1, round(self.load * self.connectivity))
         patterns = rng.choice([-1.0, 1.0], size=(n_patterns, self.n_neurons))
@@ -183,4 +192,4 @@ class DilutedHopfieldSystem(BaseSystem):
                 couplings=self._get_couplings(patterns, self.connectivity, rng),
             ),
         )
-        return CompositeSystem(self.label, elements=[neurons], interactions=[glauber])
+        self.system_ = System(self.label, elements=[neurons], interactions=[glauber])

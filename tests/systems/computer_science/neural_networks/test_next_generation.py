@@ -6,9 +6,8 @@ from scipy.integrate import solve_ivp
 from sklearn.base import clone
 
 from skcomplex.core.analysis import reservoir
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.neural_networks import NextGenerationReservoirSystem
 
 STEP = 0.025
@@ -35,7 +34,7 @@ def _lorenz_samples(samples=3000, step=STEP, method='RK23', tolerances=(1e-3, 1e
 
 def _forecast(system, steps, names=VARIABLES):
     """Return the variables of a run of the system, one row per step after the first."""
-    trajectory = simulate(system, until=steps)
+    trajectory = system.prepare().simulate(until=steps)
     return np.column_stack([trajectory.get_values(f'reservoir.{name}') for name in names])[1:]
 
 
@@ -107,17 +106,17 @@ def test_next_generation_reservoir_keeps_lags_of_every_variable():
     assert element.variables['x'].spec.initial == pytest.approx(tuple(values[[-2, -3], 0]))
     assert [interaction.state for interaction in system.interactions] == VARIABLES
     assert all(interaction.mode == 'increment' for interaction in system.interactions)
-    trajectory = simulate(system, until=2)
+    trajectory = system.prepare().simulate(until=2)
     assert trajectory.get_values('reservoir.x_lag1')[1] == pytest.approx(values[-1, 0])
     assert trajectory.get_values('reservoir.x_lag2')[2] == pytest.approx(values[-1, 0])
 
 
 def test_next_generation_reservoir_fits_the_lorenz_flow_by_default():
     """Test that the default system fits the flow it builds and keeps its forecast on the attractor."""
-    trajectory = simulate(NextGenerationReservoirSystem(), random_state=0)
+    trajectory = NextGenerationReservoirSystem().prepare().simulate(random_state=0)
     assert np.ptp(trajectory.get_values('reservoir.z')) > 20.0
     assert np.abs(trajectory.get_values('reservoir.x')).max() < 40.0
-    assert isinstance(NextGenerationReservoirSystem(samples=400).prepare().system_, CompositeSystem)
+    assert isinstance(NextGenerationReservoirSystem(samples=400).prepare().system_, System)
 
 
 def test_next_generation_reservoir_rejects_echo_state_analysis():
@@ -140,6 +139,6 @@ def test_next_generation_reservoir_keeps_its_reference_values():
     """Test a forecast against the values recorded before the element moved to declared states."""
     values = np.sin(0.1 * np.arange(200.0))[:, None]
     system = NextGenerationReservoirSystem(values, variables=['v'])
-    trajectory = simulate(system, until=20, dt=1)
+    trajectory = system.prepare().simulate(until=20, dt=1)
     last = [float(np.ravel(trajectory.get_values(path))[-1]) for path in ('reservoir.v', 'reservoir.v_lag1')]
     assert last == pytest.approx([0.09103560049023797, 0.18999621778271003], rel=1e-9)

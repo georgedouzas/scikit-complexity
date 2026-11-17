@@ -12,8 +12,8 @@ image around the ring is the identity.
 
 import matplotlib.pyplot as plt
 import numpy as np
+from sage.all__sagemath_gap import SymmetricGroup
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import GroupDifferenceAutomatonSystem
 
@@ -21,7 +21,7 @@ SYSTEM = 'group_difference_automaton'
 
 system = GroupDifferenceAutomatonSystem(size=60, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Constants and the product around the ring
@@ -29,7 +29,7 @@ trajectory = simulate(system, observers=[observer])
 # Every constant configuration should map to the identity, so the six constants share one image. The ordered product
 # of the image around the ring telescopes to `x(0)^-1 x(0)`, the identity, at every step.
 
-product = system.prepare().system_.interactions[0].rule.keywords['product']
+product = np.asarray(SymmetricGroup(3).cayley_table().table(), dtype=np.intp)
 values = trajectory.get_values('cells.value').astype(int)
 loops = []
 for row in values[1:]:
@@ -38,7 +38,8 @@ for row in values[1:]:
         total = product[total, element]
     loops.append(total)
 constants = [
-    simulate(GroupDifferenceAutomatonSystem(size=10, initial=np.full(10, element)), until=1) for element in range(6)
+    GroupDifferenceAutomatonSystem(size=10, initial=np.full(10, element)).prepare().simulate(until=1)
+    for element in range(6)
 ]
 fig, (image, check) = plt.subplots(1, 2, figsize=(10, 4))
 image.imshow(values, aspect='auto', cmap='tab10', interpolation='nearest')

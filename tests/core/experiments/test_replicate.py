@@ -3,12 +3,14 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.components.elements import GroupElement
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments._replicate import _replicate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
-from skcomplex.systems.mathematics.stochastic_processes import WeakeningOrnsteinUhlenbeckSystem
+from skcomplex.systems.mathematics.stochastic_processes import WeakeningParticleElement
 
 
 def test_replicate_runs_many_initial_conditions_at_once():
@@ -34,7 +36,7 @@ def test_replicate_runs_systems_with_interactions():
 def test_replicate_rejects_systems_with_groups():
     """Test that a system with a group does not replicate and the error says why."""
     with pytest.raises(ValidationError, match='Only systems of plain single elements and their interactions'):
-        _replicate(WeakeningOrnsteinUhlenbeckSystem(4).prepare().system_, 3)
+        _replicate(CompositeSystem(elements=[GroupElement('particles', element=WeakeningParticleElement, size=4)]), 3)
 
 
 def test_replicate_checks_paths_and_rows():

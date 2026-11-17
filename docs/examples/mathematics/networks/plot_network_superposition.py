@@ -14,14 +14,13 @@ import numpy as np
 from scipy.integrate import quad
 from scipy.stats import poisson
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import NetworkSuperpositionSystem
 
 SYSTEM = 'network_superposition'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(NetworkSuperpositionSystem(), observers=[observer])
+trajectory = NetworkSuperpositionSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Degree distribution
@@ -31,7 +30,7 @@ trajectory = simulate(NetworkSuperpositionSystem(), observers=[observer])
 
 low, high, exponent, n_nodes = 0.005, 0.1, 2.0, 100
 degrees = np.asarray(
-    NetworkSuperpositionSystem(n_subgraphs=1000).prepare().system_.elements[0].values['degree'],
+    NetworkSuperpositionSystem(n_subgraphs=1000).prepare().system_.elements[0].degree,
     dtype=int,
 )
 norm = (low ** (1 - exponent) - high ** (1 - exponent)) / (exponent - 1)

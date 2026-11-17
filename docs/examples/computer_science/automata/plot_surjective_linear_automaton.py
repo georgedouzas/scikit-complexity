@@ -13,7 +13,6 @@ Eden theorem on the free group.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import SurjectiveLinearAutomatonSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'surjective_linear_automaton'
 
 system = SurjectiveLinearAutomatonSystem(radius=5, modulus=2, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # A vanishing vector and a preimage
@@ -34,7 +33,7 @@ space = system.prepare().system_.elements[0].space.prepare()
 table = space.generator_table_
 kernel = np.zeros((space.size_, 2))
 kernel[0, 1] = 1
-vanishing = simulate(SurjectiveLinearAutomatonSystem(radius=5, initial=kernel), until=1)
+vanishing = SurjectiveLinearAutomatonSystem(radius=5, initial=kernel).prepare().simulate(until=1)
 rng = np.random.default_rng(1)
 target = rng.integers(0, 2, (space.size_, 2))
 preimage = np.zeros((space.size_, 2))
@@ -50,7 +49,7 @@ for site in np.argsort(space.lengths_, kind='stable'):
         if fresh.size:
             preimage[fresh[0], 0] = (target[site, axis] - known) % 2
             assigned[fresh] = True
-image = simulate(SurjectiveLinearAutomatonSystem(radius=5, initial=preimage), until=1)
+image = SurjectiveLinearAutomatonSystem(radius=5, initial=preimage).prepare().simulate(until=1)
 inner = space.lengths_ <= 3
 hits = (image.get_values('cells.first')[-1][inner] == target[inner, 0]) & (
     image.get_values('cells.second')[-1][inner] == target[inner, 1]

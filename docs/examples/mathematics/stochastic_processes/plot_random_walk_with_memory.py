@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import RandomWalkWithMemorySystem
 
@@ -32,10 +31,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(
-    RandomWalkWithMemorySystem(n_walkers=300, alpha=0.5, sigma=1.0),
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    RandomWalkWithMemorySystem(n_walkers=300, alpha=0.5, sigma=1.0)
+    .prepare()
+    .simulate(observers=[observer], random_state=0)
 )
 
 # %%

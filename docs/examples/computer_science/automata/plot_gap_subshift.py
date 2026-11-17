@@ -13,14 +13,15 @@ shifts the window by one cell, with the cell that enters drawn from the gap sinc
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import GapSubshiftSystem
 
 SYSTEM = 'gap_subshift'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(GapSubshiftSystem(size=120, random_state=0), until=2000, observers=[observer], random_state=0)
+trajectory = (
+    GapSubshiftSystem(size=120, random_state=0).prepare().simulate(until=2000, observers=[observer], random_state=0)
+)
 
 # %%
 # Gaps and entropy
@@ -36,7 +37,7 @@ gaps = np.diff(ones) - 1
 golden = (1 + 5**0.5) / 2
 lengths = np.arange(0, 12, 2)
 other = GapSubshiftSystem(size=120, gaps=(1, 4), random_state=0)
-other_alive = simulate(other, until=500, random_state=0).get_values('cells.alive')
+other_alive = other.prepare().simulate(until=500, random_state=0).get_values('cells.alive')
 other_ones = np.flatnonzero(np.concatenate([other_alive[0], other_alive[1:, -1]]))
 fig, (histogram, other_ax) = plt.subplots(1, 2, figsize=(10, 4))
 histogram.bar(*np.unique(gaps, return_counts=True), label='gaps of the stream')

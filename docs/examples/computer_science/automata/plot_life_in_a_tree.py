@@ -13,7 +13,6 @@ pre-injective.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import LifeInATreeSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'life_in_a_tree'
 
 system = LifeInATreeSystem(radius=4, density=0.3, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Density by word length and a collision
@@ -36,7 +35,7 @@ alive = trajectory.get_values('cells.alive')
 lone = np.zeros(space.size_)
 lone[0] = 1.0
 images = [
-    simulate(LifeInATreeSystem(radius=4, initial=cells), until=1).get_values('cells.alive')
+    LifeInATreeSystem(radius=4, initial=cells).prepare().simulate(until=1).get_values('cells.alive')
     for cells in (lone, np.zeros(space.size_))
 ]
 fig, ax = plt.subplots(figsize=(7, 4))

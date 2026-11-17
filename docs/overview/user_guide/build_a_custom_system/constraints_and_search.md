@@ -68,11 +68,10 @@ generation per step. `OptimizationInteraction` of `EvolutionaryOptimisersSystem`
 in the box `bounds`. Here a particle swarm searches for 20 steps.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.computer_science.evolutionary_computation import EvolutionaryOptimisersSystem
 
-system = EvolutionaryOptimisersSystem(algorithm='particle-swarm', random_state=1)
-simulate(system, until=20, random_state=1).get_values('search.best')[-1] < 20
+system = EvolutionaryOptimisersSystem(algorithm='particle-swarm', random_state=1).prepare()
+system.simulate(until=20, random_state=1).get_values('search.best')[-1] < 20
 ```
 
 The block returns `True`, so the best objective after 20 steps lies below 20. The interaction follows these rules.

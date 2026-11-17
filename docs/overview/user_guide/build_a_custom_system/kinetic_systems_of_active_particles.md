@@ -426,12 +426,11 @@ inverse. `FreeGroupAutomatonSystem` of `skcomplex.systems.computer_science.autom
 these five cells on the ball of radius 4.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.computer_science.automata import FreeGroupAutomatonSystem
 
-majority = FreeGroupAutomatonSystem(radius=4)
-tree = majority.prepare().system_.elements[0].space.prepare()
-tree.ball_sizes_, simulate(majority, until=3, dt=1).get_values('cells.alive').shape
+majority = FreeGroupAutomatonSystem(radius=4).prepare()
+tree = majority.system_.elements[0].space.prepare()
+tree.ball_sizes_, majority.simulate(until=3, dt=1).get_values('cells.alive').shape
 ```
 
 The balls of radius 0 to 4 hold 1, 5, 17, 53, and 161 elements, so the number of words triples at every length. The

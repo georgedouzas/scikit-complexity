@@ -3,10 +3,15 @@
 The package covers random walks, Markov sources, counting, urn, branching, and sample-space-reducing processes.
 """
 
-from ._branching import GaltonWatsonSystem, IndividualElement
+from ._branching import (
+    BranchingInteraction,
+    GaltonWatsonSystem,
+    IndividualElement,
+)
 from ._counting import (
     BernoulliProcessSystem,
     BernoulliTrialElement,
+    BernoulliTrialInteraction,
     PoissonCounterElement,
     PoissonEventsInteraction,
     PoissonProcessSystem,
@@ -32,11 +37,12 @@ from ._random_maps import (
     RandomBranchMapSystem,
 )
 from ._reducing import (
-    CascadingBallElement,
+    BallElement,
+    BreakingInteraction,
+    CascadeInteraction,
     CascadingSampleSpaceReducingSystem,
     FragmentationSystem,
     FragmentElement,
-    ReducingBallElement,
     ReducingJumpInteraction,
     SampleSpaceReducingSystem,
 )
@@ -54,24 +60,34 @@ from ._urns import (
 )
 from ._walks import (
     AgeingRandomWalkSystem,
+    AgeingStepInteraction,
     AgeingWalkerElement,
+    MemoryStepInteraction,
     MemoryWalkerElement,
     PersistentRandomWalkSystem,
+    PersistentStepInteraction,
     PersistentWalkerElement,
+    RandomStepInteraction,
     RandomWalkerElement,
     RandomWalkSystem,
     RandomWalkWithMemorySystem,
+    WeakeningForceInteraction,
     WeakeningOrnsteinUhlenbeckSystem,
     WeakeningParticleElement,
 )
 
 __all__: list[str] = [
     'AgeingRandomWalkSystem',
+    'AgeingStepInteraction',
     'AgeingWalkerElement',
+    'BallElement',
     'BernoulliProcessSystem',
     'BernoulliTrialElement',
+    'BernoulliTrialInteraction',
     'BirthDeathQueueSystem',
-    'CascadingBallElement',
+    'BranchingInteraction',
+    'BreakingInteraction',
+    'CascadeInteraction',
     'CascadingSampleSpaceReducingSystem',
     'ExponentialGrowthAtRandomTimesSystem',
     'FragmentElement',
@@ -85,11 +101,13 @@ __all__: list[str] = [
     'MarkovChainInteraction',
     'MarkovSourceElement',
     'MarkovSourceSystem',
+    'MemoryStepInteraction',
     'MemoryWalkerElement',
     'ObservedGrowthElement',
     'ObservedGrowthInteraction',
     'OnOffIntermittencySystem',
     'PersistentRandomWalkSystem',
+    'PersistentStepInteraction',
     'PersistentWalkerElement',
     'PoissonCounterElement',
     'PoissonEventsInteraction',
@@ -101,13 +119,14 @@ __all__: list[str] = [
     'RandomBranchMapElement',
     'RandomBranchMapInteraction',
     'RandomBranchMapSystem',
+    'RandomStepInteraction',
     'RandomWalkSystem',
     'RandomWalkWithMemorySystem',
     'RandomWalkerElement',
-    'ReducingBallElement',
     'ReducingJumpInteraction',
     'SampleSpaceReducingSystem',
     'ServiceInteraction',
+    'WeakeningForceInteraction',
     'WeakeningOrnsteinUhlenbeckSystem',
     'WeakeningParticleElement',
 ]

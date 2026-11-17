@@ -6,19 +6,20 @@ A recorded network has its centralities, mixing, communities, and motifs.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
 
 from ....core.analysis import motifs, network_measures
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import AnalysisError
-from ....core.specs import ParameterSpec
+from ....core.systems import BaseSystem, System
 from ..common.networks import NetworkNodeElement
 
 BLOCKS = 4
@@ -28,9 +29,7 @@ OUT_DEGREE = 2
 
 
 class NetworkMeasuresElement(Element):
-    """Measures of a whole network.
-
-    The measures are held as parameters that the observables of the system report.
+    """Measures of a whole network, which the observables of a system report.
 
     Args:
         label:
@@ -61,11 +60,11 @@ class NetworkMeasuresElement(Element):
         self,
         label: str,
         *,
-        path_length: Annotated[float, ParameterSpec()] = 0.0,
-        assortativity: Annotated[float, ParameterSpec()] = 0.0,
-        modularity: Annotated[float, ParameterSpec()] = 0.0,
-        agreement: Annotated[float, ParameterSpec()] = 0.0,
-        triangle_zscore: Annotated[float, ParameterSpec()] = 0.0,
+        path_length: float = 0.0,
+        assortativity: float = 0.0,
+        modularity: float = 0.0,
+        agreement: float = 0.0,
+        triangle_zscore: float = 0.0,
     ) -> None:
         super().__init__(label)
         self.path_length = path_length
@@ -129,12 +128,17 @@ class NetworkStructureAnalysisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.mathematics.networks import NetworkStructureAnalysisSystem
         >>> karate = NetworkStructureAnalysisSystem(nx.karate_club_graph(), reference='club', null_samples=0)
-        >>> system = karate.prepare().system_
-        >>> system.elements[0].prepare().size_
+        >>> karate.prepare().system_.elements[0].degree.size
         34
     """
 
@@ -160,8 +164,10 @@ class NetworkStructureAnalysisSystem(BaseSystem):
         null_samples: int = 10,
         random_state: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.reference = reference
         self.null_samples = null_samples
@@ -189,11 +195,12 @@ class NetworkStructureAnalysisSystem(BaseSystem):
         values = nx.get_node_attributes(graph, attribute)
         return [values[node] for node in graph.nodes()] if len(values) == graph.number_of_nodes() else None
 
-    def _build_system(self) -> CompositeSystem:
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Return a recorded network with centralities, mixing, communities, and motifs.
 
         The mixing is degree mixing, and the motifs are measured by the triangle z-score.
         """
+        super()._prepare(context)
         network = self._get_planted_partition(self.random_state) if self.graph is None else self.graph
         found = network_measures(
             network,
@@ -210,18 +217,13 @@ class NetworkStructureAnalysisSystem(BaseSystem):
             error_msg = 'The network measures miss the communities, the summary, the centrality, or the assortativity.'
             raise AnalysisError(error_msg)
         betweenness = centrality[0]
-        nodes = list(network.nodes())
-        group = GroupElement(
+        nodes = NetworkNodeElement(
             'nodes',
-            element=NetworkNodeElement,
-            size=len(nodes),
-            values={
-                'degree': np.asarray([network.degree(node) for node in nodes], dtype=float),
-                'clustering': np.asarray([clustering[node] for node in nodes], dtype=float),
-                'betweenness': np.asarray([betweenness[node] for node in nodes], dtype=float),
-                'community': labels[0].astype(float),
-            },
-            location=nodes,
+            degree=np.asarray([network.degree(node) for node in network], dtype=float),
+            clustering=np.asarray([clustering[node] for node in network], dtype=float),
+            betweenness=np.asarray([betweenness[node] for node in network], dtype=float),
+            community=labels[0].astype(float),
+            space=NetworkSpace(network),
         )
         zscore = 0.0
         if self.null_samples:
@@ -240,4 +242,4 @@ class NetworkStructureAnalysisSystem(BaseSystem):
             agreement=0.0 if found.agreement is None else float(found.agreement[0]),
             triangle_zscore=zscore,
         )
-        return CompositeSystem(self.label, elements=[group, measures], space=NetworkSpace(network))
+        self.system_ = System(self.label, elements=[nodes, measures])

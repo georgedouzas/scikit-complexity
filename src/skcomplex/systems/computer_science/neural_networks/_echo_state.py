@@ -7,6 +7,7 @@ It is a reservoir of leaky tanh units driven by an input.
 # License: MIT
 
 import functools
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -16,11 +17,14 @@ from reservoirpy import mat_gen
 from sage.all__sagemath_symbolics import Expression, oo, sin, tanh
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import total
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 class ReservoirUnitElement(Element):
@@ -110,6 +114,12 @@ class EchoStateNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import EchoStateNetworkSystem
         >>> EchoStateNetworkSystem(50).prepare().system_.elements[0].prepare().size_
@@ -134,8 +144,10 @@ class EchoStateNetworkSystem(BaseSystem):
         frequency: float = 0.2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_units = n_units
         self.spectral_radius = spectral_radius
         self.leak = leak
@@ -166,8 +178,9 @@ class EchoStateNetworkSystem(BaseSystem):
         drive = total(unit.r, weights=weights) + unit.w_in * unit.amplitude * sin(unit.frequency * s.t)
         return (1 - unit.leak) * unit.r + unit.leak * tanh(drive)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         weights = self._get_recurrent_weights(self.n_units, self.connectivity, self.spectral_radius, rng)
         units = GroupElement(
@@ -188,4 +201,4 @@ class EchoStateNetworkSystem(BaseSystem):
             state='r',
             function=functools.partial(self._get_leaky_tanh, weights=weights),
         )
-        return CompositeSystem(self.label, elements=[units], interactions=[reservoir])
+        self.system_ = System(self.label, elements=[units], interactions=[reservoir])

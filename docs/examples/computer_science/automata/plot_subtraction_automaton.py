@@ -13,14 +13,13 @@ the image of the automaton over the infinite alphabet `N` is not closed.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import SubtractionAutomatonSystem
 
 SYSTEM = 'subtraction_automaton'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(SubtractionAutomatonSystem(size=41, height=10), observers=[observer])
+trajectory = SubtractionAutomatonSystem(size=41, height=10).prepare().simulate(observers=[observer])
 
 # %%
 # Images of the staircases
@@ -33,7 +32,7 @@ heights = [2, 5, 10, 20]
 fig, ax = plt.subplots(figsize=(7, 4))
 for offset, height in enumerate(heights):
     staircase = SubtractionAutomatonSystem(size=41, height=height)
-    image = simulate(staircase, until=1).get_values('cells.value')[-1]
+    image = staircase.prepare().simulate(until=1).get_values('cells.value')[-1]
     ax.step(np.arange(41) - 10, image + 1.5 * offset, where='mid', label=f'image of $x_{{{height}}}$')
 ax.set_xlabel('cell n')
 ax.set_yticks([])

@@ -16,6 +16,8 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import fractional
 from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
@@ -87,6 +89,12 @@ class FractionalRelaxationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalRelaxationSystem
         >>> FractionalRelaxationSystem(order=0.5).prepare().system_.interactions[0].lam
@@ -106,8 +114,10 @@ class FractionalRelaxationSystem(BaseSystem):
         order: float = 0.6,
         lam: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.order = order
         self.lam = lam
@@ -212,6 +222,12 @@ class FractionalOscillatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalOscillatorSystem
         >>> FractionalOscillatorSystem(order=0.9).prepare().system_.interactions[0].omega
@@ -233,8 +249,10 @@ class FractionalOscillatorSystem(BaseSystem):
         omega: float = 1.0,
         gamma: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.v = v
         self.order = order
@@ -333,6 +351,12 @@ class FractionalVanDerPolSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalVanDerPolSystem
         >>> FractionalVanDerPolSystem(mu=2.0).prepare().system_.interactions[0].mu
@@ -353,8 +377,10 @@ class FractionalVanDerPolSystem(BaseSystem):
         order: float = 0.9,
         mu: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.order = order
@@ -473,6 +499,12 @@ class FractionalLorenzSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalLorenzSystem
         >>> FractionalLorenzSystem(rho=20.0).prepare().system_.interactions[0].rho
@@ -496,8 +528,10 @@ class FractionalLorenzSystem(BaseSystem):
         rho: float = 28.0,
         beta: float = 8 / 3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z

@@ -16,7 +16,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import GaltonWatsonSystem
 
@@ -36,10 +35,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(GaltonWatsonSystem(n_individuals=10), until=40, dt=1, observers=[observer], random_state=0)
-runs = [trajectory] + [
-    simulate(GaltonWatsonSystem(n_individuals=10), until=40, dt=1, random_state=seed) for seed in range(1, 8)
-]
+system = GaltonWatsonSystem(n_individuals=10).prepare()
+trajectory = system.simulate(until=40, dt=1, observers=[observer], random_state=0)
+runs = [trajectory] + [system.simulate(until=40, dt=1, random_state=seed) for seed in range(1, 8)]
 for index, run in enumerate(runs):
     observer.recording_.send_columns(
         f'sizes/population_{index}',
@@ -57,19 +55,15 @@ observer.recording_.flush()
 # after 12 generations should follow the 12-th iterate.
 
 rates = np.linspace(0.5, 2.0, 7)
+founders = [GaltonWatsonSystem(n_individuals=1, m=m).prepare() for m in rates]
 extinct = [
     np.mean(
         [
-            len(
-                simulate(GaltonWatsonSystem(n_individuals=1, m=m), until=12, dt=1, random_state=seed)
-                .get_agents('population', 12)
-                .ids,
-            )
-            == 0
+            len(founder.simulate(until=12, dt=1, random_state=seed).get_agents('population', 12).ids) == 0
             for seed in range(100)
         ],
     )
-    for m in rates
+    for founder in founders
 ]
 grid = np.linspace(0.5, 2.0, 100)
 iterate, ultimate = np.zeros_like(grid), np.zeros_like(grid)

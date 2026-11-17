@@ -9,22 +9,25 @@ of two elements, so a few ones spread into a growing, flickering pattern over th
 # %%
 # The ball holds 964 elements on rings by word length, colored by their state.
 
+from typing import Annotated
+
 import matplotlib.pyplot as plt
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.analysis import automaton
-from skcomplex.core.components.elements import GroupElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import LinearRuleSpec
 from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems.computer_science.automata import BinaryCellElement, LamplighterAutomatonSystem, lamplighter
+from skcomplex.core.specs import StateSpec
+from skcomplex.systems.computer_science.automata import LamplighterAutomatonSystem, lamplighter
 from skcomplex.systems.computer_science.common.automata import CayleySpace, MemoryNeighborhood
 
 SYSTEM = 'lamplighter_automaton'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(LamplighterAutomatonSystem(radius=7, density=0.1, random_state=0), observers=[observer])
+trajectory = LamplighterAutomatonSystem(radius=7, density=0.1, random_state=0).prepare().simulate(observers=[observer])
 
 # %%
 # Ones over time and invertibility on a quotient
@@ -34,10 +37,19 @@ trajectory = simulate(LamplighterAutomatonSystem(radius=7, density=0.1, random_s
 # the group ring element `1 + a + b` is a matrix over GF(2), and its rank decides whether the automaton is invertible
 # there.
 
+
+class ParityCellElement(Element):
+    """Cell of the parity automaton, whose declared state `alive` the analysis of automata reads."""
+
+    def __init__(self, label, *, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
+        super().__init__(label)
+        self.alive = alive
+
+
 alive = trajectory.get_values('cells.alive')
 quotient = CayleySpace(lamplighter().PermGroupOnLevel(3)).prepare()
 parity = CompositeSystem(
-    elements=[GroupElement('cells', element=BinaryCellElement, space=quotient, on='sites')],
+    elements=[GroupElement('cells', element=ParityCellElement, space=quotient, on='sites')],
     interactions=[
         LocalRuleInteraction(
             'parity',
