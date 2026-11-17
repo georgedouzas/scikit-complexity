@@ -13,23 +13,22 @@ while thermal noise spreads them out, so the cloud moves at a steady mean veloci
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import TiltedPeriodicPotentialSystem
 
 SYSTEM = 'tilted_periodic_potential'
 
-system = TiltedPeriodicPotentialSystem(n_particles=20, f=1.0, U0=0.5, L=1.0, kT=0.5)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    system.prepare().system_,
-    until=50,
-    dt=0.25,
+system = TiltedPeriodicPotentialSystem(
+    n_particles=20,
+    f=1.0,
+    U0=0.5,
+    L=1.0,
+    kT=0.5,
     solver=EulerMaruyamaSolver(dt=0.005),
-    observers=[observer],
-    random_state=0,
 )
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+trajectory = system.prepare().simulate(until=50, dt=0.25, observers=[observer], random_state=0)
 
 # %%
 # Mean velocity against the force
@@ -56,13 +55,8 @@ def exact_velocity(f, U0=0.5, L=1.0, kT=0.5, gamma=1.0):
 forces = np.array([0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0])
 velocities = []
 for f in forces:
-    run = simulate(
-        TiltedPeriodicPotentialSystem(n_particles=300, f=f).prepare().system_,
-        until=30,
-        dt=1.0,
-        solver=EulerMaruyamaSolver(dt=0.005),
-        random_state=1,
-    )
+    tilted = TiltedPeriodicPotentialSystem(n_particles=300, f=f, solver=EulerMaruyamaSolver(dt=0.005)).prepare()
+    run = tilted.simulate(until=30, dt=1.0, random_state=1)
     positions = run.get_values('particles.x')[..., 0]
     velocities.append((positions[-1] - positions[5]).mean() / 25)
 
