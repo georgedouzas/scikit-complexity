@@ -22,7 +22,7 @@ from ....core.components.laws.utils import pulse_train, sign
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, Role, StateSpec
+from ....core.specs import ParameterSpec, Role
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -215,7 +215,7 @@ class RegenerativeBrakingSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.power_systems import RegenerativeBrakingSystem
-        >>> RegenerativeBrakingSystem(C=100.0).prepare().system_.elements[0].get_value('C')
+        >>> RegenerativeBrakingSystem(C=100.0).prepare().system_.elements[0].values['C']
         100.0
     """
 
@@ -237,8 +237,10 @@ class RegenerativeBrakingSystem(DynamicalSystem):
         alpha: float = 50.0,
         beta: float = 5.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.v = v
         self.m = m
         self.A = A
@@ -252,19 +254,24 @@ class RegenerativeBrakingSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'car'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'v': DeclaredVariableSpec(self.v, StateSpec()),
-            'I': DeclaredVariableSpec(0.0, StateSpec()),
-            'Vs': DeclaredVariableSpec(0.0, StateSpec()),
-            'm': DeclaredVariableSpec(self.m, ParameterSpec(domain=RealSet.open(0, oo))),
-            'A': DeclaredVariableSpec(self.A, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'L': DeclaredVariableSpec(self.L, ParameterSpec(domain=RealSet.open(0, oo))),
-            'R': DeclaredVariableSpec(self.R, ParameterSpec(domain=RealSet.open(0, oo))),
-            'C': DeclaredVariableSpec(self.C, ParameterSpec(domain=RealSet.open(0, oo))),
-            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'v': self.v,
+            'I': 0.0,
+            'Vs': 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'm': self.m,
+            'A': self.A,
+            'L': self.L,
+            'R': self.R,
+            'C': self.C,
+            'alpha': self.alpha,
+            'beta': self.beta,
         }
 
     def _get_equations(self) -> Equations:
@@ -335,7 +342,7 @@ class FaradayDiskSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.power_systems import FaradayDiskSystem
-        >>> FaradayDiskSystem(M=6.0).prepare().system_.elements[0].get_value('M')
+        >>> FaradayDiskSystem(M=6.0).prepare().system_.elements[0].values['M']
         6.0
     """
 
@@ -359,8 +366,10 @@ class FaradayDiskSystem(DynamicalSystem):
         L: float = 0.2,
         C: float = 0.75,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.I = I
         self.U = U
         self.omega = omega
@@ -376,29 +385,34 @@ class FaradayDiskSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'charger'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'I': DeclaredVariableSpec(self.I, StateSpec()),
-            'U': DeclaredVariableSpec(self.U, StateSpec()),
-            'omega': DeclaredVariableSpec(self.omega, StateSpec()),
-            'B': DeclaredVariableSpec(self.B, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'r1': DeclaredVariableSpec(0.025, ParameterSpec(domain=RealSet.open(0, oo))),
-            'r2': DeclaredVariableSpec(0.55, ParameterSpec(domain=RealSet.open(0, oo))),
-            'L': DeclaredVariableSpec(self.L, ParameterSpec(domain=RealSet.open(0, oo))),
-            'C': DeclaredVariableSpec(self.C, ParameterSpec(domain=RealSet.open(0, oo))),
-            'R1': DeclaredVariableSpec(self.R1, ParameterSpec(domain=RealSet.open(0, oo))),
-            'R2': DeclaredVariableSpec(self.R2, ParameterSpec(domain=RealSet.open(0, oo))),
-            'alpha': DeclaredVariableSpec(0.5, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'beta': DeclaredVariableSpec(0.5, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'J': DeclaredVariableSpec(0.5, ParameterSpec(domain=RealSet.open(0, oo))),
-            'mu': DeclaredVariableSpec(0.00012566370614359174, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'N': DeclaredVariableSpec(self.N, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'l': DeclaredVariableSpec(0.05, ParameterSpec(domain=RealSet.open(0, oo))),
-            'M': DeclaredVariableSpec(self.M, ParameterSpec()),
-            'a0': DeclaredVariableSpec(8.0, ParameterSpec()),
-            'a1': DeclaredVariableSpec(0.75, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'a3': DeclaredVariableSpec(0.5, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'I': self.I,
+            'U': self.U,
+            'omega': self.omega,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'B': self.B,
+            'r1': 0.025,
+            'r2': 0.55,
+            'L': self.L,
+            'C': self.C,
+            'R1': self.R1,
+            'R2': self.R2,
+            'alpha': 0.5,
+            'beta': 0.5,
+            'J': 0.5,
+            'mu': 0.00012566370614359174,
+            'N': self.N,
+            'l': 0.05,
+            'M': self.M,
+            'a0': 8.0,
+            'a1': 0.75,
+            'a3': 0.5,
         }
 
     def _get_equations(self) -> Equations:

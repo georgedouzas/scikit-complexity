@@ -11,6 +11,7 @@ from scipy.optimize import brentq
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import ConnectionInteraction, CrossingInteraction
 from skcomplex.core.components.laws import ConstraintLaw, NoiseLaw, RateLaw, RuleLaw
+from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -18,18 +19,193 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import AlgebraicStateError, SolverError, ValidationError
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
-from skcomplex.systems.engineering.common.electrical import (
-    ELECTRICAL,
-    CapacitorElement,
-    CurrentSourceElement,
-    DiodeElement,
-    GroundElement,
-    ResistorElement,
-    VoltageSourceElement,
-)
-from skcomplex.systems.engineering.control import THERMAL, ConvectionElement
 
 PIN = ConnectorSpec('pin', potential='v', flow='i')
+ELECTRICAL = ConnectorSpec('electrical', potential='v', flow='i')
+THERMAL = ConnectorSpec('thermal', potential='T', flow='Q')
+
+
+class TwoPinElement(Element):
+    """Component with the pins `p` and `n`, whose currents balance, and the equations of its branch."""
+
+    ports: ClassVar = {'p': ELECTRICAL, 'n': ELECTRICAL}
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        p_v: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        p_i: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        n_v: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        n_i: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.p_v = p_v
+        self.p_i = p_i
+        self.n_v = n_v
+        self.n_i = n_i
+
+    def _get_branch_laws(self, s):
+        """Return the equations of the branch, none here."""
+        del s
+        return []
+
+    def _get_laws(self, s):
+        """Return the balance of the currents of the pins and the equations of the branch."""
+        return [ConstraintLaw(s.p_i + s.n_i, 0), *self._get_branch_laws(s)]
+
+
+class ResistorElement(TwoPinElement):
+    """Resistor that obeys Ohm's law."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        p_v: float = 0.0,
+        p_i: float = 0.0,
+        n_v: float = 0.0,
+        n_i: float = 0.0,
+        R: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        self.R = R
+
+    def _get_branch_laws(self, s):
+        """Return Ohm's law."""
+        return [ConstraintLaw(s.p_v - s.n_v, s.R * s.p_i)]
+
+
+class CapacitorElement(TwoPinElement):
+    """Capacitor of voltage `u`."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        p_v: float = 0.0,
+        p_i: float = 0.0,
+        n_v: float = 0.0,
+        n_i: float = 0.0,
+        u: Annotated[float, StateSpec()] = 0.0,
+        C: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        self.u = u
+        self.C = C
+
+    def _get_branch_laws(self, s):
+        """Return the charge balance and the voltage of the capacitor."""
+        return [ConstraintLaw(s.C * derivative(s.u, 1), s.p_i), ConstraintLaw(s.u, s.p_v - s.n_v)]
+
+
+class VoltageSourceElement(TwoPinElement):
+    """Source of the constant voltage `V`."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        p_v: float = 0.0,
+        p_i: float = 0.0,
+        n_v: float = 0.0,
+        n_i: float = 0.0,
+        V: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        self.V = V
+
+    def _get_branch_laws(self, s):
+        """Return the voltage of the source."""
+        return [ConstraintLaw(s.p_v - s.n_v, s.V)]
+
+
+class CurrentSourceElement(TwoPinElement):
+    """Source that drives the constant current `current` out of its positive pin."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        p_v: float = 0.0,
+        p_i: float = 0.0,
+        n_v: float = 0.0,
+        n_i: float = 0.0,
+        current: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        self.current = current
+
+    def _get_branch_laws(self, s):
+        """Return the current of the source."""
+        return [ConstraintLaw(s.p_i, -s.current)]
+
+
+class DiodeElement(TwoPinElement):
+    """Exponential diode."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        p_v: float = 0.0,
+        p_i: float = 0.0,
+        n_v: float = 0.0,
+        n_i: float = 0.0,
+        Is: Annotated[float, ParameterSpec()] = 1e-6,
+        Vt: Annotated[float, ParameterSpec()] = 0.025,
+    ) -> None:
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        self.Is = Is
+        self.Vt = Vt
+
+    def _get_branch_laws(self, s):
+        """Return the characteristic of the diode."""
+        return [ConstraintLaw(s.p_i, s.Is * (exp((s.p_v - s.n_v) / s.Vt) - 1))]
+
+
+class GroundElement(Element):
+    """Reference whose one pin has zero potential."""
+
+    ports: ClassVar = {'p': ELECTRICAL}
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        p_v: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        p_i: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.p_v = p_v
+        self.p_i = p_i
+
+    def _get_laws(self, s):
+        """Return the zero potential of the pin."""
+        return [ConstraintLaw(s.p_v, 0)]
+
+
+class ConvectionElement(Element):
+    """Surface with a thermal port that exchanges heat with a fluid at zero temperature."""
+
+    ports: ClassVar = {'a': THERMAL}
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        a_T: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        a_Q: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        h: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.a_T = a_T
+        self.a_Q = a_Q
+        self.h = h
+
+    def _get_laws(self, s):
+        """Return the heat flow into the fluid."""
+        return [ConstraintLaw(s.a_Q, s.h * s.a_T)]
 
 
 class IntegratedElement(Element):

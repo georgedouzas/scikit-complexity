@@ -61,7 +61,7 @@ The default rates of `SIRSystem` describe a slow epidemic, so the first run show
 ```python continuation
 from skcomplex.core.engine.runtime import simulate
 
-trajectory = simulate(school, until=13, dt=1.0)
+trajectory = school.prepare().simulate(until=13, dt=1.0)
 trajectory.get_values('I.x').round().tolist()[::4]
 ```
 
@@ -99,7 +99,7 @@ Applied to the fitted run and to the data, it compares when the school had more 
 ```python continuation
 from skcomplex.core.analysis import events
 
-fitted_run = simulate(fit.system, until=13, dt=1.0)
+fitted_run = fit.system.prepare().simulate(until=13, dt=1.0)
 simulated = events(fitted_run, variables=['I.x'], threshold=100.0)
 observed = events(in_bed, threshold=100.0)
 (simulated.starts.tolist(), simulated.durations.tolist()), (observed.starts.tolist(), observed.durations.tolist())

@@ -3,13 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.resources import OptimalHarvestingSystem
 
 
 def test_optimal_harvesting_holds_the_singular_level():
     """Test that the optimal effort takes its bounds at both ends and holds the stock steady in between."""
-    trajectory = simulate(OptimalHarvestingSystem())
+    trajectory = OptimalHarvestingSystem().prepare().simulate()
     effort, stock = trajectory.get_values('resource.effort'), trajectory.get_values('resource.x')
     assert effort[0] == pytest.approx(1.0, abs=1e-6)
     assert effort[-1] == pytest.approx(1.0, abs=1e-6)

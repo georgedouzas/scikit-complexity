@@ -24,7 +24,7 @@ from ....core.components.laws.utils import laplacian, neighbors
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
@@ -277,8 +277,8 @@ class NetworkDiffusionSystem(NetworkDynamicalSystem):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.mathematics.networks import NetworkDiffusionSystem
-        >>> NetworkDiffusionSystem(nx.path_graph(4)).prepare().system_.elements[0].prepare().size_
-        4
+        >>> NetworkDiffusionSystem(nx.path_graph(4)).prepare().simulate(until=0.0).get_values('nodes.u').shape
+        (1, 4)
     """
 
     field = 'mathematics/networks'
@@ -294,8 +294,10 @@ class NetworkDiffusionSystem(NetworkDynamicalSystem):
         D: float = 1.0,
         source: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.graph = graph
         self.D = D
         self.source = source
@@ -304,14 +306,15 @@ class NetworkDiffusionSystem(NetworkDynamicalSystem):
         """Return the graph, Zachary's karate club by default."""
         return NetworkRandomWalkSystem._get_graph_or_default(self.graph)
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the content, one at the source and zero elsewhere, and the diffusion constant."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the content, one at the source and zero elsewhere."""
         initial = np.zeros(self._get_graph().number_of_nodes())
         initial[self.source] = 1.0
-        return {
-            'u': DeclaredVariableSpec(initial, StateSpec()),
-            'D': DeclaredVariableSpec(self.D, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-        }
+        return {'u': initial}
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the diffusion constant."""
+        return {'D': self.D}
 
     def _get_equations(self) -> Equations:
         """Return the diffusion `D L u` of the content by the graph Laplacian."""

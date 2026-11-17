@@ -14,8 +14,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import logistic, pulse_train
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -322,7 +323,7 @@ class VascularCorePeripherySystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.oncology import VascularCorePeripherySystem
-        >>> VascularCorePeripherySystem(dose=0.0).prepare().system_.elements[0].get_value('dose')
+        >>> VascularCorePeripherySystem(dose=0.0).prepare().system_.elements[0].values['dose']
         0.0
     """
 
@@ -331,7 +332,6 @@ class VascularCorePeripherySystem(DynamicalSystem):
     references = (BOOK_REFERENCE, 'Csercsik et al. 2017')
     until = 60.0
     dt = 0.2
-    solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)
 
     def __init__(
         self,
@@ -344,8 +344,10 @@ class VascularCorePeripherySystem(DynamicalSystem):
         width: float = 1.0,
         start: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.Vx = Vx
         self.xi_e = xi_e
         self.du = du
@@ -354,43 +356,52 @@ class VascularCorePeripherySystem(DynamicalSystem):
         self.width = width
         self.start = start
 
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)
+
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the states."""
         return 'tumour'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'Ar': DeclaredVariableSpec(13.0, StateSpec(domain=RealSet.open(0, oo))),
-            'Ac': DeclaredVariableSpec(3.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'Ap': DeclaredVariableSpec(495.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'An': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'Vbc': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'Vbp': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'U': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'r1': DeclaredVariableSpec(1.2, ParameterSpec(domain=RealSet.open(0, oo))),
-            'r2': DeclaredVariableSpec(12.0, ParameterSpec(domain=RealSet.open(0, oo))),
-            'r3': DeclaredVariableSpec(0.06, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'm': DeclaredVariableSpec(1.0, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'a1': DeclaredVariableSpec(1.0, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'p1': DeclaredVariableSpec(1.0, ParameterSpec()),
-            'p2': DeclaredVariableSpec(400000.0, ParameterSpec()),
-            'p3': DeclaredVariableSpec(0.2, ParameterSpec()),
-            'p4': DeclaredVariableSpec(0.45, ParameterSpec()),
-            'p_g': DeclaredVariableSpec(400000.0, ParameterSpec()),
-            'kappa1': DeclaredVariableSpec(0.17, ParameterSpec()),
-            'kappa2': DeclaredVariableSpec(-45000.0, ParameterSpec()),
-            'kappa3': DeclaredVariableSpec(-0.04, ParameterSpec()),
-            'kappa4': DeclaredVariableSpec(-0.06, ParameterSpec()),
-            'kappa_g': DeclaredVariableSpec(55000.0, ParameterSpec()),
-            'theta1': DeclaredVariableSpec(0.3, ParameterSpec(domain=RealSet.open(0, oo))),
-            'theta2': DeclaredVariableSpec(0.3, ParameterSpec(domain=RealSet.open(0, oo))),
-            'beta': DeclaredVariableSpec(1.2, ParameterSpec(domain=RealSet.open(0, oo))),
-            'xi_e': DeclaredVariableSpec(self.xi_e, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'rv_ref': DeclaredVariableSpec(0.005, ParameterSpec(domain=RealSet.open(0, oo))),
-            'Vx': DeclaredVariableSpec(self.Vx, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'du': DeclaredVariableSpec(self.du, ParameterSpec(domain=RealSet.open(0, oo))),
-            'dose': DeclaredVariableSpec(self.dose, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'Ar': 13.0,
+            'Ac': 3.0,
+            'Ap': 495.0,
+            'An': 0.0,
+            'Vbc': 0.0,
+            'Vbp': 0.0,
+            'U': 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'r1': 1.2,
+            'r2': 12.0,
+            'r3': 0.06,
+            'm': 1.0,
+            'a1': 1.0,
+            'p1': 1.0,
+            'p2': 400000.0,
+            'p3': 0.2,
+            'p4': 0.45,
+            'p_g': 400000.0,
+            'kappa1': 0.17,
+            'kappa2': -45000.0,
+            'kappa3': -0.04,
+            'kappa4': -0.06,
+            'kappa_g': 55000.0,
+            'theta1': 0.3,
+            'theta2': 0.3,
+            'beta': 1.2,
+            'xi_e': self.xi_e,
+            'rv_ref': 0.005,
+            'Vx': self.Vx,
+            'du': self.du,
+            'dose': self.dose,
         }
 
     def _get_equations(self) -> Equations:

@@ -15,7 +15,7 @@ from skcomplex.systems.economics.macroeconomics import (
 @pytest.mark.parametrize('cv', [0.6, 1.2])
 def test_multiplier_accelerator_stability(cv):
     """Test that the cycle damps when `c v < 1` and grows when `c v > 1`."""
-    income = simulate(MultiplierAcceleratorSystem(v=cv / 0.8), until=60).get_values('economy.Y')
+    income = MultiplierAcceleratorSystem(v=cv / 0.8).prepare().simulate(until=60).get_values('economy.Y')
     deviation = np.abs(income - 100.0)
     assert (deviation[-10:].max() > deviation[:10].max()) == (cv > 1)
 

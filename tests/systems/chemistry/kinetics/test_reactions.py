@@ -5,7 +5,6 @@ import pytest
 
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.chemistry.kinetics import (
@@ -92,7 +91,7 @@ def test_reaction_of_unknown_mode_is_rejected():
 
 def test_chemical_langevin_network_conserves_totals():
     """Test that the enzyme network under noise keeps `E + C` and `S + C + P` at every frame."""
-    trajectory = simulate(ChemicalLangevinNetworkSystem(), random_state=0)
+    trajectory = ChemicalLangevinNetworkSystem().prepare().simulate(random_state=0)
     enzyme = trajectory.get_values('E.x') + trajectory.get_values('C.x')
     substrate = trajectory.get_values('S.x') + trajectory.get_values('C.x') + trajectory.get_values('P.x')
     np.testing.assert_allclose(enzyme, 100.0, rtol=1e-9)

@@ -117,6 +117,6 @@ def test_image_visual_rejects_slices_that_leave_other_than_two_axes():
     problem, _ = _first_frame(BoltzmannEquationSystem(positions=4, velocities=8).prepare().system_)
     with pytest.raises(ValidationError, match='every axis but two'):
         ImageVisual(slices={'vx': 1, 'vy': 2}, path='gas').prepare(problem)
-    problem, _ = _first_frame(GrayScottSystem(shape=(4, 4)).prepare().system_)
+    problem, _ = _first_frame(GrayScottSystem(shape=(4, 4)).prepare().system_._get_composite())
     with pytest.raises(ValidationError, match='phase space'):
         ImageVisual(slices={0: 1}, path=problem.elements[0].path).prepare(problem)

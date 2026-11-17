@@ -13,7 +13,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import lag
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -188,7 +190,7 @@ class MultiplierAcceleratorSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import MultiplierAcceleratorSystem
-        >>> MultiplierAcceleratorSystem(v=0.5).prepare().system_.elements[0].get_value('v')
+        >>> MultiplierAcceleratorSystem(v=0.5).prepare().system_.elements[0].values['v']
         0.5
     """
 
@@ -207,8 +209,10 @@ class MultiplierAcceleratorSystem(DynamicalSystem):
         v: float = 1.5,
         G: float = 20.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.income = income
         self.previous = previous
         self.c = c
@@ -232,13 +236,19 @@ class MultiplierAcceleratorSystem(DynamicalSystem):
         """Return the discrete time of the map."""
         return 'discrete'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'Y': DeclaredVariableSpec(self.income, StateSpec(lags=1, initial=(100.0,))),
-            'c': DeclaredVariableSpec(self.c, ParameterSpec()),
-            'v': DeclaredVariableSpec(self.v, ParameterSpec()),
-            'G': DeclaredVariableSpec(self.G, ParameterSpec()),
+            'Y': self.income,
+            'Y[-1]': 100.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'c': self.c,
+            'v': self.v,
+            'G': self.G,
         }
 
     def _get_equations(self) -> Equations:

@@ -60,7 +60,7 @@ def test_mixed_mode_chua_oscillations(c, mixed):
 
 def test_memristor_oscillator_keeps_oscillating():
     """Test that the memristor circuit neither decays nor diverges."""
-    trajectory = simulate(MemristorOscillatorSystem().prepare().system_, until=200, dt=0.1)
+    trajectory = MemristorOscillatorSystem().prepare().simulate(until=200, dt=0.1)
     voltage = trajectory.get_values('circuit.v')
     assert np.abs(voltage).max() < 10.0
     assert np.ptp(voltage[-500:]) > 0.5
@@ -68,7 +68,7 @@ def test_memristor_oscillator_keeps_oscillating():
 
 def test_tunnel_diode_limit_cycle_amplitude():
     """Test that the tunnel-diode oscillator settles on the van der Pol limit cycle of amplitude `2 sqrt(alpha / 3)`."""
-    trajectory = simulate(TunnelDiodeOscillatorSystem(alpha=1.0, gamma=1.0).prepare().system_, until=50, dt=0.05)
+    trajectory = TunnelDiodeOscillatorSystem(alpha=1.0, gamma=1.0).prepare().simulate(until=50, dt=0.05)
     assert np.abs(trajectory.get_values('circuit.V')[-300:]).max() == pytest.approx(2 * math.sqrt(1 / 3), rel=0.02)
 
 

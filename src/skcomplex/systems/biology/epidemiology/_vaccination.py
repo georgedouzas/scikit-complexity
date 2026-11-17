@@ -12,7 +12,9 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.engine.solvers import PontryaginSolver
+from ....core.components.elements import BaseElement, DeclaredElement
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, PontryaginSolver
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -80,7 +82,6 @@ class SIRVaccinationSystem(DynamicalSystem):
     references = ('Lenhart and Workman 2007',)
     until = 30.0
     dt = 0.2
-    solver = PontryaginSolver(objective=_get_cost)
     observables = (
         Observable('vaccinated', _get_vaccinated),
         Observable('cost', _get_cost),
@@ -96,8 +97,10 @@ class SIRVaccinationSystem(DynamicalSystem):
         a: float = 1.0,
         b: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.S = S
         self.I = I
         self.beta = beta
@@ -105,22 +108,40 @@ class SIRVaccinationSystem(DynamicalSystem):
         self.a = a
         self.b = b
 
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return PontryaginSolver(objective=_get_cost)
+
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the states."""
         return 'population'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'S': DeclaredVariableSpec(self.S, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'I': DeclaredVariableSpec(self.I, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'R': DeclaredVariableSpec(max(1 - self.S - self.I, 0.0), StateSpec(domain=RealSet.closed_open(0, oo))),
-            'u': DeclaredVariableSpec(0.0, ParameterSpec(adaptive=True, bounds=(0.0, MAX_RATE))),
-            'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'a': DeclaredVariableSpec(self.a, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'b': DeclaredVariableSpec(self.b, ParameterSpec(domain=RealSet.open(0, oo))),
+            'S': self.S,
+            'I': self.I,
+            'R': max(1 - self.S - self.I, 0.0),
         }
+
+    def _get_element(self) -> BaseElement:
+        """Return the element of the states, with the control declared as a bounded adaptive parameter.
+
+        A plain element cannot declare a control, so the element declares its values.
+        """
+        return DeclaredElement(
+            self._get_element_label(),
+            variables={
+                'S': DeclaredVariableSpec(self.S, StateSpec(domain=RealSet.closed_open(0, oo))),
+                'I': DeclaredVariableSpec(self.I, StateSpec(domain=RealSet.closed_open(0, oo))),
+                'R': DeclaredVariableSpec(max(1 - self.S - self.I, 0.0), StateSpec(domain=RealSet.closed_open(0, oo))),
+                'u': DeclaredVariableSpec(0.0, ParameterSpec(adaptive=True, bounds=(0.0, MAX_RATE))),
+                'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+                'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+                'a': DeclaredVariableSpec(self.a, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+                'b': DeclaredVariableSpec(self.b, ParameterSpec(domain=RealSet.open(0, oo))),
+            },
+        )
 
     def _get_equations(self) -> Equations:
         """Return the flows between the fractions."""

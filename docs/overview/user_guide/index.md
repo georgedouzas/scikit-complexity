@@ -8,7 +8,7 @@ The first run takes three lines.
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
-simulate(SIRSystem()).get_values('I.x').max().round()
+SIRSystem().prepare().simulate().get_values('I.x').max().round()
 ```
 
 The epidemic of `SIRSystem` peaks at 304 infected people out of 1000.

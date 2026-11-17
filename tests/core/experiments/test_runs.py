@@ -192,15 +192,15 @@ def test_a_system_of_the_library_runs_as_an_instance_or_its_class():
 
 
 def test_runs_of_one_structure_compile_once_per_call(monkeypatch):
-    """Test that runs differing by dotted paths and seeds share one compile, and model parameters compile each."""
+    """Test that runs differing by dotted paths and seeds share one preparation, and model parameters prepare each."""
     calls = []
-    compile_problem = experiments._runs.compile_problem
+    prepare = SIRSystem.prepare
 
-    def counted(system, **settings):
+    def counted(system, context=None):
         calls.append(system.get_params(deep=False))
-        return compile_problem(system, **settings)
+        return prepare(system, context)
 
-    monkeypatch.setattr(experiments._runs, 'compile_problem', counted)
+    monkeypatch.setattr(SIRSystem, 'prepare', counted)
     rows = [{'I.x': value} for value in (1.0, 5.0, 10.0)]
     result = sweep(SIRSystem(), rows, replicates=2, until=5, outputs=['I.x'], random_state=0)
     assert len(calls) == 1

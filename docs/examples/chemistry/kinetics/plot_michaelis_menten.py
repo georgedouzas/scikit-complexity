@@ -12,14 +12,13 @@ product at a nearly steady rate until the substrate runs out and the enzyme is r
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.kinetics import MichaelisMentenSystem
 
 SYSTEM = 'michaelis_menten'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(MichaelisMentenSystem(), observers=[observer])
+trajectory = MichaelisMentenSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Rate equations against single molecules
@@ -30,7 +29,7 @@ trajectory = simulate(MichaelisMentenSystem(), observers=[observer])
 
 fig, (curves, totals) = plt.subplots(1, 2, figsize=(10, 4))
 for seed in range(5):
-    jumps = simulate(MichaelisMentenSystem(stochastic=True), random_state=seed)
+    jumps = MichaelisMentenSystem(stochastic=True).prepare().simulate(random_state=seed)
     for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:
         curves.step(jumps.times, jumps.get_values(f'{species}.x'), where='post', color=color, alpha=0.3, linewidth=0.8)
 for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:

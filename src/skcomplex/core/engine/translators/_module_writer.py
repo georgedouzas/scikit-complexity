@@ -120,8 +120,8 @@ STOCK_FLOW_CLASS = '''class {name}(StockFlowSystem):
         *,
 {declarations}
     ) -> None:
-        """Store the constants and the label."""
-        super().__init__(label=label)
+        """Store the constants, the label, and the settings."""
+        super().__init__(label=label, solver=solver, backend=backend)
 {assignments}
 
     def _get_element_label(self) -> str:
@@ -146,6 +146,8 @@ STOCK_FLOW_CLASS = '''class {name}(StockFlowSystem):
 {flows}
         }}'''
 STOCK_FLOW_MODULE = 'skcomplex.systems.general.dynamics'
+SOLVERS_MODULE = 'skcomplex.core.engine.solvers'
+BACKENDS_MODULE = 'skcomplex.core.engine.backends'
 
 
 class _ModuleWriter:
@@ -476,6 +478,13 @@ class _ModuleWriter:
         constants = sorted(variables.constants.items())
         declarations = [f'{INDENT * 2}{key}: float = {value[0]!r},' for key, value in constants]
         declarations.append(f"{INDENT * 2}label: str = 'system',")
+        declarations.append(f"{INDENT * 2}solver: BaseSolver | str = 'auto',")
+        declarations.append(f"{INDENT * 2}backend: BaseBackend | str = 'auto',")
+        self.expressions.imports.update({SOLVERS_MODULE: 'BaseSolver', BACKENDS_MODULE: 'BaseBackend'}.items())
+        settings = "The solver of the problem, or `'auto'` for the one the system chooses."
+        documented.append(f'{INDENT * 2}solver:\n{INDENT * 3}{settings}')
+        backend = "The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses."
+        documented.append(f'{INDENT * 2}backend:\n{INDENT * 3}{backend}')
         stocks = '\n'.join(
             f'{INDENT * 3}{name!r}: {self._get_stock_values(name)[0]!r},' for name in sorted(variables.stocks)
         )

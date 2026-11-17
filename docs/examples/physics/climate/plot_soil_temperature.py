@@ -12,7 +12,6 @@ deeper soil `y` averages it into small, damped fluctuations.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import orbit_diagram
 from skcomplex.systems.physics.climate import SoilTemperatureSystem
@@ -21,7 +20,7 @@ SYSTEM = 'soil_temperature'
 
 system = SoilTemperatureSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Route to chaos

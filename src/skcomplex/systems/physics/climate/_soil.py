@@ -4,6 +4,8 @@
 # License: MIT
 
 
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -34,7 +36,7 @@ class SoilTemperatureSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import SoilTemperatureSystem
-        >>> SoilTemperatureSystem(r=2.5).prepare().system_.elements[0].get_value('r')
+        >>> SoilTemperatureSystem(r=2.5).prepare().system_.elements[0].values['r']
         2.5
     """
 
@@ -52,8 +54,10 @@ class SoilTemperatureSystem(DynamicalSystem):
         r: float = 3.8,
         epsilon: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.r = r

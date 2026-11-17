@@ -12,14 +12,13 @@ accumulates. Pollution then lowers births, food, and the quality of life, and ra
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import PopulationPollutionSystem
 
 SYSTEM = 'population_pollution'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(PopulationPollutionSystem(), until=50, observers=[observer], random_state=0)
+trajectory = PopulationPollutionSystem().prepare().simulate(until=50, observers=[observer], random_state=0)
 
 # %%
 # The four curves of Bala et al.

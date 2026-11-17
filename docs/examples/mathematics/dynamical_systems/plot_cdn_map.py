@@ -15,7 +15,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import orbit_diagram
 from skcomplex.systems.mathematics.dynamical_systems import CDNMapSystem
@@ -41,9 +40,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(CDNMapSystem(), observers=[observer])
+trajectory = CDNMapSystem().prepare().simulate(observers=[observer])
 shifts = np.linspace(-1.0, 0.0, 400)
-diagram = orbit_diagram(CDNMapSystem(), 'map.beta', shifts, 'map.x', transient=500, keep=100, dt=1)
+diagram = orbit_diagram(CDNMapSystem(), 'beta', shifts, 'map.x', transient=500, keep=100, dt=1)
 points = np.array(
     [(100 * beta, -100 * x) for beta, values in zip(shifts, diagram.points, strict=True) for x in values],
 )

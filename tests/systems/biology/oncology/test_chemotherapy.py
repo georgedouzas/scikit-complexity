@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.oncology import (
     DelayedMetastasisSystem,
     DelayedRestingHuntingChemotherapySystem,
@@ -64,12 +63,10 @@ def test_drug_resistance_switching_resensitizes_after_the_dose():
     switching = {'m1': 0.0, 'alpha_m': 0.0, 'alpha_p': 0.01, 'm5': 0.05}
     treated = _run(DrugResistanceSwitchingSystem(**switching), until=200.0, dt=1.0)
     assert treated.get_values('tumour.Rp')[-1] > 0.5
-    after = simulate(
-        DrugResistanceSwitchingSystem(S=treated.get_values('tumour.S')[-1], u=0.0, **switching),
-        until=400.0,
-        dt=1.0,
-        solver=PRECISE,
-        initial_state={'tumour.Rp': treated.get_values('tumour.Rp')[-1]},
+    after = (
+        DrugResistanceSwitchingSystem(S=treated.get_values('tumour.S')[-1], u=0.0, **switching, solver=PRECISE)
+        .prepare()
+        .simulate(until=400.0, dt=1.0, initial_state={'tumour.Rp': treated.get_values('tumour.Rp')[-1]})
     )
     assert after.get_values('tumour.S')[-1] > 0.9
 

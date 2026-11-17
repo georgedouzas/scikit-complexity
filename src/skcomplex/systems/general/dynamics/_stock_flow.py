@@ -3,29 +3,30 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
-from ....core.components.elements import DeclaredElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from .types import FlowTable
 
 
-class StockFlowSystem(BaseSystem[CompositeSystem]):
+class StockFlowSystem(BaseSystem):
     """A system of stocks that change only through named flows between them.
 
-    The stocks and parameters are the variables of one `DeclaredElement`. Every flow leaves a stock or a source outside
+    The stocks and parameters are the values of one element. Every flow leaves a stock or a source outside
     the system and enters a stock or a sink outside the system, at a rate that is a function of a namespace whose
     `source` holds the stocks and parameters and whose `t` holds the time. A labelled `Source` or `Sink` in place of
     `None` names the environment. A flow is a `TransferInteraction` from the element to itself, so the trajectory
     reports it as `<element>.<flow>`, and a flow between two stocks keeps their total.
 
     A subclass returns the stocks, flows, and parameters from the hooks `_get_stocks`, `_get_flows`, and
-    `_get_parameters`, the label of the element from `_get_element_label`, and the specs of the variables from
-    `_get_variables`.
+    `_get_parameters`, and the label of the element from `_get_element_label`.
 
     Unlike `DynamicalSystem`, which writes a rate per state, it writes flows between stocks with a
     `TransferInteraction`, so what leaves one stock enters another. Choose it when a model is drawn as stocks and flows,
@@ -36,16 +37,12 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
 
     Attributes:
         system_:
-            The composite of the element and its flows built from the parameters at the last `prepare`.
-
-        laws_:
-            The laws the system contributes for the namespace of its last run.
+            The `System` of the element and its flows built from the parameters at the last `prepare`.
 
     Examples:
         A bathtub whose faucet fills it as fast as its drain empties it:
 
         >>> from skcomplex.systems.general.dynamics import StockFlowSystem
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> tub = StockFlowSystem(
         ...     stocks={'water': 50.0},
         ...     flows={
@@ -55,7 +52,7 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
         ...     parameters={'inflow': 5.0, 'outflow': 5.0},
         ...     element='tub',
         ... )
-        >>> trajectory = simulate(tub, until=10.0, dt=5.0)
+        >>> trajectory = tub.prepare().simulate(until=10.0, dt=5.0)
         >>> trajectory.get_values('tub.water').tolist(), trajectory.get_values('tub.faucet').tolist()
         ([50.0, 50.0, 50.0], [5.0, 5.0, 5.0])
 
@@ -70,7 +67,7 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
         ...     parameters={'k': 0.1},
         ...     element='nations',
         ... )
-        >>> trajectory = simulate(race, until=10.0, dt=10.0)
+        >>> trajectory = race.prepare().simulate(until=10.0, dt=10.0)
         >>> round(float(trajectory.get_values('nations.a')[-1]), 3)
         2.718
     """
@@ -83,6 +80,8 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
         parameters: Mapping[str, object] | None = None,
         element: str = 'stocks',
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
         """Store the stocks, the flows, the parameters, and the labels.
 
@@ -103,8 +102,14 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
 
             label:
                 The label of the system, which names it when it is nested in another one.
+
+            solver:
+                The solver of the problem, or `'auto'` for the one the system chooses.
+
+            backend:
+                The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
         """
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.stocks = stocks
         self.flows = flows
         self.parameters = parameters
@@ -138,17 +143,12 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
         """
         return self.element
 
-    def _get_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the spec of every stock and parameter, the stocks first.
+    def _get_solver(self) -> BaseSolver | str:
+        """Return the tuned solver, or `'auto'` for the one the problem chooses.
 
-        The stocks are plain `StateSpec` and the parameters plain `ParameterSpec`. A subclass whose variables have
-        domains or quantities returns their specs.
+        A subclass whose flows need a solver of their own returns it. A `solver` given to the system replaces it.
         """
-        stocks = {name: DeclaredVariableSpec(value, StateSpec()) for name, value in self._get_stocks().items()}
-        parameters = {
-            name: DeclaredVariableSpec(value, ParameterSpec()) for name, value in self._get_parameters().items()
-        }
-        return {**stocks, **parameters}
+        return 'auto'
 
     def _check_flows(self) -> None:
         """Raise an error for a flow of an unknown stock or a flow between no stocks.
@@ -157,7 +157,7 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
             ValidationError:
                 A flow names a stock the system does not declare, or neither leaves nor enters a stock.
         """
-        stocks = [name for name, variable in self._get_variables().items() if isinstance(variable.spec, StateSpec)]
+        stocks = list(self._get_stocks())
         for name, (leaves, enters, _) in self._get_flows().items():
             if not isinstance(leaves, str) and not isinstance(enters, str):
                 error_msg = f'The flow {name!r} of {type(self).__name__} neither leaves nor enters a stock.'
@@ -193,16 +193,19 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
             for name, (leaves, enters, rate) in self._get_flows().items()
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the element of the stocks and the parameters, and the flows between them.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Check the flows and set `system_` to the stocks and their flows.
 
-        Returns:
-            system:
-                The composite of the element and its flows.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         self._check_flows()
-        return CompositeSystem(
+        element = Element(self._get_element_label(), values={**self._get_stocks(), **self._get_parameters()})
+        self.system_ = System(
             self.label,
-            elements=[DeclaredElement(self._get_element_label(), variables=self._get_variables())],
+            elements=[element],
             interactions=self._get_flow_interactions(),
+            solver=self._get_solver(),
         )

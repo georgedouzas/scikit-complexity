@@ -11,11 +11,12 @@ import pytest
 from skcomplex.core.analysis import loops
 from skcomplex.core.components import Observable
 from skcomplex.core.components.interactions import RateInteraction, TransferInteraction
-from skcomplex.core.components.systems import BaseSystem
+from skcomplex.core.components.systems import BaseSystem as OldBaseSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.engine.translators import RunSettingsSpec, SystemDynamicsTranslator
 from skcomplex.core.errors import ConservationError, IncompatibleLawsError, ValidationError
+from skcomplex.core.systems import BaseSystem
 from skcomplex.systems.general.dynamics import StockFlowSystem
 
 REFERENCES = {
@@ -49,9 +50,19 @@ def _create(module, **params):
     (system_class,) = [
         item
         for item in vars(module).values()
-        if isinstance(item, type) and issubclass(item, BaseSystem) and item.__module__ == module.__name__
+        if isinstance(item, type)
+        and issubclass(item, BaseSystem | OldBaseSystem)
+        and item.__module__ == module.__name__
     ]
     return system_class(**params)
+
+
+def _run(system, solver=None, **run):
+    """Return the trajectory of a system, prepared and simulated with a solver if given when it has the new base."""
+    if isinstance(system, BaseSystem):
+        system = system if solver is None else system.set_params(solver=solver)
+        return system.prepare().simulate(**run)
+    return simulate(system, solver=solver, **run)
 
 
 def _composite_of(module):
@@ -61,7 +72,7 @@ def _composite_of(module):
 
 def _simulate(module):
     """Return the trajectory of a translated module with the integration and the time step of its file."""
-    return simulate(_create(module), solver=EulerSolver(dt=module.DT), dt=module.DT)
+    return _run(_create(module), solver=EulerSolver(dt=module.DT), dt=module.DT)
 
 
 def _at_saved_times(trajectory, values, module, reference):
@@ -134,7 +145,7 @@ def test_run_reads_saving_interval_from_the_time_step(fixtures_folder):
 def test_run_default_solver_finds_the_exact_solution(translate):
     """Test that the adaptive default solver follows the exact teacup and not the Euler error of the file's step."""
     module = translate('teacup.mdl')
-    trajectory = simulate(_create(module), dt=module.DT)
+    trajectory = _run(_create(module), dt=module.DT)
     exact = 70.0 + 110.0 * np.exp(-np.asarray(trajectory.times) / 10.0)
     assert np.max(np.abs(trajectory.get_values('teacup.teacup_temperature') - exact)) < 1e-3
 
@@ -157,12 +168,11 @@ def test_run_module_has_one_shape(translate):
     system = module.SirSystem(contact_rate=2.0)
     assert issubclass(module.SirSystem, StockFlowSystem)
     assert not any(name.endswith('Element') for name in vars(module))
-    assert system.prepare().system_.elements[0].get_value('contact_rate') == 2.0
+    assert system.prepare().system_.elements[0].get_params()['values']['contact_rate'] == 2.0
     assert system.get_params()['contact_rate'] == 2.0
     assert module.SirSystem().get_params()['contact_rate'] != 2.0
-    settings = system.get_run_settings()
-    assert all(isinstance(spec, Observable) for spec in settings['observables'])
-    assert (settings['until'], settings['dt']) == (module.UNTIL, module.SAVE_EVERY)
+    assert all(isinstance(spec, Observable) for spec in system.observables)
+    assert (system.until, system.dt) == (module.UNTIL, module.SAVE_EVERY)
     assert (module.START, module.UNTIL, module.DT, module.SAVE_EVERY) == (0.0, 40.0, 0.125, 0.125)
 
 
@@ -188,7 +198,7 @@ def test_run_sir_flows_are_named_transfers(translate):
     assert isinstance(infection, TransferInteraction)
     assert (infection.state, infection.into, infection.flow) == ('susceptible', 'infected', 'infection')
     total = Observable('people', _total, element='sir')
-    trajectory = simulate(
+    trajectory = _run(
         system,
         solver=EulerSolver(dt=module.DT),
         dt=module.DT,
@@ -202,7 +212,7 @@ def test_run_invariant_catches_a_total_that_changes(translate):
     """Test that an invariant on a stock with births and deaths fails, so the conserved total of SIR means something."""
     module = translate('population.mdl')
     with pytest.raises(ConservationError, match=r'population\.people'):
-        simulate(
+        _run(
             _create(module),
             solver=EulerSolver(dt=module.DT),
             dt=module.DT,
@@ -329,7 +339,7 @@ def test_run_random_functions_become_draws_that_rate_laws_reject(tmp_path, monke
     monkeypatch.syspath_prepend(tmp_path)
     module = importlib.import_module('translated_noisy')
     with pytest.raises(IncompatibleLawsError, match='random draw'):
-        simulate(_create(module), until=0, dt=0.25)
+        _run(_create(module), until=0, dt=0.25)
 
 
 def test_run_regional_populations(fixtures_folder, translate):
