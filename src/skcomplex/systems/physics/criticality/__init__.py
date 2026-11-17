@@ -15,7 +15,7 @@ from ._criticality import (
     SandpileSystem,
 )
 from ._evolutionary_learning import EvolutionarySKGameSystem, LearnerElement, SKLearningInteraction
-from ._learning import LearningAgentElement, SKGameSystem
+from ._learning import LearningAgentElement, SKGameSystem, SKReinforcementInteraction
 from ._sandpiles import (
     BranchingInteraction,
     EnergySiteElement,
@@ -46,6 +46,7 @@ __all__: list[str] = [
     'MannaSandpileSystem',
     'SKGameSystem',
     'SKLearningInteraction',
+    'SKReinforcementInteraction',
     'SandpileSystem',
     'SelfOrganizedBranchingSystem',
     'ToppleInteraction',
