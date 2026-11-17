@@ -26,11 +26,7 @@ def test_chaos_game_draws_the_sierpinski_triangle():
 def test_chaos_game_agrees_across_backends():
     """Test that the NumPy and Numba backends give equal trajectories of the chaos game from one seed."""
     runs = [
-        ChaosGameSystem(n_points=20)
-        .prepare()
-        .system_.set_params(backend=backend)
-        .prepare()
-        .simulate(1000, dt=1, random_state=0)
+        ChaosGameSystem(n_points=20, backend=backend).prepare().simulate(1000, dt=1, random_state=0)
         for backend in (NumpyBackend(), NumbaBackend())
     ]
     assert np.allclose(runs[0].get_values('points.p'), runs[1].get_values('points.p'), atol=1e-12)

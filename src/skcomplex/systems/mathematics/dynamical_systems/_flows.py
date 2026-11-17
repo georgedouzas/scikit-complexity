@@ -19,6 +19,8 @@ from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem as OldBaseSystem
 from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.flows import LorenzElement
@@ -266,6 +268,12 @@ class RosslerSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import RosslerSystem
         >>> RosslerSystem(c=4.0).prepare().system_.interactions[0].c
@@ -288,8 +296,10 @@ class RosslerSystem(BaseSystem):
         b: float = 0.2,
         c: float = 5.7,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -363,6 +373,12 @@ class SprottJerkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import SprottJerkSystem
         >>> SprottJerkSystem(A=0.5).prepare().system_.interactions[0].A
@@ -383,8 +399,10 @@ class SprottJerkSystem(BaseSystem):
         *,
         A: float = 0.6,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.velocity = velocity
         self.acceleration = acceleration
@@ -468,6 +486,12 @@ class FiniteTimeBlowUpSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import FiniteTimeBlowUpSystem
         >>> FiniteTimeBlowUpSystem(p=3.0).prepare().system_.interactions[0].p
@@ -487,8 +511,10 @@ class FiniteTimeBlowUpSystem(BaseSystem):
         a: float = 1.0,
         p: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.a = a
         self.p = p
@@ -601,6 +627,12 @@ class HyperchaoticRosslerSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import HyperchaoticRosslerSystem
         >>> HyperchaoticRosslerSystem(c=0.1).prepare().system_.interactions[0].c
@@ -625,8 +657,10 @@ class HyperchaoticRosslerSystem(BaseSystem):
         c: float = 0.05,
         d: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -678,6 +712,12 @@ class NoseHooverSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import NoseHooverSystem
         >>> NoseHooverSystem(y=1.0).prepare().system_.elements[0].values['y']
@@ -697,8 +737,10 @@ class NoseHooverSystem(BaseSystem):
         z: float = 0.0,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -738,6 +780,12 @@ class SprottMixedFlowSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import SprottMixedFlowSystem
         >>> SprottMixedFlowSystem(1.0).prepare().system_.elements[0].values['x']
@@ -757,8 +805,10 @@ class SprottMixedFlowSystem(BaseSystem):
         z: float = 0.0,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -815,6 +865,12 @@ class LangfordSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import LangfordSystem
         >>> LangfordSystem(f=0.0).prepare().system_.interactions[0].f
@@ -840,8 +896,10 @@ class LangfordSystem(BaseSystem):
         e: float = 0.25,
         f: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -943,6 +1001,12 @@ class ThomasSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import ThomasSystem
         >>> ThomasSystem(a=0.2).prepare().system_.interactions[0].a
@@ -963,8 +1027,10 @@ class ThomasSystem(BaseSystem):
         *,
         a: float = 0.18,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -1047,6 +1113,12 @@ class IkedaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import IkedaSystem
         >>> IkedaSystem(tau=1.0).prepare().system_.interactions[0].tau
@@ -1066,8 +1138,10 @@ class IkedaSystem(BaseSystem):
         a: float = 1.0,
         tau: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.a = a
         self.tau = tau

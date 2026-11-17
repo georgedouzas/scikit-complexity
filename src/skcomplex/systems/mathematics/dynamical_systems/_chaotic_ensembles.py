@@ -23,6 +23,8 @@ from ....core.components.laws.utils import mod, where
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem as OldBaseSystem
 from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
 from ....core.systems import BaseSystem, System
 
@@ -257,6 +259,12 @@ class SkewTentMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import SkewTentMapSystem
         >>> SkewTentMapSystem(10, a=0.7).prepare().system_.interactions[0].a
@@ -288,8 +296,10 @@ class SkewTentMapSystem(BaseSystem):
         spread: float = 0.01,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_points = n_points
         self.a = a
         self.x = x
@@ -338,6 +348,12 @@ class DoublingMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import DoublingMapSystem
         >>> float(DoublingMapSystem(10, q=101.0).prepare().system_.elements[0].values['x'][0] * 101)
@@ -359,8 +375,10 @@ class DoublingMapSystem(BaseSystem):
         q: float = DOUBLING_DENOMINATOR,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_points = n_points
         self.x = x
         self.spread = spread

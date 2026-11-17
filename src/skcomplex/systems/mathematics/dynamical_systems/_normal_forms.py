@@ -12,6 +12,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
@@ -76,6 +78,12 @@ class SaddleNodeFormSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import SaddleNodeFormSystem
         >>> SaddleNodeFormSystem(mu=0.5).prepare().system_.interactions[0].mu
@@ -94,8 +102,10 @@ class SaddleNodeFormSystem(BaseSystem):
         *,
         mu: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.mu = mu
 
@@ -190,6 +200,12 @@ class HopfFormSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import HopfFormSystem
         >>> HopfFormSystem(mu=-0.1).prepare().system_.interactions[0].mu
@@ -211,8 +227,10 @@ class HopfFormSystem(BaseSystem):
         omega: float = 1.0,
         a: float = -1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.mu = mu
@@ -309,6 +327,12 @@ class TakensBogdanovFormSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import TakensBogdanovFormSystem
         >>> TakensBogdanovFormSystem(beta1=0.0).prepare().system_.interactions[0].beta1
@@ -330,8 +354,10 @@ class TakensBogdanovFormSystem(BaseSystem):
         beta2: float = -1.0,
         sign: float = -1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.beta1 = beta1
@@ -424,6 +450,12 @@ class CuspFormSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import CuspFormSystem
         >>> CuspFormSystem(beta1=0.2).prepare().system_.interactions[0].beta1
@@ -443,8 +475,10 @@ class CuspFormSystem(BaseSystem):
         beta1: float = 0.0,
         beta2: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.beta1 = beta1
         self.beta2 = beta2

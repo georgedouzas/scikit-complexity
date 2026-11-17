@@ -24,6 +24,8 @@ from ..engine.runtime import BaseClock, BaseObserver, Trajectory, run_problem
 from ..engine.solvers import BaseSolver
 from ..errors import NotPreparedError
 
+AUTO = 'auto'
+SETTINGS = ('solver', 'backend')
 LEARNED = ('states_', 'parameters_', 'equations_', 'form_', 'solver_', 'backend_')
 
 
@@ -36,6 +38,10 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     of its `__init__`, and its `_prepare` sets `system_`, the `System` of its components, as `fit` calls `_fit`. Class
     attributes may tune the end time, the time between frames, the observables, the initial state, the invariants,
     and the schedule that `simulate` uses for the arguments a call leaves out.
+
+    A subclass also takes the settings `solver` and `backend`, as `System` does, and passes them on with the label,
+    as in `super().__init__(label, solver=solver, backend=backend)`. `prepare` gives them to `system_`, so
+    `RosslerSystem(backend=NumbaBackend())` runs on Numba, and `'auto'` keeps the ones `system_` chooses.
 
     Read more in the user guide, under Systems.
 
@@ -76,14 +82,28 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     _problem: BaseProblemSpec
     _backend: BaseBackend | None
 
-    def __init__(self, label: str = 'system') -> None:
-        """Store the label of the system.
+    def __init__(
+        self,
+        label: str = 'system',
+        *,
+        solver: BaseSolver | str = AUTO,
+        backend: BaseBackend | str = AUTO,
+    ) -> None:
+        """Store the label and the settings of the system.
 
         Args:
             label:
                 The label of the system, which names it when it is nested in another one.
+
+            solver:
+                The solver of the problem, or `'auto'` for the one `system_` chooses.
+
+            backend:
+                The backend that evaluates the compiled functions, or `'auto'` for the one `system_` chooses.
         """
         super().__init__(label)
+        self.solver = solver
+        self.backend = backend
 
     def _get_composite(self) -> CompositeSystem:
         """Return the composite of the components that the engine compiles.
@@ -176,7 +196,8 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         """
         super().prepare(self.observables if context is None else context)
         if self.system_ is not self:
-            self.system_.prepare(self.observables)
+            settings = {name: getattr(self, name) for name in SETTINGS if getattr(self, name) != AUTO}
+            self.system_.set_params(**settings).prepare(self.observables)
             for name in LEARNED:
                 setattr(self, name, getattr(self.system_, name))
         self._prepared_from = self._get_values()

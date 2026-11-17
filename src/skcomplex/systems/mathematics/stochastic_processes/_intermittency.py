@@ -19,7 +19,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.engine.solvers import HeunSolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, HeunSolver
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
@@ -124,6 +125,12 @@ class OnOffIntermittencySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import OnOffIntermittencySystem
         >>> OnOffIntermittencySystem(5).prepare().system_.elements[0].size
@@ -144,8 +151,10 @@ class OnOffIntermittencySystem(BaseSystem):
         D: float = 0.5,
         x: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_realizations = n_realizations
         self.epsilon = epsilon
         self.D = D

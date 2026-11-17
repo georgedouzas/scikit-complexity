@@ -19,6 +19,8 @@ from ....core.components.laws.utils import mod, where
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem as OldBaseSystem
 from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, Role, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
@@ -187,6 +189,12 @@ class HenonMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import HenonMapSystem
         >>> HenonMapSystem(a=1.2).prepare().system_.interactions[0].a
@@ -207,8 +215,10 @@ class HenonMapSystem(BaseSystem):
         a: float = 1.4,
         b: float = 0.3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.a = a
@@ -283,6 +293,12 @@ class StandardMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import StandardMapSystem
         >>> system = StandardMapSystem(K=0.5).prepare()
@@ -305,8 +321,10 @@ class StandardMapSystem(BaseSystem):
         *,
         K: float = 1.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.theta = theta
         self.p = p
         self.K = K
@@ -561,6 +579,12 @@ class BakerMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import BakerMapSystem
         >>> BakerMapSystem(lambda_a=0.2).prepare().system_.interactions[0].lambda_a
@@ -582,8 +606,10 @@ class BakerMapSystem(BaseSystem):
         lambda_a: float = 1 / 3,
         lambda_b: float = 2 / 3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.alpha = alpha
@@ -685,6 +711,12 @@ class TowelMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import TowelMapSystem
         >>> TowelMapSystem(a=3.7).prepare().system_.interactions[0].a
@@ -706,8 +738,10 @@ class TowelMapSystem(BaseSystem):
         a: float = 3.8,
         b: float = 3.78,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -784,6 +818,12 @@ class IntermittencyMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import IntermittencyMapSystem
         >>> IntermittencyMapSystem(z=1.5).prepare().system_.interactions[0].z
@@ -802,8 +842,10 @@ class IntermittencyMapSystem(BaseSystem):
         *,
         z: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.z = z
 
@@ -873,6 +915,12 @@ class NewtonRaphsonMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import NewtonRaphsonMapSystem
         >>> NewtonRaphsonMapSystem(x=1.5).prepare().system_.elements[0].values['x']
@@ -891,8 +939,10 @@ class NewtonRaphsonMapSystem(BaseSystem):
         y: float = 0.5,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
 
@@ -961,6 +1011,12 @@ class CatMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import CatMapSystem
         >>> CatMapSystem(x=0.5).prepare().system_.elements[0].values['x']
@@ -979,8 +1035,10 @@ class CatMapSystem(BaseSystem):
         y: float = 0.3,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
 
@@ -1067,6 +1125,12 @@ class LoziMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import LoziMapSystem
         >>> LoziMapSystem(a=1.5).prepare().system_.interactions[0].a
@@ -1087,8 +1151,10 @@ class LoziMapSystem(BaseSystem):
         a: float = 1.7,
         b: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.a = a
@@ -1172,6 +1238,12 @@ class ConservativeHenonMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import ConservativeHenonMapSystem
         >>> ConservativeHenonMapSystem(nu=0.25).prepare().system_.interactions[0].nu
@@ -1191,8 +1263,10 @@ class ConservativeHenonMapSystem(BaseSystem):
         *,
         nu: float = 0.2114,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.nu = nu
@@ -1280,6 +1354,12 @@ class FermiUlamMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import FermiUlamMapSystem
         >>> FermiUlamMapSystem(epsilon=0.2).prepare().system_.interactions[0].epsilon
@@ -1299,8 +1379,10 @@ class FermiUlamMapSystem(BaseSystem):
         *,
         epsilon: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.u = u
         self.theta = theta
         self.epsilon = epsilon

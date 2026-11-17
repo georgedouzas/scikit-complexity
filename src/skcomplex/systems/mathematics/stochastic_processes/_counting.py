@@ -19,7 +19,8 @@ from ....core.components.laws import JumpLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem as OldBaseSystem
 from ....core.components.systems import CompositeSystem
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
 from ....core.systems import BaseSystem, System
 
@@ -223,6 +224,12 @@ class PoissonProcessSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
         >>> PoissonProcessSystem(5).prepare().system_.elements[0].size
@@ -241,8 +248,10 @@ class PoissonProcessSystem(BaseSystem):
         *,
         rate: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_processes = n_processes
         self.rate = rate
 
