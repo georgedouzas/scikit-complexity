@@ -538,7 +538,8 @@ class _StateInference:
         one agent. A value named after an axis of a continuous space, or of the cells of a lattice for agents, is a
         position, also when no law changes it, and the value an update law adds to a position at every step, as `v` in
         `x <- x + v`, is its velocity. An element on the edges or hyperedges of a network is a group with one member on
-        each. The probe that finds the orders reads no starting values of derivatives or past values.
+        each. The probe that finds the orders reads no starting values of derivatives or past values. The element keeps
+        the drawing of its class, except a drawing of agents for members that run no agent rules.
         """
         values = self._get_values(element)
         starting = {} if probing else self._get_starting(element, values)
@@ -575,7 +576,7 @@ class _StateInference:
                         tensor,
                     )
         visual = element._get_visual()
-        drawing = None if visual == VisualSpec() else visual
+        drawing = None if visual == VisualSpec() or (visual.kind == 'agents' and not agents) else visual
         if count is None:
             return [DeclaredElement(element.label, variables=variables, drawing=drawing)]
         values = {'variables': variables, 'drawing': drawing, **arrays}

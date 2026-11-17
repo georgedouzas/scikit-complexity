@@ -124,7 +124,7 @@ class PointsVisual(BaseVisual):
         """
         if self.color_by is None:
             return None
-        values = np.asarray(frame.get_value(element.states[self.color_by]), dtype=float).reshape(count, -1)
+        values = np.asarray(frame.get_value(self._get_path(element, self.color_by)), dtype=float).reshape(count, -1)
         magnitudes = np.linalg.norm(values, axis=1)
         if self.color_range is not None:
             return BaseVisual._get_colors_of(magnitudes, *self.color_range)
@@ -207,13 +207,20 @@ class PointsVisual(BaseVisual):
         kind = rr.LineStrips3D if points.shape[1] == MAX_POINT_DIMENSIONS else rr.LineStrips2D
         recording.log(f'{path}/strip', kind([points], radii=radius, colors=color))
 
+    @staticmethod
+    def _get_path(element: CompiledElementSpec, name: str) -> str:
+        """Return the dotted name of a value of an element, a state or a parameter, such as fixed positions."""
+        return element.states.get(name) or element.parameters[name]
+
     def _read_points(self, element: CompiledElementSpec, frame: FrameSpec) -> npt.NDArray[np.float64]:
         """Return the positions at a frame, one row per point."""
-        return np.atleast_2d(np.asarray(frame.get_value(element.states[self.position]), dtype=float))
+        return np.atleast_2d(np.asarray(frame.get_value(self._get_path(element, self.position)), dtype=float))
 
     def _get_dimension(self, element: CompiledElementSpec, problem: BaseProblemSpec) -> tuple[int, ...]:
         """Return the number of coordinates of a point."""
-        return problem.states.locate(element.states[self.position])[0].shape[-1:] or (1,)
+        path = self._get_path(element, self.position)
+        layout = problem.states if problem.states.has(path) else problem.parameters
+        return layout.locate(path)[0].shape[-1:] or (1,)
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log the position, its strip and trail, and the other states.

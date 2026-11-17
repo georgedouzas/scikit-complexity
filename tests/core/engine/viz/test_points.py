@@ -11,8 +11,10 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.viz import PointsVisual
 from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 from skcomplex.systems.physics.waves import SpringChainSystem
 
@@ -200,3 +202,15 @@ def test_points_visual_logs_no_strip_by_default():
     logs = Logs()
     PointsVisual(position='x', states=(), trail=0, path='chain', recording=logs).prepare(problem).run(frame)
     assert logs.of('chain/strip') == []
+
+
+def test_points_visual_draws_positions_and_colors_that_no_law_changes():
+    """Test that points sit at fixed positions and take colors from a value that are both parameters."""
+    sites = Element('sites', values={'x': [[0.0, 0.0], [1.0, 0.0]], 'n': [1.0, 2.0]}, size=2)
+    trajectory = System(elements=[sites]).prepare().simulate(until=0.0)
+    problem = trajectory.problem
+    frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], problem)
+    logs = Logs()
+    visual = PointsVisual(position='x', color_by='n', states=(), path=problem.elements[0].path, recording=logs)
+    visual.prepare(problem).run(frame)
+    assert logs.of('sites')[0].positions.as_arrow_array().to_pylist() == [[0.0, 0.0], [1.0, 0.0]]
