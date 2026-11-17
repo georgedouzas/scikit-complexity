@@ -37,8 +37,10 @@ from ._networks import (
     LogisticNodeElement,
 )
 from ._pulses import (
+    ChargingInteraction,
     IntegrateAndFireOscillatorElement,
     MirolloStrogatzSystem,
+    PulseFiringInteraction,
     WinfreeMeanFieldInteraction,
     WinfreeSystem,
 )
@@ -51,6 +53,7 @@ __all__: list[str] = [
     'AdaptiveLinkElement',
     'AggregateAveragingInteraction',
     'AggregateAveragingSynchronizationSystem',
+    'ChargingInteraction',
     'CoupledMapLatticesOnNetworksSystem',
     'CoupledRosslerSystem',
     'DelayedCouplingInteraction',
@@ -76,6 +79,7 @@ __all__: list[str] = [
     'OscillatorDeathSystem',
     'OttAntonsenSystem',
     'PopulationCouplingInteraction',
+    'PulseFiringInteraction',
     'RosslerDrivenLorenzSystem',
     'RosslerFlowInteraction',
     'RosslerOscillatorElement',
