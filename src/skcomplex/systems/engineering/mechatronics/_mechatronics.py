@@ -18,6 +18,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.mechanics import EulerLagrangeInteraction
@@ -292,6 +294,12 @@ class DcMotorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.mechatronics import DcMotorSystem
         >>> DcMotorSystem(k=0.3).prepare().system_.interactions[-1].k
@@ -318,8 +326,10 @@ class DcMotorSystem(BaseSystem):
         J: float = 0.1,
         b: float = 0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.V = V
         self.R = R
         self.L = L
@@ -408,6 +418,12 @@ class QuarterCarSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.mechatronics import QuarterCarSystem
         >>> QuarterCarSystem(height=0.1).prepare().system_.elements[0].height
@@ -432,8 +448,10 @@ class QuarterCarSystem(BaseSystem):
         b: float = 1000.0,
         kt: float = 160000.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.height = height
         self.at = at
         self.m1 = m1

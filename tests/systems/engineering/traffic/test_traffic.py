@@ -29,5 +29,5 @@ def test_traffic_jams_lower_flow_and_move_backward():
 
 def test_traffic_conserves_cars():
     """Test that the number of cars on the ring never changes."""
-    trajectory = NagelSchreckenbergSystem(200, density=0.3).prepare().system_.simulate(until=100, dt=1, random_state=1)
+    trajectory = NagelSchreckenbergSystem(200, density=0.3).prepare().simulate(until=100, dt=1, random_state=1)
     assert np.all((trajectory.get_values('road.velocity') >= 0).sum(axis=1) == 60)

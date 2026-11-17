@@ -9,7 +9,7 @@ from skcomplex.systems.engineering.mechatronics import DcMotorSystem, QuarterCar
 def test_dc_motor_settles_at_its_closed_form_speed():
     """Test that the angular velocity settles within 1% of `k V / (R b + k^2)`."""
     V, R, k, b = 12.0, 1.0, 0.5, 0.2
-    trajectory = DcMotorSystem(V, R=R, k=k, b=b).prepare().system_.simulate(until=40.0, dt=0.05)
+    trajectory = DcMotorSystem(V, R=R, k=k, b=b).prepare().simulate(until=40.0, dt=0.05)
     speed = k * V / (R * b + k**2)
     assert trajectory.get_values('rotor.phi_d1')[-1] == pytest.approx(speed, rel=0.01)
     assert trajectory.get_values('winding.p_i')[-1] == pytest.approx(b * speed / k, rel=0.01)
@@ -25,7 +25,7 @@ def test_dc_motor_records_its_observables():
 
 def test_quarter_car_settles_at_the_step_height():
     """Test that the body and the wheel settle at the step height and the energy of the springs decays."""
-    trajectory = QuarterCarSystem(height=0.05).prepare().system_.simulate(until=10.0, dt=0.01)
+    trajectory = QuarterCarSystem(height=0.05).prepare().simulate(until=10.0, dt=0.01)
     assert trajectory.get_values('car.y1')[-1] == pytest.approx(0.05, abs=1e-4)
     assert trajectory.get_values('car.y2')[-1] == pytest.approx(0.05, abs=1e-4)
     settled = trajectory.times > 0.5

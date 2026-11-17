@@ -14,6 +14,8 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
@@ -85,6 +87,12 @@ class CyclicCellularAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import CyclicCellularAutomatonSystem
         >>> CyclicCellularAutomatonSystem((10, 10), n=8).prepare().system_.elements[0].values['n']
@@ -105,8 +113,10 @@ class CyclicCellularAutomatonSystem(BaseSystem):
         threshold: int = 1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.n = n
         self.threshold = threshold

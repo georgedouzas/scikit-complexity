@@ -14,6 +14,8 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
@@ -78,6 +80,12 @@ class NagelSchreckenbergSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import NagelSchreckenbergSystem
         >>> system = NagelSchreckenbergSystem(100, density=0.1).prepare().system_
@@ -100,8 +108,10 @@ class NagelSchreckenbergSystem(BaseSystem):
         vmax: int = 5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.length = length
         self.density = density
         self.slowdown = slowdown

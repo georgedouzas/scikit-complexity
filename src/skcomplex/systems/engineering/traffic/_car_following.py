@@ -16,6 +16,8 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, shift_member
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ..common.traffic import CarElement, OptimalVelocityInteraction
@@ -208,6 +210,12 @@ class OptimalVelocitySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import OptimalVelocitySystem
         >>> system = OptimalVelocitySystem(n_cars=5).prepare().system_
@@ -241,8 +249,10 @@ class OptimalVelocitySystem(BaseSystem):
         hc: float = 2.0,
         perturbation: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_cars = n_cars
         self.length = length
         self.a = a
@@ -317,6 +327,12 @@ class IntelligentDriverSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import IntelligentDriverSystem
         >>> IntelligentDriverSystem(n_cars=4).prepare().system_.interactions[0].road_length
@@ -343,8 +359,10 @@ class IntelligentDriverSystem(BaseSystem):
         car_length: float = 5.0,
         perturbation: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_cars = n_cars
         self.length = length
         self.v0 = v0
@@ -420,6 +438,12 @@ class DelayedCarFollowingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import DelayedCarFollowingSystem
         >>> DelayedCarFollowingSystem(n_cars=3).prepare().system_.elements[2].x
@@ -444,8 +468,10 @@ class DelayedCarFollowingSystem(BaseSystem):
         T: float = 1.0,
         power: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_cars = n_cars
         self.spacing = spacing
         self.u = u

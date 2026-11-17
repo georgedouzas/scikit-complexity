@@ -13,6 +13,8 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ..common.mechanics import SpringDamperInteraction
@@ -120,6 +122,12 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.circuits import VibrationEnergyHarvesterSystem
         >>> VibrationEnergyHarvesterSystem(b=1000.0).prepare().system_.elements[0].b
@@ -147,8 +155,10 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
         d: float = 4.0e-10,
         C: float = 1.0e-8,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.m1 = m1
         self.m2 = m2
         self.k1 = k1

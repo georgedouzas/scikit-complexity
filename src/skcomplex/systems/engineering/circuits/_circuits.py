@@ -17,7 +17,8 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, where
 from ....core.components.spaces import BaseSpace
-from ....core.engine.solvers import ScipyODESolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ParameterError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, Role, StateSpec
 from ....core.systems import BaseSystem, System
@@ -388,6 +389,12 @@ class RlcCircuitSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.circuits import RlcCircuitSystem
         >>> RlcCircuitSystem(R=0.5).prepare().system_.elements[0].R
@@ -411,8 +418,10 @@ class RlcCircuitSystem(BaseSystem):
         V: float = 0.0,
         omega: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.q = q
         self.current = current
         self.L = L
@@ -477,6 +486,12 @@ class ChuaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The nonlinearity is neither `'piecewise-linear'` nor `'sine'`.
@@ -503,8 +518,10 @@ class ChuaSystem(BaseSystem):
         alpha: float | None = None,
         beta: float | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -573,6 +590,12 @@ class MixedModeChuaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.circuits import MixedModeChuaSystem
         >>> MixedModeChuaSystem(c=0.0).prepare().system_.interactions[0].c
@@ -599,8 +622,10 @@ class MixedModeChuaSystem(BaseSystem):
         beta: float = 0.005,
         c: float = 0.00053,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -843,6 +868,12 @@ class ImpulsiveCircuitsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.circuits import ImpulsiveCircuitsSystem
         >>> ImpulsiveCircuitsSystem(T=3.0).prepare().system_.interactions[0].period
@@ -866,8 +897,10 @@ class ImpulsiveCircuitsSystem(BaseSystem):
         A: float = 1.0,
         T: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.current = current
         self.L = L

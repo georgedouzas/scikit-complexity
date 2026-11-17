@@ -18,6 +18,8 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.components.laws.utils import clip, distributed_delay, minimum, series, step
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 
@@ -453,6 +455,12 @@ class RiceMillingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.processes import RiceMillingSystem
         >>> RiceMillingSystem(capacity=1500.0).prepare().system_.elements[0].capacity
@@ -480,8 +488,10 @@ class RiceMillingSystem(BaseSystem):
         capacity: float = 2000.0,
         expansion_time: float = 12.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.harvest = harvest
         self.seasonality = seasonality
         self.procurement_delay = procurement_delay
@@ -548,6 +558,12 @@ class SolidWasteSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.processes import SolidWasteSystem
         >>> SolidWasteSystem(landfill_capacity=1e6).prepare().system_.elements[0].landfill_capacity
@@ -575,8 +591,10 @@ class SolidWasteSystem(BaseSystem):
         composting_share: float = 0.3,
         landfill_capacity: float = 2e6,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.population = population
         self.growth_rate = growth_rate
         self.per_capita = per_capita
@@ -637,6 +655,12 @@ class FoodReliefSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.processes import FoodReliefSystem
         >>> FoodReliefSystem(shipping_delay=7.0).prepare().system_.elements[0].shipping_delay
@@ -663,8 +687,10 @@ class FoodReliefSystem(BaseSystem):
         cover: float = 7.0,
         stock_time: float = 7.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.affected = affected
         self.ration = ration
         self.onset = onset
@@ -727,6 +753,12 @@ class IrrigationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.processes import IrrigationSystem
         >>> IrrigationSystem(pump_capacity=0.0).prepare().system_.elements[0].pump_capacity
@@ -754,8 +786,10 @@ class IrrigationSystem(BaseSystem):
         canal_loss: float = 0.2,
         pump_capacity: float = 0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.river_inflow = river_inflow
         self.seasonality = seasonality
         self.reservoir_capacity = reservoir_capacity

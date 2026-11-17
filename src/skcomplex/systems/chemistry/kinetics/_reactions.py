@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.engine.solvers import EulerMaruyamaSolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction, ReactionNetworkSystem
@@ -213,6 +214,12 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import ChemicalLangevinEquationSystem
         >>> ChemicalLangevinEquationSystem(c4=3.0).prepare().system_.elements[0].c4
@@ -236,8 +243,10 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         A: float = 1e5,
         B: float = 2e5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.c1 = c1
         self.c2 = c2

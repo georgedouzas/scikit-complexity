@@ -19,7 +19,8 @@ from ....core.components.elements import Element, FieldElement, FiniteVolumeSpec
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian, shifted
 from ....core.components.spaces import LatticeSpace
-from ....core.engine.solvers import SSPRKSolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SSPRKSolver
 from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ..common.traffic import SpeedAdaptationInteraction
@@ -210,6 +211,12 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import LighthillWhithamRichardsSystem
         >>> float(LighthillWhithamRichardsSystem(10).prepare().system_.elements[0].values['rho'][-1])
@@ -231,8 +238,10 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         vmax: float = 1.0,
         rho_max: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.upstream = upstream
         self.downstream = downstream
@@ -296,6 +305,12 @@ class PayneSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import PayneSystem
         >>> PayneSystem(10).prepare().system_.elements[0].values['tau']
@@ -327,8 +342,10 @@ class PayneSystem(BaseSystem):
         rho_max: float = 1.0,
         tau: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.density = density
         self.bump = bump
@@ -418,6 +435,12 @@ class KernerKonhauserSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import KernerKonhauserSystem
         >>> KernerKonhauserSystem(10).prepare().system_.elements[0].values['mu']
@@ -443,8 +466,10 @@ class KernerKonhauserSystem(BaseSystem):
         c0: float = 0.45,
         mu: float = 0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.length = length
         self.density = density
@@ -569,6 +594,12 @@ class GktTrafficSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import GktTrafficSystem
         >>> GktTrafficSystem(10).prepare().system_.elements[0].values['gamma']
@@ -603,8 +634,10 @@ class GktTrafficSystem(BaseSystem):
         rho_max: float = 160.0,
         gamma: float = 1.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.length = length
         self.density = density

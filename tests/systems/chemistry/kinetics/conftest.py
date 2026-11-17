@@ -16,5 +16,5 @@ def _run(
     """Return the trajectory of a system, with its tuned solver unless one is given."""
     if not isinstance(system, PreparedSystem):
         return simulate(system, until=until, dt=dt, solver=solver, random_state=0)
-    prepared = system.prepare() if solver is None else system.prepare().system_.set_params(solver=solver).prepare()
+    prepared = system.prepare() if solver is None else system.set_params(solver=solver).prepare()
     return prepared.simulate(until=until, dt=dt, random_state=0)

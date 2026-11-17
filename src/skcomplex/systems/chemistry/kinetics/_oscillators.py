@@ -12,7 +12,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.engine.solvers import ScipyODESolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
@@ -153,6 +154,12 @@ class BrusselatorODESystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import BrusselatorODESystem
         >>> BrusselatorODESystem(b=1.5).prepare().system_.elements[0].b
@@ -173,8 +180,10 @@ class BrusselatorODESystem(BaseSystem):
         a: float = 1.0,
         b: float = 3.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.u = u
         self.v = v
         self.a = a
@@ -239,6 +248,12 @@ class OregonatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import OregonatorSystem
         >>> OregonatorSystem(f=0.8).prepare().system_.elements[0].f
@@ -262,8 +277,10 @@ class OregonatorSystem(BaseSystem):
         q: float = 8e-4,
         f: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -384,6 +401,12 @@ class CubicAutocatalysisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import CubicAutocatalysisSystem
         >>> CubicAutocatalysisSystem(k=0.06).prepare().system_.elements[0].k
@@ -404,8 +427,10 @@ class CubicAutocatalysisSystem(BaseSystem):
         F: float = 0.04,
         k: float = 0.05,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.a = a
         self.b = b
         self.F = F

@@ -27,7 +27,7 @@ def _peaks(series):
 
 def test_chua_double_scroll_visits_both_scrolls():
     """Test that the double-scroll attractor stays bounded and visits both sides of the origin."""
-    trajectory = ChuaSystem().prepare().system_.simulate(until=100, dt=0.05)
+    trajectory = ChuaSystem().prepare().simulate(until=100, dt=0.05)
     x = trajectory.get_values('circuit.x')[400:]
     assert np.abs(x).max() < 3.0
     assert 0.2 < (x > 0).mean() < 0.8
@@ -35,7 +35,7 @@ def test_chua_double_scroll_visits_both_scrolls():
 
 def test_chua_sine_diode_has_several_scrolls():
     """Test that the sine diode gives a bounded attractor spanning more than two scrolls."""
-    trajectory = ChuaSystem(nonlinearity='sine').prepare().system_.simulate(until=600, dt=0.5)
+    trajectory = ChuaSystem(nonlinearity='sine').prepare().simulate(until=600, dt=0.5)
     x = trajectory.get_values('circuit.x')[100:]
     assert np.abs(x).max() < 15.0
     assert x.min() < -4 * 1.3
@@ -52,9 +52,7 @@ def test_chua_rejects_unknown_nonlinearity():
 def test_mixed_mode_chua_oscillations(c, mixed):
     """Test that small oscillations come between the spikes for `c = 0.00053` and not for `c = 0.00105`."""
     solver = ScipyODESolver(method='Radau')
-    trajectory = (
-        MixedModeChuaSystem(c=c).prepare().system_.set_params(solver=solver).prepare().simulate(until=50, dt=0.1)
-    )
+    trajectory = MixedModeChuaSystem(c=c, solver=solver).prepare().simulate(until=50, dt=0.1)
     peaks = _peaks(trajectory.get_values('circuit.x')[100:])
     assert (peaks > 1.0).sum() >= 4
     assert ((peaks < 0.3).sum() >= 4) == mixed

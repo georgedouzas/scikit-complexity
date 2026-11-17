@@ -59,7 +59,7 @@ def test_satellite_transfer_time():
 
 def test_heated_room_stays_within_the_band_of_its_thermostat():
     """Test that the room rises to the band, stays in it, and the heater switches on and off."""
-    trajectory = HeatedRoomSystem().prepare().system_.simulate(until=14400.0, dt=10.0)
+    trajectory = HeatedRoomSystem().prepare().simulate(until=14400.0, dt=10.0)
     temperature = trajectory.get_values('room.T').ravel()
     reached = int(np.argmax(temperature >= 19.5))
     assert temperature[0] == pytest.approx(10.0)

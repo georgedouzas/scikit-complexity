@@ -15,7 +15,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, CrossingInteraction
 from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import clip, derivative, sign, step, where
-from ....core.engine.solvers import RK4Solver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.specs import ConnectorSpec, DeclaredVariableSpec, ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
@@ -731,6 +732,12 @@ class HeatedRoomSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.control import HeatedRoomSystem
         >>> HeatedRoomSystem(setting=22.0).prepare().system_.interactions[-1].direction
@@ -758,8 +765,10 @@ class HeatedRoomSystem(BaseSystem):
         wall_conductance: float = 100.0,
         surface_conductance: float = 50.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.T = T
         self.setting = setting
         self.band = band

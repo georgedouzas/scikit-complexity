@@ -19,6 +19,8 @@ from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative
 from ....core.components.types import Target
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.systems import BaseSystem, System
 
@@ -117,6 +119,12 @@ class PowerGridSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.power_systems import PowerGridSystem
         >>> len(PowerGridSystem(added_line=(0, 2)).prepare().system_.interactions)
@@ -139,8 +147,10 @@ class PowerGridSystem(BaseSystem):
         added_line: tuple[int, int] | None = None,
         doubled_line: tuple[int, int] | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.K = K
         self.power = power

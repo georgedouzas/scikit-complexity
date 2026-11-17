@@ -38,7 +38,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 solver = EulerMaruyamaSolver(dt=0.01)
-system = LightSeekingRobotsSystem().prepare().system_.set_params(solver=solver).prepare()
+system = LightSeekingRobotsSystem(solver=solver).prepare()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 trajectory = system.simulate(until=100.0, dt=0.5, observers=[observer], random_state=0)
 
@@ -52,7 +52,7 @@ trajectory = system.simulate(until=100.0, dt=0.5, observers=[observer], random_s
 delays = [0.0, 1.0, 2.0, 3.0, 5.0, 8.0]
 intensities, distances = [], {}
 for delay in delays:
-    system = LightSeekingRobotsSystem(n_robots=40, delay=delay).prepare().system_.set_params(solver=solver)
+    system = LightSeekingRobotsSystem(n_robots=40, delay=delay, solver=solver)
     trajectory = system.prepare().simulate(until=150, dt=0.5, random_state=1)
     r = np.hypot(trajectory.get_values('robots.x'), trajectory.get_values('robots.y'))[trajectory.times > 50]
     intensities.append(np.exp(-(r**2)).mean())
