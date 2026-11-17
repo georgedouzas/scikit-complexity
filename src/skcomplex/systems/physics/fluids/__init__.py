@@ -24,7 +24,15 @@ from ._kinetic_equations import (
     VlasovEquationSystem,
 )
 from ._kinetics import CarlemanGasElement, DiscreteVelocityBoltzmannSystem, WaveBreakingSystem, WaveNumberElement
-from ._lattice_gases import FHPLatticeGasSystem, FHPSiteElement, HPPLatticeGasSystem, HPPSiteElement
+from ._lattice_gases import (
+    FHPLatticeGasSystem,
+    FHPSiteElement,
+    HPPLatticeGasSystem,
+    HPPSiteElement,
+    LatticeGasCollisionInteraction,
+    LatticeGasPropagationInteraction,
+    ParticleCountInteraction,
+)
 from ._marangoni import BenardMarangoniSystem, MarangoniLayerElement
 
 __all__: list[str] = [
@@ -45,7 +53,10 @@ __all__: list[str] = [
     'HPPSiteElement',
     'KuramotoSivashinskyElement',
     'KuramotoSivashinskySystem',
+    'LatticeGasCollisionInteraction',
+    'LatticeGasPropagationInteraction',
     'MarangoniLayerElement',
+    'ParticleCountInteraction',
     'RayleighBenardSystem',
     'ShallowWaterElement',
     'ShallowWaterSystem',
