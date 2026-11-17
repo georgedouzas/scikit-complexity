@@ -14,7 +14,6 @@ transient most columns keep one color, a frozen pattern of both colors with no n
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import SherringtonKirkpatrickSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'sherrington_kirkpatrick'
 
 system = SherringtonKirkpatrickSystem(n_spins=200, temperature=0.3)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=100, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=100, observers=[observer], random_state=0)
 
 # %%
 # Energy and freezing against temperature
@@ -33,12 +32,12 @@ trajectory = simulate(system, until=100, observers=[observer], random_state=0)
 # second half of each run, rises from near zero. The simulated energies of the same 200-spin sample should follow
 # `-J^2 / (2 T)` above `T_c`, and `q` should grow below it.
 
-couplings = system.prepare().system_.elements[0].values['couplings']
+couplings = system.prepare().system_.interactions[0].couplings
 temperatures = np.linspace(0.2, 2.0, 7)
 energies, frozen = [], []
 for temperature in temperatures:
     sample = SherringtonKirkpatrickSystem(n_spins=200, temperature=temperature)
-    spins = simulate(sample, until=100, dt=1.0, random_state=0).get_values('spins.spin')[50:]
+    spins = sample.prepare().simulate(until=100, dt=1.0, random_state=0).get_values('spins.spin')[50:]
     energies.append(-0.5 * np.einsum('ti,ij,tj->t', spins, couplings, spins).mean() / 200)
     frozen.append(np.mean(spins.mean(axis=0) ** 2))
 grid = np.linspace(1.0, 2.1, 50)

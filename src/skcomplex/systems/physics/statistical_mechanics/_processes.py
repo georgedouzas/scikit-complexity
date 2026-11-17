@@ -11,22 +11,27 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, ZZ, Expression, oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction, TransferInteraction
+from ....core.components.interactions import Interaction, TransferInteraction
 from ....core.components.laws import BaseLaw, LocalRuleLaw, RuleLaw, Sink, Source
 from ....core.components.laws.utils import bernoulli
-from ....core.components.spaces import DiscreteTime, LatticeSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace, RadiusNeighborhood
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 BURNING = 2
 BURNT = 3
+NEAREST = RadiusNeighborhood(1, metric='manhattan', center=True)
 
 
 class ContactSiteElement(Element):
@@ -150,19 +155,19 @@ class ExclusionSiteElement(Element):
 
 
 class PercolationSiteElement(Element):
-    """Site of a percolation lattice.
+    """Sites of a percolation lattice.
 
-    The site is empty at 0, occupied at 1, burning at 2, or burnt at 3.
-
-    Fire spreads from burning sites to their occupied neighbours and burns out in one step, so a fire lit along one
-    edge burns exactly the clusters that touch that edge.
+    Every site is empty at 0, occupied at 1, burning at 2, or burnt at 3.
 
     Args:
         label:
-            The label of the site or the lattice group.
+            The label of the site or the lattice of sites.
 
         cover:
-            The initial cover, 0, 1, 2, or 3.
+            The initial cover, 0, 1, 2, or 3, or one cover per site.
+
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import PercolationSiteElement
@@ -170,31 +175,35 @@ class PercolationSiteElement(Element):
         0.0
     """
 
-    law_classes = (LocalRuleLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        cover: Annotated[float, StateSpec(domain=NN)] = 0.0,
-    ) -> None:
-        super().__init__(label)
+    def __init__(self, label: str, *, cover: object = 0.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
         self.cover = cover
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the spread and burning out of the fire.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class FireSpreadInteraction(Interaction):
+    """Fire on a percolation lattice.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            LocalRuleLaw(s.cover, RadiusNeighborhood(1, metric='manhattan', center=True), PercolationSiteElement._burn),
-        ]
+    Fire spreads from burning sites to their occupied neighbours and burns out in one step, so a fire lit along one
+    edge burns exactly the clusters that touch that edge.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the sites, whose value `cover` is 0, 1, 2, or 3.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import FireSpreadInteraction
+        >>> FireSpreadInteraction('fire', target='lattice').target
+        'lattice'
+    """
+
+    law_classes = (LocalRuleLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
 
     @staticmethod
     def _burn(cover: Array, *around: Array) -> Array:
@@ -205,25 +214,35 @@ class PercolationSiteElement(Element):
         catches = (cover == 1) & np.any(np.stack(around) == BURNING, axis=0)
         return np.where(cover == BURNING, BURNT, np.where(catches, BURNING, cover))
 
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the spread and the burning out of the fire.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [LocalRuleLaw(context.target.cover, NEAREST, self._burn, label=self.label)]
+
 
 class Q2RSpinElement(Element):
-    """Site of the Q2R automaton.
+    """Sites of the Q2R automaton.
 
-    The site holds a spin and a phase that says whether the site updates in the current step.
-
-    The local rule of Q2R flips the spins of the updating sites whose neighbours sum to zero, which leaves the Ising
-    energy unchanged, and swaps the phase of every site, so the two sublattices update in turn and the dynamics is
-    reversible.
+    Every site holds a spin and a phase that says whether the site updates in the current step.
 
     Args:
         label:
-            The label of the site or the lattice group.
+            The label of the site or the lattice of sites.
 
         spin:
-            The initial spin, 1 or -1.
+            The initial spin, 1 or -1, or one spin per site.
 
         phase:
-            The initial phase, 1 for updating and 0 for quiescent.
+            The initial phase, 1 for updating and 0 for quiescent, or one phase per site.
+
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import Q2RSpinElement
@@ -235,12 +254,64 @@ class Q2RSpinElement(Element):
         self,
         label: str,
         *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        phase: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        spin: object = 1.0,
+        phase: object = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.spin = spin
         self.phase = phase
+
+
+class Q2RFlipInteraction(Interaction):
+    """Flips of the Q2R automaton.
+
+    The local rule of Q2R flips the spins of the updating sites whose neighbours sum to zero, which leaves the Ising
+    energy unchanged, and swaps the phase of every site, so the two sublattices update in turn and the dynamics is
+    reversible.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the sites, whose values are the spins `spin` and the phases `phase`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import Q2RFlipInteraction
+        >>> Q2RFlipInteraction('flip', target='spins').target
+        'spins'
+    """
+
+    law_classes = (LocalRuleLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _flip_without_cost(*columns: Array) -> tuple[Array, Array]:
+        """Return the spins and phases after one Q2R step.
+
+        The step reads the spins and the phases of a centred neighbourhood.
+        """
+        half = len(columns) // 2
+        spin, around, phase = columns[0], columns[1:half], columns[half]
+        flips = (phase == 1) & (sum(around) == 0)
+        return np.where(flips, -spin, spin), 1 - phase
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the flips of the spins and the swap of the phases.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            sites = context.target
+            law = LocalRuleLaw((sites.spin, sites.phase), NEAREST, self._flip_without_cost, label=self.label)
+            self.laws_ = [law]
 
 
 class WalkerView(AgentView):
@@ -350,10 +421,17 @@ class Q2rSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import Q2rSystem
-        >>> Q2rSystem((8,)).prepare().system_.elements[0].prepare().size_
-        8
+        >>> trajectory = Q2rSystem((8,)).prepare().simulate(until=1)
+        >>> trajectory.get_values('spins.spin').shape
+        (2, 8)
     """
 
     field = 'physics/statistical_mechanics'
@@ -369,48 +447,36 @@ class Q2rSystem(BaseSystem):
         up: float = 0.3,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.up = up
         self.random_state = random_state
-
-    @staticmethod
-    def _flip_without_cost(*columns: Array) -> tuple[Array, Array]:
-        """Return the spins and phases after one Q2R step.
-
-        The step reads the spins and the phases of a centred neighbourhood.
-        """
-        half = len(columns) // 2
-        spin, around, phase = columns[0], columns[1:half], columns[half]
-        flips = (phase == 1) & (sum(around) == 0)
-        return np.where(flips, -spin, spin), 1 - phase
 
     @staticmethod
     def _get_checkerboard(shape: tuple[int, ...]) -> Array:
         """Return 1 on the sites of even coordinate sum and 0 on the others."""
         return (np.indices(shape).sum(axis=0) % 2 == 0).astype(float)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the spins and phases of the lattice and their flips.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         shape = tuple(self.shape)
         spins = np.where(np.random.default_rng(self.random_state).random(shape) < self.up, 1.0, -1.0)
-        space = LatticeSpace(shape)
-        group = GroupElement(
+        sites = Q2RSpinElement(
             'spins',
-            element=Q2RSpinElement,
-            space=space,
-            values={'spin': spins, 'phase': self._get_checkerboard(shape)},
-            on='sites',
+            spin=spins.ravel(),
+            phase=self._get_checkerboard(shape).ravel(),
+            space=LatticeSpace(shape),
         )
-        flip = LocalRuleInteraction(
-            'flip',
-            target='spins',
-            state=('spin', 'phase'),
-            rule=self._flip_without_cost,
-            neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
-        )
-        return CompositeSystem(self.label, elements=[group], interactions=[flip])
+        self.system_ = System(self.label, elements=[sites], interactions=[Q2RFlipInteraction('flip', target='spins')])
 
 
 class SitePercolationSystem(BaseSystem):
@@ -434,10 +500,17 @@ class SitePercolationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import SitePercolationSystem
-        >>> SitePercolationSystem((10, 10)).prepare().system_.elements[0].prepare().size_
-        100
+        >>> trajectory = SitePercolationSystem((10, 10)).prepare().simulate(until=1)
+        >>> trajectory.get_values('lattice.cover').shape
+        (2, 100)
     """
 
     field = 'physics/statistical_mechanics'
@@ -453,33 +526,31 @@ class SitePercolationSystem(BaseSystem):
         p: float = 0.6,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.p = p
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the occupied sites with the fire lit along the top row.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         shape = tuple(self.shape)
         cover = (np.random.default_rng(self.random_state).random(shape) < self.p).astype(float)
         cover[0] *= BURNING
-        space = LatticeSpace(shape, boundary='fixed')
-        return CompositeSystem(
-            self.label,
-            elements=[
-                GroupElement(
-                    'lattice',
-                    element=PercolationSiteElement,
-                    space=space,
-                    values={'cover': cover},
-                    on='sites',
-                ),
-            ],
-        )
+        sites = PercolationSiteElement('lattice', cover=cover.ravel(), space=LatticeSpace(shape, boundary='fixed'))
+        fire = FireSpreadInteraction('fire', target='lattice')
+        self.system_ = System(self.label, elements=[sites], interactions=[fire])
 
 
-class ContactProcessSystem(BaseSystem):
+class ContactProcessSystem(OldBaseSystem):
     """The contact process on a periodic lattice.
 
     The process survives above a critical infection rate near 1.65.
@@ -554,7 +625,7 @@ class ContactProcessSystem(BaseSystem):
         )
 
 
-class TASEPSystem(BaseSystem):
+class TASEPSystem(OldBaseSystem):
     """The totally asymmetric simple exclusion process with parallel update.
 
     The process runs on an open line or a ring.
@@ -698,7 +769,7 @@ class TASEPSystem(BaseSystem):
         return CompositeSystem(self.label, elements=[lane], interactions=[hops, entry, leaving], time=DiscreteTime())
 
 
-class DiffusionLimitedAggregationSystem(BaseSystem):
+class DiffusionLimitedAggregationSystem(OldBaseSystem):
     """Diffusion-limited aggregation on a periodic grid.
 
     Random walkers stick to a seed at the center.

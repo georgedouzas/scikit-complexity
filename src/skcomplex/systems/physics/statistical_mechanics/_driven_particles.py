@@ -6,22 +6,26 @@ The module covers zero-range processes, the energy cascade on a tree, and exclus
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, TransferInteraction
 from ....core.components.laws import Source
 from ....core.components.laws.utils import where
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.backends import NumbaBackend
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend, NumbaBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 TREE_ASPECT = 0.7
@@ -53,20 +57,23 @@ class ParticleSiteElement(Element):
         self.n = n
 
 
-class TreeNodeElement(ParticleSiteElement):
-    """Node of a tree that holds a number `n` of energy quanta.
+class TreeNodeElement(Element):
+    """Nodes of a tree that hold a number `n` of energy quanta each.
 
-    The node is drawn at a fixed position.
+    Every node is drawn at a fixed position.
 
     Args:
         label:
             The label of the node or the group.
 
         n:
-            The initial number of quanta.
+            The initial number of quanta, or one number per node.
 
         x:
-            The position of the node in the drawing of the tree.
+            The position of the node in the drawing of the tree, or one position per node.
+
+        size:
+            The number of nodes, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import TreeNodeElement
@@ -79,14 +86,9 @@ class TreeNodeElement(ParticleSiteElement):
         {'position': 'x', 'radius': 0.04, 'color_by': 'n', 'color_range': (0.0, 2.0), 'states': (), 'trail': 0},
     )
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        n: float = 0.0,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-    ) -> None:
-        super().__init__(label, n=n)
+    def __init__(self, label: str, *, n: object = 0.0, x: object = 0.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.n = n
         self.x = x
 
 
@@ -375,7 +377,7 @@ class ZeroRangeHopsInteraction(TransferInteraction):
         return s.q * ZeroRangeHopInteraction._get_departure_rate(s.target.n, s.b)
 
 
-class ZeroRangeProcessSystem(BaseSystem):
+class ZeroRangeProcessSystem(OldBaseSystem):
     """The zero-range process on a ring.
 
     The process condenses above the critical density `1 / (b - 2)` for `b > 2`.
@@ -505,6 +507,12 @@ class DissipativeZeroRangeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import DissipativeZeroRangeSystem
         >>> system = DissipativeZeroRangeSystem(3, branches=3).prepare().system_
@@ -517,7 +525,6 @@ class DissipativeZeroRangeSystem(BaseSystem):
     references = ('Bertin 2021', 'Bertin 2005')
     until = 200.0
     dt = 1.0
-    backend = NumbaBackend()
 
     def __init__(
         self,
@@ -530,8 +537,10 @@ class DissipativeZeroRangeSystem(BaseSystem):
         epsilon0: float = 1.0,
         dissipation: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_levels = n_levels
         self.branches = branches
         self.nu = nu
@@ -562,15 +571,16 @@ class DissipativeZeroRangeSystem(BaseSystem):
             rings.append(radius * np.column_stack([np.cos(angles), TREE_ASPECT * np.sin(angles)]))
         return np.concatenate(rings)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the nodes of the tree, the transfers between levels, the injection, and the dissipation.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         n_nodes = self._get_level_start(self.n_levels + 1, self.branches)
-        nodes = GroupElement(
-            'nodes',
-            element=TreeNodeElement,
-            size=n_nodes,
-            values={'x': self._get_tree_layout(self.n_levels, self.branches)},
-        )
+        nodes = TreeNodeElement('nodes', x=self._get_tree_layout(self.n_levels, self.branches), size=n_nodes)
         interactions: list[BaseInteraction] = []
         for level in range(1, self.n_levels):
             rate = self.nu * float(self.branches ** (level - 1)) ** self.alpha
@@ -592,7 +602,13 @@ class DissipativeZeroRangeSystem(BaseSystem):
             ),
             ReservoirInteraction('dissipation', sites=leaves, outflow=self.dissipation),
         ]
-        return CompositeSystem(self.label, elements=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
+        self.system_ = System(
+            self.label,
+            elements=[nodes],
+            interactions=interactions,
+            space=ContinuousSpace(n_dim=2),
+            backend=NumbaBackend(),
+        )
 
 
 class ASEPSystem(BaseSystem):
@@ -629,6 +645,12 @@ class ASEPSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ASEPSystem
         >>> len(ASEPSystem(10).prepare().system_.interactions)
@@ -653,8 +675,10 @@ class ASEPSystem(BaseSystem):
         density: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.alpha = alpha
         self.gamma = gamma
@@ -663,22 +687,19 @@ class ASEPSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the asymmetric simple exclusion process on an open line.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the asymmetric simple exclusion process on an open line, in continuous time.
 
-        The process runs in continuous time.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         occupied = (np.random.default_rng(self.random_state).random(self.n_sites) < self.density).astype(float)
-        lane = GroupElement(
-            'lane',
-            element=ParticleSiteElement,
-            space=LatticeSpace(self.n_sites, boundary='fixed'),
-            values={'n': occupied},
-            on='sites',
-        )
+        lane = Element('lane', values={'n': occupied}, space=LatticeSpace(self.n_sites, boundary='fixed'))
         interactions = [
             ExclusionHopsInteraction('hops', sites='lane', p=self.p, q=self.q),
             ReservoirInteraction('entry', sites=['lane[0]'], inflow=self.alpha, exclusion=True),
             ReservoirInteraction('exit', sites=[f'lane[{self.n_sites - 1}]'], outflow=self.gamma, exclusion=True),
         ]
-        return CompositeSystem(self.label, elements=[lane], interactions=interactions)
+        self.system_ = System(self.label, elements=[lane], interactions=interactions)

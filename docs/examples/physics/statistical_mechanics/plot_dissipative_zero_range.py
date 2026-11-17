@@ -18,15 +18,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import DissipativeZeroRangeSystem
 
 SYSTEM = 'dissipative_zero_range'
 
-system = DissipativeZeroRangeSystem(n_levels=5, branches=2, alpha=0.5, beta_ext=0.2)
+system = DissipativeZeroRangeSystem(n_levels=5, branches=2, alpha=0.5, beta_ext=0.2, backend=NumbaBackend())
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0, backend=NumbaBackend())
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Temperature profile across scales
@@ -58,7 +57,7 @@ levels = np.arange(1, 6)
 starts = 2 ** np.arange(6) - 1
 fig, profile = plt.subplots(figsize=(6, 4))
 for alpha in (0.5, -2.0):
-    run = simulate(DissipativeZeroRangeSystem(alpha=alpha), until=4000, random_state=0, backend=NumbaBackend())
+    run = DissipativeZeroRangeSystem(alpha=alpha, backend=NumbaBackend()).prepare().simulate(until=4000, random_state=0)
     quanta = run.get_values('nodes.n')[100:] > 0
     measured = [-np.log(quanta[:, start:stop].mean()) for start, stop in itertools.pairwise(starts)]
     profile.plot(levels, measured, 'o', label=f'simulation, alpha = {alpha}')
