@@ -6,6 +6,7 @@ The DC motor is built from components and a Lagrangian.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -17,7 +18,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ...general.mechanics import EulerLagrangeInteraction
 from ..common.electrical import GroundElement, InductorElement, ResistorElement, TwoPinElement, VoltageSourceElement
@@ -338,9 +339,10 @@ class DcMotorSystem(BaseSystem):
         dissipation: Expression = s.target.b * derivative(s.target.phi, 1) ** 2 / 2
         return dissipation
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[
                 VoltageSourceElement('source', V=self.V),
@@ -440,8 +442,9 @@ class QuarterCarSystem(BaseSystem):
         self.b = b
         self.kt = kt
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         car = QuarterCarElement(
             'car',
             m1=self.m1,
@@ -460,4 +463,4 @@ class QuarterCarSystem(BaseSystem):
             damping='b',
             divisor={'y1': 'm1', 'y2': 'm2'},
         )
-        return CompositeSystem(self.label, elements=[car], interactions=[suspension])
+        self.system_ = System(self.label, elements=[car], interactions=[suspension])
