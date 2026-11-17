@@ -10,7 +10,7 @@ from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import RR, SR, ZZ, Expression, function, vector
+from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression, function, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.operators import FDerivativeOperator
 from sklearn.base import clone
@@ -155,15 +155,24 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         """Return the numeric arguments of an interaction as parameters, by name.
 
         An argument annotated with a spec keeps its spec, and a role or a setting that is no number declares nothing.
+        An `int` is an integer, a `float` a real, and a `complex` a complex parameter, such as the `c` of `z**2 + c`.
         """
         if not self._is_preparing_laws():
             return {}
         specs = self._get_specs()
         return {
-            name: DeclaredVariableSpec(value, ParameterSpec(domain=ZZ if isinstance(value, int) else RR))
+            name: DeclaredVariableSpec(value, ParameterSpec(domain=self._get_domain_of(value)))
             for name, value in self.get_params(deep=False).items()
-            if name not in specs and name != 'label' and isinstance(value, int | float) and not isinstance(value, bool)
+            if name not in specs and name != 'label' and isinstance(value, int | float | complex)
+            if not isinstance(value, bool)
         }
+
+    @staticmethod
+    def _get_domain_of(value: complex) -> object:
+        """Return the domain of a numeric argument: integers, reals, or complex numbers."""
+        if isinstance(value, int):
+            return ZZ
+        return RR if isinstance(value, float) else CC
 
     @classmethod
     def _get_declared_laws(cls) -> tuple[type, ...] | None:
