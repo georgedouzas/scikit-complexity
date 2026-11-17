@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from types import SimpleNamespace
 
-from ..base import BasePart
+from ..base import BaseComponent
 from ._base import BaseInteraction
 
 
@@ -36,7 +36,7 @@ class NeighborInteraction(BaseInteraction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'diffusion'`.
+            The name of the interaction, unique among the components of its system, such as `'diffusion'`.
 
         layer:
             The layer of the network whose edges the interaction runs on, or `None` for the layer of the edge group it
@@ -65,7 +65,15 @@ class NeighborInteraction(BaseInteraction):
         super().__init__(label)
         self.layer = layer
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _runs_on_edges(self) -> bool:
+        """Return that the laws run once for every edge."""
+        return True
+
+    def _get_layer(self) -> str | None:
+        """Return the layer the interaction names."""
+        return self.layer
+
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the interaction for one edge, none by default.
 
         Args:

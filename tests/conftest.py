@@ -9,14 +9,19 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 import qutip
-from sage.all__sagemath_symbolics import CC
+from sage.all__sagemath_symbolics import CC, pi
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
+from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import mean, total
+from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
+from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.systems.physics.common.quantum import HilbertSpec
+
+QUEUE_LENGTH = 2
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -58,11 +63,10 @@ class NodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -72,11 +76,10 @@ class HoldingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
 
@@ -252,14 +255,97 @@ SPIN_HALF = _spin_space()
 class SpinElement(Element):
     """Spin of the Hilbert space it takes, by default a spin one half."""
 
+    visual = VisualSpec('expectations')
+
     def __init__(
         self,
         label: str,
         psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         *,
         hilbert: HilbertSpec = SPIN_HALF,
-        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.hilbert = hilbert
+
+
+class RotorElement(Element):
+    """Rotor whose angle turns at a constant rate."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
+        omega: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.theta = theta
+        self.omega = omega
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the turning of the angle."""
+        return [RateLaw(s.theta, s.omega)]
+
+
+class GrowingPopulationElement(Element):
+    """Population that grows at a rate."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        n: Annotated[object, StateSpec()] = 1.0,
+        r: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r = r
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the growth of the population."""
+        return [RateLaw(s.n, s.r * s.n)]
+
+
+def _total(s: SimpleNamespace) -> object:
+    """Return the sum of the two populations."""
+    return s.a.n + s.b.n
+
+
+def _two_populations() -> CompositeSystem:
+    """Return two populations, the first growing at rate 1."""
+    return CompositeSystem(
+        elements=[GrowingPopulationElement('a', n=2.0, r=1.0), GrowingPopulationElement('b', n=6.0)],
+    )
+
+
+class QueueElement(Element):
+    """Agent with a queue of pending orders that it appends to and pops from, each order an id."""
+
+    reports = ('longest',)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        orders: Annotated[object, StateSpec(domain=None)] = (),
+    ) -> None:
+        super().__init__(label)
+        self.orders = orders
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rule of the queue."""
+        return [RuleLaw(self._step)]
+
+    def _step(self, agent: SimpleNamespace, system: SimpleNamespace) -> None:
+        """Append the order of the step, and pop the oldest of a full queue."""
+        orders = (*agent.orders, int(system.time))
+        agent.orders = orders[1:] if len(orders) > QUEUE_LENGTH else orders
+        system.report('longest', tuple(sorted(orders)))
+
+
+def _queue_run(until: int = 3) -> Trajectory:
+    """Return the trajectory of two queues."""
+    group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
+    system = CompositeSystem(elements=[group], time=DiscreteTime())
+    return simulate(system, until=until, random_state=0)

@@ -5,16 +5,17 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar, cast
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
+from ...enums import BoundaryKind, ElementKind, ScheduleKind
 from ...errors import SimulationError, ValidationError
-from ...specs import PartnerSpec, RoleSpec, Tags
-from ...types import ElementKind
-from ..laws import BaseLaw, MatchLaw, RuleLaw, Sink, Source, TransferLaw
-from ..laws.utils import shift_member, where
+from ...specs import RoleSpec
+from .._tags import Tags
+from ..laws import BaseLaw, PartnerSpec, RuleLaw, Sink, Source, TransferLaw
+from ..laws.utils import pairs, shift_member, where
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, Pairing, SystemViewProtocol
 from ._interaction import Interaction
@@ -22,11 +23,11 @@ from ._interaction import Interaction
 FORMS = ('symbolic', 'agent')
 PAIRINGS = ('members', 'random', 'pairs', 'neighbors', 'neighbor-pairs', 'cell', 'site')
 GRID_PAIRINGS = ('neighbors', 'neighbor-pairs', 'cell', 'site')
-SCHEDULES = ('random-sequential', 'member')
+SCHEDULES = (ScheduleKind.RANDOM_SEQUENTIAL, ScheduleKind.MEMBER)
 ACTORS = ('source', 'target')
 REMOVALS = ('source', 'target')
 LEG_LENGTHS = (3, 4)
-BOUNDARIES = ('periodic', 'fixed')
+BOUNDARIES = (BoundaryKind.PERIODIC, BoundaryKind.FIXED)
 NAMED_PARTNERS = {
     'random': PartnerSpec('all', 'uniform'),
     'pairs': PartnerSpec('all', 'uniform', capacity=1),
@@ -75,7 +76,7 @@ class TransferInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'infection'`.
+            The name of the interaction, unique among the components of its system, such as `'infection'`.
 
         source:
             The path of the element or group the amounts leave.
@@ -181,8 +182,8 @@ class TransferInteraction(Interaction):
         >>> from typing import Annotated
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class TankElement(Element):
-        ...     def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, level: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
         ...         self.level = level
         >>> flow = TransferInteraction(
         ...     'flow', source='upper', target='lower', state='level', amount=lambda s: s.source.level / 2
@@ -194,7 +195,7 @@ class TransferInteraction(Interaction):
         4.0
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw, TransferLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, TransferLaw)
 
     def _get_tags(self) -> Tags:
         """Return the tags of the rules of the agent form or of the transfers.
@@ -325,7 +326,7 @@ class TransferInteraction(Interaction):
             self._check_grid('pairing', self.pairing, space, alternative)
         self._check_partners(self.pairing, space)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown form or pairing, a bad leg, or a bad option.
 
         Args:
@@ -537,14 +538,19 @@ class TransferInteraction(Interaction):
                 laws += [self._get_law(paired, leg, self.reverse_rate, True) for leg in self._get_legs()]
         return laws
 
-    def _get_pairing(self) -> MatchLaw:
-        """Return the law of the pairs of the pairing.
+    def _get_pairs_of(
+        self,
+        left: Sequence[AgentViewProtocol],
+        right: Sequence[AgentViewProtocol],
+        system: SystemViewProtocol,
+    ) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
+        """Return the pairs of the pairing between agents of both sides.
 
         Its capacity for a function is `partners`, or 1 without it.
         """
         pairing = self.pairing
         spec = NAMED_PARTNERS[pairing] if isinstance(pairing, str) else pairing
-        return MatchLaw(self.source, self.target, spec, capacity=self.partners or 1)
+        return list(pairs(left, right, system.rng, spec, capacity=self.partners or 1))
 
     def _get_pairs(self, system: SystemViewProtocol) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
         """Return the pairs of source and target agents of one step in random order."""
@@ -552,15 +558,11 @@ class TransferInteraction(Interaction):
         targets = sources if self.source == self.target else system.get_agents(self._get_role('target'))
         if self.fallback is not None and not any(target.alive for target in targets):
             targets = system.get_agents(self._get_role('fallback'))
-        pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
         if self.pairing == 'members':
-            pairs = list(zip(sources, targets, strict=False))
+            found = list(zip(sources, targets, strict=False))
         else:
-            pairs = cast(
-                list[tuple[AgentViewProtocol, AgentViewProtocol]],
-                self._get_pairing().get_pairs(sources, targets, system.rng),
-            )
-        return [pairs[int(index)] for index in system.rng.permutation(len(pairs))]
+            found = self._get_pairs_of(sources, targets, system)
+        return [found[int(index)] for index in system.rng.permutation(len(found))]
 
     def _evaluate(
         self,
@@ -605,8 +607,7 @@ class TransferInteraction(Interaction):
         role = self._get_role('source' if self.actor == 'target' else 'target')
         if callable(self.pairing) or isinstance(self.pairing, PartnerSpec):
             others = [other for other in system.get_agents(role) if other is not agent]
-            pairs = self._get_pairing().get_pairs([agent], others, system.rng)
-            return [cast(AgentViewProtocol, partner) for _, partner in pairs]
+            return [partner for _, partner in self._get_pairs_of([agent], others, system)]
         if self.pairing == 'cell':
             groups = set(system.get_groups(role))
             others = [other for other in agent.get_agents_here() if other.group in groups]

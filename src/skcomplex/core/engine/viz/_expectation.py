@@ -12,13 +12,14 @@ import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
 from ...components.spaces import LatticeSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec, OperatorViewSpec
 from ...errors import ValidationError
 from ...types import Array
 from ..compile.passes._operator_compiler import OperatorCompiler
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_problem_spec import OperatorProblemSpec
+from ..problems._operator_view_spec import _OperatorViewSpec
 from ._base import BaseVisual
 from ._images import SPACE_TIME, ImageVisual
 
@@ -78,7 +79,11 @@ class ExpectationVisual(ImageVisual):
                 self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{name}', array)
             self._log_image(recording, path, array.reshape(shape if shape[0] > 0 else (-1,)), cyclic=False)
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return the views of an operator element, group, or particle.
 
         A group or particle gets space-time and image views, and an element a series view.
@@ -117,7 +122,7 @@ class ExpectationVisual(ImageVisual):
         return str(ExpectationVisual._get_view_of(element).display)
 
     @staticmethod
-    def _get_view_of(element: CompiledElementSpec) -> OperatorViewSpec:
+    def _get_view_of(element: CompiledElementSpec) -> _OperatorViewSpec:
         """Return the operator view of a compiled element, of its first member for a group.
 
         Args:

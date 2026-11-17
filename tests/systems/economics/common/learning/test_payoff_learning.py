@@ -11,7 +11,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.economics.common.learning import PayoffLearningInteraction
 from skcomplex.systems.general.agents import ChoiceInteraction
 
@@ -31,14 +31,13 @@ class LearnerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         choice: Annotated[float, StateSpec()] = 0.0,
         first: Annotated[float, StateSpec()] = 0.0,
         second: Annotated[float, StateSpec()] = 0.0,
         value: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.choice = choice
         self.first = first
         self.second = second
@@ -56,11 +55,10 @@ class PoolElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         scores: Annotated[object, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.scores = scores
 
 

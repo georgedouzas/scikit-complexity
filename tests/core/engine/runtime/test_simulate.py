@@ -7,12 +7,14 @@ import numpy as np
 import pytest
 from scipy import stats
 
+from skcomplex.core.components import Observable, Tags
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import JumpInteraction, RateInteraction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import normal
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, StaticTime
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
+from skcomplex.core.engine import runtime as package
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import RecorderObserver, Trajectory, _simulate, simulate
@@ -20,7 +22,7 @@ from skcomplex.core.engine.runtime._simulate import _choose_solver
 from skcomplex.core.engine.runtime._simulations import Simulation
 from skcomplex.core.engine.solvers import GillespieSolver, MonteCarloSolver, RootSolver, ScipyODESolver
 from skcomplex.core.errors import ConservationError, TagError, ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, Tags
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class TankElement(Element):
@@ -42,7 +44,7 @@ class DecaySystem(BaseSystem):
     until = 2.0
     dt = 0.5
     initial_state: ClassVar[Mapping[str, object]] = {'tank.x': 4.0}
-    observables = (ObservableSpec('double', _double, element='tank'),)
+    observables = (Observable('double', _double, element='tank'),)
 
     def __init__(self, label: str = 'decay', k: float = 1.0) -> None:
         super().__init__(label)
@@ -82,7 +84,7 @@ class LeakySystem(BaseSystem):
 
     until = 2.0
     dt = 0.5
-    observables = (ObservableSpec('level', _level, element='tank'),)
+    observables = (Observable('level', _level, element='tank'),)
     invariants: ClassVar[Mapping[str, float]] = {'tank.level': 1e-9}
     schedule: ClassVar[Mapping[str, object]] = {'tank.k': lambda t: 0.0}
     compiler = PassCompiler()
@@ -287,3 +289,9 @@ def test_replay_needs_a_trajectory_with_draws():
     recorded = simulate(_kicked(0.5), until=5, random_state=0)
     with pytest.raises(ValidationError, match='holds no draws'):
         simulate(_kicked(0.5), until=5, random_state=0, replay=recorded)
+
+
+def test_simulate_rejects_a_system_name():
+    """Simulating a system name raises an error that names what it took."""
+    with pytest.raises(ValidationError, match=r"simulate takes a system, not 'sir'"):
+        package.simulate('sir', until=1)

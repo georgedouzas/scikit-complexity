@@ -15,7 +15,7 @@ from skcomplex.core.engine.solvers import (
     FractionalEulerMaruyamaSolver,
 )
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 def _walkers(hurst, members=1000, fractional=True):
@@ -27,11 +27,10 @@ def _walkers(hurst, members=1000, fractional=True):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -113,8 +112,8 @@ class TaggedWalkerElement(Element):
 
     law_classes = (NoiseLaw,)
 
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, x: Annotated[object, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, x: Annotated[object, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
     def _get_laws(self, s):
@@ -161,12 +160,11 @@ def test_fractional_euler_maruyama_rejects_a_changed_hurst_index():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
             H: Annotated[object, ParameterSpec()] = 0.3,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.H = H
 

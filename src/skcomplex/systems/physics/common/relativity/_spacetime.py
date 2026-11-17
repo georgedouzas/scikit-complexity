@@ -17,14 +17,14 @@ from sage.structure.element import Matrix
 from sage.symbolic.function import BuiltinFunction, SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 
-from .....core.components.base import BasePart
+from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.laws.utils import derivative
 from .....core.components.spaces import BaseSpace, ContinuousSpace
+from .....core.enums import ElementKind
 from .....core.errors import SpaceError, ValidationError
 from .....core.specs import RoleSpec
-from .....core.types import ElementKind
 from ...._extras import import_extra
 
 type Christoffel = tuple[tuple[tuple[Expression, ...], ...], ...]
@@ -188,12 +188,12 @@ class SpacetimeSpace(ContinuousSpace):
     def _prepare(self, context: None = None) -> None:
         """Set the coordinates, the metric, its inverse, and the tensors.
 
-        The tensors are derived again only when their source changed. A space is prepared again whenever a part that
-        reads it is prepared, so the derivation, the slow step, runs only for a metric, coordinates, or a curvature flag
-        that differ by value from those of the last derivation.
+        The tensors are derived again only when their source changed. A space is prepared again whenever a component
+        that reads it is prepared, so the derivation, the slow step, runs only for a metric, coordinates, or a curvature
+        flag that differ by value from those of the last derivation.
 
         It first raises an error for an invalid metric or coordinates that clash. It checks its label through the base
-        of the parts, not the box of a continuous space, which it does not have.
+        of the components, not the box of a continuous space, which it does not have.
 
         Args:
             context:
@@ -204,7 +204,7 @@ class SpacetimeSpace(ContinuousSpace):
                 The metric is not a symmetric square matrix of one row per coordinate, a coordinate is not a variable,
                 two coordinates coincide, or the metric is degenerate.
         """
-        BasePart._prepare(self, context)
+        BaseComponent._prepare(self, context)
         coordinates = self._get_coordinates()
         if not coordinates or not all(item.is_symbol() for item in coordinates):
             error_msg = f'The coordinates {self.coordinates!r} are not variables. Give Sage variables or their names.'
@@ -302,7 +302,7 @@ class GeodesicInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or group whose state is the position.
@@ -356,7 +356,7 @@ class GeodesicInteraction(Interaction):
         self.state = state
         self.space = space
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set `space_`, the prepared pseudo-Riemannian space.
 
         It first raises an error for a state that is not a name.
@@ -385,7 +385,7 @@ class GeodesicInteraction(Interaction):
             raise SpaceError(error_msg)
         self.space_ = self.space.prepare()
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the rate law of the second derivative of the position.
 
         It is minus the connection on the tangent.

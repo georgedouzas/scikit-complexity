@@ -15,9 +15,9 @@ from sage.rings.rational import Rational
 from sage.structure.element import RingElement
 
 from ...errors import ValidationError
-from ...specs._dialect_spec import DIALECTS
 from ..types import Number, PrintedKey
 from ._base import BasePrinter
+from ._dialect_spec import DIALECTS
 from ._printed_spec import PrintedSpec
 from ._source_loader import SourceLoader
 

@@ -11,9 +11,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...components.spaces import BaseSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
-from ...specs import AgentSnapshotSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import AgentSnapshotSpec, BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._agents import AgentsVisual
 from ._base import SERIES_COLORS, BaseVisual
 
@@ -195,7 +194,11 @@ class HistogramVisual(AgentsVisual):
             if numbers is not None and numbers.size:
                 self._log_trait(recording, f'{path}/{trait}', trait, numbers)
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return the views of the traits.
 
         They show the statistics of one trait over time, its histogram, and the statistics of every trait.

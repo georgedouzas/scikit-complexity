@@ -12,13 +12,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ....core.types import AnyArray, Array
 from ...general.agents import ChoiceInteraction
 
@@ -47,9 +49,6 @@ class ComplexAgentElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         configuration:
             The internal configuration, from 0 to `H + 1`.
 
@@ -68,12 +67,11 @@ class ComplexAgentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         configuration: Annotated[float, StateSpec(domain=NN)] = 2.0,
         spin: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.configuration = configuration
         self.spin = spin
 
@@ -235,8 +233,8 @@ class StandardizedAgentsSystem(BaseSystem):
     references = ('Bertin 2021', 'Bertin and Jensen 2019')
     until = 1000
     observables = (
-        ObservableSpec('q', group='agents', variable='spin', reduce=_get_standardization),
-        ObservableSpec('m', group='agents', variable='spin', reduce='mean'),
+        Observable('q', group='agents', variable='spin', reduce=_get_standardization),
+        Observable('m', group='agents', variable='spin', reduce='mean'),
     )
 
     def __init__(
@@ -266,7 +264,7 @@ class StandardizedAgentsSystem(BaseSystem):
         return float(StandardizationInteraction._get_spins(np.array(agent.configuration)))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         marked = rng.random(self.agents) < self.standardized
         configurations = np.where(

@@ -11,6 +11,8 @@ from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.mathematics.dynamical_systems import LorenzSystem
 
+from .conftest import _damped_rotation, _last_values
+
 LYAPUNOV_TIME = 1 / 0.906
 STEP = 0.025
 TRANSIENT = 5.0
@@ -94,3 +96,21 @@ def test_next_generation_reads_the_variables_as_they_are_without_standardizing()
     assert analysis.step.mean.tolist() == [0.0, 0.0]
     assert analysis.step.scale.tolist() == [1.0, 1.0]
     assert analysis.forecast[-1, 0] == pytest.approx(np.sin(0.1 * 609), abs=0.01)
+
+
+def test_reservoir_keeps_its_reference_values():
+    """Test the run of the reservoir surrogate against the values recorded before it moved to declared states."""
+    analysis = reservoir(
+        _damped_rotation(),
+        variables=['x', 'y'],
+        kind='next_generation',
+        delay=2,
+        order=2,
+        ridge=1e-6,
+        validation=0.0,
+        dt=0.05,
+    )
+    assert _last_values(analysis, ['x', 'y'], 10, 1) == pytest.approx(
+        [-0.0024828568048470227, 0.004773226924693426],
+        rel=1e-9,
+    )

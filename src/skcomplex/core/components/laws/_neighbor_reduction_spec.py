@@ -1,0 +1,41 @@
+"""Define the neighbor reduction spec."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from dataclasses import dataclass
+
+from sage.all__sagemath_symbolics import Expression
+
+from ...specs._base_spec import BaseSpec
+
+
+@dataclass(frozen=True)
+class _NeighborReductionSpec(BaseSpec):
+    """A spec of a reduction over neighbours found in an expression.
+
+    It holds its kind, argument, weight, and neighbourhood.
+
+    Args:
+        call:
+            The unevaluated call.
+
+        kind:
+            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, and the components
+            reductions `'component-label'`, `'component-size'`, `'component-largest'`, and `'component-giant'`.
+
+        argument:
+            The value of one neighbour.
+
+        weight:
+            The weight of one neighbour, or `None` for 1.
+
+        over:
+            The neighbourhood, or `None` for the neighbours of the space.
+    """
+
+    call: Expression
+    kind: str
+    argument: Expression
+    weight: Expression | None
+    over: object

@@ -5,15 +5,17 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar, cast
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ...enums import ElementKind
 from ...errors import ValidationError
-from ...specs import BaseSpec, PartnerSpec, ReductionSpec, RoleSpec, Tags
-from ...types import ElementKind
-from ..laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
-from ..laws.utils import both, count, maximum, mean, minimum, total, variance
+from ...specs import BaseSpec, RoleSpec
+from .._tags import Tags
+from ..laws import BaseLaw, PartnerSpec, RuleLaw, UpdateLaw
+from ..laws._reduction_spec import _ReductionSpec
+from ..laws.utils import both, count, maximum, mean, minimum, pairs, total, variance
 from ..laws.utils._reductions import reductions_in
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, Pairing, SystemViewProtocol
@@ -62,7 +64,7 @@ class GroupingInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'trades'`.
+            The name of the interaction, unique among the components of its system, such as `'trades'`.
 
         target:
             The path of the group whose members are grouped.
@@ -115,8 +117,8 @@ class GroupingInteraction(Interaction):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import StateSpec
         >>> class VoterElement(Element):
-        ...     def __init__(self, label, visual=None, *, s: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, s: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
         ...         self.s = s
         >>> def adopt_majority(members, system):
         ...     majority = float(2 * sum(member.s for member in members) > len(members))
@@ -145,7 +147,7 @@ class GroupingInteraction(Interaction):
         [1.0, 1.0, 1.0]
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw, UpdateLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
 
     def _get_tags(self) -> Tags:
         """Return the tags of the agent-form rules or of the symbolic grouping updates."""
@@ -188,7 +190,7 @@ class GroupingInteraction(Interaction):
         self.reduce = reduce
 
     def _check_symbolic(self) -> None:
-        """Raise an error for a symbolic form without its parts or with agent settings.
+        """Raise an error for an incomplete symbolic form or one with agent settings.
 
         Raises:
             ValidationError:
@@ -217,7 +219,7 @@ class GroupingInteraction(Interaction):
             self._check_grid('groups', self.groups, space, "groups='pairs', 'partition', 'state', or a radius")
         self._check_partners(self.groups, space)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown kind, a small size, no state, or a small capacity.
 
         Args:
@@ -317,10 +319,8 @@ class GroupingInteraction(Interaction):
 
         A selection of partners or a function gives the partners.
         """
-        law = MatchLaw(self.target, pairing=pairing, capacity=self.capacity or 1)
         groups: dict[int, list[AgentViewProtocol]] = {}
-        for first, second in law.get_pairs(agents, agents, system.rng):
-            member, partner = cast(AgentViewProtocol, first), cast(AgentViewProtocol, second)
+        for member, partner in pairs(agents, None, system.rng, pairing, capacity=self.capacity or 1):
             groups.setdefault(member.id, [member]).append(partner)
         return list(groups.values())
 
@@ -345,7 +345,7 @@ class GroupingInteraction(Interaction):
         for index in system.rng.permutation(len(groups)):
             self.act_on(groups[int(index)], system)
 
-    def _get_keyed(self, reduction: ReductionSpec, member: SimpleNamespace, members: SimpleNamespace) -> Expression:
+    def _get_keyed(self, reduction: _ReductionSpec, member: SimpleNamespace, members: SimpleNamespace) -> Expression:
         """Return a reduction over the members of a group that share the value of `by`.
 
         The reduction is restricted to these members.

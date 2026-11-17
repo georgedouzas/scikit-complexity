@@ -5,9 +5,9 @@
 
 from typing import ClassVar
 
-from ...specs import RequirementSpec
 from ..types import Target
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 
 class BoundaryLaw(BaseLaw):
@@ -17,7 +17,7 @@ class BoundaryLaw(BaseLaw):
     or a wrap around a periodic box. A boundary leaves the equations of a system as they are, so it combines with every
     other law in continuous or discrete time.
 
-    Unlike `CrossingLaw`, which finds the exact time a guard crosses zero, it corrects the state once per step. Choose
+    Unlike `EventLaw`, which finds the exact time a guard crosses zero, it corrects the state once per step. Choose
     it when a state must stay inside a domain and the exact time of contact does not matter.
 
     It appears in many fields. Particles in a periodic box wrap around its edges, a random walker reflects off a wall,

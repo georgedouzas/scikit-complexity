@@ -17,10 +17,10 @@ vanishes, and returns as a sound wave.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.components import Observable
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.systems.physics.fluids import BoltzmannEquationSystem
 
 SYSTEM = 'boltzmann_equation'
@@ -39,7 +39,7 @@ def solver_of(step):
     return StrangSplittingSolver(SemiLagrangianSolver(0.1), RK4Solver(step), 0.1)
 
 
-observables = [ObservableSpec('density_wave', function=density_wave)]
+observables = [Observable('density_wave', function=density_wave)]
 system = BoltzmannEquationSystem(positions=POSITIONS, velocities=VELOCITIES, knudsen=0.02)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 trajectory = simulate(system, until=5.5, solver=solver_of(0.02), observers=[observer], observables=observables)

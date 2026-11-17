@@ -11,14 +11,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import ZZ
 
 from ...errors import SpaceError, ValidationError
-from ...specs import RoleSpec, Spec, StateSpec, Tags, VisualSpec
-from ..base import BasePart
+from ...specs import RoleSpec, Spec, StateSpec, VisualSpec
+from .._tags import Tags
+from ..base import BaseComponent
 from ..spaces import BaseSpace, NetworkSpace
 from ._base import BaseElement
 from ._declared import DeclaredElement
 
 PARTS = ('sites', 'edges', 'hyperedges')
 MIN_RANK = 2
+SHARED_OPTIONS = ('states', 'low', 'high')
 
 
 class GroupElement(BaseElement):
@@ -39,7 +41,7 @@ class GroupElement(BaseElement):
 
     Args:
         label:
-            The name of the group, unique among the parts of its system, such as `'herds'`.
+            The name of the group, unique among the components of its system, such as `'herds'`.
 
         element:
             The element class of every member, such as a class with one state `x` for the size of a herd.
@@ -51,9 +53,6 @@ class GroupElement(BaseElement):
             The value of each state or parameter by name, with one row per member or one value for all, such as
             `{'x': [40.0, 25.0, 60.0]}`. On sites, a value may also be an array of the lattice shape, or a mapping from
             each node of a network to its value.
-
-        visual:
-            How the group is drawn, such as `VisualSpec('sites')`, or `None` for `default_visual_`.
 
         space:
             The space whose parts the members occupy, such as a lattice with one member per site or a network with one
@@ -89,7 +88,7 @@ class GroupElement(BaseElement):
 
     Attributes:
         default_visual_:
-            The visual of a member, which the group takes when it sets none. When the member sets none, it is the
+            How the group is drawn by default, the `visual` of its member class. When that class sets none, it is the
             default visual of the space of a group on sites, and the plain visual otherwise.
 
         size_:
@@ -143,7 +142,6 @@ class GroupElement(BaseElement):
         element: type[BaseElement],
         size: int | None = None,
         values: Mapping[str, object] | None = None,
-        visual: VisualSpec | None = None,
         space: BaseSpace | None = None,
         variable: bool = False,
         on: str | None = None,
@@ -152,7 +150,7 @@ class GroupElement(BaseElement):
         capacity: int | None = None,
         rank: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.element = element
         self.size = size
         self.values = values
@@ -178,8 +176,23 @@ class GroupElement(BaseElement):
         return place.prepare()._count_parts(self.on or 'sites', self.layer)
 
     def _get_member(self) -> BaseElement:
-        """Return a member of the group, with the values the group gives."""
-        return self.element(self.label).set_params(**(self.values or {}))
+        """Return a member of the group, with the values the group gives.
+
+        A member that declares its variables as data takes only its settings, such as `variables`, since the values of
+        every member stay with the group.
+        """
+        member = self.element(self.label)
+        values = self.values or {}
+        if isinstance(member, DeclaredElement):
+            settings = member.get_params(deep=False)
+            values = {name: value for name, value in values.items() if name in settings}
+        return member.set_params(**values)
+
+    def _get_compiler(self) -> object:
+        """Return the compiler a member names, or `None` for the general one."""
+        if not (isinstance(self.element, type) and issubclass(self.element, BaseElement)):
+            return None
+        return self._get_member()._get_compiler()
 
     def _get_member_specs(self) -> dict[str, Spec]:
         """Return the specs of a member.
@@ -187,16 +200,16 @@ class GroupElement(BaseElement):
         They are read from a member only when it declares variables from data.
         """
         if issubclass(self.element, DeclaredElement):
-            return self._get_member()._get_part_specs()
+            return self._get_member()._get_component_specs()
         return self.element._get_specs()
 
-    def get_declaring_part(self) -> type[BaseElement] | BaseElement:
+    def get_declaring_element(self) -> type[BaseElement] | BaseElement:
         """Return what declares the states and parameters of a member.
 
         It is the element class, or a member with the values of the group when the class takes its variables as data.
 
         Returns:
-            part:
+            element:
                 The element class, or a member with the values of the group.
 
         Examples:
@@ -204,7 +217,7 @@ class GroupElement(BaseElement):
             >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
             >>> values = {'variables': {'x': DeclaredVariableSpec(1.0, StateSpec())}}
             >>> group = GroupElement('cells', element=DeclaredElement, size=2, values=values)
-            >>> group.get_declaring_part().get_value('x')
+            >>> group.get_declaring_element().get_value('x')
             1.0
         """
         return self._get_member() if issubclass(self.element, DeclaredElement) else self.element
@@ -310,7 +323,7 @@ class GroupElement(BaseElement):
             raise ValidationError(error_msg)
 
     def _check_on(self) -> None:
-        """Raise an error for a part that is not one of the parts of a space."""
+        """Raise an error for an `on` that names no part of a space."""
         if self.on is not None and self.on not in PARTS:
             error_msg = f'Group {self.label!r} lives on {self.on!r}. Use one of {", ".join(PARTS)}.'
             raise SpaceError(error_msg)
@@ -351,13 +364,13 @@ class GroupElement(BaseElement):
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, `size_`, and `values_`.
 
-        It first raises an error for arguments the group cannot take. They are a part, an element type, a size, a rank,
-        or values.
+        It first raises an error for arguments the group cannot take. They are a part of the space, an element type, a
+        size, a rank, or values.
 
-        `default_visual_` is the visual of the group when it sets none. The default visual of a group is the visual of a
-        member. When the member sets none, it is the default visual of the space of a group on its sites, and the plain
-        visual otherwise. The size of a group on parts of a space without a size of its own is the number of parts of
-        its space, or else of the space it inherits. The values of a group on sites take the shape of that space.
+        `default_visual_` is the drawing of a member. When it is the plain one or one the space of a group on its sites
+        cannot show, such as an image on a graph, it is the default visual of that space, with the options both share.
+        The size of a group on parts of a space without a size of its own is the number of parts of its space, or else
+        of the space it inherits. The values of a group on sites take the shape of that space.
 
         Args:
             context:
@@ -365,8 +378,8 @@ class GroupElement(BaseElement):
 
         Raises:
             SpaceError:
-                The group lives on parts but has neither a size nor a space, or the space does not have the part. The
-                part is unknown.
+                The group lives on parts but has neither a size nor a space, the space does not have the part, or the
+                part of the space is unknown.
 
             ValidationError:
                 A per-member value does not have one row per member. The element type is not an element class, the size
@@ -380,17 +393,18 @@ class GroupElement(BaseElement):
         self._check_element()
         self._check_size()
         self._check_rank()
-        member = self._get_member()
-        if member.visual is not None:
-            self.default_visual_ = member.visual
+        self.default_visual_ = self._get_member()._get_visual()
         self.size_ = self._get_size_of(context)
         space = self._get_site_space(context)
         self.values_ = self._flatten_values(space)
         self._check_value_rows()
-        if space is not None and self.default_visual_ == VisualSpec():
-            self.default_visual_ = VisualSpec(space.default_visual_ or 'sites')
+        if space is not None and (
+            self.default_visual_ == VisualSpec() or self.default_visual_.kind in space._get_lacks()
+        ):
+            options = {name: value for name, value in self.default_visual_.options.items() if name in SHARED_OPTIONS}
+            self.default_visual_ = VisualSpec(space.default_visual_ or 'sites', options)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the element type for a namespace of symbols.
 
         The laws are written for one member.

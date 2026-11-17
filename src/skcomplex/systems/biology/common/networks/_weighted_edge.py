@@ -11,7 +11,7 @@ from typing import Annotated
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from .....core.components.elements import Element
-from .....core.specs import StateSpec, VisualSpec
+from .....core.specs import StateSpec
 
 
 class WeightedEdgeElement(Element):
@@ -24,9 +24,6 @@ class WeightedEdgeElement(Element):
     Args:
         label:
             The label of the edge or of the group of edges.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         w:
             The weight.
@@ -43,11 +40,10 @@ class WeightedEdgeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         w: Annotated[float, StateSpec()] = 0.0,
         fresh: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.w = w
         self.fresh = fresh

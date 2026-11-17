@@ -17,7 +17,7 @@ from ._renewal_law import RenewalLaw
 
 @dataclass(frozen=True)
 class BoundRenewalSpec(BaseSpec):
-    """A spec of a renewal law of a part with its label, group, and hidden state.
+    """A spec of a renewal law of a component with its label, group, and hidden state.
 
     The group is the one the law renews, and the hidden state is the one that counts it.
 

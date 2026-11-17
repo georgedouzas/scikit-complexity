@@ -34,9 +34,6 @@ class ParticleSiteElement(Element):
         label:
             The label of the site or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         n:
             The initial number of particles.
 
@@ -49,11 +46,10 @@ class ParticleSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
 
@@ -65,9 +61,6 @@ class TreeNodeElement(ParticleSiteElement):
     Args:
         label:
             The label of the node or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         n:
             The initial number of quanta.
@@ -81,18 +74,19 @@ class TreeNodeElement(ParticleSiteElement):
         0.0
     """
 
+    visual = VisualSpec(
+        'points',
+        {'position': 'x', 'radius': 0.04, 'color_by': 'n', 'color_range': (0.0, 2.0), 'states': (), 'trail': 0},
+    )
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec(
-            'points',
-            {'position': 'x', 'radius': 0.04, 'color_by': 'n', 'color_range': (0.0, 2.0), 'states': (), 'trail': 0},
-        ),
         *,
         n: float = 0.0,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, n=n)
+        super().__init__(label, n=n)
         self.x = x
 
 
@@ -456,7 +450,7 @@ class ZeroRangeProcessSystem(BaseSystem):
         return np.bincount(sites, minlength=n_sites).astype(float)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         occupations = self._scatter(round(self.density * self.n_sites), self.n_sites, self.random_state)
         sites = GroupElement(
             'sites',
@@ -569,7 +563,7 @@ class DissipativeZeroRangeSystem(BaseSystem):
         return np.concatenate(rings)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         n_nodes = self._get_level_start(self.n_levels + 1, self.branches)
         nodes = GroupElement(
             'nodes',

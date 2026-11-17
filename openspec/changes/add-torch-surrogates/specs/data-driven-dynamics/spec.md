@@ -2,8 +2,9 @@
 
 ### Requirement: Neural-operator surrogates of fields
 `neural_operator(source, ...)` SHALL learn a neural operator that maps the fields of a field system at one time to its
-fields `lead` samples later, from one or more runs of the system on the same grid, and SHALL return a frozen result
-with the training and validation errors and a `forecast` of `horizon` steps.
+fields `lead` samples later, from one or more runs of the system on the same grid, as trajectories, an experiment
+result, or observed runs, with whole runs held out for validation, and SHALL return a frozen result with the training
+and validation errors and a `forecast` of `horizon` steps.
 
 #### Scenario: Gray-Scott surrogate
 - **WHEN** `neural_operator` learns from 16 runs of `GrayScottSystem` on a 64 by 64 grid from random initial spots

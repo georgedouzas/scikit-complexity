@@ -9,8 +9,8 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import PARTS, SERIES_COLORS, BaseVisual
 
 
@@ -93,7 +93,11 @@ class ScalarsVisual(BaseVisual):
                 self.styled_.add(path)
             BaseVisual._log_scalars(recording, path, value)
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return one time series view of the states of the element.
 
         Args:

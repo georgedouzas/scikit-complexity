@@ -67,12 +67,11 @@ class FieldLinkElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         A: Annotated[float, StateSpec()] = 0.0,
         E: Annotated[float, StateSpec()] = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.E = E
 
@@ -136,8 +135,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class AngleLinkElement(Element):
-    def __init__(self, label, visual=None, *, theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0):
+        super().__init__(label)
         self.theta = theta
 
 

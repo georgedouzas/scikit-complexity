@@ -12,11 +12,13 @@ from sklearn.base import clone
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, LayerSpec, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
+
+from ....conftest import SpinElement
 
 
 class BallElement(Element):
@@ -27,9 +29,8 @@ class BallElement(Element):
         label: str,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
-        visual: VisualSpec | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
 
@@ -42,14 +43,15 @@ class BallElement(Element):
 class PopulationElement(Element):
     """Population drawn as a line, which grows at a unit rate."""
 
+    visual = VisualSpec('line')
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('line'),
         *,
         n: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
     def _get_laws(self, s):
@@ -58,17 +60,16 @@ class PopulationElement(Element):
 
 
 class CellElement(Element):
-    """Cell with a state named like the size of a group."""
+    """Cell with a volume."""
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        size: Annotated[float, StateSpec()] = 0.0,
+        volume: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.size = size
+        super().__init__(label)
+        self.volume = volume
 
 
 def test_group_stores_arguments():
@@ -176,13 +177,6 @@ def test_group_vector_state_has_member_shape():
     assert PassCompiler().prepare(system).run().problem_.states.get_entry('gas.x').shape == (1000, 2)
 
 
-def test_group_takes_state_named_size():
-    """Test that a state named size takes per-member values, since the group size is a constructor argument."""
-    group = GroupElement('cells', element=CellElement, size=3, values={'size': [1.0, 2.0, 3.0]})
-    problem = PassCompiler().prepare(CompositeSystem(elements=[group])).run().problem_
-    assert problem.states.read(problem.initial_state, 'cells.size').tolist() == [1.0, 2.0, 3.0]
-
-
 def test_clone_keeps_values_and_compiles_to_the_same_problem():
     """Test that a clone of a group of 100 members has the same values and compiles to the same problem."""
     group = GroupElement('herds', element=PopulationElement, size=100, values={'n': np.linspace(1.0, 2.0, 100)})
@@ -227,25 +221,25 @@ class HeightElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         h: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.h = h
 
 
 class ColumnElement(HeightElement):
     """Column drawn by its heights."""
 
+    visual = VisualSpec('heights')
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('heights'),
         *,
         h: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, h=h)
+        super().__init__(label, h=h)
 
 
 def test_group_on_sites_flattens_values_of_the_lattice_shape():
@@ -300,3 +294,27 @@ def test_group_on_sites_takes_the_visual_of_its_space():
     assert network.prepare().default_visual_ == VisualSpec('sites')
     inherited = GroupElement('cells', element=HeightElement, on='sites')
     assert inherited.prepare(LatticeSpace((3,))).default_visual_ == VisualSpec('image')
+
+
+def test_lattice_group_keeps_the_expectation_visual():
+    """Test that a lattice of operator elements is drawn by its expectations."""
+    chain = GroupElement('chain', element=SpinElement, space=LatticeSpace(3), on='sites').prepare()
+    assert chain.default_visual_.kind == 'expectations'
+
+
+def test_group_on_a_graph_draws_an_image_member_as_sites():
+    """Test that a member drawn as an image is drawn as sites on a graph, keeping the states and the colour range."""
+
+    class FitnessElement(Element):
+        """Species drawn as an image of its fitness."""
+
+        visual = VisualSpec('image', {'states': ('fitness',), 'low': 0.0, 'high': 1.0, 'history': 256})
+
+        def __init__(self, label: str, fitness: Annotated[float, StateSpec()] = 0.0) -> None:
+            super().__init__(label)
+            self.fitness = fitness
+
+    species = GroupElement('species', element=FitnessElement, space=NetworkSpace(nx.path_graph(4)), on='sites')
+    assert species.prepare().default_visual_ == VisualSpec('sites', {'states': ('fitness',), 'low': 0.0, 'high': 1.0})
+    lattice = GroupElement('species', element=FitnessElement, space=LatticeSpace((4,)), on='sites')
+    assert lattice.prepare().default_visual_ == FitnessElement.visual

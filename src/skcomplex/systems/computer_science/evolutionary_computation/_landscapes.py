@@ -35,9 +35,6 @@ class BitStringElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         genome:
             The initial genome, an integer whose binary digits are the bits.
 
@@ -52,15 +49,16 @@ class BitStringElement(Element):
         ('genomes', 'BitStringElement', 4)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'fitness'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'fitness'}),
         *,
         genome: Annotated[float, StateSpec(domain=NN)] = 0.0,
         fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.genome = genome
         self.fitness = fitness
 

@@ -17,11 +17,11 @@ from gallery_tools import Example, build_from_environment, library_systems
 from inventory_checks import InventoryError, inventory_problems
 
 from skcomplex.core.analysis import symbolic
+from skcomplex.core.components import Tags
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import Tags
 
 DOCS = Path(str(files('gallery_tools'))).parent
 INVENTORY = DOCS / 'overview' / 'inventory.toml'
@@ -212,7 +212,7 @@ def _component_lines(kinds: list[type], depth: int) -> list[str]:
 def _core_link(core: type, depth: int) -> str:
     """Return the name of a class of the core, linked to its fact sheet where its family has fact sheets."""
     if issubclass(core, BaseElement):
-        return f'[`{core.__name__}`]({"../" * depth}parts/elements.md#{core.__name__.lower()})'
+        return f'[`{core.__name__}`]({"../" * depth}components/elements.md#{core.__name__.lower()})'
     return f'`{core.__name__}`'
 
 
@@ -319,7 +319,7 @@ def system_page(name: str, title: str, examples: dict[str, Example]) -> str:
         *_tag_lines(system_class),
         '## Class',
         '',
-        'The source of the class shows how it builds its parts from its model parameters.',
+        'The source of the class shows how it builds its components from its model parameters.',
         '',
         '```python',
         inspect.getsource(system_class).rstrip(),

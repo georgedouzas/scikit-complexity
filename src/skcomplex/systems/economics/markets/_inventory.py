@@ -12,12 +12,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class CarDealershipElement(Element):
@@ -32,9 +33,6 @@ class CarDealershipElement(Element):
     Args:
         label:
             The label of the dealership.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         inventory:
             The initial number of cars on the lot.
@@ -69,7 +67,6 @@ class CarDealershipElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='cars')] = 200.0,
         demand: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
@@ -80,7 +77,7 @@ class CarDealershipElement(Element):
         response_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
         delivery_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.inventory = inventory
         self.demand = demand
         self.demand_step = demand_step
@@ -177,9 +174,9 @@ class CarDealerSystem(BaseSystem):
     until = 100.0
     dt = 1.0
     observables = (
-        ObservableSpec('perceived', _get_perceived, element='dealer'),
-        ObservableSpec('desired_inventory', _get_desired_inventory, element='dealer'),
-        ObservableSpec('orders', _get_orders, element='dealer'),
+        Observable('perceived', _get_perceived, element='dealer'),
+        Observable('desired_inventory', _get_desired_inventory, element='dealer'),
+        Observable('orders', _get_orders, element='dealer'),
     )
 
     @staticmethod
@@ -217,7 +214,7 @@ class CarDealerSystem(BaseSystem):
         return distributed_delay(_get_orders(dealer), order=3, time=dealer.delivery_delay)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         dealer = CarDealershipElement(
             'dealer',
             inventory=self.inventory,

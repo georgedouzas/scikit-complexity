@@ -6,10 +6,11 @@
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw, TransferLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...specs import SupportSpec
-from ...types import Array, NoiseKind, OrderKind
+from ...components.laws import BoundaryLaw, ConstraintLaw, EventLaw, NoiseLaw, RateLaw, TransferLaw
+from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from ...enums import NoiseKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ._sde import SDESolver
 
 
@@ -31,7 +32,7 @@ class MilsteinSolver(SDESolver):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
         >>> from skcomplex.core.engine.solvers import MilsteinSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> problem = simulate(GeometricBrownianMotionSystem(), until=0).problem
         >>> stepper = MilsteinSolver(dt=0.01, random_state=0).prepare(problem)
         >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
@@ -43,8 +44,8 @@ class MilsteinSolver(SDESolver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            laws={RateLaw, ConstraintLaw, EventLaw, BoundaryLaw, TransferLaw, NoiseLaw},
             noise=frozenset({NoiseKind.DIAGONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )

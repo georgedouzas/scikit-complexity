@@ -32,18 +32,20 @@ from sage.structure.parent import Parent
 from sage.symbolic.assumptions import assume, forget
 
 from ..components.laws.utils._operators import _OperatorFunction
+from ..components.systems import CompositeSystem
 from ..engine._utils import components_of, domain_of
+from ..engine.compile import BaseCompiler
 from ..engine.compile._pass_compiler import PassCompiler
-from ..engine.compile._rewriting_compiler import RewritingCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._operator_problem_spec import OperatorProblemSpec
 from ..engine.problems._transfer_network_spec import TransferNetworkSpec
+from ..engine.runtime._simulations import Simulation
+from ..enums import DataKind, FormKind
 from ..errors import AnalysisError, ConservationError
-from ..specs import AnalysisTags
-from ..specs._unknown_spec import _UnknownSpec
-from ..types import Array, ComplexArray, DataKind, FormKind
+from ..types import Array, ComplexArray
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite, _read_system
-from ._operator import _operator_problem
+from ._unknown_spec import _UnknownSpec
 from ._utils import compile_problem
 from .types import Source
 
@@ -313,7 +315,7 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
 
     Raises:
         AnalysisError:
-            The system has no form of the kind, such as a system of words or patches, which rewrites them, Maxima
+            The system has no form of the kind, such as a system that compiles to a form without equations, Maxima
             cannot solve its equations, or needs the sign of a parameter.
 
         ConservationError:
@@ -336,13 +338,15 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
     _check_choice('symbolic', 'kind', kind, KINDS)
     _check_settings(symbolic, 'kind', SETTINGS[kind], kind=kind, use_initial_state=use_initial_state)
     system = _read_system(source)
-    if not isinstance(system, BaseProblemSpec) and RewritingCompiler._is_rewriting(system):
+    compiled = (
+        system if isinstance(system, BaseProblemSpec) else _get_compiler_of(system).prepare(system).run().problem_
+    )
+    if not isinstance(compiled, ProblemSpec | OperatorProblemSpec):
         error_msg = (
-            f'The system {system.label} rewrites words or patches, which have productions, not equations. Simulate it '
-            'and analyse its trajectory instead.'
+            f'The system compiles to the {compiled.form} form, which has no equations. Simulate it and analyse its '
+            'trajectory instead.'
         )
         raise AnalysisError(error_msg)
-    compiled = system if isinstance(system, BaseProblemSpec) else PassCompiler().prepare(system).run().problem_
     if kind == 'hamiltonian':
         operators = _operator_problem(compiled)
         return SymbolicResult(operators, hamiltonian=operators.generator_operator)
@@ -358,6 +362,23 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
     if kind == 'solve':
         return SymbolicResult(problem, solutions=_solve(problem, use_initial_state=use_initial_state))
     return SymbolicResult(problem, inflows=_conservation(problem))
+
+
+def _get_compiler_of(system: CompositeSystem) -> BaseCompiler:
+    """Return the compiler an element of a system names, or the general one."""
+    named = Simulation._get_named_compiler(system)
+    return named if isinstance(named, BaseCompiler) else PassCompiler()
+
+
+def _operator_problem(problem: BaseProblemSpec) -> OperatorProblemSpec:
+    """Return the operator problem of a compiled problem.
+
+    A problem of another form raises an error.
+    """
+    if not isinstance(problem, OperatorProblemSpec):
+        error_msg = f'The system compiles to the {problem.form} form, but the analysis needs operator elements.'
+        raise AnalysisError(error_msg)
+    return problem
 
 
 def _declare_domains(items: Iterable[Expression], values: Mapping[Expression, float] | None = None) -> None:

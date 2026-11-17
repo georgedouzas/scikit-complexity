@@ -16,12 +16,13 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import count, total, uniform, where
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class ParticipantElement(Element):
@@ -33,9 +34,6 @@ class ParticipantElement(Element):
     Args:
         label:
             The label of the participant or the group.
-
-        visual:
-            How the participant is drawn, or `None` for `default_visual_`.
 
         infected:
             The initial state, 0 or 1.
@@ -49,15 +47,16 @@ class ParticipantElement(Element):
         0.05
     """
 
+    visual = VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         recovery: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.infected = infected
         self.recovery = recovery
 
@@ -186,7 +185,7 @@ class HypergraphExposureSisSystem(BaseSystem):
     references = ('St-Onge et al. 2021', 'Majhi et al. 2022')
     until = 200
     dt = 1
-    observables = (ObservableSpec('prevalence', group='participants', variable='infected'),)
+    observables = (Observable('prevalence', group='participants', variable='infected'),)
 
     def __init__(
         self,
@@ -212,7 +211,7 @@ class HypergraphExposureSisSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         hypergraph = xgi.Hypergraph()
         hypergraph.add_nodes_from(range(self.n_nodes))
@@ -225,7 +224,6 @@ class HypergraphExposureSisSystem(BaseSystem):
             element=ParticipantElement,
             space=NetworkSpace(xgi.to_graph(hypergraph), hyperedges=hypergraph),
             values={'infected': infected, 'recovery': self.recovery},
-            visual=VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0}),
             on='sites',
         )
         exposure = ExposureInteraction('exposure', target='participants', rate=self.rate, exponent=self.exponent)

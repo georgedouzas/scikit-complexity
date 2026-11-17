@@ -15,14 +15,16 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.analysis import distribution
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView
-from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.specs import BaseSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 from ..common.resources import RegrowthInteraction
@@ -55,9 +57,6 @@ class ForagerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         sugar:
             The wealth of the forager.
 
@@ -74,16 +73,17 @@ class ForagerElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'sugar'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar'}),
         *,
         sugar: Annotated[float, StateSpec()] = 10.0,
         vision: Annotated[float, StateSpec(domain=NN)] = 1.0,
         metabolism: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sugar = sugar
         self.vision = vision
         self.metabolism = metabolism
@@ -125,9 +125,6 @@ class SugarPatchElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         sugar:
             The sugar on the patch.
 
@@ -144,16 +141,17 @@ class SugarPatchElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'sugar', 'color_range': (0.0, 4.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar', 'color_range': (0.0, 4.0)}),
         *,
         sugar: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         growback: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sugar = sugar
         self.capacity = capacity
         self.growback = growback
@@ -222,8 +220,8 @@ class SugarscapeSystem(BaseSystem):
     references = ('Argun et al. 2021 sec. 16.2', 'Downey 2018 ch. 9')
     until = 100
     observables = (
-        ObservableSpec('population', group='foragers', variable='sugar', reduce='count'),
-        ObservableSpec('gini', group='foragers', variable='sugar', reduce=_get_gini),
+        Observable('population', group='foragers', variable='sugar', reduce='count'),
+        Observable('gini', group='foragers', variable='sugar', reduce=_get_gini),
     )
 
     @staticmethod
@@ -359,7 +357,7 @@ class SugarscapeSystem(BaseSystem):
         ]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         capacity = self._get_landscape(self.width, self.height).ravel()
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]

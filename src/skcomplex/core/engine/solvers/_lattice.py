@@ -5,26 +5,28 @@
 
 import math
 
-from ...components.laws import ArrayUpdateLaw, BoundaryLaw, CascadeLaw, ExtremalLaw, LocalRuleLaw, UpdateLaw
+from ...components.laws import ArrayUpdateLaw, BoundaryLaw, LocalRuleLaw, UpdateLaw
 from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from ...specs import CascadeRecordSpec, RunStateSpec, SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...enums import FormKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
+from ..problems import RunStateSpec
+from ..problems._cascade_record_spec import _CascadeRecordSpec
 from ._solver import Solver
 
 
 class LatticeSolver(Solver):
     """A solver that applies every lattice law once per step.
 
-    The laws are local rules, drives, cascades, and extremal laws. Steps apply in the order the laws are declared, and
-    the boundary laws apply after every step. Cascades record their size, duration, and area as events, and extremal
-    laws record the site and the value of every application.
+    The laws are local rules, drives, and relaxations. Steps apply in the order the laws are declared, and the boundary
+    laws apply after every step. Relaxations record the size, duration, and area of every cascade as events.
 
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
         >>> from skcomplex.core.engine.solvers import LatticeSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> problem = simulate(ElementaryAutomatonSystem(30, size=11), until=0).problem
         >>> stepper = LatticeSolver(random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
@@ -38,7 +40,7 @@ class LatticeSolver(Solver):
         return SupportSpec(
             time={DiscreteTime},
             space={LatticeSpace, NetworkSpace},
-            laws={LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
+            laws={LocalRuleLaw, ArrayUpdateLaw, UpdateLaw, BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -72,9 +74,7 @@ class LatticeSolver(Solver):
             current = RunStateSpec(float(step + 1), state, p, self.rng_)
             for item in self.problem_.lattice:
                 result = item.run(current).values_
-                if isinstance(result, CascadeRecordSpec):
+                if isinstance(result, _CascadeRecordSpec):
                     self.locator_.records.append(result)
-                elif isinstance(result, list):
-                    self.locator_.records.extend(result)
             state = self._get_bounded(float(step + 1), state, p)
         return state

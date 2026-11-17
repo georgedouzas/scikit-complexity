@@ -12,7 +12,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 from ....core.types import Array
 from ._random_pairs import RandomPairsInteraction
 
@@ -36,9 +36,6 @@ class NamerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         words:
             The initial inventory, 1 for every known word and 0 otherwise.
 
@@ -54,11 +51,10 @@ class NamerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         words: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.words = words
 
     @classmethod
@@ -164,7 +160,7 @@ class NamingGameSystem(BaseSystem):
         self.n_agents = n_agents
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         namers = GroupElement(
             'namers',
             element=NamerElement,

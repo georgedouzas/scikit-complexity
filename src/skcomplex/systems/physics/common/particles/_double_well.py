@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.specs import ParameterSpec, StateSpec
 
 
 class DoubleWellElement(Element):
@@ -23,9 +23,6 @@ class DoubleWellElement(Element):
     Args:
         label:
             The label of the particle.
-
-        visual:
-            How the particle is drawn, or `None` for none.
 
         x:
             The initial position.
@@ -48,14 +45,13 @@ class DoubleWellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(role='position')] = -1.0,
         amplitude: Annotated[float, ParameterSpec()] = 0.1,
         frequency: Annotated[float, ParameterSpec()] = 0.01,
         D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.12,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.amplitude = amplitude
         self.frequency = frequency

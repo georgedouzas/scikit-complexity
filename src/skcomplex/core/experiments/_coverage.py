@@ -13,14 +13,15 @@ import numpy.typing as npt
 
 from ..engine.runtime import simulate
 from ..engine.solvers import BaseSolver
+from ..enums import CalibrationMethodKind, ExecutorKind
 from ..errors import ValidationError
 from ..types import Array
 from ._calibration import LOSSES, CalibrationResult, Summary, _check_priors, _series_of, calibrate
-from ._runs import EXECUTORS, _check_count, _check_source, _map_calls
+from ._runs import _check_count, _check_source, _map_calls
 from ._utils import build_system
 from .types import Bounds, Source
 
-POSTERIOR_METHODS = ('abc_smc', 'mcmc', 'variational')
+POSTERIOR_METHODS = (CalibrationMethodKind.ABC_SMC, CalibrationMethodKind.MCMC, CalibrationMethodKind.VARIATIONAL)
 
 
 @dataclass(frozen=True)
@@ -241,7 +242,7 @@ def posterior_coverage(
     if not checked or any(not 0 < level < 1 for level in checked):
         error_msg = f'The levels of posterior coverage must lie between 0 and 1, not {tuple(levels)!r}.'
         raise ValidationError(error_msg)
-    if isinstance(executor, str) and executor not in EXECUTORS:
+    if isinstance(executor, str) and executor not in ExecutorKind:
         error_msg = f"executor = {executor!r} must be 'serial', 'thread', 'process', or an executor."
         raise ValidationError(error_msg)
     if (executor == 'thread' or isinstance(executor, ThreadPoolExecutor)) and method != 'abc_smc':

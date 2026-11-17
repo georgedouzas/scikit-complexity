@@ -8,12 +8,13 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ...components.laws import BilinearLaw
 from ...components.spaces import ContinuousTime, LatticeSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, Indices, IntArray, OrderKind
+from ...types import Array, Indices, IntArray
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._encounter_kernel import EncounterKernel
 from ..problems._kinetic_problem_spec import KineticProblemSpec
 from ._solver import Solver

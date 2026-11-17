@@ -7,12 +7,7 @@ from ._assets import GeometricBrownianMotionSystem
 from ._contagion import DebtRankCascadeInteraction, DebtrankSystem, InterbankElement
 from ._correlated_assets import CorrelatedGeometricBrownianMotionSystem
 from ._fire_sales import FireSaleInteraction, MarketAssetElement, OverlappingPortfolioFireSalesSystem
-from ._gauge_arbitrage import (
-    ExchangeLinkElement,
-    GaugeArbitrageMarketSystem,
-    GoodSiteElement,
-    TraderCurrentInteraction,
-)
+from ._gauge_arbitrage import ExchangeLinkElement, GaugeArbitrageMarketSystem, GoodSiteElement, TraderCurrentInteraction
 from ._growth_processes import (
     GibratFirmElement,
     GibratProcessSystem,

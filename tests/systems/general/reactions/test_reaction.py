@@ -15,7 +15,7 @@ from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.systems.general.reactions import ReactionInteraction
 
@@ -29,12 +29,11 @@ class ConcentrationElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
 
@@ -289,14 +288,13 @@ class ScaledElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         y: Annotated[float, StateSpec()] = 0.0,
         epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.epsilon = epsilon

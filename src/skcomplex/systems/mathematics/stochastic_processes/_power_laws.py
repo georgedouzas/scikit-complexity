@@ -17,7 +17,7 @@ from ....core.components.laws import BaseLaw, JumpLaw, RateLaw
 from ....core.components.laws.utils import draw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ObservedGrowthElement(Element):
@@ -31,9 +31,6 @@ class ObservedGrowthElement(Element):
     Args:
         label:
             The label of the element or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial value.
@@ -61,14 +58,13 @@ class ObservedGrowthElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
         x0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         lam: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x0 = x0
         self.mu = mu
@@ -146,7 +142,7 @@ class ExponentialGrowthAtRandomTimesSystem(BaseSystem):
         self.x0 = x0
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[

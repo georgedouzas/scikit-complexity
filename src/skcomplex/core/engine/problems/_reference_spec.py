@@ -13,11 +13,11 @@ import numpy as np
 from ...errors import ValidationError
 from ...specs._base_spec import BaseSpec
 from ...specs._entry_spec import EntrySpec
-from ...specs._neighbor_read_spec import NeighborReadSpec
 from ...types import Array, Indices
-from ..types import ReadKind
+from ..enums import ReadKind
 from ._edge_search import EdgeSearch
 from ._field_operator_kernel import FieldOperatorKernel
+from ._neighbor_read_spec import _NeighborReadSpec
 from ._pair_search import PairSearch
 
 
@@ -48,7 +48,7 @@ class ReferenceSpec(BaseSpec):
     is_state: bool
     column: int
     source: ReadKind = ReadKind.SINGLE
-    neighbor: NeighborReadSpec | FieldOperatorKernel | None = field(default=None, compare=False, repr=False)
+    neighbor: _NeighborReadSpec | FieldOperatorKernel | None = field(default=None, compare=False, repr=False)
 
     @functools.cached_property
     def index(self) -> int:
@@ -82,14 +82,14 @@ class ReferenceSpec(BaseSpec):
         return vector[self.members]
 
     @property
-    def shifted(self) -> NeighborReadSpec:
+    def shifted(self) -> _NeighborReadSpec:
         """How the neighbour read finds the neighbour of every member.
 
         Raises:
             ValidationError:
                 The reference is not a neighbour read.
         """
-        if not isinstance(self.neighbor, NeighborReadSpec):
+        if not isinstance(self.neighbor, _NeighborReadSpec):
             error_msg = f'The reference to {self.entry.name} is not a neighbour read.'
             raise ValidationError(error_msg)
         return self.neighbor

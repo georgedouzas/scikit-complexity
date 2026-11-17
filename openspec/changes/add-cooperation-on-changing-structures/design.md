@@ -22,14 +22,14 @@ every member with its neighbours, phases of agent rules, and `ensemble` for inde
 
 ### Placement and the primitives each probe exercises
 
-| Part | Placement step | Where | Primitives it exercises |
+| Component | Placement step | Where | Primitives it exercises |
 | --- | --- | --- | --- |
 | `DynamicNetworkDilemmaSystem`, `critical_benefit_cost_ratio` | 3, one system | `social/cooperation/_dynamic_network_dilemma.py` | `networks` with one layer per structure, a structure state switched by `transitions`, neighbour reductions chosen by `where` on that state, `discrete-states`, and `ensemble` |
 | `GossipGroupNormsSystem` | 3, one system | `social/cooperation/_gossip_group_norms.py` | `network-generators` (views as states on the edges from groups to individuals), `numeric-functions` (norms as lookup tables), `draws` (errors), `phases` (donation, assessment, migration) |
 | `GraphPunishmentGameSystem` | 3, one system | `social/cooperation/_graph_punishment_game.py` | `neighbour-hyperedges` on random regular graphs from `network-generators`, `reductions` over every group a node belongs to, three `discrete-states`, `draws` |
 
-A part that two of these modules share, such as the payoff of a donation round, goes to `social/common/games` if that
-family exists, and else stays in each module, as the rule for one system asks.
+A component that two of these modules share, such as the payoff of a donation round, goes to `social/common/games` if
+that family exists, and else stays in each module, as the rule for one system asks.
 
 ### Dynamic network dilemma
 

@@ -7,7 +7,8 @@ operators of fields. The helpers that only the compiler reads stay in the privat
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ._agents import matches, transfer
+from ._agents import transfer
+from ._bilinear import bilinear
 from ._cells import codifferential, exterior_derivative, hodge_star
 from ._components import components
 from ._conditions import both, either, mod, where
@@ -16,7 +17,7 @@ from ._delays import distributed_delay
 from ._draws import bernoulli, categorical, draw, normal, uniform
 from ._history import delayed, derivative, lag, residence
 from ._integrals import cumulative_integral, integral_transform, integration_variable
-from ._local_operators import dagger, local_operator, operator_product
+from ._local_operators import dagger, has_operator, local_operator, operator_product
 from ._moments import moment
 from ._operators import (
     advection,
@@ -31,6 +32,7 @@ from ._operators import (
     shifted,
     upwind,
 )
+from ._pairs import pairs
 from ._paths import shortest_paths
 from ._phase import coordinate, maximum_entropy, reduce_axes
 from ._pointwise import clip, hill, logistic, sign, stop_gradient
@@ -48,9 +50,11 @@ from ._reductions import (
     total,
     variance,
 )
+from ._relaxations import relax
 from ._signals import periodic_guard, pulse, pulse_train, ramp, series, step
 from ._tensors import (
     antisymmetric_part,
+    distribute_operators,
     leray_projection,
     symmetric_part,
     tensor_divergence,
@@ -61,6 +65,7 @@ __all__: list[str] = [
     'advection',
     'antisymmetric_part',
     'bernoulli',
+    'bilinear',
     'both',
     'categorical',
     'circular_mean',
@@ -77,12 +82,14 @@ __all__: list[str] = [
     'delayed',
     'derivative',
     'displacement',
+    'distribute_operators',
     'distributed_delay',
     'divergence',
     'draw',
     'either',
     'exterior_derivative',
     'gradient',
+    'has_operator',
     'hill',
     'hodge_star',
     'hyperedges',
@@ -95,7 +102,6 @@ __all__: list[str] = [
     'local_operator',
     'log_sum_exp',
     'logistic',
-    'matches',
     'maximum',
     'maximum_entropy',
     'mean',
@@ -105,6 +111,7 @@ __all__: list[str] = [
     'neighbors',
     'normal',
     'operator_product',
+    'pairs',
     'partial',
     'periodic_guard',
     'pulse',
@@ -112,6 +119,7 @@ __all__: list[str] = [
     'ramp',
     'reduce_axes',
     'reduction',
+    'relax',
     'residence',
     'series',
     'shift_member',

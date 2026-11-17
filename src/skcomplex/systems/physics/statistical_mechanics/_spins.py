@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import BaseNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement, SpinSamplingInteraction
 
 
@@ -33,9 +33,6 @@ class PottsSpinElement(Element):
         label:
             The label of the spin or the lattice group.
 
-        visual:
-            How the spin is drawn, or `None` for `default_visual_`.
-
         color:
             The initial state.
 
@@ -47,7 +44,7 @@ class PottsSpinElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the spin when it sets none.
+            How the spin is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import PottsSpinElement
@@ -58,13 +55,12 @@ class PottsSpinElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         color: Annotated[float, StateSpec(domain=NN)] = 0.0,
         J: Annotated[float, ParameterSpec()] = 1.0,
         temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.color = color
         self.J = J
         self.temperature = temperature
@@ -81,9 +77,6 @@ class XYSpinElement(Element):
         label:
             The label of the spin or the lattice group.
 
-        visual:
-            How the spin is drawn, or `None` for `default_visual_`.
-
         theta:
             The initial angle.
 
@@ -95,7 +88,7 @@ class XYSpinElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the spin when it sets none.
+            How the spin is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import XYSpinElement
@@ -106,13 +99,12 @@ class XYSpinElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
         J: Annotated[float, ParameterSpec()] = 1.0,
         temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.J = J
         self.temperature = temperature
@@ -128,7 +120,7 @@ class PottsSamplingInteraction(SpinSamplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of spins.
@@ -189,7 +181,7 @@ class XYSamplingInteraction(SpinSamplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of spins.
@@ -307,7 +299,7 @@ class IsingSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = IsingSystem._get_square(self.size)
         spins = (
             np.ones(shape)
@@ -467,7 +459,7 @@ class XYSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = IsingSystem._get_square(self.size)
         angles = np.random.default_rng(self.random_state).uniform(0, 2 * np.pi, size=shape)
         space = LatticeSpace(shape)

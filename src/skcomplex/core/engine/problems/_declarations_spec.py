@@ -9,9 +9,9 @@ from functools import cached_property
 
 from sage.all__sagemath_symbolics import Expression
 
+from ...components.interactions import WienerProcessSpec
 from ...specs._base_spec import BaseSpec
 from ...specs._entry_spec import EntrySpec
-from ...specs._wiener_process_spec import WienerProcessSpec
 from ...types import Array
 from ._block_spec import BlockSpec
 
@@ -22,7 +22,7 @@ MEMBERS = '_members'
 
 @dataclass(frozen=True)
 class DeclarationsSpec(BaseSpec):
-    """A spec of the entries, initial values, and blocks declared for the parts.
+    """A spec of the entries, initial values, and blocks declared for the components.
 
     Args:
         time:

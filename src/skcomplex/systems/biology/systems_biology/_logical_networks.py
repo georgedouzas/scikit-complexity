@@ -18,7 +18,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec
 from ...general.elements import NonnegativeElement
 from ...general.reactions import ReactionInteraction
 
@@ -58,9 +58,6 @@ class LogicalVariableElement(Element):
         label:
             The label of the variable.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         level:
             The initial level.
 
@@ -73,11 +70,10 @@ class LogicalVariableElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         level: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
 
 
@@ -215,7 +211,7 @@ class GeneralizedLogicalNetworkSystem(BaseSystem):
         self.levels = levels
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a generalised logical network of Thomas."""
+        """Return the components of a generalised logical network of Thomas."""
         network = NEGATIVE_CIRCUIT if self.regulations is None else self.regulations
         start = self.levels or {}
         return CompositeSystem(
@@ -285,7 +281,7 @@ class PetriNetSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a Petri net."""
+        """Return the components of a Petri net."""
         marking = GENE_EXPRESSION_PLACES if self.places is None else self.places
         arcs = GENE_EXPRESSION_TRANSITIONS if self.transitions is None else self.transitions
         mode = 'jump' if self.stochastic else 'rate'

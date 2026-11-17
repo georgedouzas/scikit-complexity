@@ -16,7 +16,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import VelocityVerletSolver
 from skcomplex.core.errors import ConservationError, ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 from .conftest import PRECISE, MassElement
 
@@ -27,14 +27,13 @@ class PendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.1,
         theta_d1: float = 0.0,
         g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
         l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
         self.g = g
@@ -51,11 +50,10 @@ class StockElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
     def _get_laws(self, s):
@@ -69,11 +67,10 @@ class LeakyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         money: Annotated[object, StateSpec(quantity='money')] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.money = money
 
     def _get_laws(self, s):

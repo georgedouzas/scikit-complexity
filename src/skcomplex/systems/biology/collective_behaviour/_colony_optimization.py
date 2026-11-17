@@ -22,7 +22,7 @@ from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec
 from ....core.types import Array
 
 CUTS = 2
@@ -47,9 +47,6 @@ class TrailSegmentElement(Element):
         label:
             The label of the segment or of the group of segments.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         tau:
             The pheromone level.
 
@@ -65,12 +62,11 @@ class TrailSegmentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         tau: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         passable: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.tau = tau
         self.passable = passable
 
@@ -370,7 +366,7 @@ class AntColonyOptimizationSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of ants that find the shortest path on a Delaunay road network.
+        """Return the components of ants that find the shortest path on a Delaunay road network.
 
         The path joins two points of the network.
         """

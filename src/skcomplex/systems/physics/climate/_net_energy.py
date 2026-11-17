@@ -12,10 +12,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 def _get_gross_energy(s: SimpleNamespace) -> Expression:
@@ -50,9 +51,6 @@ class EnergySectorElement(Element):
     Args:
         label:
             The label of the sector.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         reserve:
             The initial energy reserve.
@@ -98,7 +96,6 @@ class EnergySectorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         reserve: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='energy')] = 1000.0,
         capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
@@ -111,7 +108,7 @@ class EnergySectorElement(Element):
         birth_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
         death_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.015,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.reserve = reserve
         self.capacity = capacity
         self.population = population
@@ -201,10 +198,10 @@ class EnergyReturnSystem(BaseSystem):
     until = 250.0
     dt = 1.0
     observables = (
-        ObservableSpec('eroi', _get_eroi, element='energy'),
-        ObservableSpec('gross_energy', _get_gross_energy, element='energy'),
-        ObservableSpec('extraction_cost', _get_extraction_cost, element='energy'),
-        ObservableSpec('net_per_capita', _get_net_per_capita, element='energy'),
+        Observable('eroi', _get_eroi, element='energy'),
+        Observable('gross_energy', _get_gross_energy, element='energy'),
+        Observable('extraction_cost', _get_extraction_cost, element='energy'),
+        Observable('net_per_capita', _get_net_per_capita, element='energy'),
     )
 
     def __init__(
@@ -225,7 +222,7 @@ class EnergyReturnSystem(BaseSystem):
         self.birth_rate = birth_rate
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         sector = EnergySectorElement(
             'energy',
             reserve=self.reserve,

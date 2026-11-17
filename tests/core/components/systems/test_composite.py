@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, MapInteraction, RateInteraction
-from skcomplex.core.components.laws import GeneratorLaw, RateLaw, RuleLaw, UpdateLaw
+from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import (
     BaseSpace,
@@ -28,10 +28,10 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import UnitarySolver
 from skcomplex.core.errors import RoleElementError, TagError, ValidationError
-from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.epidemiology import SIRSystem
+from skcomplex.systems.physics.common.quantum import GeneratorLaw, HilbertSpec, UnitarySolver
 
 PAULI = HilbertSpec(
     2,
@@ -48,9 +48,8 @@ class BallElement(Element):
         label: str,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
-        visual: VisualSpec | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
 
@@ -66,11 +65,10 @@ class StockElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
 
@@ -99,11 +97,10 @@ class CounterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         k: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.k = k
 
     def _get_laws(self, s):
@@ -117,12 +114,11 @@ class CellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        size: Annotated[float, StateSpec()] = 1.0,
+        volume: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.size = size
+        super().__init__(label)
+        self.volume = volume
 
     def _get_laws(self, s):
         """Return the rule of division."""
@@ -140,12 +136,11 @@ class TwoLevelElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         hilbert: HilbertSpec = PAULI,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.hilbert = hilbert
 
@@ -154,16 +149,16 @@ class TwoLevelElement(Element):
         return [GeneratorLaw(local_operator(s.psi, 'x') / 2)]
 
 
-def test_system_constructor_only_stores_its_parts():
-    """Test that a system stores its parts as given and is labelled `system` by default."""
+def test_system_constructor_only_stores_its_components():
+    """Test that a system stores its components as given and is labelled `system` by default."""
     rabbits = StockElement('rabbits')
     system = CompositeSystem(elements=[rabbits])
     assert (system.label, system.elements, system.interactions, system.systems) == ('system', [rabbits], (), ())
     assert (system.space, system.time) == (None, None)
 
 
-def test_system_checks_every_part():
-    """Test that checking a system checks its parts, which reject their invalid arguments."""
+def test_system_checks_every_component():
+    """Test that checking a system checks its components, which reject their invalid arguments."""
     with pytest.raises(ValidationError, match='label'):
         CompositeSystem(elements=[StockElement(1)]).prepare()
     with pytest.raises(ValidationError, match='Unknown schedule'):
@@ -179,7 +174,7 @@ def test_system_prepares_groups_on_its_space():
     assert nested.elements[0].size_ == 30
 
 
-def test_system_runs_into_the_laws_of_its_parts():
+def test_system_runs_into_the_laws_of_its_components():
     """Test that a prepared system runs into the laws of its elements and its interactions, each for its namespace."""
     system = CompositeSystem(
         elements=[CounterElement('clock'), StockElement('rabbits')],
@@ -204,7 +199,7 @@ def test_system_prints_its_parameters():
     assert repr(system) == "CompositeSystem(elements=[StockElement(label='rabbits')], label='meadow')"
 
 
-def test_four_part_system_runs():
+def test_four_component_system_runs():
     """Test that a system of elements, interactions, no space, and continuous time runs and lists its parameters."""
     system = CompositeSystem(
         'ecology',
@@ -348,7 +343,7 @@ class SwitchElement(Element):
         self.on = on
 
 
-def test_system_is_a_base_system_with_tags_derived_from_its_parts():
+def test_system_is_a_base_system_with_tags_derived_from_its_components():
     """Test that a system of a rate and a noise interaction is stochastic, with both law kinds."""
     noisy = RateInteraction('growth', target='stock', state='n', rate=1.0, noise=0.1)
     system = CompositeSystem(elements=[StockElement('stock')], interactions=[noisy])
@@ -363,17 +358,17 @@ def test_system_is_a_base_system_with_tags_derived_from_its_parts():
     assert tags.domains == {'real'}
 
 
-def test_system_tags_reject_parts_on_spaces_that_nothing_joins():
+def test_system_tags_reject_components_on_spaces_that_nothing_joins():
     """Test that elements on a lattice and on a network, in a system without a space, disagree on the space."""
     on_lattice = GroupElement('cells', element=StockElement, space=LatticeSpace((3,)))
     on_network = GroupElement('nodes', element=StockElement, space=NetworkSpace(nx.cycle_graph(3)))
-    with pytest.raises(TagError, match=r"The parts 'cells' and 'nodes' disagree on the tag 'space'"):
+    with pytest.raises(TagError, match=r"The components 'cells' and 'nodes' disagree on the tag 'space'"):
         CompositeSystem(elements=[on_lattice, on_network]).get_tags()
     joined = CompositeSystem(elements=[on_lattice, on_network], space=ContinuousSpace(n_dim=2)).get_tags()
     assert joined.space == {'continuous', 'lattice', 'network'}
 
 
-def test_system_tags_reject_parts_of_times_that_nothing_joins():
+def test_system_tags_reject_components_of_times_that_nothing_joins():
     """Test that a rate and a map in one system disagree on the time, unless nested systems of each time join them."""
     rate = RateInteraction('growth', target='stock', state='n', rate=1.0)
     step = MapInteraction('step', target='counter/stock', state='n', function=lambda s: s.target.n)

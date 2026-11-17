@@ -17,7 +17,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class WatchmakerView(AgentView):
@@ -41,9 +41,6 @@ class WatchmakerElement(Element):
     Args:
         label:
             The label of the watchmaker or the group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
 
         progress:
             The number of actions done on the task in hand, which an interruption undoes.
@@ -69,7 +66,6 @@ class WatchmakerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         progress: Annotated[float, StateSpec(domain=NN)] = 0.0,
         done: Annotated[float, StateSpec(domain=NN)] = 0.0,
@@ -77,7 +73,7 @@ class WatchmakerElement(Element):
         task_size: Annotated[float, StateSpec(domain=NN)] = 10.0,
         tasks: Annotated[float, StateSpec(domain=NN)] = 111.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.progress = progress
         self.done = done
         self.watches = watches
@@ -217,7 +213,7 @@ class WatchmakersSystem(BaseSystem):
         self.interruption = interruption
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the elements and interactions of the system."""
         hora_tasks = (self.parts - 1) // (self.subassembly - 1)
         group = GroupElement(
             'watchmakers',

@@ -11,8 +11,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import UPWARD, BaseVisual
 
 MAX_POINT_DIMENSIONS = 3
@@ -251,7 +251,11 @@ class PointsVisual(BaseVisual):
         for state in others:
             BaseVisual._log_scalars(recording, f'{element.path}/{state}', frame.get_value(element.states[state]))
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return a spatial view of the positions and a time series view of other states.
 
         The spatial view is chosen by the dimension of the positions.

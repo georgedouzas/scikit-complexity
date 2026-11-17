@@ -14,8 +14,9 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...components.spaces import DelaunayNeighborhood, NearestNeighborhood, RadiusNeighborhood
 from ...errors import BackendError, ValidationError
-from ...specs import EntrySpec, ReadSpec
+from ...specs import EntrySpec
 from .._utils import symbols_of
+from ..enums import ReadKind
 from ..problems import BasePrinter
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
@@ -25,11 +26,11 @@ from ..problems._metric_search import MetricSearch
 from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ..problems._output_spec import OutputSpec
 from ..problems._pair_search import PairSearch
+from ..problems._read_spec import _ReadSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._static_search import StaticSearch
-from ..types import ReadKind
 from ._base import AUTO_MEMBERS
 from ._numba_components import GIANT, LABEL, LARGEST, SIZE
 
@@ -45,9 +46,9 @@ COMPONENT_KINDS = {
 class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, list[LawKernel], bool]]]):
     """A printer that writes the kernels and reductions of a problem as Numba source.
 
-    `prepare(reductions)` starts an empty source and prints the function that fuses the reductions, or none for
-    `None`, and `run(parts)` prints the kernels of every law kind into the source lines of `code_`. A part is the label
-    of the entry function, its mode, `'add'`, `'assign'`, or `'concatenate'`, the kernels, and whether they read the
+    `prepare(reductions)` starts an empty source and prints the function that fuses the reductions, or none for `None`,
+    and `run(blocks)` prints the kernels of every law kind into the source lines of `code_`. A block is the label of the
+    entry function, its mode, `'add'`, `'assign'`, or `'concatenate'`, the kernels, and whether they read the
     reductions. After a run, `functions_` holds the compiled functions the source calls by name, and `layout(entries)`
     returns the array of the starts and rows of the entries it reads.
 
@@ -92,17 +93,17 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             self._reduce_function(context, self.parallel)
 
     def _run(self, inputs: Sequence[tuple[str, str, list[LawKernel], bool]] | None) -> None:
-        """Print the kernels of every part into the source lines.
+        """Print the kernels of every block into the source lines.
 
-        Each part comes with its entry function.
+        Each block comes with its entry function.
 
         Args:
             inputs:
-                The parts: the label of the entry function, its mode, the kernels, and whether they read reductions.
+                The blocks: the label of the entry function, its mode, the kernels, and whether they read reductions.
 
         Raises:
             ValidationError:
-                No parts are passed.
+                No blocks are passed.
         """
         if inputs is None:
             error_msg = 'The Numba printer runs on the parts of a problem. Pass them to `run`.'
@@ -772,7 +773,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         lines.append(f'{INDENT}return out')
         self.code_ += ['', '', *lines]
 
-    def _get_reduction_read(self, name: str, read: ReadSpec, index: int) -> str:
+    def _get_reduction_read(self, name: str, read: _ReadSpec, index: int) -> str:
         """Return the line that reads one symbol of a reduction.
 
         It reads it for the member `_m_`, or once for a shared value.
@@ -823,7 +824,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
     def _get_shaped_weights_lines(
         self,
         reduction: ReductionKernel,
-        weights: ReadSpec,
+        weights: _ReadSpec,
         index: int,
         count: str,
     ) -> list[str]:
@@ -881,7 +882,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         lines += [f'{INDENT}{acc} = 0.0', f'{INDENT}{cnt} = 0.0']
         sums = [f'{acc} += _a_ if _c_ else 0.0', f'{cnt} += 1.0 if _c_ else 0.0']
         mean = f'({acc} / {cnt} if {cnt} > 0.0 else 0.0)'
-        if isinstance(reduction.weights, ReadSpec):
+        if isinstance(reduction.weights, _ReadSpec):
             return lines + self._get_shaped_weights_lines(reduction, reduction.weights, index, sums[1])
         if reduction.weights is not None:
             weights = scipy.sparse.csr_array(reduction.weights)

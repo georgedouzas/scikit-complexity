@@ -7,18 +7,18 @@ from dataclasses import replace
 
 from sage.all__sagemath_symbolics import Expression
 
-from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import BaseLaw, BoundaryLaw, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.laws.utils._draws import draws_in
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.spaces import DiscreteTime
 from ....errors import IncompatibleLawsError, RoleError
-from ....specs._matrix_law_spec import RANDOM_FIELDS
 from ..._utils import components_of
+from ...enums import ReadKind
 from ...problems._kernel_spec import KernelSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from .._draw_lowering import DrawLowering
+from .._matrix_law_spec import RANDOM_FIELDS
 from .._renewal_law import RenewalLaw
 
 
@@ -155,7 +155,7 @@ class RowsPass(BasePass):
         for law in laws:
             if not isinstance(
                 law,
-                RateLaw | NoiseLaw | BoundaryLaw | UpdateLaw | JumpLaw | EquationLaw | CrossingLaw | RenewalLaw,
+                RateLaw | NoiseLaw | BoundaryLaw | UpdateLaw | JumpLaw | ConstraintLaw | EventLaw | RenewalLaw,
             ):
                 continue
             values = [value for value in law._get_values(include=RANDOM_FIELDS) if DrawLowering._is_symbolic(value)]

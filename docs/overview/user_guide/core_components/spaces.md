@@ -2,10 +2,10 @@
 
 A space places the members of a group and says who neighbours whom. A neighbourhood picks, around one member, the
 members that a law reads. A time says whether the states flow, step, or are solved once. Elements hold the states,
-interactions return the laws that change them, and a system composes all of these parts into one model.
-[How the parts fit](index.md) shows the families together, and the [spaces parts page](../../../parts/spaces.md)
-compares every class of this page and holds its fact sheet. All of them live in `skcomplex.core.components.spaces`.
-The page takes the spaces first, then the neighbourhoods, then the times, and each family ends with its base class.
+interactions return the laws that change them, and a system composes all of these components into one model. [How the
+components fit](index.md) shows the families together, and the [spaces page](../../../components/spaces.md)
+compares every class of this page and holds its fact sheet. All of them live in `skcomplex.core.components.spaces`. The
+page takes the spaces first, then the neighbourhoods, then the times, and each family ends with its base class.
 
 ## LatticeSpace
 
@@ -36,12 +36,12 @@ live when exactly one of its two neighbours is live, and a single live cell grow
 
 ```python continuation
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime
-from skcomplex.core.specs import TotalisticSpec
+from skcomplex.core.components.spaces import DiscreteTime, LatticeNeighborhood, RadiusNeighborhood
+from skcomplex.core.components.laws import TotalisticSpec
 
 start = {'variables': {'c': DeclaredVariableSpec(0.0, StateSpec())}, 'c': [0, 0, 0, 1, 0, 0, 0]}
 cells = GroupElement('cells', element=DeclaredElement, space=LatticeSpace(7), on='sites', values=start)
-pair = BallNeighborhood(metric='manhattan', n_dim=1)
+pair = RadiusNeighborhood(1, metric='manhattan')
 rule = LocalRuleInteraction('rule', target='cells', state='c', rule=TotalisticSpec({1: 1}), neighborhood=pair)
 automaton = CompositeSystem(elements=[cells], interactions=[rule], time=DiscreteTime())
 simulate(automaton, until=2).get_values('cells.c').astype(int).tolist()
@@ -62,13 +62,13 @@ grid.size_, grid.shape_, grid.positions_[:3].tolist()
 The grid has 6 sites in the shape `(2, 3)`, and the first row sits at `(0, 0)`, `(0, 1)`, and `(0, 2)`.
 
 **How it combines.** A `GroupElement` with `on='sites'` holds one member per site, and a `FieldElement` adds the
-operators of space, such as the Laplacian. `LocalRuleInteraction` reads a `BallNeighborhood` or a
+operators of space, such as the Laplacian. `LocalRuleInteraction` reads a `RadiusNeighborhood` or a
 `LatticeNeighborhood` around each site, and `CouplingInteraction` and `SamplingInteraction` read the nearest
-neighbours. `CellComplexSpace`, `PhaseSpace`, and `SimplexSpace` build on a lattice.
+neighbours. `CellComplexSpace` and `PhaseSpace` build on a lattice.
 
 **Limits and errors.** Every site has the same pattern of neighbours, so an irregular pattern of links needs a
-`NetworkSpace`, and an irregular domain needs a `MeshSpace`. The boundary is one of three names, and `prepare` raises a
-`ValidationError` for any other.
+`NetworkSpace`, and an irregular domain needs a `CellComplexSpace` of the points and cells of a mesh. The boundary is
+one of three names, and `prepare` raises a `ValidationError` for any other.
 
 ```python continuation
 from skcomplex.core.errors import ValidationError
@@ -95,7 +95,7 @@ class ForestSpace(LatticeSpace):
 ForestSpace(4, 5).prepare().size_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#latticespace)
+See its [fact sheet](../../../components/spaces.md#latticespace)
 and its [API entry][skcomplex.core.components.spaces.LatticeSpace].
 
 ## NetworkSpace
@@ -160,7 +160,7 @@ nodes.
 
 ```python continuation
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import LayerSpec
+from skcomplex.core.components.spaces import LayerSpec
 
 try:
     NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.path_graph(4))]).prepare()
@@ -184,7 +184,7 @@ class ContactNetworkSpace(NetworkSpace):
 ContactNetworkSpace(people=20, density=0.2).prepare().size_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#networkspace)
+See its [fact sheet](../../../components/spaces.md#networkspace)
 and its [API entry][skcomplex.core.components.spaces.NetworkSpace].
 
 ## ContinuousSpace
@@ -266,14 +266,14 @@ class PeriodicBoxSpace(ContinuousSpace):
 PeriodicBoxSpace(5.0).prepare().extent_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#continuousspace)
+See its [fact sheet](../../../components/spaces.md#continuousspace)
 and its [API entry][skcomplex.core.components.spaces.ContinuousSpace].
 
 ## CellComplexSpace
 
-A `CellComplexSpace` adds the links between the sites of a lattice or a network and the faces that the links bound,
-each with an orientation. Cells of degree 0 are sites, of degree 1 links, and of degree 2 faces. In a lattice gauge
-theory of physics the states live on the links of a lattice.
+A `CellComplexSpace` adds the links between the sites of a lattice, a network, or a mesh and the faces that the links
+bound, each with an orientation. Cells of degree 0 are sites, of degree 1 links, and of degree 2 faces. In a lattice
+gauge theory of physics the states live on the links of a lattice.
 
 ```python
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
@@ -301,18 +301,84 @@ CellComplexSpace(NetworkSpace(ring)).prepare().hyperedges_
 
 Without given faces, the space takes a minimum cycle basis, here the triangles `(0, 1, 2)` and `(0, 2, 3)`.
 
+A mesh of triangles or tetrahedra is a cell complex too, built from the points and cells of a scikit-fem mesh. Its
+nodes hold the members of a field, its edges are the sides of the cells, and its faces their triangles. Here heat
+leaves an L-shaped machine part whose walls are held at zero.
+
+```python continuation
+from typing import Annotated
+
+import skfem
+
+from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import laplacian
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.specs import ParameterSpec, StateSpec
+
+
+class DiffusionElement(Element):
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label,
+        *,
+        u: Annotated[float, StateSpec()] = 0.0,
+        D: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        super().__init__(label)
+        self.u = u
+        self.D = D
+
+    def _get_laws(self, namespace):
+        return [RateLaw(namespace.u, namespace.D * laplacian(namespace.u))]
+
+
+shape = skfem.MeshTri.init_lshaped().refined(1)
+walls = {'u': ('fixed', 0.0)}
+bracket = FieldElement(
+    'bracket',
+    element=DiffusionElement,
+    space=CellComplexSpace(points=shape.p, cells=shape.t),
+    values={'u': 1.0},
+    boundary=walls,
+    discretization='finite-element',
+)
+simulate(CompositeSystem(elements=[bracket]), until=1, dt=0.5).get_values('bracket.u').max(axis=1).round(3).tolist()
+```
+
+The hottest node falls from 1 to 0.013 after half a time unit, and after one unit it rounds to 0.
+
+In hydrology the same class holds a block of an aquifer cut into tetrahedra, through which groundwater seeps.
+
+```python continuation
+import numpy as np
+
+block = skfem.MeshTet.init_tensor(*[np.linspace(0.0, 1.0, 3)] * 3)
+aquifer = CellComplexSpace(points=block.p, cells=block.t).prepare()
+aquifer.size_, aquifer.n_dim_
+```
+
+The block has 27 nodes in three dimensions.
+
 **How the engine runs it.** The space is a network whose edges are the oriented links and whose hyperedges are the
 oriented faces. The law utilities `exterior_derivative`, `codifferential`, and `hodge_star` read its incidence
 matrices and its Hodge stars, the ratios of dual to primal cell volumes, so the laws of discrete exterior calculus
-compile to sparse products.
+compile to sparse products. A field on a mesh takes the finite-element discretization. Its stiffness and mass
+matrices come from scikit-fem, so `laplacian(u)` becomes a sparse product, and the boundary values hold at the nodes
+of `boundary_nodes_`.
 
 **How it combines.** A `GroupElement` or a `FieldElement` with `on='edges'` holds a state per link, and one with
 `on='hyperedges'` a state per face. A `CofaceNeighborhood` reads the faces around each link, and
-`SamplingInteraction` samples the links of a gauge field.
+`SamplingInteraction` samples the links of a gauge field. A `FieldElement` with `discretization='finite-element'`
+holds a field on the nodes of a mesh, with the same laws as on a lattice.
 
-**Limits and errors.** It derives from a square lattice or a network, and it has no layers. Cells of degree 3 take
-part in incidence only, since a group lives on sites, edges, or hyperedges. A triangular lattice raises a
-`SpaceError` in `prepare`.
+**Limits and errors.** It takes exactly one source, a square lattice, a network, or the points and cells of a mesh,
+and it has no layers. Cells of degree 3 take part in incidence only, since a group lives on sites, edges, or
+hyperedges. A mesh does not change during a run, and a field on it needs the finite-element discretization. A
+triangular lattice raises a `SpaceError` in `prepare`.
 
 ```python continuation
 from skcomplex.core.errors import SpaceError
@@ -339,7 +405,19 @@ class GaugeLatticeSpace(CellComplexSpace):
 len(GaugeLatticeSpace(4).prepare().hyperedges_)
 ```
 
-See its [fact sheet](../../../parts/spaces.md#cellcomplexspace)
+Another builds the mesh of its domain, such as an L-shaped plate refined a given number of times.
+
+```python continuation
+class PlateSpace(CellComplexSpace):
+    def __init__(self, refinements=2, *, label='plate'):
+        plate = skfem.MeshTri.init_lshaped().refined(refinements)
+        super().__init__(points=plate.p, cells=plate.t, label=label)
+
+
+PlateSpace(1).prepare().size_
+```
+
+See its [fact sheet](../../../components/spaces.md#cellcomplexspace)
 and its [API entry][skcomplex.core.components.spaces.CellComplexSpace].
 
 ## PhaseSpace
@@ -350,7 +428,7 @@ position and the velocity of the molecules.
 
 ```python
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.specs import AxisSpec
+from skcomplex.core.components.spaces import AxisSpec
 
 gas = PhaseSpace(LatticeSpace((16,), spacing=0.5), [AxisSpec('v', 32, -4.0, 4.0)]).prepare()
 gas.size_, gas.shape_, gas.coordinates_['v'][:2].round(3).tolist()
@@ -377,8 +455,9 @@ The 80 sites have a periodic position axis, from the ring of the lattice, and a 
 for streaming. Moments such as the density at each position, `moment(u, 0, axes=('v',))`, reduce over the class axes.
 
 **How it combines.** The usual partners are a `FieldElement` with the finite-volume discretization, a
-`ConservationInteraction` for streaming and forces, and a `RateInteraction` for collisions. `SimplexSpace` is a phase
-space whose class axes are frequencies.
+`ConservationInteraction` for streaming and forces, and a `RateInteraction` for collisions. A phase space whose class
+axes are frequencies that sum to at most one, as in `TrimorphicMultilevelSelectionSystem` of
+`skcomplex.systems.social.cooperation`, cuts the cells along its slanted face.
 
 **Limits and errors.** The number of sites is the product of the sizes of all axes, so it grows fast. The argument
 `limit` guards memory, and `prepare` raises a `PhaseSpaceTooLargeError` above it.
@@ -408,179 +487,8 @@ class VelocitySpace(PhaseSpace):
 VelocitySpace(8, 16).prepare().shape_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#phasespace)
+See its [fact sheet](../../../components/spaces.md#phasespace)
 and its [API entry][skcomplex.core.components.spaces.PhaseSpace].
-
-## SimplexSpace
-
-A `SimplexSpace` is a phase space whose class axes are frequencies that are nonnegative and sum to at most one. The
-last frequency is one minus the others, so two axes hold the shares of three types. In evolutionary game theory a
-population is spread over the shares of three strategies.
-
-```python
-from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
-from skcomplex.core.specs import AxisSpec
-
-shares = [AxisSpec('rock', 4, 0.0, 1.0), AxisSpec('paper', 4, 0.0, 1.0)]
-strategies = SimplexSpace(LatticeSpace((1,)), shares).prepare()
-strategies.volumes_[0].tolist()
-```
-
-Each entry is the fraction of a cell inside the simplex. Cells below the slanted face are whole, cells along it are
-cut in half, and cells beyond it are empty.
-
-In population genetics the frequencies of three alleles of one gene, two of them free, fill the same triangle. With
-three free frequencies the simplex is a tetrahedron of four alleles.
-
-```python continuation
-alleles = [AxisSpec(name, 4, 0.0, 1.0) for name in ('a', 'b', 'c')]
-tetrahedron = SimplexSpace(LatticeSpace((1,)), alleles).prepare()
-tetrahedron.shape_, round(float(tetrahedron.volumes_.sum()), 3)
-```
-
-The 64 cells hold a volume of 10.667 cells, one sixth of the cube, which is the volume of the tetrahedron.
-
-**How the engine runs it.** Finite-volume fluxes pass only through the open part of each face, given by `apertures_`,
-and change a cell by its volume, so the total is conserved and no density enters the empty cells. Moments and other
-reductions over the class axes weight each cell by its volume.
-
-**How it combines.** A `FieldElement` with the finite-volume discretization holds the density, and a
-`ConservationInteraction` moves it over the frequencies, as replicator dynamics do.
-
-**Limits and errors.** Local operators such as `laplacian` do not apply on a simplex. The class axes run over `[0, 1]`
-with the same number of cells, and `prepare` raises a `ValidationError` otherwise.
-
-```python continuation
-from skcomplex.core.errors import ValidationError
-
-try:
-    SimplexSpace(LatticeSpace((1,)), [AxisSpec('x', 4, 0.0, 1.0), AxisSpec('y', 5, 0.0, 1.0)]).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message says that the class axes of a simplex space are intervals on `[0, 1]` with the same number of cells, and
-lists the axes it was given. The fix is 4 cells, or 5, on both axes.
-
-**A field realization.** A field names the frequencies, such as the shares of the three strategies of a game at one
-place.
-
-```python continuation
-class StrategySpace(SimplexSpace):
-    def __init__(self, cells=20, *, label='strategies'):
-        axes = [AxisSpec('rock', cells, 0.0, 1.0), AxisSpec('paper', cells, 0.0, 1.0)]
-        super().__init__(LatticeSpace((1,)), axes, label=label)
-
-
-StrategySpace(10).prepare().shape_
-```
-
-See its [fact sheet](../../../parts/spaces.md#simplexspace)
-and its [API entry][skcomplex.core.components.spaces.SimplexSpace].
-
-## MeshSpace
-
-A `MeshSpace` is an unstructured mesh of triangles or tetrahedra, built with scikit-fem, whose nodes hold the members
-of a field. Here heat leaves an L-shaped machine part whose walls are held at zero.
-
-```python
-from typing import Annotated
-
-import skfem
-
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import laplacian
-from skcomplex.core.components.spaces import MeshSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-
-
-class DiffusionElement(Element):
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label,
-        visual=None,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.D = D
-
-    def _get_laws(self, namespace):
-        return [RateLaw(namespace.u, namespace.D * laplacian(namespace.u))]
-
-
-shape = skfem.MeshTri.init_lshaped().refined(1)
-walls = {'u': ('fixed', 0.0)}
-part = FieldElement(
-    'part', element=DiffusionElement, space=MeshSpace(shape.p, shape.t), values={'u': 1.0}, boundary=walls,
-    discretization='finite-element',
-)
-simulate(CompositeSystem(elements=[part]), until=1, dt=0.5).get_values('part.u').max(axis=1).round(3).tolist()
-```
-
-The hottest node falls from 1 to 0.013 after half a time unit, and after one unit it rounds to 0.
-
-In hydrology the same class holds a block of an aquifer cut into tetrahedra, through which groundwater seeps.
-
-```python continuation
-import numpy as np
-
-block = skfem.MeshTet.init_tensor(*[np.linspace(0.0, 1.0, 3)] * 3)
-aquifer = MeshSpace(block.p, block.t).prepare()
-aquifer.size_, aquifer.n_dim_
-```
-
-The block has 27 nodes in three dimensions.
-
-**How the engine runs it.** The field takes the finite-element discretization. Its stiffness and mass matrices come
-from scikit-fem, so `laplacian(u)` becomes a sparse product, and the boundary values hold at the nodes of
-`boundary_nodes_`. The implicit methods of `ScipyODESolver` integrate the stiff system.
-
-**How it combines.** A `FieldElement` with `discretization='finite-element'` is its usual partner, and the laws are
-the same as on a lattice.
-
-**Limits and errors.** Only fields live on a mesh, and the mesh does not change during a run. A boundary condition
-is a name or a pair `('fixed', value)`, and the field raises a `ValidationError` in `prepare` for a bare number.
-
-```python continuation
-from skcomplex.core.errors import ValidationError
-
-try:
-    FieldElement(
-        'part', element=DiffusionElement, space=MeshSpace(shape.p, shape.t), boundary={'u': 0.0},
-        discretization='finite-element',
-    ).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message reads "Unknown boundary '0.0' of part.u. Use 'periodic', 'zero-flux', or ('fixed', value)." The fix is
-`('fixed', 0.0)`.
-
-**A field realization.** A field builds the mesh of its domain, such as an L-shaped plate refined a given number of
-times.
-
-```python continuation
-class PlateSpace(MeshSpace):
-    def __init__(self, refinements=2, *, label='plate'):
-        plate = skfem.MeshTri.init_lshaped().refined(refinements)
-        super().__init__(plate.p, plate.t, label=label)
-
-
-PlateSpace(1).prepare().size_
-```
-
-See its [fact sheet](../../../parts/spaces.md#meshspace)
-and its [API entry][skcomplex.core.components.spaces.MeshSpace].
 
 ## CayleySpace
 
@@ -648,7 +556,7 @@ class FreeGroupSpace(CayleySpace):
 FreeGroupSpace(rank=2, ball=1).prepare().size_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#cayleyspace)
+See its [fact sheet](../../../components/spaces.md#cayleyspace)
 and its [API entry][skcomplex.core.components.spaces.CayleySpace].
 
 ## BaseSpace
@@ -663,109 +571,8 @@ from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, Lattice
 issubclass(LatticeSpace, BaseSpace), issubclass(ContinuousSpace, BaseSpace)
 ```
 
-See its [fact sheet](../../../parts/spaces.md#basespace)
+See its [fact sheet](../../../components/spaces.md#basespace)
 and its [API entry][skcomplex.core.components.spaces.BaseSpace].
-
-## BallNeighborhood
-
-A `BallNeighborhood` takes the lattice offsets within a radius under a metric. The Manhattan metric of radius 1 gives
-the four sites of the von Neumann neighbourhood, and the Chebyshev metric the eight of the Moore neighbourhood. In a
-sandpile a site with four grains or more topples, sends one grain to each of its four neighbours, and grains that
-leave the grid are lost.
-
-```python
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
-
-
-def topple(height, *neighbours):
-    return height - 4 * (height >= 4) + sum(neighbour >= 4 for neighbour in neighbours)
-
-
-grains = {'variables': {'h': DeclaredVariableSpec(0.0, StateSpec())}, 'h': [0, 0, 0, 0, 4, 0, 0, 0, 0]}
-board = LatticeSpace((3, 3), boundary='fixed')
-pile = GroupElement('pile', element=DeclaredElement, space=board, on='sites', values=grains)
-cross = BallNeighborhood(metric='manhattan', center='first')
-toppling = LocalRuleInteraction('toppling', target='pile', state='h', rule=topple, neighborhood=cross)
-sandpile = CompositeSystem(elements=[pile], interactions=[toppling], time=DiscreteTime())
-simulate(sandpile, until=1).get_values('pile.h')[-1].reshape(3, 3).tolist()
-```
-
-With `center='first'` the rule receives the site itself before its four neighbours. The centre topples, and each of
-its four neighbours gains one grain.
-
-In a model of opinions each person reads the eight people around them on a grid, as in the voter model. Under a
-majority rule a person takes the opinion of more than half of them, and keeps their own on a tie.
-
-```python continuation
-import numpy as np
-
-
-def majority(opinion, *neighbours):
-    votes = sum(neighbours)
-    return np.where(votes > 4, 1.0, np.where(votes < 4, 0.0, opinion))
-
-
-camps = [1, 1, 0, 0] * 4
-camps[5] = 0
-voters = {'variables': {'o': DeclaredVariableSpec(0.0, StateSpec())}, 'o': camps}
-people = GroupElement('people', element=DeclaredElement, space=LatticeSpace((4, 4)), on='sites', values=voters)
-moore = BallNeighborhood(center='first')
-vote = LocalRuleInteraction('vote', target='people', state='o', rule=majority, neighborhood=moore)
-opinions = simulate(CompositeSystem(elements=[people], interactions=[vote], time=DiscreteTime()), until=1)
-opinions.get_values('people.o')[-1].reshape(4, 4).astype(int).tolist()
-```
-
-The person at site 5, alone in their camp, joins the camp of the left half after one step.
-
-**How the engine runs it.** `prepare` lists the offsets in `offsets_`, in lexicographic order for the Manhattan and
-Chebyshev metrics and ring by ring for the hexagonal one. The space turns them into a table of the neighbour of every
-site in every slot, and the rule receives the values in that order.
-
-```python continuation
-cross.prepare().offsets_
-```
-
-The site comes first, at `(0, 0)`, and its four neighbours follow in lexicographic order.
-
-**How it combines.** It is the neighbourhood of `LocalRuleInteraction`, of `SamplingInteraction`, and of the
-`neighbors` reduction on a `LatticeSpace`. Its offsets have the dimension of the lattice.
-
-**Limits and errors.** A ball is symmetric, so a neighbourhood of one direction needs a `LatticeNeighborhood`. Its
-`n_dim` must match the lattice, and the run raises a `ValidationError` when it does not.
-
-```python continuation
-from skcomplex.core.errors import ValidationError
-
-line = GroupElement('line', element=DeclaredElement, space=LatticeSpace(5), on='sites', values=grains | {'h': 0.0})
-toppling = LocalRuleInteraction('toppling', target='line', state='h', rule=topple, neighborhood=BallNeighborhood())
-try:
-    simulate(CompositeSystem(elements=[line], interactions=[toppling], time=DiscreteTime()), until=1)
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message says that the neighbourhood has offsets of dimension 2, but the lattice has 1 dimension. The fix is
-`BallNeighborhood(n_dim=1)`.
-
-**A field realization.** A field names the ball it reads, such as the von Neumann neighbourhood of a sandpile.
-
-```python continuation
-class VonNeumannNeighborhood(BallNeighborhood):
-    def __init__(self, *, label='von_neumann'):
-        super().__init__(1, metric='manhattan', label=label)
-
-
-len(VonNeumannNeighborhood().prepare().offsets_)
-```
-
-See its [fact sheet](../../../parts/spaces.md#ballneighborhood)
-and its [API entry][skcomplex.core.components.spaces.BallNeighborhood].
 
 ## LatticeNeighborhood
 
@@ -809,8 +616,8 @@ The pulse of two cells moves one cell to the right at each step.
 table of the neighbour of every site at every offset, following its boundary, and the rule receives one array per
 offset.
 
-**How it combines.** It fills the same places as `BallNeighborhood`: `LocalRuleInteraction`, `SamplingInteraction`,
-and the `neighbors` reduction on a `LatticeSpace`.
+**How it combines.** It fills the same places as `RadiusNeighborhood` on a lattice: `LocalRuleInteraction`,
+`SamplingInteraction`, and the `neighbors` reduction on a `LatticeSpace`.
 
 **Limits and errors.** Every offset has the number of dimensions of the lattice, and `prepare` raises a
 `ValidationError` for offsets of different lengths.
@@ -839,7 +646,7 @@ class UpwindNeighborhood(LatticeNeighborhood):
 UpwindNeighborhood().prepare().offsets_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#latticeneighborhood)
+See its [fact sheet](../../../components/spaces.md#latticeneighborhood)
 and its [API entry][skcomplex.core.components.spaces.LatticeNeighborhood].
 
 ## AdjacencyNeighborhood
@@ -879,7 +686,7 @@ At work the same people have other contacts. A `LayerSpec` adds the network of c
 the neighbourhood reads it by its label.
 
 ```python continuation
-from skcomplex.core.specs import LayerSpec
+from skcomplex.core.components.spaces import LayerSpec
 
 office = nx.empty_graph(5)
 office.add_edges_from([(0, 4), (4, 3)])
@@ -917,7 +724,7 @@ message
 ```
 
 The message says that a lattice reads a lattice neighbourhood of offsets, but was given an `AdjacencyNeighborhood`.
-The fix is a `BallNeighborhood` on a lattice, or a `NetworkSpace` for the adjacency.
+The fix is a `RadiusNeighborhood` on a lattice, or a `NetworkSpace` for the adjacency.
 
 **A field realization.** A field names the layer it reads, such as the household of each person in an epidemic.
 
@@ -930,7 +737,7 @@ class HouseholdNeighborhood(AdjacencyNeighborhood):
 HouseholdNeighborhood().layer
 ```
 
-See its [fact sheet](../../../parts/spaces.md#adjacencyneighborhood)
+See its [fact sheet](../../../components/spaces.md#adjacencyneighborhood)
 and its [API entry][skcomplex.core.components.spaces.AdjacencyNeighborhood].
 
 ## CofaceNeighborhood
@@ -1021,14 +828,14 @@ class PlaquetteNeighborhood(CofaceNeighborhood):
 PlaquetteNeighborhood().prepare().label
 ```
 
-See its [fact sheet](../../../parts/spaces.md#cofaceneighborhood)
+See its [fact sheet](../../../components/spaces.md#cofaceneighborhood)
 and its [API entry][skcomplex.core.components.spaces.CofaceNeighborhood].
 
 ## RadiusNeighborhood
 
-A `RadiusNeighborhood` takes the members of a continuous space within a distance of each member, so the number of
-neighbours varies. In the Vicsek model birds align with the flockmates they see within a range. Here each bird counts
-the birds within one unit.
+A `RadiusNeighborhood` takes the members within a distance of each member under a metric. In a continuous space they are
+the members whose positions lie within the radius, so the number of neighbours varies. In the Vicsek model birds align
+with the flockmates they see within a range. Here each bird counts the birds within one unit.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement, GroupElement
@@ -1069,12 +876,74 @@ simulate(system, until=1).get_values('flock.seen')[-1].tolist()
 
 The first atom now reaches three others, the atom at `x = 9.8` among them, and that atom reaches the first.
 
-**How the engine runs it.** At every evaluation the engine finds the pairs of members within the radius from their
-current position states, so the neighbours follow the members as they move. An `angle` below `pi` keeps only the
-neighbours inside a cone around the direction of each member, a field of view.
+On a lattice it takes the offsets within the radius under the metric, in as many dimensions as the lattice has. The
+Manhattan metric of radius 1 gives the four sites of the von Neumann neighbourhood, and the Chebyshev metric the eight
+of the Moore neighbourhood. In a sandpile a site with four grains or more topples, sends one grain to each of its four
+neighbours, and grains that leave the grid are lost.
 
-**How it combines.** It is the neighbourhood of `CouplingInteraction`, of the `neighbors` reduction, and of the
-hyperedges of a continuous space. Its partners are groups with a vector position state on a `ContinuousSpace`.
+```python
+from skcomplex.core.components.elements import DeclaredElement, GroupElement
+from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.core.components.spaces import DiscreteTime, LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+
+
+def topple(height, *neighbours):
+    return height - 4 * (height >= 4) + sum(neighbour >= 4 for neighbour in neighbours)
+
+
+grains = {'variables': {'h': DeclaredVariableSpec(0.0, StateSpec())}, 'h': [0, 0, 0, 0, 4, 0, 0, 0, 0]}
+board = LatticeSpace((3, 3), boundary='fixed')
+pile = GroupElement('pile', element=DeclaredElement, space=board, on='sites', values=grains)
+cross = RadiusNeighborhood(1, metric='manhattan', center=True)
+toppling = LocalRuleInteraction('toppling', target='pile', state='h', rule=topple, neighborhood=cross)
+sandpile = CompositeSystem(elements=[pile], interactions=[toppling], time=DiscreteTime())
+simulate(sandpile, until=1).get_values('pile.h')[-1].reshape(3, 3).tolist()
+```
+
+With `center=True` the rule receives the site itself before its four neighbours. The centre topples, and each of
+its four neighbours gains one grain.
+
+In a model of opinions each person reads the eight people around them on a grid, as in the voter model. Under a
+majority rule a person takes the opinion of more than half of them, and keeps their own on a tie.
+
+```python continuation
+import numpy as np
+
+
+def majority(opinion, *neighbours):
+    votes = sum(neighbours)
+    return np.where(votes > 4, 1.0, np.where(votes < 4, 0.0, opinion))
+
+
+camps = [1, 1, 0, 0] * 4
+camps[5] = 0
+voters = {'variables': {'o': DeclaredVariableSpec(0.0, StateSpec())}, 'o': camps}
+people = GroupElement('people', element=DeclaredElement, space=LatticeSpace((4, 4)), on='sites', values=voters)
+moore = RadiusNeighborhood(1, metric='chebyshev', center=True)
+vote = LocalRuleInteraction('vote', target='people', state='o', rule=majority, neighborhood=moore)
+opinions = simulate(CompositeSystem(elements=[people], interactions=[vote], time=DiscreteTime()), until=1)
+opinions.get_values('people.o')[-1].reshape(4, 4).astype(int).tolist()
+```
+
+The person at site 5, alone in their camp, joins the camp of the left half after one step.
+
+
+**How the engine runs it.** In a continuous space, at every evaluation the engine finds the pairs of members within the
+radius from their current position states, so the neighbours follow the members as they move. An `angle` below `pi`
+keeps only the neighbours inside a cone around the direction of each member, a field of view. On a lattice the engine
+asks for the offsets in the dimensions of the lattice, in lexicographic order for the Euclidean, Manhattan, and
+Chebyshev metrics and ring by ring for the hexagonal one, with the site first when `center` is set. The lattice turns
+them into a table of the neighbour of every site in every slot, and a rule receives the values in that order. The
+sandpile rule above receives the site first, at `(0, 0)`, and its four neighbours in lexicographic order.
+
+**How it combines.** It is the neighbourhood of `CouplingInteraction`, of `LocalRuleInteraction`, of
+`SamplingInteraction`, of the `neighbors` reduction, and of the hyperedges of a continuous space. Its partners are
+groups with a vector position state on a `ContinuousSpace`, or groups on the sites of a `LatticeSpace`. A neighbourhood
+of one direction, or of an order of its own, such as a cell and its two neighbours from left to right, needs a
+`LatticeNeighborhood`.
 
 **Limits and errors.** The radius is positive, and `prepare` raises a `ValidationError` otherwise.
 
@@ -1106,7 +975,7 @@ round(SightNeighborhood().angle, 3)
 
 The half-angle is 2.356, three quarters of `pi`, so the bird sees all but a cone behind it.
 
-See its [fact sheet](../../../parts/spaces.md#radiusneighborhood)
+See its [fact sheet](../../../components/spaces.md#radiusneighborhood)
 and its [API entry][skcomplex.core.components.spaces.RadiusNeighborhood].
 
 ## NearestNeighborhood
@@ -1190,7 +1059,7 @@ class StarlingNeighborhood(NearestNeighborhood):
 StarlingNeighborhood().k
 ```
 
-See its [fact sheet](../../../parts/spaces.md#nearestneighborhood)
+See its [fact sheet](../../../components/spaces.md#nearestneighborhood)
 and its [API entry][skcomplex.core.components.spaces.NearestNeighborhood].
 
 ## DelaunayNeighborhood
@@ -1277,7 +1146,7 @@ class ContactNeighborhood(DelaunayNeighborhood):
 ContactNeighborhood().prepare().label
 ```
 
-See its [fact sheet](../../../parts/spaces.md#delaunayneighborhood)
+See its [fact sheet](../../../components/spaces.md#delaunayneighborhood)
 and its [API entry][skcomplex.core.components.spaces.DelaunayNeighborhood].
 
 ## MemoryNeighborhood
@@ -1313,7 +1182,7 @@ through a network without loops.
 ```python continuation
 from sage.all__sagemath_gap import libgap
 
-from skcomplex.core.specs import TotalisticSpec
+from skcomplex.core.components.laws import TotalisticSpec
 
 tree = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
 seed = {'variables': {'c': DeclaredVariableSpec(0.0, StateSpec())}, 'c': [1] + [0] * 16}
@@ -1363,7 +1232,7 @@ class TreeNeighborhood(MemoryNeighborhood):
 TreeNeighborhood().prepare().elements_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#memoryneighborhood)
+See its [fact sheet](../../../components/spaces.md#memoryneighborhood)
 and its [API entry][skcomplex.core.components.spaces.MemoryNeighborhood].
 
 ## StateTranslationNeighborhood
@@ -1446,7 +1315,7 @@ class ShiftedTranslationNeighborhood(StateTranslationNeighborhood):
 ShiftedTranslationNeighborhood().prepare().elements_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#statetranslationneighborhood)
+See its [fact sheet](../../../components/spaces.md#statetranslationneighborhood)
 and its [API entry][skcomplex.core.components.spaces.StateTranslationNeighborhood].
 
 ## BaseNeighborhood
@@ -1455,12 +1324,12 @@ and its [API entry][skcomplex.core.components.spaces.StateTranslationNeighborhoo
 from it, and the space that reads it decides which kinds it accepts.
 
 ```python
-from skcomplex.core.components.spaces import BallNeighborhood, BaseNeighborhood, RadiusNeighborhood
+from skcomplex.core.components.spaces import BaseNeighborhood, LatticeNeighborhood, RadiusNeighborhood
 
-issubclass(BallNeighborhood, BaseNeighborhood), issubclass(RadiusNeighborhood, BaseNeighborhood)
+issubclass(LatticeNeighborhood, BaseNeighborhood), issubclass(RadiusNeighborhood, BaseNeighborhood)
 ```
 
-See its [fact sheet](../../../parts/spaces.md#baseneighborhood)
+See its [fact sheet](../../../components/spaces.md#baseneighborhood)
 and its [API entry][skcomplex.core.components.spaces.BaseNeighborhood].
 
 ## ContinuousTime
@@ -1502,7 +1371,7 @@ On this path the price is 108.3 after half a year and 126.2 after a year.
 laws between them. Rate laws alone go to `ScipyODESolver`, rates with noise to `EulerMaruyamaSolver`, and jumps to
 `GillespieSolver`.
 
-**How it combines.** A system without a time takes the time its parts agree on, so a system of rate laws runs in
+**How it combines.** A system without a time takes the time its components agree on, so a system of rate laws runs in
 continuous time without naming it. Its laws come from `RateInteraction`, `JumpInteraction`, `CrossingInteraction`, and
 elements with rate laws of their own.
 
@@ -1541,7 +1410,7 @@ class DaysTime(ContinuousTime):
 DaysTime().prepare().label
 ```
 
-See its [fact sheet](../../../parts/spaces.md#continuoustime)
+See its [fact sheet](../../../components/spaces.md#continuoustime)
 and its [API entry][skcomplex.core.components.spaces.ContinuousTime].
 
 ## DiscreteTime
@@ -1612,7 +1481,7 @@ class GenerationsTime(DiscreteTime):
 GenerationsTime().prepare().schedule_
 ```
 
-See its [fact sheet](../../../parts/spaces.md#discretetime)
+See its [fact sheet](../../../components/spaces.md#discretetime)
 and its [API entry][skcomplex.core.components.spaces.DiscreteTime].
 
 ## StaticTime
@@ -1625,7 +1494,7 @@ quantity, and the equilibrium solves both conditions together.
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -1633,19 +1502,18 @@ from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class DuopolyElement(Element):
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
         label,
-        visual=None,
         *,
         q1: Annotated[float, StateSpec()] = 0.0,
         q2: Annotated[float, StateSpec()] = 0.0,
         a: Annotated[float, ParameterSpec()] = 10.0,
         c: Annotated[float, ParameterSpec()] = 1.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.q1 = q1
         self.q2 = q2
         self.a = a
@@ -1653,8 +1521,8 @@ class DuopolyElement(Element):
 
     def _get_laws(self, namespace):
         return [
-            EquationLaw(namespace.a - 2 * namespace.q1 - namespace.q2 == namespace.c, target=namespace.q1),
-            EquationLaw(namespace.a - 2 * namespace.q2 - namespace.q1 == namespace.c, target=namespace.q2),
+            ConstraintLaw(namespace.a - 2 * namespace.q1 - namespace.q2 == namespace.c, target=namespace.q1),
+            ConstraintLaw(namespace.a - 2 * namespace.q2 - namespace.q1 == namespace.c, target=namespace.q2),
         ]
 
 
@@ -1669,19 +1537,18 @@ series, and the voltage between them balances the currents through both.
 
 ```python continuation
 class DividerElement(Element):
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
         label,
-        visual=None,
         *,
         v: Annotated[float, StateSpec()] = 0.0,
         source: Annotated[float, ParameterSpec()] = 9.0,
         r1: Annotated[float, ParameterSpec()] = 1000.0,
         r2: Annotated[float, ParameterSpec()] = 2000.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.source = source
         self.r1 = r1
@@ -1689,7 +1556,7 @@ class DividerElement(Element):
 
     def _get_laws(self, namespace):
         current = (namespace.source - namespace.v) / namespace.r1
-        return [EquationLaw(current == namespace.v / namespace.r2, target=namespace.v)]
+        return [ConstraintLaw(current == namespace.v / namespace.r2, target=namespace.v)]
 
 
 simulate(CompositeSystem(elements=[DividerElement('node')], time=StaticTime()), until=1).get_values('node.v').tolist()
@@ -1700,7 +1567,7 @@ The node sits at 6 volts, two thirds of the source.
 **How the engine runs it.** The time has one frame, at time 0. The compiler gathers the equations of every target
 into one problem, solves a linear problem in closed form where it can, and passes the others to a root solver.
 
-**How it combines.** Its laws are `EquationLaw` and the constraints and objectives of linear programs, as in flux
+**How it combines.** Its laws are `ConstraintLaw` and the constraints and objectives of linear programs, as in flux
 balance analysis of a metabolic network.
 
 **Limits and errors.** It accepts no rates or updates, since nothing changes in it. A `RateInteraction` makes the run
@@ -1732,7 +1599,7 @@ class EquilibriumTime(StaticTime):
 EquilibriumTime().prepare().schedule_ is None
 ```
 
-See its [fact sheet](../../../parts/spaces.md#statictime)
+See its [fact sheet](../../../components/spaces.md#statictime)
 and its [API entry][skcomplex.core.components.spaces.StaticTime].
 
 ## BaseTime
@@ -1746,5 +1613,5 @@ from skcomplex.core.components.spaces import BaseTime, ContinuousTime, DiscreteT
 issubclass(ContinuousTime, BaseTime), issubclass(DiscreteTime, BaseTime)
 ```
 
-See its [fact sheet](../../../parts/spaces.md#basetime)
+See its [fact sheet](../../../components/spaces.md#basetime)
 and its [API entry][skcomplex.core.components.spaces.BaseTime].

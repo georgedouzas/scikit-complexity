@@ -2,9 +2,8 @@
 
 import pytest
 
-from skcomplex.core.components.specs import ScenarioSpec
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.experiments import compare_scenarios
+from skcomplex.core.experiments import ScenarioSpec, compare_scenarios
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 

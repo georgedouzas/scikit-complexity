@@ -18,9 +18,9 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, VelocityVerletSolver
+from skcomplex.core.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, StepSpec, VelocityVerletSolver
 from skcomplex.core.errors import BackendError, SolverError
-from skcomplex.core.specs import ParameterSpec, StepSpec
+from skcomplex.core.specs import ParameterSpec
 from skcomplex.systems.biology.common.populations import (
     LogisticGrowthInteraction,
     MortalityInteraction,

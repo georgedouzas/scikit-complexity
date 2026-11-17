@@ -5,30 +5,28 @@
 
 import inspect
 import sys
-from collections.abc import Callable, Sequence, Set
+from collections.abc import Callable, Collection, Sequence, Set
 from functools import partial
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
+from .. import systems
+from ..components import Tags
 from ..components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
-from ..components.specs import CompiledElementSpec
 from ..components.systems import BaseSystem, CompositeSystem
 from ..engine.compile._pass_compiler import PassCompiler
-from ..engine.problems import BaseProblemSpec
+from ..engine.problems import BaseProblemSpec, CompiledElementSpec, NetworkSnapshotSpec
 from ..engine.runtime import Trajectory
+from ..enums import DataKind, DomainKind, FormKind
 from ..errors import AnalysisError, TagError, ValidationError
-from ..specs import (
-    AnalysisTags,
-    JumpPathSpec,
-    NetworkSnapshotSpec,
-    SamplesSpec,
-    SeriesSpec,
-    SnapshotsSpec,
-    Tags,
-)
-from ..types import Array, DataKind, DomainKind, FormKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
+from ._jump_path_spec import _JumpPathSpec
+from ._samples_spec import _SamplesSpec
+from ._series_spec import _SeriesSpec
+from ._snapshots_spec import _SnapshotsSpec
 from .types import Run, Runs, Source
 
 SERIES_DIMENSIONS = 1
@@ -154,7 +152,7 @@ def _check_tags(analysis: Callable[..., object], source: object, kind: str | Non
         raise TagError(error_msg)
 
 
-def _check_choice(analysis: str, name: str, value: object, choices: tuple[object, ...]) -> None:
+def _check_choice(analysis: str, name: str, value: object, choices: Collection[object]) -> None:
     """Raise an error for a setting of an analysis that is not one of its choices."""
     if value not in choices:
         error_msg = f'{analysis} has {name}={value!r}. Use one of {", ".join(map(str, choices))}.'
@@ -211,7 +209,7 @@ def _is_changed(value: object, default: object) -> bool:
 
 
 def _composite(source: Source) -> Source:
-    """Return the composite of the parts of a system class, or another source as is.
+    """Return the composite of a system class, or another source as is.
 
     An example of a system class is a ready-made system.
 
@@ -221,8 +219,10 @@ def _composite(source: Source) -> Source:
 
     Returns:
         source:
-            The prepared composite `CompositeSystem` of a system that builds its parts, or the source itself.
+            The prepared composite `CompositeSystem` of a system that builds its components, or the source itself.
     """
+    if isinstance(source, systems.BaseSystem):
+        return source._get_composite()
     if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         return source.prepare().system_
     return source
@@ -427,7 +427,7 @@ def _refuse_objects(trajectory: Trajectory, group: str, names: Sequence[str]) ->
             raise ValidationError(error_msg)
 
 
-def _read_agent_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpec:
+def _read_agent_snapshots(trajectory: Trajectory, group: str) -> _SnapshotsSpec:
     """Return the snapshots of an agent group.
 
     The snapshots are aligned on the agents present in every frame.
@@ -459,7 +459,7 @@ def _read_agent_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpec:
     phase = next((name for name in frames[0].values if roles.get(name) == 'phase'), None)
     phases = np.asarray(states.pop(phase), dtype=float) if phase is not None else None
     times = np.asarray(trajectory.times, dtype=float)
-    return SnapshotsSpec(times, ids, positions, velocities, directions, states, box, periodic, phases)
+    return _SnapshotsSpec(times, ids, positions, velocities, directions, states, box, periodic, phases)
 
 
 def _get_role_states(element: CompiledElementSpec, role: str) -> list[str]:
@@ -479,7 +479,7 @@ def _read_axes(trajectory: Trajectory, states: Sequence[str]) -> Array:
     )
 
 
-def _read_particle_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpec:
+def _read_particle_snapshots(trajectory: Trajectory, group: str) -> _SnapshotsSpec:
     """Return the snapshots of a particle group from the roles of its states.
 
     They are unwrapped in a periodic box.
@@ -509,10 +509,10 @@ def _read_particle_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpe
     phases = np.asarray(others.pop(phase), dtype=float) if phase is not None else None
     ids = np.arange(positions.shape[1], dtype=np.int64)
     times = np.asarray(trajectory.times, dtype=float)
-    return SnapshotsSpec(times, ids, positions, velocities, directions, others, box, periodic, phases)
+    return _SnapshotsSpec(times, ids, positions, velocities, directions, others, box, periodic, phases)
 
 
-def _read_series(source: Source, names: Sequence[str] | None = None) -> SeriesSpec:
+def _read_series(source: Source, names: Sequence[str] | None = None) -> _SeriesSpec:
     """Return named series of a trajectory, or the columns of an array.
 
     An array gives one series per column. A trajectory gives its states, parameters, reporters, or observables, and a
@@ -540,7 +540,7 @@ def _read_series(source: Source, names: Sequence[str] | None = None) -> SeriesSp
         array = np.asarray(source)
         values = array.reshape(-1, 1) if array.ndim <= 1 else array.reshape(array.shape[0], -1)
         labels = list(names) if names is not None else [str(index) for index in range(values.shape[1])]
-        return SeriesSpec(np.arange(values.shape[0], dtype=float), values, labels)
+        return _SeriesSpec(np.arange(values.shape[0], dtype=float), values, labels)
     chosen = list(names) if names is not None else _get_scalar_series(source)
     if not chosen:
         raise _get_missing_error(source, 'scalar series')
@@ -552,10 +552,10 @@ def _read_series(source: Source, names: Sequence[str] | None = None) -> SeriesSp
         values = np.asarray(source.get_values(name), dtype=float).reshape(len(source.times), -1)
         columns.append(values)
         labels.extend([name] if values.shape[1] == 1 else [f'{name}[{index}]' for index in range(values.shape[1])])
-    return SeriesSpec(np.asarray(source.times, dtype=float), np.concatenate(columns, axis=1), labels)
+    return _SeriesSpec(np.asarray(source.times, dtype=float), np.concatenate(columns, axis=1), labels)
 
 
-def _read_path(source: Source, name: str | None = None) -> JumpPathSpec:
+def _read_path(source: Source, name: str | None = None) -> _JumpPathSpec:
     """Return the jump path of a discrete state of a trajectory or of a state series.
 
     The frames where the state did not change are dropped.
@@ -581,7 +581,7 @@ def _read_path(source: Source, name: str | None = None) -> JumpPathSpec:
             error_msg = f'A jump path is one series of states, but the array has shape {values.shape}.'
             raise AnalysisError(error_msg)
         changed = np.concatenate([[True], values[1:] != values[:-1]])
-        return JumpPathSpec(np.flatnonzero(changed).astype(float), values[changed], name or 'state')
+        return _JumpPathSpec(np.flatnonzero(changed).astype(float), values[changed], name or 'state')
     names = _get_path_names(source.problem)
     chosen = names[0] if name is None and names else name
     if chosen is None:
@@ -590,7 +590,7 @@ def _read_path(source: Source, name: str | None = None) -> JumpPathSpec:
     changed = np.concatenate([[True], np.any(values[1:] != values[:-1], axis=1)])
     states = values[changed]
     times = np.asarray(source.times, dtype=float)[changed]
-    return JumpPathSpec(times, states[:, 0] if values.shape[1] == 1 else states, chosen)
+    return _JumpPathSpec(times, states[:, 0] if values.shape[1] == 1 else states, chosen)
 
 
 def _read_fields(source: Source, name: str | None = None) -> Array:
@@ -622,7 +622,7 @@ def _read_fields(source: Source, name: str | None = None) -> Array:
     return np.asarray(source.get_lattice(chosen), dtype=float)
 
 
-def _read_snapshots(source: Source, group: str | None = None) -> SnapshotsSpec:
+def _read_snapshots(source: Source, group: str | None = None) -> _SnapshotsSpec:
     """Return the agents of a group of a trajectory at every frame.
 
     Agent groups give their positions unwrapped across periodic sides, and velocities and directions from the states
@@ -658,7 +658,7 @@ def _read_snapshots(source: Source, group: str | None = None) -> SnapshotsSpec:
     return _read_agent_snapshots(source, chosen)
 
 
-def _read_samples_of(source: Source, names: Sequence[str] | None, group: str | None) -> SeriesSpec:
+def _read_samples_of(source: Source, names: Sequence[str] | None, group: str | None) -> _SeriesSpec:
     """Return samples as columns.
 
     They are the series of a source, or the speeds of agents with one column per frame. A trajectory gives the speeds of
@@ -692,7 +692,7 @@ def _read_samples_of(source: Source, names: Sequence[str] | None, group: str | N
         return _read_series(source, names)
     speeds = np.linalg.norm(_read_velocities(source, group), axis=-1)
     labels = [f'speed at {time:g}' for time in source.times]
-    return SeriesSpec(np.arange(speeds.shape[1], dtype=float), speeds.T, labels)
+    return _SeriesSpec(np.arange(speeds.shape[1], dtype=float), speeds.T, labels)
 
 
 def _read_velocities(source: Source, group: str | None = None) -> Array:
@@ -780,6 +780,8 @@ def _read_system(source: object) -> CompositeSystem | BaseProblemSpec:
     """
     if isinstance(source, Trajectory):
         return source.problem
+    if isinstance(source, systems.BaseSystem):
+        return source._get_composite()
     if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         return source.prepare().system_
     if isinstance(source, CompositeSystem | BaseProblemSpec):
@@ -855,7 +857,7 @@ def _runs_of(source: Runs) -> list[Run]:
     return list(np.asarray(array, dtype=np.float64)) if array.ndim == RUNS_DIMENSIONS else [array]
 
 
-def _step_of(series: SeriesSpec) -> float:
+def _step_of(series: _SeriesSpec) -> float:
     """Return the time between the samples of a series.
 
     It is checked to be uniform.
@@ -874,7 +876,7 @@ def _read_samples(
     source: Runs,
     variables: Sequence[str] | None,
     dt: float,
-) -> SamplesSpec:
+) -> _SamplesSpec:
     """Return the uniformly sampled series of the runs of a source.
 
     The series have common variables and step.
@@ -901,7 +903,7 @@ def _read_samples(
     for run in _runs_of(source):
         series = _read_series(run, variables)
         found.append(
-            series if isinstance(run, Trajectory) else SeriesSpec(series.times * dt, series.values, series.labels),
+            series if isinstance(run, Trajectory) else _SeriesSpec(series.times * dt, series.values, series.labels),
         )
     if not found:
         error_msg = 'No series is given. Pass a trajectory, an array, or a list of them.'
@@ -914,4 +916,4 @@ def _read_samples(
             'series of the same variables sampled at the same step.'
         )
         raise AnalysisError(error_msg)
-    return SamplesSpec([np.asarray(series.values, dtype=float) for series in found], list(labels), steps[0])
+    return _SamplesSpec([np.asarray(series.values, dtype=float) for series in found], list(labels), steps[0])

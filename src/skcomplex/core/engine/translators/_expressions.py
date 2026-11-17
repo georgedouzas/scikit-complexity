@@ -22,7 +22,7 @@ from pysd.translators.structures.abstract_expressions import (
     SmoothStructure,
 )
 
-from ._system_parts_spec import _SystemPartsSpec
+from ._system_variables_spec import _SystemVariablesSpec
 
 TIME = '(t + START)'
 ZERO_DIVISOR = 1e-6
@@ -80,8 +80,8 @@ class _ExpressionWriter:
     It collects what it cannot translate.
     """
 
-    def __init__(self, parts: _SystemPartsSpec, problems: list[str], imports: set[tuple[str, str]]) -> None:
-        self.parts = parts
+    def __init__(self, variables: _SystemVariablesSpec, problems: list[str], imports: set[tuple[str, str]]) -> None:
+        self.variables = variables
         self.problems = problems
         self.imports = imports
 
@@ -204,9 +204,9 @@ class _ExpressionWriter:
             return TIME
         if name in CONTROLS:
             return CONTROLS[name]
-        if name in self.parts.auxiliaries:
+        if name in self.variables.auxiliaries:
             return f'_{name}(s, t)'
-        if name in self.parts.constants or name in self.parts.stocks:
+        if name in self.variables.constants or name in self.variables.stocks:
             return f's.{name}'
         return self._add_problem(f'the unknown variable {name}')
 
@@ -223,26 +223,26 @@ class _ExpressionWriter:
 
         The reference is at the reading member, over a range, or at one named member.
         """
-        name = _SystemPartsSpec.get_name(ast.reference)
+        name = _SystemVariablesSpec.get_name(ast.reference)
         source = self._write_variable(name)
-        subscripts = _SystemPartsSpec.get_subscripts(ast)
+        subscripts = _SystemVariablesSpec.get_subscripts(ast)
         if not subscripts:
             return source
         if len(subscripts) > 1:
             return self._add_problem(f'{ast.reference} subscripted over more than one range')
         subscript = subscripts[0]
-        if subscript in self.parts.members:
-            return self._write_member_read(source, self.parts.members.index(subscript))
-        if subscript == self.parts.range_name and not self.reducing_:
+        if subscript in self.variables.members:
+            return self._write_member_read(source, self.variables.members.index(subscript))
+        if subscript == self.variables.range_name and not self.reducing_:
             return source
-        if subscript == f'{self.parts.range_name}!' and self.reducing_:
+        if subscript == f'{self.variables.range_name}!' and self.reducing_:
             return source
         return self._add_problem(f'{ast.reference} read over {subscript}')
 
     def _write_call(self, ast: CallStructure) -> str:
         """Return the source of a call of a lookup or of a built-in function."""
-        name = _SystemPartsSpec.get_name(ast.function.reference)
-        if name in self.parts.lookups:
+        name = _SystemVariablesSpec.get_name(ast.function.reference)
+        if name in self.variables.lookups:
             return f'_{name}({self._write(ast.arguments[0])})'
         if name in SAGE_FUNCTIONS:
             function = self.add_import(SAGE_MODULE, SAGE_FUNCTIONS[name])
@@ -313,7 +313,7 @@ class _ExpressionWriter:
 
         It reads the first value of the stock before the start.
         """
-        if _SystemPartsSpec.get_reference(ast.input) not in self.parts.stocks:
+        if _SystemVariablesSpec.get_reference(ast.input) not in self.variables.stocks:
             return self._add_problem('DELAY FIXED of something other than a stock')
         if not self._has_equal_values(ast.initial, ast.input):
             return self._add_problem('a fixed delay whose initial value differs from its input')
@@ -326,8 +326,8 @@ class _ExpressionWriter:
 
     def _write_element_count(self, value: object) -> str:
         """Return the number of members of a range."""
-        name = _SystemPartsSpec.get_reference(value)
-        ranges = {_SystemPartsSpec.get_name(key): members for key, members in self.parts.ranges.items()}
+        name = _SystemVariablesSpec.get_reference(value)
+        ranges = {_SystemVariablesSpec.get_name(key): members for key, members in self.variables.ranges.items()}
         return str(len(ranges[name])) if name in ranges else self._add_problem('ELMCOUNT of an unknown range')
 
     def _write_if_then_else(self, condition: object, then: object, otherwise: object) -> str:
@@ -348,7 +348,7 @@ class _ExpressionWriter:
 
         The bounds are ordered numbers.
         """
-        if not isinstance(inner, CallStructure) or _SystemPartsSpec.get_name(inner.function.reference) != function:
+        if not isinstance(inner, CallStructure) or _SystemVariablesSpec.get_name(inner.function.reference) != function:
             return None
         value, bound = inner.arguments
         if not isinstance(outer, int | float | np.number) or not isinstance(bound, int | float | np.number):
@@ -426,7 +426,7 @@ class _ExpressionWriter:
 
     def _write_sum(self, value: object) -> str:
         """Return the source of a sum over the members of the group."""
-        if not self.parts.members:
+        if not self.variables.members:
             return self._add_problem('SUM in a system without subscripted stocks')
         self.reducing_ = True
         source = self._write(value)
@@ -480,21 +480,21 @@ class _ExpressionWriter:
 
         It returns `None` when it has none yet.
         """
-        name = _SystemPartsSpec.get_name(ast.reference)
-        subscripts = _SystemPartsSpec.get_subscripts(ast)
-        if subscripts and subscripts[0] in self.parts.members:
-            member = self.parts.members.index(subscripts[0])
+        name = _SystemVariablesSpec.get_name(ast.reference)
+        subscripts = _SystemVariablesSpec.get_subscripts(ast)
+        if subscripts and subscripts[0] in self.variables.members:
+            member = self.variables.members.index(subscripts[0])
         if name == 'time':
-            return self.evaluate(self.parts.controls['initial_time'], member)
-        if name in self.parts.controls:
-            return self.evaluate(self.parts.controls[name], member)
-        if name in self.parts.constants:
-            values = self.parts.constants[name]
+            return self.evaluate(self.variables.controls['initial_time'], member)
+        if name in self.variables.controls:
+            return self.evaluate(self.variables.controls[name], member)
+        if name in self.variables.constants:
+            values = self.variables.constants[name]
             return values[member if len(values) > 1 else 0]
-        if name in self.parts.stocks:
-            return self.evaluate(self.parts.stocks[name].initial, member)
-        if name in self.parts.auxiliaries:
-            components = self.parts.auxiliaries[name]
+        if name in self.variables.stocks:
+            return self.evaluate(self.variables.stocks[name].initial, member)
+        if name in self.variables.auxiliaries:
+            components = self.variables.auxiliaries[name]
             return self.evaluate(components[0].ast, member) if len(components) == 1 else None
         return None
 

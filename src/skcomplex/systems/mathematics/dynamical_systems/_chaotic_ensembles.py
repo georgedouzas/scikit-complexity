@@ -13,11 +13,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, floor, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import mod, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 DOUBLING_DENOMINATOR = 1125899906840747.0
 
@@ -30,9 +31,6 @@ class CubicWalkElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial value of the map, between 0 and 1.
@@ -56,13 +54,12 @@ class CubicWalkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.3,
         y: Annotated[object, StateSpec(role='position')] = 0.0,
         lam: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.lam = lam
@@ -91,9 +88,6 @@ class DoublingMapElement(Element):
         label:
             The label of the element.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial value, between 0 and 1.
 
@@ -111,12 +105,11 @@ class DoublingMapElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.4,
         q: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = DOUBLING_DENOMINATOR,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.q = q
 
@@ -141,9 +134,6 @@ class SkewTentMapElement(Element):
         label:
             The label of the element.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial value, between 0 and 1.
 
@@ -161,12 +151,11 @@ class SkewTentMapElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.4,
         a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.a = a
 
@@ -223,8 +212,8 @@ class CubicChaoticMapSystem(BaseSystem):
     until = 200
     dt = 1
     observables = (
-        ObservableSpec('displacement', group='walkers', variable='y'),
-        ObservableSpec('square_displacement', _get_square_displacement, group='walkers'),
+        Observable('displacement', group='walkers', variable='y'),
+        Observable('square_displacement', _get_square_displacement, group='walkers'),
     )
 
     def __init__(
@@ -326,7 +315,7 @@ class SkewTentMapSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         start = SkewTentMapSystem._draw_cloud(self.n_points, self.x, self.spread, self.random_state)
         return CompositeSystem(
             self.label,
@@ -402,7 +391,7 @@ class DoublingMapSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         start = (
             np.floor(
                 self.q * SkewTentMapSystem._draw_cloud(self.n_points, self.x, self.spread, self.random_state) + 1 / 2,

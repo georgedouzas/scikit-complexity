@@ -11,6 +11,7 @@ import pytest
 from sage.all__sagemath_symbolics import oo, var
 from sage.sets.real_set import RealSet
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import (
@@ -22,14 +23,14 @@ from skcomplex.core.components.laws.utils import (
     reduce_axes,
 )
 from skcomplex.core.components.laws.utils._phase import coordinates_of
-from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 
 class AmountElement(Element):
@@ -38,11 +39,10 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -78,7 +78,7 @@ def test_coordinate_lowering_gives_maxwellian_start_unit_density() -> None:
     v = space.coordinates_['v']
     start = np.tile(np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi), (4, 1))
     field = FieldElement('gas', element=AmountElement, space=space, values={'x': start})
-    observables = [ObservableSpec('rho', density, group='gas')]
+    observables = [Observable('rho', density, group='gas')]
     trajectory = simulate(CompositeSystem(elements=[field]), until=0.1, dt=0.1, observables=observables)
     values = np.asarray(trajectory.get_values('rho'))
     assert np.abs(values - 1.0).max() < 1e-6
@@ -95,7 +95,6 @@ def test_coordinate_lowers_on_numpy_and_numba(backend: object) -> None:
         target='gas',
         state='x',
         flux=lambda s: [coordinate('v') * s.target.x, 0],
-        riemann=None,
     )
     grow = RateInteraction('g', target='gas', state='x', rate=lambda s: coordinate('v') * s.target.x)
     system = CompositeSystem(elements=[gas], interactions=[stream, grow])
@@ -154,9 +153,9 @@ def test_moments_of_a_shifted_maxwellian_return_density_mean_and_temperature() -
     start = 2.0 * np.exp(-((v - 0.5) ** 2) / 3.0) / np.sqrt(3.0 * np.pi)
     field = FieldElement('gas', element=AmountElement, space=space, values={'x': np.tile(start, (size, 1))})
     observables = [
-        ObservableSpec('rho', density, group='gas'),
-        ObservableSpec('mean', mean_at, group='gas'),
-        ObservableSpec('temperature', temperature_at, group='gas'),
+        Observable('rho', density, group='gas'),
+        Observable('mean', mean_at, group='gas'),
+        Observable('temperature', temperature_at, group='gas'),
     ]
     trajectory = simulate(CompositeSystem(elements=[field]), until=0.1, dt=0.1, observables=observables)
     assert np.abs(np.asarray(trajectory.get_values('rho'))[-1] - 2.0).max() < 1e-8
@@ -316,9 +315,8 @@ def test_landau_damping_decays_at_the_linear_rate() -> None:
         target='gas',
         state='x',
         flux=lambda s: [component * s.target.x for component in potential_force(s)],
-        riemann=None,
     )
-    observables = [ObservableSpec('energy', electric_energy, group='gas')]
+    observables = [Observable('energy', electric_energy, group='gas')]
     system = CompositeSystem(elements=[field], interactions=[drift])
     trajectory = simulate(system, until=30.0, dt=0.1, solver=RK4Solver(dt=0.05), observables=observables)
     energy = np.asarray(trajectory.get_values('energy'), dtype=float)

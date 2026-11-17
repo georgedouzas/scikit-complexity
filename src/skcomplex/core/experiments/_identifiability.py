@@ -18,14 +18,7 @@ import pypesto.profile
 from ..engine.solvers import BaseSolver
 from ..errors import ValidationError
 from ..types import Array
-from ._calibration import (
-    SEED_LIMIT,
-    _CalibrationObjective,
-    _check_priors,
-    _check_settings,
-    _series_of,
-    calibrate,
-)
+from ._calibration import SEED_LIMIT, _CalibrationObjective, _check_priors, _check_settings, _series_of, calibrate
 from ._runs import _check_count, _check_source, _map_calls
 from .types import Bounds, Source
 

@@ -30,15 +30,16 @@ from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ForagerElement(Element):
+    visual = VisualSpec('agents', {'color_by': 'food'})
+
     def __init__(
         self,
         label,
-        visual=VisualSpec('agents', {'color_by': 'food'}),
         *,
         food: Annotated[float, StateSpec()] = 5.0,
         hunger: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.food = food
         self.hunger = hunger
 
@@ -194,7 +195,8 @@ from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 
 
 class TraderElement(Element):

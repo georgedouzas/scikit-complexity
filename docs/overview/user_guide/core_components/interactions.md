@@ -3,8 +3,8 @@
 An interaction changes the states of elements. It binds elements through roles, such as `target` and `source`, reads
 their states, and returns laws, the equations or rules that a solver runs. It holds no state of its own. An element
 holds the states, a space says which members neighbour each other, and a system composes elements, interactions, and a
-space into one model. [How the parts fit](index.md) shows the families together, and the
-[interactions parts page](../../../parts/interactions.md) compares every interaction class and holds its fact sheet.
+space into one model. [How the components fit](index.md) shows the families together, and the [interactions
+page](../../../components/interactions.md) compares every interaction class and holds its fact sheet.
 
 ## Interaction
 
@@ -25,8 +25,8 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class AmountElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -142,7 +142,7 @@ PredationInteraction('hunting', prey='rabbits', predator='foxes').get_params()
 
 Its parameters are the two roles, the label, and the rates `a` and `b`.
 
-See its [fact sheet](../../../parts/interactions.md#interaction)
+See its [fact sheet](../../../components/interactions.md#interaction)
 and its [API entry][skcomplex.core.components.interactions.Interaction].
 
 ## RateInteraction
@@ -161,8 +161,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class AmountElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -237,7 +237,7 @@ simulate(ward, until=5, dt=5.0).get_values('infected.x').round(1).tolist()
 
 The infected fall from 100 to 36.8 in five days, which is `100 exp(-0.2 t)`.
 
-See its [fact sheet](../../../parts/interactions.md#rateinteraction)
+See its [fact sheet](../../../components/interactions.md#rateinteraction)
 and its [API entry][skcomplex.core.components.interactions.RateInteraction].
 
 ## TransferInteraction
@@ -256,8 +256,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class AccountElement(Element):
-    def __init__(self, label, visual=None, *, cash: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, cash: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.cash = cash
 
 
@@ -273,8 +273,8 @@ The same class lets water flow from an upper reservoir into a lower one, at a ra
 
 ```python continuation
 class ReservoirElement(Element):
-    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.level = level
 
 
@@ -336,7 +336,7 @@ PaymentInteraction('wages', payer='firm', payee='worker', value=2000.0).amount
 
 The wages flow at 2000.0 per unit of time.
 
-See its [fact sheet](../../../parts/interactions.md#transferinteraction)
+See its [fact sheet](../../../components/interactions.md#transferinteraction)
 and its [API entry][skcomplex.core.components.interactions.TransferInteraction].
 
 ## JumpInteraction
@@ -355,8 +355,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class AmountElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -428,7 +428,7 @@ BirthInteraction('births', target='population').get_params()
 
 Its parameters are the label, the target, and `b`.
 
-See its [fact sheet](../../../parts/interactions.md#jumpinteraction)
+See its [fact sheet](../../../components/interactions.md#jumpinteraction)
 and its [API entry][skcomplex.core.components.interactions.JumpInteraction].
 
 ## MapInteraction
@@ -448,8 +448,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class AmountElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -524,7 +524,7 @@ simulate(census, until=3).get_values('population.x').round(4).tolist()
 
 With `r = 4` the map is chaotic, and the fraction jumps to 0.36, 0.9216, and 0.289.
 
-See its [fact sheet](../../../parts/interactions.md#mapinteraction)
+See its [fact sheet](../../../components/interactions.md#mapinteraction)
 and its [API entry][skcomplex.core.components.interactions.MapInteraction].
 
 ## TransitionInteraction
@@ -547,8 +547,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class HolderElement(Element):
-    def __init__(self, label, visual=None, *, state: Annotated[int, StateSpec(domain=NN)] = 0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, state: Annotated[int, StateSpec(domain=NN)] = 0):
+        super().__init__(label)
         self.state = state
 
 
@@ -629,7 +629,7 @@ RecoveryInteraction('recovery', target='people').get_params()
 
 Its parameters are the label, the target, and `gamma`.
 
-See its [fact sheet](../../../parts/interactions.md#transitioninteraction)
+See its [fact sheet](../../../components/interactions.md#transitioninteraction)
 and its [API entry][skcomplex.core.components.interactions.TransitionInteraction].
 
 ## CrossingInteraction
@@ -649,8 +649,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class BodyElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec(order=2)] = 0.0, x_d1: float = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec(order=2)] = 0.0, x_d1: float = 0.0):
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
 
@@ -671,8 +671,8 @@ and resets to 0, as in the leaky integrate-and-fire model of neuroscience.
 
 ```python continuation
 class AmountElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -735,339 +735,8 @@ FiringInteraction('spike', target='neuron', theta=1.5).get_params()
 
 Its parameters are the label, the target, and `theta`.
 
-See its [fact sheet](../../../parts/interactions.md#crossinginteraction)
+See its [fact sheet](../../../components/interactions.md#crossinginteraction)
 and its [API entry][skcomplex.core.components.interactions.CrossingInteraction].
-
-## GradientInteraction
-
-A `GradientInteraction` takes a potential, one scalar function of the states, and moves every state down its
-gradient. Here a particle in the double well `U = (x^2 - 1)^2 / 4` slides from 0.5 to the bottom of the well at 1.
-
-```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import GradientInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class AmountElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
-        self.x = x
-
-
-well = GradientInteraction('well', target='particle', potential=lambda s: (s.target.x**2 - 1) ** 2 / 4)
-landscape = CompositeSystem(elements=[AmountElement('particle', x=0.5)], interactions=[well])
-simulate(landscape, until=10, dt=5.0).get_values('particle.x').round(3).tolist()
-```
-
-The particle reaches 1.0 by the fifth unit of time and stays there.
-
-The same class fits the two weights of a model by descending its loss, the squared distance to the values 1 and -2.
-
-```python continuation
-class ModelElement(Element):
-    def __init__(
-        self, label, visual=None, *, a: Annotated[float, StateSpec()] = 0.0, b: Annotated[float, StateSpec()] = 0.0
-    ):
-        super().__init__(label, visual=visual)
-        self.a = a
-        self.b = b
-
-
-loss = lambda s: (s.target.a - 1) ** 2 + (s.target.b + 2) ** 2
-descent = GradientInteraction('descent', target='model', states=('a', 'b'), potential=loss)
-trajectory = simulate(CompositeSystem(elements=[ModelElement('model')], interactions=[descent]), until=5, dt=5.0)
-round(float(trajectory.get_values('model.a')[-1]), 3), round(float(trajectory.get_values('model.b')[-1]), 3)
-```
-
-The weights reach 1.0 and -2.0, the minimum of the loss.
-
-**How the engine runs it.** The interaction differentiates the potential symbolically and returns one rate law per
-moving state, `-dU/dx` divided by the divisor. On a state of order 1 this is a gradient flow, and on a state of order
-2 it is Newton's law with the force `-dU/dx`. `ScipyODESolver` integrates the rates.
-
-```python continuation
-[law.__name__ for law in descent.law_classes]
-```
-
-The interaction emits rate laws.
-
-**How it combines.** The role `target` binds an element or a group, and `sources` names the elements the potential
-reads without moving them, such as the position of a fixed charge. Several gradient interactions on one state add
-their forces. On a `FieldElement`, with `variational=True`, the potential is the density of a functional and the field
-follows the Allen-Cahn equation, and `conserved=True` gives the Cahn-Hilliard equation.
-
-**Limits and errors.** One potential gives every rate, so a force that is not the gradient of a potential, such as
-friction, needs a `RateInteraction`. The potential must be a function, and `prepare` raises a `ValidationError`
-otherwise.
-
-```python continuation
-from skcomplex.core.errors import ValidationError
-
-try:
-    GradientInteraction('well', target='particle', potential=1.0).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message reads "The potential of 'well' is 1.0. Give a function of the namespace." The fix is a function, such as
-`lambda s: s.target.x**2 / 2`.
-
-**A field realization.** A field fixes the potential and names its parameters, such as a spring of stiffness `k`.
-
-```python continuation
-from skcomplex.core.specs import ParameterSpec
-
-
-class SpringInteraction(GradientInteraction):
-    def __init__(self, label, *, target, k: Annotated[float, ParameterSpec()] = 1.0):
-        super().__init__(label, target=target, potential=lambda s: s.k * s.target.x**2 / 2)
-        self.k = k
-
-
-spring = SpringInteraction('spring', target='particle', k=2.0)
-relaxation = CompositeSystem(elements=[AmountElement('particle', x=1.0)], interactions=[spring])
-round(float(simulate(relaxation, until=1, dt=1.0).get_values('particle.x')[-1]), 3)
-```
-
-The particle relaxes from 1 to 0.135 in one unit of time, which is `exp(-2)`.
-
-See its [fact sheet](../../../parts/interactions.md#gradientinteraction)
-and its [API entry][skcomplex.core.components.interactions.GradientInteraction].
-
-## EulerLagrangeInteraction
-
-An `EulerLagrangeInteraction` takes a Lagrangian, the kinetic minus the potential energy, and moves the coordinates by
-its equations of motion. Here a pendulum swings from an angle of 0.1 radians, with the Lagrangian
-`q'^2 / 2 + cos q` in units where gravity and the length are 1.
-
-```python
-from typing import Annotated
-
-from sage.all__sagemath_symbolics import cos
-
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import EulerLagrangeInteraction
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class CoordinateElement(Element):
-    def __init__(self, label, visual=None, *, q: Annotated[float, StateSpec(order=2)] = 0.1, q_d1: float = 0.0):
-        super().__init__(label, visual=visual)
-        self.q = q
-        self.q_d1 = q_d1
-
-
-lagrangian = lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q)
-swing = EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=lagrangian)
-pendulum = CompositeSystem(elements=[CoordinateElement('bob')], interactions=[swing])
-simulate(pendulum, until=3.2, dt=1.6).get_values('bob.q').round(3).tolist()
-```
-
-The angle passes through -0.003 at 1.6 seconds and reaches -0.1 at 3.2, half of the period `2 pi` of small swings.
-`derivative(q, 1)` is the velocity of the coordinate.
-
-The same class gives an electric circuit of a coil and a capacitor, written by its energy. The charge `q` is the
-coordinate, the coil of inductance 2 stores `L q'^2 / 2`, and the capacitor of capacitance 0.5 stores `q^2 / (2 C)`.
-
-```python continuation
-energy = lambda s: 2.0 * derivative(s.target.q, 1) ** 2 / 2 - s.target.q**2 / (2 * 0.5)
-oscillation = EulerLagrangeInteraction('oscillation', target='circuit', states='q', lagrangian=energy)
-circuit = CompositeSystem(elements=[CoordinateElement('circuit', q=1.0)], interactions=[oscillation])
-simulate(circuit, until=3.14159, dt=3.14159 / 2).get_values('circuit.q').round(3).tolist()
-```
-
-The charge goes from 1 to 0 and to -1 in half a period, since the frequency `1 / sqrt(L C)` is 1.
-
-**How the engine runs it.** The interaction differentiates the Lagrangian and returns one equation per coordinate,
-`d/dt dL/dq' - dL/dq = Q - dR/dq'`, with the generalized forces `Q` and the dissipation `R`. The compiler solves the
-equations together for the accelerations, so a Lagrangian with a mass matrix, such as that of a double pendulum,
-needs no inversion by hand.
-
-```python continuation
-[law.__name__ for law in swing.law_classes]
-```
-
-The interaction emits equation laws, which hold at every time.
-
-**How it combines.** The role `target` binds an element or a group, and every role that binds one element adds its
-coordinates. Equations of one coordinate from several interactions add, so a spring between two pendulums is an
-interaction of its own whose Lagrangian holds only the coupling energy. `dissipation` and `forcing` add friction and
-external forces.
-
-**Limits and errors.** The coordinates are states of order 2, and the Lagrangian must be a function. `prepare` raises
-a `ValidationError` for a Lagrangian that is not one.
-
-```python continuation
-from skcomplex.core.errors import ValidationError
-
-try:
-    EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=0.5).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message reads "The lagrangian of 'swing' is 0.5. Give a function of the namespace." The fix is a function of
-the namespace, as above.
-
-**A field realization.** A field fixes the Lagrangian and names its parameters, such as a pendulum of length `l` under
-gravity `g`.
-
-```python continuation
-from skcomplex.core.specs import ParameterSpec
-
-
-class PendulumInteraction(EulerLagrangeInteraction):
-    def __init__(
-        self,
-        label,
-        *,
-        target,
-        g: Annotated[float, ParameterSpec()] = 9.81,
-        l: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        lagrangian = lambda s: s.l**2 * derivative(s.target.q, 1) ** 2 / 2 + s.g * s.l * cos(s.target.q)
-        super().__init__(label, target=target, states='q', lagrangian=lagrangian)
-        self.g = g
-        self.l = l
-
-
-PendulumInteraction('swing', target='bob', l=2.0).get_params()
-```
-
-Its parameters are the label, the target, `g`, and `l`.
-
-See its [fact sheet](../../../parts/interactions.md#eulerlagrangeinteraction)
-and its [API entry][skcomplex.core.components.interactions.EulerLagrangeInteraction].
-
-## HamiltonianInteraction
-
-A `HamiltonianInteraction` takes a Hamiltonian, the total energy as a function of coordinates `q` and momenta `p`, and
-moves them by Hamilton's equations. Here the bond of a molecule vibrates as a harmonic oscillator with the energy
-`(p^2 + q^2) / 2`.
-
-```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import HamiltonianInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class PhaseElement(Element):
-    def __init__(
-        self, label, visual=None, *, q: Annotated[float, StateSpec()] = 1.0, p: Annotated[float, StateSpec()] = 0.0
-    ):
-        super().__init__(label, visual=visual)
-        self.q = q
-        self.p = p
-
-
-energy = lambda s: (s.target.p**2 + s.target.q**2) / 2
-vibration = HamiltonianInteraction('vibration', target='bond', hamiltonian=energy)
-molecule = CompositeSystem(elements=[PhaseElement('bond')], interactions=[vibration])
-simulate(molecule, until=3.14159, dt=3.14159 / 2).get_values('bond.q').round(3).tolist()
-```
-
-The stretch of the bond goes from 1 to 0 and to -1 in half a period.
-
-The same class moves a planet around a star. The coordinates and momenta are vectors in a plane, and the
-Hamiltonian is `|p|^2 / 2 - 1 / |q|` in units where the mass of the star and the constant of gravity are 1.
-
-```python continuation
-from sage.all__sagemath_symbolics import sqrt
-
-from skcomplex.core.components.spaces import ContinuousSpace
-
-
-class PlanetElement(Element):
-    def __init__(
-        self,
-        label,
-        visual=None,
-        *,
-        q: Annotated[object, StateSpec(vector=True)] = (1.0, 0.0),
-        p: Annotated[object, StateSpec(vector=True)] = (0.0, 1.0),
-    ):
-        super().__init__(label, visual=visual)
-        self.q = q
-        self.p = p
-
-
-kepler = lambda s: (s.target.p[0] ** 2 + s.target.p[1] ** 2) / 2 - 1 / sqrt(s.target.q[0] ** 2 + s.target.q[1] ** 2)
-orbit = HamiltonianInteraction('orbit', target='planet', hamiltonian=kepler)
-sky = CompositeSystem(elements=[PlanetElement('planet')], interactions=[orbit], space=ContinuousSpace(n_dim=2))
-simulate(sky, until=3.14159, dt=3.14159).get_values('planet.q').round(3).tolist()
-```
-
-The planet starts at `(1, 0)` and reaches `(-1, 0)` after half of its circular orbit of period `2 pi`. A vector state
-needs a space, here the plane `ContinuousSpace(n_dim=2)`.
-
-**How the engine runs it.** The interaction differentiates the Hamiltonian and returns the rates `q' = dH/dp` and
-`p' = -dH/dq`, one per coordinate and per momentum. A symplectic solver, such as `Yoshida4Solver`, keeps the
-energy of a separable Hamiltonian bounded over long runs.
-
-```python continuation
-[law.__name__ for law in orbit.law_classes]
-```
-
-The interaction emits rate laws.
-
-**How it combines.** The role `target` binds an element or a group, whose states `q` and `p` pair in order by default.
-The rates of one state add, so a coupling between two oscillators is an interaction of its own whose Hamiltonian
-holds only the coupling energy. Dissipation or forcing is a `RateInteraction` on the momenta.
-
-**Limits and errors.** Each coordinate needs one momentum of the same size, both states of order 1. `prepare` raises a
-`ValidationError` when the counts differ.
-
-```python continuation
-from skcomplex.core.errors import ValidationError
-
-try:
-    HamiltonianInteraction('orbit', target='planet', coordinates=('q', 'r'), momenta='p', hamiltonian=kepler).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message says that the coordinate `r` has no partner and asks for one momentum per coordinate. The fix is a second
-momentum, such as `momenta=('p', 's')`.
-
-**A field realization.** A field fixes the Hamiltonian and names its parameters, such as a harmonic bond of stiffness
-`k` and reduced mass `m`.
-
-```python continuation
-from skcomplex.core.specs import ParameterSpec
-
-
-class BondInteraction(HamiltonianInteraction):
-    def __init__(
-        self, label, *, target, k: Annotated[float, ParameterSpec()] = 1.0, m: Annotated[float, ParameterSpec()] = 1.0
-    ):
-        energy = lambda s: s.target.p**2 / (2 * s.m) + s.k * s.target.q**2 / 2
-        super().__init__(label, target=target, hamiltonian=energy)
-        self.k = k
-        self.m = m
-
-
-BondInteraction('vibration', target='bond', k=4.0).get_params()
-```
-
-Its parameters are the label, the target, `k`, and `m`.
-
-See its [fact sheet](../../../parts/interactions.md#hamiltonianinteraction)
-and its [API entry][skcomplex.core.components.interactions.HamiltonianInteraction].
 
 ## ConservationInteraction
 
@@ -1090,8 +759,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class CellElement(Element):
-    def __init__(self, label, visual=None, *, u: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.u = u
 
 
@@ -1119,16 +788,16 @@ int(np.argmax(pollutant[0])), int(np.argmax(pollutant[-1])), round(float(polluta
 
 The peak moves from cell 8 to cell 20, a distance of 3 in 2 units of time, and the total stays 7.0809.
 
-**How the engine runs it.** On a finite-volume field the interaction lowers to a flux law. The scheme reconstructs the
-state in each cell with a slope limiter, computes the flux between cells with a numerical flux such as that of
-Rusanov, and gives every cell the rate of what enters minus what leaves. On a field of another discretization it
-lowers to the rate `-divergence(flux)`, which the field discretizes by its own operators.
+**How the engine runs it.** The interaction returns the rate `-divergence(flux)`. A finite-volume field reads it as a
+conservation law: the scheme of its `FiniteVolumeSpec` reconstructs the state in each cell with a slope limiter,
+computes the flux between cells with a numerical flux such as that of Rusanov, and gives every cell the rate of what
+enters minus what leaves. A field of another discretization computes the divergence by its own operators.
 
 ```python continuation
 [law.__name__ for law in advection.law_classes]
 ```
 
-The interaction emits a flux law on a finite-volume field and a rate law on any other.
+The interaction emits a rate law on any field.
 
 **How it combines.** The role `target` binds a `FieldElement`, and `sources` names other elements the flux reads,
 such as a velocity field. Several conservation laws on one field form one system, such as the Euler equations of a
@@ -1136,21 +805,21 @@ gas, and their numerical flux reads the wave speeds of all of them. A `RateInter
 reaction or a decay.
 
 **Limits and errors.** The interaction needs a field on a lattice, and it conserves the total only on a periodic field
-or with no flux through the boundaries. The limiter must be `'minmod'`, `'van-leer'`, or `None`, and `prepare` raises
-a `ValidationError` otherwise.
+or with no flux through the boundaries. The flux is a function of the namespace, and `prepare` raises a
+`ValidationError` otherwise.
 
 ```python continuation
 from skcomplex.core.errors import ValidationError
 
 try:
-    ConservationInteraction('traffic', target='road', flux=lambda s: s.target.u, limiter='superbee').prepare()
+    ConservationInteraction('traffic', target='road', flux='quadratic').prepare()
 except ValidationError as error:
     message = str(error)
 message
 ```
 
-The message reads "Unknown limiter 'superbee' of 'traffic'. Use minmod, van-leer, or None." The fix is
-`limiter='van-leer'` or the default `'minmod'`.
+The message reads "The flux of 'traffic' is 'quadratic'. Give a function of the namespace." The fix is a function such
+as `flux=lambda s: s.target.u * (1 - s.target.u)`.
 
 **A field realization.** A field fixes the flux and names its parameter, such as a road on which cars drive at most at
 the speed `v` on an empty road.
@@ -1170,7 +839,7 @@ TrafficInteraction('traffic', target='road', v=1.2).get_params()
 
 Its parameters are the label, the target, and `v`.
 
-See its [fact sheet](../../../parts/interactions.md#conservationinteraction)
+See its [fact sheet](../../../components/interactions.md#conservationinteraction)
 and its [API entry][skcomplex.core.components.interactions.ConservationInteraction].
 
 ## NeighborInteraction
@@ -1192,8 +861,8 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class CellElement(Element):
-    def __init__(self, label, visual=None, *, u: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.u = u
 
 
@@ -1264,7 +933,7 @@ lattice or a network space for the group, as above.
 **A field realization.** The subclass above is already a field realization, the exchange of heat or of people
 between neighbours. A field writes its own laws for one edge in the same way, such as an infection along each contact.
 
-See its [fact sheet](../../../parts/interactions.md#neighborinteraction)
+See its [fact sheet](../../../components/interactions.md#neighborinteraction)
 and its [API entry][skcomplex.core.components.interactions.NeighborInteraction].
 
 ## CouplingInteraction
@@ -1366,7 +1035,7 @@ simulate(weak, until=4, dt=2.0).get_values('fireflies.theta').round(3).tolist()
 
 With half the strength, the phases are 0.426 and 0.574 after 2 seconds and 0.49 and 0.51 after 4, a slower approach.
 
-See its [fact sheet](../../../parts/interactions.md#couplinginteraction)
+See its [fact sheet](../../../components/interactions.md#couplinginteraction)
 and its [API entry][skcomplex.core.components.interactions.CouplingInteraction].
 
 ## PairInteraction
@@ -1393,12 +1062,11 @@ class AtomElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: object = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
 
@@ -1421,8 +1089,8 @@ from sage.all__sagemath_symbolics import exp
 
 
 class WalkerElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -1497,7 +1165,7 @@ LennardJonesInteraction('lj', 'gas', 'gas', epsilon=0.5).get_params()
 
 Its parameters are the two groups, the cutoff, the label, `epsilon`, and `sigma`.
 
-See its [fact sheet](../../../parts/interactions.md#pairinteraction)
+See its [fact sheet](../../../components/interactions.md#pairinteraction)
 and its [API entry][skcomplex.core.components.interactions.PairInteraction].
 
 ## HyperedgeInteraction
@@ -1522,8 +1190,8 @@ from skcomplex.core.specs import RoleSpec, StateSpec
 
 
 class NodeElement(Element):
-    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.x = x
 
 
@@ -1603,7 +1271,7 @@ of 2 or more, or `None` for every size.
 **A field realization.** The subclasses above are already field realizations, the opinions of groups in social
 science and the triads of physics.
 
-See its [fact sheet](../../../parts/interactions.md#hyperedgeinteraction)
+See its [fact sheet](../../../components/interactions.md#hyperedgeinteraction)
 and its [API entry][skcomplex.core.components.interactions.HyperedgeInteraction].
 
 ## GroupingInteraction
@@ -1624,8 +1292,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class TraderElement(Element):
-    def __init__(self, label, visual=None, *, w: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, w: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.w = w
 
 
@@ -1716,7 +1384,7 @@ float(simulate(exchange, until=5, random_state=0).get_agents('traders', 5).value
 
 The total wealth stays 60.
 
-See its [fact sheet](../../../parts/interactions.md#groupinginteraction)
+See its [fact sheet](../../../components/interactions.md#groupinginteraction)
 and its [API entry][skcomplex.core.components.interactions.GroupingInteraction].
 
 ## LocalRuleInteraction
@@ -1733,15 +1401,16 @@ import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
+from skcomplex.core.components.spaces import DiscreteTime, LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import OuterTotalisticSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import OuterTotalisticSpec
 
 
 class CellElement(Element):
-    def __init__(self, label, visual=None, *, c: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, c: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.c = c
 
 
@@ -1749,7 +1418,7 @@ board = np.zeros((5, 5))
 board[2, 1:4] = 1.0
 cells = GroupElement('board', element=CellElement, space=LatticeSpace((5, 5)), on='sites', values={'c': board.ravel()})
 life = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}, default=0)
-rule = LocalRuleInteraction('life', target='board', state='c', rule=life, neighborhood=BallNeighborhood())
+rule = LocalRuleInteraction('life', target='board', state='c', rule=life, neighborhood=RadiusNeighborhood(1, metric='chebyshev'))
 game = CompositeSystem(elements=[cells], interactions=[rule], time=DiscreteTime())
 [np.flatnonzero(frame).tolist() for frame in simulate(game, until=2).get_values('board.c')]
 ```
@@ -1761,13 +1430,13 @@ The same class moves cars along a ring road by the elementary rule 184. A car mo
 empty. The `TableSpec` maps each pattern of the left neighbour, the cell, and the right neighbour to the next value.
 
 ```python continuation
-from skcomplex.core.specs import TableSpec
+from skcomplex.core.components.laws import TableSpec
 
 moves = {(1, 1, 1): 1, (1, 1, 0): 0, (1, 0, 1): 1, (1, 0, 0): 1}
 patterns = moves | {(0, 1, 1): 1, (0, 1, 0): 0, (0, 0, 1): 0, (0, 0, 0): 0}
 cars = {'c': [1, 1, 0, 1, 0, 0, 0, 0]}
 road = GroupElement('road', element=CellElement, space=LatticeSpace(8), on='sites', values=cars)
-around = BallNeighborhood(metric='manhattan', n_dim=1, center='inline')
+around = LatticeNeighborhood(((-1,), (0,), (1,)))
 traffic = LocalRuleInteraction('traffic', target='road', state='c', rule=TableSpec(patterns), neighborhood=around)
 ring = CompositeSystem(elements=[road], interactions=[traffic], time=DiscreteTime())
 simulate(ring, until=3).get_values('road.c').astype(int).tolist()
@@ -1788,7 +1457,7 @@ the cells in turns.
 The interaction emits a local rule law.
 
 **How it combines.** The role `target` binds a group on the sites of a lattice or the nodes of a network, and the
-`neighborhood`, such as `BallNeighborhood`, gives the ordered neighbours. A rule can be a `TableSpec`, a
+`neighborhood`, such as `RadiusNeighborhood`, gives the ordered neighbours. A rule can be a `TableSpec`, a
 `TotalisticSpec` of the sum of the neighbourhood, an `OuterTotalisticSpec`, or a function of arrays that sets several
 states together.
 
@@ -1806,7 +1475,7 @@ except ValidationError as error:
 message
 ```
 
-The message says that the neighbourhood of the local rule `life` is `'moore'`. The fix is `BallNeighborhood()`, the
+The message says that the neighbourhood of the local rule `life` is `'moore'`. The fix is `RadiusNeighborhood(1, metric='chebyshev')`, the
 Moore neighbourhood of the eight surrounding cells.
 
 **A field realization.** A field fixes the rule and the neighbourhood, such as the Game of Life.
@@ -1814,7 +1483,7 @@ Moore neighbourhood of the eight surrounding cells.
 ```python continuation
 class LifeInteraction(LocalRuleInteraction):
     def __init__(self, label, *, target):
-        super().__init__(label, target=target, state='c', rule=life, neighborhood=BallNeighborhood())
+        super().__init__(label, target=target, state='c', rule=life, neighborhood=RadiusNeighborhood(1, metric='chebyshev'))
 
 
 LifeInteraction('life', target='board').get_params()
@@ -1822,7 +1491,7 @@ LifeInteraction('life', target='board').get_params()
 
 Its parameters are the label and the target.
 
-See its [fact sheet](../../../parts/interactions.md#localruleinteraction)
+See its [fact sheet](../../../components/interactions.md#localruleinteraction)
 and its [API entry][skcomplex.core.components.interactions.LocalRuleInteraction].
 
 ## SamplingInteraction
@@ -1847,8 +1516,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class SpinElement(Element):
-    def __init__(self, label, visual=None, *, s: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, s: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
         self.s = s
 
 
@@ -1942,7 +1611,7 @@ round(abs(float(values[-1].mean())), 2)
 
 At the high temperature 10 the spins stay disordered, with a magnetization of 0.06 in size.
 
-See its [fact sheet](../../../parts/interactions.md#samplinginteraction)
+See its [fact sheet](../../../components/interactions.md#samplinginteraction)
 and its [API entry][skcomplex.core.components.interactions.SamplingInteraction].
 
 ## TopologyInteraction
@@ -2031,7 +1700,7 @@ CitationInteraction('citations', m=3).get_params()
 
 Its parameters are the label and `m`.
 
-See its [fact sheet](../../../parts/interactions.md#topologyinteraction)
+See its [fact sheet](../../../components/interactions.md#topologyinteraction)
 and its [API entry][skcomplex.core.components.interactions.TopologyInteraction].
 
 ## ConnectionInteraction
@@ -2045,7 +1714,7 @@ from typing import Annotated, ClassVar
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import ConnectionInteraction
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
@@ -2055,26 +1724,25 @@ PIN = ConnectorSpec('pin', potential='v', flow='i')
 
 class BranchElement(Element):
     ports: ClassVar = {'a': PIN}
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
         label,
-        visual=None,
         *,
         a_v: Annotated[float, StateSpec(algebraic=True)] = 0.0,
         a_i: Annotated[float, StateSpec(algebraic=True)] = 0.0,
         g: Annotated[float, ParameterSpec()] = 1.0,
         e: Annotated[float, ParameterSpec()] = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a_v = a_v
         self.a_i = a_i
         self.g = g
         self.e = e
 
     def _get_laws(self, namespace):
-        return [EquationLaw(namespace.a_i, namespace.g * (namespace.a_v - namespace.e))]
+        return [ConstraintLaw(namespace.a_i, namespace.g * (namespace.a_v - namespace.e))]
 
 
 node = ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])
@@ -2146,7 +1814,7 @@ PinNodeInteraction('ground', members=['first', 'second']).ports
 
 The node names the port `a` of both members.
 
-See its [fact sheet](../../../parts/interactions.md#connectioninteraction)
+See its [fact sheet](../../../components/interactions.md#connectioninteraction)
 and its [API entry][skcomplex.core.components.interactions.ConnectionInteraction].
 
 ## TrainingInteraction
@@ -2167,20 +1835,21 @@ from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DatasetSpec, ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import DatasetSpec
+from skcomplex.core.components import Observable
 
 
 class FactorElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         a: Annotated[float, ParameterSpec(adaptive=True)] = 0.5,
         observed: Annotated[float, ParameterSpec()] = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.a = a
         self.observed = observed
@@ -2189,7 +1858,7 @@ class FactorElement(Element):
         return [UpdateLaw(namespace.x, namespace.a * namespace.x)]
 
 
-squared_error = ObservableSpec('error', lambda s: (s.unit.x - s.unit.observed) ** 2)
+squared_error = Observable('error', lambda s: (s.unit.x - s.unit.observed) ** 2)
 series = 0.8 ** np.arange(1, 11)
 blood = CompositeSystem('blood', elements=[FactorElement('unit')], time=DiscreteTime())
 fit = TrainingInteraction(
@@ -2231,16 +1900,11 @@ round(float(simulate(fitting, until=100, random_state=0).get_values('account/uni
 
 The factor reaches 1.01. A real study would hold out part of the data and record a metric on it with `metrics`.
 
-**How the engine runs it.** The interaction returns a gradient step law. `GradientDescentSolver` unrolls the nested
-system over each batch of sequences with JAX, differentiates the loss with respect to the trained parameters, and
-takes one step of the optimizer. The trajectory records the trained parameters under their paths in the nested
-system, such as `account/unit.a`, and the mean loss of each epoch as `fit/loss`.
-
-```python continuation
-[law.__name__ for law in fit.law_classes]
-```
-
-The interaction emits a gradient step law.
+**How the engine runs it.** The interaction states no laws of its own. The compiler finds it in the system, and
+`GradientDescentSolver` reads its settings, unrolls the nested system over each batch of sequences with JAX,
+differentiates the loss with respect to the trained parameters, and takes one step of the optimizer. The trajectory
+records the trained parameters under their paths in the nested system, such as `account/unit.a`, and the mean loss of
+each epoch as `fit/loss`.
 
 **How it combines.** The role `system` binds a nested system, which runs, is analysed, and is drawn alone before or
 after training. The hyperparameters of the optimizer, such as `learning_rate`, are parameters of the interaction, so a
@@ -2288,7 +1952,7 @@ SquaredErrorTrainingInteraction('fit', system='account', trained=['unit.a'], dat
 
 The training uses the optimizer `'sgd'`.
 
-See its [fact sheet](../../../parts/interactions.md#traininginteraction)
+See its [fact sheet](../../../components/interactions.md#traininginteraction)
 and its [API entry][skcomplex.core.components.interactions.TrainingInteraction].
 
 ## BaseInteraction
@@ -2305,5 +1969,5 @@ issubclass(Interaction, BaseInteraction), issubclass(NeighborInteraction, BaseIn
 
 Both are subclasses of `BaseInteraction`.
 
-See its [fact sheet](../../../parts/interactions.md#baseinteraction)
+See its [fact sheet](../../../components/interactions.md#baseinteraction)
 and its [API entry][skcomplex.core.components.interactions.BaseInteraction].

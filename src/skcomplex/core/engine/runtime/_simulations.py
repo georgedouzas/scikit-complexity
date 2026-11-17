@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 import math
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Self, cast
 
 import numpy as np
@@ -14,19 +15,30 @@ from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
 from ...base import BaseConfig
+from ...components import Observable
+from ...components.laws import JumpLaw, NoiseLaw, ObjectiveLaw, RateLaw, UpdateLaw
 from ...components.systems import CompositeSystem
-from ...errors import ParameterError, SimulationError, ValidationError
-from ...specs import AgentStateSpec, EntrySpec, ObservableSpec, RunStateSpec, StepSpec, StructureStateSpec
-from ...types import Array, FormKind
+from ...enums import FormKind
+from ...errors import ParameterError, SimulationError, SolverError, ValidationError
+from ...specs import EntrySpec
+from ...types import Array
+from .. import solvers
 from ..backends import BaseBackend
 from ..compile import BaseCompiler
 from ..compile._observables import ObservableEvaluator
 from ..compile._pass_compiler import PassCompiler
-from ..compile._rewriting_compiler import RewritingCompiler
-from ..compile.passes._operator_compiler import OperatorCompiler
-from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec
+from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec, RunStateSpec
 from ..problems._draw_recorder import DrawRecorder
-from ..solvers import BaseSolver, CoSimulationSolver, FractionalEulerMaruyamaSolver
+from ..solvers import (
+    BaseSolver,
+    CoSimulationSolver,
+    FractionalEulerMaruyamaSolver,
+    MinimizeSolver,
+    RootSolver,
+    StepSpec,
+    StructureStateSpec,
+)
+from ..solvers._agent_state_spec import _AgentStateSpec
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver
@@ -35,6 +47,18 @@ from ._recorder import RecorderObserver
 from ._trajectories import Trajectory
 
 DEFAULT_DT = 0.01
+PROBLEMS = (
+    (UpdateLaw, 'a discrete map'),
+    (JumpLaw, 'a jump process'),
+    (NoiseLaw, 'stochastic differential equations'),
+    (ObjectiveLaw, 'a static problem'),
+    (RateLaw, 'ordinary differential equations'),
+)
+SOLVERS = tuple(
+    item
+    for item in vars(solvers).values()
+    if isinstance(item, type) and issubclass(item, BaseSolver) and not inspect.isabstract(item)
+)
 MAX_FRAMES = 1000
 FRAME_MANTISSAS = (1, 2, 5)
 TIME_TOLERANCE = 1e-9
@@ -62,9 +86,9 @@ class Simulation(BaseConfig[None, float]):
 
         compiler:
             The compiler of the system, whose backend, solver, and observables the simulation sets, or `None` for the
-            compiler of the library's form that the system holds: the operator compiler for a system of operator
-            elements, the rewriting compiler for a system of words or patches, and the pass compiler otherwise. A
-            system package can bring the compiler of a form of its own, which names the solver of its problems.
+            compiler an element of the system names, such as the compiler of the words of a rewriting package, else
+            the operator compiler for a system of operator elements, and the pass compiler otherwise. A system package
+            can bring the compiler of a form of its own, which names the solver of its problems.
 
         solver:
             The solver, or `None` for the solver the compiler names, or else the default solver of the system's form,
@@ -176,7 +200,7 @@ class Simulation(BaseConfig[None, float]):
         random_state: int | np.random.Generator | None = None,
         checked: bool = False,
         schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
-        observables: Sequence[ObservableSpec] = (),
+        observables: Sequence[Observable] = (),
         invariants: Mapping[str, float] | None = None,
         initial_state: Mapping[str, object] | None = None,
         until: float | None = None,
@@ -251,8 +275,8 @@ class Simulation(BaseConfig[None, float]):
             )
             raise ValidationError(error_msg)
         if not isinstance(self.system, BaseProblemSpec):
-            self._get_compiler().prepare(self.system).report_._check()
-        initial = dict(self.initial_state or {})
+            self._check_report(self._get_compiler().prepare(self.system))
+        initial = {Trajectory._get_internal_name(name): value for name, value in (self.initial_state or {}).items()}
         named: object = None
         if isinstance(self.system, BaseProblemSpec):
             self.problem_ = PassCompiler._copy_with_initial_state(self.system, initial)
@@ -334,7 +358,7 @@ class Simulation(BaseConfig[None, float]):
         The events since the previous frame go with it.
         """
         external = self.stepper_.snapshot_
-        agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentStateSpec) else ({}, {})
+        agents, reporters = (external.groups, external.reporters) if isinstance(external, _AgentStateSpec) else ({}, {})
         structures = external.structures if isinstance(external, StructureStateSpec) else {}
         reporters = external.reporters if isinstance(external, StructureStateSpec) else reporters
         state = self._get_frame_state()
@@ -507,14 +531,63 @@ class Simulation(BaseConfig[None, float]):
 
         Returns:
             compiler:
-                The operator compiler for a system of operator elements, the rewriting compiler for a system of words
-                or patches, or `None` for any other system.
+                The compiler an element of the system names, or `None` for any other system.
+
+        Raises:
+            ValidationError:
+                An element names something that is not a compiler.
         """
-        if OperatorCompiler._contains_operator(system):
-            return OperatorCompiler()
-        if RewritingCompiler._is_rewriting(system):
-            return RewritingCompiler()
+        named = Simulation._get_named_compiler(system)
+        if named is not None:
+            if not isinstance(named, BaseCompiler):
+                error_msg = f'An element of {system.label} names {named!r} as its compiler, which is not a compiler.'
+                raise ValidationError(error_msg)
+            return named
         return None
+
+    @staticmethod
+    def _get_named_compiler(system: CompositeSystem) -> object:
+        """Return the compiler the first element of a system tree names, or `None`."""
+        for element in system.elements:
+            named = element._get_compiler()
+            if named is not None:
+                return named
+        for child in system.systems:
+            if isinstance(child, CompositeSystem):
+                named = Simulation._get_named_compiler(child)
+                if named is not None:
+                    return named
+        return None
+
+    def _check_report(self, compiler: BaseCompiler) -> None:
+        """Raise the issues of the system, naming the solvers that support it."""
+        try:
+            compiler.report_._check()
+        except SolverError as error:
+            advice = self._get_solver_advice(compiler)
+            raise SolverError(f'{error} {advice}'.strip()) from error
+
+    @staticmethod
+    def _supports(solver: type[BaseSolver], needs: Mapping[str, Iterable[object]]) -> bool:
+        """Return whether a solver class supports every need of a system."""
+        try:
+            support = BaseCompiler._support_of(solver)
+        except NotImplementedError:
+            return False
+        return not any(support.get_missing(category, terms) for category, terms in needs.items())
+
+    def _get_solver_advice(self, compiler: BaseCompiler) -> str:
+        """Return the problem the laws of the system make and the solvers that support it."""
+        census = getattr(getattr(compiler, 'compilation_', None), 'census', None)
+        if census is None or not isinstance(self.system, CompositeSystem):
+            return ''
+        needs = PassCompiler._get_needs(census, self.system)
+        laws = [item for item in needs['laws'] if isinstance(item, type)]
+        problem = next((name for law, name in PROBLEMS if any(issubclass(item, law) for item in laws)), 'a problem')
+        supported = [solver.__name__ for solver in SOLVERS if self._supports(solver, needs)]
+        if not supported:
+            return f'The laws make {problem}, which no solver of the library supports.'
+        return f'The laws make {problem}, which {", ".join(supported)} support.'
 
     def _get_default_solver(self, problem: BaseProblemSpec) -> BaseSolver:
         """Return the default solver of the form of a problem.
@@ -536,13 +609,15 @@ class Simulation(BaseConfig[None, float]):
                 The form of the problem has no default solver.
         """
         form = problem.form
-        if not isinstance(form, FormKind):
+        if not isinstance(form, FormKind) or (form not in DEFAULT_SOLVERS and form != FormKind.COUPLED):
             error_msg = f'The {form} form has no default solver. Give a solver, or a compiler that names one.'
             raise ValidationError(error_msg)
         if form == FormKind.COUPLED:
             return CoSimulationSolver()
         if form == FormKind.SDE and isinstance(problem, ProblemSpec) and problem.fractional:
             return FractionalEulerMaruyamaSolver()
+        if form == FormKind.STATIC and isinstance(problem, ProblemSpec) and problem.objective is not None:
+            return MinimizeSolver()
         return DEFAULT_SOLVERS[form]()
 
     def prepare(self, context: None = None) -> Self:
@@ -598,7 +673,8 @@ class Simulation(BaseConfig[None, float]):
         if end is None:
             error_msg = 'A simulation runs until a time. Pass it to `run`, such as `run(until=10)`.'
             raise ValidationError(error_msg)
-        until = 0.0 if self.problem_.form == FormKind.STATIC else float(end)
+        once = self.problem_.form == FormKind.STATIC and isinstance(self.stepper_, MinimizeSolver | RootSolver)
+        until = 0.0 if once else float(end)
         self._start(until)
         self._advance_frames(until)
 

@@ -17,8 +17,9 @@ from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ...general.agents import MovementInteraction
 
 PHASE = 'default'
@@ -46,9 +47,6 @@ class DwellerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         block:
             The index of the agent's block, which `StochasticSchellingSystem` sets after every move.
 
@@ -75,7 +73,6 @@ class DwellerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         block: Annotated[float, StateSpec(domain=NN)] = 0.0,
         beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
@@ -83,7 +80,7 @@ class DwellerElement(Element):
         slope: Annotated[float, ParameterSpec()] = -4.0 / 3.0,
         intercept: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.block = block
         self.beta = beta
         self.altruism = altruism
@@ -288,7 +285,7 @@ class StochasticSchellingSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = int(self.width * self.height * self.density)
         cells = rng.permutation(self.width * self.height)[:size]

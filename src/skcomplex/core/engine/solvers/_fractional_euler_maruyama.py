@@ -10,19 +10,12 @@ import numpy.typing as npt
 import scipy.fft
 import scipy.linalg
 
-from ...components.laws import (
-    BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
-    FluxLaw,
-    NoiseLaw,
-    RateLaw,
-    TransferLaw,
-)
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.laws import BoundaryLaw, ConstraintLaw, EventLaw, NoiseLaw, RateLaw, TransferLaw
+from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import SolverError, ValidationError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ._horizon_error import HorizonError
 from ._solver import Solver
@@ -75,7 +68,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> class WalkerElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -96,8 +89,8 @@ class FractionalEulerMaruyamaSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            laws={RateLaw, ConstraintLaw, EventLaw, BoundaryLaw, TransferLaw, NoiseLaw},
             noise=frozenset({NoiseKind.DIAGONAL, NoiseKind.FRACTIONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )

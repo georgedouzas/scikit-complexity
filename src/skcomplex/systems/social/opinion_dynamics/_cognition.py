@@ -50,9 +50,6 @@ class ThinkerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         valences:
             The initial valences of the concepts F1, X, and F2, between -1 and 1.
 
@@ -70,16 +67,17 @@ class ThinkerElement(Element):
         ('thinkers', 'ThinkerElement', 5)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'attitude', 'color_range': (-1.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'attitude', 'color_range': (-1.0, 1.0)}),
         *,
         valences: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
         attitude: Annotated[float, StateSpec()] = 0.0,
         decay: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.valences = valences
         self.attitude = attitude
         self.decay = decay
@@ -242,7 +240,7 @@ class CognitiveConsistencySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         graph = self.graph
         graph = nx.complete_graph(40) if graph is None else graph
         size = nx.number_of_nodes(graph)

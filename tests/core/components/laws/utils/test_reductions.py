@@ -1,6 +1,5 @@
 """Test the `_reductions` module of `skcomplex.core.components.laws.utils`."""
 
-import importlib
 import itertools
 import math
 from types import SimpleNamespace
@@ -13,10 +12,10 @@ import scipy.sparse
 import scipy.special
 from sage.all__sagemath_symbolics import RR, SR, atan2, cos, exp, pi, sin, sqrt, tanh, var, vector
 
-from skcomplex.core.components.base import BasePart
+from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import EquationLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import (
     circular_mean,
     count,
@@ -37,9 +36,9 @@ from skcomplex.core.components.laws.utils._reductions import (
     reductions_in,
 )
 from skcomplex.core.components.spaces import (
-    BallNeighborhood,
     ContinuousSpace,
     DiscreteTime,
+    LatticeNeighborhood,
     LatticeSpace,
     NearestNeighborhood,
     NetworkSpace,
@@ -54,7 +53,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 BACKENDS = (NumpyBackend(), NumbaBackend())
 GAMMA = 0.5
@@ -151,14 +150,13 @@ class ReducingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         out: Annotated[object, StateSpec()] = 0.0,
         y: Annotated[object, StateSpec()] = 0.0,
         over: object = None,
         reduce: str = 'sum',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.out = out
         self.y = y
         self.over = over
@@ -175,7 +173,6 @@ class PositionedReducingElement(ReducingElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         out: Annotated[object, StateSpec()] = 0.0,
         y: Annotated[object, StateSpec()] = 0.0,
@@ -183,7 +180,7 @@ class PositionedReducingElement(ReducingElement):
         reduce: str = 'sum',
         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce)
+        super().__init__(label, out=out, y=y, over=over, reduce=reduce)
         self.x = x
 
 
@@ -193,7 +190,6 @@ class HeadedReducingElement(PositionedReducingElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         out: Annotated[object, StateSpec()] = 0.0,
         y: Annotated[object, StateSpec()] = 0.0,
@@ -202,7 +198,7 @@ class HeadedReducingElement(PositionedReducingElement):
         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         phi: Annotated[object, StateSpec(domain=RR)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce, x=x)
+        super().__init__(label, out=out, y=y, over=over, reduce=reduce, x=x)
         self.phi = phi
 
 
@@ -238,8 +234,16 @@ def _minimum_image(difference, side):
 
 def test_neighbors_keeps_the_values_at_lattice_offsets():
     """Test that a lattice neighbourhood without a reduction gives the values at every offset, for local energies."""
-    values = neighbors(var('spin'), BallNeighborhood(metric='manhattan'), reduce='each')
+    cross = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
+    values = neighbors(var('spin'), cross, reduce='each')
     assert [str(item) for item in values] == [f'neighbor(spin, {index})' for index in range(4)]
+    assert len(neighbors(var('spin'), RadiusNeighborhood(1, metric='hexagonal'), reduce='each')) == 6
+
+
+def test_neighbors_each_needs_offsets_known_before_the_lattice():
+    """Test that the values at every offset need a neighbourhood whose offsets do not wait for a lattice."""
+    with pytest.raises(ValidationError, match='known before its lattice'):
+        neighbors(var('spin'), RadiusNeighborhood(1, metric='manhattan'), reduce='each')
 
 
 def test_neighbors_rejects_an_unknown_reduction():
@@ -280,12 +284,11 @@ def test_weighted_reduction_reads_the_member_and_its_neighbour(backend):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             out: Annotated[object, StateSpec()] = 0.0,
             y: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.out = out
             self.y = y
 
@@ -311,7 +314,7 @@ def test_reduction_over_a_lattice_leaves_out_sites_outside_fixed_edges(backend):
     """Test that a sum over a von Neumann neighbourhood of a fixed lattice sums the neighbours inside the lattice."""
     values = np.arange(12.0).reshape(3, 4)
     space = LatticeSpace((3, 4), boundary='fixed')
-    given = {'y': values, 'over': BallNeighborhood(metric='manhattan')}
+    given = {'y': values, 'over': RadiusNeighborhood(1, metric='manhattan')}
     system = CompositeSystem(
         elements=[GroupElement('g', element=ReducingElement, space=space, values=given, on='sites')],
     )
@@ -412,12 +415,11 @@ def test_neighbour_positions_are_read_by_minimum_image(backend):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             out: Annotated[object, StateSpec()] = 0.0,
             x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.out = out
             self.x = x
 
@@ -444,7 +446,6 @@ def test_neighbourhood_reads_a_place_by_its_role_and_not_a_state_named_x():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             out: Annotated[object, StateSpec()] = 0.0,
             y: Annotated[object, StateSpec()] = 0.0,
@@ -452,7 +453,7 @@ def test_neighbourhood_reads_a_place_by_its_role_and_not_a_state_named_x():
             reduce: str = 'sum',
             x: Annotated[object, StateSpec(vector=True)] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce)
+            super().__init__(label, out=out, y=y, over=over, reduce=reduce)
             self.x = x
 
     group = GroupElement('g', element=UnplacedElement, size=2, values={'over': RadiusNeighborhood(1.0)})
@@ -487,11 +488,10 @@ def test_interaction_reduces_over_the_neighbours_of_its_group():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             y: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.y = y
 
     plain = PlainElement
@@ -513,11 +513,10 @@ def test_neighbour_symbols_outside_a_reduction_are_rejected():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             y: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.y = y
 
         def _get_laws(self, s):
@@ -575,14 +574,13 @@ def test_validate_accepts_a_cone_along_the_velocity():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             out: Annotated[object, StateSpec()] = 0.0,
             y: Annotated[object, StateSpec()] = 0.0,
             x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0,
             x_d1: object = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.out = out
             self.y = y
             self.x = x
@@ -606,13 +604,12 @@ class OscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec()] = 0.0,
         omega: Annotated[object, ParameterSpec()] = 0.0,
         K: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.omega = omega
         self.K = K
@@ -674,14 +671,13 @@ class MoverElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
         v0: Annotated[object, ParameterSpec()] = 0.03,
         eta: Annotated[object, ParameterSpec()] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.v0 = v0
@@ -740,11 +736,10 @@ class PhaseElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -837,13 +832,12 @@ class ImitatingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         out: Annotated[object, StateSpec()] = 0.0,
         strategy: Annotated[object, StateSpec()] = 0.0,
         payoff: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.out = out
         self.strategy = strategy
         self.payoff = payoff
@@ -881,12 +875,11 @@ class KeyedElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
         k: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.k = k
 
@@ -978,12 +971,11 @@ class AroundElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
         term: str = 'triad',
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.term = term
 
@@ -1106,7 +1098,7 @@ def test_hyperedges_over_a_neighbourhood_keeps_it():
     ('arguments', 'match'),
     [
         ({'over': RadiusNeighborhood(1.0)}, 'size of 2 or more'),
-        ({'size': 3, 'over': BallNeighborhood(metric='manhattan')}, 'continuous space'),
+        ({'size': 3, 'over': LatticeNeighborhood(((0, 1), (1, 0)))}, 'continuous space'),
     ],
 )
 def test_hyperedges_over_a_neighbourhood_needs_a_size_and_a_metric_neighbourhood(arguments, match):
@@ -1121,14 +1113,13 @@ class NeighbourSetElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         y: Annotated[object, StateSpec()] = 0.0,
         term: str = 'flank',
         radius: float = 1.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.term = term
@@ -1200,13 +1191,12 @@ class DriftingSetElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         y: Annotated[object, StateSpec()] = 0.0,
         speed: Annotated[object, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.speed = speed
@@ -1284,9 +1274,9 @@ class LogPartitionInteraction(Interaction):
         self.target = target
         self.energies = energies
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
         """Return the equation of the reduction."""
-        return [EquationLaw(s.target.value == log_sum_exp(s.energies.energy, over=s.energies), target=s.target.value)]
+        return [ConstraintLaw(s.target.value == log_sum_exp(s.energies.energy, over=s.energies), target=s.target.value)]
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -1337,16 +1327,16 @@ class BoltzmannInteraction(Interaction):
         self.n_spins = n_spins
         self.temperature = temperature
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
         """Return the equations of the log partition function, the mean energy, and the entropy per spin."""
         weight = -s.levels.energy / s.temperature
         log_partition = log_sum_exp(weight, over=s.levels)
         energy = total(s.levels.energy * exp(weight - log_partition), over=s.levels)
         entropy = (s.target.log_partition + s.target.energy / s.temperature) / s.n_spins
         return [
-            EquationLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
-            EquationLaw(s.target.energy == energy, target=s.target.energy),
-            EquationLaw(s.target.entropy == entropy, target=s.target.entropy),
+            ConstraintLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
+            ConstraintLaw(s.target.energy == energy, target=s.target.energy),
+            ConstraintLaw(s.target.entropy == entropy, target=s.target.entropy),
         ]
 
 
@@ -1368,10 +1358,3 @@ def test_log_sum_exp_random_energy_system_entropy() -> None:
     assert entropies[0] == pytest.approx(math.log(2) - 1 / 4, abs=0.02)
     assert entropies[1] == pytest.approx(math.log(2) - 1 / 16, abs=0.02)
     assert entropies[2] < 0.1
-
-
-def test_the_public_law_namespace_leaves_out_the_compiler_helpers():
-    """Test that importing a compiler helper from the public law namespace raises an `ImportError`."""
-    law_utils = importlib.import_module('skcomplex.core.components.laws.utils')
-    assert 'reductions_in' not in law_utils.__all__
-    assert not hasattr(law_utils, 'reductions_in')

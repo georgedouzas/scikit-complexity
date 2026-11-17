@@ -12,7 +12,7 @@ from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class DrivenElement(Element):
@@ -21,14 +21,13 @@ class DrivenElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
         force: Annotated[object, ParameterSpec(adaptive=True, bounds=(-1, 1))] = 0.0,
         w: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.force = force
@@ -45,13 +44,12 @@ class FreeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
         w: Annotated[object, ParameterSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.w = w
@@ -67,13 +65,12 @@ class PendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec(order=2)] = 0.0,
         theta_d1: float = 0.0,
         torque: Annotated[object, ParameterSpec(adaptive=True, bounds=(-1, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.theta_d1 = theta_d1
         self.torque = torque
@@ -89,11 +86,10 @@ class CounterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         k: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.k = k
 
     def _get_laws(self, s):
@@ -107,13 +103,12 @@ class CartElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
         force: Annotated[object, ParameterSpec(adaptive=True, bounds=(-1, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.force = force

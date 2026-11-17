@@ -12,12 +12,14 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import ConnectionInteraction, EulerLagrangeInteraction, Interaction
-from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
+from ....core.components.interactions import ConnectionInteraction, Interaction
+from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ...general.mechanics import EulerLagrangeInteraction
 from ..common.electrical import GroundElement, InductorElement, ResistorElement, TwoPinElement, VoltageSourceElement
 from ..common.mechanics import SpringDamperInteraction
 
@@ -31,10 +33,7 @@ class ArmatureElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         p_v:
             The potential of the positive pin.
@@ -57,14 +56,13 @@ class ArmatureElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
         n_v: object = 0.0,
         n_i: object = 0.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
 
 
 class InertiaElement(Element):
@@ -72,10 +70,7 @@ class InertiaElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         phi:
             The initial angle.
@@ -98,14 +93,13 @@ class InertiaElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         phi: Annotated[object, StateSpec(order=2)] = 0.0,
         phi_d1: object = 0.0,
         J: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
         b: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phi = phi
         self.phi_d1 = phi_d1
         self.J = J
@@ -120,10 +114,7 @@ class QuarterCarElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         y1:
             The initial displacement of the body.
@@ -169,7 +160,6 @@ class QuarterCarElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         y1: Annotated[object, StateSpec(order=2)] = 0.0,
         y1_d1: object = 0.0,
@@ -183,7 +173,7 @@ class QuarterCarElement(Element):
         height: Annotated[object, ParameterSpec()] = 0.05,
         at: Annotated[object, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.y1 = y1
         self.y1_d1 = y1_d1
         self.y2 = y2
@@ -209,7 +199,7 @@ class MotorCouplingInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         armature:
             The path of the armature.
@@ -226,7 +216,7 @@ class MotorCouplingInteraction(Interaction):
         0.5
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -253,8 +243,8 @@ class MotorCouplingInteraction(Interaction):
                 The equation laws of the coupling.
         """
         return [
-            EquationLaw(s.armature.p_v - s.armature.n_v, s.k * derivative(s.inertia.phi, 1)),
-            EquationLaw(-s.k * s.armature.p_i, 0, target=s.inertia.phi),
+            ConstraintLaw(s.armature.p_v - s.armature.n_v, s.k * derivative(s.inertia.phi, 1)),
+            ConstraintLaw(-s.k * s.armature.p_i, 0, target=s.inertia.phi),
         ]
 
 
@@ -313,8 +303,8 @@ class DcMotorSystem(BaseSystem):
     until = 10.0
     dt = 0.01
     observables = (
-        ObservableSpec('speed', _get_speed_of_rotor),
-        ObservableSpec('current', _get_current_of_winding),
+        Observable('speed', _get_speed_of_rotor),
+        Observable('current', _get_current_of_winding),
     )
 
     def __init__(
@@ -349,7 +339,7 @@ class DcMotorSystem(BaseSystem):
         return dissipation
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -427,7 +417,7 @@ class QuarterCarSystem(BaseSystem):
     references = ('Fritzson 2015',)
     until = 10.0
     dt = 0.005
-    observables = (ObservableSpec('energy', _get_spring_energy),)
+    observables = (Observable('energy', _get_spring_energy),)
 
     def __init__(
         self,
@@ -451,7 +441,7 @@ class QuarterCarSystem(BaseSystem):
         self.kt = kt
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         car = QuarterCarElement(
             'car',
             m1=self.m1,

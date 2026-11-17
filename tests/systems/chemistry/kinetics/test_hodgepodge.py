@@ -20,7 +20,7 @@ def test_hodgepodge_keeps_waves():
     assert (levels[-1] == 100).mean() > 0.1
 
 
-def test_hodgepodge_passes_its_parameters_to_its_parts():
+def test_hodgepodge_passes_its_parameters_to_its_components():
     """Test that a model parameter changed with `set_params` changes the cells of the next `prepare`."""
     system = HodgepodgeSystem((10, 10)).set_params(g=20.0)
     assert system.get_params()['g'] == 20.0

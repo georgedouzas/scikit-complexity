@@ -13,14 +13,14 @@ from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 
 class AngleElement(Element):
     """Node with an angle."""
 
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, angle: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, angle: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.angle = angle
 
 

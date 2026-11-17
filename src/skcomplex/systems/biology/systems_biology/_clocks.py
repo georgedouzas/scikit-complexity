@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws.utils import hill
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 
@@ -31,9 +31,6 @@ class PerClockElement(Element):
     Args:
         label:
             The label of the clock.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         M:
             The initial per mRNA concentration.
@@ -104,7 +101,6 @@ class PerClockElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         M: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         P0: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
@@ -127,7 +123,7 @@ class PerClockElement(Element):
         V4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.5,
         K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.M = M
         self.P0 = P0
         self.P1 = P1
@@ -204,7 +200,7 @@ class CircadianClockSystem(BaseSystem):
         self.n = n
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of Goldbeter's system of the Drosophila circadian clock."""
+        """Return the components of Goldbeter's system of the Drosophila circadian clock."""
         clock = PerClockElement('clock', v_s=self.v_s, v_d=self.v_d, k_s=self.k_s, n=self.n)
         reactions = [
             ReactionInteraction(

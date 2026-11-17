@@ -25,17 +25,17 @@ susceptibility, and `nu = 1` for the correlation length, the distance over which
 
 The catalog holds the model as [IsingSystem](../../../systems/physics/statistical_mechanics/ising.md). One unit of
 time is one sweep, an attempt to flip every spin once by the Metropolis rule. An
-[ObservableSpec][skcomplex.core.specs.ObservableSpec] records the magnetization at every sweep, the mean of the variable
+[Observable][skcomplex.core.components.Observable] records the magnetization at every sweep, the mean of the variable
 `spin` over the group `spins`.
 
 ```python
 import numpy as np
 
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
-magnetization = ObservableSpec('magnetization', group='spins', variable='spin', reduce='mean')
+magnetization = Observable('magnetization', group='spins', variable='spin', reduce='mean')
 lattice = IsingSystem(16, temperature=1.8, initial='up')
 tags = lattice.get_tags()
 order = []
@@ -61,10 +61,10 @@ An output function returns the moments of `|m|` of a run after 300 sweeps of war
 import numpy as np
 
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
-magnetization = ObservableSpec('magnetization', group='spins', variable='spin', reduce='mean')
+magnetization = Observable('magnetization', group='spins', variable='spin', reduce='mean')
 
 
 def moments(trajectory):

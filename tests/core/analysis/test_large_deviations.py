@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 
 def _deviations(kind: str, source: object, **settings: object) -> LargeDeviationsResult:
@@ -97,11 +97,10 @@ class CounterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
     def _get_laws(self, s):

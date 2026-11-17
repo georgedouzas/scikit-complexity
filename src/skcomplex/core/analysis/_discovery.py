@@ -12,20 +12,13 @@ import networkx as nx
 import numpy as np
 
 from ..components.systems import CompositeSystem
+from ..engine.problems import NetworkSnapshotSpec
 from ..engine.runtime import Trajectory
-from ..specs import NetworkSnapshotSpec
-from ..types import DataKind
+from ..enums import DataKind
 from ._alignment import alignment
 from ._autocatalytic import autocatalytic_sets
 from ._automata import automaton
-from ._base import (
-    SERIES_DIMENSIONS,
-    _composite,
-    _get_analysis_tags,
-    _get_data_kinds,
-    _get_source_tags,
-    bind_analysis,
-)
+from ._base import SERIES_DIMENSIONS, _composite, _get_analysis_tags, _get_data_kinds, _get_source_tags, bind_analysis
 from ._cell_complex import cell_complex
 from ._clusters import clusters
 from ._coarse_grain import coarse_grain
@@ -58,7 +51,6 @@ from ._mode_decomposition import mode_decomposition
 from ._motifs import motifs
 from ._neighbors import neighbors
 from ._networks import network_measures
-from ._operator import operator_measures
 from ._partial_information import partial_information
 from ._passage import passage
 from ._recurrence import recurrence
@@ -113,7 +105,6 @@ ANALYSES = (
     motifs,
     neighbors,
     network_measures,
-    operator_measures,
     partial_information,
     passage,
     recurrence,

@@ -19,7 +19,7 @@ from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ActiveBeadElement(Element):
@@ -34,9 +34,6 @@ class ActiveBeadElement(Element):
     Args:
         label:
             The label of the bead or the chain.
-
-        visual:
-            How the bead is drawn, or `None` for `default_visual_`.
 
         x:
             The initial first coordinate.
@@ -61,7 +58,7 @@ class ActiveBeadElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the bead when it sets none.
+            How the bead is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import ActiveBeadElement
@@ -77,7 +74,6 @@ class ActiveBeadElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -87,7 +83,7 @@ class ActiveBeadElement(Element):
         D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.theta = theta
@@ -187,7 +183,7 @@ class ActivePolymerSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         angles = np.random.default_rng(self.random_state).uniform(0.0, 2 * np.pi, self.n_beads)
         chain = FieldElement(
             'chain',

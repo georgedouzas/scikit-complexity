@@ -19,7 +19,7 @@ from ....core.components.laws.utils import divergence, laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.traffic import CarElement, OptimalVelocityInteraction, SpeedAdaptationInteraction
 
 
@@ -34,7 +34,6 @@ class TrafficMomentsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         w: Annotated[object, StateSpec()] = 0.25,
@@ -43,7 +42,7 @@ class TrafficMomentsElement(Element):
         rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         D1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
         self.w = w
         self.gamma = gamma
@@ -219,7 +218,7 @@ class LangevinTrafficSystem(BaseSystem):
         self.D1 = D1
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         density = self.n_cars / self.length
         positions = np.arange(self.n_cars) * self.length / self.n_cars
         cars = GroupElement(
@@ -324,7 +323,7 @@ class TrafficDensityEquationSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         rho = self.density * (1 + self.perturbation * rng.standard_normal(self.n))
         values = {

@@ -4,8 +4,8 @@
 # License: MIT
 
 from collections.abc import Callable, Mapping, Sequence
-from enum import IntEnum, StrEnum
 from types import SimpleNamespace
+from typing import Protocol, runtime_checkable
 
 import jax
 import numpy.typing as npt
@@ -15,7 +15,7 @@ from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuous
 from sage.all__sagemath_symbolics import Expression
 from sage.structure.element import RingElement
 
-from ..specs import ObservableSpec
+from ..components import Observable
 from ..types import AnyArray, Array, ComplexArray, Indices, IntArray, IntTuple
 
 type Sparse = scipy.sparse.csr_array
@@ -54,30 +54,37 @@ type Marks = Callable[..., npt.ArrayLike] | Sequence[Sequence[float]]
 type Colors = tuple[int, int, int] | list[tuple[int, int, int, int]]
 type Generators = list[tuple[str, Expression]]
 type Dissipators = list[tuple[str, Expression, object]]
-type Declared = dict[str, tuple[str, ObservableSpec]]
+type Declared = dict[str, tuple[str, Observable]]
 type Number = RingElement | int | float | complex
 type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
 type SpectralBlock = tuple[IntTuple, list[Indices], ComplexArray]
 
 
-class LinearProgramBound(IntEnum):
-    """A bound of a column or a row of a linear program that a compiled value gives."""
+@runtime_checkable
+class HilbertSpaceProtocol(Protocol):
+    """A protocol of the state space of a subsystem that the operator compiler reads.
 
-    COLUMN_LOWER = 0
-    COLUMN_UPPER = 1
-    ROW_LOWER = 2
-    ROW_UPPER = 3
+    A field package defines the space, and the space names the compiler of its systems.
+    """
 
+    @property
+    def dimension(self) -> int:
+        """The dimension of the space."""
 
-class ReadKind(StrEnum):
-    """A kind of read of a symbol for each evaluation index of a kernel."""
+    @property
+    def operators(self) -> Mapping[str, tuple[npt.ArrayLike, bool]]:
+        """The matrix of every local operator by name and whether it is Hermitian."""
 
-    MEMBER = 'member'
-    SINGLE = 'single'
-    FIRST = 'first'
-    SECOND = 'second'
-    NEIGHBOR = 'neighbor'
-    DERIVED = 'derived'
-    REDUCED = 'reduced'
-    OTHER = 'other'
-    SOURCE = 'source'
+    @property
+    def basis(self) -> Mapping[str, int]:
+        """The index of every basis state by label."""
+
+    @property
+    def display(self) -> str | None:
+        """The operator whose expectation visuals show for a group, or `None`."""
+
+    def _check(self) -> None:
+        """Raise an error for a dimension, an operator, or a basis state that misfits."""
+
+    def _get_compiler(self) -> object:
+        """Return the compiler of the systems of the space."""

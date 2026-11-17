@@ -13,7 +13,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class ListenersElement(Element):
@@ -22,9 +22,6 @@ class ListenersElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
 
         n:
             The initial number of people.
@@ -38,11 +35,10 @@ class ListenersElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
 
@@ -159,7 +155,7 @@ class MakiThompsonSystem(BaseSystem):
         self.stifle = stifle
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[

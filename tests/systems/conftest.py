@@ -4,10 +4,10 @@ from collections.abc import Callable
 
 import numpy as np
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.problems import BaseProblemSpec, FrameSpec
 from skcomplex.core.engine.runtime import BaseObserver, ConservationObserver, Trajectory, simulate
-from skcomplex.core.specs import ObservableSpec
 
 
 def _run(system: CompositeSystem, until: float, dt: float = 1, random_state: int = 0) -> Trajectory:
@@ -15,7 +15,7 @@ def _run(system: CompositeSystem, until: float, dt: float = 1, random_state: int
     return simulate(system, until=until, dt=dt, random_state=random_state)
 
 
-def _observables(observed: BaseSystem | None) -> list[ObservableSpec]:
+def _observables(observed: BaseSystem | None) -> list[Observable]:
     """Return the standard observables of a ready-made system, or none without one."""
     return [] if observed is None else list(observed.get_run_settings()['observables'])
 

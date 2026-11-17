@@ -11,13 +11,13 @@ import numpy as np
 from SALib.analyze import morris as morris_analysis
 from SALib.analyze import sobol as sobol_analysis
 
-from ..components.specs import ScenarioSpec
+from ..components import Observable
 from ..engine.solvers import BaseSolver
 from ..errors import AnalysisError
-from ..specs import ObservableSpec
 from ..types import Array
 from ._designs import _get_sensitivity_rows
 from ._runs import _run_experiment
+from ._scenario_spec import ScenarioSpec
 from .types import Bounds, Source
 
 METHODS = ('oat', 'morris', 'sobol')
@@ -90,7 +90,7 @@ def sensitivity(
     until: float | None = None,
     dt: float | None = None,
     solver: BaseSolver | None = None,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> SensitivityResult:
@@ -114,7 +114,7 @@ def sensitivity(
             system class, which takes them as keyword arguments.
 
         bounds:
-            A pair `(low, high)` per input, a model parameter or a dotted path of a state or a parameter of a part.
+            A pair `(low, high)` per input, a model parameter or a dotted path of a state or a parameter of a component.
 
         output:
             The state or observable path whose last value is the scalar output.

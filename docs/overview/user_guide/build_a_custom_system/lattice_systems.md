@@ -21,8 +21,8 @@ space.size_, space.shape_, space.periodic_, space.positions_[4].tolist()
 The lattice has 12 sites in an array of shape `(4, 3)`, it wraps, and its fifth site, the second of the second row,
 sits at the position `[1.0, 1.0]`.
 
-A space is a part of its system and has the same main public methods. `prepare()` checks the arguments and derives the
-facts, whose names end in `_`.
+A space is a component of its system and has the same main public methods. `prepare()` checks the arguments and derives
+the facts, whose names end in `_`.
 
 - `size_` is the number of sites, and `n_dim_` the dimension.
 - `shape_` is the shape of the arrays of the sites, and `positions_` the position of every site.
@@ -39,7 +39,7 @@ This section computes the next value of a cell from the values of its neighbours
 Conway's Game of Life is one. A dead cell with three live neighbours comes alive, and a live cell with two or three
 live neighbours stays alive. A [`LocalRuleLaw`](../core_components/laws.md#localrulelaw) holds the state it changes,
 the neighbourhood it reads, and the rule. Here the neighbourhood is the
-[`BallNeighborhood`](../core_components/spaces.md#ballneighborhood) of the eight surrounding cells, and the rule is an
+[`RadiusNeighborhood`](../core_components/spaces.md#radiusneighborhood) of the eight surrounding cells, and the rule is an
 outer totalistic rule, which reads the cell and the sum of its neighbours. A glider of five live cells starts in the
 corner of a periodic grid of 20 by 20.
 
@@ -51,10 +51,11 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import OuterTotalisticSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import OuterTotalisticSpec
 
 
 class LifeElement(Element):
@@ -63,7 +64,7 @@ class LifeElement(Element):
         self.alive = alive
 
     def _get_laws(self, s):
-        return [LocalRuleLaw(s.alive, BallNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
+        return [LocalRuleLaw(s.alive, RadiusNeighborhood(1, metric='chebyshev'), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
 
 
 glider = np.zeros((20, 20))
@@ -79,10 +80,11 @@ After four steps the configuration equals the glider moved one cell down and one
 
 `LocalRuleLaw(targets, over, rule)` reads the values of the neighbourhood in a fixed order.
 
-- `BallNeighborhood(radius, metric=...)`, the Chebyshev, Manhattan, or hexagonal ball, or
-  [`LatticeNeighborhood(offsets)`](../core_components/spaces.md#latticeneighborhood) gives the offsets of the
-  neighbours. `center` leaves the site out, puts it first, or keeps it `'inline'`, in its lexicographic place, which is
-  the order of the rule numbers of Wolfram.
+- `RadiusNeighborhood(radius, metric=...)`, the Euclidean, Chebyshev, Manhattan, or hexagonal ball in the dimensions
+  of the lattice, or [`LatticeNeighborhood(offsets)`](../core_components/spaces.md#latticeneighborhood) gives the
+  offsets of the neighbours. `center=True` puts the site first. A neighbourhood in an order of its own, such as the
+  left neighbour, the cell, and the right neighbour of the rule numbers of Wolfram, lists its offsets in a
+  `LatticeNeighborhood`.
 - A rule is a `TableSpec` of patterns, a `TotalisticSpec` or `OuterTotalisticSpec` rule, a rule code whose `table()`
   returns a table, or a function of NumPy arrays, one per neighbour. A function also receives the parameters it names
   and, for stochastic rules, uniform random numbers.
@@ -112,8 +114,8 @@ max(event.size for event in trajectory.events)
 
 Over 2000 steps of the drive on a grid of 20 by 20, the largest avalanche has the size 613.
 
-A [`CascadeLaw(drive, relax, stable)`](../core_components/laws.md#cascadelaw) separates the slow drive from the fast
-cascade. Every step applies the drive laws once, and the relax laws until `stable` holds. Each cascade is recorded
+An `UpdateLaw` whose value is [`relax(state, rules, stable, drive=...)`](../core_components/laws.md#relax) separates
+the slow drive from the fast cascade. Every step applies the drive laws once, and the rules until `stable` holds. Each cascade is recorded
 among the events of the [trajectory](../glossary.md#trajectory) with its size, duration, and area. `activity` marks the
 sites that count as updates, such as the toppling sites of a sandpile.
 
@@ -133,12 +135,13 @@ from sage.all__sagemath_symbolics import ZZ
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import SampleLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
 
-nearest = BallNeighborhood(metric='manhattan')
+nearest = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
 
 
 class SpinElement(Element):
@@ -189,7 +192,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
@@ -205,7 +208,7 @@ class BurnElement(Element):
         self.fire = fire
 
     def _get_laws(self, s):
-        return [LocalRuleLaw(s.fire, BallNeighborhood(metric='hexagonal', center='first'), spread)]
+        return [LocalRuleLaw(s.fire, RadiusNeighborhood(1, metric='hexagonal', center=True), spread)]
 
 
 fire = np.zeros((40, 40))
@@ -221,7 +224,7 @@ The burning sites number 1, 7, 19, and 37 after zero to three steps, the hexagon
 - `LatticeSpace(shape, geometry='triangular')` keeps integer coordinates on a skewed grid, so every boundary works as
   on a square lattice.
 - It places site `(i, j)` at `(j + i / 2, i sqrt(3) / 2)` in the plane, which the fitted `positions_` give.
-- `BallNeighborhood(metric='hexagonal')` holds the six neighbours counterclockwise from 0 degrees, so direction `k + 3`
+- `RadiusNeighborhood(1, metric='hexagonal')` holds the six neighbours counterclockwise from 0 degrees, so direction `k + 3`
   modulo 6 is opposite to direction `k`, as lattice gases need.
 - The cells of the sites are the hexagons of a hexagonal tiling.
 
@@ -245,7 +248,8 @@ from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
 
 
 class GraphSpinElement(Element):
@@ -278,7 +282,7 @@ graph stays ordered too.
 
 - `AdjacencyNeighborhood(center=False)` pads the neighbours of every node to the largest degree with the `fill` value
   of the network.
-- Local rules, drives, relaxations, Monte Carlo laws, and extremal laws run on graphs as on lattices.
+- Local rules, drives, relaxations, and Monte Carlo laws run on graphs as on lattices.
 - Lookup rules on graphs take the totalistic forms. A function rule that names the keyword `degree` receives the
   number of real neighbours of every site.
 - The padded table grows with the largest degree. Graphs with hubs of very high degree, beyond scale-free graphs of
@@ -413,8 +417,8 @@ This section names two tools of the graph example that work on every lattice.
 
 This section acts at each step on the site with the worst or best value. In the Bak-Sneppen model of evolution, the
 least fit species of a ring is replaced together with its two neighbours, and each gets a new random fitness. An
-[`ExtremalLaw`](../core_components/laws.md#extremallaw) finds the site and applies the rule `renew` to it and its
-neighbours, here 100 times per step for 100 steps.
+`UpdateLaw` writes it with two reductions: a species renews when the smallest fitness of the ring is its own or that of
+a neighbour, and keeps its fitness otherwise. Every step is one extinction.
 
 ```python
 from typing import Annotated
@@ -422,45 +426,50 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import ExtremalLaw
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import minimum, neighbors, uniform, where
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
-
-def renew(fitness, random):
-    return random
+BESIDE = LatticeNeighborhood(((-1,), (1,)))
 
 
 class SpeciesElement(Element):
+    law_classes = (UpdateLaw,)
+    draws = True
+
     def __init__(self, label, *, fitness: Annotated[float, StateSpec()] = 0.5):
         super().__init__(label)
         self.fitness = fitness
 
     def _get_laws(self, s):
-        return [ExtremalLaw(s.fitness, LatticeNeighborhood(((-1,), (1,))), renew, repeat=100, label='extinction')]
+        around = neighbors(s.other.fitness, over=BESIDE, reduce='min')
+        renewed = minimum(s.fitness, around) == minimum(s.fitness)
+        return [UpdateLaw(s.fitness, where(renewed, uniform('fitness'), s.fitness), label='extinction')]
 
 
 fitness = np.random.default_rng(0).random(100)
 space = LatticeSpace(100)
 members = GroupElement('ring', element=SpeciesElement, space=space, on='sites', values={'fitness': fitness})
 ring = CompositeSystem(elements=[members])
-trajectory = simulate(ring, until=100, dt=10, random_state=0)
-len(trajectory.events), trajectory.events[0].label
+trajectory = simulate(ring, until=1, dt=1, random_state=0)
+changed = np.flatnonzero(trajectory.states[1] != trajectory.states[0])
+changed.tolist(), int(np.argmin(fitness))
 ```
 
-The run records 10000 events, one per application, each with the label `'extinction'`.
+The first step changes three sites, the least fit species, at the site the second value names, and its two
+neighbours.
 
-`ExtremalLaw(targets, over, rule, key=None, extremum='min', repeat=1)` finds the site with the smallest or largest
-value of a key state. It breaks ties with the random stream of the run, and applies
-`rule(*values, random, **parameters)` to the site and its real neighbours, `repeat` times per step.
-
-- Every application is recorded among the events of the trajectory as an `ExtremalRecord` with its time, site, and
-  extremal value.
-- On the Numba backend, the applications of a step run in one compiled loop when Numba compiles the rule. The rule
-  then takes its arguments by position or keyword, with no keyword-only arguments.
-- Both backends give the same events.
+- `minimum(s.fitness)` reduces over the whole group, and `neighbors(s.other.fitness, over=BESIDE, reduce='min')` over
+  the neighbours of every member. Comparing the two finds the members whose neighbourhood holds the extremum, so the
+  update needs no index of the extremal site. A largest value takes `maximum` and `reduce='max'`.
+- On a network, `AdjacencyNeighborhood()` gives the neighbours of every node, and an isolated node renews only when it
+  holds the extremum itself.
+- Ties of the extremum renew every tied member with its neighbours. Uniform draws make them vanishingly rare.
+- One extinction per step makes time count the extinctions, and `dt` sets how many of them a recorded frame skips.
+  `BakSneppenSystem` of `skcomplex.systems.biology.evolution` runs the ready-made model on a ring or a graph.
 
 ## Viewing lattices and ready-made lattice systems
 

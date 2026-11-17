@@ -14,9 +14,9 @@ from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.components.laws import BaseLaw, EquationLaw
+from .....core.components.laws import BaseLaw, ConstraintLaw
 from .....core.components.laws.utils import derivative
-from .....core.specs import ConnectorSpec, ParameterSpec, StateSpec, VisualSpec
+from .....core.specs import ConnectorSpec, ParameterSpec, StateSpec
 
 ELECTRICAL = ConnectorSpec('electrical', potential='v', flow='i')
 POSITIVE = RealSet.open(0, oo)
@@ -30,10 +30,7 @@ class TwoPinElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         p_v:
             The potential of the positive pin.
@@ -48,21 +45,20 @@ class TwoPinElement(Element):
             The current into the negative pin.
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'p': ELECTRICAL, 'n': ELECTRICAL}
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         p_i: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         n_v: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         n_i: Annotated[object, StateSpec(algebraic=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.p_v = p_v
         self.p_i = p_i
         self.n_v = n_v
@@ -86,7 +82,7 @@ class TwoPinElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the balance of the currents of the pins and the equations of the branch."""
-        return [EquationLaw(s.p_i + s.n_i, 0), *self._get_branch_laws(s)]
+        return [ConstraintLaw(s.p_i + s.n_i, 0), *self._get_branch_laws(s)]
 
 
 class ResistorElement(TwoPinElement):
@@ -94,10 +90,7 @@ class ResistorElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         p_v:
             The potential of the positive pin.
@@ -123,7 +116,6 @@ class ResistorElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -131,7 +123,7 @@ class ResistorElement(TwoPinElement):
         n_i: object = 0.0,
         R: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.R = R
 
     def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -145,7 +137,7 @@ class ResistorElement(TwoPinElement):
             laws:
                 The equation law of the branch.
         """
-        return [EquationLaw(s.p_v - s.n_v, s.R * s.p_i)]
+        return [ConstraintLaw(s.p_v - s.n_v, s.R * s.p_i)]
 
 
 class CapacitorElement(TwoPinElement):
@@ -153,10 +145,7 @@ class CapacitorElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         p_v:
             The potential of the positive pin.
@@ -185,7 +174,6 @@ class CapacitorElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -194,7 +182,7 @@ class CapacitorElement(TwoPinElement):
         u: Annotated[object, StateSpec()] = 0.0,
         C: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.u = u
         self.C = C
 
@@ -209,7 +197,7 @@ class CapacitorElement(TwoPinElement):
             laws:
                 The equation laws of the branch.
         """
-        return [EquationLaw(s.C * derivative(s.u, 1), s.p_i), EquationLaw(s.u, s.p_v - s.n_v)]
+        return [ConstraintLaw(s.C * derivative(s.u, 1), s.p_i), ConstraintLaw(s.u, s.p_v - s.n_v)]
 
 
 class InductorElement(TwoPinElement):
@@ -217,10 +205,7 @@ class InductorElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         p_v:
             The potential of the positive pin.
@@ -249,7 +234,6 @@ class InductorElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -258,7 +242,7 @@ class InductorElement(TwoPinElement):
         i: Annotated[object, StateSpec()] = 0.0,
         L: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.i = i
         self.L = L
 
@@ -273,7 +257,7 @@ class InductorElement(TwoPinElement):
             laws:
                 The equation laws of the branch.
         """
-        return [EquationLaw(s.L * derivative(s.i, 1), s.p_v - s.n_v), EquationLaw(s.i, s.p_i)]
+        return [ConstraintLaw(s.L * derivative(s.i, 1), s.p_v - s.n_v), ConstraintLaw(s.i, s.p_i)]
 
 
 class VoltageSourceElement(TwoPinElement):
@@ -281,10 +265,7 @@ class VoltageSourceElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         p_v:
             The potential of the positive pin.
@@ -310,7 +291,6 @@ class VoltageSourceElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -318,7 +298,7 @@ class VoltageSourceElement(TwoPinElement):
         n_i: object = 0.0,
         V: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.V = V
 
     def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -332,7 +312,7 @@ class VoltageSourceElement(TwoPinElement):
             laws:
                 The equation law of the branch.
         """
-        return [EquationLaw(s.p_v - s.n_v, s.V)]
+        return [ConstraintLaw(s.p_v - s.n_v, s.V)]
 
 
 class CurrentSourceElement(TwoPinElement):
@@ -342,10 +322,7 @@ class CurrentSourceElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         p_v:
             The potential of the positive pin.
@@ -371,7 +348,6 @@ class CurrentSourceElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -379,7 +355,7 @@ class CurrentSourceElement(TwoPinElement):
         n_i: object = 0.0,
         current: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.current = current
 
     def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -393,7 +369,7 @@ class CurrentSourceElement(TwoPinElement):
             laws:
                 The equation law of the branch.
         """
-        return [EquationLaw(s.p_i, -s.current)]
+        return [ConstraintLaw(s.p_i, -s.current)]
 
 
 class GroundElement(Element):
@@ -401,10 +377,7 @@ class GroundElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         p_v:
             The potential of the pin.
@@ -418,25 +391,24 @@ class GroundElement(Element):
         ['p']
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'p': ELECTRICAL}
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         p_i: Annotated[object, StateSpec(algebraic=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.p_v = p_v
         self.p_i = p_i
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the zero potential of the pin."""
-        return [EquationLaw(s.p_v, 0)]
+        return [ConstraintLaw(s.p_v, 0)]
 
 
 class DiodeElement(TwoPinElement):
@@ -444,10 +416,7 @@ class DiodeElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         p_v:
             The potential of the positive pin.
@@ -476,7 +445,6 @@ class DiodeElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -485,7 +453,7 @@ class DiodeElement(TwoPinElement):
         Is: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1e-6,
         Vt: Annotated[object, ParameterSpec(domain=POSITIVE)] = 0.025,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.Is = Is
         self.Vt = Vt
 
@@ -500,7 +468,7 @@ class DiodeElement(TwoPinElement):
             laws:
                 The equation law of the branch.
         """
-        return [EquationLaw(s.p_i, s.Is * (exp((s.p_v - s.n_v) / s.Vt) - 1))]
+        return [ConstraintLaw(s.p_i, s.Is * (exp((s.p_v - s.n_v) / s.Vt) - 1))]
 
 
 class ChuaDiodeElement(TwoPinElement):
@@ -510,10 +478,7 @@ class ChuaDiodeElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         p_v:
             The potential of the positive pin.
@@ -542,7 +507,6 @@ class ChuaDiodeElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -551,7 +515,7 @@ class ChuaDiodeElement(TwoPinElement):
         m0: Annotated[object, ParameterSpec()] = -8 / 7,
         m1: Annotated[object, ParameterSpec()] = -5 / 7,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.m0 = m0
         self.m1 = m1
 
@@ -567,7 +531,7 @@ class ChuaDiodeElement(TwoPinElement):
                 The equation law of the branch.
         """
         voltage = s.p_v - s.n_v
-        return [EquationLaw(s.p_i, s.m1 * voltage + (s.m0 - s.m1) * (abs(voltage + 1) - abs(voltage - 1)) / 2)]
+        return [ConstraintLaw(s.p_i, s.m1 * voltage + (s.m0 - s.m1) * (abs(voltage + 1) - abs(voltage - 1)) / 2)]
 
 
 class OperationalAmplifierElement(Element):
@@ -578,10 +542,7 @@ class OperationalAmplifierElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         p_v:
             The potential of the noninverting input.
@@ -612,7 +573,6 @@ class OperationalAmplifierElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         p_i: Annotated[object, StateSpec(algebraic=True)] = 0.0,
@@ -621,7 +581,7 @@ class OperationalAmplifierElement(Element):
         out_v: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         out_i: Annotated[object, StateSpec(algebraic=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.p_v = p_v
         self.p_i = p_i
         self.n_v = n_v
@@ -631,4 +591,4 @@ class OperationalAmplifierElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the currents of the inputs and the equal potentials of the inputs."""
-        return [EquationLaw(s.p_i, 0), EquationLaw(s.n_i, 0), EquationLaw(s.p_v, s.n_v)]
+        return [ConstraintLaw(s.p_i, 0), ConstraintLaw(s.n_i, 0), ConstraintLaw(s.p_v, s.n_v)]

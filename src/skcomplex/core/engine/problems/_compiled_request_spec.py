@@ -7,10 +7,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ...components.laws import TopologyRequestSpec
 from ...specs._base_spec import BaseSpec
-from ...specs._network_rows_spec import NetworkRowsSpec
-from ...specs._topology_request_spec import TopologyRequestSpec
 from ._law_kernel import LawKernel
+from ._network_rows_spec import _NetworkRowsSpec
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,7 @@ class CompiledRequestSpec(BaseSpec):
 
     request: TopologyRequestSpec
     owner: str
-    network: NetworkRowsSpec
+    network: _NetworkRowsSpec
     rows: str
     condition: LawKernel | None = None
     toward: LawKernel | None = None

@@ -19,7 +19,7 @@ from ....core.components.interactions import ConservationInteraction
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import SSPRKSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class CarlemanGasElement(Element):
@@ -34,9 +34,6 @@ class CarlemanGasElement(Element):
     Args:
         label:
             The label of the site or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         f_plus:
             The initial density of right-moving particles.
@@ -59,14 +56,13 @@ class CarlemanGasElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         f_plus: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         f_minus: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.f_plus = f_plus
         self.f_minus = f_minus
         self.c = c
@@ -85,9 +81,6 @@ class WaveNumberElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         k:
             The initial wave number.
 
@@ -103,12 +96,11 @@ class WaveNumberElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         k: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
         g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.k = k
         self.g = g
 

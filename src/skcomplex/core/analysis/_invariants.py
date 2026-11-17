@@ -1,46 +1,34 @@
-"""Derive the invariants of a system with Sage."""
+"""Derive the conserved quantities of a system with Sage."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import itertools
 from collections.abc import Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from types import SimpleNamespace
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
-from sage.modules.free_module_element import FreeModuleElement
 
-from ..components.interactions import BaseInteraction, EulerLagrangeInteraction, HamiltonianInteraction
-from ..components.laws.utils import derivative
+from ..components import Observable
 from ..components.systems import CompositeSystem
-from ..engine._utils import declarations_of
 from ..engine.compile._observables import ObservableEvaluator
 from ..engine.problems import ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, ObservableSpec, SymmetrySpec
-from ..types import DataKind, VariableKind
-from ._base import _check_choice, _check_settings, _composite, _read_system
+from ._analysis_tags import AnalysisTags
+from ._base import _composite, _read_system
 from ._stability import StabilityResult
 from .types import Source
 
-KINDS = ('brackets', 'conservation', 'symmetry')
-SETTINGS = {
-    'brackets': {'expressions'},
-    'conservation': {'expressions', 'samples', 'random_state'},
-    'symmetry': {'symmetry'},
-}
 TOLERANCE = 1e-9
 TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 @dataclass(frozen=True)
 class InvariantsResult:
-    """A result of `invariants`, brackets, conserved quantities, or a symmetry.
-
-    A symmetry comes with its Noether charge.
+    """A result of `invariants`, the rates of expressions and if they are conserved.
 
     Args:
         problem:
@@ -53,88 +41,52 @@ class InvariantsResult:
             The first-order equations of the system, with the values of its parameters.
 
         namespace:
-            The namespace of the symbols of the states and parameters of the system.
-
-        brackets:
-            A mapping from every pair of labels to the Poisson bracket of their expressions, set for `'brackets'`.
+            The namespace of the symbols of the states and parameters of the system, where `s.<element>.<state>` is
+            the symbol of a state.
 
         rates:
-            A mapping from every label to the rate of change of its expression, set for `'conservation'`.
+            A mapping from every label to the rate of change of its expression.
 
         conserved:
-            A mapping from every label to whether its expression is conserved, set for `'conservation'`.
+            A mapping from every label to whether its expression is conserved.
 
         methods:
-            A mapping from every label to the method that decided, `'symbolic'` or `'numeric'`, set for
-            `'conservation'`.
-
-        invariant:
-            Whether the Hamiltonian or the Lagrangian is unchanged to first order by the symmetry, set for
-            `'symmetry'`.
-
-        remainder:
-            The first-order change of the Hamiltonian or the Lagrangian under the symmetry, zero when it is invariant,
-            set for `'symmetry'`.
-
-        charge:
-            The Noether charge of the symmetry, set for `'symmetry'`.
+            A mapping from every label to the method that decided, `'symbolic'` or `'numeric'`.
     """
 
     problem: ProblemSpec
     system: CompositeSystem
     dynamics: _DynamicsSpec
     namespace: SimpleNamespace
-    brackets: dict[tuple[str, str], Expression] | None = None
-    rates: dict[str, Expression] | None = None
-    conserved: dict[str, bool] | None = None
-    methods: dict[str, str] | None = None
-    invariant: bool | None = None
-    remainder: Expression | None = None
-    charge: Expression | None = None
+    rates: dict[str, Expression]
+    conserved: dict[str, bool]
+    methods: dict[str, str]
 
 
 def invariants(
     source: Source,
     *,
-    kind: str = 'conservation',
-    expressions: Sequence[ObservableSpec] = (),
-    symmetry: SymmetrySpec | None = None,
+    expressions: Sequence[Observable] = (),
     samples: int = 16,
     random_state: int | np.random.Generator | None = None,
 ) -> InvariantsResult:
-    """Return the Poisson brackets, conserved quantities, or a symmetry of a system.
+    """Return the rates of expressions of a system and whether they are conserved.
 
-    A symmetry comes with its Noether charge. The canonical pairs and the Hamiltonian `H` are those of the system's
-    `HamiltonianInteraction`s, whose Hamiltonians sum, and the Lagrangian `L` is the sum of those of its
-    `EulerLagrangeInteraction`s. The expressions are `ObservableSpec`s whose expression is a function of the namespace
-    of the system, where `s.<element>.<state>` is the symbol of a state, or a symbolic expression of those symbols. The
-    kinds:
-
-    - `'brackets'`: the Poisson bracket `{f, g} = sum df/dq dg/dp - df/dp dg/dq` of every pair of expressions, summed
-      over the canonical pairs.
-    - `'conservation'`: the rate of change `df/dt` of every expression, which is `diff(f, t) + {f, H}` for a system
-      whose dynamics all come from Hamiltonian interactions, and the Lie derivative along the vector field of its
-      equations otherwise. An expression is conserved when its rate simplifies to zero, or, when simplification does
-      not decide, when the rate vanishes within a tolerance at random states with the parameters at their values.
-    - `'symmetry'`: whether the Hamiltonian, or else the Lagrangian, is unchanged to first order by the variation of a
-      `SymmetrySpec`, and the Noether charge of the symmetry, `sum p dq` for a Hamiltonian and `sum dL/dq' dq` for a
-      Lagrangian, with the variation of the velocities `dq' = sum_j d(dq)/dq_j q_j'`.
+    The rate `df/dt` of an expression `f` is its derivative along the equations of the system, `diff(f, t) + sum
+    df/dx x'`. An expression is conserved when its rate simplifies to zero, or, when simplification does not decide,
+    when the rate vanishes within a tolerance at random states with the parameters at their values. The expressions
+    are `Observable`s whose expression is a function of the namespace of the system, where `s.<element>.<state>` is the
+    symbol of a state, or a symbolic expression of those symbols.
 
     It appears in many fields. It finds the conserved energy of a pendulum, the conserved total of an epidemic, and the
-    symmetries of a mechanical system.
+    conserved money of an exchange economy.
 
     Args:
         source:
             The system, or a trajectory of it.
 
-        kind:
-            The invariants to derive, one of the kinds above.
-
         expressions:
-            The expressions to bracket or to check.
-
-        symmetry:
-            The symmetry to check.
+            The expressions to check.
 
         samples:
             The number of random states of the numeric check.
@@ -144,34 +96,36 @@ def invariants(
 
     Returns:
         result:
-            The brackets, the rates and conservation of the expressions, or the symmetry and its charge.
+            The rates of the expressions and whether they are conserved.
 
     Raises:
         AnalysisError:
-            The source is not a system, the system is not an ODE, an expression or the symmetry is missing or invalid,
-            or the system has no Hamiltonian interaction for brackets, or neither a Hamiltonian nor an Euler-Lagrange
-            interaction for a symmetry.
+            The source is not a system, the system is not an ODE, or an expression or the number of samples is
+            invalid.
 
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.analysis import invariants
+        >>> from skcomplex.core.components import Observable
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import HamiltonianInteraction
+        >>> from skcomplex.core.components.interactions import RateInteraction
         >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import ObservableSpec, StateSpec
+        >>> from skcomplex.core.specs import StateSpec
         >>> class OscillatorElement(Element):
         ...     def __init__(self, label, q: Annotated[float, StateSpec()] = 1.0, p: Annotated[float, StateSpec()] = 0):
         ...         super().__init__(label)
         ...         self.q = q
         ...         self.p = p
-        >>> energy = lambda s: (s.target.p**2 + s.target.q**2) / 2
         >>> system = CompositeSystem(
         ...     elements=[OscillatorElement('mass')],
-        ...     interactions=[HamiltonianInteraction('spring', target='mass', hamiltonian=energy)],
+        ...     interactions=[
+        ...         RateInteraction('position', target='mass', state='q', rate=lambda s: s.target.p),
+        ...         RateInteraction('momentum', target='mass', state='p', rate=lambda s: -s.target.q),
+        ...     ],
         ... )
         >>> expressions = [
-        ...     ObservableSpec('energy', lambda s: s.mass.q**2 + s.mass.p**2),
-        ...     ObservableSpec('position', lambda s: s.mass.q),
+        ...     Observable('energy', lambda s: s.mass.q**2 + s.mass.p**2),
+        ...     Observable('position', lambda s: s.mass.q),
         ... ]
         >>> result = invariants(system, expressions=expressions)
         >>> result.conserved
@@ -180,18 +134,7 @@ def invariants(
         p_mass
     """
     source = _composite(source)
-    _check_choice('invariants', 'kind', kind, KINDS)
-    _check_settings(
-        invariants,
-        'kind',
-        SETTINGS[kind],
-        kind=kind,
-        expressions=expressions,
-        symmetry=symmetry,
-        samples=samples,
-        random_state=random_state,
-    )
-    _check_inputs(kind, expressions, symmetry, samples)
+    _check_inputs(expressions, samples)
     system = _read_system(source)
     if not isinstance(system, CompositeSystem):
         error_msg = (
@@ -201,70 +144,24 @@ def invariants(
         raise AnalysisError(error_msg)
     dynamics = StabilityResult._get_dynamics_of(system)
     namespace = ObservableEvaluator._get_namespace_of(dynamics.problem)
-    result = InvariantsResult(dynamics.problem, system, dynamics, namespace)
-    if kind == 'brackets':
-        pairs = _get_pairs(system, namespace, dynamics)
-        values = {expression.label: _evaluate(namespace, expression) for expression in expressions}
-        brackets = {
-            (first, second): sum(_get_bracket_terms(values[first], values[second], pairs), SR(0)).simplify_full()
-            for first, second in itertools.combinations(values, 2)
-        }
-        return replace(result, brackets=brackets)
     rng = np.random.default_rng(random_state)
-    if kind == 'conservation':
-        hamiltonian = _is_hamiltonian(system, namespace, dynamics)
-        rates, conserved, methods = {}, {}, {}
-        for expression in expressions:
-            terms = _get_rate_terms(
-                system,
-                namespace,
-                dynamics,
-                _evaluate(namespace, expression),
-                hamiltonian=hamiltonian,
-            )
-            rate, is_conserved, method = _decide(dynamics, terms, rng, samples)
-            rates[expression.label] = rate
-            conserved[expression.label], methods[expression.label] = is_conserved, method
-        return replace(result, rates=rates, conserved=conserved, methods=methods)
-    assert symmetry is not None
-    variations = _get_variations(namespace, symmetry)
-    if _get_hamiltonians(system):
-        hamiltonian_value = _get_hamiltonian(system, namespace, dynamics)
-        terms = [hamiltonian_value.diff(item) * dq for item, dq in variations.items()]
-        charge = sum(
-            (p * variations[q] for q, p in _get_pairs(system, namespace, dynamics) if q in variations),
-            SR(0),
-        )
-    else:
-        terms, charge = _get_lagrangian_change(system, namespace, dynamics, variations)
-    remainder, invariant, _ = _decide(dynamics, terms, rng, samples)
-    return replace(
-        result,
-        invariant=invariant,
-        remainder=SR(0) if invariant else remainder,
-        charge=SR(charge).simplify_full(),
-    )
-
-
-def _check_inputs(
-    kind: str,
-    expressions: Sequence[ObservableSpec],
-    symmetry: SymmetrySpec | None,
-    samples: int,
-) -> None:
-    """Raise an error for a foreign expression, a missing symmetry, or bad samples.
-
-    A foreign expression is not one of the system.
-    """
+    rates, conserved, methods = {}, {}, {}
     for expression in expressions:
-        if not isinstance(expression, ObservableSpec) or expression.group is not None:
-            error_msg = f'{expression!r} is not an expression of the system. Give an ObservableSpec without group.'
+        value = _evaluate(namespace, expression)
+        terms = [value.diff(SR(dynamics.problem.time))]
+        terms += [value.diff(item) * rate for item, rate in zip(dynamics.symbols, dynamics.rates, strict=True)]
+        rate, is_conserved, method = _decide(dynamics, terms, rng, samples)
+        rates[expression.label] = rate
+        conserved[expression.label], methods[expression.label] = is_conserved, method
+    return InvariantsResult(dynamics.problem, system, dynamics, namespace, rates, conserved, methods)
+
+
+def _check_inputs(expressions: Sequence[Observable], samples: int) -> None:
+    """Raise an error for a foreign expression or a number of samples below one."""
+    for expression in expressions:
+        if not isinstance(expression, Observable) or expression.group is not None:
+            error_msg = f'{expression!r} is not an expression of the system. Give an Observable without group.'
             raise AnalysisError(error_msg)
-    if kind == 'symmetry' and not isinstance(symmetry, SymmetrySpec):
-        error_msg = f'The symmetry is {symmetry!r}. Give a SymmetrySpec to check.'
-        raise AnalysisError(error_msg)
-    if isinstance(symmetry, SymmetrySpec) and kind == 'symmetry':
-        symmetry._check()
     if not isinstance(samples, int) or samples < 1:
         error_msg = f'samples = {samples!r} must be a positive integer.'
         raise AnalysisError(error_msg)
@@ -284,159 +181,11 @@ def _resolve(namespace: SimpleNamespace, path: str) -> object:
     return value
 
 
-def _get_interaction_namespace(
-    namespace: SimpleNamespace,
-    dynamics: _DynamicsSpec,
-    interaction: BaseInteraction,
-) -> SimpleNamespace:
-    """Return the namespace an interaction reads.
-
-    It includes the namespaces of its roles and its parameters.
-    """
-    roles: dict[str, object] = {}
-    for name in declarations_of(type(interaction), VariableKind.ROLE):
-        value = getattr(interaction, name)
-        if isinstance(value, str):
-            roles[name] = _resolve(namespace, value)
-        elif value:
-            roles[name] = tuple(_resolve(namespace, item) for item in value)
-    own = getattr(namespace, interaction.label, SimpleNamespace())
-    return SimpleNamespace(**vars(own), **roles, t=dynamics.problem.time)
-
-
-def _get_hamiltonians(system: CompositeSystem) -> list[HamiltonianInteraction]:
-    """Return the Hamiltonian interactions of the system."""
-    return [item for item in system.interactions if isinstance(item, HamiltonianInteraction)]
-
-
-def _get_pairs(
-    system: CompositeSystem,
-    namespace: SimpleNamespace,
-    dynamics: _DynamicsSpec,
-) -> list[tuple[Expression, Expression]]:
-    """Return the canonical pairs of the components of the Hamiltonian interactions.
-
-    The interactions are the system's, and every pair comes once.
-    """
-    pairs: list[tuple[Expression, Expression]] = []
-    for interaction in _get_hamiltonians(system):
-        for q, p in interaction._get_pairs(_get_interaction_namespace(namespace, dynamics, interaction)):
-            for pair in zip(_components(q), _components(p), strict=True):
-                if pair not in pairs:
-                    pairs.append(pair)
-    if not pairs:
-        error_msg = (
-            'The system has no canonical pairs, which come from a HamiltonianInteraction. Write its dynamics with a '
-            'HamiltonianInteraction.'
-        )
-        raise AnalysisError(error_msg)
-    return pairs
-
-
-def _get_hamiltonian(system: CompositeSystem, namespace: SimpleNamespace, dynamics: _DynamicsSpec) -> Expression:
-    """Return the Hamiltonian of the system.
-
-    It is the sum of those of its Hamiltonian interactions.
-    """
-    return sum(
-        (
-            SR(interaction._get_hamiltonian(_get_interaction_namespace(namespace, dynamics, interaction)))
-            for interaction in _get_hamiltonians(system)
-        ),
-        SR(0),
-    )
-
-
-def _get_lagrangian(
-    system: CompositeSystem,
-    namespace: SimpleNamespace,
-    dynamics: _DynamicsSpec,
-) -> tuple[Expression, dict[Expression, Expression]]:
-    """Return the Lagrangian of the system in the symbols of its states.
-
-    The velocity of every coordinate is returned too.
-    """
-    lagrangian, velocities = SR(0), {}
-    for interaction in system.interactions:
-        if not isinstance(interaction, EulerLagrangeInteraction):
-            continue
-        own = _get_interaction_namespace(namespace, dynamics, interaction)
-        for name in declarations_of(type(interaction), VariableKind.ROLE):
-            member = getattr(own, name)
-            if not isinstance(member, SimpleNamespace):
-                continue
-            for state in interaction._get_names():
-                positions = _components(getattr(member, state))
-                rates = _components(getattr(member, f'{state}_d1'))
-                velocities.update(dict(zip(positions, rates, strict=True)))
-        lagrangian += SR(interaction._get_lagrangian(own))
-    if not velocities:
-        error_msg = (
-            'The system has neither a HamiltonianInteraction nor an EulerLagrangeInteraction, so it has no Hamiltonian '
-            'or Lagrangian to check a symmetry against.'
-        )
-        raise AnalysisError(error_msg)
-    lagrangian = lagrangian.subs({derivative(q, 1): v for q, v in velocities.items()})
-    return lagrangian, velocities
-
-
-def _components(value: object) -> list[Expression]:
-    """Return the components of a scalar or vector value as expressions."""
-    return [SR(item) for item in value] if isinstance(value, FreeModuleElement | list | tuple) else [SR(value)]
-
-
-def _evaluate(namespace: SimpleNamespace, expression: ObservableSpec) -> Expression:
+def _evaluate(namespace: SimpleNamespace, expression: Observable) -> Expression:
     """Return the expression of an observable in the symbols of the system."""
     value = expression.expression
     scope = namespace if expression.element is None else _resolve(namespace, expression.element)
     return SR(value(scope) if callable(value) else value)
-
-
-def _get_bracket_terms(
-    first: Expression,
-    second: Expression,
-    pairs: list[tuple[Expression, Expression]],
-) -> list[Expression]:
-    """Return the terms of the Poisson bracket of two expressions over canonical pairs."""
-    return [term for q, p in pairs for term in (first.diff(q) * second.diff(p), -first.diff(p) * second.diff(q))]
-
-
-def _is_hamiltonian(system: CompositeSystem, namespace: SimpleNamespace, dynamics: _DynamicsSpec) -> bool:
-    """Check whether the vector field of the system follows Hamilton's equations.
-
-    The equations are those of its Hamiltonian.
-    """
-    if not _get_hamiltonians(system):
-        return False
-    pairs = _get_pairs(system, namespace, dynamics)
-    hamiltonian = _get_hamiltonian(system, namespace, dynamics)
-    rates = {q: hamiltonian.diff(p) for q, p in pairs} | {p: -hamiltonian.diff(q) for q, p in pairs}
-    return set(dynamics.symbols) == set(rates) and all(
-        (rate - rates[item]).simplify_full().is_zero()
-        for item, rate in zip(dynamics.symbols, dynamics.rates, strict=True)
-    )
-
-
-def _get_rate_terms(
-    system: CompositeSystem,
-    namespace: SimpleNamespace,
-    dynamics: _DynamicsSpec,
-    expression: Expression,
-    *,
-    hamiltonian: bool,
-) -> list[Expression]:
-    """Return the terms of the rate of an expression.
-
-    The rate is its bracket with the Hamiltonian or its Lie derivative.
-    """
-    terms = [expression.diff(SR(dynamics.problem.time))]
-    if hamiltonian:
-        return terms + _get_bracket_terms(
-            expression,
-            _get_hamiltonian(system, namespace, dynamics),
-            _get_pairs(system, namespace, dynamics),
-        )
-    return terms + [expression.diff(item) * rate for item, rate in zip(dynamics.symbols, dynamics.rates, strict=True)]
 
 
 def _vanishes(dynamics: _DynamicsSpec, terms: list[Expression], rng: np.random.Generator, samples: int) -> bool:
@@ -471,40 +220,3 @@ def _decide(
     if total.is_numeric():
         return total, False, 'symbolic'
     return total, _vanishes(dynamics, terms, rng, samples), 'numeric'
-
-
-def _get_variations(namespace: SimpleNamespace, symmetry: SymmetrySpec) -> dict[Expression, Expression]:
-    """Return the variation of every component the symmetry moves."""
-    variations: dict[Expression, Expression] = {}
-    for path, variation in symmetry.generator(namespace).items():
-        states, changes = _components(_resolve(namespace, path)), _components(variation)
-        if len(states) != len(changes):
-            error_msg = (
-                f'The symmetry {symmetry.label!r} varies {path} by {len(changes)} components for {len(states)}. Give '
-                'one variation per component.'
-            )
-            raise AnalysisError(error_msg)
-        variations.update(dict(zip(states, changes, strict=True)))
-    return variations
-
-
-def _get_lagrangian_change(
-    system: CompositeSystem,
-    namespace: SimpleNamespace,
-    dynamics: _DynamicsSpec,
-    variations: dict[Expression, Expression],
-) -> tuple[list[Expression], Expression]:
-    """Return the terms of the first-order change of the Lagrangian under variations.
-
-    The Noether charge is returned too.
-    """
-    lagrangian, velocities = _get_lagrangian(system, namespace, dynamics)
-    terms, charge = [], SR(0)
-    for item, dq in variations.items():
-        terms.append(lagrangian.diff(item) * dq)
-        if item not in velocities:
-            continue
-        momentum = lagrangian.diff(velocities[item])
-        terms += [momentum * dq.diff(other) * velocity for other, velocity in velocities.items()]
-        charge += momentum * dq
-    return terms, charge

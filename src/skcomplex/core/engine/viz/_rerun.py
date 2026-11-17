@@ -3,12 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 import math
 import os
 import re
 import sys
 import warnings
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import Literal
 
@@ -16,12 +17,13 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 from rerun import bindings
+from sage.all__sagemath_symbolics import SR
 
 from ...components.spaces import NetworkSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ...specs import RenewalRecordSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ...specs import VisualSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec, RenewalRecordSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ..problems._learning_problem_spec import LearningProblemSpec
 from ..runtime import BaseObserver
 from ._agents import AgentsVisual
@@ -31,7 +33,6 @@ from ._bodies import BodiesVisual
 from ._cayley import CayleyVisual
 from ._cells import CellVisual
 from ._expectation import ExpectationVisual
-from ._geometry import GeometryVisual
 from ._histograms import HistogramVisual
 from ._images import ImageVisual
 from ._linear_programs import LinearProgramVisual
@@ -62,7 +63,6 @@ VISUALS: dict[str, type[BaseVisual]] = {
     'cayley': CayleyVisual,
     'cell': CellVisual,
     'expectations': ExpectationVisual,
-    'geometry': GeometryVisual,
     'histograms': HistogramVisual,
     'image': ImageVisual,
     'linear_program': LinearProgramVisual,
@@ -117,6 +117,10 @@ class RerunObserver(BaseObserver):
 
         parameters:
             Whether the default blueprint has a time series view of the parameters.
+
+        visuals:
+            How to draw elements by path, such as `{'oscillators': VisualSpec('phase_ring', {'phase': 'theta'})}`, in
+            place of the drawing each element has by default, or `None` to keep every default.
 
     Attributes:
         recording_:
@@ -174,6 +178,7 @@ class RerunObserver(BaseObserver):
         blueprint: Literal['default'] | rrb.Blueprint | None = None,
         primary: str | None = None,
         parameters: bool = False,
+        visuals: Mapping[str, VisualSpec] | None = None,
     ) -> None:
         self.application_id = application_id
         self.spawn = spawn
@@ -183,6 +188,7 @@ class RerunObserver(BaseObserver):
         self.blueprint = blueprint
         self.primary = primary
         self.parameters = parameters
+        self.visuals = visuals
 
     def _check_settings(self) -> None:
         """Raise an error for an unknown blueprint or an unused setting.
@@ -204,6 +210,17 @@ class RerunObserver(BaseObserver):
             error_msg = f'interval = {self.interval!r} must be a positive integer.'
             raise ValidationError(error_msg)
 
+    def _check_visuals(self, problem: BaseProblemSpec) -> None:
+        """Raise an error for a drawing whose path names no element of the problem."""
+        paths = [element.path for element in problem.elements] + [group.path for group in problem.agents]
+        unknown = sorted(set(self.visuals or {}) - set(paths))
+        if unknown:
+            error_msg = (
+                f'visuals names {", ".join(map(repr, unknown))}, which is not an element of the system. '
+                f'The elements are {", ".join(map(repr, paths))}.'
+            )
+            raise ValidationError(error_msg)
+
     def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Create the recording, build the visuals, and send the recording to its sinks.
 
@@ -223,13 +240,14 @@ class RerunObserver(BaseObserver):
             error_msg = 'A Rerun observer prepares on a compiled problem. Pass the problem to `prepare`.'
             raise ValidationError(error_msg)
         problem = context
+        self._check_visuals(problem)
         # Rerun keeps the threads of a recording until its orphans are cleaned up, so a process running many
         # simulations, such as the docs build, would otherwise run out of threads.
         bindings.flush_and_cleanup_orphaned_recordings()
         self.recording_ = rr.RecordingStream(self.application_id, batcher_config=self._get_batcher_config())
         agents = problem.agents
         self.visuals_: list[BaseVisual] = [
-            *(self._get_visual_of(element).prepare(problem) for element in problem.elements),
+            *(self._get_visual_of(element, problem).prepare(problem) for element in problem.elements),
             *(self._get_agents_visual_of(group, problem).prepare(problem) for group in agents),
             *self._get_matrix_visuals(problem),
         ]
@@ -268,21 +286,60 @@ class RerunObserver(BaseObserver):
         names = ('DISPLAY', 'WAYLAND_DISPLAY', 'WAYLAND_SOCKET')
         return sys.platform == 'linux' and not any(os.environ.get(name) for name in names)
 
-    def _get_visual_of(self, element: CompiledElementSpec | CompiledAgentsSpec) -> BaseVisual:
+    def _get_visual_of(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> BaseVisual:
         """Return the visual the spec of an element names.
 
-        It is built with the options of the spec.
+        It is built with the options of the spec. A numeric option given as an expression of the parameters of the
+        element, such as `'R_0 / 2'`, takes its value at the start of the run.
         """
-        spec = element.visual
+        spec = (self.visuals or {}).get(element.path, element.visual)
         visual = VISUALS[spec.kind] if isinstance(spec.kind, str) else spec.kind
-        return visual(**dict(spec.options), path=element.path, recording=self.recording_)
+        accepted = inspect.signature(visual).parameters
+        options = {
+            name: self._get_option_value(value, element, problem) if self._is_numeric(accepted.get(name)) else value
+            for name, value in spec.options.items()
+        }
+        return visual(**options, path=element.path, recording=self.recording_)
 
-    def _get_agents_visual_of(self, agents: CompiledAgentsSpec, problem: BaseProblemSpec) -> AgentsVisual:
+    @staticmethod
+    def _is_numeric(parameter: inspect.Parameter | None) -> bool:
+        """Return whether an option of a visual takes a number."""
+        annotation = str(parameter.annotation) if parameter is not None else ''
+        return ('float' in annotation or 'int' in annotation) and 'str' not in annotation
+
+    @staticmethod
+    def _get_option_value(
+        value: object,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> object:
+        """Return an option, with an expression of parameters replaced by its value."""
+        names: Mapping[str, str] = getattr(element, 'parameters', {})
+        if not isinstance(value, str) or not names:
+            return value
+        try:
+            expression = SR(value)
+        except (TypeError, ValueError, SyntaxError):
+            return value
+        symbols = [str(symbol) for symbol in expression.variables()]
+        if not symbols or not all(symbol in names for symbol in symbols):
+            return value
+        values = {
+            SR.var(symbol): float(np.ravel(problem.parameters.read(problem.initial_parameters, names[symbol]))[0])
+            for symbol in symbols
+        }
+        return float(expression.subs(values))
+
+    def _get_agents_visual_of(self, agents: _CompiledAgentsSpec, problem: BaseProblemSpec) -> AgentsVisual:
         """Return the visual of an agent group.
 
         It is its declared agents visual, or the histogram visual without a space.
         """
-        visual = self._get_visual_of(agents)
+        visual = self._get_visual_of(agents, problem)
         if not isinstance(visual, AgentsVisual):
             visual = AgentsVisual(path=agents.path, recording=self.recording_)
         if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
@@ -321,7 +378,7 @@ class RerunObserver(BaseObserver):
         series: list[rrb.View] = []
         points: dict[type, list[rrb.View]] = {}
         for visual in self.visuals_:
-            if isinstance(visual, ScalarsVisual) or isinstance(visual.element_, CompiledAgentsSpec):
+            if isinstance(visual, ScalarsVisual) or isinstance(visual.element_, _CompiledAgentsSpec):
                 continue
             for view in visual.views_:
                 if isinstance(view, rrb.TimeSeriesView):
@@ -337,7 +394,7 @@ class RerunObserver(BaseObserver):
 
         They are merged into one per view class when the groups share a space.
         """
-        agents = [visual for visual in self.visuals_ if isinstance(visual.element_, CompiledAgentsSpec)]
+        agents = [visual for visual in self.visuals_ if isinstance(visual.element_, _CompiledAgentsSpec)]
         views = [view for visual in agents for view in visual.views_]
         if problem.agent_space is None:
             return views

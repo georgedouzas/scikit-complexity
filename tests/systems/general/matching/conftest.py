@@ -11,7 +11,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.components.types import SystemViewProtocol
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.general.matching import MatchingInteraction, MatchSpec
 from skcomplex.systems.general.matching.types import MatchingRule
 
@@ -36,7 +36,6 @@ class ParticipantElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         reserve: Annotated[float, StateSpec()] = 0.0,
         quantity: Annotated[float, StateSpec()] = 1.0,
@@ -46,7 +45,7 @@ class ParticipantElement(Element):
         goods: Annotated[float, StateSpec()] = 0.0,
         value: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.reserve = reserve
         self.quantity = quantity
         self.cap = cap

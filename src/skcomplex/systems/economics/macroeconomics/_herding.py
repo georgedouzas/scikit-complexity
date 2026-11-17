@@ -13,11 +13,12 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import normal
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 
 
@@ -29,9 +30,6 @@ class HerdingAgentElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         c:
             The choice of the agent, such as its consumption.
@@ -55,14 +53,13 @@ class HerdingAgentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         c: Annotated[float, StateSpec()] = 0.0,
         x: Annotated[float, StateSpec()] = 1.0,
         gamma: Annotated[float, ParameterSpec()] = 1.0,
         sigma: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.c = c
         self.x = x
         self.gamma = gamma
@@ -124,7 +121,7 @@ class NetworkHerdingSystem(BaseSystem):
     topics = ('herding', 'network', 'aggregation', 'agents', 'linear map')
     references = ('Caiani et al. 2016 §1.1.6',)
     until = 50
-    observables = (ObservableSpec('mean_choice', group='agents', variable='c', reduce='mean'),)
+    observables = (Observable('mean_choice', group='agents', variable='c', reduce='mean'),)
 
     def __init__(
         self,
@@ -169,7 +166,7 @@ class NetworkHerdingSystem(BaseSystem):
         return np.divide(herding * links, rows, out=np.zeros_like(links), where=rows > 0)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         weights = (
             self._get_random_links(self.n_agents, self.density, self.herding, rng)

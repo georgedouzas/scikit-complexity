@@ -10,11 +10,14 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
+from ...components.laws import DrawSpec
 from ...errors import ValidationError
-from ...specs import DrawSpec, NamedDrawSpec, RunStateSpec, SampledDrawSpec
 from ...types import Array, Indices
 from ._base import BaseKernel
 from ._draw_recorder import DrawRecorder
+from ._named_draw_spec import _NamedDrawSpec
+from ._run_state_spec import RunStateSpec
+from ._sampled_draw_spec import _SampledDrawSpec
 
 
 class DrawKernel(BaseKernel):
@@ -48,9 +51,9 @@ class DrawKernel(BaseKernel):
         self,
         offset: int,
         normal: npt.NDArray[np.bool_],
-        sampled: tuple[SampledDrawSpec, ...] = (),
+        sampled: tuple[_SampledDrawSpec, ...] = (),
         orders: tuple[Indices, ...] = (),
-        named: tuple[NamedDrawSpec, ...] = (),
+        named: tuple[_NamedDrawSpec, ...] = (),
     ) -> None:
         self.offset = offset
         self.normal = normal

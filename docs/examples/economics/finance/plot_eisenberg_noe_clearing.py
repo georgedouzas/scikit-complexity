@@ -30,9 +30,9 @@ trajectory = simulate(EisenbergNoeClearingSystem(), observers=[observer])
 # the iteration reaches should lie on the diagonal against the solution of that programme by SciPy.
 
 system = EisenbergNoeClearingSystem()
-parts = system.prepare().system_
-matrix = np.asarray(parts.interactions[0].liabilities)
-external = parts.elements[0].values['external']
+composite = system.prepare().system_
+matrix = np.asarray(composite.interactions[0].liabilities)
+external = composite.elements[0].values['external']
 owed = matrix.sum(axis=1)
 shares = np.divide(matrix, owed[:, None], out=np.zeros_like(matrix), where=owed[:, None] > 0)
 size = len(owed)

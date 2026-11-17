@@ -17,8 +17,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import BaseSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import BaseSpec, RoleSpec, StateSpec
 from ....core.types import IntArray
 from ...general.agents import ChoiceInteraction, EvolutionInteraction
 from ..common.learning import PayoffLearningInteraction
@@ -67,9 +68,6 @@ class MinorityPlayerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         first:
             The code of the first strategy.
 
@@ -101,7 +99,6 @@ class MinorityPlayerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         first: Annotated[float, StateSpec(domain=NN)] = 0,
         second: Annotated[float, StateSpec(domain=NN)] = 1,
@@ -111,7 +108,7 @@ class MinorityPlayerElement(Element):
         action: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
         wealth: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.first = first
         self.second = second
         self.first_score = first_score
@@ -341,7 +338,7 @@ class MinorityGameSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.n_agents % 2 == 0:
             error_msg = f'The minority game needs an odd number of agents, got {self.n_agents}.'
             raise ValueError(error_msg)

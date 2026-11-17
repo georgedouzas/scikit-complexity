@@ -9,11 +9,11 @@ from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec
-from ...types import ElementKind
-from ..base import BasePart
-from ..laws import BaseLaw, EquationLaw
+from ..base import BaseComponent
+from ..laws import BaseLaw, ConstraintLaw
 from ..spaces import BaseSpace
 from ._interaction import Interaction
 
@@ -34,7 +34,7 @@ class ConnectionInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'node'`.
+            The name of the interaction, unique among the components of its system, such as `'node'`.
 
         members:
             The paths of the elements of the node.
@@ -50,7 +50,7 @@ class ConnectionInteraction(Interaction):
         >>> from typing import Annotated, ClassVar
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import ConnectionInteraction
-        >>> from skcomplex.core.components.laws import EquationLaw
+        >>> from skcomplex.core.components.laws import ConstraintLaw
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
@@ -73,7 +73,7 @@ class ConnectionInteraction(Interaction):
         ...         self.e = e
         ...
         ...     def _get_laws(self, s):
-        ...         return [EquationLaw(s.a_i, s.g * (s.a_v - s.e))]
+        ...         return [ConstraintLaw(s.a_i, s.g * (s.a_v - s.e))]
         >>> system = CompositeSystem(
         ...     elements=[ConductanceElement('first', e=1.0), ConductanceElement('second', e=3.0)],
         ...     interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
@@ -83,7 +83,7 @@ class ConnectionInteraction(Interaction):
         2.0
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (EquationLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -96,7 +96,7 @@ class ConnectionInteraction(Interaction):
         self.members = members
         self.ports = ports
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for members and ports that are empty or differ in length.
 
         Args:
@@ -115,7 +115,7 @@ class ConnectionInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the equality of the potentials of the ports and the balance of flows.
 
         Args:
@@ -131,5 +131,5 @@ class ConnectionInteraction(Interaction):
             connector = member.ports[port]
             potentials.append(getattr(member, f'{port}_{connector.potential}'))
             flows.append(getattr(member, f'{port}_{connector.flow}'))
-        equalities: list[BasePart] = [EquationLaw(potentials[0], other) for other in potentials[1:]]
-        return [*equalities, EquationLaw(sum(flows, SR(0)), 0)]
+        equalities: list[BaseComponent] = [ConstraintLaw(potentials[0], other) for other in potentials[1:]]
+        return [*equalities, ConstraintLaw(sum(flows, SR(0)), 0)]

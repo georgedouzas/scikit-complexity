@@ -8,13 +8,13 @@ import pytest
 
 from skcomplex.core.components.elements import FieldElement, GroupElement
 from skcomplex.core.components.laws.utils import coordinate
-from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, RoleSpec
+from skcomplex.core.specs import RoleSpec
 from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.systems.general.kinetics import EncounterInteraction
 

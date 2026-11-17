@@ -13,8 +13,8 @@ class AdjacencyNeighborhood(BaseNeighborhood):
     of the neighbours padded to the largest degree of the graph, the largest number of edges at a node. On a directed
     graph the neighbours are the successors.
 
-    Unlike `BallNeighborhood`, which reads offsets on a lattice, it reads the edges of a graph, so each node may have a
-    different number of neighbours. Choose it when members sit on the nodes of a network.
+    Unlike `RadiusNeighborhood`, which reads offsets on a lattice, it reads the edges of a graph, so each node may have
+    a different number of neighbours. Choose it when members sit on the nodes of a network.
 
     It appears in many fields. A person catches a disease from their contacts, a voter copies the opinion of a friend,
     and a bus of a power grid exchanges power with the buses it is wired to.

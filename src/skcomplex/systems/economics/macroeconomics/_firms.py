@@ -10,12 +10,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class InvestingFirmView(AgentView):
@@ -47,9 +48,6 @@ class InvestingFirmElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial net worth.
@@ -92,7 +90,6 @@ class InvestingFirmElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec()] = 1.0,
         K: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -105,7 +102,7 @@ class InvestingFirmElement(Element):
         r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         pbar: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.K = K
         self.Z = Z
@@ -204,7 +201,7 @@ class ToyFirmInvestmentSystem(BaseSystem):
     topics = ('business cycle', 'agents', 'firms')
     references = ('Caiani et al. 2016', 'Delli Gatti et al. 2010')
     until = 100
-    observables = (ObservableSpec('production', group='firms', reduce='sum', variable='Y'),)
+    observables = (Observable('production', group='firms', reduce='sum', variable='Y'),)
 
     def __init__(
         self,
@@ -226,7 +223,7 @@ class ToyFirmInvestmentSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         profits = self.pbar + 2.0 * np.random.default_rng(self.random_state).random(self.n_firms)
         firms = GroupElement(
             'firms',

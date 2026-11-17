@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import lag, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 MAX_RECOVERY = 12
 
@@ -31,9 +31,6 @@ class EpidemicCenterElement(Element):
     Args:
         label:
             The label of the center.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial fraction of infected individuals.
@@ -56,7 +53,6 @@ class EpidemicCenterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[
             float,
@@ -66,7 +62,7 @@ class EpidemicCenterElement(Element):
         recovery: Annotated[int, ParameterSpec(domain=NN)] = 6,
         e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.a = a
         self.recovery = recovery
@@ -153,7 +149,7 @@ class DelayedSIRSSystem(BaseSystem):
         return infected
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of two cities."""
+        """Return the components of two cities."""
         return CompositeSystem(
             self.label,
             elements=[

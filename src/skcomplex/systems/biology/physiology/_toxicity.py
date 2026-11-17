@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
@@ -31,9 +31,6 @@ class DrugToxicityElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         c:
             The initial plasma concentration.
@@ -68,7 +65,6 @@ class DrugToxicityElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         T: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -79,7 +75,7 @@ class DrugToxicityElement(Element):
         width: float = 1.0,
         doses: int = 6,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.c = c
         self.T = T
         self.k = k
@@ -153,7 +149,7 @@ class DrugToxicitySystem(BaseSystem):
         self.doses = doses
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the toxicity a weekly drug accumulates in the body."""
+        """Return the components of the toxicity a weekly drug accumulates in the body."""
         patient = DrugToxicityElement(
             'patient',
             k=self.k,

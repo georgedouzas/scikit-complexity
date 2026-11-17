@@ -3,28 +3,35 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import RR, SR, ZZ, Expression, function, vector
+from sage.modules.free_module_element import FreeModuleElement
+from sage.symbolic.operators import FDerivativeOperator
+from sklearn.base import clone
 
+from ...enums import DomainKind
 from ...errors import SpaceError, ValidationError
-from ...specs import BaseSpec, InteractionRequirementSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, Tags
-from ..base import BasePart
-from ..laws import BaseLaw
+from ...specs import BaseSpec, DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
+from .._tags import Tags
+from ..base import BaseComponent
+from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw, UpdateLaw
+from ..laws.utils import delayed, derivative, lag
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
+from ._interaction_requirement_spec import _InteractionRequirementSpec
 
-SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 GRID_CANDIDATES = ('neighbors', 'cell', 'local')
-RATE_DOMAINS = ('real', 'integer', 'complex', 'vector')
+RATE_DOMAINS = (DomainKind.REAL, DomainKind.INTEGER, DomainKind.COMPLEX, DomainKind.VECTOR)
 
 
-class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
-    """An abstract interaction, the part of a system that changes states of elements.
+class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace]):
+    """An abstract interaction, the component that changes the states of elements.
 
     An interaction binds elements through roles, such as `'source'` and `'target'`, reads their states, and returns laws
     that change them. It holds no state of its own. A state on a coupling, such as the weight of an edge, lives in a
@@ -39,8 +46,8 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     names from `_get_role` and `_get_parameter`. An interaction that draws a random order of agents, breaks ties at
     random, or picks members at random is stochastic whatever its laws.
 
-    Unlike `BasePart`, it changes the states of other parts and holds none of its own. Choose it when a new kind of
-    interaction runs its laws in a way of its own, as `NeighborInteraction` runs them once per edge. Choose
+    Unlike `BaseComponent`, it changes the states of other components and holds none of its own. Choose it when a new
+    kind of interaction runs its laws in a way of its own, as `NeighborInteraction` runs them once per edge. Choose
     `Interaction` for laws that run once for the elements the roles bind.
 
     It appears in every field through its subclasses, such as infection in an epidemic, a chemical reaction, a payment
@@ -48,7 +55,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'growth'`.
+            The name of the interaction, unique among the components of its system, such as `'growth'`.
 
     Attributes:
         laws_:
@@ -73,7 +80,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = ()
-    laws_: Sequence[BasePart]
+    laws_: Sequence[BaseComponent]
 
     def _get_argument(self, name: str) -> object:
         """Return the value of an argument of the general interaction.
@@ -137,6 +144,164 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
             or self._get_argument('schedule') in ('random-sequential', 'member')
             or 'random' in (self._get_argument('ties'), self._get_argument('pick'))
         )
+
+    @classmethod
+    def _is_preparing_laws(cls) -> bool:
+        """Return whether the class sets its laws in `_prepare`, not in `_get_laws`."""
+        owner = next(klass for klass in cls.__mro__ if '_get_laws' in vars(klass))
+        return owner is BaseInteraction
+
+    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
+        """Return the numeric arguments of an interaction as parameters, by name.
+
+        An argument annotated with a spec keeps its spec, and a role or a setting that is no number declares nothing.
+        """
+        if not self._is_preparing_laws():
+            return {}
+        specs = self._get_specs()
+        return {
+            name: DeclaredVariableSpec(value, ParameterSpec(domain=ZZ if isinstance(value, int) else RR))
+            for name, value in self.get_params(deep=False).items()
+            if name not in specs and name != 'label' and isinstance(value, int | float) and not isinstance(value, bool)
+        }
+
+    @classmethod
+    def _get_declared_laws(cls) -> tuple[type, ...] | None:
+        """Return the law classes a class lists, or `None` when they are unknown."""
+        if not cls._is_preparing_laws():
+            return super()._get_declared_laws()
+        for klass in cls.__mro__:
+            if klass is BaseInteraction:
+                return None
+            if 'law_classes' in vars(klass):
+                classes: tuple[type, ...] = vars(klass)['law_classes']
+                return classes
+        return None
+
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
+        """Return no laws, since an interaction sets its laws in `_prepare`.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                No laws.
+        """
+        return []
+
+    @staticmethod
+    def _get_functional(value: object, time: Expression, functions: dict[str, Expression]) -> object:
+        """Return the symbols of states in a value of a role as functions of time."""
+        if isinstance(value, SimpleNamespace):
+            return SimpleNamespace(
+                **{name: BaseInteraction._get_functional(item, time, functions) for name, item in vars(value).items()},
+            )
+        if isinstance(value, tuple):
+            return tuple(BaseInteraction._get_functional(item, time, functions) for item in value)
+        if isinstance(value, FreeModuleElement):
+            return vector(SR, [BaseInteraction._get_functional(item, time, functions) for item in value])
+        if isinstance(value, Expression) and value.is_symbol() and value is not time:
+            functions[str(value)] = value
+            return function(str(value))(time)
+        return value
+
+    @staticmethod
+    def _get_state_of(value: Expression, time: Expression, symbols: Mapping[str, Expression], discrete: bool) -> object:
+        """Return the state, derivative, lag, or delay a function of time stands for."""
+        operator = value.operator()
+        if isinstance(operator, FDerivativeOperator) and operator.function().name() in symbols:
+            return derivative(symbols[operator.function().name()], len(operator.parameter_set()))
+        name = str(getattr(operator, 'name', lambda: '')())
+        if name not in symbols or len(value.operands()) != 1:
+            return None
+        shift = SR(time - value.operands()[0]).simplify_full()
+        if shift.is_zero():
+            return symbols[name]
+        return (lag if discrete else delayed)(symbols[name], shift)
+
+    @staticmethod
+    def _get_translated(value: object, time: Expression, symbols: Mapping[str, Expression], discrete: bool) -> object:
+        """Return a value with derivatives and shifts in time of states translated."""
+        if isinstance(value, list | tuple):
+            return type(value)(BaseInteraction._get_translated(item, time, symbols, discrete) for item in value)
+        if isinstance(value, Mapping):
+            return {
+                BaseInteraction._get_translated(key, time, symbols, discrete): BaseInteraction._get_translated(
+                    item,
+                    time,
+                    symbols,
+                    discrete,
+                )
+                for key, item in value.items()
+            }
+        if isinstance(value, FreeModuleElement):
+            return vector(SR, [BaseInteraction._get_translated(item, time, symbols, discrete) for item in value])
+        if not isinstance(value, Expression) or value.operator() is None:
+            return value
+        state = BaseInteraction._get_state_of(value, time, symbols, discrete)
+        if state is not None:
+            return state
+        operands = [BaseInteraction._get_translated(item, time, symbols, discrete) for item in value.operands()]
+        return value.operator()(*operands)
+
+    @staticmethod
+    def _get_law_in_states(law: BaseComponent, time: Expression, symbols: Mapping[str, Expression]) -> BaseComponent:
+        """Return a law written with functions of time as a law of the states."""
+        if not symbols:
+            return law
+        discrete = isinstance(law, UpdateLaw)
+        params = law.get_params(deep=False)
+        translated = {
+            name: BaseInteraction._get_translated(item, time, symbols, discrete)
+            for name, item in params.items()
+            if name != 'label'
+        }
+        changed = {name: item for name, item in translated.items() if item is not params[name]}
+        return clone(law).set_params(**changed) if changed else law
+
+    @staticmethod
+    def _get_normalized(law: BaseComponent) -> BaseComponent:
+        """Return a law on a derivative of order `k` as a law on the state of order `k`."""
+        if not isinstance(law, RateLaw | NoiseLaw) or not isinstance(law.target, Expression):
+            return law
+        if law.target.operator() is not derivative:
+            return law if law.order is not None else clone(law).set_params(order=1)
+        state, order = law.target.operands()
+        return clone(law).set_params(target=state, order=int(order))
+
+    def _get_laws_of(self, inputs: object) -> Sequence[BaseComponent]:
+        """Return the laws for a namespace, from a clone prepared on it if needed."""
+        if not self._is_preparing_laws():
+            return super()._get_laws_of(inputs)
+        if not isinstance(inputs, SimpleNamespace):
+            error_msg = f'{type(self).__name__} learns its laws from a namespace of symbols, but got {inputs!r}.'
+            raise ValidationError(error_msg)
+        time = getattr(inputs, 't', SR.var('t'))
+        functions: dict[str, Expression] = {}
+        roles = {
+            name: self._get_functional(item, time, functions) if isinstance(item, SimpleNamespace | tuple) else item
+            for name, item in vars(inputs).items()
+        }
+        functional = SimpleNamespace(**roles)
+        prepared = clone(self)
+        prepared.prepare(functional)
+        return [self._get_normalized(self._get_law_in_states(law, time, functions)) for law in prepared.laws_]
+
+    def _prepare_on(self, space: BaseSpace | SimpleNamespace | None) -> None:
+        """Check the interaction on the space of its system, learning no laws."""
+        if not self._is_preparing_laws():
+            super()._prepare_on(space)
+            return
+        BaseInteraction._prepare(self, space if isinstance(space, BaseSpace) else None)
+        self._prepared = True
+
+    def _get_prepared_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
+        """Return the laws of the interaction for a namespace of symbols."""
+        if self._is_preparing_laws():
+            return self._get_laws_of(namespace)
+        return super()._get_prepared_laws(namespace)
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Set `laws_`, the laws of the interaction for a namespace of symbols.
@@ -235,7 +400,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
 
         Returns:
             symbol:
-                The symbol of the parameter in the namespace, read also when a part other than the interaction
+                The symbol of the parameter in the namespace, read also when a component other than the interaction
                 declares it, or else the value of the attribute of the interaction.
         """
         parameter = self._get_parameter(name)
@@ -247,7 +412,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         self,
         name: str,
         value: object,
-        values: Sequence[object],
+        values: Collection[object],
         kinds: tuple[type, ...] = (),
         *,
         functions: bool = False,
@@ -279,8 +444,8 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         if isinstance(value, kinds) or (functions and callable(value)) or any(value == item for item in values):
             return
         named = [kind.__name__ for kind in kinds if kind is not BaseSpec]
-        accepted = [*named, *map(repr, values), *(['a function'] if functions else [])]
-        spec = ', or a spec that the part handles' if BaseSpec in kinds else ''
+        accepted = [*named, *(repr(str(item)) for item in values), *(['a function'] if functions else [])]
+        spec = ', or a spec that the component handles' if BaseSpec in kinds else ''
         error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}{spec}.'
         raise ValidationError(error_msg)
 
@@ -470,6 +635,14 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
                 found += [item for item in value if isinstance(item, str)]
         return tuple(dict.fromkeys(found))
 
+    def _runs_on_edges(self) -> bool:
+        """Return whether the laws run once per edge of a network, false by default."""
+        return False
+
+    def _get_layer(self) -> str | None:
+        """Return the layer of the network the laws run along, or `None` for its graph."""
+        return None
+
     def _check_space(self, space: BaseSpace | None) -> None:
         """Raise an error for a variant the space of the system cannot run.
 
@@ -480,14 +653,15 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
                 The space of the system, or `None`.
         """
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for a variant the space of the system cannot run.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Check the interaction on its space, or start the laws of a binding.
 
         It first raises an error for declarations the interaction cannot take.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of the elements it binds, whose
+                laws a subclass then sets in `laws_`.
 
         Raises:
             SpaceError:
@@ -497,9 +671,12 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         super()._prepare(context)
         self._check_states()
+        if isinstance(context, SimpleNamespace):
+            self.laws_: Sequence[BaseComponent] = []
+            return
         self._check_space(context)
 
-    def get_requirements(self) -> InteractionRequirementSpec:
+    def get_requirements(self) -> _InteractionRequirementSpec:
         """Return what the interaction needs.
 
         It needs the element kinds and states of its roles, and its laws' time and space.
@@ -517,7 +694,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         laws = self._get_law_classes()
         needs = [law.get_requirements() for law in laws]
-        return InteractionRequirementSpec(
+        return _InteractionRequirementSpec(
             time=self._get_accepted([need.time for need in needs]),
             space=self._get_accepted([need.space for need in needs]),
             roles={

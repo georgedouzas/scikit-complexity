@@ -72,7 +72,7 @@ class BooleanFunctionInteraction(MapInteraction):
         terms = [self._get_pattern(inputs, index) for index, entry in enumerate(self.table) if entry]
         return sum(terms, start=SR(0))
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a table without one entry per pattern of the inputs.
 
         Args:

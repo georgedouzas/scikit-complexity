@@ -7,9 +7,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import BaseVisual
 
 MATRIX_RANK = 2
@@ -107,7 +107,11 @@ class MatrixVisual(BaseVisual):
             raise ValidationError(error_msg)
         self.shape_ = layouts[0].get_entry(self.name_).shape
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return the 2D spatial view of the matrix."""
         del problem
         return [rrb.Spatial2DView(origin=f'{element.path}/{self.variable}', name=f'{element.path}.{self.variable}')]

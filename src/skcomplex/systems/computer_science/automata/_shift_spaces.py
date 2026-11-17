@@ -19,14 +19,15 @@ from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, WordElement
+from ....core.components import Observable
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.laws import ProductionLaw
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
+from ...general.rewriting import ProductionLaw, WordElement
 from ._binary_cell import BinaryCellElement
 
 OUTSIDE = -1.0
@@ -46,9 +47,6 @@ class DigitCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         digit:
             The initial digit.
 
@@ -64,12 +62,11 @@ class DigitCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         digit: Annotated[float, StateSpec(domain=ZZ)] = 0,
         base: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.digit = digit
         self.base = base
 
@@ -119,9 +116,6 @@ class TernaryCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         symbol:
             The initial symbol, 0, 1, or 2.
 
@@ -134,11 +128,10 @@ class TernaryCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         symbol: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1, 2]))] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.symbol = symbol
 
 
@@ -185,7 +178,7 @@ class GapSubshiftSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 100
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,
@@ -398,7 +391,7 @@ class ContextFreeSubshiftSystem(BaseSystem):
         return LatticeNeighborhood(tuple((offset,) for offset in range(1 - size, size)))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.initial is None:
             generator = np.random.default_rng(self.random_state)
             blocks: list[float] = []
@@ -473,7 +466,7 @@ class MorseSubshiftSystem(BaseSystem):
         self.axiom = axiom
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return CompositeSystem(self.label, elements=[MorseElement('morse', axiom=self.axiom, alphabet='01')])
 
 

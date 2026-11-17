@@ -8,7 +8,7 @@ from typing import Annotated
 
 from .....core.components.elements import Element
 from .....core.components.laws import BaseLaw, RateLaw
-from .....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.specs import ParameterSpec, StateSpec
 
 
 class RosslerElement(Element):
@@ -17,9 +17,6 @@ class RosslerElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial first coordinate.
@@ -50,7 +47,6 @@ class RosslerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 1.0,
         y: Annotated[object, StateSpec()] = 1.0,
@@ -59,7 +55,7 @@ class RosslerElement(Element):
         b: Annotated[object, ParameterSpec()] = 0.2,
         c: Annotated[object, ParameterSpec()] = 5.7,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z

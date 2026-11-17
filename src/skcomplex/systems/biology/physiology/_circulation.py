@@ -15,7 +15,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws.utils import mod, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class ChamberElement(Element):
@@ -30,9 +30,6 @@ class ChamberElement(Element):
     Args:
         label:
             The label of the chamber.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         V:
             The initial volume.
@@ -61,7 +58,6 @@ class ChamberElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         V: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
         V0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -70,7 +66,7 @@ class ChamberElement(Element):
         period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.8,
         systole: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.V = V
         self.V0 = V0
         self.E_min = E_min
@@ -204,7 +200,7 @@ class CardiovascularSystem(BaseSystem):
         self.volume = volume
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         period = 60.0 / self.heart_rate
         systole = 0.375 * period
         ventricle = ChamberElement(

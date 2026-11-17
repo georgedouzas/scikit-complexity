@@ -15,7 +15,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import CrossingInteraction
-from .....core.components.laws import BaseLaw, CrossingLaw
+from .....core.components.laws import BaseLaw, EventLaw
 from .....core.components.laws.utils import where
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
@@ -77,7 +77,7 @@ class ReflectionInteraction(CrossingInteraction):
         [0.0, 2.0]
     """
 
-    law_classes = (CrossingLaw,)
+    law_classes = (EventLaw,)
 
     def __init__(
         self,
@@ -108,7 +108,7 @@ class ReflectionInteraction(CrossingInteraction):
             components += list(value) if isinstance(value, FreeModuleElement) else [SR(value)]
         return components
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for invalid positions, velocities, or functions.
 
         The error is raised for positions and velocities of different numbers of names, or a function not callable.
@@ -155,4 +155,4 @@ class ReflectionInteraction(CrossingInteraction):
         if self.region is not None:
             region = self.region(namespace)
             reset = {v: where(region, value, v) for v, value in reset.items()}
-        return [CrossingLaw(guard, reset, self.direction, self.terminal, label=self.label)]
+        return [EventLaw(guard, reset, self.direction, self.terminal, label=self.label)]

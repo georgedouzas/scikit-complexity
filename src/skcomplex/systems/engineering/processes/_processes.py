@@ -17,7 +17,7 @@ from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import StockFlowSystem
 from ...general.dynamics.types import FlowTable
 
@@ -32,12 +32,11 @@ class StageElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         m: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         feed: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.m = m
         self.feed = feed
 
@@ -169,7 +168,7 @@ class CascadeClassifierSystem(BaseSystem):
         self.feed = feed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         entry = (self.n_stages + 1) // 2 if self.feed_stage is None else self.feed_stage
         stages = [
             StageElement(f'stage_{index}', feed=self.feed if index == entry else 0.0)

@@ -19,17 +19,19 @@ from pymoo.core.problem import Problem
 from pymoo.core.termination import NoTermination
 from sage.all__sagemath_symbolics import Expression, cos, pi
 
-from ....core.components.base import BasePart
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, SamplingInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BallNeighborhood, BaseSpace, DiscreteTime, LatticeSpace
+from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.components.types import SystemViewProtocol
+from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ObservableSpec, RoleSpec, StateSpec
-from ....core.types import Array, ElementKind
+from ....core.specs import BaseSpec, RoleSpec, StateSpec
+from ....core.types import Array
 
 SEEDS = 2**31
 ANNEALING = 'annealing'
@@ -203,7 +205,7 @@ class OptimizationInteraction(Interaction):
         self.algorithm = algorithm
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an algorithm that is not a spec, or an uncallable objective.
 
         Args:
@@ -431,7 +433,7 @@ class RunningBestInteraction(Interaction):
         self.target = target
         self.source = source
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the update of the lowest value.
 
         Args:
@@ -596,7 +598,7 @@ class EvolutionaryOptimisersSystem(BaseSystem):
                 width=width,
                 intensity=1 / temperature,
                 schedule='colored',
-                neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
+                neighborhood=RadiusNeighborhood(1, metric='manhattan'),
                 cooling=lambda t: COOLED ** (t / generations),
             )
             for state in ('x', 'y')
@@ -663,5 +665,5 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         settings = super().get_run_settings()
         if self.algorithm == ANNEALING and self.landscape in MEMBER_ENERGIES:
             member = MEMBER_ENERGIES[self.landscape]
-            settings['observables'] = (ObservableSpec('search/lowest', member, group='candidates', reduce='min'),)
+            settings['observables'] = (Observable('search/lowest', member, group='candidates', reduce='min'),)
         return settings

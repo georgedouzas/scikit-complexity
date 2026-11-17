@@ -15,13 +15,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 from scipy.spatial import KDTree
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 
@@ -46,9 +47,6 @@ class FlockerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         theta:
             The initial heading.
 
@@ -58,14 +56,15 @@ class FlockerElement(Element):
         1.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'theta', 'color_range': (0.0, 2 * math.pi)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'theta', 'color_range': (0.0, 2 * math.pi)}),
         *,
         theta: Annotated[float, StateSpec(role='direction')] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
 
     @classmethod
@@ -258,9 +257,9 @@ class BinaryCollisionFlockingSystem(BaseSystem):
     until = 200
     dt = 1
     observables = (
-        ObservableSpec('mean_cos', _get_cosine, group='birds'),
-        ObservableSpec('mean_sin', _get_sine, group='birds'),
-        ObservableSpec('polarization', _get_polarization),
+        Observable('mean_cos', _get_cosine, group='birds'),
+        Observable('mean_sin', _get_sine, group='birds'),
+        Observable('polarization', _get_polarization),
     )
 
     def __init__(
@@ -287,7 +286,7 @@ class BinaryCollisionFlockingSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         birds = GroupElement(
             'birds',

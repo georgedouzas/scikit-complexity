@@ -12,17 +12,13 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
-from ....core.components.interactions import (
-    BaseInteraction,
-    GradientInteraction,
-    PairInteraction,
-    RateInteraction,
-)
+from ....core.components.interactions import BaseInteraction, PairInteraction, RateInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec
 from ...general.elements import PointElement
+from ...general.gradients import GradientInteraction
 
 
 class MotivationInteraction(RateInteraction):
@@ -258,7 +254,7 @@ class SocialForceSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cutoff = 2.0
         walkers = [

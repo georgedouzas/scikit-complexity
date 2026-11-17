@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.interactions import RateInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.flows._rossler import RosslerElement
 
 
@@ -29,9 +29,6 @@ class DrivenRosslerElement(RosslerElement):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial first coordinate.
@@ -69,7 +66,6 @@ class DrivenRosslerElement(RosslerElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: float = 1.0,
         y: float = 1.0,
@@ -81,7 +77,7 @@ class DrivenRosslerElement(RosslerElement):
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 50.0,
         rho: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual, x=x, y=y, z=z, a=a, b=b, c=c)
+        super().__init__(label, x=x, y=y, z=z, a=a, b=b, c=c)
         self.eta = eta
         self.tau = tau
         self.rho = rho

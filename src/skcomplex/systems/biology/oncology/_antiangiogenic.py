@@ -15,7 +15,7 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import logistic, pulse_train
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -41,9 +41,6 @@ class AngiogenicTumourElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial tumour volume.
@@ -93,7 +90,6 @@ class AngiogenicTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 17347.0,
         Vb: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 17347.0,
@@ -109,7 +105,7 @@ class AngiogenicTumourElement(Element):
         width: float = 1.0,
         start: float = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.Vb = Vb
         self.U = U
@@ -222,7 +218,7 @@ class HahnfeldtSystem(BaseSystem):
         self.start = start
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Hahnfeldt system."""
+        """Return the components of the Hahnfeldt system."""
         tumour = AngiogenicTumourElement(
             'tumour',
             A=self.A,

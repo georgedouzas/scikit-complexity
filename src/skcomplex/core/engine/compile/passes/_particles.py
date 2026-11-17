@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import SR
 from ....components.laws import BaseLaw, BoundaryLaw
 from ....components.laws.utils import either, mod, where
 from ....components.spaces import ContinuousSpace
-from ....types import VariableKind
+from ....enums import VariableKind
 from ..._utils import components_of, declarations_of
 from ...problems._block_spec import BlockSpec
 from ...problems._kernel_spec import KernelSpec

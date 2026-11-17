@@ -13,11 +13,12 @@ import networkx as nx
 import numpy as np
 
 from ....core.analysis import motifs, network_measures
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import AnalysisError
-from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
+from ....core.specs import ParameterSpec
 from ..common.networks import NetworkNodeElement
 
 BLOCKS = 4
@@ -34,9 +35,6 @@ class NetworkMeasuresElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         path_length:
             The mean shortest path length of the largest component.
@@ -62,7 +60,6 @@ class NetworkMeasuresElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         path_length: Annotated[float, ParameterSpec()] = 0.0,
         assortativity: Annotated[float, ParameterSpec()] = 0.0,
@@ -70,7 +67,7 @@ class NetworkMeasuresElement(Element):
         agreement: Annotated[float, ParameterSpec()] = 0.0,
         triangle_zscore: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.path_length = path_length
         self.assortativity = assortativity
         self.modularity = modularity
@@ -147,12 +144,12 @@ class NetworkStructureAnalysisSystem(BaseSystem):
     until = 1
     dt = 1
     observables = (
-        ObservableSpec('clustering', group='nodes', variable='clustering', reduce='mean'),
-        ObservableSpec('path_length', _get_path_length),
-        ObservableSpec('assortativity', _get_assortativity),
-        ObservableSpec('modularity', _get_modularity),
-        ObservableSpec('agreement', _get_agreement),
-        ObservableSpec('triangle_zscore', _get_triangle_zscore),
+        Observable('clustering', group='nodes', variable='clustering', reduce='mean'),
+        Observable('path_length', _get_path_length),
+        Observable('assortativity', _get_assortativity),
+        Observable('modularity', _get_modularity),
+        Observable('agreement', _get_agreement),
+        Observable('triangle_zscore', _get_triangle_zscore),
     )
 
     def __init__(

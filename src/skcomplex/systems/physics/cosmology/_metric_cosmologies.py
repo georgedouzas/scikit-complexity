@@ -21,7 +21,7 @@ from sage.structure.element import Matrix
 from sage.symbolic.function import BuiltinFunction, SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -29,9 +29,9 @@ from ....core.components.laws.utils import derivative, partial
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
+from ....core.enums import ElementKind
 from ....core.errors import SpaceError, ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import ElementKind
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.relativity import SpacetimeSpace
 
 COUPLING = 8 * math.pi
@@ -63,7 +63,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or field whose states and parameters are the unknowns of the ansatz.
@@ -166,7 +166,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
         """Return the names of the states the equations determine."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the prepared space and the mixed Einstein tensor of its metric.
 
         It first raises an error for states not names, mismatched components, or a source.
@@ -340,7 +340,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
             return matrix(SR, n_dim, n_dim)
         return matrix(SR, self.source(namespace))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the rate law of the second derivative of every state.
 
         It is solved from the chosen equations.
@@ -483,9 +483,6 @@ class HomogeneousUniverseElement(Element):
         label:
             The label of the universe.
 
-        visual:
-            How the universe is drawn, or `None` for none.
-
         a:
             The initial scale factor.
 
@@ -513,7 +510,6 @@ class HomogeneousUniverseElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[float, StateSpec(domain=RealSet.open(0, oo), order=2)] = 1.0,
         a_d1: float = 1.0,
@@ -522,7 +518,7 @@ class HomogeneousUniverseElement(Element):
         omega_radiation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         omega_lambda: Annotated[float, ParameterSpec()] = 0.7,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.a_d1 = a_d1
         self.H0 = H0
@@ -539,9 +535,6 @@ class DustShellElement(Element):
     Args:
         label:
             The label of the shell.
-
-        visual:
-            How the shell is drawn, or `None` for none.
 
         R:
             The initial areal radius.
@@ -561,13 +554,12 @@ class DustShellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         R: Annotated[float, StateSpec(domain=RealSet.open(0, oo), order=2)] = 1.0,
         R_d1: float = 0.0,
         energy: Annotated[float, ParameterSpec(domain=RealSet.open(-0.5, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.R = R
         self.R_d1 = R_d1
         self.energy = energy
@@ -654,7 +646,7 @@ class FLRWCosmologySystem(BaseSystem):
         return diagonal_matrix(SR, [-density, pressure, pressure, pressure])
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         curvature = 1 - self.omega_matter - self.omega_radiation - self.omega_lambda
         square = self.H0**2 * (
             self.omega_matter / self.a + self.omega_radiation / self.a**2 + self.omega_lambda * self.a**2 + curvature
@@ -745,7 +737,7 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
         self.mass = mass
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.radius <= 2 * self.mass:
             error_msg = (
                 f'The radius {self.radius} is inside the Schwarzschild radius 2 M = {2 * self.mass}. Give a larger '

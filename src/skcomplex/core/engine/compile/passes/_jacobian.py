@@ -5,7 +5,7 @@
 
 
 from ....components.laws import RateLaw
-from ....types import FormKind
+from ....enums import FormKind
 from ...problems._jacobian_kernel import JacobianKernel
 from .._base import BasePass
 from .._compilation import Compilation

@@ -20,8 +20,8 @@ from skcomplex.core.specs import StateSpec
 class AngleLinkElement(Element):
     """Link with an angle `theta`."""
 
-    def __init__(self, label, visual=None, *, theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0):
+        super().__init__(label)
         self.theta = theta
 
 

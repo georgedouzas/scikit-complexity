@@ -17,7 +17,7 @@ from ....core.components.laws.utils import delayed, hill
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import ReactionDiffusionSystem
 from ..common.excitable import FitzHughNagumoInteraction
 
@@ -32,9 +32,6 @@ class MackeyGlassElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial concentration, also its history.
@@ -62,7 +59,6 @@ class MackeyGlassElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         beta: Annotated[float, ParameterSpec()] = 0.2,
@@ -70,7 +66,7 @@ class MackeyGlassElement(Element):
         n: Annotated[float, ParameterSpec()] = 10.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 17.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.beta = beta
         self.gamma = gamma
@@ -242,7 +238,7 @@ class MackeyGlassSystem(BaseSystem):
         self.tau = tau
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         return CompositeSystem(
             self.label,
             elements=[MackeyGlassElement('cells', x=self.x, beta=self.beta, gamma=self.gamma, n=self.n, tau=self.tau)],

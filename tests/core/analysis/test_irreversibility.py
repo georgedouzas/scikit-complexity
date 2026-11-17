@@ -12,7 +12,7 @@ from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 RING = 2 * np.roll(np.eye(5), 1, axis=1) + np.roll(np.eye(5), -1, axis=1)
 RUNS = 20_000
@@ -134,12 +134,11 @@ def _walker_currents(forward, backward, duration, paths, seed):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             ahead: Annotated[object, StateSpec()] = 0.0,
             behind: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.ahead = ahead
             self.behind = behind
 

@@ -14,11 +14,12 @@ import networkx as nx
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class NetworkSaverElement(Element):
@@ -29,9 +30,6 @@ class NetworkSaverElement(Element):
     Args:
         label:
             The label of the saver.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         W:
             The wealth.
@@ -55,14 +53,13 @@ class NetworkSaverElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         W: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
         J: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         sigma: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         degree: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.W = W
         self.J = J
         self.sigma = sigma
@@ -111,7 +108,7 @@ class BouchaudMezardWealthSystem(BaseSystem):
     references = ('Yakovenko and Rosser 2009', 'Bouchaud and Mezard 2000')
     until = 1.0
     dt = 0.1
-    observables = (ObservableSpec('mean_wealth', group='agents', variable='W'),)
+    observables = (Observable('mean_wealth', group='agents', variable='W'),)
 
     def __init__(
         self,
@@ -141,7 +138,7 @@ class BouchaudMezardWealthSystem(BaseSystem):
         return s.target.sigma * s.target.W
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         returns = RateInteraction('returns', target='agents', state='W', noise=self._returns, convention='stratonovich')
         if self.graph is None:
             values = {'W': self.wealth, 'J': self.J, 'sigma': self.sigma, 'degree': self.n_agents - 1}

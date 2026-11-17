@@ -18,6 +18,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, exp, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
@@ -25,7 +26,7 @@ from ....core.components.laws.utils import both, clip, convolve, displacement, w
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec
 from ....core.types import AnyArray, Array
 
 ORBIUM = np.array(
@@ -66,9 +67,6 @@ class LeniaSiteElement(Element):
         label:
             The label of the site or the field.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         A:
             The initial value of the first channel.
 
@@ -87,13 +85,12 @@ class LeniaSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
         B: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
         C: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.B = B
         self.C = C
@@ -281,7 +278,7 @@ class LeniaSystem(BaseSystem):
     until = 200
     dt = 1
     observables = tuple(
-        ObservableSpec(f'mass_{channel}', group='world', variable=channel, reduce=_get_mass) for channel in CHANNELS
+        Observable(f'mass_{channel}', group='world', variable=channel, reduce=_get_mass) for channel in CHANNELS
     )
 
     def __init__(

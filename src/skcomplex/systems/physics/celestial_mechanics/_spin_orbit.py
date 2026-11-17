@@ -14,14 +14,15 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import Expression, cos, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import EulerLagrangeInteraction
 from ....core.components.laws.utils import derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
+from ...general.mechanics import EulerLagrangeInteraction
 
 COORDINATES = ('u', 'theta', 'v', 'phi', 'psi')
 
@@ -39,9 +40,6 @@ class DumbbellElement(Element):
     Args:
         label:
             The label of the dumbbell.
-
-        visual:
-            How the dumbbell is drawn, or `None` for `default_visual_`.
 
         u:
             The initial distance from the axis through the primary.
@@ -84,7 +82,7 @@ class DumbbellElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the dumbbell when it sets none.
+            How the dumbbell is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import DumbbellElement
@@ -95,7 +93,6 @@ class DumbbellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec(order=2)] = 1.0,
         u_d1: float = 0.0,
@@ -111,7 +108,7 @@ class DumbbellElement(Element):
         epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 0.9,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.u_d1 = u_d1
         self.theta = theta
@@ -227,8 +224,8 @@ class KeplerianDumbbellSystem(BaseSystem):
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
     invariants: ClassVar[Mapping[str, float]] = {'dumbbell.energy': 1e-6, 'dumbbell.angular_momentum': 1e-6}
     observables = (
-        ObservableSpec('energy', _get_dumbbell_energy, element='dumbbell'),
-        ObservableSpec('angular_momentum', _get_dumbbell_momentum, element='dumbbell'),
+        Observable('energy', _get_dumbbell_energy, element='dumbbell'),
+        Observable('angular_momentum', _get_dumbbell_momentum, element='dumbbell'),
     )
 
     @staticmethod

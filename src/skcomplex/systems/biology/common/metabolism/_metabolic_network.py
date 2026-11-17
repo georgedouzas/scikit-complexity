@@ -16,11 +16,10 @@ from typing import cast
 from sage.all__sagemath_symbolics import SR, Expression
 
 from .....core.components.elements import DeclaredElement
-from .....core.components.laws import LinearProgramLaw
+from .....core.components.laws import LinearObjectiveSpec, LinearProgramLaw
 from .....core.components.laws.utils import both, either
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import DeclaredVariableSpec, LinearObjectiveSpec, ParameterSpec, StateSpec, VisualSpec
+from .....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ._reaction_spec import ReactionSpec
 
 SWITCH_THRESHOLD = 0.5
@@ -40,9 +39,6 @@ class MetabolicNetworkElement(DeclaredElement):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for the bars of its program.
 
         objective:
             The coefficient of every reaction in the objective, or `None` for `default_objective`, or nothing for a
@@ -74,6 +70,8 @@ class MetabolicNetworkElement(DeclaredElement):
         4.0
     """
 
+    visual = VisualSpec('linear_program')
+
     law_classes = (LinearProgramLaw,)
 
     @staticmethod
@@ -90,7 +88,6 @@ class MetabolicNetworkElement(DeclaredElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         objective: Mapping[str, float] | None = None,
         parsimonious: bool = False,
@@ -100,7 +97,7 @@ class MetabolicNetworkElement(DeclaredElement):
         default_objective: Mapping[str, float] = NO_OBJECTIVE,
         variables: Mapping[str, DeclaredVariableSpec] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, variables=variables)
+        super().__init__(label, variables=variables)
         self.objective = objective
         self.parsimonious = parsimonious
         self.infeasible = infeasible
@@ -124,16 +121,6 @@ class MetabolicNetworkElement(DeclaredElement):
         for gene in self.get_genes_of():
             declared[self.get_gene_name(gene)] = DeclaredVariableSpec(1.0, switch)
         return {**declared, **(self.variables or {})}
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `default_visual_`, the bars of the fluxes.
-
-        Args:
-            context:
-                The space the element inherits from its system, which a network does not read.
-        """
-        super()._prepare(context)
-        self.default_visual_ = VisualSpec('linear_program')
 
     @staticmethod
     def _get_identifier(name: str) -> str:
@@ -298,10 +285,9 @@ def metabolic_network_type(
         ('v_r', ('g',), 0.0)
     """
 
-    def create_network(label: str, visual: VisualSpec | None = None, **settings: object) -> MetabolicNetworkElement:
+    def create_network(label: str, **settings: object) -> MetabolicNetworkElement:
         network = MetabolicNetworkElement(
             label,
-            visual,
             name=name,
             reactions=dict(reactions),
             default_objective=dict(objective or {}),

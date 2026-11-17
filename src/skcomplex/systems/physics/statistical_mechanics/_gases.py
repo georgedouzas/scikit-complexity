@@ -17,6 +17,12 @@ from ....core.specs import VisualSpec
 from ..common.particles import LangevinThermostatInteraction, LennardJonesInteraction, MassPointElement
 
 
+class GasMoleculeElement(MassPointElement):
+    """Molecule of an ideal gas, drawn as a point coloured by its velocity."""
+
+    visual = VisualSpec('points', {'position': 'x', 'color_by': 'x_d1', 'states': ()})
+
+
 class IdealGasSystem(BaseSystem):
     """An ideal gas of non-interacting molecules in a reflecting box.
 
@@ -49,7 +55,7 @@ class IdealGasSystem(BaseSystem):
         >>> from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
         >>> group = IdealGasSystem(1000, random_state=0).prepare().system_.elements[0]
         >>> group.label, group.element.__name__, group.size
-        ('gas', 'MassPointElement', 1000)
+        ('gas', 'GasMoleculeElement', 1000)
     """
 
     field = 'physics/statistical_mechanics'
@@ -82,17 +88,15 @@ class IdealGasSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         velocities = rng.normal(0.0, np.sqrt(self.kT / self.mass), size=(self.n_molecules, self.n_dim))
         velocities -= velocities.mean(axis=0)
-        visual = VisualSpec('points', {'position': 'x', 'radius': self.size / 200, 'color_by': 'x_d1', 'states': ()})
         molecules = GroupElement(
             'gas',
-            element=MassPointElement,
+            element=GasMoleculeElement,
             size=self.n_molecules,
             values={
                 'x': rng.uniform(0.0, self.size, size=(self.n_molecules, self.n_dim)),
                 'x_d1': velocities,
                 'm': self.mass,
             },
-            visual=visual,
         )
         return CompositeSystem(
             self.label,

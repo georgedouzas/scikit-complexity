@@ -12,30 +12,35 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, I
 
+from ...components import Observable
 from ...components.elements import Element
 from ...components.laws.utils import local_operator
 from ...components.laws.utils._local_operators import has_operator
-from ...components.specs import NodeSpec
 from ...components.systems import CompositeSystem
+from ...enums import FormKind, VariableKind
 from ...errors import ValidationError
-from ...specs import EntrySpec, NeighborReadSpec, ObservableSpec, ReadSpec, RunStateSpec, StateSpec
-from ...specs._held_reduction_spec import _HeldReductionSpec
-from ...types import Array, FormKind, Indices, VariableKind
+from ...specs import EntrySpec, StateSpec
+from ...types import Array, Indices
 from .._utils import bound_labels, declarations_of, symbol, symbols_of
-from ..problems import BaseProblemSpec, ProblemSpec
+from ..enums import ReadKind
+from ..problems import BaseProblemSpec, ProblemSpec, RunStateSpec
 from ..problems._drive_kernel import DriveKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
+from ..problems._neighbor_read_spec import _NeighborReadSpec
+from ..problems._node_spec import _NodeSpec
 from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_lowering import OperatorLowering
 from ..problems._operator_problem_spec import OperatorProblemSpec
+from ..problems._read_spec import _ReadSpec
 from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
-from ..types import AgentsFunction, Declared, ObservableFunction, ReadKind
+from ..types import AgentsFunction, Declared, ObservableFunction
 from ._base import BaseCompiler, BasePass
 from ._flows import TransferLowering
+from ._held_reduction_spec import _HeldReductionSpec
 from ._member_reductions import _MemberReductions
 from ._members import MemberLowering
 from .passes._complex import LowerComplexPass
@@ -73,13 +78,13 @@ class ObservableEvaluator:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-        >>> from skcomplex.core.specs import ObservableSpec
+        >>> from skcomplex.core.components import Observable
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> system = CompositeSystem(
         ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'x': [2.0, 6.0]})]
         ... )
-        >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='x')
+        >>> total = Observable('total', group='herd', reduce='sum', variable='x')
         >>> problem = PassCompiler(observables=[total]).prepare(system).run().problem_
         >>> ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
         {'total': 8.0}
@@ -159,7 +164,11 @@ class ObservableEvaluator:
         ]
         if not own and all(new is old for new, old in zip(children, system.systems, strict=True)):
             return system
-        labels = {part.label for part in (*system.elements, *system.interactions, *system.systems)}
+        labels = (
+            {element.label for element in system.elements}
+            | {interaction.label for interaction in system.interactions}
+            | {child.label for child in system.systems}
+        )
         held = []
         for reduction in own:
             label = ObservableEvaluator._get_held_label(reduction, labels)
@@ -218,7 +227,7 @@ class ObservableEvaluator:
         return copied, held
 
     @staticmethod
-    def _get_held_observables(system: CompositeSystem, nodes: list[NodeSpec]) -> set[str]:
+    def _get_held_observables(system: CompositeSystem, nodes: list[_NodeSpec]) -> set[str]:
         """Return the paths of the observables read only at synchronisation points.
 
         They are the observables that roles bind to and laws read only at those points.
@@ -298,9 +307,7 @@ class ObservableEvaluator:
                 self.getters_[path] = self._get_function_getter(scope, path, observable.function)
                 continue
             if observable.group is None and observable.expression is None:
-                error_msg = (
-                    f'ObservableSpec {path} has neither an expression, a function, nor a group. Give one of them.'
-                )
+                error_msg = f'Observable {path} has neither an expression, a function, nor a group. Give one of them.'
                 raise ValidationError(error_msg)
             observed = self.problem.observed if isinstance(self.problem, ProblemSpec) else {}
             if observable.group is None:
@@ -350,7 +357,7 @@ class ObservableEvaluator:
         problem = self.problem
         if not isinstance(problem, ProblemSpec) or problem.agents:
             error_msg = (
-                f'ObservableSpec {path} is a function of the values of a system, which a system with agents or a '
+                f'Observable {path} is a function of the values of a system, which a system with agents or a '
                 'operator system does not hold as a vector. Give an expression, or an expression of each agent.'
             )
             raise ValidationError(error_msg)
@@ -401,7 +408,7 @@ class ObservableEvaluator:
                 readers.append(self._create_from_members(self._create_from_vector(vector == 'x', index)))
             else:
                 error_msg = (
-                    f'ObservableSpec {path} uses the symbol {item}, which is neither a variable of a single element or '
+                    f'Observable {path} uses the symbol {item}, which is neither a variable of a single element or '
                     'interaction nor an earlier observable. Use the namespace that the expression receives.'
                 )
                 raise ValidationError(error_msg)
@@ -467,7 +474,7 @@ class ObservableEvaluator:
             expression = SR(expression).subs({call: item})
         return expression, members
 
-    def _get_expression_getter(self, scope: str, path: str, observable: ObservableSpec) -> ObservableFunction:
+    def _get_expression_getter(self, scope: str, path: str, observable: Observable) -> ObservableFunction:
         """Return the getter of an expression of the system's symbols."""
         prefix = f'{scope}/' if scope else ''
         earlier = {
@@ -501,7 +508,7 @@ class ObservableEvaluator:
         delays = TransferLowering._get_delay_calls(expression)
         if delays:
             error_msg = (
-                f'ObservableSpec {path} reads {delays[0]}, a delay that no law of the '
+                f'Observable {path} reads {delays[0]}, a delay that no law of the '
                 'system uses. Observe a delay that a law of the same element reads.'
             )
             raise ValidationError(error_msg)
@@ -533,7 +540,7 @@ class ObservableEvaluator:
             raise ValidationError(error_msg)
         return entry
 
-    def _get_reduction_getter(self, scope: str, path: str, observable: ObservableSpec) -> ObservableFunction:
+    def _get_reduction_getter(self, scope: str, path: str, observable: Observable) -> ObservableFunction:
         """Return the getter of a reduction over a group of elements or agents."""
         group = self._join(scope, observable.group or '')
         element = next((item for item in self.problem.elements if item.path == group), None)
@@ -542,7 +549,7 @@ class ObservableEvaluator:
         names = {**element.states, **element.parameters}
         if observable.variable is not None:
             if observable.variable not in names:
-                error_msg = f'ObservableSpec {path} reduces {observable.variable}, which {group} does not declare.'
+                error_msg = f'Observable {path} reduces {observable.variable}, which {group} does not declare.'
                 raise ValidationError(error_msg)
             name = names[observable.variable]
             is_state = self.problem.states.has(name)
@@ -560,22 +567,22 @@ class ObservableEvaluator:
         size = element.members or 1
         if observable.expression is None:
             if observable.reduce != 'count':
-                error_msg = f'ObservableSpec {path} reduces {group} with {observable.reduce!r} but names no variable.'
+                error_msg = f'Observable {path} reduces {group} with {observable.reduce!r} but names no variable.'
                 raise ValidationError(error_msg)
             return lambda t, x, p, done: float(size)
-        members: dict[Expression, ReadSpec] = {}
+        members: dict[Expression, _ReadSpec] = {}
         for name in names.values():
             entry = self._get_entry(name)
             is_state = self.problem.states.has(name)
             for column, item in enumerate(ProblemSpec._get_real_components_of(self.problem.symbols[name])):
                 indices = (entry.start + np.arange(size) * entry.columns + column).astype(np.intp)
-                members[item] = ReadSpec(is_state, indices, entry, column, entry.columns)
+                members[item] = _ReadSpec(is_state, indices, entry, column, entry.columns)
         namespace = SimpleNamespace(
             **{variable: self.problem.symbols[name] for variable, name in names.items()},
             t=self.problem.time,
         )
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
-        scalars = {item: ReadSpec(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
+        scalars = {item: _ReadSpec(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
         parameters = len(self.problem.initial_parameters)
         lowering = _MemberReductions(
             path=path,
@@ -597,7 +604,7 @@ class ObservableEvaluator:
         return read_expression
 
     @staticmethod
-    def _get_observed_getter(kernel: LawKernel, observable: ObservableSpec) -> ObservableFunction:
+    def _get_observed_getter(kernel: LawKernel, observable: Observable) -> ObservableFunction:
         """Return the getter of a reduction of a field expression with field operators.
 
         The getter reads from its kernel.
@@ -610,13 +617,13 @@ class ObservableEvaluator:
 
         return read_field
 
-    def _get_agent_getter(self, group: str, path: str, observable: ObservableSpec) -> ObservableFunction:
+    def _get_agent_getter(self, group: str, path: str, observable: Observable) -> ObservableFunction:
         """Return the getter of a reduction over an agent group.
 
         The agents of the evaluation give the values.
         """
         if not any(spec.path == group for spec in self.problem.agents) and not self.problem.partition_problems:
-            error_msg = f'ObservableSpec {path} reduces {group}, which is neither an element group nor an agent group.'
+            error_msg = f'Observable {path} reduces {group}, which is neither an element group nor an agent group.'
             raise ValidationError(error_msg)
         objects = {name for spec in self.problem.agents if spec.path == group for name in spec.objects}
 
@@ -651,7 +658,7 @@ class ObservableEvaluator:
         The energy is included, and the purity when the problem is open. An observable gives an operator, a Sage
         expression of local operators, as a function of the namespace of its system, of its element, or of every member
         of its group, or names a local operator of its element or of every member of its group with `variable`, such as
-        `ObservableSpec('z', element='q', variable='z')`. Its value is the expectation of the operator, reduced over the
+        `Observable('z', element='q', variable='z')`. Its value is the expectation of the operator, reduced over the
         members of a group.
 
         Args:
@@ -754,7 +761,7 @@ class ObservableEvaluator:
     def _get_operator_member_getter(
         problem: OperatorProblemSpec,
         path: str,
-        observable: ObservableSpec,
+        observable: Observable,
         group: str,
     ) -> ObservableFunction:
         """Return the getter of an operator observable evaluated member by member.
@@ -862,7 +869,7 @@ class ObservableEvaluator:
         return lambda x, p, done: read(x, p)
 
     @staticmethod
-    def _read_of(read: ReadSpec) -> Callable[[Array, Array], Array]:
+    def _read_of(read: _ReadSpec) -> Callable[[Array, Array], Array]:
         """Return a reader of the values a reduction read stands for.
 
         It reads them from the state or the extended parameters.
@@ -872,7 +879,7 @@ class ObservableEvaluator:
     @staticmethod
     def _create_from_offset(
         column: Callable[[Array, Array], Array],
-        read: NeighborReadSpec,
+        read: _NeighborReadSpec,
     ) -> Callable[[Array, Array], Array]:
         """Return a reader of a member column at an offset from every member."""
         return lambda x, p: read.read(column(x, p), p)
@@ -992,7 +999,7 @@ class ObservableEvaluator:
         return f'{scope}/{path}' if scope else path
 
     @staticmethod
-    def _is_lowerable(scope: str, observable: ObservableSpec, nodes: dict[str, NodeSpec]) -> bool:
+    def _is_lowerable(scope: str, observable: Observable, nodes: dict[str, _NodeSpec]) -> bool:
         """Check whether laws can read an observable at the current state.
 
         They read it as an expression or a symbolic reduction.
@@ -1003,7 +1010,7 @@ class ObservableEvaluator:
         return node is not None and not node.is_agent and isinstance(observable.reduce, str)
 
     @staticmethod
-    def _get_lowerable_observables(system: CompositeSystem, nodes: list[NodeSpec]) -> Declared:
+    def _get_lowerable_observables(system: CompositeSystem, nodes: list[_NodeSpec]) -> Declared:
         """Return every observable of a system tree that laws can read, by path.
 
         Laws read them at the current state. An expression of a system's symbols is lowerable when every observable

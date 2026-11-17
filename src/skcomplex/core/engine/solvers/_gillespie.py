@@ -7,10 +7,11 @@
 import numpy as np
 
 from ...components.laws import BoundaryLaw, JumpLaw, TransferLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError, ValidationError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ..problems._draw_recorder import DrawRecorder
 from ._base import BaseSolver
@@ -34,7 +35,8 @@ class GillespieSolver(Solver):
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import GillespieSolver
-        >>> from skcomplex.core.specs import StateSpec, StepSpec
+        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> class PopulationElement(Element):
         ...     def __init__(
         ...         self, label, i: Annotated[float, StateSpec()] = 10.0, r: Annotated[float, StateSpec()] = 0.0
@@ -55,7 +57,7 @@ class GillespieSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={JumpLaw, BoundaryLaw, TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )

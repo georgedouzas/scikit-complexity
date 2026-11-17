@@ -31,7 +31,7 @@ Watts and Strogatz drawn with the same seed are compared.
 import networkx as nx
 
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.specs import LayerSpec
+from skcomplex.core.components.spaces import LayerSpec
 
 first = NetworkSpace(nx.watts_strogatz_graph(100, 6, 0.1, seed=7))
 second = NetworkSpace(nx.watts_strogatz_graph(100, 6, 0.1, seed=7))
@@ -522,7 +522,8 @@ from skcomplex.core.components.laws.utils import mean, neighbors, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 
 
 class PlayerElement(Element):
@@ -794,7 +795,8 @@ from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec, TopologyRequestSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import TopologyRequestSpec
 
 
 class NodeElement(Element):
@@ -876,8 +878,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class PlacedElement(Element):
-    def __init__(self, label, visual=None, *, angle: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, angle: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.angle = angle
 
 
@@ -1022,13 +1024,13 @@ from skcomplex.core.specs import StateSpec
 
 
 class ClusteredElement(Element):
-    def __init__(self, label, visual=None, *, size: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
-        self.size = size
+    def __init__(self, label, *, cluster_size: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.cluster_size = cluster_size
 
 
 def product(node):
-    return node.size * node.source.size
+    return node.cluster_size * node.source.cluster_size
 
 
 system = CompositeSystem(
@@ -1037,14 +1039,14 @@ system = CompositeSystem(
         GroupElement('links', element=Element, on='edges', variable=True, capacity=500),
     ],
     interactions=[
-        MapInteraction('size', target='nodes', state='size', function=lambda s: components(1, reduce='size')),
+        MapInteraction('size', target='nodes', state='cluster_size', function=lambda s: components(1, reduce='size')),
         TopologyInteraction('linking', action='add-edge', candidates=2, score=product),
     ],
     space=NetworkSpace(nx.empty_graph(500)),
     time=DiscreteTime(),
 )
 trajectory = simulate(system, until=400, random_state=0)
-int(trajectory.get_values('nodes.size')[-1].max()) < 100
+int(trajectory.get_values('nodes.cluster_size')[-1].max()) < 100
 ```
 
 The largest cluster holds fewer than 100 nodes, 33 in this run. With 400 random edges the mean degree would be 1.6,

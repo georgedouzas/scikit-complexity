@@ -5,6 +5,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
@@ -14,9 +15,9 @@ from skcomplex.core.engine.compile._observables import ObservableEvaluator
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CoSimulationSolver, ScipyODESolver
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import IncompatibleLawsError, SolverError, ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from skcomplex.core.types import FormKind
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.biology.common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
@@ -48,12 +49,11 @@ class IdleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         wealth: Annotated[float, StateSpec()] = 1.0,
         seen: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.wealth = wealth
         self.seen = seen
 
@@ -150,11 +150,10 @@ class TallyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         k: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.k = k
 
 
@@ -362,7 +361,7 @@ def test_held_observable_reduces_element_group():
         ],
         interactions=[CopyInteraction('copy', target='ledger/tally', source='herds/largest')],
     )
-    largest = ObservableSpec('herds/largest', group='herd', reduce=np.max, variable='x')
+    largest = Observable('herds/largest', group='herd', reduce=np.max, variable='x')
     trajectory = simulate(system, until=1, dt=1, observables=[largest])
     assert trajectory.get_values('herds/largest.value')[0] == 3.0
     assert trajectory.get_values('ledger/tally.k')[-1] == pytest.approx(3.0)

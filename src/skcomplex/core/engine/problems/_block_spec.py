@@ -9,15 +9,15 @@ from dataclasses import dataclass, field
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...components.specs import NodeSpec
 from ...specs._base_spec import BaseSpec
 from ...specs._entry_spec import EntrySpec
+from ._node_spec import _NodeSpec
 from ._reference_spec import ReferenceSpec
 
 
 @dataclass(frozen=True)
 class BlockSpec(BaseSpec):
-    """A spec of the variables of a part with the symbols of one member.
+    """A spec of the variables of a component with the symbols of one member.
 
     The variables hold the components the symbols stand for.
 
@@ -38,7 +38,7 @@ class BlockSpec(BaseSpec):
             The names of the parameters with one value per entry of a variadic role.
     """
 
-    node: NodeSpec
+    node: _NodeSpec
     symbols: Mapping[str, Expression | FreeModuleElement] = field(default_factory=dict)
     entries: Mapping[str, EntrySpec] = field(default_factory=dict)
     references: Mapping[Expression, ReferenceSpec] = field(default_factory=dict)

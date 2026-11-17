@@ -1,0 +1,32 @@
+"""Test the `_objective` module of `skcomplex.core.components.laws`."""
+
+import pytest
+from sage.all__sagemath_symbolics import var
+
+from skcomplex.core.components.laws import ObjectiveLaw
+from skcomplex.core.errors import ValidationError
+
+
+def test_run_evaluates_the_objective():
+    """Running an objective gives its value at the given symbol values."""
+    x = var('x')
+    assert float(ObjectiveLaw((x - 2) ** 2, x).prepare().run({'x': 5.0}).value_) == pytest.approx(9.0)
+
+
+def test_get_targets_reads_one_or_several_states():
+    """An objective is minimised over one state or several."""
+    x, y = var('x y')
+    assert ObjectiveLaw(x**2, x)._get_targets() == (x,)
+    assert ObjectiveLaw(x**2 + y**2, [x, y])._get_targets() == (x, y)
+
+
+def test_prepare_rejects_a_function():
+    """An objective given as a Python function raises an error, since it is minimised with its gradient."""
+    with pytest.raises(ValidationError, match='symbolic expression'):
+        ObjectiveLaw(lambda s: 0.0, var('x')).prepare()
+
+
+def test_prepare_rejects_no_targets():
+    """An objective with no state to vary raises an error."""
+    with pytest.raises(ValidationError, match='names the states'):
+        ObjectiveLaw(var('x') ** 2, []).prepare()

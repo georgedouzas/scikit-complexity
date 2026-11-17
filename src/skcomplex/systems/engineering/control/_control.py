@@ -10,13 +10,14 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, CrossingInteraction
-from ....core.components.laws import BaseLaw, EquationLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import clip, derivative, sign, step, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ConnectorSpec, DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ConnectorSpec, DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.electrical import ELECTRICAL, GroundElement, TwoPinElement, VoltageSourceElement
@@ -33,10 +34,7 @@ class HeatCapacityElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         a_T:
             The temperature of the port.
@@ -56,21 +54,20 @@ class HeatCapacityElement(Element):
         15.0
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'a': THERMAL}
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a_T: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         a_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         T: Annotated[object, StateSpec()] = 20.0,
         C: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a_T = a_T
         self.a_Q = a_Q
         self.T = T
@@ -78,7 +75,7 @@ class HeatCapacityElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the heat balance of the body and the temperature of its port."""
-        return [EquationLaw(s.C * derivative(s.T, 1), s.a_Q), EquationLaw(s.T, s.a_T)]
+        return [ConstraintLaw(s.C * derivative(s.T, 1), s.a_Q), ConstraintLaw(s.T, s.a_T)]
 
 
 class ThermalConductorElement(Element):
@@ -88,10 +85,7 @@ class ThermalConductorElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         a_T:
             The temperature of the first port.
@@ -114,14 +108,13 @@ class ThermalConductorElement(Element):
         2.0
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'a': THERMAL, 'b': THERMAL}
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a_T: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         a_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
@@ -129,7 +122,7 @@ class ThermalConductorElement(Element):
         b_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         G: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a_T = a_T
         self.a_Q = a_Q
         self.b_T = b_T
@@ -138,7 +131,7 @@ class ThermalConductorElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the heat flow through the conductor and its balance."""
-        return [EquationLaw(s.a_Q, s.G * (s.a_T - s.b_T)), EquationLaw(s.a_Q + s.b_Q, 0)]
+        return [ConstraintLaw(s.a_Q, s.G * (s.a_T - s.b_T)), ConstraintLaw(s.a_Q + s.b_Q, 0)]
 
 
 class ConvectionElement(Element):
@@ -148,10 +141,7 @@ class ConvectionElement(Element):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         a_T:
             The temperature of the port.
@@ -171,21 +161,20 @@ class ConvectionElement(Element):
         5.0
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'a': THERMAL}
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a_T: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         a_Q: Annotated[object, StateSpec(algebraic=True)] = 0.0,
         h: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
         fluid: Annotated[object, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a_T = a_T
         self.a_Q = a_Q
         self.h = h
@@ -193,7 +182,7 @@ class ConvectionElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the heat flow into the fluid."""
-        return [EquationLaw(s.a_Q, s.h * (s.a_T - s.fluid))]
+        return [ConstraintLaw(s.a_Q, s.h * (s.a_T - s.fluid))]
 
 
 class HeatingResistorElement(TwoPinElement):
@@ -204,10 +193,7 @@ class HeatingResistorElement(TwoPinElement):
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         p_v:
             The potential of the positive pin.
@@ -244,7 +230,6 @@ class HeatingResistorElement(TwoPinElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         p_v: object = 0.0,
         p_i: object = 0.0,
@@ -255,7 +240,7 @@ class HeatingResistorElement(TwoPinElement):
         on: Annotated[object, StateSpec()] = 1.0,
         R: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
     ) -> None:
-        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
         self.h_T = h_T
         self.h_Q = h_Q
         self.on = on
@@ -273,7 +258,7 @@ class HeatingResistorElement(TwoPinElement):
                 The equation laws of the branch.
         """
         voltage = s.p_v - s.n_v
-        return [EquationLaw(s.R * s.p_i, s.on * voltage), EquationLaw(s.h_Q, -voltage * s.p_i)]
+        return [ConstraintLaw(s.R * s.p_i, s.on * voltage), ConstraintLaw(s.h_Q, -voltage * s.p_i)]
 
 
 class ThermostatSystem(DynamicalSystem):
@@ -631,7 +616,7 @@ class SatelliteTransferSystem(DynamicalSystem):
     until = 20.0
     dt = 0.05
     solver = RK4Solver(dt=0.005)
-    observables = (ObservableSpec('energy', _get_energy_of_satellite),)
+    observables = (Observable('energy', _get_energy_of_satellite),)
 
     def __init__(
         self,
@@ -757,7 +742,7 @@ class HeatedRoomSystem(BaseSystem):
     references = ('Fritzson 2015',)
     until = 14400.0
     dt = 10.0
-    observables = (ObservableSpec('power', _get_heating_power),)
+    observables = (Observable('power', _get_heating_power),)
 
     def __init__(
         self,
@@ -787,7 +772,7 @@ class HeatedRoomSystem(BaseSystem):
         self.surface_conductance = surface_conductance
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         upper, lower = self.setting + self.band / 2, self.setting - self.band / 2
         return CompositeSystem(
             self.label,

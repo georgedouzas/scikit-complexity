@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import periodic_guard, pulse_train, series
@@ -14,7 +15,7 @@ from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 
 def _driven_by(data):
@@ -26,11 +27,10 @@ def _driven_by(data):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             y: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.y = y
 
         def _get_laws(self, s):
@@ -110,11 +110,10 @@ class FertilityElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         food: Annotated[object, StateSpec()] = -1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.food = food
 
     def _get_laws(self, s):
@@ -124,7 +123,7 @@ class FertilityElement(Element):
 
 def test_series_of_a_state_interpolates_and_stays_flat():
     """Test that the fertility, observed as an expression of the element, interpolates the table and holds its ends."""
-    fertility = ObservableSpec('fertility', _fertility, element='f')
+    fertility = Observable('fertility', _fertility, element='f')
     trajectory = simulate(CompositeSystem(elements=[FertilityElement('f')]), until=4, dt=0.5, observables=[fertility])
     food = trajectory.get_values('f.food')
     expected = np.interp(food, [0, 1, 2], [0.0, 2.0, 3.0])

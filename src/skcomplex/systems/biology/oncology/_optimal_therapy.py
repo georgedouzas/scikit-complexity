@@ -12,11 +12,12 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import PontryaginSolver
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
@@ -39,9 +40,6 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial immune cells.
@@ -118,7 +116,6 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         E: float = 0.15,
         A: float = 0.25,
@@ -145,7 +142,6 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
     ) -> None:
         super().__init__(
             label,
-            visual=visual,
             E=E,
             A=A,
             N=N,
@@ -188,9 +184,6 @@ class OptimalImmunotherapyElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial effector cells.
@@ -255,7 +248,6 @@ class OptimalImmunotherapyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -276,7 +268,7 @@ class OptimalImmunotherapyElement(Element):
         w1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         w2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -361,7 +353,7 @@ class OptimalChemotherapySystem(BaseSystem):
     until = 30.0
     dt = 0.25
     solver = PontryaginSolver(objective=_get_chemotherapy_cost, terminal=_get_tumour)
-    observables = (ObservableSpec('tumour_share', _get_tumour_share),)
+    observables = (Observable('tumour_share', _get_tumour_share),)
 
     def __init__(
         self,
@@ -379,7 +371,7 @@ class OptimalChemotherapySystem(BaseSystem):
         self.w = w
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a patient under the chemotherapy."""
+        """Return the components of a patient under the chemotherapy."""
         return CompositeSystem(
             self.label,
             elements=[OptimalChemotherapyElement('patient', E=self.E, A=self.A, N=self.N, w=self.w)],
@@ -453,7 +445,7 @@ class OptimalImmunotherapySystem(BaseSystem):
         terminal=_get_tumour_site,
         nodes=1001,
     )
-    observables = (ObservableSpec('immune_ratio', _get_immune_ratio),)
+    observables = (Observable('immune_ratio', _get_immune_ratio),)
 
     def __init__(
         self,
@@ -473,7 +465,7 @@ class OptimalImmunotherapySystem(BaseSystem):
         self.w2 = w2
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour under the adoptive therapy and IL-2 injection."""
+        """Return the components of a tumour under the adoptive therapy and IL-2 injection."""
         site = OptimalImmunotherapyElement('site', x=self.x, y=self.y, alpha_a=self.alpha_a, w1=self.w1, w2=self.w2)
         interactions = [
             RateInteraction('stimulation', target='site', state='x', rate=lambda s: s.target.alpha_a * s.target.y),

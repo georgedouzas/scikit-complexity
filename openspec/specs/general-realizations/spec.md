@@ -25,7 +25,7 @@ term, never by the term of one field.
 
 #### Scenario: Core features return plain composites
 - **WHEN** a data-driven function of the core, such as `sparse_identification`, returns a fitted system
-- **THEN** it is a `CompositeSystem` of core parts, and the core imports nothing from `skcomplex.systems.general`
+- **THEN** it is a `CompositeSystem` of core components, and the core imports nothing from `skcomplex.systems.general`
 
 #### Scenario: No engine support in the package
 - **WHEN** a reviewer searches the engine for the classes of `skcomplex.systems.general`

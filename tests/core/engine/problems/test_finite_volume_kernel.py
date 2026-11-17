@@ -11,15 +11,17 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
-from skcomplex.core.components.laws import FluxLaw
-from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import divergence
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.solvers import SSPRKSolver, StepSpec
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import AxisSpec, StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.physics.fluids import BurgersSystem, ShallowWaterSystem
+from skcomplex.systems.social.cooperation import SimplexSpace
 
 N_STATES = 5
 DAM_SPEED_UP = 15.0
@@ -31,11 +33,10 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -45,7 +46,6 @@ class CyclicElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u0: Annotated[object, StateSpec()] = 0.0,
         u1: Annotated[object, StateSpec()] = 0.0,
@@ -53,7 +53,7 @@ class CyclicElement(Element):
         u3: Annotated[object, StateSpec()] = 0.0,
         u4: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u0 = u0
         self.u1 = u1
         self.u2 = u2
@@ -61,9 +61,12 @@ class CyclicElement(Element):
         self.u4 = u4
 
     def _get_laws(self, s):
-        """Return one flux law per state, the Burgers flux plus the next state."""
+        """Return one conservation law per state, the Burgers flux plus the next state."""
         states = [s.u0, s.u1, s.u2, s.u3, s.u4]
-        return [FluxLaw(state, state**2 / 2 + states[(index + 1) % N_STATES] / 2) for index, state in enumerate(states)]
+        return [
+            RateLaw(state, -divergence([state**2 / 2 + states[(index + 1) % N_STATES] / 2]))
+            for index, state in enumerate(states)
+        ]
 
 
 def _volume(system):

@@ -17,7 +17,7 @@ from ....core.components.laws.utils import hill, pulse_train
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
@@ -62,9 +62,6 @@ class AndrogenReceptorProstateElement(Element):
     Args:
         label:
             The label of the prostate.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         N:
             The initial normal epithelial cells.
@@ -189,7 +186,6 @@ class AndrogenReceptorProstateElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
         AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -230,7 +226,7 @@ class AndrogenReceptorProstateElement(Element):
         beta_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.003,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.N = N
         self.AD = AD
         self.AI = AI
@@ -287,9 +283,6 @@ class AndrogenSuppressionElement(Element):
         label:
             The label of the tumour.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         AD:
             The initial number of androgen-dependent cells.
 
@@ -338,7 +331,6 @@ class AndrogenSuppressionElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.14,
@@ -354,7 +346,7 @@ class AndrogenSuppressionElement(Element):
         du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
         a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AD = AD
         self.AI = AI
         self.U = U
@@ -388,9 +380,6 @@ class CellQuotaProstateElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         AD:
             The initial number of androgen-dependent cells.
@@ -497,7 +486,6 @@ class CellQuotaProstateElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
         AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -532,7 +520,7 @@ class CellQuotaProstateElement(Element):
         period: float = 500.0,
         width: float = 250.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AD = AD
         self.AI = AI
         self.Q1 = Q1
@@ -583,9 +571,6 @@ class IntermittentSuppressionElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         AD:
             The initial number of androgen-dependent cells.
@@ -647,7 +632,6 @@ class IntermittentSuppressionElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
         AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -667,7 +651,7 @@ class IntermittentSuppressionElement(Element):
         x1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         x2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AD = AD
         self.AI = AI
         self.U = U
@@ -700,9 +684,6 @@ class PiecewiseLinearProstateElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         AD:
             The initial androgen-dependent cells.
@@ -766,7 +747,6 @@ class PiecewiseLinearProstateElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 17.84,
         AIR: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.778,
@@ -786,7 +766,7 @@ class PiecewiseLinearProstateElement(Element):
         x2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         x3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AD = AD
         self.AIR = AIR
         self.AII = AII
@@ -844,9 +824,6 @@ class TamoxifenTumourElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         Ag:
             The initial volume of cells in the growth phase.
@@ -932,7 +909,6 @@ class TamoxifenTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         Ag: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 900.0,
         As: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
@@ -960,7 +936,7 @@ class TamoxifenTumourElement(Element):
         d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.012,
         u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 12.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.Ag = Ag
         self.As = As
         self.Am = Am
@@ -1163,7 +1139,7 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
         self.a = a
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of prostate cancer under continuous androgen suppression."""
+        """Return the components of prostate cancer under continuous androgen suppression."""
         tumour = AndrogenSuppressionElement(
             'tumour',
             AD=self.AD,
@@ -1347,7 +1323,7 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
         self.h1 = h1
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Ideta system of intermittent androgen suppression."""
+        """Return the components of the Ideta system of intermittent androgen suppression."""
         tumour = IntermittentSuppressionElement(
             'tumour',
             AD=self.AD,
@@ -1556,7 +1532,7 @@ class ProstateCellQuotaSystem(BaseSystem):
         return uptake
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Portz cell-quota system of prostate cancer."""
+        """Return the components of the Portz cell-quota system of prostate cancer."""
         tumour = CellQuotaProstateElement(
             'tumour',
             AD=self.AD,
@@ -1697,7 +1673,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
     lower activation. The normal cells fill a capacity that grows with the age-dependent prostate volume, and the PSA
     the cells produce in the tissue leaks into the serum through the normal epithelium and, faster, through the tumour.
     Cells are in billions, receptors in nM, PSA in ng/mL, and time in hours, the age in years. The book leaves several
-    parts open, filled as follows. The half saturations `psi2`, `phi2`, and `psi4` of the cancer cells are those of the
+    values open, filled as follows. The half saturations `psi2`, `phi2`, and `psi4` of the cancer cells are those of the
     normal cells. The death rate is `psi3_i / (psi4 + UD + UT)`. One activation `UT`, `UD` holds for all cell types, and
     so does `sigma`. The independent cells gain the part `m1` of the divisions of the dependent cells. The negligible
     interaction `c1` is 0. The capacity of the normal cells is the prostate volume over the volume of a billion cells,
@@ -1801,7 +1777,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         return division
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         prostate = AndrogenReceptorProstateElement(
             'prostate',
             N=self.N,
@@ -1964,7 +1940,7 @@ class PiecewiseLinearIASSystem(BaseSystem):
         self.h1 = h1
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         if self.patient not in PATIENT_FACTORS:
             error_msg = f'The patient type must be 1, 2, or 3, got {self.patient!r}.'
             raise ValidationError(error_msg)
@@ -2074,7 +2050,7 @@ class TamoxifenCellCycleSystem(BaseSystem):
         return room
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         tumour = TamoxifenTumourElement('tumour', Ag=self.Ag, As=self.As, Am=self.Am, u=self.u, a1=self.a1, a2=self.a2)
         interactions = [
             ReactionInteraction(

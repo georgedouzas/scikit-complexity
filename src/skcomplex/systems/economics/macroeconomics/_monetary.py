@@ -13,7 +13,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class FirmsElement(Element):
@@ -24,9 +24,6 @@ class FirmsElement(Element):
     Args:
         label:
             The label of the sector.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         deposits:
             The deposits of the firms, which are money.
@@ -55,7 +52,6 @@ class FirmsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 20.0,
         loans: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
@@ -64,7 +60,7 @@ class FirmsElement(Element):
         distribution: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         repayment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.deposits = deposits
         self.loans = loans
         self.sales = sales
@@ -81,9 +77,6 @@ class HouseholdsElement(Element):
     Args:
         label:
             The label of the sector.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         deposits:
             The deposits of the households.
@@ -103,13 +96,12 @@ class HouseholdsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 60.0,
         alpha_income: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
         alpha_wealth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.deposits = deposits
         self.alpha_income = alpha_income
         self.alpha_wealth = alpha_wealth
@@ -123,9 +115,6 @@ class MonetaryBankElement(Element):
     Args:
         label:
             The label of the bank.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         deposits:
             The own funds of the bank.
@@ -148,14 +137,13 @@ class MonetaryBankElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 10.0,
         interest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
         payout: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         credit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.deposits = deposits
         self.interest = interest
         self.payout = payout
@@ -369,7 +357,7 @@ class StockFlowConsistentEconomySystem(BaseSystem):
         return CircuitInteraction._get_consumption(s.sources[0], s.target)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[

@@ -13,11 +13,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, normal, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class MeasuredFisheryElement(Element):
@@ -32,9 +33,6 @@ class MeasuredFisheryElement(Element):
     Args:
         label:
             The label of the fishery.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The fish stock.
@@ -73,7 +71,6 @@ class MeasuredFisheryElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         catch: Annotated[float, StateSpec()] = 0.0,
@@ -84,7 +81,7 @@ class MeasuredFisheryElement(Element):
         step: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
         restocking: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.catch = catch
         self.r0 = r0
@@ -180,9 +177,9 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Argun et al. 2016')
     until = 5000
     observables = (
-        ObservableSpec('extinct', group='fisheries', variable='x', reduce=_get_extinct_share),
-        ObservableSpec('mean_stock', group='fisheries', variable='x', reduce='mean'),
-        ObservableSpec('mean_catch', group='fisheries', variable='catch', reduce='mean'),
+        Observable('extinct', group='fisheries', variable='x', reduce=_get_extinct_share),
+        Observable('mean_stock', group='fisheries', variable='x', reduce='mean'),
+        Observable('mean_catch', group='fisheries', variable='catch', reduce='mean'),
     )
 
     def __init__(
@@ -209,7 +206,7 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
         self.restocking = restocking
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         fisheries = GroupElement(
             'fisheries',
             element=MeasuredFisheryElement,

@@ -13,7 +13,7 @@ from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import pulse_train
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ._mass_exchange import MassExchangeInteraction
 
@@ -29,9 +29,6 @@ class CatalystPelletElement(Element):
     Args:
         label:
             The label of the pellet.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         c:
             The initial surface concentration.
@@ -54,14 +51,13 @@ class CatalystPelletElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.c = c
         self.h = h
         self.k = k
@@ -80,9 +76,6 @@ class PulsedElectrodeElement(Element):
     Args:
         label:
             The label of the electrode.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         eta:
             The initial overpotential.
@@ -122,7 +115,6 @@ class PulsedElectrodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         eta: Annotated[float, StateSpec()] = 0.0,
         c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -134,7 +126,7 @@ class PulsedElectrodeElement(Element):
         period: float = 10.0,
         width: float = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.eta = eta
         self.c = c
         self.C = C

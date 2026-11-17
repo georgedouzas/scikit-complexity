@@ -45,9 +45,6 @@ class KineticWalkerElement(Element):
         label:
             The label of the walker or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         x:
             The position along the street.
 
@@ -69,10 +66,11 @@ class KineticWalkerElement(Element):
         1.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'target', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'target', 'color_range': (0.0, 1.0)}),
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -80,7 +78,7 @@ class KineticWalkerElement(Element):
         direction: Annotated[float, StateSpec()] = 0.0,
         target: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.speed = speed
@@ -468,7 +466,7 @@ class KineticCrowdSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         target = (np.arange(self.n_walkers) % 2).astype(float)
         walkers = GroupElement(

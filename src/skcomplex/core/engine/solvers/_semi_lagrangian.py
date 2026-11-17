@@ -9,11 +9,12 @@ import numpy as np
 import scipy.fft
 from scipy.ndimage import map_coordinates
 
-from ...components.laws import FluxLaw, RateLaw
+from ...components.laws import RateLaw
 from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ..problems._finite_volume_kernel import FiniteVolumeKernel
 from ..problems._steps import step_count
@@ -51,15 +52,15 @@ class SemiLagrangianSolver(Solver):
         >>> from skcomplex.core.components.elements import Element, FieldElement
         >>> from skcomplex.core.specs import StateSpec
         >>> class AmountElement(Element):
-        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
         ...         self.x = x
         >>> from skcomplex.core.components.interactions import ConservationInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import SemiLagrangianSolver
-        >>> from skcomplex.core.specs import AxisSpec
+        >>> from skcomplex.core.components.spaces import AxisSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> space = PhaseSpace(LatticeSpace((16,)), [AxisSpec('v', 8, -1.0, 1.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(16) / 16), np.ones(8))
@@ -82,7 +83,7 @@ class SemiLagrangianSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={PhaseSpace, LatticeSpace},
-            laws={FluxLaw, RateLaw},
+            laws={RateLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

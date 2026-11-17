@@ -15,13 +15,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class UndecidedView(AgentView):
@@ -43,9 +44,6 @@ class UndecidedElement(Element):
         label:
             The label of the voter or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The opinion, -1, 0, or 1.
 
@@ -58,15 +56,16 @@ class UndecidedElement(Element):
         2.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-1.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-1.0, 1.0)}),
         *,
         opinion: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([-1, 0, 1]))] = 0.0,
         sensitivity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
         self.sensitivity = sensitivity
 
@@ -85,9 +84,6 @@ class UndecidedFlowsElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         against:
             The number `A` of agents against.
@@ -120,7 +116,6 @@ class UndecidedFlowsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         against: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='agents')] = 0.0,
         undecided: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='agents')] = 100.0,
@@ -130,7 +125,7 @@ class UndecidedFlowsElement(Element):
         eta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
         drive: Annotated[object, ParameterSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.against = against
         self.undecided = undecided
         self.support = support
@@ -214,7 +209,7 @@ class ThreeStateOpinionSystem(BaseSystem):
         return 1.0 if draw < against + support else 0.0
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = nx.random_regular_graph(self.degree, self.n_agents, seed=int(rng.integers(2**31)))
         voters = GroupElement(
@@ -287,7 +282,7 @@ class UndecidedFlowsSystem(BaseSystem):
     references = ('Jensen 2023',)
     until = 20.0
     dt = 0.1
-    observables = (ObservableSpec('critical_size', _get_critical_size, element='population'),)
+    observables = (Observable('critical_size', _get_critical_size, element='population'),)
 
     def __init__(
         self,
@@ -327,7 +322,7 @@ class UndecidedFlowsSystem(BaseSystem):
         return s.source.eta * s.source.support * s.source.undecided**s.source.drive
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         population = UndecidedFlowsElement(
             'population',
             undecided=self.n_agents,

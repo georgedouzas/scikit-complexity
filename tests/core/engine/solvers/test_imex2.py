@@ -3,8 +3,7 @@
 import numpy as np
 
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.solvers import IMEX2Solver
-from skcomplex.core.specs import StepSpec
+from skcomplex.core.engine.solvers import IMEX2Solver, StepSpec
 from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem
 
 

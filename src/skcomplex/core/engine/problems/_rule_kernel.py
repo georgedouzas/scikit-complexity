@@ -12,14 +12,16 @@ import numpy.typing as npt
 import scipy.sparse
 
 from ...components.spaces import BaseSpace
-from ...components.specs import LatticeStateSpec
 from ...errors import SolverError, ValidationError
-from ...specs import ArgumentsSpec, LookupSpec, RunStateSpec
 from ...types import Array, Indices
+from ._arguments_spec import _ArgumentsSpec
 from ._base import BaseKernel
+from ._lattice_state_spec import _LatticeStateSpec
+from ._lookup_spec import _LookupSpec
+from ._run_state_spec import RunStateSpec
 
 LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
-NO_ARGUMENTS = ArgumentsSpec()
+NO_ARGUMENTS = _ArgumentsSpec()
 
 
 @numba.njit(cache=True)
@@ -105,15 +107,15 @@ class RuleKernel(BaseKernel):
     def __init__(
         self,
         owner: str,
-        targets: tuple[LatticeStateSpec, ...],
-        reads: tuple[LatticeStateSpec, ...],
+        targets: tuple[_LatticeStateSpec, ...],
+        reads: tuple[_LatticeStateSpec, ...],
         table: Indices,
         rule: Callable[..., object] | None,
         *,
-        lookup: LookupSpec | None,
+        lookup: _LookupSpec | None,
         schedule: str,
         stochastic: bool,
-        arguments: ArgumentsSpec = NO_ARGUMENTS,
+        arguments: _ArgumentsSpec = NO_ARGUMENTS,
         fused: bool = False,
         degrees: Array | None = None,
         classes: tuple[Indices, ...] = (),
@@ -162,7 +164,7 @@ class RuleKernel(BaseKernel):
         table = self.translations[rows, np.where(named, values, 0).astype(np.intp)]
         return np.where(named[:, None], table, size)
 
-    def _gather(self, x: Array, state: LatticeStateSpec, table: Indices) -> list[Array]:
+    def _gather(self, x: Array, state: _LatticeStateSpec, table: Indices) -> list[Array]:
         """Return the values of a state at every neighbour.
 
         The components of every member lie on a last axis.

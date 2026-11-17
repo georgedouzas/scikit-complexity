@@ -18,7 +18,7 @@ from ....core.components.laws.utils import total
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 KINDS = ('substitutable', 'essential')
 SUPPLIES = ('logistic', 'chemostat')
@@ -34,9 +34,6 @@ class ConsumerElement(Element):
     Args:
         label:
             The label of the species or of the group of species.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         N:
             The initial population size.
@@ -56,13 +53,12 @@ class ConsumerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         e: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.N = N
         self.e = e
         self.m = m
@@ -79,9 +75,6 @@ class ResourceElement(Element):
     Args:
         label:
             The label of the resource or of the group of resources.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         R:
             The initial abundance.
@@ -110,7 +103,6 @@ class ResourceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         R: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         w: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -119,7 +111,7 @@ class ResourceElement(Element):
         kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.R = R
         self.w = w
         self.r = r
@@ -185,7 +177,7 @@ class ConsumptionInteraction(Interaction):
         self.kind = kind
         self.n = n
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Check the kind and the exponent.
 
         Args:
@@ -328,7 +320,7 @@ class ResourceTurnoverInteraction(ConsumptionInteraction):
         self.supply = supply
         self.v = v
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Check the supply, the kind, and the exponent.
 
         Args:
@@ -485,7 +477,7 @@ class ConsumerResourceSystem(BaseSystem):
         self.v = v
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of consumer species that compete only through resources.
+        """Return the components of consumer species that compete only through resources.
 
         They compete only through the resources they take up.
         """

@@ -9,8 +9,8 @@ from sklearn.preprocessing import PolynomialFeatures
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.types import FormKind
 from skcomplex.systems.engineering.control import KoopmanModelPredictiveControlSystem
 
 

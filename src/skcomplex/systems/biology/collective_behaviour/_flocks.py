@@ -58,9 +58,6 @@ class BoidElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         vx:
             The initial horizontal velocity.
 
@@ -101,10 +98,11 @@ class BoidElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'vx'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'vx'}),
         *,
         vx: Annotated[float, StateSpec(role='velocity')] = 1.0,
         vy: Annotated[float, StateSpec(role='velocity')] = 0.0,
@@ -118,7 +116,7 @@ class BoidElement(Element):
         width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
         height: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.vx = vx
         self.vy = vy
         self.radius = radius
@@ -167,9 +165,6 @@ class SpatialBoidElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         velocity:
             The initial velocity, one component per dimension of the space.
 
@@ -201,10 +196,11 @@ class SpatialBoidElement(Element):
         10
     """
 
+    visual = VisualSpec('agents')
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents'),
         *,
         velocity: Annotated[npt.ArrayLike, StateSpec(vector=True, role='velocity')] = 0.0,
         radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
@@ -215,7 +211,7 @@ class SpatialBoidElement(Element):
         min_speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         max_speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.velocity = velocity
         self.radius = radius
         self.separation_radius = separation_radius
@@ -240,7 +236,7 @@ class FlightInteraction(MovementInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of boids.
@@ -284,7 +280,7 @@ class FlockingInteraction(ZoneCouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of boids.
@@ -346,7 +342,7 @@ class HeadingInteraction(MapInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of boids.
@@ -536,7 +532,7 @@ class SpatialFlightInteraction(MovementInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of boids.
@@ -634,7 +630,7 @@ class BoidsSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of Reynolds' boids in two dimensions.
+        """Return the components of Reynolds' boids in two dimensions.
 
         The boids are birds that flock by local rules without a leader.
         """
@@ -731,7 +727,7 @@ class Boids3dSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of Boids in three dimensions.
+        """Return the components of Boids in three dimensions.
 
         The boids are birds that flock by local rules in a periodic cube.
         """
@@ -835,7 +831,7 @@ class BirdSwarmSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a swarm of self-propelled birds.
+        """Return the components of a swarm of self-propelled birds.
 
         A pair potential holds the birds together.
         """

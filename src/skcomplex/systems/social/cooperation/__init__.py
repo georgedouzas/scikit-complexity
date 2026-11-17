@@ -15,6 +15,7 @@ from ._hypergraph_games import (
 from ._multilevel_selection import (
     NonlinearPairwiseGroupConflictSystem,
     SelectionDriftInteraction,
+    SimplexSpace,
     TrimorphicMultilevelSelectionSystem,
     TwoLevelReplicatorSystem,
 )
@@ -63,6 +64,7 @@ __all__: list[str] = [
     'PunisherGroupElement',
     'PunisherGroupView',
     'SelectionDriftInteraction',
+    'SimplexSpace',
     'SimplicialDilemmaInteraction',
     'SimplicialSocialDilemmasSystem',
     'SpatialPrisonersDilemmaSystem',

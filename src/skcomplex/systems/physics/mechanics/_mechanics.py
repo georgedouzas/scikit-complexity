@@ -14,12 +14,13 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, GradientInteraction, Interaction, RateInteraction
-from ....core.components.laws import BaseLaw, CrossingLaw, RateLaw
+from ....core.components.interactions import BaseInteraction, Interaction, RateInteraction
+from ....core.components.laws import BaseLaw, EventLaw, RateLaw
 from ....core.components.laws.utils import derivative
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.gradients import GradientInteraction
 from ..common.mechanics import PendulumElement, PendulumInteraction, ReflectionInteraction
 from ..common.particles import (
     ConstantForceInteraction,
@@ -44,9 +45,6 @@ class BouncingBallElement(Element):
         label:
             The label of the ball.
 
-        visual:
-            How the ball is drawn, or `None` for none.
-
         h:
             The initial height.
 
@@ -65,13 +63,12 @@ class BouncingBallElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         h: Annotated[float, StateSpec(order=2)] = 1.0,
         h_d1: float = 0.0,
         g: Annotated[float, ParameterSpec()] = 9.81,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.h = h
         self.h_d1 = h_d1
         self.g = g
@@ -93,9 +90,6 @@ class DiscBilliardElement(Element):
     Args:
         label:
             The label of the particle.
-
-        visual:
-            How the particle is drawn, or `None` for its class visual.
 
         x:
             The initial horizontal position.
@@ -125,7 +119,6 @@ class DiscBilliardElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.3,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -133,7 +126,7 @@ class DiscBilliardElement(Element):
         vy: Annotated[float, StateSpec()] = 1.0,
         radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.vx = vx
@@ -166,9 +159,6 @@ class HangingBallElement(Element):
         label:
             The label of the ball.
 
-        visual:
-            How the ball is drawn, or `None` for none.
-
         x:
             The initial horizontal position.
 
@@ -193,7 +183,6 @@ class HangingBallElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
@@ -201,7 +190,7 @@ class HangingBallElement(Element):
         g: Annotated[float, ParameterSpec()] = 9.81,
         length: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.rest = rest
@@ -236,7 +225,7 @@ class ElasticCollisionInteraction(Interaction):
         0.2
     """
 
-    law_classes = (CrossingLaw,)
+    law_classes = (EventLaw,)
 
     def __init__(
         self,
@@ -265,7 +254,7 @@ class ElasticCollisionInteraction(Interaction):
                 The crossing law.
         """
         return [
-            CrossingLaw(
+            EventLaw(
                 s.right.x - s.left.x - s.diameter,
                 {
                     derivative(s.left.x, 1): derivative(s.right.x, 1),
@@ -612,7 +601,7 @@ class BouncingBallSystem(BaseSystem):
         self.e = e
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[BouncingBallElement('ball', h=self.h, h_d1=self.v, g=self.g)],

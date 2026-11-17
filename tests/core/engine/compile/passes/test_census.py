@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element, FieldElement, GroupEleme
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian, logistic
-from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace
+from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -146,7 +146,7 @@ def test_declared_laws_lower_a_diffusive_coupling_to_the_finite_element_laplacia
     """Test that a coupling `D (x_j - x_i)` on a mesh field is `D` times the finite element Laplacian."""
     mesh = MeshTri.init_sqsymmetric().refined(2)
     field = np.sin(np.pi * mesh.p[0]) * mesh.p[1]
-    space = MeshSpace(mesh.p, mesh.t)
+    space = CellComplexSpace(points=mesh.p, cells=mesh.t)
     settings = {'element': SiteElement, 'space': space, 'discretization': 'finite-element'}
     coupled = FieldElement('m', values={'u': field}, **settings)
     coupling = CouplingInteraction(

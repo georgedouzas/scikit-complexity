@@ -15,7 +15,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 from ....core.types import Array
 
 TAKEOVER = 3
@@ -36,9 +36,6 @@ class WorkplaceElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         colour:
             The initial colour, 0 or 1.
 
@@ -54,12 +51,11 @@ class WorkplaceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         colour: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         employer: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.colour = colour
         self.employer = employer
 
@@ -124,7 +120,7 @@ class EmploymentTakeoverSystem(BaseSystem):
         return np.where(employers[0] > 0, following, colours[0])
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         rows, columns = np.indices((self.size, self.size))
         employers = ((rows + columns) % 2 == 0).astype(float)

@@ -47,6 +47,8 @@ class NucleotideElement(Element):
         'A'
     """
 
+    visual = VisualSpec('image', {'low': 0.0, 'high': float(LAST_BASE)})
+
     def __init__(
         self,
         label: str,
@@ -266,7 +268,7 @@ class RNANeutralNetworksSystem(BaseSystem):
         return float(fold != target) if regime == 'neutral' else float(read_base_pair_distance(fold, target))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of walkers of RNA sequences."""
+        """Return the components of walkers of RNA sequences."""
         import_extra('RNA', 'rna_neutral_networks', 'rna')
         if self.regime not in REGIMES:
             error_msg = f'Unknown regime {self.regime!r}. Use one of {", ".join(REGIMES)}.'
@@ -289,7 +291,6 @@ class RNANeutralNetworksSystem(BaseSystem):
                     element=NucleotideElement,
                     space=LatticeSpace((self.walkers, self.length), boundary='fixed'),
                     values={'base': bases},
-                    visual=VisualSpec('image', {'low': 0.0, 'high': float(LAST_BASE)}),
                     on='sites',
                 ),
             ],

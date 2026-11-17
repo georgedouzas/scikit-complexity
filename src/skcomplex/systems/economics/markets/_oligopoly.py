@@ -16,14 +16,16 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import ConstraintLaw
 from ....core.components.spaces import DiscreteTime, StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
+from ....core.specs import BaseSpec, ParameterSpec, StateSpec
 from ....core.types import Array
 from ...general.agents import ChoiceInteraction
 from ..common.learning import PayoffLearningInteraction
@@ -70,7 +72,7 @@ class CournotBestResponseElement(Element):
         8.0
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -93,7 +95,7 @@ class CournotBestResponseElement(Element):
         self.lambda_i = lambda_i
         self.lambda_j = lambda_j
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the two conditions of the best responses.
 
         Args:
@@ -105,8 +107,8 @@ class CournotBestResponseElement(Element):
                 The equations of the two quantities.
         """
         return [
-            EquationLaw(s.demand - 2 * s.q_i - s.q_j == s.c_i / (1 + s.lambda_i), target=s.q_i),
-            EquationLaw(s.demand - 2 * s.q_j - s.q_i == s.c_j / (1 + s.lambda_j), target=s.q_j),
+            ConstraintLaw(s.demand - 2 * s.q_i - s.q_j == s.c_i / (1 + s.lambda_i), target=s.q_i),
+            ConstraintLaw(s.demand - 2 * s.q_j - s.q_i == s.c_j / (1 + s.lambda_j), target=s.q_j),
         ]
 
 
@@ -144,7 +146,7 @@ class PricePointElement(Element):
         0.5
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -179,7 +181,7 @@ class PricePointElement(Element):
         """
         return member.price * (member.alpha + member.beta * (1 - member.distribution) ** (member.n_firms - 1))
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equation of the distribution.
 
         Args:
@@ -191,7 +193,7 @@ class PricePointElement(Element):
                 The equation of the distribution.
         """
         distribution = 1 - (s.alpha * (1 - s.price) / (s.beta * s.price)) ** (1 / (s.n_firms - 1))
-        return [EquationLaw(s.distribution == distribution, target=s.distribution)]
+        return [ConstraintLaw(s.distribution == distribution, target=s.distribution)]
 
 
 class PricingFirmView(AgentView):
@@ -377,7 +379,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
     references = ('Forrest 2018', 'Brown 1951')
 
     @staticmethod
-    def _get_price_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_price_observables(system: CompositeSystem) -> list[Observable]:
         """Return the lowest and the highest expected profit over the prices.
 
         Under learning, it returns the prices charged.
@@ -385,12 +387,12 @@ class OligopolyEquilibriaSystem(BaseSystem):
         if isinstance(system.time, StaticTime):
             profit = PricePointElement.get_profit
             return [
-                ObservableSpec('lowest_profit', profit, group='prices', reduce='min'),
-                ObservableSpec('highest_profit', profit, group='prices', reduce='max'),
+                Observable('lowest_profit', profit, group='prices', reduce='min'),
+                Observable('highest_profit', profit, group='prices', reduce='max'),
             ]
         return [
-            ObservableSpec('lower_price', group='firms', variable='price', reduce='min'),
-            ObservableSpec('higher_price', group='firms', variable='price', reduce='max'),
+            Observable('lower_price', group='firms', variable='price', reduce='min'),
+            Observable('higher_price', group='firms', variable='price', reduce='max'),
         ]
 
     def __init__(
@@ -459,7 +461,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
         )
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.dynamics not in DYNAMICS or (self.dynamics == 'fictitious-play' and self.n_firms != DUOPOLY):
             error_msg = (
                 f'OligopolyEquilibriaSystem has dynamics={self.dynamics!r} and n_firms={self.n_firms!r}. Use one of '
@@ -489,7 +491,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         settings['observables'] = OligopolyEquilibriaSystem._get_price_observables(self._get_pass_parameters())

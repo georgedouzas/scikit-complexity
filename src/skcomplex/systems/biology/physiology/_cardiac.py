@@ -18,7 +18,7 @@ from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import ReactionDiffusionSystem
 from ...general.dynamics.types import Equations
 
@@ -36,9 +36,6 @@ class AlievPanfilovElement(Element):
     Args:
         label:
             The label of the tissue.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         u:
             The initial potential.
@@ -72,7 +69,6 @@ class AlievPanfilovElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
         v: Annotated[float, StateSpec()] = 0.0,
@@ -82,7 +78,7 @@ class AlievPanfilovElement(Element):
         mu1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
         mu2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.v = v
         self.k = k
@@ -178,7 +174,7 @@ class AlievPanfilovSystem(BaseSystem):
         self.mu2 = mu2
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Aliev-Panfilov system of cardiac tissue."""
+        """Return the components of the Aliev-Panfilov system of cardiac tissue."""
         rows, columns = self.shape
         u, v = np.zeros(self.shape), np.zeros(self.shape)
         u[: rows // 2, :] = 1.0
@@ -233,7 +229,7 @@ class BarkleySystem(ReactionDiffusionSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.physiology import BarkleySystem
-        >>> BarkleySystem((20, 20), gamma=3.0).prepare().system_.elements[0].get_declaring_part().get_value('gamma')
+        >>> BarkleySystem((20, 20), gamma=3.0).prepare().system_.elements[0].get_declaring_element().get_value('gamma')
         3.0
     """
 

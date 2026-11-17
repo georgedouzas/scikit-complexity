@@ -14,11 +14,13 @@ from typing import Annotated, ClassVar
 import numpy as np
 
 from .....core.components.interactions import NeighborInteraction
-from .....core.components.laws import ArrayUpdateLaw, BaseLaw, CascadeLaw, LocalRuleLaw
-from .....core.components.spaces import BallNeighborhood, BaseNeighborhood, BaseSpace, LatticeNeighborhood
+from .....core.components.laws import ArrayUpdateLaw, BaseLaw, LocalRuleLaw, UpdateLaw
+from .....core.components.laws.utils import relax
+from .....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, RadiusNeighborhood
+from .....core.enums import ElementKind
 from .....core.errors import ValidationError
 from .....core.specs import BaseSpec, RoleSpec
-from .....core.types import Array, ElementKind
+from .....core.types import Array
 
 MODES = ('redistribute', 'reset', 'random')
 
@@ -37,7 +39,7 @@ class TopplingInteraction(NeighborInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group on the nodes or sites.
@@ -79,7 +81,7 @@ class TopplingInteraction(NeighborInteraction):
         'redistribute'
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CascadeLaw, ArrayUpdateLaw, LocalRuleLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw, ArrayUpdateLaw, LocalRuleLaw)
 
     def _get_draws(self) -> bool:
         """Return whether the cascade draws.
@@ -118,7 +120,10 @@ class TopplingInteraction(NeighborInteraction):
         """
         if self.mode != 'random':
             return
-        if self.neighborhood is not None and not isinstance(self.neighborhood, LatticeNeighborhood):
+        if self.neighborhood is not None and not isinstance(
+            self.neighborhood,
+            LatticeNeighborhood | RadiusNeighborhood,
+        ):
             error_msg = (
                 f'The random cascade reads the neighbourhood {self.neighborhood!r}. Give it a lattice neighbourhood.'
             )
@@ -131,7 +136,7 @@ class TopplingInteraction(NeighborInteraction):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a mode, drive, neighbourhood, or parcels it cannot take.
 
         Args:
@@ -173,15 +178,17 @@ class TopplingInteraction(NeighborInteraction):
 
         return relax
 
-    def _scatter(self, neighborhood: LatticeNeighborhood, threshold: float, share: float) -> Callable[..., Array]:
+    def _scatter(self, neighborhood: BaseNeighborhood, threshold: float, share: float) -> Callable[..., Array]:
         """Return the drive that passes parcels of relaxing members to random neighbours.
 
-        Every relaxing member passes its parcels to neighbours drawn at random.
+        Every relaxing member passes its parcels to neighbours drawn at random, among the offsets of the neighbourhood
+        in the dimensions of the lattice.
         """
-        steps = np.array([offset for offset in neighborhood.prepare().offsets_ if any(offset)])
         parcels = round(threshold / share)
 
         def scatter(values: Array, *, random: np.random.Generator) -> Array:
+            offsets = neighborhood._get_offsets(values.ndim) or ()
+            steps = np.array([offset for offset in offsets if any(offset)])
             relaxing = np.argwhere(values >= threshold)
             following = values.copy()
             following[tuple(relaxing.T)] -= threshold
@@ -194,7 +201,7 @@ class TopplingInteraction(NeighborInteraction):
         return scatter
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the cascade of the state of the target, with the drive.
+        """Return the update of the state of the target, driven and relaxed until stable.
 
         Args:
             namespace:
@@ -209,17 +216,16 @@ class TopplingInteraction(NeighborInteraction):
         drive = [] if self.drive is None else [ArrayUpdateLaw(value, self.drive)]
         neighborhood = self.neighborhood
         if neighborhood is None:
-            neighborhood = BallNeighborhood(metric='manhattan', center='first')
-        if self.mode == 'random' and isinstance(neighborhood, LatticeNeighborhood):
-            relax: list[BaseLaw] = [ArrayUpdateLaw(value, self._scatter(neighborhood, threshold, share))]
+            neighborhood = RadiusNeighborhood(1, metric='manhattan', center=True)
+        if self.mode == 'random':
+            rules: list[BaseLaw] = [ArrayUpdateLaw(value, self._scatter(neighborhood, threshold, share))]
         else:
-            relax = [LocalRuleLaw(value, neighborhood, self._relax(threshold, share))]
-        return [
-            CascadeLaw(
-                drive=drive,
-                relax=relax,
-                stable=lambda values: bool((values < threshold).all()),
-                activity=lambda values: values >= threshold,
-                label=self.label,
-            ),
-        ]
+            rules = [LocalRuleLaw(value, neighborhood, self._relax(threshold, share))]
+        relaxation = relax(
+            value,
+            rules,
+            lambda values: bool((values < threshold).all()),
+            drive=drive,
+            activity=lambda values: values >= threshold,
+        )
+        return [UpdateLaw(value, relaxation, label=self.label)]

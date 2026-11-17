@@ -13,12 +13,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import minimum
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 TONNES_PER_MILLION_KG = 1e3
 FEMALE_FRACTION = 0.5
@@ -42,9 +43,6 @@ class HilsaElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         eggs:
             The eggs in the nests, in millions of fish.
@@ -131,7 +129,6 @@ class HilsaElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         eggs: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
         larvae: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
@@ -161,7 +158,7 @@ class HilsaElement(Element):
         weight_per_adult: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.82,
         weight_per_juvenile: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.09,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.eggs = eggs
         self.larvae = larvae
         self.juveniles = juveniles
@@ -263,9 +260,9 @@ class HilsaFisherySystem(BaseSystem):
     until = 120.0
     dt = 0.5
     observables = (
-        ObservableSpec('nests', _nests, element='hilsa'),
-        ObservableSpec('adult_weight', _get_adult_weight, element='hilsa'),
-        ObservableSpec('juvenile_weight', _get_juvenile_weight, element='hilsa'),
+        Observable('nests', _nests, element='hilsa'),
+        Observable('adult_weight', _get_adult_weight, element='hilsa'),
+        Observable('juvenile_weight', _get_juvenile_weight, element='hilsa'),
     )
 
     @staticmethod
@@ -432,7 +429,7 @@ class HilsaFisherySystem(BaseSystem):
         return {**stages, 'spawners': spawners}
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         hilsa = HilsaElement(
             'hilsa',
             eggs_per_nest=self.eggs_per_nest,

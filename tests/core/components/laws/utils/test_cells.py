@@ -30,12 +30,11 @@ class SiteElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         u: Annotated[float, StateSpec()] = 0.0,
         v: Annotated[float, StateSpec()] = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.v = v
 
@@ -46,14 +45,13 @@ class LinkElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         a: Annotated[float, StateSpec()] = 0.0,
         b: Annotated[float, StateSpec()] = 0.0,
         c: Annotated[float, StateSpec()] = 0.0,
         weight: Annotated[float, ParameterSpec()] = 1.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.b = b
         self.c = c
@@ -66,12 +64,11 @@ class FaceElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         f: Annotated[float, StateSpec()] = 0.0,
         g: Annotated[float, StateSpec()] = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.f = f
         self.g = g
 
@@ -79,8 +76,8 @@ class FaceElement(Element):
 class FieldLinkElement(Element):
     """Link with a potential `a` of second order, whose velocity is minus the electric field."""
 
-    def __init__(self, label, visual=None, *, a: Annotated[float, StateSpec(order=2)] = 0.0, a_d1=0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, a: Annotated[float, StateSpec(order=2)] = 0.0, a_d1=0.0):
+        super().__init__(label)
         self.a = a
         self.a_d1 = a_d1
 
@@ -91,12 +88,11 @@ class PairLinkElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         a: Annotated[float, StateSpec()] = 0.0,
         e: Annotated[float, StateSpec()] = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.e = e
 

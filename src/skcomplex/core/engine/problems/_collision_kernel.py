@@ -10,9 +10,9 @@ import numpy as np
 import scipy.fft
 
 from ...errors import ValidationError
-from ...specs import RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
+from ._run_state_spec import RunStateSpec
 
 PADDING = (3 + math.sqrt(2)) / 2
 RANK_TOLERANCE = 1e-10
@@ -59,7 +59,7 @@ class CollisionKernel(BaseKernel):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.problems._collision_kernel import CollisionKernel
-        >>> from skcomplex.core.specs import RunStateSpec
+        >>> from skcomplex.core.engine.problems import RunStateSpec
         >>> kernel = CollisionKernel((8, 8), (1.0, 1.0), lambda speed, cosine: 1 / (2 * np.pi)).prepare()
         >>> f = np.exp(-(np.indices((8, 8)) - 3.5) ** 2).prod(axis=0)
         >>> rates = kernel.run(RunStateSpec(0.0, f.ravel(), np.zeros(0))).values_

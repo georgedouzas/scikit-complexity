@@ -12,13 +12,11 @@ from sklearn.base import clone
 
 from ...components.laws import (
     BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
-    FluxLaw,
+    ConstraintLaw,
+    EventLaw,
     JumpLaw,
     LinearProgramLaw,
     LocalRuleLaw,
-    MatchLaw,
     NoiseLaw,
     RateLaw,
     RuleLaw,
@@ -33,23 +31,25 @@ from ...components.spaces import (
     ContinuousTime,
     DiscreteTime,
     LatticeSpace,
-    MeshSpace,
     NetworkSpace,
 )
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import ContextError, SolverError, ValidationError
-from ...specs import AgentSnapshotSpec, AgentStateSpec, EntrySpec, StepSpec, SupportSpec
-from ...specs._held_reduction_spec import _HeldReductionSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind
-from ..backends import NumbaBackend, NumpyBackend
+from ...specs import EntrySpec
+from ...types import Array
+from ..backends import NumbaBackend, NumpyBackend, SupportSpec
+from ..compile._held_reduction_spec import _HeldReductionSpec
 from ..compile._observables import ObservableEvaluator
 from ..compile._pass_compiler import PassCompiler
-from ..problems import ProblemSpec
+from ..problems import AgentSnapshotSpec, ProblemSpec
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._partition_spec import PartitionSpec
 from ..problems._reduction_kernel import ReductionKernel
+from ._agent_state_spec import _AgentStateSpec
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS
 from ._solver import Solver
+from ._step_spec import StepSpec
 
 STEPWISE_FORMS = (FormKind.DISCRETE, FormKind.AGENT)
 TOLERANCE = 1e-9
@@ -67,8 +67,8 @@ class CoSimulationSolver(Solver):
     until the next. Gauss-Seidel advances the partitions in system order, each reading the values the partitions before
     it already advanced. Jacobi advances every partition from the same values.
 
-    Choose it when parts of a system need different solvers, such as agents beside a field. It appears in many fields,
-    such as cars on a road network beside their emissions, and cells beside the nutrients they eat.
+    Choose it when components of a system need different solvers, such as agents beside a field. It appears in many
+    fields, such as cars on a road network beside their emissions, and cells beside the nutrients they eat.
 
     Args:
         solvers:
@@ -123,21 +123,19 @@ class CoSimulationSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime, DiscreteTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={
                 RateLaw,
-                FluxLaw,
                 NoiseLaw,
-                EquationLaw,
+                ConstraintLaw,
                 JumpLaw,
                 LinearProgramLaw,
-                CrossingLaw,
+                EventLaw,
                 UpdateLaw,
                 TransitionLaw,
                 RuleLaw,
                 LocalRuleLaw,
                 SampleLaw,
-                MatchLaw,
                 TransferLaw,
                 BoundaryLaw,
             },
@@ -419,11 +417,11 @@ class CoSimulationSolver(Solver):
         agents: dict[str, list[object]] = {}
         for stepper in self.steppers_.values():
             external = stepper.snapshot_
-            if isinstance(external, AgentStateSpec):
+            if isinstance(external, _AgentStateSpec):
                 groups.update(external.groups)
                 reporters.update(external.reporters)
             agents.update(stepper.agents_)
-        self.snapshot_ = AgentStateSpec(groups, reporters) if groups or reporters else None
+        self.snapshot_ = _AgentStateSpec(groups, reporters) if groups or reporters else None
         self.agents_ = agents
 
     def _release(self) -> None:

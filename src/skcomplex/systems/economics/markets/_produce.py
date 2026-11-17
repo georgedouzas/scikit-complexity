@@ -11,11 +11,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
+from ....core.specs import StateSpec
 from ....core.types import Array
 
 WHOLESALE_PRICES = (0.6, 0.5, 0.7, 0.9, 1.2, 1.5, 0.8, 0.4, 0.5, 0.3, 0.6, 1.0)
@@ -61,9 +62,6 @@ class ShopperElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         wanted:
             The bit mask of the items on the shopping list.
 
@@ -90,14 +88,13 @@ class ShopperElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         wanted: Annotated[float, StateSpec(domain=NN)] = 0,
         visited: Annotated[float, StateSpec(domain=NN)] = 0,
         missed: Annotated[float, StateSpec(domain=NN)] = 0,
         spent: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.wanted = wanted
         self.visited = visited
         self.missed = missed
@@ -156,9 +153,6 @@ class StallElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         stall:
             The index of the stall.
 
@@ -180,13 +174,12 @@ class StallElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         stall: Annotated[float, StateSpec(domain=NN)] = 0,
         stock: Annotated[float, StateSpec(domain=NN)] = 0,
         markup: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.stall = stall
         self.stock = stock
         self.markup = markup
@@ -250,8 +243,8 @@ class ProduceMarketSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016',)
     until = 10
     observables = (
-        ObservableSpec('items_left', group='shoppers', variable='wanted', reduce=_get_items_left),
-        ObservableSpec('spent', group='shoppers', variable='spent'),
+        Observable('items_left', group='shoppers', variable='wanted', reduce=_get_items_left),
+        Observable('spent', group='shoppers', variable='spent'),
     )
 
     def __init__(
@@ -280,7 +273,7 @@ class ProduceMarketSystem(BaseSystem):
         return np.array(masks, dtype=float)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         stocks = self._get_random_masks(np.full(self.n_stalls, self.n_items_stocked), rng)
         markups = rng.integers(1, MAX_MARKUP + 1, self.n_stalls) / 100

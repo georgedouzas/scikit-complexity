@@ -13,11 +13,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import SpaceError
-from ...specs import Tags
-from ..base import BasePart
+from ...types import IntTuple
+from .._tags import Tags
+from ..base import BaseComponent
 
 
-class BaseNeighborhood(BasePart[None, SimpleNamespace]):
+class BaseNeighborhood(BaseComponent[None, SimpleNamespace]):
     """An abstract neighbourhood, the members a law reads around a member of a space.
 
     A neighbourhood stores its arguments in its `__init__`, and `prepare` checks them and derives what the engine reads,
@@ -25,7 +26,7 @@ class BaseNeighborhood(BasePart[None, SimpleNamespace]):
     returns no laws.
 
     Unlike `BaseSpace`, which places members, it selects some of them around one member. Choose it when a new rule for
-    choosing neighbours is needed, and choose an existing neighbourhood, such as `BallNeighborhood`, otherwise.
+    choosing neighbours is needed, and choose an existing neighbourhood, such as `RadiusNeighborhood`, otherwise.
 
     It appears in every field through its subclasses, such as the eight cells around a site of a lattice, the contacts
     of a person in a network, and the birds within sight of a bird in a flock.
@@ -38,16 +39,29 @@ class BaseNeighborhood(BasePart[None, SimpleNamespace]):
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Run nothing, since a neighbourhood contributes no laws to a system."""
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return no laws, since a neighbourhood only tells laws which members they read."""
         return []
+
+    def _get_offsets(self, n_dim: int | None = None) -> tuple[IntTuple, ...] | None:
+        """Return the lattice offsets of the neighbourhood, none by default.
+
+        Args:
+            n_dim:
+                The number of dimensions of the lattice, or `None` when no lattice is known yet.
+
+        Returns:
+            offsets:
+                The offsets in the order laws read them, or `None` for a neighbourhood that has none.
+        """
+        return None
 
     def _prepare(self, context: None = None) -> None:
         """Leave the neighbourhood as it is, since it has nothing to prepare by default."""
         super()._prepare(context)
 
 
-class BaseSpace(BasePart[None, SimpleNamespace]):
+class BaseSpace(BaseComponent[None, SimpleNamespace]):
     """An abstract space, where the members of a group live and who neighbours whom.
 
     A space also gives vector states their dimension. It stores its arguments in its `__init__`, `prepare` checks them
@@ -56,7 +70,9 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
     the neighbour of every site in every slot of a neighbourhood, `_translation_table` the sites a group space reads at
     the products of a site and a group element, `_ball` the neighbourhood within a radius, `_neighbor_pairs` the pairs
     of neighbouring sites, and `_default_neighborhood` the neighbourhood that `_get_neighbors` reads when none is given.
-    A space without sites, such as a continuous one, answers none of them.
+    A space without sites, such as a continuous one, answers none of them. Every space also answers what the engine
+    asks of its cells: `_get_volumes` gives the fraction of every cell inside the domain, `_get_apertures` the open
+    fraction of every face, and `_supports_operator` whether a field on it takes an operator, such as `laplacian`.
 
     Unlike `BaseElement`, it holds no states, only the structure that members sit on. Choose it when members live on a
     new kind of structure, and choose `LatticeSpace`, `NetworkSpace`, or `ContinuousSpace` otherwise.
@@ -97,7 +113,7 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Run nothing, since a space contributes no laws to a system."""
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws the space contributes for a namespace of symbols.
 
         There are none by default.
@@ -203,6 +219,35 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
         error_msg = f'{type(self).__name__} has no sites, so it has no neighbour pairs.'
         raise SpaceError(error_msg)
 
+    def _get_volumes(self) -> npt.NDArray[np.float64] | None:
+        """Return the fraction of every cell inside the domain, or `None` for whole cells.
+
+        Every cell is whole by default. A space whose domain cuts its cells, such as a simplex, returns the fractions.
+        """
+        return None
+
+    def _get_apertures(self) -> tuple[npt.NDArray[np.float64], ...]:
+        """Return the open fraction of every face along every axis, empty for open faces.
+
+        Every face is open by default.
+        """
+        return ()
+
+    def _supports_operator(self, name: str) -> bool:
+        """Check whether a field on the space takes an operator.
+
+        Every space takes every operator by default.
+
+        Args:
+            name:
+                The name of the operator, such as `'laplacian'`.
+
+        Returns:
+            supported:
+                Whether a law may apply the operator to a field on the space.
+        """
+        return True
+
     def _get_neighbors(self, site: int, neighborhood: BaseNeighborhood | None = None) -> npt.NDArray[np.intp]:
         """Return the sites around a site inside the space.
 
@@ -224,7 +269,7 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
         return row[row < self.size_]
 
 
-class BaseTime(BasePart[None, SimpleNamespace]):
+class BaseTime(BaseComponent[None, SimpleNamespace]):
     """An abstract time, which decides the kind of laws a system may hold.
 
     A time stores its arguments in its `__init__`, `prepare` checks them and sets its schedule, and `_get_frames`
@@ -254,7 +299,7 @@ class BaseTime(BasePart[None, SimpleNamespace]):
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Run nothing, since a time contributes no laws to a system."""
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return no laws.
 
         The time decides which laws a system may hold but contributes none.

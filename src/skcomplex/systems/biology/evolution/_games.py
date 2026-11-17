@@ -16,13 +16,13 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import total
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 from ....core.types import Array
 from ..common.populations import ReplicatorInteraction
 
-NEAREST = BallNeighborhood(metric='manhattan')
+NEAREST = RadiusNeighborhood(1, metric='manhattan')
 STRATEGIES = 3
 
 
@@ -38,9 +38,6 @@ class CyclicSpeciesElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         strategy:
             The initial strategy, 0, 1, or 2.
 
@@ -53,11 +50,10 @@ class CyclicSpeciesElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         strategy: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
 
 
@@ -69,9 +65,6 @@ class StrategyElement(Element):
     Args:
         label:
             The label of the strategy or of the group of strategies.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial share.
@@ -85,11 +78,10 @@ class StrategyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -149,7 +141,7 @@ class ReplicatorDynamicsSystem(BaseSystem):
         self.C = C
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the replicator dynamics of a game."""
+        """Return the components of the replicator dynamics of a game."""
         matrix = (
             (((self.V - self.C) / 2, self.V), (0.0, self.V / 2))
             if self.payoff is None
@@ -220,7 +212,7 @@ class RockPaperScissorsSystem(BaseSystem):
         return np.where(beaten, neighbor, strategy)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of rock, paper, and scissors on a lattice."""
+        """Return the components of rock, paper, and scissors on a lattice."""
         strategies = (
             np.random.default_rng(self.random_state).integers(0, STRATEGIES, size=tuple(self.shape)).astype(float)
         )

@@ -21,7 +21,7 @@ from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import IncompatibleLawsError, ParameterError, ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 CHAIN = [[0.9, 0.1], [0.4, 0.6]]
 EMISSION = [[0.7, 0.3], [0.2, 0.8]]
@@ -34,11 +34,10 @@ class UniformElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
     def _get_laws(self, s):
@@ -52,11 +51,10 @@ class WalkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
     def _get_laws(self, s):
@@ -70,12 +68,11 @@ class FlipElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[object, StateSpec()] = 0.0,
         b: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.b = b
 
@@ -90,13 +87,12 @@ class RampElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
         y: Annotated[object, StateSpec()] = 0.0,
         p: Annotated[object, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.p = p
@@ -112,12 +108,11 @@ class ConflictElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[object, StateSpec()] = 0.0,
         b: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.b = b
 
@@ -132,11 +127,10 @@ class DriftingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
     def _get_laws(self, s):
@@ -150,12 +144,11 @@ class ChainElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(domain=BINARY)] = 0,
         stay: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.stay = stay
 
@@ -170,11 +163,10 @@ class BrokenElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(domain=BINARY)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
     def _get_laws(self, s):
@@ -188,14 +180,13 @@ class HiddenElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         h: Annotated[object, StateSpec(domain=BINARY)] = 0,
         o: Annotated[object, StateSpec(domain=BINARY)] = 0,
         emission: list[list[float]] | None = None,
         order: int = 1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.h = h
         self.o = o
         self.emission = emission
@@ -214,11 +205,10 @@ class RegulatedElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -292,11 +282,10 @@ def test_compiler_keeps_conditions_on_draws_undecided():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -323,12 +312,11 @@ def test_compiler_reads_the_draw_of_the_member_at_an_offset():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             a: Annotated[object, StateSpec()] = 0.0,
             b: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.a = a
             self.b = b
 
@@ -430,12 +418,11 @@ def test_compiler_draws_beside_reductions():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             s: Annotated[object, StateSpec()] = 1.0,
             h: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.s = s
             self.h = h
 
@@ -460,13 +447,12 @@ def test_compiler_agrees_across_backends():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
             k: Annotated[object, StateSpec()] = 0.0,
             b: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.k = k
             self.b = b
@@ -513,11 +499,10 @@ def test_compiler_keeps_deterministic_maps_unchanged():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.3,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -558,11 +543,10 @@ def test_compiler_runs_compiled_chains_fast():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec(domain=BINARY)] = 0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -577,11 +561,10 @@ def test_compiler_runs_compiled_chains_fast():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -607,12 +590,11 @@ def test_compiler_draws_relaxed_draws_exactly(backend):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             b: Annotated[object, StateSpec()] = 0.0,
             k: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.b = b
             self.k = k
 

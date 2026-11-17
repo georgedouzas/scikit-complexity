@@ -50,8 +50,8 @@ tags = school.get_tags()
 [element.label for element in school.prepare().system_.elements], sorted(tags.laws), tags.randomness
 ```
 
-`prepare` builds the parts and checks that they fit together. The system has the elements `S`, `I`, and `R`, its laws
-are rates, and it is deterministic, so one run gives the answer and no ensemble is needed. The tags tell `simulate`
+`prepare` builds the components and checks that they fit together. The system has the elements `S`, `I`, and `R`, its
+laws are rates, and it is deterministic, so one run gives the answer and no ensemble is needed. The tags tell `simulate`
 which solver fits.
 
 ## A first simulation
@@ -204,12 +204,12 @@ and the decline fixes `gamma`. A real study takes `n_starts=5` or more, so the b
 A scenario changes the system before or during a run. Isolating the sick boys from the others lowers the rate of
 infection, which the study models as halving `beta` from a given day. The system takes the fitted rates, rounded.
 [compare_scenarios][skcomplex.core.experiments.compare_scenarios] runs every
-[ScenarioSpec][skcomplex.core.components.specs.ScenarioSpec] on it. The `schedule` of a scenario changes the parameter
+[ScenarioSpec][skcomplex.core.experiments.ScenarioSpec] on it. The `schedule` of a scenario changes the parameter
 `beta` of the interaction `infection` at the given day. An output is a path, kept as a series and as its last value, or
 a function of the trajectory, here the highest number of boys in bed.
 
 ```python
-from skcomplex.core.components.specs import ScenarioSpec
+from skcomplex.core.experiments import ScenarioSpec
 from skcomplex.core.experiments import compare_scenarios
 from skcomplex.systems.biology.epidemiology import SIRSystem
 

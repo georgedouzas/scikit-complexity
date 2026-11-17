@@ -15,10 +15,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws import BaseLaw, CallSpec, RateLaw
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import CallSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class VesselSegmentElement(Element):
@@ -29,9 +29,6 @@ class VesselSegmentElement(Element):
     Args:
         label:
             The label of the segment or of the group on the edges.
-
-        visual:
-            How the segment is drawn, or `None` for `default_visual_`.
 
         C:
             The initial conductance.
@@ -45,11 +42,10 @@ class VesselSegmentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.C = C
 
 
@@ -223,7 +219,7 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a square grid of vessels.
+        """Return the components of a square grid of vessels.
 
         It is fed at one corner and drained at every other node.
         """

@@ -14,7 +14,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._expression_printer import ExpressionPrinter
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 BACKENDS = (NumpyBackend(), NumbaBackend())
 VALUES = np.array([-3.0, -1.0, 0.0, 0.25, 1.0, 2.0, 5.0])
@@ -38,11 +38,10 @@ def _rates(function, backend):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):

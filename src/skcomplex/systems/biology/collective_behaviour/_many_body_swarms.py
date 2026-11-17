@@ -17,7 +17,7 @@ from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import RateLaw
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 NEIGHBOURS = 10
 
@@ -31,9 +31,6 @@ class SwarmAgentElement(Element):
     Args:
         label:
             The label of the agent.
-
-        visual:
-            The visual of the agent, or `None` for the default one.
 
         x:
             The position.
@@ -58,14 +55,13 @@ class SwarmAgentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.alpha = alpha
@@ -351,7 +347,7 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import ManyBodyAlignmentSwarmSystem
         >>> system = ManyBodyAlignmentSwarmSystem(12).prepare().system_
-        >>> system.elements[0].prepare().size_, [part.label for part in system.interactions]
+        >>> system.elements[0].prepare().size_, [component.label for component in system.interactions]
         (12, ['pairs', 'flanking', 'encirclement'])
     """
 

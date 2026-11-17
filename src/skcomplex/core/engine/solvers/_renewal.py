@@ -4,10 +4,11 @@
 # License: MIT
 
 
-from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...specs import SupportSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind
+from ...components.laws import BoundaryLaw, ConstraintLaw, JumpLaw, NoiseLaw, RateLaw
+from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from ...enums import FormKind, NoiseKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ._solver import Solver
 
 
@@ -28,7 +29,7 @@ class RenewalSolver(Solver):
         >>> from skcomplex.core.components.laws.utils import draw
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import RenewalSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> class CounterElement(Element):
         ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -49,8 +50,8 @@ class RenewalSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={JumpLaw, RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            laws={JumpLaw, RateLaw, NoiseLaw, ConstraintLaw, BoundaryLaw},
             noise=frozenset({NoiseKind.DIAGONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )

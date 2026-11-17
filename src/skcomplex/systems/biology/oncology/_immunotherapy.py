@@ -17,7 +17,7 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import delayed, hill, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
@@ -43,9 +43,6 @@ class CheckpointTumourElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial activated T cells.
@@ -125,7 +122,6 @@ class CheckpointTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.006,
         A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3968,
@@ -151,7 +147,7 @@ class CheckpointTumourElement(Element):
         sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
         u_ap: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-10,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.A = A
         self.UAP = UAP
@@ -194,9 +190,6 @@ class DelayedVaccinatedTumourElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial tumour cells.
@@ -384,7 +377,6 @@ class DelayedVaccinatedTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 500000.0,
         ENK: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 44000.0,
@@ -446,7 +438,7 @@ class DelayedVaccinatedTumourElement(Element):
         start: float = 0.0,
         doses: int = 4,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.ENK = ENK
         self.ENC = ENC
@@ -522,9 +514,6 @@ class KirschnerPanettaTumourElement(Element):
         label:
             The label of the tumour site.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         E:
             The initial effector cells.
 
@@ -588,7 +577,6 @@ class KirschnerPanettaTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -609,7 +597,7 @@ class KirschnerPanettaTumourElement(Element):
         u1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         u2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.A = A
         self.C = C
@@ -649,9 +637,6 @@ class SuppressedTumourElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial tumour cells.
@@ -836,7 +821,6 @@ class SuppressedTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
         EUD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
@@ -897,7 +881,7 @@ class SuppressedTumourElement(Element):
         EMH: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000.0,
         EMR: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10000.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.EUD = EUD
         self.ED = ED
@@ -974,9 +958,6 @@ class VaccinatedTumourElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         EH:
             The initial helper T cells.
@@ -1068,7 +1049,6 @@ class VaccinatedTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         EH: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
         E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
@@ -1098,7 +1078,7 @@ class VaccinatedTumourElement(Element):
         start: float = 0.0,
         doses: int = 8,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.EH = EH
         self.E = E
         self.A = A
@@ -1215,7 +1195,7 @@ class KirschnerPanettaSystem(BaseSystem):
         self.u2 = u2
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Kirschner-Panetta system of effector cells."""
+        """Return the components of the Kirschner-Panetta system of effector cells."""
         site = KirschnerPanettaTumourElement(
             'site',
             E=self.E,
@@ -1360,7 +1340,7 @@ class DendriticCellVaccineSystem(BaseSystem):
         self.doses = doses
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of helper and cytotoxic T cells."""
+        """Return the components of helper and cytotoxic T cells."""
         site = VaccinatedTumourElement(
             'site',
             A=self.A,
@@ -1540,7 +1520,7 @@ class AntiPD1CheckpointSystem(BaseSystem):
         self.c_l = c_l
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of activated T cells."""
+        """Return the components of activated T cells."""
         site = CheckpointTumourElement(
             'site',
             E=self.E,
@@ -1698,7 +1678,7 @@ class DelayedDCVaccineSystem(BaseSystem):
         self.tau3 = tau3
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour and eight innate and adaptive immune populations."""
+        """Return the components of a tumour and eight innate and adaptive immune populations."""
         site = DelayedVaccinatedTumourElement(
             'site',
             dose=self.dose,
@@ -2006,7 +1986,7 @@ class TumourImmuneSuppressionSystem(BaseSystem):
         self.EMR = EMR
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour against dendritic."""
+        """Return the components of a tumour against dendritic."""
         site = SuppressedTumourElement(
             'site',
             alpha_a=self.alpha_a,

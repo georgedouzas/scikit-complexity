@@ -4,8 +4,7 @@ import numpy as np
 
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.solvers import IterationSolver
-from skcomplex.core.specs import StepSpec
+from skcomplex.core.engine.solvers import IterationSolver, StepSpec
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 
 

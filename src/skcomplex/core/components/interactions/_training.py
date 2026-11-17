@@ -10,15 +10,14 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ...enums import ElementKind, OptimizerKind
 from ...errors import ValidationError
-from ...specs import DatasetSpec, ObservableSpec, ParameterSpec, RoleSpec
-from ...types import ElementKind
-from ..base import BasePart
-from ..laws import BaseLaw, GradientStepLaw
+from ...specs import ParameterSpec, RoleSpec
+from .._observable_spec import Observable
+from ..base import BaseComponent
+from ..laws import BaseLaw, DatasetSpec
 from ..spaces import BaseSpace
 from ._interaction import Interaction
-
-OPTIMIZERS = ('sgd', 'momentum', 'rmsprop', 'adam')
 
 
 class TrainingInteraction(Interaction):
@@ -35,15 +34,18 @@ class TrainingInteraction(Interaction):
     - `'rmsprop'`: the learning rate and `beta2`, the decay of its mean squared gradient.
     - `'adam'`: the learning rate, `beta1`, and `beta2`.
 
-    Unlike `GradientInteraction`, which moves states down a potential in the time of the system, it fits parameters of
-    another system to data, one epoch per step. Choose it when a part of the model learns from data during the run.
+    It states no laws of its own. The compiler finds the training in the system and `GradientDescentSolver` reads its
+    settings, so the update of every epoch is the step of the optimizer on the trained parameters.
+
+    Unlike a gradient flow, which moves states down a potential in the time of the system, it fits parameters of
+    another system to data, one epoch per step. Choose it when a component of the model learns from data during the run.
 
     It appears in many fields. A recurrent neural network learns to predict a time series, an echo state network fits
     its readout, and a learning agent improves its policy between rounds.
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'training'`.
+            The name of the interaction, unique among the components of its system, such as `'training'`.
 
         system:
             The path of the nested system whose parameters the interaction trains.
@@ -58,7 +60,7 @@ class TrainingInteraction(Interaction):
             The sequences of the parameters of the nested system that set its inputs and targets at every step.
 
         optimizer:
-            The name of the optimizer, one of `OPTIMIZERS`.
+            The name of the optimizer, one of `OptimizerKind`.
 
         learning_rate:
             The learning rate of the optimizer.
@@ -90,10 +92,11 @@ class TrainingInteraction(Interaction):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.components.interactions import TrainingInteraction
-        >>> from skcomplex.core.specs import DatasetSpec, ObservableSpec
+        >>> from skcomplex.core.components import Observable
+        >>> from skcomplex.core.components.laws import DatasetSpec
         >>> data = DatasetSpec({'inputs.x': np.zeros((4, 3, 1))})
         >>> training = TrainingInteraction(
-        ...     'training', system='net', trained=['readout.W'], loss=ObservableSpec('error', 0.0), data=data
+        ...     'training', system='net', trained=['readout.W'], loss=Observable('error', 0.0), data=data
         ... )
         >>> training.optimizer
         'adam'
@@ -101,7 +104,7 @@ class TrainingInteraction(Interaction):
 
     draws = True
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (GradientStepLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = ()
 
     def __init__(
         self,
@@ -109,7 +112,7 @@ class TrainingInteraction(Interaction):
         *,
         system: Annotated[str, RoleSpec(elements=(ElementKind.ANY,))],
         trained: Sequence[str],
-        loss: ObservableSpec,
+        loss: Observable,
         data: DatasetSpec,
         optimizer: str = 'adam',
         learning_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-3,
@@ -118,7 +121,7 @@ class TrainingInteraction(Interaction):
         beta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, 1))] = 0.999,
         batch_size: int = 32,
         truncation: int | None = None,
-        metrics: Sequence[ObservableSpec] = (),
+        metrics: Sequence[Observable] = (),
     ) -> None:
         super().__init__(label)
         self.system = system
@@ -139,10 +142,10 @@ class TrainingInteraction(Interaction):
 
         The batch size and the truncation must be positive integers.
         """
-        if self.optimizer not in OPTIMIZERS:
+        if self.optimizer not in OptimizerKind:
             error_msg = (
                 f'The optimizer of {self.label!r} is {self.optimizer!r}, which is not supported. Choose one of '
-                f'{", ".join(map(repr, OPTIMIZERS))}.'
+                f'{", ".join(repr(str(name)) for name in OptimizerKind)}.'
             )
             raise ValidationError(error_msg)
         for name in ('batch_size', 'truncation'):
@@ -165,8 +168,8 @@ class TrainingInteraction(Interaction):
             error_msg = f'The data of {self.label!r} is a {type(self.data).__name__}. Give a `DatasetSpec`.'
             raise ValidationError(error_msg)
         observables = [self.loss, *self.metrics]
-        if not all(isinstance(item, ObservableSpec) for item in observables):
-            error_msg = f'The loss and the metrics of {self.label!r} are observables. Give `ObservableSpec`s.'
+        if not all(isinstance(item, Observable) for item in observables):
+            error_msg = f'The loss and the metrics of {self.label!r} are observables. Give `Observable`s.'
             raise ValidationError(error_msg)
         labels = ['loss', *(item.label for item in self.metrics)]
         if len(set(labels)) < len(labels):
@@ -175,7 +178,7 @@ class TrainingInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an optimizer, counts, parameters, or observables it rejects.
 
         Args:
@@ -192,17 +195,7 @@ class TrainingInteraction(Interaction):
         self._check_observables()
         self.data._check()
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the gradient-step law of the training."""
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
+        """Return no laws, since the solver reads the settings of the training."""
         del namespace
-        law = GradientStepLaw(
-            self.trained,
-            self.loss,
-            self.data,
-            self.optimizer,
-            self.batch_size,
-            truncation=self.truncation,
-            metrics=self.metrics,
-            label=self.label,
-        )
-        return [law]
+        return []

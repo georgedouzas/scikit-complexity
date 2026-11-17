@@ -48,9 +48,6 @@ class ProgramMemberElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         acres:
             The tomatoes a buyer needs or a farm grows every period, in acres.
 
@@ -67,18 +64,19 @@ class ProgramMemberElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'level'})
+
     law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'level'}),
         *,
         acres: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         level: Annotated[float, StateSpec(domain=NN)] = 0,
         traded: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.acres = acres
         self.level = level
         self.traded = traded
@@ -283,7 +281,7 @@ class FairFoodProgramSystem(BaseSystem):
         return weights, weights / weights.sum() * acres
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         _, needs = self._get_sizes(self.n_shops, self.acres, rng)
         _, grown = self._get_sizes(self.n_farms, self.acres, rng)

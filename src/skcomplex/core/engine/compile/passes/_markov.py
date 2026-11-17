@@ -11,20 +11,23 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....components.laws import BaseLaw, TransitionLaw, UpdateLaw
+from ....components.laws import BaseLaw, CallSpec, TransitionLaw, UpdateLaw
 from ....components.laws.utils import categorical, where
+from ....enums import DomainKind
 from ....errors import ValidationError
-from ....specs import CallSpec, EntrySpec, MatrixLawSpec, RunStateSpec
-from ....types import Array, DomainKind
+from ....specs import EntrySpec
+from ....types import Array
 from ..._utils import symbols_of
+from ...enums import ReadKind
+from ...problems import RunStateSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._markov_kernel import MarkovKernel
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import BlockLaws, Compilation
+from .._matrix_law_spec import _MatrixLawSpec
 
 SHARED_NDIM = 2
 MEMBER_NDIM = 3
@@ -50,7 +53,7 @@ class MarkovPass(BasePass):
         """Take the Markov laws out of the lowered laws."""
         compilation = self.compilation_
         lowered: BlockLaws = []
-        markov: list[tuple[KernelSpec, MatrixLawSpec]] = []
+        markov: list[tuple[KernelSpec, _MatrixLawSpec]] = []
         for spec, laws, block in Compilation._get_required(compilation.lowered, 'lowered'):
             kept, matrices = self._get_markov_laws(spec, laws)
             lowered.append((spec, kept, block))
@@ -64,7 +67,7 @@ class MarkovPass(BasePass):
 
     @staticmethod
     def _get_checked_matrices(
-        markov: list[tuple[KernelSpec, MatrixLawSpec]],
+        markov: list[tuple[KernelSpec, _MatrixLawSpec]],
         declarations: DeclarationsSpec,
     ) -> tuple[MarkovKernel, ...]:
         """Return the matrices of the Markov laws.
@@ -161,7 +164,7 @@ class MarkovPass(BasePass):
 
     @staticmethod
     def _compile_matrix(
-        law: MatrixLawSpec,
+        law: _MatrixLawSpec,
         references: Mapping[Expression, ReferenceSpec],
         rows: int,
         time: Expression,
@@ -231,7 +234,7 @@ class MarkovPass(BasePass):
         law: TransitionLaw,
         references: Mapping[Expression, ReferenceSpec],
         updates: dict[str, object],
-    ) -> tuple[UpdateLaw, MatrixLawSpec]:
+    ) -> tuple[UpdateLaw, _MatrixLawSpec]:
         """Return the update law a transition law with a source becomes, and its matrix.
 
         The update law reads the next value of the source state.
@@ -254,10 +257,10 @@ class MarkovPass(BasePass):
             MarkovPass._draw_name('emission', law._get_targets()[0]),
             MarkovPass._get_selected_row(SR(hidden), law.matrix),
         )
-        return UpdateLaw(law._get_targets()[0], value), MatrixLawSpec(owner, description, law.matrix)
+        return UpdateLaw(law._get_targets()[0], value), _MatrixLawSpec(owner, description, law.matrix)
 
     @staticmethod
-    def _get_transition(spec: KernelSpec, law: TransitionLaw) -> tuple[UpdateLaw, MatrixLawSpec | None]:
+    def _get_transition(spec: KernelSpec, law: TransitionLaw) -> tuple[UpdateLaw, _MatrixLawSpec | None]:
         """Return the update law a transition law becomes, and its matrix.
 
         The matrix is left out when a function gives it.
@@ -273,7 +276,7 @@ class MarkovPass(BasePass):
             MarkovPass._draw_name('transition', law._get_targets()[0]),
             MarkovPass._get_selected_row(law._get_targets()[0], law.matrix),
         )
-        return UpdateLaw(law._get_targets()[0], value), MatrixLawSpec(owner, description, law.matrix)
+        return UpdateLaw(law._get_targets()[0], value), _MatrixLawSpec(owner, description, law.matrix)
 
     @staticmethod
     def _get_next_values(rows: Array, draws: Array, description: str) -> npt.NDArray[np.intp]:
@@ -330,7 +333,7 @@ class MarkovPass(BasePass):
     def _get_markov_laws(
         spec: KernelSpec,
         laws: list[BaseLaw],
-    ) -> tuple[list[BaseLaw], list[MatrixLawSpec]]:
+    ) -> tuple[list[BaseLaw], list[_MatrixLawSpec]]:
         """Return the laws of a component with transition laws rewritten.
 
         They are rewritten as update laws with draws.
@@ -352,7 +355,7 @@ class MarkovPass(BasePass):
                 source state is one that no update law of the component sets.
         """
         owner, references = spec.owner, spec.references
-        matrices: list[MatrixLawSpec] = []
+        matrices: list[_MatrixLawSpec] = []
         rewritten: list[BaseLaw] = []
         for law in laws:
             if isinstance(law, TransitionLaw) and law.source is None:

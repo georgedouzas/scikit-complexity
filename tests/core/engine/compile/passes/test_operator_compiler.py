@@ -1,5 +1,6 @@
 """Test the `OperatorCompiler` class."""
 
+import math
 from operator import attrgetter
 from typing import Annotated
 
@@ -8,9 +9,10 @@ import pytest
 import qutip
 from sage.all__sagemath_symbolics import CC
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
-from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw, RateLaw
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -18,10 +20,21 @@ from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile import BaseCompiler, BasePass
 from skcomplex.core.engine.compile._observables import ObservableEvaluator
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
+from skcomplex.core.engine.problems._operator_problem_spec import OperatorProblemSpec
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import IncompatibleLawsError, ValidationError
-from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.common.populations import PopulationElement
-from skcomplex.systems.physics.common.quantum import QUBIT, QubitElement
+from skcomplex.systems.physics.common.quantum import (
+    QUBIT,
+    DissipatorLaw,
+    GeneratorLaw,
+    HilbertSpec,
+    ModeElement,
+    QuantumCompiler,
+    QubitElement,
+    mode_space,
+)
 
 from .....conftest import SpinElement, _spin_space
 
@@ -82,16 +95,17 @@ class ClassicalElement(QubitElement):
 class DecayingElement(QubitElement):
     """Qubit that decays at a rate."""
 
+    visual = VisualSpec('expectations')
+
     def __init__(
         self,
         label: str,
         psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         *,
         hilbert: HilbertSpec = QUBIT,
-        visual: VisualSpec | None = VisualSpec('expectations'),
         gamma: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, psi, hilbert=hilbert, visual=visual)
+        super().__init__(label, psi, hilbert=hilbert)
         self.gamma = gamma
 
     def _get_laws(self, s):
@@ -126,7 +140,7 @@ def test_compiler_counts_one_exchange_term_per_bond():
         ],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
-    problem = OperatorCompiler().prepare(system).run().problem_
+    problem = QuantumCompiler().prepare(system).run().problem_
     matrix = problem._get_generator_at(0.0, problem.initial_parameters).toarray()
     spins = [[qutip.jmat(0.5, axis) for axis in 'xyz'] for _ in range(8)]
     expected = 0
@@ -146,7 +160,7 @@ def test_compiler_folds_constant_generators():
             FixedElement('q'),
         ],
     )
-    problem = OperatorCompiler().prepare(system).run().problem_
+    problem = QuantumCompiler().prepare(system).run().problem_
     assert len(problem.generator) == 1
     assert problem.generator[0].function is None
 
@@ -154,27 +168,27 @@ def test_compiler_folds_constant_generators():
 def test_compiler_rejects_non_hermitian_generators():
     """Test that a generator without its adjoint raises an error that names the law."""
     with pytest.raises(ValidationError, match=r'generator of q is not Hermitian.*adjoint'):
-        OperatorCompiler().prepare(CompositeSystem(elements=[PlusElement('q')])).run()
+        QuantumCompiler().prepare(CompositeSystem(elements=[PlusElement('q')])).run()
 
 
 def test_compiler_rejects_classical_symbols_in_coefficients():
     """Test that a coefficient reading a symbol other than parameters and time raises an error."""
     with pytest.raises(ValidationError, match='n_rabbits'):
-        OperatorCompiler().prepare(CompositeSystem(elements=[ForeignElement('q')])).run()
+        QuantumCompiler().prepare(CompositeSystem(elements=[ForeignElement('q')])).run()
 
 
 def test_compiler_rejects_classical_elements_and_laws():
     """Test that operator systems hold neither classical elements nor classical laws."""
     with pytest.raises(IncompatibleLawsError, match='rabbits'):
-        OperatorCompiler().prepare(CompositeSystem(elements=[QubitElement('q'), PopulationElement('rabbits')])).run()
+        QuantumCompiler().prepare(CompositeSystem(elements=[QubitElement('q'), PopulationElement('rabbits')])).run()
     with pytest.raises(IncompatibleLawsError, match='RateLaw'):
-        OperatorCompiler().prepare(CompositeSystem(elements=[ClassicalElement('q')])).run()
+        QuantumCompiler().prepare(CompositeSystem(elements=[ClassicalElement('q')])).run()
 
 
 def test_compiler_rejects_negative_rates():
     """Test that a dissipator with a negative rate raises an error."""
     with pytest.raises(ValidationError, match='non-negative'):
-        OperatorCompiler().prepare(CompositeSystem(elements=[NegativeElement('q')])).run()
+        QuantumCompiler().prepare(CompositeSystem(elements=[NegativeElement('q')])).run()
 
 
 def test_compiler_stores_neel_states():
@@ -185,7 +199,7 @@ def test_compiler_stores_neel_states():
             GroupElement('chain', element=SpinElement, space=LatticeSpace(6), values={'psi': labels}, on='sites'),
         ],
     )
-    problem = OperatorCompiler().prepare(system).run().problem_
+    problem = QuantumCompiler().prepare(system).run().problem_
     state = problem._get_state_of(problem.initial_state)
     assert np.linalg.norm(state) == pytest.approx(1)
     assert np.flatnonzero(state).tolist() == [int('010101', 2)]
@@ -195,16 +209,16 @@ def test_compiler_stores_neel_states():
 def test_compiler_rejects_invalid_initial_states(initial, message):
     """Test that an unnormalised vector or an unknown name raises an error that names the system."""
     with pytest.raises(ValidationError, match=message):
-        OperatorCompiler().prepare(CompositeSystem('box', elements=[QubitElement('q')])).run({'box.state': initial})
+        QuantumCompiler().prepare(CompositeSystem('box', elements=[QubitElement('q')])).run({'box.state': initial})
 
 
 def test_compiler_stores_density_matrices_of_open_systems():
     """Test that an open system and a mixed initial state compile to density matrices."""
-    problem = OperatorCompiler().prepare(CompositeSystem(elements=[DecayingElement('q')])).run().problem_
+    problem = QuantumCompiler().prepare(CompositeSystem(elements=[DecayingElement('q')])).run().problem_
     assert not problem.pure
     assert problem._get_state_of(problem.initial_state).shape == (2, 2)
     system = CompositeSystem(elements=[QubitElement('q')])
-    mixed = OperatorCompiler().prepare(system).run({'system.state': np.eye(2) / 2}).problem_
+    mixed = QuantumCompiler().prepare(system).run({'system.state': np.eye(2) / 2}).problem_
     assert not mixed.pure
 
 
@@ -222,7 +236,7 @@ def test_compiler_starts_from_the_ground_state():
         ],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
-    problem = OperatorCompiler().prepare(system).run({'system.state': 'ground'}).problem_
+    problem = QuantumCompiler().prepare(system).run({'system.state': 'ground'}).problem_
     energy = (
         ObservableEvaluator(problem)
         .prepare()
@@ -246,10 +260,10 @@ def test_observable_evaluator_reads_local_magnetization():
         ],
     )
     observables = [
-        ObservableSpec('sz', local_z, group='chain', reduce=np.asarray),
-        ObservableSpec('total', local_z, group='chain', reduce='sum'),
+        Observable('sz', local_z, group='chain', reduce=np.asarray),
+        Observable('total', local_z, group='chain', reduce='sum'),
     ]
-    problem = OperatorCompiler(observables=observables).prepare(system).run().problem_
+    problem = QuantumCompiler(observables=observables).prepare(system).run().problem_
     values = ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
     assert values['sz'].tolist() == [0.5, -0.5] * 4
     assert values['total'] == 0.0
@@ -260,7 +274,7 @@ def test_observable_evaluator_rejects_non_operators():
     system = CompositeSystem(elements=[QubitElement('q')])
     with pytest.raises(ValidationError, match='must give an operator'):
         ObservableEvaluator(
-            OperatorCompiler(observables=[ObservableSpec('label', attrgetter('t'))]).prepare(system).run().problem_,
+            QuantumCompiler(observables=[Observable('label', attrgetter('t'))]).prepare(system).run().problem_,
         ).prepare()
 
 
@@ -286,3 +300,32 @@ def test_operator_compiler_get_hilbert_state():
             self.psi = psi
 
     assert OperatorCompiler._get_hilbert_state(TwoLevelElement) == 'psi'
+
+
+def test_dimension_rejects_an_element_without_a_hilbert_space():
+    """Test that a subsystem without a Hilbert space raises an error."""
+    with pytest.raises(ValidationError, match='takes no Hilbert space'):
+        _ = OperatorCompiler._get_view_of(SpinElement('p', hilbert=None)).dimension
+
+
+def test_compiler_gives_the_dimensions_of_a_chain_and_a_mode():
+    """Test that a chain of spins and a mode compile to the tensor product of their spaces."""
+    system = CompositeSystem(
+        elements=[
+            GroupElement('chain', element=SpinElement, space=LatticeSpace(10), on='sites'),
+            ModeElement('cavity', hilbert=mode_space(4)),
+        ],
+    )
+    problem = QuantumCompiler().prepare(system).run().problem_
+    assert isinstance(problem, OperatorProblemSpec)
+    assert problem.form == FormKind.OPERATOR
+    assert list(problem.dimensions) == [2] * 10 + [5]
+    assert math.prod(problem.dimensions) == 5120
+
+
+def test_operator_compiler_leaves_every_law_to_the_compiler_of_a_field():
+    """Test that the operator compiler compiles elements without laws and rejects any law it does not add."""
+    problem = OperatorCompiler().prepare(CompositeSystem(elements=[QubitElement('q')])).run().problem_
+    assert problem.dimensions == (2,)
+    with pytest.raises(IncompatibleLawsError, match='GeneratorLaw, which OperatorCompiler cannot compile'):
+        OperatorCompiler().prepare(CompositeSystem(elements=[FixedElement('q')])).run()

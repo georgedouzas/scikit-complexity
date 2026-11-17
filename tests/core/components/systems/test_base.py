@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 
 class StockElement(Element):
@@ -21,11 +21,10 @@ class StockElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
 
@@ -50,8 +49,8 @@ def test_base_system_returns_its_tuned_run_settings():
     assert (settings['until'], settings['dt'], settings['observables']) == (5.0, None, ())
 
 
-def test_base_system_passes_model_parameters_down_to_its_parts():
-    """Test that setting a model parameter of a system subclass changes the parts of the next `prepare`."""
+def test_base_system_passes_model_parameters_down_to_its_components():
+    """Test that setting a model parameter of a system subclass changes the components of the next `prepare`."""
     system = GrowthSystem(r=0.3).prepare()
     before = system.system_
     assert system.get_params() == {'label': 'growth', 'r': 0.3}
@@ -64,7 +63,7 @@ def test_base_system_passes_model_parameters_down_to_its_parts():
 
 
 class CountingSystem(GrowthSystem):
-    """CompositeSystem of exponential growth that counts how often it builds its parts."""
+    """CompositeSystem of exponential growth that counts how often it builds its components."""
 
     def __init__(self, label: str = 'growth', r: float = 1.0, weights: object = None) -> None:
         super().__init__(label, r)
@@ -76,8 +75,8 @@ class CountingSystem(GrowthSystem):
         return super()._build_system()
 
 
-def test_base_system_builds_its_parts_once_per_set_of_parameters():
-    """Test that tags, checks, and prepares reuse the built parts until a parameter changes by value."""
+def test_base_system_builds_its_components_once_per_set_of_parameters():
+    """Test that tags, checks, and prepares reuse the built components until a parameter changes by value."""
     system = CountingSystem(r=0.3, weights=np.ones(3))
     system.get_tags()
     system.prepare().prepare()
@@ -93,7 +92,7 @@ def test_base_system_builds_its_parts_once_per_set_of_parameters():
     assert system.n_builds == 3
 
 
-def test_base_system_rejects_parts_that_are_no_system():
+def test_base_system_rejects_components_that_are_no_system():
     """Test that a system subclass whose hook returns no `CompositeSystem` fails to prepare."""
 
     class BrokenSystem(BaseSystem):
@@ -102,11 +101,11 @@ def test_base_system_rejects_parts_that_are_no_system():
         def _build_system(self):
             return StockElement('stock')
 
-    with pytest.raises(ValidationError, match='builds its parts as a CompositeSystem, not as StockElement'):
+    with pytest.raises(ValidationError, match='builds its components as a CompositeSystem, not as StockElement'):
         BrokenSystem().prepare()
 
 
-def test_base_system_rejects_parts_that_are_no_composite():
+def test_base_system_rejects_components_that_are_no_composite():
     """Test that a system subclass whose hook returns a system class, not its own composite, fails to prepare."""
 
     class NestingSystem(BaseSystem):
@@ -115,5 +114,5 @@ def test_base_system_rejects_parts_that_are_no_composite():
         def _build_system(self):
             return GrowthSystem()
 
-    with pytest.raises(ValidationError, match='builds its parts as a CompositeSystem, not as GrowthSystem'):
+    with pytest.raises(ValidationError, match='builds its components as a CompositeSystem, not as GrowthSystem'):
         NestingSystem().prepare()

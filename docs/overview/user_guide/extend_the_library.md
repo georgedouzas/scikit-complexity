@@ -1,8 +1,8 @@
 # Extend the library
 
-This page adds elements, interactions, laws, and other parts of your own without changing the library, and shows where
-every class lives. A part of your own is a subclass of a class of the core, so the checks and the laws of its parent
-keep working.
+This page adds elements, interactions, laws, and other components of your own without changing the library, and shows
+where every class lives. A component of your own is a subclass of a class of the core, so the checks and the laws of its
+parent keep working.
 
 ## Extending the general classes
 
@@ -30,8 +30,8 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class StockElement(Element):
-    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
         self.level = level
 
 
@@ -62,8 +62,8 @@ of a group by Monte Carlo moves, to the inverse temperature `beta` of a magnet. 
 
 ```python continuation
 class SpinElement(Element):
-    def __init__(self, label, visual=None, *, s: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, s: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
         self.s = s
 
 
@@ -118,19 +118,19 @@ from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import PartnerSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import PartnerSpec
 
 
 class EaterElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         level: Annotated[float, StateSpec()] = 0.0,
         sold: Annotated[float, StateSpec()] = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
         self.sold = sold
 
@@ -192,8 +192,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class QueueElement(Element):
-    def __init__(self, label, visual=None, *, orders: Annotated[object, StateSpec(domain=None)] = ()):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, orders: Annotated[object, StateSpec(domain=None)] = ()):
+        super().__init__(label)
         self.orders = orders
 
     def _get_laws(self, s):
@@ -237,10 +237,11 @@ velocities from these roles, not from the names of the states. So a state named 
 
 ### Checking arguments
 
-This section checks the arguments of a new part. The constructor only stores its arguments, so a part with a bad
-argument is built without error. Preparing it, alone or within its system, raises the error. The check goes at the
-start of the hook `_prepare`, which begins with `super()._prepare(context)`. The base of the parts checks the label and
-the declared specs first, and then the part checks its own arguments before it sets any attribute that ends in `_`.
+This section checks the arguments of a new component. The constructor only stores its arguments, so a component with a
+bad argument is built without error. Preparing it, alone or within its system, raises the error. The check goes at the
+start of the hook `_prepare`, which begins with `super()._prepare(context)`. The base of the components checks the label
+and the declared specs first, and then the component checks its own arguments before it sets any attribute that ends in
+`_`.
 
 ```python
 from typing import Annotated
@@ -251,8 +252,8 @@ from skcomplex.core.specs import StateSpec
 
 
 class TankElement(Element):
-    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 1.0, capacity=10.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 1.0, capacity=10.0):
+        super().__init__(label)
         self.level = level
         self.capacity = capacity
 
@@ -275,14 +276,14 @@ message, hasattr(tank, 'free_'), TankElement('tank').prepare().free_
 The message reads "The capacity of 'tank' is -1.0. Give a positive capacity." The failed tank sets no `free_`, and a
 tank with the default capacity of 10 and level of 1 has 9.0 free. The fix is a positive capacity.
 
-A spec, such as `StateSpec`, is a frozen value, not an estimator, so it has neither `prepare` nor `run`. The part that
-holds a spec checks it through the private hook `_check` of the spec when it reads it, as the base of the parts does
-for the specs of the annotated arguments.
+A spec, such as `StateSpec`, is a frozen value, not an estimator, so it has neither `prepare` nor `run`. The component
+that holds a spec checks it through the private hook `_check` of the spec when it reads it, as the base of the
+components does for the specs of the annotated arguments.
 
 ## Package layout
 
-This section shows where every class lives, so you know what to import and where a part of your own belongs. The
-package has two parts.
+This section shows where every class lives, so you know what to import and where a component of your own belongs. The
+package has two subpackages.
 
 - `skcomplex.core` is the general library: what a system is, how it runs, and how you analyse it and experiment with
   it.
@@ -305,8 +306,8 @@ are functions of these estimators. Every ready-made system belongs to a field an
 issubclass(LotkaVolterraSystem, BaseSystem), LotkaVolterraSystem.field
 ```
 
-`LotkaVolterraSystem` is a `BaseSystem` of the field path `'biology/ecology'`. The parts of the core are layered, so
-that each imports only the parts below it. From top to bottom:
+`LotkaVolterraSystem` is a `BaseSystem` of the field path `'biology/ecology'`. The packages of the core are layered,
+so that each imports only the packages below it. From top to bottom:
 
 1. `skcomplex.core.experiments` runs many simulations.
 2. `skcomplex.core.analysis` measures systems, trajectories, and data.
@@ -314,33 +315,36 @@ that each imports only the parts below it. From top to bottom:
 4. `skcomplex.core.components` defines what a system is.
 5. `skcomplex.core.specs` holds the specs.
 6. `skcomplex.core.base` holds `BaseConfig`.
-7. `skcomplex.core.types` and `skcomplex.core.errors` hold the types and the errors.
+7. `skcomplex.core.types`, `skcomplex.core.enums`, and `skcomplex.core.errors` hold the types, the kinds, and the errors.
 
 No part of the core imports `skcomplex.systems`, and the systems import only the public modules of the core. Tests of
 the import contracts enforce the layering.
 
-### Where a new part goes
+### Where a new component goes
 
-This section decides where a part of your own belongs. One ordered test, the placement rule, decides where any part
-goes, and `tests/test_sources.py` checks it mechanically. The page
-[General realizations](core_components/general.md#where-a-part-goes) quotes the rule word for word.
+This section decides where a component of your own belongs. One ordered test, the placement rule, decides where any
+component goes, and `openspec/scripts/check_conventions.py` checks it mechanically. The page [General
+realizations](core_components/general.md#where-a-component-goes) quotes the rule word for word.
 
 1. A structural base, such as a `Base` class, the composite system, or a base where laws run per member, edge,
    hyperedge, or pair, goes to the core.
-2. A part that the engine handles by type, through a compile pass, a kernel, a solver, a backend lowering, or an
+2. A component that the engine handles by type, through a compile pass, a kernel, a solver, a backend lowering, or an
    analysis that checks the class or its spec, goes to the core, and so does an operator generated from one function.
    It is named by its mathematics and must be cross-domain in principle.
-3. Every other part is a recipe, expressible with core parts. Its users place it. Several fields:
+3. Every other component is a recipe, expressible with core components. Its users place it. Several fields:
    `skcomplex.systems.general.<concept>`. One field with several systems: `systems/<field>/common/<family>`. One
    system: that system's module. A field with its own term names it, and `general` uses neutral names.
 4. A recipe that needs something the core cannot express reveals a missing core primitive, which enters by step 2.
    Engine support never lives inside a recipe.
 5. The core never imports `skcomplex.systems`.
 
+Analyses follow the rule by their users too. An analysis that measures what systems of several fields share goes to
+`skcomplex.core.analysis`, and an analysis of one field goes to `systems/<field>/common/<family>`.
+
 One example for each step follows.
 
 1. [`HyperedgeInteraction`](core_components/interactions.md#hyperedgeinteraction) runs its laws once per hyperedge,
-   and `CompositeSystem` holds the parts of a system, so both are structural bases of the core.
+   and `CompositeSystem` holds the components of a system, so both are structural bases of the core.
 2. [`GroupingInteraction`](core_components/interactions.md#groupinginteraction) stays in the core, since a compile
    pass lowers its symbolic form by type to kernels over random groups redrawn every step. Its name is the mathematics
    it does, and economics and social science both form groups.
@@ -353,7 +357,7 @@ One example for each step follows.
 4. The satisfiability once had a check of its own in the compiler, which is engine support inside a recipe. The check
    that a role accepts only Boolean states is a primitive of the core, `RoleSpec(domains=...)`, so the recipe declares
    its role with it and the compiler keeps no code for the class.
-5. `sparse_identification` of the core returns a `CompositeSystem` of core parts, never a class of
+5. `sparse_identification` of the core returns a `CompositeSystem` of core components, never a class of
    `skcomplex.systems`, so the core runs without the catalog.
 
 ### The root modules
@@ -362,14 +366,16 @@ This section lists the modules that every package of the core shares.
 
 - `skcomplex.core.base` holds `BaseConfig`, the root of every configurable class. It stores the settings of a class
   under their own names, as scikit-learn does, so `get_params`, `set_params`, and `clone` work on every class. It gives
-  every class the main public methods `prepare` and `run`, and `get_tags` returns the capability tags of every part.
+  every class the main public methods `prepare` and `run`, and `get_tags` returns the capability tags of every
+  component.
 - `skcomplex.core.errors` holds the errors and warnings, such as `ValidationError`, `RoleError`, `SolverError`, and
   `RewritingError`.
-- `skcomplex.core.types` holds the types that every layer reads, such as arrays, functions, keys, and kinds.
+- `skcomplex.core.types` holds the types that every layer reads, such as arrays, functions, and keys.
+- `skcomplex.core.enums` holds the kinds that every layer reads, such as `DataKind`, `FormKind`, and `ElementKind`.
 - `skcomplex.core.specs` holds the specs, frozen values that declare, record, or hold what the classes read. These
   include the specs that annotate states, parameters, and roles, such as `StateSpec`, `ParameterSpec`, and `RoleSpec`,
-  the specs of runs and structures, such as `ObservableSpec` and `WienerProcessSpec`, and the specs of rules, domains,
-  and geometries, such as `TableSpec`, `LinearRuleSpec`, `SubshiftSpec`, and `GeometrySpec`.
+  the specs of runs and structures, such as `Observable` and `WienerProcessSpec`, and the specs of rules, domains,
+  and geometries, such as `TableSpec`, `LinearRuleSpec`, and `SubshiftSpec`.
 
 ### The core
 
@@ -377,7 +383,7 @@ This section lists the modules of `skcomplex.core.components`, which defines wha
 runs. They are listed in their import order, so a module imports only the modules above it.
 
 - `types`: the types of the components, such as the targets of laws and the pairings of transfers.
-- `base`: `BasePart`, the base of every part of a system, built on `BaseConfig`.
+- `base`: `BaseComponent`, the base of every component of a system, built on `BaseConfig`.
 - `spaces`: the continuous, lattice, network, mesh, and Cayley spaces, their neighbourhoods, and the kinds of time.
 - `laws`: the `BaseLaw` base and every law. `laws.utils` holds what laws are written with besides Sage, such as
   `where`, reductions, draws, delays, and calls. The helpers that only the compiler reads, such as `reductions_in`,

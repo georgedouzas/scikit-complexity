@@ -14,19 +14,21 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.interactions import WienerProcessSpec
+from ....components.laws import BaseLaw, BoundaryLaw, CallSpec, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import PipelineError, ValidationError
-from ....specs import CallSpec, LayoutSpec, NoiseProcessSpec, WienerProcessSpec
 from ....types import ProcessKey
 from ..._utils import components_of, symbols_of
+from ...enums import ReadKind
+from ...problems import LayoutSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
+from ...problems._noise_process_spec import _NoiseProcessSpec
 from ...problems._output_spec import OutputSpec
 from ...problems._random_stream import RandomStream
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._laws import KERNEL_FREE_LAWS
@@ -328,7 +330,10 @@ class KernelsPass(BasePass):
             return vectors * np.sqrt(np.maximum(values, 0.0))
 
     @staticmethod
-    def _get_noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpec]) -> NoiseProcessSpec | None:
+    def _get_noise_process(
+        key: ProcessKey | None,
+        wieners: Mapping[str, WienerProcessSpec],
+    ) -> _NoiseProcessSpec | None:
         """Return the named Wiener process of a process key.
 
         It holds the covariance factor of a `WienerProcessSpec`.
@@ -337,10 +342,10 @@ class KernelsPass(BasePass):
             return None
         kind, owner, item = key
         if kind == 'local':
-            return NoiseProcessSpec(key)
+            return _NoiseProcessSpec(key)
         wiener = wieners[owner]
         factor = None if wiener.covariance is None else KernelsPass._get_covariance_factor(wiener.covariance)
-        return NoiseProcessSpec(owner, int(item), wiener.dimension, factor)
+        return _NoiseProcessSpec(owner, int(item), wiener.dimension, factor)
 
     @staticmethod
     def _get_kind_of(law: BaseLaw) -> type:

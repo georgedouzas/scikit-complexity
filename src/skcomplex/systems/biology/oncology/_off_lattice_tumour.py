@@ -12,6 +12,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 from scipy.spatial import cKDTree
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
@@ -19,7 +20,7 @@ from ....core.components.spaces import ContinuousSpace, DelaunayNeighborhood, Di
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 BINARY = FiniteEnumeratedSet([0, 1])
 HOURS_PER_DAY = 24.0
@@ -289,7 +290,7 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
     topics = ('tumour growth', 'agents', 'off-lattice', 'springs', 'delaunay', 'stochastic')
     references = ('Wang et al. 2024', 'Jenner et al. 2020', 'Meineke et al. 2001')
     until = 240.0
-    observables = (ObservableSpec('tumour_area', group='cells', variable='cancer', reduce=_get_tumour_area),)
+    observables = (Observable('tumour_area', group='cells', variable='cancer', reduce=_get_tumour_area),)
 
     def __init__(
         self,

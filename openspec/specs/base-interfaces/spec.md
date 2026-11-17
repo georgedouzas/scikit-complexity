@@ -66,13 +66,13 @@ reads the spec, and preparing a system SHALL check every law and spec it holds.
 - **THEN** it equals the registered kind with `==`
 
 ### Requirement: Behaviour is named, not magic
-No class of `core`, `engine`, or `formalisms` SHALL define a magic method except `__init__` and the arithmetic of
+No class of `skcomplex.core` SHALL define a magic method except `__init__` and the arithmetic of
 the quantum operators. Collections SHALL be read with named methods and properties, the symbol namespace of laws
 SHALL store its symbols as plain attributes, and an agent rule SHALL read and set states through the properties of a
 view class generated per group.
 
 #### Scenario: Magic methods
-- **WHEN** every class of `core`, `engine`, and `formalisms` is listed with the magic methods it defines itself
+- **WHEN** every class of `skcomplex.core` is listed with the magic methods it defines itself
 - **THEN** none defines one besides `__init__` and the quantum operator arithmetic
 
 #### Scenario: Reading a trajectory
@@ -103,7 +103,7 @@ or `reservoir`, which takes its settings as keyword arguments and returns a froz
 
 ### Requirement: The runtime reads problems through their base
 The runtime, the visuals, and the analyses SHALL read a problem only through the fields and readers of
-`BaseProblem`, without `getattr` fallbacks, and the engine SHALL call no method of a formalism's problem.
+`BaseProblemSpec`, without `getattr` fallbacks, and the engine SHALL call no method of a problem subclass.
 
 #### Scenario: Quantum run through the base
 - **WHEN** a quantum system is simulated, recorded, and shown in Rerun
@@ -133,18 +133,21 @@ An object that keeps state between calls or acts SHALL be a class under the base
 - **WHEN** a user inspects the class that records observables during a run
 - **THEN** it derives from `BaseConfig` and is not a dataclass
 
-### Requirement: Kinds and protocols are types
-Every enum of the library outside the systems SHALL live in `skcomplex.core.types` and end in `Kind`, and every protocol
-SHALL live in `skcomplex.core.types` and end in `Protocol`.
+### Requirement: Enums and protocols live in their modules
+Every enum of the core SHALL live in the `enums` module of the lowest layer that reads it, `skcomplex.core.enums` or
+`skcomplex.core.engine.enums`. Every type alias and protocol SHALL live in the `types` module of its layer, and every
+protocol SHALL end in `Protocol`.
 
-#### Scenario: Kinds from types
-- **WHEN** a user imports `NoiseKind`, `OrderKind`, `FormKind`, and `RecordProtocol` from `skcomplex.core.types`
-- **THEN** every import succeeds and no other module of the library defines an enum or a protocol
+#### Scenario: Kinds from enums
+- **WHEN** a user imports `NoiseKind`, `OrderKind`, and `FormKind` from `skcomplex.core.enums`, and
+  `AgentViewProtocol` from `skcomplex.core.components.types`
+- **THEN** every import succeeds, and no module of the core outside an `enums` module defines an enum, and none
+  outside a `types` module defines a protocol
 
 ### Requirement: Runs keep their results as attributes
 Every main public method of a configurable object SHALL return the object itself, and every hook SHALL return `None`. A run SHALL
 keep what it produces in an attribute ending in `_`, named once for each family:
-- elements, interactions, and systems keep their laws in `laws_`, and no other part has `laws_`,
+- elements, interactions, and systems keep their laws in `laws_`, and no other component has `laws_`,
 - laws keep their contribution in `value_`,
 - compilers keep the compiled problem in `problem_`,
 - lowerings keep what they lowered in `lowered_`,
@@ -205,10 +208,10 @@ class that generates source SHALL load it through a `SourceLoader`.
 
 ### Requirement: Preparing validates first
 `prepare` SHALL check the settings of an object, and the specs it owns, at the start of `_prepare`, before the object
-derives anything or sets any attribute ending in `_`, raising the error that names the part and the argument at fault.
-A bad setting SHALL be reported before a missing or wrong context. An owner SHALL prepare the parts it owns, and SHALL
-call `_check` on the specs it reads. A composite that fails on one part MAY leave earlier parts prepared, and preparing
-again SHALL replace their attributes.
+derives anything or sets any attribute ending in `_`, raising the error that names the component and the argument at
+fault. A bad setting SHALL be reported before a missing or wrong context. An owner SHALL prepare the components it
+owns, and SHALL call `_check` on the specs it reads. A composite that fails on one component MAY leave earlier
+components prepared, and preparing again SHALL replace their attributes.
 
 #### Scenario: A bad spec fails at prepare
 - **WHEN** a user builds a system with an interaction that holds an invalid spec, and simulates it
@@ -224,33 +227,34 @@ again SHALL replace their attributes.
 - **THEN** the second `prepare` raises an error that names the parameter
 
 #### Scenario: Removed names
-- **WHEN** a user lists the attributes of `BaseConfig`, `BaseSpec`, and `BasePart`, and the names in
+- **WHEN** a user lists the attributes of `BaseConfig`, `BaseSpec`, and `BaseComponent`, and the names in
   `skcomplex.core.errors`
-- **THEN** none has `check`, `BaseConfig` and `BasePart` have no `_check` and no `_validated`, `BaseSpec` has no
+- **THEN** none has `check`, `BaseConfig` and `BaseComponent` have no `_check` and no `_validated`, `BaseSpec` has no
   `prepare` and no `run`, and `NotCheckedError` does not exist
 
-### Requirement: Estimators are the parts and the engine
-The classes with `prepare` and `run` SHALL be the parts a modeler defines, which are elements, interactions, laws,
-spaces, times, and systems, and the engine that runs them, which is solvers, backends, compilers and their passes,
-observers, visuals, clocks, kernels, and printers. Simulating, analysing, running experiments, and calibrating SHALL be
-functions of a system or of its results.
+### Requirement: Estimators are the components and the engine
+The classes with `prepare` and `run` SHALL be the components a modeler defines, which are elements, interactions,
+laws, spaces, times, and systems, and the engine that runs them, which is solvers, backends, compilers and their
+passes, observers, visuals, clocks, kernels, and printers. Simulating, analysing, running experiments, and calibrating
+SHALL be functions of a system or of its results.
 
 #### Scenario: Listing estimators
 - **WHEN** a test lists the public classes of `skcomplex.core` that have `prepare` and `run`
-- **THEN** every one is a part or a class of the engine, and none is an experiment or a calibration
+- **THEN** every one is a component or a class of the engine, and none is an experiment or a calibration
 
 ### Requirement: Systems form a class hierarchy
-`BaseSystem` SHALL be the base of every system: it SHALL hold `prepare`, `run`, `get_tags()` derived from the parts,
-nesting, and the passing of model parameters down to the parts. `CompositeSystem(BaseSystem)` SHALL be the generic composite of
-elements, interactions, and nested systems. A class SHALL NOT be chosen by mathematical form, which the tags give.
+`BaseSystem` SHALL be the base of every system: it SHALL hold `prepare`, `run`, `get_tags()` derived from the
+components, nesting, and the passing of model parameters down to the components. `CompositeSystem(BaseSystem)` SHALL
+be the generic composite of elements, interactions, and nested systems. A class SHALL NOT be chosen by mathematical
+form, which the tags give.
 
 #### Scenario: Generic composite
 - **WHEN** a user builds `CompositeSystem(elements=[...], interactions=[...])`
-- **THEN** it is a `BaseSystem`, and its tags come from its parts
+- **THEN** it is a `BaseSystem`, and its tags come from its components
 
 ### Requirement: Ready-made systems are classes with model parameters
 Every ready-made system SHALL be a class deriving from `BaseSystem` or from a general system of the core, whose
-constructor only stores the model's own parameters and whose `prepare` builds its parts from them. `get_params`,
+constructor only stores the model's own parameters and whose `prepare` builds its components from them. `get_params`,
 `set_params`, and `clone` SHALL work on those parameters.
 
 #### Scenario: Changing a model parameter
@@ -260,10 +264,11 @@ constructor only stores the model's own parameters and whose `prepare` builds it
 ### Requirement: General systems enter the core only when fields share them
 The core SHALL hold only the systems that are building blocks: `BaseSystem`, the base of every system, and
 `CompositeSystem`, the composite of elements, interactions, and nested systems that the engine flattens. A general
-system that builds a `CompositeSystem` from core parts, such as `ReactionNetworkSystem`, is a recipe. It SHALL be named
-after its mathematics, never after a field quantity, and SHALL live in a subpackage of `skcomplex.systems.general` when
-systems of two fields share its structure, or in the `common` package of one field otherwise. A ready-made system SHALL
-subclass only `BaseSystem`, general systems of `skcomplex.systems.general`, or systems of its own field.
+system that builds a `CompositeSystem` from core components, such as `ReactionNetworkSystem`, is a recipe. It SHALL be
+named after its mathematics, never after a field quantity, and SHALL live in a subpackage of
+`skcomplex.systems.general` when systems of two fields share its structure, or in the `common` package of one field
+otherwise. A ready-made system SHALL subclass only `BaseSystem`, general systems of `skcomplex.systems.general`, or
+systems of its own field.
 
 #### Scenario: Shared structure
 - **WHEN** an epidemic model and a chemical kinetics model both build species and reactions with product propensities

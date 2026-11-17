@@ -22,9 +22,10 @@ from ..components.systems import CompositeSystem
 from ..engine._utils import bound_labels, components_of, declarations_of, default_of, symbol
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
+from ..enums import DataKind, FormKind, VariableKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind, FormKind, VariableKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite, _read_system
 from ._groups import _Expansion
 from ._symbolic import _declare_domains
@@ -492,7 +493,7 @@ def _bound_interactions(system: CompositeSystem, field: FieldElement) -> list[Ba
             for label in bound_labels(getattr(interaction, name) or ())
         ]
         if not labels or any(label != field.label for label in labels):
-            error_msg = f'The interaction {interaction.label} binds a part other than the field {field.label}.'
+            error_msg = f'The interaction {interaction.label} binds a component other than the field {field.label}.'
             raise AnalysisError(error_msg)
         bound.append(interaction)
     return bound
@@ -537,13 +538,13 @@ def _linearised_rates(
     The Laplacians of the rates become eigenvalues. The rates add the laws of the field's element and of the
     interactions bound to the field.
     """
-    part = field.get_declaring_part()
-    member = field._get_member() if isinstance(part, BaseElement) else field.element(field.label)
-    states = list(declarations_of(part, VariableKind.STATE))
-    values = {name: default_of(part, name) for name in states} | dict(field.values or {})
+    component = field.get_declaring_element()
+    member = field._get_member() if isinstance(component, BaseElement) else field.element(field.label)
+    states = list(declarations_of(component, VariableKind.STATE))
+    values = {name: default_of(component, name) for name in states} | dict(field.values or {})
     parameters = {}
-    for name in declarations_of(part, VariableKind.PARAMETER):
-        value = np.asarray(values.get(name, default_of(part, name)))
+    for name in declarations_of(component, VariableKind.PARAMETER):
+        value = np.asarray(values.get(name, default_of(component, name)))
         if value.ndim:
             error_msg = f'The parameter {field.label}.{name} varies over the lattice, so there is no uniform state.'
             raise AnalysisError(error_msg)
@@ -559,7 +560,7 @@ def _linearised_rates(
             name: SimpleNamespace(**names, **parameters)
             for name in declarations_of(type(interaction), VariableKind.ROLE)
         }
-        for law in interaction.prepare().run(SimpleNamespace(**roles, **own, t=time)).laws_:
+        for law in interaction._get_prepared_laws(SimpleNamespace(**roles, **own, t=time)):
             _add_rate(rates, names, law, field.label)
     return {name: rates[name] for name in states if name in rates}, names, values
 

@@ -18,11 +18,12 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, TransferInteraction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import BaseLaw, PartnerSpec, RuleLaw
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, PartnerSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 
@@ -109,9 +110,6 @@ class EaterElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         home:
             The position of the person's home.
 
@@ -158,12 +156,13 @@ class EaterElement(Element):
         ('people', 'EaterElement', 5)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'bmi', 'color_range': (18.5, 35.0)})
+
     law_classes = (RuleLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'bmi', 'color_range': (18.5, 35.0)}),
         *,
         home: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
         work: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
@@ -178,7 +177,7 @@ class EaterElement(Element):
         reach: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
         activity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.55,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.home = home
         self.work = work
         self.weight = weight
@@ -338,9 +337,6 @@ class RestaurantElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         kind:
             The kind of restaurant.
 
@@ -361,13 +357,12 @@ class RestaurantElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         kind: Annotated[float, StateSpec(domain=NN)] = 0.0,
         sold: Annotated[float, StateSpec(domain=NN)] = 0.0,
         sold_high: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.kind = kind
         self.sold = sold
         self.sold_high = sold_high
@@ -442,7 +437,7 @@ class ObesitySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         homes, works = rng.uniform(0, self.size, (2, self.n_places, 2))
         home, work = (

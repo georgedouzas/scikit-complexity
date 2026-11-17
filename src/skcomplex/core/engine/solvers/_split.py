@@ -12,20 +12,21 @@ from scipy.sparse import csr_matrix, diags, identity
 from scipy.sparse.linalg import SuperLU, splu
 
 from ...components.elements import FieldElement
-from ...components.laws import BoundaryLaw, FluxLaw, LinearProgramLaw, RateLaw, TransferLaw
+from ...components.laws import BoundaryLaw, LinearProgramLaw, RateLaw, TransferLaw
 from ...components.spaces import (
     CayleySpace,
+    CellComplexSpace,
     ContinuousSpace,
     ContinuousTime,
     LatticeNeighborhood,
     LatticeSpace,
-    MeshSpace,
     NetworkSpace,
 )
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, ComplexArray, FormKind, OrderKind
+from ...types import Array, ComplexArray
 from .._utils import symbol
+from ..backends import SupportSpec
 from ..compile._field_lowering import FieldLowering
 from ..problems import ProblemSpec
 from ..problems._expression_printer import ExpressionPrinter
@@ -69,8 +70,8 @@ class SplitSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={LinearProgramLaw, RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            laws={LinearProgramLaw, RateLaw, BoundaryLaw, TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -324,7 +325,7 @@ class SplitSolver(Solver):
         for name, axis in reversed(term.chain):
             operator = (
                 SplitSolver._get_mesh_operator(place.space, name)
-                if isinstance(place.space, MeshSpace)
+                if isinstance(place.space, CellComplexSpace) and place.space._is_mesh()
                 else SplitSolver._get_lattice_operator(name, axis, place, term.source)
             )
             matrix = operator @ matrix
@@ -386,7 +387,7 @@ class SplitSolver(Solver):
         return dimensions, [SplitSolver._get_rows(reference) for reference in states.values()], matrix
 
     @staticmethod
-    def _get_mesh_operator(space: MeshSpace, name: str) -> csr_matrix:
+    def _get_mesh_operator(space: CellComplexSpace, name: str) -> csr_matrix:
         """Return the finite element Laplacian of a mesh."""
         if name != 'laplacian':
             error_msg = f'Only Laplacians act on finite element fields, but a term takes the {name}.'

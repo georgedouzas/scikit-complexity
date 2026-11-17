@@ -13,23 +13,23 @@ import scipy.sparse
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
 from ...components.laws import (
-    BilinearLaw,
     BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
-    FluxLaw,
+    ConstraintLaw,
+    EventLaw,
     LinearProgramLaw,
     RateLaw,
     TransferLaw,
 )
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import RunStateSpec, SupportSpec
-from ...specs._segment_spec import _SegmentSpec
-from ...types import Array, FormKind, OrderKind
-from ..problems import ProblemSpec
+from ...types import Array
+from ..backends import SupportSpec
+from ..problems import ProblemSpec, RunStateSpec
+from ..problems._bilinear_law import BilinearLaw
 from ._event_locator import EventLocator
 from ._history import RESTART, History
+from ._segment_spec import _SegmentSpec
 from ._solver import Solver
 
 METHODS = {'RK45': RK45, 'RK23': RK23, 'DOP853': DOP853, 'Radau': Radau, 'BDF': BDF, 'LSODA': LSODA}
@@ -116,7 +116,7 @@ class ScipyODESolver(Solver):
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import ScipyODESolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> system = CompositeSystem(
         ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
@@ -133,13 +133,12 @@ class ScipyODESolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={
                 LinearProgramLaw,
                 RateLaw,
-                FluxLaw,
-                EquationLaw,
-                CrossingLaw,
+                ConstraintLaw,
+                EventLaw,
                 BoundaryLaw,
                 TransferLaw,
                 BilinearLaw,

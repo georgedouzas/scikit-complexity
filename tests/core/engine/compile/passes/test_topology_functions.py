@@ -9,15 +9,21 @@ import pytest
 from skcomplex.core.analysis import fit_law
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, NeighborInteraction
-from skcomplex.core.components.laws import JumpLaw, UpdateLaw
+from skcomplex.core.components.laws import JumpLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors, total
-from skcomplex.core.components.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace, RadiusNeighborhood
+from skcomplex.core.components.spaces import (
+    AdjacencyNeighborhood,
+    DiscreteTime,
+    LayerSpec,
+    NetworkSpace,
+    RadiusNeighborhood,
+)
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import CapacityError
-from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 def _degree(node):
@@ -36,12 +42,11 @@ class NodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         age: Annotated[object, StateSpec()] = 0.0,
         x: Annotated[object, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.age = age
         self.x = x
 
@@ -56,11 +61,10 @@ class LinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         w: Annotated[object, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.w = w
 
 
@@ -78,13 +82,12 @@ class SISElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         i: Annotated[object, StateSpec()] = 0.0,
         beta: Annotated[object, ParameterSpec()] = 0.3,
         gamma: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.i = i
         self.beta = beta
         self.gamma = gamma
@@ -209,12 +212,11 @@ def test_requests_remove_and_add_edges_and_nodes():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             age: Annotated[object, StateSpec()] = 0.0,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.age = age
             self.x = x
 
@@ -248,11 +250,10 @@ def test_requests_remove_and_add_edges_and_nodes():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -342,12 +343,11 @@ def test_reductions_over_capacity_groups_count_present_members():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
-            size: Annotated[object, StateSpec()] = 0.0,
+            count: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
-            self.size = size
+            super().__init__(label)
+            self.count = count
 
     class CountingInteraction(Interaction):
         """Counting interaction."""
@@ -365,7 +365,7 @@ def test_reductions_over_capacity_groups_count_present_members():
 
         def _get_laws(self, s):
             """Return the laws of the counting interaction."""
-            return [UpdateLaw(s.counter.size, total(s.nodes.x))]
+            return [UpdateLaw(s.counter.count, total(s.nodes.x))]
 
     space = NetworkSpace(nx.complete_graph(3))
     system = CompositeSystem(
@@ -379,7 +379,7 @@ def test_reductions_over_capacity_groups_count_present_members():
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=4, dt=1.0, random_state=0)
-    assert trajectory.get_values('counter.size').tolist() == [0.0, 3.0, 4.0, 5.0, 6.0]
+    assert trajectory.get_values('counter.count').tolist() == [0.0, 3.0, 4.0, 5.0, 6.0]
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.topology is not None
 
@@ -394,11 +394,10 @@ def test_validation_reports_a_request_on_a_fixed_group():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -443,11 +442,10 @@ def test_validation_reports_a_metric_neighbourhood_on_a_network():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -473,11 +471,10 @@ def test_validation_reports_a_reduction_over_a_missing_layer():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):

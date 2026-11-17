@@ -14,7 +14,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN, SR, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.base import BasePart
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import UpdateLaw
@@ -22,7 +22,7 @@ from ....core.components.laws.utils import categorical, where
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec
 from .types import Candidates
 
 SHMULEVICH_INPUTS = ('x1', 'x2', 'x3')
@@ -42,9 +42,6 @@ class ProbabilisticNodeElement(Element):
         label:
             The label of the node.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial value, 0 or 1.
 
@@ -60,12 +57,11 @@ class ProbabilisticNodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         function: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.function = function
 
@@ -138,7 +134,7 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         """Return the value of one truth table of the inputs."""
         return sum((self._get_pattern(inputs, index) for index, entry in enumerate(table) if entry), start=SR(0))
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for invalid tables and probabilities.
 
         They are invalid when they differ in number, or a table has the wrong size.
@@ -183,7 +179,7 @@ class ProbabilisticFunctionInteraction(MapInteraction):
             value = where(chosen == index, values[index], value)
         return value
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the map of the target by the drawn table.
 
         It also returns the record of the drawn index.
@@ -250,7 +246,7 @@ class ProbabilisticBooleanNetworkSystem(BaseSystem):
         self.active = active
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a probabilistic Boolean network."""
+        """Return the components of a probabilistic Boolean network."""
         chosen = SHMULEVICH_NETWORK if self.network is None else self.network
         nodes = [ProbabilisticNodeElement(name, x=int(name in self.active)) for name in chosen]
         functions = [

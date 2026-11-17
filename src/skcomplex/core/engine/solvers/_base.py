@@ -10,15 +10,17 @@ from typing import ClassVar
 import numpy as np
 
 from ...base import BaseConfig
+from ...components import Tags
+from ...enums import FormKind
 from ...errors import ContextError, SolverError, ValidationError
-from ...specs import StepSpec, SupportSpec, Tags
-from ...specs._base_record_spec import BaseRecordSpec
-from ...types import Array, FormKind
-from ..problems import BaseProblemSpec, ProblemSpec
+from ...types import Array
+from ..backends import SupportSpec
+from ..problems import BaseProblemSpec, BaseRecordSpec, ProblemSpec
 from ..problems._draw_recorder import DrawRecorder
 from ..types import BoundaryFunction, InterpolatingStepFunction
 from ._event_locator import EventLocator
 from ._history import RESTART, History
+from ._step_spec import StepSpec
 
 
 class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):

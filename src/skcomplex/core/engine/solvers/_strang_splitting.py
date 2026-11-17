@@ -9,12 +9,14 @@ from dataclasses import replace
 import numpy as np
 from sklearn.base import clone
 
-from ...components.laws import BilinearLaw, FluxLaw, RateLaw
+from ...components.laws import RateLaw
 from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import RunStateSpec, SupportSpec
-from ...types import Array, FormKind, OrderKind
-from ..problems import ProblemSpec
+from ...types import Array
+from ..backends import SupportSpec
+from ..problems import ProblemSpec, RunStateSpec
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._steps import step_count
 from ._rk4 import RK4Solver
 from ._solver import Solver
@@ -59,15 +61,15 @@ class StrangSplittingSolver(Solver):
         >>> from skcomplex.core.components.elements import Element, FieldElement
         >>> from skcomplex.core.specs import StateSpec
         >>> class AmountElement(Element):
-        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
         ...         self.x = x
         >>> from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
-        >>> from skcomplex.core.specs import AxisSpec
+        >>> from skcomplex.core.components.spaces import AxisSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> space = PhaseSpace(LatticeSpace((8,)), [AxisSpec('v', 16, -6.0, 6.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(8) / 8), np.exp(-space.coordinates_['v'] ** 2))
@@ -93,7 +95,7 @@ class StrangSplittingSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={PhaseSpace, LatticeSpace},
-            laws={FluxLaw, RateLaw, BilinearLaw},
+            laws={RateLaw, BilinearLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -149,7 +151,7 @@ class StrangSplittingSolver(Solver):
     def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the two inner solvers on the transport and the collision parts.
 
-        The parts are those of the problem.
+        These are the parts of the problem.
 
         Args:
             context:
@@ -157,7 +159,7 @@ class StrangSplittingSolver(Solver):
 
         Raises:
             SolverError:
-                The problem has no flux or no source rates, or an inner solver does not advance its part.
+                The problem has no flux or no source rates, or an inner solver does not advance its part of the problem.
         """
         super()._prepare(context)
         problem = self.problem_
@@ -167,7 +169,7 @@ class StrangSplittingSolver(Solver):
         plain = replace(problem, accelerated=None, jacobian=None, sources=None)
         transport = replace(plain, drift=self._get_flux_differences)
         collision = replace(plain, drift=problem.sources, volumes=(), linear=())
-        self.transport_ = self._get_inner(self.transport, FluxLaw, self.dt / 2, transport)
+        self.transport_ = self._get_inner(self.transport, RateLaw, self.dt / 2, transport)
         self.collision_ = self._get_inner(self.collision, RateLaw, self.dt, collision)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:

@@ -27,9 +27,6 @@ class NetworkNodeElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         degree:
             The degree of the node.
 
@@ -50,19 +47,20 @@ class NetworkNodeElement(Element):
         ('nodes', 'NetworkNodeElement', 3)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'community'})
+
     law_classes = (RuleLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'community'}),
         *,
         degree: Annotated[float, StateSpec(domain=NN)] = 0.0,
         clustering: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         betweenness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         community: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.degree = degree
         self.clustering = clustering
         self.betweenness = betweenness

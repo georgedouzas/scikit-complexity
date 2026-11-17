@@ -8,7 +8,7 @@ from typing import Annotated
 
 from .....core.components.elements import Element
 from .....core.components.laws import BaseLaw, RateLaw
-from .....core.specs import StateSpec, VisualSpec
+from .....core.specs import StateSpec
 
 
 class CarElement(Element):
@@ -19,12 +19,11 @@ class CarElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(role='position')] = 0.0,
         v: Annotated[object, StateSpec(role='velocity')] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.v = v
 

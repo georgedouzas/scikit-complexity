@@ -6,13 +6,13 @@
 from collections.abc import Callable, Sequence
 from concurrent.futures import Executor
 
-from ..components.specs import ScenarioSpec
+from ..components import Observable
 from ..engine.runtime import Trajectory
 from ..engine.solvers import BaseSolver
 from ..errors import TagError
-from ..specs import ObservableSpec
 from ._results import ExperimentResult
 from ._runs import _check_source, _run_experiment
+from ._scenario_spec import ScenarioSpec
 from ._utils import build_system
 from .types import Output, Source
 
@@ -27,7 +27,7 @@ def ensemble(
     solver: BaseSolver | None = None,
     outputs: Sequence[Output] | None = None,
     warmup: float = 0.0,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> ExperimentResult:
@@ -113,7 +113,8 @@ def ensemble(
     if built.get_tags().randomness == 'deterministic' and not getattr(stepper, 'draws', False):
         error_msg = (
             f'ensemble needs the randomness stochastic, but {type(built).__name__} has the randomness deterministic. '
-            'Its runs repeat one another, so run it once with `simulate`, or give it a part or a solver that draws.'
+            'Its runs repeat one another, so run it once with `simulate`, or give it a component or a solver that '
+            'draws.'
         )
         raise TagError(error_msg)
     return _run_experiment(
