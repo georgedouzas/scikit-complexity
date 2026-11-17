@@ -21,7 +21,7 @@ def test_burridge_knopoff_sticks_and_slips():
 
 def test_burridge_knopoff_default_solver_does_not_stall():
     """Test that the registered solver runs the fault through its slips without the stall of LSODA."""
-    solver = BurridgeKnopoffSystem.solver
+    solver = BurridgeKnopoffSystem().prepare().system_.solver
     with warnings.catch_warnings():
         warnings.simplefilter('error')
         trajectory = _run_default(BurridgeKnopoffSystem(), until=400.0, dt=10.0, solver=solver)

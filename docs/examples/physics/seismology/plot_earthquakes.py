@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution, fit_law
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.seismology import EarthquakesSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'earthquakes'
 
 system = EarthquakesSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, until=50000, dt=250, observers=[observer])
+trajectory = system.prepare().simulate(until=50000, dt=250, observers=[observer])
 
 # %%
 # Gutenberg-Richter law
