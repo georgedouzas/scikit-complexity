@@ -17,7 +17,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction, ReactionNetworkSystem
 from ...general.reactions.types import ReactionTable
@@ -68,13 +67,13 @@ class SchloglElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5e-06,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0025,
-        c3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0002,
-        c4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.5,
-        A: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100000.0,
-        B: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 200000.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 50.0,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 1.5e-06,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0025,
+        c3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0002,
+        c4: Annotated[float, RealSet.closed_open(0, oo)] = 3.5,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 100000.0,
+        B: Annotated[float, RealSet.closed_open(0, oo)] = 200000.0,
     ) -> None:
         super().__init__(label)
         self.x = x

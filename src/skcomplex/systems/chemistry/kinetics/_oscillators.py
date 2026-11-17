@@ -14,7 +14,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
@@ -55,10 +54,10 @@ class CubicAutocatalysisElement(Element):
         self,
         label: str,
         *,
-        a: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        F: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.04,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        F: Annotated[float, RealSet.open(0, oo)] = 0.04,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
     ) -> None:
         super().__init__(label)
         self.a = a
@@ -111,13 +110,13 @@ class OregonatorElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.04,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.0004,
-        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0008,
-        f: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        y: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        z: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        epsilon: Annotated[float, RealSet.open(0, oo)] = 0.04,
+        delta: Annotated[float, RealSet.open(0, oo)] = 0.0004,
+        q: Annotated[float, RealSet.closed_open(0, oo)] = 0.0008,
+        f: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.x = x

@@ -19,7 +19,7 @@ from ....core.components.laws.utils import pulse_train
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.specs import ParameterSpec, Role
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ._mass_exchange import MassExchangeInteraction
@@ -59,10 +59,10 @@ class CatalystPelletElement(Element):
         self,
         label: str,
         *,
-        c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        c: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        h: Annotated[float, RealSet.open(0, oo)] = 0.1,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        K: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
     ) -> None:
         super().__init__(label)
         self.c = c
