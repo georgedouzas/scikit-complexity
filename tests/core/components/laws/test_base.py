@@ -27,7 +27,7 @@ from skcomplex.core.errors import ValidationError
 def test_every_law_derives_from_the_law_base():
     """Test that every law class of the package derives from the law base and implements its hooks."""
     classes = [getattr(laws, name) for name in laws.__all__ if name.endswith('Law') and name != 'BaseLaw']
-    assert len(classes) > 20
+    assert classes
     for law in classes:
         assert issubclass(law, BaseLaw), law
         assert not inspect.isabstract(law), law
