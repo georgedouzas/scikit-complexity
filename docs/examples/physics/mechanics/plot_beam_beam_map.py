@@ -13,7 +13,6 @@ curves around the centre and chains of islands further out.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import BeamBeamMapSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'beam_beam_map'
 
 system = BeamBeamMapSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=20)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Phase portrait
@@ -31,7 +30,7 @@ trajectory = simulate(system, observers=[observer])
 
 fig, ax = plt.subplots(figsize=(6, 6))
 for x in np.linspace(0.2, 4.0, 16):
-    run = simulate(BeamBeamMapSystem(x=x, y=0.0), until=1500)
+    run = BeamBeamMapSystem(x=x, y=0.0).prepare().simulate(until=1500)
     ax.plot(np.ravel(run.get_values('particle.x')), np.ravel(run.get_values('particle.y')), ',')
 ax.set_xlabel('x')
 ax.set_ylabel('y')

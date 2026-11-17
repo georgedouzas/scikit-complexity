@@ -14,7 +14,6 @@ coexists with it, so where the oscillators end depends on where they start.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import HypergraphKuramotoSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'hypergraph_kuramoto'
 system = HypergraphKuramotoSystem(n_oscillators=40, K2=8.0, seed=0)
 observables = HypergraphKuramotoSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
-trajectory = simulate(system, dt=0.5, observers=[observer], observables=observables)
+trajectory = system.prepare().simulate(dt=0.5, observers=[observer], observables=observables)
 
 # %%
 # Hysteresis in the three-body coupling
@@ -38,7 +37,7 @@ for label, phases in (('from incoherent phases', None), ('from synchronized phas
     order = []
     for coupling in couplings:
         system_system = HypergraphKuramotoSystem(n_oscillators=40, K2=coupling, phases=phases, seed=0)
-        run = simulate(system_system, dt=0.5)
+        run = system_system.prepare().simulate(dt=0.5)
         order.append(np.mean(np.asarray(run.get_values('order'))[-20:]))
     ax.plot(couplings, order, 'o-', label=label)
 branch = couplings[couplings >= 4.0]

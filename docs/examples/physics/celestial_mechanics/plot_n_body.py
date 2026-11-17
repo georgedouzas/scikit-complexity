@@ -12,7 +12,6 @@ star crosses the middle in turn, and after one period every star is back where i
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.celestial_mechanics import NBodySystem
 
@@ -21,7 +20,7 @@ PERIOD = 6.3259
 
 system = NBodySystem(preset='figure_eight')
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-trajectory = simulate(system, until=PERIOD, observers=[observer])
+trajectory = system.prepare().simulate(until=PERIOD, observers=[observer])
 
 # %%
 # Return after one period
@@ -29,7 +28,7 @@ trajectory = simulate(system, until=PERIOD, observers=[observer])
 # Over three periods, the distance of the configuration from its initial state should fall back to almost zero at
 # every multiple of the period, and the three stars should share a single figure-eight path.
 
-run = simulate(NBodySystem(preset='figure_eight'), until=3 * PERIOD, dt=0.005)
+run = NBodySystem(preset='figure_eight').prepare().simulate(until=3 * PERIOD, dt=0.005)
 positions = np.stack([np.asarray(run.get_values(f'body_{index}.x')) for index in range(3)], axis=1)
 distance = np.linalg.norm(positions - positions[0], axis=(1, 2))
 fig, (paths, returns) = plt.subplots(1, 2, figsize=(10, 4))

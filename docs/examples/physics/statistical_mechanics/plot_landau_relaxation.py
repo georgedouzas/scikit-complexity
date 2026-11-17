@@ -14,7 +14,6 @@ zero. The view shows the order parameter at `T = 0.5 Tc` growing from 0.1 along 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import LandauRelaxationSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'landau_relaxation'
 
 system = LandauRelaxationSystem(T=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Critical slowing down
@@ -35,7 +34,7 @@ trajectory = simulate(system, observers=[observer])
 def relaxation_time(temperature):
     """Return the relaxation time from the late exponential decay of the distance to the minimum."""
     until = 10 / abs(temperature - 1)
-    run = simulate(LandauRelaxationSystem(T=temperature), until=until, dt=until / 400)
+    run = LandauRelaxationSystem(T=temperature).prepare().simulate(until=until, dt=until / 400)
     phi = run.get_values('magnet.phi')
     target = np.sqrt(max(1 - temperature, 0))
     distance = np.abs(phi - target)

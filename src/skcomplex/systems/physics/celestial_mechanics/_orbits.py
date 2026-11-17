@@ -20,14 +20,18 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver, Yoshida4Solver
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.gradients import GradientInteraction
 from ...physics.common.mechanics import HamiltonianInteraction
-from ..common.particles import MassPointElement, PotentialEnergyInteraction
 from .types import Preset
 
 FIGURE_EIGHT: Preset = (
@@ -211,10 +215,12 @@ class SitnikovBodyElement(Element):
         self.e = e
 
 
-class GravityInteraction(PotentialEnergyInteraction):
+class GravityInteraction(Interaction):
     """Newtonian gravity between two particles.
 
-    The energy is `-G * m_first * m_second / |x_first - x_second|`, and its gradient moves both particles.
+    The energy is `-G * m_first * m_second / |x_first - x_second|`, and its gradient moves both particles: the first
+    follows `x_first'' = -G m_second (x_first - x_second) / |x_first - x_second|³` and the second the opposite pull
+    `x_second'' = G m_first (x_first - x_second) / |x_first - x_second|³`.
 
     Args:
         label:
@@ -229,47 +235,40 @@ class GravityInteraction(PotentialEnergyInteraction):
         G:
             The gravitational constant.
 
-        states:
-            The name of the vector state that holds the positions of the particles.
-
-        divisor:
-            The name of the state or parameter that holds the masses of the particles.
-
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics._orbits import GravityInteraction
         >>> GravityInteraction('gravity', first='sun', second='earth', G=1.0).G
         1.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        G: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        states: str = 'x',
-        divisor: str = 'm',
+        first: Role,
+        second: Role,
+        G: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, target=first, states=states, divisor=divisor)
+        super().__init__(label)
         self.first = first
         self.second = second
         self.G = G
 
-    def _get_potential(self, s: SimpleNamespace) -> Expression:
-        """Return `-G * m_first * m_second / |x_first - x_second|`.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the accelerations of the positions `x` of both particles, whose masses are `m`.
 
         Args:
-            s:
-                The namespace of the symbols the energy can use.
-
-        Returns:
-            energy:
-                The potential energy as a symbolic expression.
+            context:
+                The namespace of the particles, the time `t`, and the parameters.
         """
-        gap = getattr(s.first, self._get_names()[0]) - getattr(s.second, self._get_names()[0])
-        masses = getattr(s.first, str(self.divisor)) * getattr(s.second, str(self.divisor))
-        return -s.G * masses / sqrt(gap.dot_product(gap))
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            first, second = context.first, context.second
+            gap = first.x - second.x
+            pull = context.G * gap / sqrt(gap.dot_product(gap)) ** 3
+            self.laws_ = [RateLaw(first.x, -second.m * pull, order=2), RateLaw(second.x, first.m * pull, order=2)]
 
 
 def _get_kepler_energy(body: SimpleNamespace) -> Expression:
@@ -280,7 +279,7 @@ def _get_kepler_energy(body: SimpleNamespace) -> Expression:
     return (body.px**2 + body.py**2) / 2 - body.G * body.mass / sqrt(body.x**2 + body.y**2)
 
 
-class TwoBodyOrbitSystem(BaseSystem):
+class TwoBodyOrbitSystem(OldBaseSystem):
     """A light planet orbiting a heavy star under Newtonian gravity.
 
     The system is the Kepler problem of their separation.
@@ -386,6 +385,12 @@ class NBodySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The preset is unknown.
@@ -411,8 +416,10 @@ class NBodySystem(BaseSystem):
         velocities: Sequence[Sequence[float]] | None = None,
         G: float | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.preset = preset
         self.masses = masses
         self.positions = positions
@@ -430,15 +437,21 @@ class NBodySystem(BaseSystem):
             raise ValidationError(error_msg)
         return PRESETS[name]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return bodies in the plane that attract pairwise by Newtonian gravity."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of bodies in the plane that attract pairwise by Newtonian gravity.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         preset_G, preset_masses, preset_positions, preset_velocities = self._get_preset(self.preset)
         masses = preset_masses if self.masses is None else self.masses
         positions = preset_positions if self.positions is None else self.positions
         velocities = preset_velocities if self.velocities is None else self.velocities
         G = preset_G if self.G is None else self.G
         bodies = [
-            MassPointElement(f'body_{index}', x=list(position), x_d1=list(velocity), m=mass)
+            Element(f'body_{index}', values={'x': list(position), "x'": list(velocity), 'm': mass})
             for index, (mass, position, velocity) in enumerate(zip(masses, positions, velocities, strict=True))
         ]
         attractions = [
@@ -450,7 +463,7 @@ class NBodySystem(BaseSystem):
             )
             for first, second in itertools.combinations(range(len(bodies)), 2)
         ]
-        return CompositeSystem(self.label, elements=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))
+        self.system_ = System(self.label, elements=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))
 
 
 def _get_rotating_frame_energy(body: SimpleNamespace) -> Expression:
@@ -464,7 +477,7 @@ def _get_rotating_frame_energy(body: SimpleNamespace) -> Expression:
     return kinetic - (1 - body.mu) / first - body.mu / second
 
 
-class RestrictedThreeBodySystem(BaseSystem):
+class RestrictedThreeBodySystem(OldBaseSystem):
     """A light body moving in the plane of two primaries on circular orbits.
 
     The body moves in the frame that rotates with the primaries.
@@ -563,7 +576,7 @@ class RestrictedThreeBodySystem(BaseSystem):
         )
 
 
-class SitnikovSystem(BaseSystem):
+class SitnikovSystem(OldBaseSystem):
     """A light body moving on the axis through the mass centre of two equal primaries.
 
     The axis is normal to their orbit.

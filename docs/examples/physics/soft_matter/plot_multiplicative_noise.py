@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import MultiplicativeNoiseSystem
@@ -27,7 +26,9 @@ SYSTEM = 'multiplicative_noise'
 system = MultiplicativeNoiseSystem(n_particles=8, L=10.0, convention='ito')
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
 solver = EulerMaruyamaSolver(dt=0.01)
-trajectory = simulate(system, until=299, solver=solver, dt=0.1, observers=[observer], random_state=0)
+trajectory = (
+    system.set_params(solver=solver).prepare().simulate(until=299, dt=0.1, observers=[observer], random_state=0)
+)
 
 # %%
 # Stationary densities of the three conventions
@@ -40,8 +41,8 @@ grid = np.linspace(0, 10, 200)
 sigma = 1.0 + 1.8 * (grid / 10 - 0.5)
 fig, ax = plt.subplots(figsize=(7, 4))
 for noise, power, color in (('ito', 2, 'tab:blue'), ('stratonovich', 1, 'tab:orange'), ('anti-ito', 0, 'tab:green')):
-    system_n = MultiplicativeNoiseSystem(n_particles=800, L=10.0, convention=noise)
-    run = simulate(system_n, until=300, solver=solver, dt=0.1, random_state=1)
+    system_n = MultiplicativeNoiseSystem(n_particles=800, L=10.0, convention=noise, solver=solver)
+    run = system_n.prepare().simulate(until=300, dt=0.1, random_state=1)
     histogram = distribution(run.get_values('particles.x')[1500::20].ravel(), kind='histogram', bins=25)
     edges, density = histogram.edges, histogram.density
     ax.stairs(density, edges, color=color, label=f'{noise}')

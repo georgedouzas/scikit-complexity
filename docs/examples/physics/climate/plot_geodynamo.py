@@ -13,7 +13,6 @@ an irregular time, as the magnetic field of the Earth has reversed throughout it
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import GeodynamoSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'geodynamo'
 
 system = GeodynamoSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-trajectory = simulate(system, until=600, observers=[observer])
+trajectory = system.prepare().simulate(until=600, observers=[observer])
 
 # %%
 # Two polarities and irregular reversals
@@ -30,7 +29,7 @@ trajectory = simulate(system, until=600, observers=[observer])
 # polarity. In a long run, counting a reversal when `|D|` exceeds 0.5 with the opposite sign, the times spent in one
 # polarity should be irregular, with a broad distribution of durations.
 
-run = simulate(GeodynamoSystem(), until=20000)
+run = GeodynamoSystem().prepare().simulate(until=20000)
 settled = run.times > 500
 times, Q, D = run.times[settled], run.get_values('dynamo.Q')[settled], run.get_values('dynamo.D')[settled]
 strong = np.abs(D) > 0.5

@@ -5,7 +5,6 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.celestial_mechanics import KeplerianDumbbellSystem, RelativisticOrbitSystem
 
 from ..conftest import _run, _series, _upward_crossings
@@ -13,7 +12,7 @@ from ..conftest import _run, _series, _upward_crossings
 
 def test_keplerian_dumbbell_conserves_energy_and_angular_momentum():
     """Test that the spinning dumbbell keeps its energy and its angular momentum about the normal to its orbit."""
-    trajectory = simulate(KeplerianDumbbellSystem(), until=30.0, random_state=0)
+    trajectory = KeplerianDumbbellSystem().prepare().simulate(until=30.0, random_state=0)
     energy, momentum = _series(trajectory, 'dumbbell.energy', 'dumbbell.angular_momentum')
     assert momentum[0] == pytest.approx(1 + 0.25 / 0.9 * 0.01 * 3)
     assert np.ptp(energy) < 1e-8

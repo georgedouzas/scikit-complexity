@@ -12,14 +12,13 @@ beyond the size of a passive chain, and its centre of mass wanders like a slow a
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import ActivePolymerSystem
 
 SYSTEM = 'active_polymer'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = simulate(ActivePolymerSystem(), until=50, observers=[observer], random_state=0)
+simulation = ActivePolymerSystem().prepare().simulate(until=50, observers=[observer], random_state=0)
 
 # %%
 # Swelling with activity
@@ -31,7 +30,7 @@ speeds = [0.0, 0.5, 1.0, 1.5, 2.0]
 sizes = []
 fig, (shapes, swelling) = plt.subplots(1, 2, figsize=(10, 4))
 for v0 in speeds:
-    trajectory = simulate(ActivePolymerSystem(v0=v0), until=200, random_state=1)
+    trajectory = ActivePolymerSystem(v0=v0).prepare().simulate(until=200, random_state=1)
     x, y = np.asarray(trajectory.get_values('chain.x')), np.asarray(trajectory.get_values('chain.y'))
     sizes.append(np.mean(((x[:, -1] - x[:, 0]) ** 2 + (y[:, -1] - y[:, 0]) ** 2)[40:]))
     if v0 in (0.0, 2.0):

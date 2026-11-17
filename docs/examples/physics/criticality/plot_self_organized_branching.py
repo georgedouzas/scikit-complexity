@@ -13,14 +13,13 @@ value `1 / 2` without any adjustment from outside, a mean-field picture of self-
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.criticality import SelfOrganizedBranchingSystem
 
 SYSTEM = 'self_organized_branching'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=50)
-trajectory = simulate(SelfOrganizedBranchingSystem(), until=30000, observers=[observer], random_state=0)
+trajectory = SelfOrganizedBranchingSystem().prepare().simulate(until=30000, observers=[observer], random_state=0)
 
 # %%
 # Approach to the critical point
@@ -29,7 +28,7 @@ trajectory = simulate(SelfOrganizedBranchingSystem(), until=30000, observers=[ob
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for start in (0.3, 0.7):
-    run = simulate(SelfOrganizedBranchingSystem(p=start), until=30000, random_state=0)
+    run = SelfOrganizedBranchingSystem(p=start).prepare().simulate(until=30000, random_state=0)
     ax.plot(np.asarray(run.times), np.ravel(run.get_values('tree.p')), label=f'p(0) = {start}')
 ax.axhline(0.5, linestyle='--', color='black')
 ax.set_xlabel('generations')

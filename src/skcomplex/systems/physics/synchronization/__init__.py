@@ -5,15 +5,23 @@ The package covers coupled phase oscillators, pulse-coupled oscillators, swarmal
 
 from ..common.oscillators import LinkElement
 from ._adaptive import AdaptiveCouplingInteraction, AdaptiveKuramotoSystem, AdaptiveLinkElement
-from ._amplitude_death import GlobalCouplingInteraction, HeterogeneousGlobalCouplingSystem, OscillatorDeathSystem
+from ._amplitude_death import (
+    GlobalCouplingInteraction,
+    HeterogeneousGlobalCouplingSystem,
+    OscillatorDeathSystem,
+    StuartLandauInteraction,
+)
 from ._chaos import (
     AggregateAveragingInteraction,
     AggregateAveragingSynchronizationSystem,
     CoupledRosslerSystem,
     DelayedUnitElement,
     DiffusiveCouplingInteraction,
+    DriveInteraction,
     LogisticUnitElement,
+    LorenzFlowInteraction,
     RosslerDrivenLorenzSystem,
+    RosslerFlowInteraction,
     RosslerOscillatorElement,
 )
 from ._hypergraphs import HypergraphKuramotoSystem, SimplexCouplingInteraction
@@ -24,6 +32,7 @@ from ._kuramoto import (
     KuramotoSystem,
     NonlocalRingChimeraSystem,
     OttAntonsenSystem,
+    PopulationCouplingInteraction,
 )
 from ._networks import (
     CoupledMapLatticesOnNetworksSystem,
@@ -33,8 +42,10 @@ from ._networks import (
     LogisticNodeElement,
 )
 from ._pulses import (
+    ChargingInteraction,
     IntegrateAndFireOscillatorElement,
     MirolloStrogatzSystem,
+    PulseFiringInteraction,
     WinfreeMeanFieldInteraction,
     WinfreeSystem,
 )
@@ -47,12 +58,14 @@ __all__: list[str] = [
     'AdaptiveLinkElement',
     'AggregateAveragingInteraction',
     'AggregateAveragingSynchronizationSystem',
+    'ChargingInteraction',
     'CoupledMapLatticesOnNetworksSystem',
     'CoupledRosslerSystem',
     'DelayedCouplingInteraction',
     'DelayedKuramotoSystem',
     'DelayedUnitElement',
     'DiffusiveCouplingInteraction',
+    'DriveInteraction',
     'EdgeCouplingInteraction',
     'GlobalCouplingInteraction',
     'HeterogeneousGlobalCouplingSystem',
@@ -65,13 +78,18 @@ __all__: list[str] = [
     'LogisticCouplingInteraction',
     'LogisticNodeElement',
     'LogisticUnitElement',
+    'LorenzFlowInteraction',
     'MirolloStrogatzSystem',
     'NonlocalRingChimeraSystem',
     'OscillatorDeathSystem',
     'OttAntonsenSystem',
+    'PopulationCouplingInteraction',
+    'PulseFiringInteraction',
     'RosslerDrivenLorenzSystem',
+    'RosslerFlowInteraction',
     'RosslerOscillatorElement',
     'SimplexCouplingInteraction',
+    'StuartLandauInteraction',
     'SwarmalatorCouplingInteraction',
     'SwarmalatorElement',
     'SwarmalatorsSystem',

@@ -8,7 +8,7 @@ from .conftest import _sign_changes
 
 def test_hasselmann_has_stationary_variance():
     """Test that the stochastic climate fluctuates with the variance `sigma**2 / (2 * lam)`."""
-    solver = HasselmannSystem.solver
+    solver = HasselmannSystem().prepare().system_.solver
     anomaly = _run_default(HasselmannSystem(lam=1.0, sigma=0.5), until=400.0, dt=0.5, solver=solver).get_values(
         'ocean.T',
     )[20:]

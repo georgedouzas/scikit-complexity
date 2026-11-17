@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import EhrenfestUrnSystem
 
@@ -34,7 +33,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(EhrenfestUrnSystem(n_balls=BALLS), until=250, observers=[observer], random_state=0)
+trajectory = EhrenfestUrnSystem(n_balls=BALLS).prepare().simulate(until=250, observers=[observer], random_state=0)
 
 # %%
 # Relaxation and the binomial distribution
@@ -46,12 +45,12 @@ trajectory = simulate(EhrenfestUrnSystem(n_balls=BALLS), until=250, observers=[o
 steps = np.arange(301)
 urns = np.array(
     [
-        simulate(EhrenfestUrnSystem(n_balls=BALLS), until=300, random_state=seed).get_values('urn.n')
+        EhrenfestUrnSystem(n_balls=BALLS).prepare().simulate(until=300, random_state=seed).get_values('urn.n')
         for seed in range(200)
     ],
 )
 counts = np.asarray(
-    simulate(EhrenfestUrnSystem(n_balls=BALLS), until=20000, random_state=1).get_values('urn.n'),
+    EhrenfestUrnSystem(n_balls=BALLS).prepare().simulate(until=20000, random_state=1).get_values('urn.n'),
 )
 relaxed = counts[400:].astype(int)
 values = np.arange(BALLS + 1)

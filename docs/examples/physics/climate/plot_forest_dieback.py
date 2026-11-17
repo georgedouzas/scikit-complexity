@@ -12,7 +12,6 @@ growth of the remaining trees, and beyond a tipping temperature the forest dies 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import ForestDiebackSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'forest_dieback'
 
 system = ForestDiebackSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Hysteresis of the cover
@@ -34,7 +33,7 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for start, marker in [(0.9, 'o'), (0.1, 'x')]:
     final = [
         np.ravel(
-            simulate(ForestDiebackSystem(v=start, Tv=t), until=300, dt=1.0).get_values('forest.v'),
+            ForestDiebackSystem(v=start, Tv=t).prepare().simulate(until=300, dt=1.0).get_values('forest.v'),
         )[-1]
         for t in temperatures
     ]

@@ -13,7 +13,6 @@ coupling, and at strong coupling the response wins over the drive and every osci
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import WinfreeSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'winfree'
 
 system = WinfreeSystem(n_oscillators=50, K=0.5, spread=0.1, seed=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
-trajectory = simulate(system, dt=0.25, observers=[observer])
+trajectory = system.prepare().simulate(dt=0.25, observers=[observer])
 
 # %%
 # Incoherence, locking, and death
@@ -34,7 +33,7 @@ couplings = np.linspace(0.0, 1.5, 31)
 means, spreads = [], []
 for coupling in couplings:
     system_system = WinfreeSystem(n_oscillators=50, K=coupling, spread=0.1, seed=0)
-    run = simulate(system_system, until=200, dt=0.25)
+    run = system_system.prepare().simulate(until=200, dt=0.25)
     times, phases = np.asarray(run.times), np.asarray(run.get_values('oscillators.theta'))
     late = times >= 100
     frequencies = (phases[late][-1] - phases[late][0]) / (times[late][-1] - times[late][0])

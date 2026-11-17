@@ -5,8 +5,6 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.physics.climate import (
     LeadingFollowingCascadeSystem,
@@ -19,12 +17,12 @@ from ..conftest import _run_default
 
 def _final(system):
     """Return the trajectory of a cascade run with a fixed seed to time 500."""
-    return simulate(system, until=500.0, dt=0.5, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
+    return system.prepare().simulate(until=500.0, dt=0.5, random_state=0)
 
 
 def test_sutera_fraedrich_tipping_has_a_critical_rate():
     """Test that a slow ramp keeps the warm state and a fast one tips it, around the critical rate 0.175."""
-    solver = SuteraFraedrichTippingSystem.solver
+    solver = SuteraFraedrichTippingSystem().prepare().system_.solver
     slow = _run_default(SuteraFraedrichTippingSystem('rate', rho=0.16), until=300.0, dt=1.0, solver=solver).get_values(
         'earth.T',
     )
@@ -39,7 +37,7 @@ def test_sutera_fraedrich_tipping_has_a_critical_rate():
 def test_ramped_stochastic_fold_tips_late_for_fast_ramps():
     """Test that the state tips after the control passes the static fold, later for faster ramps."""
     fold = 2 / (3 * np.sqrt(3))
-    solver = RampedStochasticFoldSystem.solver
+    solver = RampedStochasticFoldSystem().prepare().system_.solver
     controls = []
     for rate in (0.004, 0.02, 0.1):
         x = _run_default(RampedStochasticFoldSystem(rate=rate), until=2.0 / rate, dt=0.1, solver=solver).get_values(
@@ -52,7 +50,7 @@ def test_ramped_stochastic_fold_tips_late_for_fast_ramps():
 @pytest.mark.parametrize(('coupling', 'tips'), [(0.4, True), (0.2, False)])
 def test_fold_follower_tips_only_when_the_tipped_leader_pushes_it_past_its_fold(coupling, tips):
     """Test that the follower tips when `coupling x` of the tipped leader exceeds `2 / (3 √3)`, a domino cascade."""
-    trajectory = _final(LeadingFollowingCascadeSystem(coupling=coupling).prepare().system_)
+    trajectory = _final(LeadingFollowingCascadeSystem(coupling=coupling))
     leader, follower = (np.ravel(trajectory.get_values(name)) for name in ('leader.x', 'follower.y'))
     assert leader[0] < -1
     assert leader[-1] > 1
@@ -62,7 +60,7 @@ def test_fold_follower_tips_only_when_the_tipped_leader_pushes_it_past_its_fold(
 
 def test_hopf_follower_oscillates_after_the_leader_tips():
     """Test that the tipped leader carries a Hopf follower onto a cycle of radius `sqrt(coupling x)`."""
-    trajectory = _final(LeadingFollowingCascadeSystem('hopf').prepare().system_)
+    trajectory = _final(LeadingFollowingCascadeSystem('hopf'))
     leader, y, z = (np.ravel(trajectory.get_values(name)) for name in ('leader.x', 'follower.y', 'follower.z'))
     radius = np.hypot(y, z)
     times = np.asarray(trajectory.times)

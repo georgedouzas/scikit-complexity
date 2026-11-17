@@ -7,6 +7,7 @@ A pairwise torque turns neighbours towards each other.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,13 +16,15 @@ from sage.all__sagemath_symbolics import Expression, I, exp, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import PairInteraction
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, VisualSpec
-from ..common.particles import ActiveParticleElement, SelfPropulsionInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import neighbors
+from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
+from ..common.particles import ActiveDiffusionInteraction, ActiveParticleElement, SelfPropulsionInteraction
 
 HEADINGS = VisualSpec(
     'points',
@@ -29,69 +32,59 @@ HEADINGS = VisualSpec(
 )
 
 
-class PolarAlignmentInteraction(PairInteraction):
-    """Alignment torque between two particles closer than the cutoff.
+class PolarAlignmentInteraction(Interaction):
+    """Alignment torque `theta_i' += gamma sum_j sin(theta_j - theta_i)` between close particles.
 
-    The torque is `theta_i' += gamma sin(theta_j - theta_i)`.
-
-    Summed over every neighbour `j` within the interaction range `d0`, the cutoff, the torque turns each particle
-    towards the headings of its neighbours.
+    The sum runs over every neighbour `j` within the interaction range `cutoff`, so the torque turns each particle
+    towards the headings of its neighbours. It is a bird turning with its flock, or a bacterium aligning with others
+    in a swarm.
 
     Args:
         label:
-            The label of the interaction, unique among the components of its system.
+            The label of the interaction.
 
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
-
-        cutoff:
-            The interaction range `d0`.
-
-        position:
-            The name of the vector state that holds the positions of the members.
+        target:
+            The path of the particles, with the positions `x` and the headings `theta`.
 
         gamma:
             The strength of the alignment.
 
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
+        cutoff:
+            The interaction range.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import PolarAlignmentInteraction
-        >>> PolarAlignmentInteraction('align', first='swimmers', second='swimmers', gamma=0.5).gamma
+        >>> PolarAlignmentInteraction('align', target='swimmers', gamma=0.5).gamma
         0.5
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
         *,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        period: float | None = None,
+        target: Role,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        cutoff: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            write='theta',
-            function=self._get_torque,
-            period=period,
-        )
+        super().__init__(label)
+        self.target = target
         self.gamma = gamma
+        self.cutoff = cutoff
 
-    @staticmethod
-    def _get_torque(namespace: SimpleNamespace) -> Expression:
-        """Return the torque `gamma sin(theta_j - theta_i)` on the first member of a pair."""
-        return namespace.gamma * sin(namespace.second.theta - namespace.first.theta)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the torque on the heading of every particle of the target from its neighbours.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            theta = context.target.theta
+            torque = neighbors(context.gamma * sin(context.target.other.theta - theta), RadiusNeighborhood(self.cutoff))
+            self.laws_ = [RateLaw(theta.diff(context.t), torque)]
 
 
 def _get_heading(member: SimpleNamespace) -> Expression:
@@ -153,6 +146,12 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import AligningActiveBrownianParticlesSystem
         >>> AligningActiveBrownianParticlesSystem(10, gamma=0.5).prepare().system_.interactions[0].gamma
@@ -164,7 +163,6 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
     references = ('Bertin 2021', 'Peruani, Deutsch, and Bär 2008', 'Chaté 2020')
     until = 100.0
     dt = 1.0
-    solver = EulerMaruyamaSolver(dt=0.05)
     observables = (
         Observable('mean_heading', _get_heading, group='swimmers'),
         Observable('polarization', _get_polarization),
@@ -182,8 +180,10 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
         D_t: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.size = size
         self.speed = speed
@@ -193,34 +193,29 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
         self.D_t = D_t
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return active Brownian particles in a periodic box whose headings align.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of active Brownian particles in a periodic box whose headings align.
 
-        A particle aligns with its neighbours within `d0`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        swimmers = GroupElement(
+        swimmers = SwimmerElement(
             'swimmers',
-            element=SwimmerElement,
+            x=rng.uniform(0.0, self.size, (self.n_particles, 2)),
+            theta=rng.uniform(0.0, 2 * math.pi, self.n_particles),
             size=self.n_particles,
-            values={
-                'x': rng.uniform(0.0, self.size, (self.n_particles, 2)),
-                'theta': rng.uniform(0.0, 2 * math.pi, self.n_particles),
-                'D_t': self.D_t,
-                'D_r': self.D_r,
-            },
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
         )
-        alignment = PolarAlignmentInteraction(
-            'align',
-            first='swimmers',
-            second='swimmers',
-            cutoff=self.d0,
-            period=self.size,
-            gamma=self.gamma,
-        )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[swimmers],
-            interactions=[alignment, SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+            interactions=[
+                PolarAlignmentInteraction('align', target='swimmers', gamma=self.gamma, cutoff=self.d0),
+                ActiveDiffusionInteraction('diffusion', target='swimmers', D_t=self.D_t, D_r=self.D_r),
+                SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed),
+            ],
+            solver=EulerMaruyamaSolver(dt=0.05),
         )

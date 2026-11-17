@@ -12,7 +12,6 @@ the albedo and keeps a cold planet cold. Started at 290 K, the temperature settl
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import EnergyBalanceSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'energy_balance'
 
 system = EnergyBalanceSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Two climates
@@ -43,7 +42,7 @@ balance.set_ylabel('dT/dt')
 balance.set_title('Three climates balance the energy')
 balance.legend()
 for T0 in np.linspace(220.0, 300.0, 17):
-    run = simulate(EnergyBalanceSystem(T=T0))
+    run = EnergyBalanceSystem(T=T0).prepare().simulate()
     runs.plot(run.times, run.get_values('earth.T'), color='C1' if roots[1] < T0 else 'C0', linewidth=0.8)
 for root in roots:
     runs.axhline(root, color='gray', linestyle='--', linewidth=0.8)

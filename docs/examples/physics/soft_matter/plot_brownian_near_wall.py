@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import BrownianNearWallSystem
@@ -27,7 +26,9 @@ SYSTEM = 'brownian_near_wall'
 system = BrownianNearWallSystem(z=20.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-trajectory = simulate(system, until=250, solver=solver, dt=1.0, observers=[observer], random_state=0)
+trajectory = (
+    system.set_params(solver=solver).prepare().simulate(until=250, dt=1.0, observers=[observer], random_state=0)
+)
 
 # %%
 # Barometric equilibrium
@@ -37,7 +38,8 @@ trajectory = simulate(system, until=250, solver=solver, dt=1.0, observers=[obser
 # `p(z) = (v / D0) exp(-v z / D0)` with the sedimentation length `D0 / v = 5`. A long run started at the wall should
 # fill this exponential profile.
 
-run = simulate(BrownianNearWallSystem(z=1.0), until=15000, solver=EulerMaruyamaSolver(dt=0.02), dt=0.5, random_state=1)
+settling = BrownianNearWallSystem(z=1.0, solver=EulerMaruyamaSolver(dt=0.02)).prepare()
+run = settling.simulate(until=15000, dt=0.5, random_state=1)
 heights = run.get_values('particle.z')[200:]
 histogram = distribution(heights, kind='histogram', bins=30)
 edges, density = histogram.edges, histogram.density

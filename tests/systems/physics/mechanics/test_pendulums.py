@@ -49,7 +49,7 @@ def test_coupled_pendulums_oscillate_in_their_antiphase_mode():
 def test_cart_pendulum_conserves_horizontal_momentum():
     """Test that the cart and the pendulum keep their horizontal momentum without a force."""
     trajectory = _run(CartPendulumSystem(1.0, m1=2.0, m2=1.0), 10.0, 0.05)
-    velocity, theta, omega = _series(trajectory, 'cart.y_d1', 'cart.theta', 'cart.theta_d1')
+    velocity, theta, omega = _series(trajectory, "cart.y'", 'cart.theta', "cart.theta'")
     momentum = 3.0 * velocity + omega * np.cos(theta)
     assert np.abs(momentum).max() < 1e-8
     assert np.ptp(velocity) > 0.1
@@ -66,7 +66,8 @@ def test_parametric_pendulum_resonates_at_twice_its_frequency():
 def test_magnetic_pendulum_comes_to_rest_near_a_magnet():
     """Test that the damped magnetic pendulum stops near one of the magnets."""
     trajectory = _run(MagneticPendulumSystem(), 100.0, 5.0, solver=ScipyODESolver())
-    position, velocity = (array[-1] for array in _series(trajectory, 'bob.x', 'bob.x_d1'))
+    x, y, vx, vy = (array[-1] for array in _series(trajectory, 'bob.x', 'bob.y', "bob.x'", "bob.y'"))
+    position, velocity = np.array([x, y]), np.array([vx, vy])
     magnets = np.stack([np.cos(2 * np.pi * np.arange(3) / 3), np.sin(2 * np.pi * np.arange(3) / 3)], axis=1)
     assert np.linalg.norm(velocity) < 1e-3
     assert np.linalg.norm(magnets - position, axis=1).min() < 0.5

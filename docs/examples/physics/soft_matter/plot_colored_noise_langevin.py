@@ -13,7 +13,6 @@ time, and it follows the noise smoothly with a smaller amplitude.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import ColoredNoiseLangevinSystem
@@ -22,14 +21,7 @@ SYSTEM = 'colored_noise_langevin'
 
 system = ColoredNoiseLangevinSystem(n_particles=1, gamma=1.0, D=1.0, tau=1.0, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    system.prepare().system_,
-    until=59.8,
-    dt=0.2,
-    solver=EulerMaruyamaSolver(dt=0.01),
-    observers=[observer],
-    random_state=0,
-)
+trajectory = system.prepare().simulate(until=59.8, dt=0.2, observers=[observer], random_state=0)
 
 # %%
 # Velocity variance and noise correlation
@@ -42,13 +34,9 @@ trajectory = simulate(
 taus = np.array([0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0])
 variances = []
 for tau in taus:
-    run = simulate(
-        ColoredNoiseLangevinSystem(n_particles=500, tau=tau, random_state=0),
-        until=20,
-        dt=0.5,
-        solver=EulerMaruyamaSolver(dt=min(0.01, tau / 20)),
-        random_state=0,
-    )
+    solver = EulerMaruyamaSolver(dt=min(0.01, tau / 20))
+    ensemble = ColoredNoiseLangevinSystem(n_particles=500, tau=tau, random_state=0, solver=solver).prepare()
+    run = ensemble.simulate(until=20, dt=0.5, random_state=0)
     variances.append(np.mean(run.get_values('particles.v')[20:] ** 2))
     if tau == 1.0:
         noise = run.get_values('particles.xi')

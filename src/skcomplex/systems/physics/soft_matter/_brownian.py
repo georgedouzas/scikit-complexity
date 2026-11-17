@@ -6,26 +6,27 @@ The module covers Brownian particles and noise-driven transitions.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt
+from sage.all__sagemath_symbolics import oo, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, RateInteraction
-from ....core.components.laws import BaseLaw, BoundaryLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
-from ...general.gradients import GradientInteraction
-from ..common.particles import DoubleWellElement
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BoundaryLaw, NoiseLaw, RateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
+from ..common.particles import DoubleWellElement, DoubleWellInteraction
 
 
 class WallParticleElement(Element):
     """Brownian particle at the distance `z` from a wall.
-
-    The wall reflects the particle, and its diffusion slows near the wall.
 
     Args:
         label:
@@ -33,6 +34,32 @@ class WallParticleElement(Element):
 
         z:
             The distance from the wall.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import WallParticleElement
+        >>> WallParticleElement('bead', z=2.0).z
+        2.0
+    """
+
+    def __init__(self, label: str, *, z: Annotated[float, RealSet.closed_open(0, oo)] = 1.0) -> None:
+        super().__init__(label)
+        self.z = z
+
+
+class WallMobilityInteraction(Interaction):
+    """Settling of a Brownian particle on a wall that reflects it and slows its diffusion.
+
+    The diffusion is `D(z) = D0 z² / (z² + a²)` at the distance `z` from the wall, and the drift is the settling
+    velocity scaled by the same mobility, so `dz = -drift z |z| / (z² + a²) dt + sqrt(2 D(z)) dW`. The laws are
+    symmetric about the wall at `z = 0`, which reflects the particle at every frame. It is a colloid settling on a
+    microscope slide, or a protein near a membrane.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particle.
 
         D0:
             The diffusion coefficient far from the wall.
@@ -43,41 +70,50 @@ class WallParticleElement(Element):
         drift:
             The settling velocity far from the wall.
 
+        convention:
+            The convention of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
+
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import WallParticleElement
-        >>> WallParticleElement('bead').a
+        >>> from skcomplex.systems.physics.soft_matter import WallMobilityInteraction
+        >>> WallMobilityInteraction('mobility', target='bead').a
         1.0
     """
 
-    law_classes = (BoundaryLaw,)
+    law_classes = (RateLaw, NoiseLaw, BoundaryLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        D0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        drift: Annotated[float, ParameterSpec()] = 0.2,
+        target: Role,
+        D0: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        a: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        drift: float = 0.2,
+        convention: str = 'anti-ito',
     ) -> None:
         super().__init__(label)
-        self.z = z
+        self.target = target
         self.D0 = D0
         self.a = a
         self.drift = drift
+        self.convention = convention
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reflection at the wall.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the drift, the noise, and the reflection of the distance of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [BoundaryLaw(s.z, abs(s.z))]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context, context.t
+            z = s.target.z
+            self.laws_ = [
+                RateLaw(z.diff(t), -s.drift * z * abs(z) / (z**2 + s.a**2)),
+                NoiseLaw(z, sqrt(2 * s.D0) * z / sqrt(z**2 + s.a**2), convention=self.convention),
+                BoundaryLaw(z, abs(z)),
+            ]
 
 
 class StochasticResonanceSystem(BaseSystem):
@@ -104,9 +140,15 @@ class StochasticResonanceSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import StochasticResonanceSystem
-        >>> StochasticResonanceSystem(D=0.2).prepare().system_.elements[0].D
+        >>> StochasticResonanceSystem(D=0.2).prepare().system_.interactions[0].D
         0.2
     """
 
@@ -116,11 +158,6 @@ class StochasticResonanceSystem(BaseSystem):
     until = 500.0
     dt = 0.5
 
-    @staticmethod
-    def _get_double_well_drive(s: SimpleNamespace) -> Expression:
-        """Return the periodic forcing `A cos(2 pi f t)` of a particle in a double well."""
-        return s.target.amplitude * cos(2 * math.pi * s.target.frequency * s.t)
-
     def __init__(
         self,
         x: float = -1.0,
@@ -129,41 +166,31 @@ class StochasticResonanceSystem(BaseSystem):
         frequency: float = 0.01,
         D: float = 0.12,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.amplitude = amplitude
         self.frequency = frequency
         self.D = D
 
-    @staticmethod
-    def _get_double_well_interactions(target: str) -> list[BaseInteraction]:
-        """Return the interactions of particles in a double well.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a particle in a double well.
 
-        They are the gradient of the well and the noisy forcing.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return [
-            GradientInteraction('well', target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
-            RateInteraction(
-                'drive',
-                target=target,
-                rate=StochasticResonanceSystem._get_double_well_drive,
-                noise=lambda s: sqrt(2 * s.target.D),
-            ),
-        ]
-
-    def _build_system(self) -> CompositeSystem:
-        """Return a particle in a double well.
-
-        The particle follows `dx = (x - x^3 + A cos(2 pi f t)) dt + sqrt(2 D) dW`.
-        """
-        return CompositeSystem(
-            self.label,
-            elements=[
-                DoubleWellElement('particle', x=self.x, amplitude=self.amplitude, frequency=self.frequency, D=self.D),
-            ],
-            interactions=self._get_double_well_interactions('particle'),
+        super()._prepare(context)
+        well = DoubleWellInteraction(
+            'well',
+            target='particle',
+            amplitude=self.amplitude,
+            frequency=self.frequency,
+            D=self.D,
         )
+        self.system_ = System(self.label, elements=[DoubleWellElement('particle', x=self.x)], interactions=[well])
 
 
 class BrownianNearWallSystem(BaseSystem):
@@ -195,6 +222,12 @@ class BrownianNearWallSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import BrownianNearWallSystem
         >>> BrownianNearWallSystem(convention='ito').prepare().system_.interactions[0].convention
@@ -216,23 +249,34 @@ class BrownianNearWallSystem(BaseSystem):
         drift: float = 0.2,
         convention: str = 'anti-ito',
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.z = z
         self.D0 = D0
         self.a = a
         self.drift = drift
         self.convention = convention
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        mobility = RateInteraction(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a Brownian particle that settles on a wall.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        mobility = WallMobilityInteraction(
             'mobility',
             target='particle',
-            state='z',
-            rate=lambda s: -s.target.drift * s.target.z * abs(s.target.z) / (s.target.z**2 + s.target.a**2),
-            noise=lambda s: sqrt(2 * s.target.D0) * s.target.z / sqrt(s.target.z**2 + s.target.a**2),
+            D0=self.D0,
+            a=self.a,
+            drift=self.drift,
             convention=self.convention,
         )
-        particle = WallParticleElement('particle', z=self.z, D0=self.D0, a=self.a, drift=self.drift)
-        return CompositeSystem(self.label, elements=[particle], interactions=[mobility])
+        self.system_ = System(
+            self.label,
+            elements=[WallParticleElement('particle', z=self.z)],
+            interactions=[mobility],
+        )

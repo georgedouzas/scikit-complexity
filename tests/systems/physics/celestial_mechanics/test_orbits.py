@@ -5,12 +5,13 @@ import math
 import numpy as np
 import pytest
 
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver, Yoshida4Solver
 from skcomplex.core.errors import SolverError
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.celestial_mechanics import (
     NBodySystem,
     RestrictedThreeBodySystem,
@@ -18,22 +19,22 @@ from skcomplex.systems.physics.celestial_mechanics import (
     TwoBodyOrbitSystem,
 )
 from skcomplex.systems.physics.celestial_mechanics._orbits import GravityInteraction
-from skcomplex.systems.physics.common.particles import MassPointElement
 
 from ..conftest import _relative_spread, _run, _series, _upward_crossings
 
 
 def test_gravity_keeps_circular_orbit():
     """Test that a light body on a circular orbit keeps its radius."""
-    system = CompositeSystem(
+    system = System(
         elements=[
-            MassPointElement('sun', m=1000.0),
-            MassPointElement('planet', x=[10.0, 0.0], x_d1=[0.0, 10.0], m=1e-6),
+            Element('sun', values={'x': [0.0, 0.0], 'm': 1000.0}),
+            Element('planet', values={'x': [10.0, 0.0], "x'": [0.0, 10.0], 'm': 1e-6}),
         ],
         interactions=[GravityInteraction('gravity', first='sun', second='planet', G=1.0)],
         space=ContinuousSpace(n_dim=2),
+        solver=ScipyODESolver(rtol=1e-10, atol=1e-12),
     )
-    trajectory = simulate(system, until=6, dt=0.5, solver=ScipyODESolver(rtol=1e-10, atol=1e-12))
+    trajectory = system.prepare().simulate(until=6, dt=0.5)
     radius = np.linalg.norm(trajectory.get_values('planet.x') - trajectory.get_values('sun.x'), axis=1)
     assert np.allclose(radius, 10.0, rtol=1e-4)
 
@@ -69,7 +70,7 @@ def test_figure_eight_returns_after_its_period():
     for index in range(3):
         position = _series(trajectory, f'body_{index}.x')[0]
         assert np.allclose(position[-1], position[0], atol=1e-4)
-    momentum = sum(_series(trajectory, f'body_{index}.x_d1')[0] for index in range(3))
+    momentum = sum(_series(trajectory, f"body_{index}.x'")[0] for index in range(3))
     assert np.abs(momentum).max() < 1e-8
 
 

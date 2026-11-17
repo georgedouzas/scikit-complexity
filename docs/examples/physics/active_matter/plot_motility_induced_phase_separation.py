@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import cKDTree
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import MotilityInducedPhaseSeparationSystem
@@ -27,7 +26,9 @@ SYSTEM = 'motility_induced_phase_separation'
 system = MotilityInducedPhaseSeparationSystem(n_particles=600, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.005)
-trajectory = simulate(system, until=120, solver=solver, dt=0.5, observers=[observer], random_state=0)
+trajectory = (
+    system.set_params(solver=solver).prepare().simulate(until=120, dt=0.5, observers=[observer], random_state=0)
+)
 
 # %%
 # Bimodal local density

@@ -7,23 +7,25 @@ The module covers bifurcation-, noise-, and rate-induced tipping of a stochastic
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
-from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.laws.utils import ramp
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.errors import ValidationError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
-from ...general.dynamics import DynamicalSystem
-from ...general.dynamics.types import Equations, Noises
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 C0 = 1.10869e-8
 C1 = 9.7137e9
@@ -34,14 +36,11 @@ TIPPING_TYPES = {
     'rate': {'drift': 0.0, 'b_ini': 1.69e-5, 'b_fin': 1.835e-5, 'a_ini': 0.6927, 'nu': 0.0, 'lam': 1e-6},
 }
 FOLLOWERS = ('fold', 'hopf')
+NONNEGATIVE = RealSet.closed_open(0, oo)
 
 
 class FoldFollowerElement(Element):
-    """Stochastic fold `dy = (-y³ + y + c) dt + sigma dW`.
-
-    A leading element shifts its control.
-
-    The fold has a lower and an upper stable branch while `|c| < 2 / (3 √3)`, and a coupling adds to its control.
+    """Follower of a cascade in the normal form of a fold, its state `y`.
 
     Args:
         label:
@@ -50,61 +49,83 @@ class FoldFollowerElement(Element):
         y:
             The initial state.
 
+    Examples:
+        >>> from skcomplex.systems.physics.climate import FoldFollowerElement
+        >>> FoldFollowerElement('follower').y
+        -1.0
+    """
+
+    def __init__(self, label: str, *, y: float = -1.0) -> None:
+        super().__init__(label)
+        self.y = y
+
+
+class FoldFollowerInteraction(Interaction):
+    """Stochastic fold `dy = (-y³ + y + c + coupling x) dt + sigma dW` of a follower forced by a leader.
+
+    The fold has a lower and an upper stable branch while `|c + coupling x| < 2 / (3 √3)`, and the state `x` of the
+    leader shifts its control.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the follower.
+
+        leader:
+            The path of the leader.
+
         c:
             The control of the fold, without the coupling.
+
+        coupling:
+            The strength of the linear forcing by the leader.
 
         sigma:
             The amplitude of the noise.
 
-    Attributes:
-        default_visual_:
-            How the follower is drawn by default, the `visual` of its class.
-
     Examples:
-        >>> from skcomplex.systems.physics.climate import FoldFollowerElement
-        >>> FoldFollowerElement('follower').c
+        >>> from skcomplex.systems.physics.climate import FoldFollowerInteraction
+        >>> FoldFollowerInteraction('fold', target='follower', leader='leader').c
         0.0
     """
 
-    law_classes = (
-        NoiseLaw,
-        RateLaw,
-    )
+    law_classes = (NoiseLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        y: Annotated[float, StateSpec()] = -1.0,
-        c: Annotated[float, ParameterSpec()] = 0.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        target: Role,
+        leader: Role,
+        c: float = 0.0,
+        coupling: float = 0.4,
+        sigma: Annotated[float, NONNEGATIVE] = 0.02,
     ) -> None:
         super().__init__(label)
-        self.y = y
+        self.target = target
+        self.leader = leader
         self.c = c
+        self.coupling = coupling
         self.sigma = sigma
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the fold and its noise.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the forced fold of the follower and its noise.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate law and the noise law of the state.
+            context:
+                The namespace of the follower and the leader, the time `t`, and the parameters.
         """
-        return [RateLaw(s.y, -(s.y**3) + s.y + s.c), NoiseLaw(s.y, s.sigma)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            y = context.target.y
+            rate = -(y**3) + y + context.c + context.coupling * context.leader.x
+            self.laws_ = [RateLaw(y.diff(context.t), rate), NoiseLaw(y, context.sigma)]
 
 
 class HopfFollowerElement(Element):
-    """Stochastic Hopf normal form `dz = ((mu + i omega) z - |z|² z) dt + sigma dW`.
-
-    A leader shifts its `mu`.
-
-    The complex amplitude `z = y + i z_im` is held as two real states. For `mu < 0` it decays to a focus at the origin,
-    and for `mu > 0` it settles on a limit cycle of radius `sqrt(mu)`, and a coupling adds to `mu`.
+    """Follower of a cascade in the Hopf normal form, whose complex amplitude is `y + i z`.
 
     Args:
         label:
@@ -116,76 +137,127 @@ class HopfFollowerElement(Element):
         z:
             The initial imaginary part of the amplitude.
 
+    Examples:
+        >>> from skcomplex.systems.physics.climate import HopfFollowerElement
+        >>> HopfFollowerElement('follower').y
+        0.1
+    """
+
+    def __init__(self, label: str, *, y: float = 0.1, z: float = 0.0) -> None:
+        super().__init__(label)
+        self.y = y
+        self.z = z
+
+
+class HopfFollowerInteraction(Interaction):
+    """Stochastic Hopf normal form of a follower whose distance from the bifurcation a leader shifts.
+
+    The complex amplitude `w = y + i z` follows `dw = ((mu + coupling x + i omega) w - |w|² w) dt + sigma dW`, where `x`
+    is the state of the leader. For `mu + coupling x < 0` it decays to a focus at the origin, and for `mu + coupling x >
+    0` it settles on a limit cycle of radius `sqrt(mu + coupling x)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the follower.
+
+        leader:
+            The path of the leader.
+
         mu:
             The distance from the Hopf bifurcation, without the coupling.
 
         omega:
             The frequency of the oscillation.
 
+        coupling:
+            The strength of the linear forcing by the leader.
+
         sigma:
             The amplitude of the noise.
 
-    Attributes:
-        default_visual_:
-            How the follower is drawn by default, the `visual` of its class.
-
     Examples:
-        >>> from skcomplex.systems.physics.climate import HopfFollowerElement
-        >>> HopfFollowerElement('follower').omega
+        >>> from skcomplex.systems.physics.climate import HopfFollowerInteraction
+        >>> HopfFollowerInteraction('hopf', target='follower', leader='leader').omega
         1.0
     """
+
+    law_classes = (NoiseLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        y: Annotated[float, StateSpec()] = 0.1,
-        z: Annotated[float, StateSpec()] = 0.0,
-        mu: Annotated[float, ParameterSpec()] = 0.0,
-        omega: Annotated[float, ParameterSpec()] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        target: Role,
+        leader: Role,
+        mu: float = 0.0,
+        omega: float = 1.0,
+        coupling: float = 0.4,
+        sigma: Annotated[float, NONNEGATIVE] = 0.02,
     ) -> None:
         super().__init__(label)
-        self.y = y
-        self.z = z
+        self.target = target
+        self.leader = leader
         self.mu = mu
         self.omega = omega
+        self.coupling = coupling
         self.sigma = sigma
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the Hopf normal form and its noise.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the forced Hopf normal form of the follower and its noise.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws and the noise laws of the two parts of the amplitude.
+            context:
+                The namespace of the follower and the leader, the time `t`, and the parameters.
         """
-        radius = s.y**2 + s.z**2
-        return [
-            RateLaw(s.y, s.mu * s.y - s.omega * s.z - radius * s.y),
-            RateLaw(s.z, s.omega * s.y + s.mu * s.z - radius * s.z),
-            NoiseLaw(s.y, s.sigma),
-            NoiseLaw(s.z, s.sigma),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            y, z, t = context.target.y, context.target.z, context.t
+            radius = y**2 + z**2
+            forcing = context.coupling * context.leader.x
+            self.laws_ = [
+                RateLaw(y.diff(t), context.mu * y - context.omega * z - radius * y + forcing * y),
+                RateLaw(z.diff(t), context.omega * y + context.mu * z - radius * z + forcing * z),
+                NoiseLaw(y, context.sigma),
+                NoiseLaw(z, context.sigma),
+            ]
 
 
 class RampedFoldElement(Element):
-    """Stochastic fold `dx = (a x^3 + b x + phi(t)) dt + sigma dW`.
+    """Element in the normal form of a fold whose control is ramped, its state `x`.
 
-    The control rises linearly from `phi0` to `phi1`.
+    Args:
+        label:
+            The label of the element.
+
+        x:
+            The initial state.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import RampedFoldElement
+        >>> RampedFoldElement('system').x
+        -1.3247
+    """
+
+    def __init__(self, label: str, *, x: float = -1.3247) -> None:
+        super().__init__(label)
+        self.x = x
+
+
+class RampedFoldInteraction(Interaction):
+    """Stochastic fold `dx = (a x^3 + b x + phi(t)) dt + sigma dW` whose control rises from `phi0` to `phi1`.
 
     For `a < 0 < b` the fold has two stable branches for `|phi| < phi_c = sqrt(-4 b^3 / (27 a))`, and the lower
     branch vanishes at `phi = phi_c`. The control rises at the rate `rate` and stays at `phi1` once it reaches it.
 
     Args:
         label:
-            The label of the system.
+            The label of the interaction.
 
-        x:
-            The initial state.
+        target:
+            The path of the element.
 
         a:
             The cubic coefficient, negative.
@@ -206,30 +278,27 @@ class RampedFoldElement(Element):
             The rate at which the control rises.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import RampedFoldElement
-        >>> RampedFoldElement('system').rate
+        >>> from skcomplex.systems.physics.climate import RampedFoldInteraction
+        >>> RampedFoldInteraction('fold', target='system').rate
         0.004
     """
 
-    law_classes = (
-        NoiseLaw,
-        RateLaw,
-    )
+    law_classes = (NoiseLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = -1.3247,
-        a: Annotated[float, ParameterSpec()] = -1.0,
-        b: Annotated[float, ParameterSpec()] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        target: Role,
+        a: float = -1.0,
+        b: float = 1.0,
+        sigma: Annotated[float, NONNEGATIVE] = 0.02,
         phi0: float = -1.0,
         phi1: float = 1.0,
         rate: float = 0.004,
     ) -> None:
         super().__init__(label)
-        self.x = x
+        self.target = target
         self.a = a
         self.b = b
         self.sigma = sigma
@@ -237,22 +306,112 @@ class RampedFoldElement(Element):
         self.phi1 = phi1
         self.rate = rate
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the fold with its ramped control and its noise.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the fold with its ramped control and its noise.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the element, the time `t`, and the parameters.
         """
-        control = self.phi0 + ramp(s.t, 0.0, (self.phi1 - self.phi0) / self.rate, self.phi1 - self.phi0)
-        return [RateLaw(s.x, s.a * s.x**3 + s.b * s.x + control), NoiseLaw(s.x, s.sigma)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.target.x, context.t
+            control = self.phi0 + ramp(t, 0.0, (self.phi1 - self.phi0) / self.rate, self.phi1 - self.phi0)
+            self.laws_ = [RateLaw(x.diff(t), context.a * x**3 + context.b * x + control), NoiseLaw(x, context.sigma)]
 
 
-class SuteraFraedrichTippingSystem(DynamicalSystem):
+class StochasticEnergyBalanceInteraction(Interaction):
+    """Stochastic energy balance of Sutera and Fraedrich, with a drifting and a ramped control.
+
+    The temperature `T` of the target follows `dT = c0 [-T^4 + c1 mu (b2 T^2 - a2)] dt + sqrt(nu) dW`, the control `mu`
+    decreases at the rate `drift`, and the ramp progress `lam` grows logistically at the rate `rho`, with `b2 = b_ini +
+    lam (b_fin - b_ini)` and `a2 = a_ini + c1 mu (b2^2 - b_ini^2) / 4`, so the equilibria are kept along the ramp.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the planet.
+
+        drift:
+            The rate at which the control `mu` decreases.
+
+        rho:
+            The rate of the logistic ramp.
+
+        b_ini:
+            The initial value of `b2`.
+
+        b_fin:
+            The final value of `b2`.
+
+        a_ini:
+            The initial value of `a2`.
+
+        nu:
+            The variance of the noise per unit of time.
+
+        c0:
+            The inverse heat capacity.
+
+        c1:
+            The scale of the absorbed radiation.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import StochasticEnergyBalanceInteraction
+        >>> StochasticEnergyBalanceInteraction('balance', target='earth').nu
+        0.0
+    """
+
+    law_classes = (NoiseLaw, RateLaw)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        drift: float = 0.0,
+        rho: Annotated[float, NONNEGATIVE] = 0.0,
+        b_ini: Annotated[float, NONNEGATIVE] = 1.69e-5,
+        b_fin: Annotated[float, NONNEGATIVE] = 1.69e-5,
+        a_ini: Annotated[float, NONNEGATIVE] = 0.6927,
+        nu: Annotated[float, NONNEGATIVE] = 0.0,
+        c0: Annotated[float, RealSet.open(0, oo)] = C0,
+        c1: Annotated[float, RealSet.open(0, oo)] = C1,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.drift = drift
+        self.rho = rho
+        self.b_ini = b_ini
+        self.b_fin = b_fin
+        self.a_ini = a_ini
+        self.nu = nu
+        self.c0 = c0
+        self.c1 = c1
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the energy balance, the drift of the control, the ramp, and the noise of the temperature.
+
+        Args:
+            context:
+                The namespace of the planet, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            T, mu, lam, t = context.target.T, context.target.mu, context.target.lam, context.t
+            b2 = context.b_ini + lam * (context.b_fin - context.b_ini)
+            a2 = context.a_ini + context.c1 * mu * (b2**2 - context.b_ini**2) / 4
+            self.laws_ = [
+                RateLaw(T.diff(t), context.c0 * (-(T**4) + context.c1 * mu * (b2 * T**2 - a2))),
+                RateLaw(mu.diff(t), -context.drift),
+                RateLaw(lam.diff(t), context.rho * lam * (1 - lam)),
+                NoiseLaw(T, context.nu**0.5),
+            ]
+
+
+class SuteraFraedrichTippingSystem(BaseSystem):
     """The Sutera-Fraedrich stochastic energy balance set up for tipping.
 
     The tipping is bifurcation-, noise-, or rate-induced.
@@ -280,13 +439,19 @@ class SuteraFraedrichTippingSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The type of tipping is unknown.
 
     Examples:
         >>> from skcomplex.systems.physics.climate import SuteraFraedrichTippingSystem
-        >>> round(SuteraFraedrichTippingSystem('rate').prepare().system_.elements[0].get_value('T'), 1)
+        >>> round(SuteraFraedrichTippingSystem('rate').prepare().system_.elements[0].values['T'], 1)
         291.6
     """
 
@@ -295,7 +460,6 @@ class SuteraFraedrichTippingSystem(DynamicalSystem):
     references = ('Fang, Wang, Kurths, and Fan 2025', 'Sutera 1981', 'Fraedrich 1978', 'Ashwin et al. 2012')
     until = 300.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.05)
 
     def __init__(
         self,
@@ -304,8 +468,10 @@ class SuteraFraedrichTippingSystem(DynamicalSystem):
         rho: float = 0.18,
         nu: float | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label, solver=solver, backend=backend)
         self.tipping = tipping
         self.rho = rho
         self.nu = nu
@@ -319,62 +485,37 @@ class SuteraFraedrichTippingSystem(DynamicalSystem):
         root = C1 * mu * b2 + math.sqrt((C1 * mu * b2) ** 2 - 4 * C1 * mu * a2)
         return math.sqrt(root / 2)
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'earth'
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the planet at its warm equilibrium and its energy balance.
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters of the type of tipping with their specs.
-
-        Returns:
-            variables:
-                The temperature, the controls, and the parameters of the type of tipping.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
 
         Raises:
             ValidationError:
                 The type of tipping is unknown.
         """
+        super()._prepare(context)
         if self.tipping not in TIPPING_TYPES:
             error_msg = f'Unknown tipping type {self.tipping!r}. Use one of {", ".join(TIPPING_TYPES)}.'
             raise ValidationError(error_msg)
         values = TIPPING_TYPES[self.tipping]
-        nonnegative = RealSet.closed_open(0, oo)
-        return {
-            'T': DeclaredVariableSpec(self._warm_state(1.0, values['b_ini'], values['a_ini']), StateSpec()),
-            'mu': DeclaredVariableSpec(1.0, StateSpec(domain=nonnegative)),
-            'lam': DeclaredVariableSpec(values['lam'], StateSpec(domain=nonnegative)),
-            'drift': DeclaredVariableSpec(values['drift'], ParameterSpec()),
-            'rho': DeclaredVariableSpec(self.rho if self.tipping == 'rate' else 0.0, ParameterSpec(domain=nonnegative)),
-            'b_ini': DeclaredVariableSpec(values['b_ini'], ParameterSpec(domain=nonnegative)),
-            'b_fin': DeclaredVariableSpec(values['b_fin'], ParameterSpec(domain=nonnegative)),
-            'a_ini': DeclaredVariableSpec(values['a_ini'], ParameterSpec(domain=nonnegative)),
-            'nu': DeclaredVariableSpec(values['nu'] if self.nu is None else self.nu, ParameterSpec(domain=nonnegative)),
-            'c0': DeclaredVariableSpec(C0, ParameterSpec(domain=RealSet.open(0, oo))),
-            'c1': DeclaredVariableSpec(C1, ParameterSpec(domain=RealSet.open(0, oo))),
-        }
-
-    def _get_equations(self) -> Equations:
-        """Return the energy balance and the controls.
-
-        The control `mu` drifts, and `b2` and `a2` follow a logistic ramp.
-        """
-        return {
-            'T': self._balance,
-            'mu': lambda s: -s.target.drift,
-            'lam': lambda s: s.target.rho * s.target.lam * (1 - s.target.lam),
-        }
-
-    def _get_noises(self) -> Noises:
-        """Return the noise amplitude of the temperature."""
-        return {'T': lambda s: s.target.nu**0.5}
-
-    @staticmethod
-    def _balance(s: SimpleNamespace) -> Expression:
-        """Return the absorbed minus the emitted radiation, with `b2` and `a2` on their ramp."""
-        earth = s.target
-        b2 = earth.b_ini + earth.lam * (earth.b_fin - earth.b_ini)
-        a2 = earth.a_ini + earth.c1 * earth.mu * (b2**2 - earth.b_ini**2) / 4
-        return earth.c0 * (-(earth.T**4) + earth.c1 * earth.mu * (b2 * earth.T**2 - a2))
+        earth = Element(
+            'earth',
+            values={'T': self._warm_state(1.0, values['b_ini'], values['a_ini']), 'mu': 1.0, 'lam': values['lam']},
+        )
+        balance = StochasticEnergyBalanceInteraction(
+            'balance',
+            target='earth',
+            drift=values['drift'],
+            rho=self.rho if self.tipping == 'rate' else 0.0,
+            b_ini=values['b_ini'],
+            b_fin=values['b_fin'],
+            a_ini=values['a_ini'],
+            nu=values['nu'] if self.nu is None else self.nu,
+        )
+        self.system_ = System(self.label, elements=[earth], interactions=[balance], solver=EulerMaruyamaSolver(dt=0.05))
 
 
 class RampedStochasticFoldSystem(BaseSystem):
@@ -411,9 +552,15 @@ class RampedStochasticFoldSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import RampedStochasticFoldSystem
-        >>> RampedStochasticFoldSystem(rate=0.01).prepare().system_.elements[0].rate
+        >>> RampedStochasticFoldSystem(rate=0.01).prepare().system_.interactions[0].rate
         0.01
     """
 
@@ -422,7 +569,6 @@ class RampedStochasticFoldSystem(BaseSystem):
     references = ('Fang, Wang, Kurths, and Fan 2025', 'Scheffer et al. 2009')
     until = 500.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     @staticmethod
     def _lower_branch(a: float, b: float, phi: float) -> float:
@@ -443,8 +589,10 @@ class RampedStochasticFoldSystem(BaseSystem):
         phi0: float = -1.0,
         phi1: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.rate = rate
         self.sigma = sigma
         self.a = a
@@ -452,14 +600,18 @@ class RampedStochasticFoldSystem(BaseSystem):
         self.phi0 = phi0
         self.phi1 = phi1
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a stochastic fold whose control is ramped through a tipping point.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a stochastic fold ramped through the tipping point of its lower branch.
 
-        The tipping point is that of its lower branch.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        fold = RampedFoldElement(
-            'system',
-            x=RampedStochasticFoldSystem._lower_branch(self.a, self.b, self.phi0),
+        super()._prepare(context)
+        fold = RampedFoldElement('system', x=RampedStochasticFoldSystem._lower_branch(self.a, self.b, self.phi0))
+        ramped = RampedFoldInteraction(
+            'fold',
+            target='system',
             a=self.a,
             b=self.b,
             sigma=self.sigma,
@@ -467,7 +619,7 @@ class RampedStochasticFoldSystem(BaseSystem):
             phi1=self.phi1,
             rate=self.rate,
         )
-        return CompositeSystem(self.label, elements=[fold])
+        self.system_ = System(self.label, elements=[fold], interactions=[ramped], solver=EulerMaruyamaSolver(dt=0.01))
 
 
 class LeadingFollowingCascadeSystem(BaseSystem):
@@ -516,13 +668,19 @@ class LeadingFollowingCascadeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The follower is neither `'fold'` nor `'hopf'`.
 
     Examples:
         >>> from skcomplex.systems.physics.climate import LeadingFollowingCascadeSystem
-        >>> LeadingFollowingCascadeSystem('hopf').prepare().system_.elements[1].omega
+        >>> LeadingFollowingCascadeSystem('hopf').prepare().system_.interactions[1].omega
         1.0
     """
 
@@ -531,7 +689,6 @@ class LeadingFollowingCascadeSystem(BaseSystem):
     references = ('Dekker, von der Heydt, and Dijkstra 2018', 'Fang, Wang, Kurths, and Fan 2025')
     until = 500.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -546,8 +703,10 @@ class LeadingFollowingCascadeSystem(BaseSystem):
         mu: float = 0.0,
         omega: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.follower = follower
         self.coupling = coupling
         self.rate = rate
@@ -558,45 +717,60 @@ class LeadingFollowingCascadeSystem(BaseSystem):
         self.mu = mu
         self.omega = omega
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the ramped leader and its forced follower.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValidationError:
+                The follower is neither `'fold'` nor `'hopf'`.
+        """
+        super()._prepare(context)
         if self.follower not in FOLLOWERS:
             error_msg = f'Unknown follower {self.follower!r}. Use one of {", ".join(FOLLOWERS)}.'
             raise ValidationError(error_msg)
         start = RampedStochasticFoldSystem._lower_branch(-1.0, 1.0, self.phi0)
-        leader = RampedFoldElement('leader', x=start, sigma=self.sigma, phi0=self.phi0, phi1=self.phi1, rate=self.rate)
+        leader = RampedFoldElement('leader', x=start)
+        ramped = RampedFoldInteraction(
+            'leader_fold',
+            target='leader',
+            sigma=self.sigma,
+            phi0=self.phi0,
+            phi1=self.phi1,
+            rate=self.rate,
+        )
+        follows: Element
+        forcing: Interaction
         if self.follower == 'fold':
-            follows: Element = FoldFollowerElement(
+            follows = FoldFollowerElement(
                 'follower',
                 y=RampedStochasticFoldSystem._lower_branch(-1.0, 1.0, self.c + self.coupling * start),
+            )
+            forcing = FoldFollowerInteraction(
+                'forcing',
+                target='follower',
+                leader='leader',
                 c=self.c,
+                coupling=self.coupling,
                 sigma=self.sigma,
             )
-            forcing = [
-                RateInteraction(
-                    'forcing',
-                    target='follower',
-                    state='y',
-                    sources=['leader'],
-                    rate=lambda s: self.coupling * s.sources[0].x,
-                ),
-            ]
         else:
-            follows = HopfFollowerElement('follower', mu=self.mu, omega=self.omega, sigma=self.sigma)
-            forcing = [
-                RateInteraction(
-                    'forcing_y',
-                    target='follower',
-                    state='y',
-                    sources=['leader'],
-                    rate=lambda s: self.coupling * s.sources[0].x * s.target.y,
-                ),
-                RateInteraction(
-                    'forcing_z',
-                    target='follower',
-                    state='z',
-                    sources=['leader'],
-                    rate=lambda s: self.coupling * s.sources[0].x * s.target.z,
-                ),
-            ]
-        return CompositeSystem(self.label, elements=[leader, follows], interactions=forcing)
+            follows = HopfFollowerElement('follower')
+            forcing = HopfFollowerInteraction(
+                'forcing',
+                target='follower',
+                leader='leader',
+                mu=self.mu,
+                omega=self.omega,
+                coupling=self.coupling,
+                sigma=self.sigma,
+            )
+        self.system_ = System(
+            self.label,
+            elements=[leader, follows],
+            interactions=[ramped, forcing],
+            solver=EulerMaruyamaSolver(dt=0.01),
+        )

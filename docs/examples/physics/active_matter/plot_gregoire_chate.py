@@ -15,7 +15,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import GregoireChateSystem
 
@@ -35,9 +34,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 system = GregoireChateSystem(n_particles=200, seed=0)
-observables = GregoireChateSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(system, observers=[observer], random_state=0, observables=observables)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Spacing inside the flock

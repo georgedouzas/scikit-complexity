@@ -12,7 +12,13 @@ from ._quantum import (
     SchrodingerSystem,
     WaveFunctionElement,
 )
-from ._strings import DrivenAnchorInteraction, SpringChainSystem, StandingWavesSystem, WaveStringElement
+from ._strings import (
+    DrivenAnchorInteraction,
+    SpringChainSystem,
+    StandingWavesSystem,
+    WaveStringElement,
+    WaveTensionInteraction,
+)
 from ._yang_mills import (
     ColorLinkElement,
     GaugeObservablesResult,
@@ -40,6 +46,7 @@ __all__: list[str] = [
     'StaticChargeElement',
     'WaveFunctionElement',
     'WaveStringElement',
+    'WaveTensionInteraction',
     'WilsonSamplingInteraction',
     'gauge_observables',
 ]

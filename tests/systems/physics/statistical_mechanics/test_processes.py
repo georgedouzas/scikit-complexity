@@ -21,7 +21,7 @@ def _ising_energy(spins):
 
 def test_q2r_conserves_energy():
     """Test that the Q2R automaton keeps the Ising energy while the magnetisation changes."""
-    trajectory = simulate(Q2rSystem((32, 32)), until=50, random_state=0)
+    trajectory = Q2rSystem((32, 32)).prepare().simulate(until=50, random_state=0)
     spins = trajectory.get_lattice('spins.spin')
     assert {_ising_energy(frame) for frame in spins} == {_ising_energy(spins[0])}
     assert abs(spins[-1].mean()) < abs(spins[0].mean())
@@ -30,9 +30,9 @@ def test_q2r_conserves_energy():
 @pytest.mark.parametrize(('p', 'spans'), [(0.45, False), (0.75, True)])
 def test_site_percolation_burns_the_clusters_of_the_top_row(p, spans):
     """Test that the fire burns the clusters touching the top row, which span the lattice only above threshold."""
-    system = SitePercolationSystem((40, 40), p=p, random_state=1).prepare().system_
-    occupied = np.reshape(system.elements[0].values['cover'], (40, 40)) > 0
-    trajectory = simulate(system, until=200, random_state=0)
+    system = SitePercolationSystem((40, 40), p=p, random_state=1).prepare()
+    occupied = np.reshape(system.system_.elements[0].cover, (40, 40)) > 0
+    trajectory = system.simulate(until=200, random_state=0)
     burnt = trajectory.get_lattice('lattice.cover')[-1] == 3
     labels, _ = ndimage.label(occupied)
     lit = np.isin(labels, np.setdiff1d(labels[0], [0]))

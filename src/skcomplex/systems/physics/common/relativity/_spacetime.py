@@ -8,7 +8,7 @@ They are coordinate charts with a symbolic metric and the curvature it derives.
 
 from collections.abc import Iterator, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, function, matrix, vector
@@ -20,11 +20,9 @@ from sage.symbolic.operators import FDerivativeOperator
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
-from .....core.components.laws.utils import derivative
 from .....core.components.spaces import BaseSpace, ContinuousSpace
-from .....core.enums import ElementKind
 from .....core.errors import SpaceError, ValidationError
-from .....core.specs import RoleSpec
+from .....core.specs import Role
 from ...._extras import import_extra
 
 type Christoffel = tuple[tuple[tuple[Expression, ...], ...], ...]
@@ -132,12 +130,20 @@ class SpacetimeSpace(ContinuousSpace):
     def _get_metric(self) -> Matrix:
         """Return the metric as a Sage matrix.
 
-        This is the hook a subclass overrides to derive it from its parameters.
+        This is the hook a subclass overrides to derive it from its parameters. A copy of the metric, such as the one a
+        clone of the space holds, has new functions of the same names, which Maxima cannot simplify, so every function
+        of the ansatz is restored by its name.
         """
         if self.metric is None:
             error_msg = f'{type(self).__name__} has no metric. Give a square matrix of expressions.'
             raise ValidationError(error_msg)
-        return matrix(SR, self.metric)
+        metric = self.metric
+        if isinstance(metric, Matrix):
+            metric = [[metric[row, column] for column in range(metric.ncols())] for row in range(metric.nrows())]
+        rows = [[SR(entry) for entry in row] for row in metric]
+        for kind in self._get_functions(matrix(SR, rows)):
+            rows = [[entry.substitute_function(kind, function(kind.name())) for entry in row] for row in rows]
+        return matrix(SR, rows)
 
     def _walk(self, expression: Expression) -> Iterator[Expression]:
         """Yield an expression and every subexpression of it."""
@@ -293,8 +299,8 @@ class SpacetimeSpace(ContinuousSpace):
 class GeodesicInteraction(Interaction):
     """Geodesic equation `x''^mu = -Γ^mu_(alpha beta)(x) x'^alpha x'^beta` of a point.
 
-    The point is a point of a pseudo-Riemannian space. The state is a vector of order 2 with one component per
-    coordinate of the space, the position `x^mu` of a test particle, and its companion holds the tangent `x'^mu`. The
+    The point is a point of a pseudo-Riemannian space. The state is a vector with one component per coordinate of
+    the space, the position `x^mu` of a test particle, whose derivative `x'^mu` is the tangent. The
     time of the system is the affine parameter of the geodesic, the proper time of a timelike geodesic when the tangent
     starts with `g_(mu nu) x'^mu x'^nu = -1`. A tangent that starts null, with `g_(mu nu) x'^mu x'^nu = 0`, follows a
     light ray. Either norm is conserved along the geodesic, so it measures the error of a run. The Christoffel symbols
@@ -308,7 +314,7 @@ class GeodesicInteraction(Interaction):
             The path of the element or group whose state is the position.
 
         state:
-            The name of the vector state of order 2 that is the position.
+            The name of the vector state that is the position.
 
         space:
             The pseudo-Riemannian space whose geodesics the point follows, usually the space of the system too.
@@ -326,17 +332,16 @@ class GeodesicInteraction(Interaction):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import SR, matrix
-        >>> from skcomplex.systems.general.elements import PointElement
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.common.relativity import GeodesicInteraction
         >>> from skcomplex.systems.physics.common.relativity import SpacetimeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> r, phi = SR.var('r phi')
         >>> plane = SpacetimeSpace(matrix(SR, [[1, 0], [0, r**2]]), (r, phi))
         >>> line = GeodesicInteraction('line', target='particle', space=plane)
-        >>> particle = PointElement('particle', x=[1.0, 0.0], x_d1=[0.0, 1.0])
-        >>> system = CompositeSystem(elements=[particle], interactions=[line], space=plane)
-        >>> trajectory = simulate(system, until=1.0, dt=0.001)
+        >>> particle = Element('particle', values={'x': [1.0, 0.0], "x'": [0.0, 1.0]})
+        >>> system = System(elements=[particle], interactions=[line], space=plane).prepare()
+        >>> trajectory = system.simulate(until=1.0, dt=0.001)
         >>> [round(float(value), 3) for value in trajectory.get_values('particle.x')[-1]]
         [1.414, 0.785]
     """
@@ -347,7 +352,7 @@ class GeodesicInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        target: Role,
         state: str = 'x',
         space: SpacetimeSpace | None = None,
     ) -> None:
@@ -357,19 +362,20 @@ class GeodesicInteraction(Interaction):
         self.space = space
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set `space_`, the prepared pseudo-Riemannian space.
+        """Set `space_`, the prepared pseudo-Riemannian space, and the law of a binding.
 
         It first raises an error for a state that is not a name.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of the target and the time `t`.
 
         Raises:
             SpaceError:
                 The space is not a pseudo-Riemannian space.
             ValidationError:
-                The type declares states, or the state is not a name.
+                The type declares states, the state is not a name, or the position has not one component per
+                coordinate of the space.
         """
         super()._prepare(context)
         if not isinstance(self.state, str) or not self.state.isidentifier():
@@ -384,15 +390,17 @@ class GeodesicInteraction(Interaction):
             )
             raise SpaceError(error_msg)
         self.space_ = self.space.prepare()
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = self._get_geodesic_laws(context)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+    def _get_geodesic_laws(self, context: SimpleNamespace) -> list[BaseComponent]:
         """Return the rate law of the second derivative of the position.
 
         It is minus the connection on the tangent.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use, with the namespace of the target.
+            context:
+                The namespace of the target and the time `t`.
 
         Returns:
             laws:
@@ -402,7 +410,8 @@ class GeodesicInteraction(Interaction):
             ValidationError:
                 The position has not one component per coordinate of the space.
         """
-        position = getattr(self._get_member(namespace, 'target'), self.state)
+        t = context.t
+        position = getattr(context.target, self.state)
         components = list(position) if isinstance(position, FreeModuleElement) else [position]
         coordinates = self.space_.coordinates_
         if len(components) != len(coordinates):
@@ -412,7 +421,7 @@ class GeodesicInteraction(Interaction):
             )
             raise ValidationError(error_msg)
         at = dict(zip(coordinates, components, strict=True))
-        tangent = [derivative(component, 1) for component in components]
+        tangent = [SR(component).diff(t) for component in components]
         indices = range(len(components))
         rate = [
             -sum(
@@ -426,4 +435,6 @@ class GeodesicInteraction(Interaction):
             )
             for mu in indices
         ]
-        return [RateLaw(position, vector(SR, rate) if isinstance(position, FreeModuleElement) else rate[0])]
+        if isinstance(position, FreeModuleElement):
+            return [RateLaw(position, vector(SR, rate), order=2)]
+        return [RateLaw(SR(position).diff(t, 2), rate[0])]

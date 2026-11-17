@@ -10,6 +10,7 @@ fewest past headings a predicted alignment fits a line through.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -20,20 +21,26 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BaseInteraction, CouplingInteraction
-from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.interactions import BaseInteraction, CouplingInteraction, Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import lag, neighbors, uniform, where
 from ....core.components.spaces import (
     BaseNeighborhood,
+    BaseSpace,
     ContinuousSpace,
     DiscreteTime,
     NearestNeighborhood,
     RadiusNeighborhood,
 )
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
 from ....core.components.types import Target
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ..common.particles import PropulsionStepInteraction
 
 CLOSE = 0.2
@@ -47,24 +54,62 @@ HEADINGS = VisualSpec(
 
 
 class CohesiveParticleElement(Element):
-    """Particle of a Grégoire-Chaté flock.
-
-    The particle aligns, repels close neighbours, and attracts distant ones.
-
-    The new heading is the direction of `alpha sum_j exp(i theta_j) + beta sum_j f(r_ij) e_ij + eta n_i xi` over the
-    `n_i` particles within the unit distance, where `e_ij` points from `i` to `j`, `xi` is a random unit vector, and the
-    force `f` is a strong repulsion below `r_c`, zero at `r_e`, and attractive up to `r_a`. A propulsion step moves the
-    particle along its heading.
+    """Particles of a Grégoire-Chaté flock with the positions `x` and the headings `theta`.
 
     Args:
         label:
-            The label of the particle or the group.
+            The label of the particles.
 
         x:
-            The initial position.
+            The initial positions, one row per particle or shared.
 
         theta:
-            The initial heading.
+            The initial headings, one per particle or shared.
+
+        size:
+            The number of particles, or `None` for one.
+
+        space:
+            The continuous space of the particles, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import CohesiveParticleElement
+        >>> CohesiveParticleElement('bird', theta=1.0).theta
+        1.0
+    """
+
+    visual = HEADINGS
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = (0.0, 0.0),
+        theta: object = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space)
+        self.x = x
+        self.theta = theta
+
+
+class CohesiveAlignmentInteraction(Interaction):
+    """Alignment with cohesion of a Grégoire-Chaté flock.
+
+    The particles align, repel close neighbours, and attract distant ones.
+
+    Every step the new heading is the direction of `alpha sum_j exp(i theta_j) + beta sum_j f(r_ij) e_ij + eta n_i xi`
+    over the `n_i` particles within the unit distance, where `e_ij` points from `i` to `j`, `xi` is a random unit
+    vector, and the force `f` is a strong repulsion below `r_c`, zero at `r_e`, and attractive up to `r_a`. It is a
+    school of fish or a flock of birds that stays together.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particles, with the positions `x` and the headings `theta`.
 
         eta:
             The strength of the vectorial noise.
@@ -84,19 +129,11 @@ class CohesiveParticleElement(Element):
         r_a:
             The distance of the strongest attraction.
 
-    Attributes:
-        default_visual_:
-            How the particle is drawn by default, the `visual` of its class.
-
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import CohesiveParticleElement
-        >>> CohesiveParticleElement('bird').r_e
+        >>> from skcomplex.systems.physics.active_matter import CohesiveAlignmentInteraction
+        >>> CohesiveAlignmentInteraction('cohesion', target='flock').r_e
         0.5
     """
-
-    visual = HEADINGS
-
-    draws = True
 
     law_classes = (UpdateLaw,)
 
@@ -104,18 +141,16 @@ class CohesiveParticleElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        r_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = CLOSE,
-        r_e: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        r_a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.8,
+        target: Role,
+        eta: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        r_c: Annotated[float, RealSet.open(0, oo)] = CLOSE,
+        r_e: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        r_a: Annotated[float, RealSet.open(0, oo)] = 0.8,
     ) -> None:
         super().__init__(label)
-        self.x = x
-        self.theta = theta
+        self.target = target
         self.eta = eta
         self.alpha = alpha
         self.beta = beta
@@ -123,40 +158,33 @@ class CohesiveParticleElement(Element):
         self.r_e = r_e
         self.r_a = r_a
 
-    def _get_attraction(self, distance: Expression, namespace: SimpleNamespace) -> Expression:
-        """Return the cohesion force, repulsive below `r_c` and towards `r_e` beyond it."""
-        s = namespace
-        return where(distance < s.r_c, -REPULSION, (distance - s.r_e) / (4 * (s.r_a - s.r_e)))
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the alignment, the cohesion, and the vectorial noise of the heading.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the update of the heading of the target by alignment, cohesion, and vectorial noise.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use, with the neighbour `namespace.other`.
-
-        Returns:
-            laws:
-                The update of the heading.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        s = namespace
-        near, others = RadiusNeighborhood(1.0, center=True), RadiusNeighborhood(1.0)
-        dx, dy = s.other.x[0] - s.x[0], s.other.x[1] - s.x[1]
-        distance = sqrt(dx**2 + dy**2)
-        force = self._get_attraction(distance, s)
-        count = neighbors(1, over=near)
-        angle = uniform('noise', -math.pi, math.pi)
-        along_x = (
-            s.alpha * neighbors(cos(s.other.theta), over=near)
-            + s.beta * neighbors(force * dx / distance, over=others)
-            + s.eta * count * cos(angle)
-        )
-        along_y = (
-            s.alpha * neighbors(sin(s.other.theta), over=near)
-            + s.beta * neighbors(force * dy / distance, over=others)
-            + s.eta * count * sin(angle)
-        )
-        return [UpdateLaw(s.theta, atan2(along_y, along_x))]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, member = context, context.target
+            near, others = RadiusNeighborhood(1.0, center=True), RadiusNeighborhood(1.0)
+            dx, dy = member.other.x[0] - member.x[0], member.other.x[1] - member.x[1]
+            distance = sqrt(dx**2 + dy**2)
+            force = where(distance < s.r_c, -REPULSION, (distance - s.r_e) / (4 * (s.r_a - s.r_e)))
+            count = neighbors(1, over=near)
+            angle = uniform('noise', -math.pi, math.pi)
+            along_x = (
+                s.alpha * neighbors(cos(member.other.theta), over=near)
+                + s.beta * neighbors(force * dx / distance, over=others)
+                + s.eta * count * cos(angle)
+            )
+            along_y = (
+                s.alpha * neighbors(sin(member.other.theta), over=near)
+                + s.beta * neighbors(force * dy / distance, over=others)
+                + s.eta * count * sin(angle)
+            )
+            self.laws_ = [UpdateLaw(member.theta, atan2(along_y, along_x))]
 
 
 class DelayedVicsekParticleElement(Element):
@@ -207,9 +235,7 @@ class DelayedVicsekParticleElement(Element):
 
 
 class NematicParticleElement(Element):
-    """Polar particle with nematic alignment.
-
-    The particle aligns with the axis of every neighbour on its nearer side.
+    """Polar particles with the positions `x`, the headings `theta`, and the noise amplitudes `eta`.
 
     `HeadingAlignmentInteraction` with `nematic=True` sets the new heading to the circular mean of the headings within
     the unit distance, itself included, each flipped to the side nearer the particle's own heading, plus a uniform
@@ -217,20 +243,22 @@ class NematicParticleElement(Element):
 
     Args:
         label:
-            The label of the particle or the group.
+            The label of the particles.
 
         x:
-            The initial position.
+            The initial positions, one row per particle or shared.
 
         theta:
-            The initial heading.
+            The initial headings, one per particle or shared.
 
         eta:
             The amplitude of the noise, as a fraction of `pi`.
 
-    Attributes:
-        default_visual_:
-            How the particle is drawn by default, the `visual` of its class.
+        size:
+            The number of particles, or `None` for one.
+
+        space:
+            The continuous space of the particles, or `None` for none.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import NematicParticleElement
@@ -244,11 +272,13 @@ class NematicParticleElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        x: object = (0.0, 0.0),
+        theta: object = 0.0,
+        eta: object = 0.1,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.x = x
         self.theta = theta
         self.eta = eta
@@ -440,7 +470,7 @@ def _get_nematic_order(s: SimpleNamespace) -> Expression:
     return VicsekSystem._get_modulus('mean_axis', s)
 
 
-class VicsekSystem(BaseSystem):
+class VicsekSystem(OldBaseSystem):
     """The Vicsek system.
 
     Particles move at a constant speed along the mean heading of their neighbours.
@@ -655,9 +685,15 @@ class GregoireChateSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import GregoireChateSystem
-        >>> GregoireChateSystem(10, beta=2.0).prepare().system_.elements[0].values['beta']
+        >>> GregoireChateSystem(10, beta=2.0).prepare().system_.interactions[1].beta
         2.0
     """
 
@@ -679,8 +715,10 @@ class GregoireChateSystem(BaseSystem):
         beta: float = 0.5,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.size = size
         self.v0 = v0
@@ -689,22 +727,40 @@ class GregoireChateSystem(BaseSystem):
         self.beta = beta
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Grégoire-Chaté system.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the Grégoire-Chaté system of aligning particles that also attract and repel.
 
-        Aligning particles also attract and repel, forming cohesive flocks.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return VicsekSystem._get_flock(
-            self.label,
-            CohesiveParticleElement,
-            self.n_particles,
-            self.size,
-            self.seed,
-            v0=self.v0,
+        super()._prepare(context)
+        x, theta = GregoireChateSystem._get_flockers(self.n_particles, self.size, self.seed)
+        flock = CohesiveParticleElement(
+            'flock',
+            x=x,
+            theta=theta,
+            size=self.n_particles,
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+        )
+        cohesion = CohesiveAlignmentInteraction(
+            'cohesion',
+            target='flock',
             eta=self.eta,
             alpha=self.alpha,
             beta=self.beta,
         )
+        self.system_ = System(
+            self.label,
+            elements=[flock],
+            interactions=[PropulsionStepInteraction('propulsion', target='flock', speed=self.v0), cohesion],
+        )
+
+    @staticmethod
+    def _get_flockers(n_particles: int, size: float, seed: int) -> tuple[Array, Array]:
+        """Return uniform positions in a square and uniform headings."""
+        rng = np.random.default_rng(seed)
+        return rng.uniform(0.0, size, (n_particles, 2)), rng.uniform(-math.pi, math.pi, n_particles)
 
 
 class GinelliNematicsSystem(BaseSystem):
@@ -738,9 +794,15 @@ class GinelliNematicsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import GinelliNematicsSystem
-        >>> GinelliNematicsSystem(10).prepare().system_.elements[0].values['eta']
+        >>> GinelliNematicsSystem(10).prepare().system_.elements[0].eta
         0.08
     """
 
@@ -760,24 +822,38 @@ class GinelliNematicsSystem(BaseSystem):
         eta: float = 0.08,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.size = size
         self.v0 = v0
         self.eta = eta
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        alignment = HeadingAlignmentInteraction('alignment', target='flock', nematic=True)
-        return VicsekSystem._get_flock(
-            self.label,
-            NematicParticleElement,
-            self.n_particles,
-            self.size,
-            self.seed,
-            v0=self.v0,
-            alignment=alignment,
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of polar particles with nematic alignment.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        x, theta = GregoireChateSystem._get_flockers(self.n_particles, self.size, self.seed)
+        flock = NematicParticleElement(
+            'flock',
+            x=x,
+            theta=theta,
             eta=self.eta,
+            size=self.n_particles,
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+        )
+        self.system_ = System(
+            self.label,
+            elements=[flock],
+            interactions=[
+                PropulsionStepInteraction('propulsion', target='flock', speed=self.v0),
+                HeadingAlignmentInteraction('alignment', target='flock', nematic=True),
+            ],
         )

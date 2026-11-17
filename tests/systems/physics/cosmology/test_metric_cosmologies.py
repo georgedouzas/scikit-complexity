@@ -16,7 +16,8 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.common.relativity import SpacetimeSpace
 from skcomplex.systems.physics.cosmology import (
     EinsteinFieldEquationsInteraction,
@@ -26,7 +27,6 @@ from skcomplex.systems.physics.cosmology import (
 
 from ..conftest import _run, _series
 
-ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-12)
 ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
 
@@ -54,7 +54,7 @@ def test_mixed_universe_keeps_the_friedmann_constraint_and_accelerates_late():
         0.05,
         ACCURATE,
     )
-    a, rate = (np.ravel(item) for item in _series(trajectory, 'universe.a', 'universe.a_d1'))
+    a, rate = (np.ravel(item) for item in _series(trajectory, 'universe.a', "universe.a'"))
     curvature = 1 - 0.3 - 0.01 - 0.8
     constraint = rate**2 - (0.3 / a + 0.01 / a**2 + 0.8 * a**2 + curvature)
     assert np.abs(constraint).max() < 1e-8
@@ -106,23 +106,6 @@ def test_oppenheimer_snyder_collapse_rejects_a_ball_inside_its_horizon():
 t, r, theta, phi, x, y, z = SR.var('t r theta phi x y z')
 
 
-class UniverseElement(Element):
-    """Universe with the scale factor `a` of order 2 and the matter density today `rho`."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        a: Annotated[float, StateSpec(order=2)] = 1.0,
-        a_d1: float = 0.0,
-        rho: Annotated[float, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.a = a
-        self.a_d1 = a_d1
-        self.rho = rho
-
-
 class ProfileElement(Element):
     """Site of a field with the warp `u` of order 2."""
 
@@ -150,7 +133,7 @@ def _warped_plane() -> SpacetimeSpace:
 def test_dust_universe_follows_the_einstein_de_sitter_solution():
     """Test that a flat universe of dust grows as `(3 H t / 2 + 1)^(2/3)` with `H² = 8 π rho / 3`."""
     rho = 3 / (8 * math.pi)
-    universe = UniverseElement('universe', a=1.0, a_d1=1.0, rho=rho)
+    universe = Element('universe', values={'a': 1.0, "a'": 1.0, 'rho': rho})
     einstein = EinsteinFieldEquationsInteraction(
         'einstein',
         target='universe',
@@ -159,8 +142,8 @@ def test_dust_universe_follows_the_einstein_de_sitter_solution():
         components=[(1, 1)],
         source=lambda s: diagonal_matrix(SR, [-s.target.rho / s.target.a**3, 0, 0, 0]),
     )
-    system = CompositeSystem(elements=[universe], interactions=[einstein])
-    trajectory = simulate(system, until=2.0, dt=0.1, solver=ACCURATE)
+    system = System(elements=[universe], interactions=[einstein], solver=ACCURATE).prepare()
+    trajectory = system.simulate(until=2.0, dt=0.1)
     expected = (1.5 * np.asarray(trajectory.times) + 1) ** (2 / 3)
     assert np.ravel(trajectory.get_values('universe.a')) == pytest.approx(expected, rel=1e-8)
 

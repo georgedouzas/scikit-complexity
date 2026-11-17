@@ -14,7 +14,6 @@ backward over the far one, so their positions climb from well to well.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import FlashingRatchetSystem
@@ -22,15 +21,9 @@ from skcomplex.systems.physics.soft_matter import FlashingRatchetSystem
 SYSTEM = 'flashing_ratchet'
 
 system = FlashingRatchetSystem(n_particles=20, asymmetry=0.1, rate=1.0, duration=60.0, random_state=0)
+system.set_params(solver=EulerMaruyamaSolver(dt=0.004))
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    system.prepare().system_,
-    until=60,
-    dt=0.25,
-    solver=EulerMaruyamaSolver(dt=0.004),
-    observers=[observer],
-    random_state=0,
-)
+trajectory = system.prepare().simulate(until=60, dt=0.25, observers=[observer], random_state=0)
 
 # %%
 # Current against the asymmetry and the switching rate
@@ -44,7 +37,8 @@ trajectory = simulate(
 
 def measure_current(asymmetry, rate, duration):
     run = FlashingRatchetSystem(n_particles=200, asymmetry=asymmetry, rate=rate, duration=duration, random_state=1)
-    positions = simulate(run, until=duration, dt=1.0, solver=EulerMaruyamaSolver(dt=0.004), random_state=2)
+    run.set_params(solver=EulerMaruyamaSolver(dt=0.004))
+    positions = run.prepare().simulate(until=duration, dt=1.0, random_state=2)
     velocities = positions.get_values('particles.x')[-1, :, 0] / duration
     return velocities.mean(), 3 * velocities.std() / np.sqrt(velocities.size)
 

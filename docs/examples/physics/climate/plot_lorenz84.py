@@ -12,7 +12,6 @@ while the eddies are weak, the eddies then grow on it and weaken it, and the cyc
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import Lorenz84System
 
@@ -20,7 +19,7 @@ SYSTEM = 'lorenz84'
 
 system = Lorenz84System()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # A chaotic attractor

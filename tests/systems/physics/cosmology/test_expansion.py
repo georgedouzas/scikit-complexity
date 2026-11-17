@@ -18,7 +18,7 @@ def test_einstein_de_sitter_universe_grows_as_two_thirds_power():
 def test_dark_energy_universe_keeps_the_friedmann_equation_and_accelerates():
     """Test that the universe with dark energy keeps the Friedmann equation as a first integral and accelerates."""
     trajectory = _run(FriedmannExpansionSystem(), 2.0, 0.05)
-    a, rate = _series(trajectory, 'universe.a', 'universe.a_d1')
+    a, rate = _series(trajectory, 'universe.a', "universe.a'")
     friedmann = rate**2 - (0.3 / a + 0.7 * a**2)
     assert np.abs(friedmann).max() < 1e-8
     assert np.all(np.diff(rate) > 0)

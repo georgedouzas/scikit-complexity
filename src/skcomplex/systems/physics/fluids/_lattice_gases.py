@@ -7,18 +7,21 @@ In the HPP and FHP gases, particles move along the directions of a lattice and c
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
+from types import SimpleNamespace
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import NN
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import LocalRuleLaw
+from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.errors import ValidationError
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 DIRECTIONS = 6
@@ -36,20 +39,17 @@ SQUARE_CHANNELS = tuple(f'n{direction}' for direction in range(SQUARE_DIRECTIONS
 SQUARE_STEPS = ((0, 1), (1, 0), (0, -1), (-1, 0))
 ARRIVALS = LatticeNeighborhood(tuple((-row, -column) for row, column in SQUARE_STEPS))
 SQUARE_HEAD_ON = {0b0101: 0b1010, 0b1010: 0b0101}
+GEOMETRIES = ('square', 'triangular')
 
 
 class HPPSiteElement(Element):
-    """Site of the HPP lattice gas.
+    """Sites of the HPP lattice gas.
 
-    The site has one boolean channel per direction of the square lattice.
-
-    The local rules of the gas turn every head-on pair of particles at a site by a quarter turn, and then move every
-    particle to the neighbouring site along its direction. The state `density` holds the number of particles at the
-    site.
+    Every site has one boolean channel per direction of the square lattice, and the number `density` of its particles.
 
     Args:
         label:
-            The label of the site or the lattice group.
+            The label of the site or the lattice of sites.
 
         n0:
             The initial occupation of the channel along the columns, towards higher column indices.
@@ -66,29 +66,27 @@ class HPPSiteElement(Element):
         density:
             The initial number of particles at the site.
 
-    Attributes:
-        default_visual_:
-            How the site is drawn by default, the `visual` of its class.
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.fluids import HPPSiteElement
         >>> HPPSiteElement('site').n0
-        0
+        0.0
     """
-
-    visual = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
 
     def __init__(
         self,
         label: str,
         *,
-        n0: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        n1: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        n2: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        n3: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        density: Annotated[float, StateSpec(domain=NN)] = 0,
+        n0: object = 0.0,
+        n1: object = 0.0,
+        n2: object = 0.0,
+        n3: object = 0.0,
+        density: object = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.n0 = n0
         self.n1 = n1
         self.n2 = n2
@@ -123,18 +121,14 @@ COLLISIONS = _collisions()
 
 
 class FHPSiteElement(Element):
-    """Site of the FHP-I lattice gas.
+    """Sites of the FHP-I lattice gas.
 
-    The site has one boolean channel per direction of the triangular lattice.
-
-    The local rules of the gas collide the particles at every site, head-on pairs turning by a sixth of a turn to either
-    side with equal probability and symmetric triples turning by a sixth of a turn, and then move every particle to the
-    neighbouring site along its direction. Collisions conserve the number of particles and their momentum at every
-    site. The state `density` holds the number of particles at the site.
+    Every site has one boolean channel per direction of the triangular lattice, and the number `density` of its
+    particles.
 
     Args:
         label:
-            The label of the site or the lattice group.
+            The label of the site or the lattice of sites.
 
         n0:
             The initial occupation of the channel at 0 degrees.
@@ -157,27 +151,29 @@ class FHPSiteElement(Element):
         density:
             The initial number of particles at the site.
 
+        space:
+            The lattice of the sites, or `None` for one site.
+
     Examples:
         >>> from skcomplex.systems.physics.fluids import FHPSiteElement
         >>> FHPSiteElement('site').n0
-        0
+        0.0
     """
-
-    visual = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
 
     def __init__(
         self,
         label: str,
         *,
-        n0: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        n1: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        n2: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        n3: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        n4: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        n5: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        density: Annotated[float, StateSpec(domain=NN)] = 0,
+        n0: object = 0.0,
+        n1: object = 0.0,
+        n2: object = 0.0,
+        n3: object = 0.0,
+        n4: object = 0.0,
+        n5: object = 0.0,
+        density: object = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.n0 = n0
         self.n1 = n1
         self.n2 = n2
@@ -185,6 +181,202 @@ class FHPSiteElement(Element):
         self.n4 = n4
         self.n5 = n5
         self.density = density
+
+
+class LatticeGasCollisionInteraction(Interaction):
+    """Collisions of the particles at every site of a lattice gas.
+
+    On the square lattice of the HPP gas, a site with exactly two particles of opposite directions turns them by a
+    quarter turn. On the triangular lattice of the FHP-I gas, head-on pairs turn by a sixth of a turn to either side
+    with equal probability, and symmetric triples turn by a sixth of a turn. Every other site keeps its particles, so
+    collisions conserve the number of particles and their momentum at every site.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the sites, whose channels are `n0`, `n1`, and so on.
+
+        geometry:
+            The lattice of the gas, `'square'` for HPP or `'triangular'` for FHP-I.
+
+    Raises:
+        ValidationError:
+            The geometry is not `'square'` or `'triangular'`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.fluids import LatticeGasCollisionInteraction
+        >>> LatticeGasCollisionInteraction('collision', target='gas', geometry='triangular').geometry
+        'triangular'
+    """
+
+    law_classes = (LocalRuleLaw,)
+
+    def __init__(self, label: str, *, target: Role, geometry: str = 'square') -> None:
+        super().__init__(label)
+        self.target = target
+        self.geometry = geometry
+
+    @staticmethod
+    def _collide_square(*channels: Array) -> tuple[Array, ...]:
+        """Return the HPP channels after every head-on pair turns by a quarter turn.
+
+        This is the only collision.
+        """
+        codes = np.sum(
+            [np.asarray(channel, dtype=np.intp) << direction for direction, channel in enumerate(channels)],
+            axis=0,
+        )
+        following = codes.copy()
+        for before, after in SQUARE_HEAD_ON.items():
+            following = np.where(codes == before, after, following)
+        return tuple(((following >> direction) & 1).astype(float) for direction in range(SQUARE_DIRECTIONS))
+
+    @staticmethod
+    def _collide_triangular(*channels: Array, random: Array) -> tuple[Array, ...]:
+        """Return the channels after the collisions of FHP-I at every site.
+
+        The collisions are the head-on and symmetric three-particle ones.
+        """
+        codes = sum(np.asarray(channel, dtype=np.intp) << direction for direction, channel in enumerate(channels))
+        following = COLLISIONS[codes, (random < TURN_PROBABILITY).astype(np.intp)]
+        return tuple(((following >> direction) & 1).astype(float) for direction in range(DIRECTIONS))
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the collision rule of the channels of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+
+        Raises:
+            ValidationError:
+                The geometry is not `'square'` or `'triangular'`.
+        """
+        super()._prepare(context)
+        if self.geometry not in GEOMETRIES:
+            error_msg = f'Unknown lattice gas geometry {self.geometry!r}. Use one of {", ".join(GEOMETRIES)}.'
+            raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            if self.geometry == 'square':
+                channels = tuple(getattr(context.target, name) for name in SQUARE_CHANNELS)
+                self.laws_ = [LocalRuleLaw(channels, SITE, self._collide_square, label=self.label)]
+            else:
+                channels = tuple(getattr(context.target, name) for name in CHANNELS)
+                law = LocalRuleLaw(channels, SITE, self._collide_triangular, stochastic=True, label=self.label)
+                self.laws_ = [law]
+
+
+class LatticeGasPropagationInteraction(Interaction):
+    """Propagation of every particle of a lattice gas to the neighbouring site along its direction.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the sites, whose channels are `n0`, `n1`, and so on.
+
+        geometry:
+            The lattice of the gas, `'square'` for HPP or `'triangular'` for FHP-I.
+
+    Raises:
+        ValidationError:
+            The geometry is not `'square'` or `'triangular'`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.fluids import LatticeGasPropagationInteraction
+        >>> LatticeGasPropagationInteraction('propagation', target='gas').geometry
+        'square'
+    """
+
+    law_classes = (LocalRuleLaw,)
+
+    def __init__(self, label: str, *, target: Role, geometry: str = 'square') -> None:
+        super().__init__(label)
+        self.target = target
+        self.geometry = geometry
+
+    @staticmethod
+    def _propagate_square(*columns: Array) -> tuple[Array, ...]:
+        """Return the channels of the HPP gas after every particle moves one site.
+
+        Every particle moves along its direction.
+        """
+        return tuple(columns[SQUARE_DIRECTIONS * direction + direction] for direction in range(SQUARE_DIRECTIONS))
+
+    @staticmethod
+    def _propagate_triangular(*columns: Array) -> tuple[Array, ...]:
+        """Return the channels after every particle moves one site along its direction."""
+        return tuple(columns[DIRECTIONS * direction + (direction + 3) % DIRECTIONS] for direction in range(DIRECTIONS))
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the propagation rule of the channels of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+
+        Raises:
+            ValidationError:
+                The geometry is not `'square'` or `'triangular'`.
+        """
+        super()._prepare(context)
+        if self.geometry not in GEOMETRIES:
+            error_msg = f'Unknown lattice gas geometry {self.geometry!r}. Use one of {", ".join(GEOMETRIES)}.'
+            raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            if self.geometry == 'square':
+                channels = tuple(getattr(context.target, name) for name in SQUARE_CHANNELS)
+                self.laws_ = [LocalRuleLaw(channels, ARRIVALS, self._propagate_square, label=self.label)]
+            else:
+                channels = tuple(getattr(context.target, name) for name in CHANNELS)
+                self.laws_ = [LocalRuleLaw(channels, TRIANGULAR, self._propagate_triangular, label=self.label)]
+
+
+class ParticleCountInteraction(Interaction):
+    """Count of the particles at every site, the sum of its channels.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the sites, whose value `density` holds the count.
+
+        channels:
+            The names of the channels of a site.
+
+    Examples:
+        >>> from skcomplex.systems.physics.fluids import ParticleCountInteraction
+        >>> ParticleCountInteraction('count', target='gas', channels=('n0', 'n1')).channels
+        ('n0', 'n1')
+    """
+
+    law_classes = (LocalRuleLaw,)
+
+    def __init__(self, label: str, *, target: Role, channels: Sequence[str] = SQUARE_CHANNELS) -> None:
+        super().__init__(label)
+        self.target = target
+        self.channels = channels
+
+    @staticmethod
+    def _count(*channels: Array) -> Array:
+        """Return the number of particles at every site."""
+        return np.sum(channels, axis=0)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the count of the particles of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            reads = tuple(getattr(context.target, name) for name in self.channels)
+            self.laws_ = [LocalRuleLaw(context.target.density, SITE, self._count, reads=reads, label=self.label)]
 
 
 class FHPLatticeGasSystem(BaseSystem):
@@ -215,10 +407,17 @@ class FHPLatticeGasSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.fluids import FHPLatticeGasSystem
-        >>> FHPLatticeGasSystem((8, 8)).prepare().system_.elements[0].prepare().size_
-        64
+        >>> trajectory = FHPLatticeGasSystem((8, 8)).prepare().simulate(until=2, random_state=0)
+        >>> trajectory.get_values('gas.density').shape
+        (3, 64)
     """
 
     field = 'physics/fluids'
@@ -226,11 +425,6 @@ class FHPLatticeGasSystem(BaseSystem):
     references = ('Frisch, Hasslacher, and Pomeau 1986', 'Dilão 2023')
     until = 200
     dt = 1
-
-    @staticmethod
-    def _count(*channels: Array) -> Array:
-        """Return the number of particles at every site."""
-        return np.sum(channels, axis=0)
 
     def __init__(
         self,
@@ -241,31 +435,24 @@ class FHPLatticeGasSystem(BaseSystem):
         radius: float | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.density = density
         self.bump = bump
         self.radius = radius
         self.random_state = random_state
 
-    @staticmethod
-    def _collide(*channels: Array, random: Array) -> tuple[Array, ...]:
-        """Return the channels after the collisions of FHP-I at every site.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the gas, built from its model parameters.
 
-        The collisions are the head-on and symmetric three-particle ones.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        codes = sum(np.asarray(channel, dtype=np.intp) << direction for direction, channel in enumerate(channels))
-        following = COLLISIONS[codes, (random < TURN_PROBABILITY).astype(np.intp)]
-        return tuple(((following >> direction) & 1).astype(float) for direction in range(DIRECTIONS))
-
-    @staticmethod
-    def _propagate(*columns: Array) -> tuple[Array, ...]:
-        """Return the channels after every particle moves one site along its direction."""
-        return tuple(columns[DIRECTIONS * direction + (direction + 3) % DIRECTIONS] for direction in range(DIRECTIONS))
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+        super()._prepare(context)
         space = LatticeSpace(tuple(self.shape), geometry='triangular').prepare()
         positions = space.positions_
         centre = positions.mean(axis=0)
@@ -276,40 +463,14 @@ class FHPLatticeGasSystem(BaseSystem):
             float,
         )
         channels = {name: occupied[:, direction] for direction, name in enumerate(CHANNELS)}
-        gas = GroupElement(
-            'gas',
-            element=FHPSiteElement,
-            space=space,
-            values={'density': occupied.sum(axis=1), **channels},
-            on='sites',
-        )
-        return CompositeSystem(
+        gas = FHPSiteElement('gas', density=occupied.sum(axis=1), space=space, **channels)
+        self.system_ = System(
             self.label,
             elements=[gas],
             interactions=[
-                LocalRuleInteraction(
-                    'collision',
-                    target='gas',
-                    state=CHANNELS,
-                    rule=self._collide,
-                    neighborhood=SITE,
-                    stochastic=True,
-                ),
-                LocalRuleInteraction(
-                    'propagation',
-                    target='gas',
-                    state=CHANNELS,
-                    rule=self._propagate,
-                    neighborhood=TRIANGULAR,
-                ),
-                LocalRuleInteraction(
-                    'count',
-                    target='gas',
-                    state='density',
-                    rule=FHPLatticeGasSystem._count,
-                    neighborhood=SITE,
-                    reads=CHANNELS,
-                ),
+                LatticeGasCollisionInteraction('collision', target='gas', geometry='triangular'),
+                LatticeGasPropagationInteraction('propagation', target='gas', geometry='triangular'),
+                ParticleCountInteraction('count', target='gas', channels=CHANNELS),
             ],
         )
 
@@ -350,10 +511,17 @@ class HPPLatticeGasSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.fluids import HPPLatticeGasSystem
-        >>> HPPLatticeGasSystem((8, 8)).prepare().system_.elements[0].prepare().size_
-        64
+        >>> trajectory = HPPLatticeGasSystem((8, 8)).prepare().simulate(until=2)
+        >>> trajectory.get_values('gas.density').shape
+        (3, 64)
     """
 
     field = 'physics/fluids'
@@ -372,8 +540,10 @@ class HPPLatticeGasSystem(BaseSystem):
         full: bool = False,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.density = density
         self.bump = bump
@@ -381,31 +551,14 @@ class HPPLatticeGasSystem(BaseSystem):
         self.full = full
         self.random_state = random_state
 
-    @staticmethod
-    def _collide_square(*channels: Array) -> tuple[Array, ...]:
-        """Return the HPP channels after every head-on pair turns by a quarter turn.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the gas, built from its model parameters.
 
-        This is the only collision.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        codes = np.sum(
-            [np.asarray(channel, dtype=np.intp) << direction for direction, channel in enumerate(channels)],
-            axis=0,
-        )
-        following = codes.copy()
-        for before, after in SQUARE_HEAD_ON.items():
-            following = np.where(codes == before, after, following)
-        return tuple(((following >> direction) & 1).astype(float) for direction in range(SQUARE_DIRECTIONS))
-
-    @staticmethod
-    def _propagate_square(*columns: Array) -> tuple[Array, ...]:
-        """Return the channels of the HPP gas after every particle moves one site.
-
-        Every particle moves along its direction.
-        """
-        return tuple(columns[SQUARE_DIRECTIONS * direction + direction] for direction in range(SQUARE_DIRECTIONS))
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+        super()._prepare(context)
         space = LatticeSpace(tuple(self.shape), boundary='periodic').prepare()
         rng = np.random.default_rng(self.random_state)
         if self.full:
@@ -418,38 +571,13 @@ class HPPLatticeGasSystem(BaseSystem):
             probability = np.where(inside, self.bump, self.density)[:, None]
             occupied = (rng.random((space.size_, SQUARE_DIRECTIONS)) < probability).astype(float)
         channels = {name: occupied[:, direction] for direction, name in enumerate(SQUARE_CHANNELS)}
-        gas = GroupElement(
-            'gas',
-            element=HPPSiteElement,
-            space=space,
-            values={'density': occupied.sum(axis=1), **channels},
-            on='sites',
-        )
-        return CompositeSystem(
+        gas = HPPSiteElement('gas', density=occupied.sum(axis=1), space=space, **channels)
+        self.system_ = System(
             self.label,
             elements=[gas],
             interactions=[
-                LocalRuleInteraction(
-                    'collision',
-                    target='gas',
-                    state=SQUARE_CHANNELS,
-                    rule=self._collide_square,
-                    neighborhood=SITE,
-                ),
-                LocalRuleInteraction(
-                    'propagation',
-                    target='gas',
-                    state=SQUARE_CHANNELS,
-                    rule=self._propagate_square,
-                    neighborhood=ARRIVALS,
-                ),
-                LocalRuleInteraction(
-                    'count',
-                    target='gas',
-                    state='density',
-                    rule=FHPLatticeGasSystem._count,
-                    neighborhood=SITE,
-                    reads=SQUARE_CHANNELS,
-                ),
+                LatticeGasCollisionInteraction('collision', target='gas', geometry='square'),
+                LatticeGasPropagationInteraction('propagation', target='gas', geometry='square'),
+                ParticleCountInteraction('count', target='gas', channels=SQUARE_CHANNELS),
             ],
         )

@@ -13,7 +13,6 @@ also conserve the momentum of every row and column, so the square gas never beco
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.fluids import HPPLatticeGasSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'hpp_lattice_gas'
 
 system = HPPLatticeGasSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Spreading of the dense disc
