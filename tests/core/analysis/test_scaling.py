@@ -9,7 +9,6 @@ from scipy.integrate import solve_ivp
 from scipy.spatial import cKDTree
 
 from skcomplex.core.analysis import ScalingResult, coarse_grain, scaling
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.physics.synchronization import OttAntonsenSystem
 
@@ -154,7 +153,7 @@ def test_power_exponent_of_two_mean_field_transitions():
     assert power.exponent[0] == pytest.approx(0.5, abs=0.05)
     couplings = np.linspace(1.02, 1.2, 10)
     orders = [
-        simulate(OttAntonsenSystem(r=0.5, K=coupling, Delta=0.5).prepare().system_, until=400.0, dt=1.0)
+        OttAntonsenSystem(r=0.5, K=coupling, Delta=0.5).prepare().simulate(until=400.0, dt=1.0)
         for coupling in couplings
     ]
     names = orders[0].problem.states.names
