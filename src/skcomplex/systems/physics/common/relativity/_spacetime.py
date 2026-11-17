@@ -132,12 +132,20 @@ class SpacetimeSpace(ContinuousSpace):
     def _get_metric(self) -> Matrix:
         """Return the metric as a Sage matrix.
 
-        This is the hook a subclass overrides to derive it from its parameters.
+        This is the hook a subclass overrides to derive it from its parameters. A copy of the metric, such as the one a
+        clone of the space holds, has new functions of the same names, which Maxima cannot simplify, so every function
+        of the ansatz is restored by its name.
         """
         if self.metric is None:
             error_msg = f'{type(self).__name__} has no metric. Give a square matrix of expressions.'
             raise ValidationError(error_msg)
-        return matrix(SR, self.metric)
+        metric = self.metric
+        if isinstance(metric, Matrix):
+            metric = [[metric[row, column] for column in range(metric.ncols())] for row in range(metric.nrows())]
+        rows = [[SR(entry) for entry in row] for row in metric]
+        for kind in self._get_functions(matrix(SR, rows)):
+            rows = [[entry.substitute_function(kind, function(kind.name())) for entry in row] for row in rows]
+        return matrix(SR, rows)
 
     def _walk(self, expression: Expression) -> Iterator[Expression]:
         """Yield an expression and every subexpression of it."""

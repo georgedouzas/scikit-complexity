@@ -3,7 +3,7 @@
 The package covers the expansion of a homogeneous universe and the gravitational collapse of matter.
 """
 
-from ._expansion import FriedmannExpansionSystem, ScaleFactorElement
+from ._expansion import FriedmannAccelerationInteraction, FriedmannExpansionSystem, ScaleFactorElement
 from ._metric_cosmologies import (
     DustShellElement,
     EinsteinFieldEquationsInteraction,
@@ -18,6 +18,7 @@ __all__: list[str] = [
     'DustShellElement',
     'EinsteinFieldEquationsInteraction',
     'FLRWCosmologySystem',
+    'FriedmannAccelerationInteraction',
     'FriedmannExpansionSystem',
     'HomogeneousUniverseElement',
     'LemaitreTolmanBondiSpace',

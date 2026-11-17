@@ -7,23 +7,29 @@ The scale factor of a homogeneous universe evolves under matter and dark energy.
 # License: MIT
 
 import math
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec
-from ...general.gradients import GradientInteraction
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class ScaleFactorElement(Element):
     """Homogeneous universe whose size is the scale factor `a`.
 
-    The scale factor is a state of order 2 with the expansion rate `a_d1`.
+    The expansion rate is the derivative `a'`.
 
     Args:
         label:
@@ -32,8 +38,38 @@ class ScaleFactorElement(Element):
         a:
             The initial scale factor.
 
-        a_d1:
-            The initial rate of change of the scale factor.
+        values:
+            Further values by name, such as the initial expansion rate `a'`, or `None`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.cosmology import ScaleFactorElement
+        >>> ScaleFactorElement('universe', a=2.0).a
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        a: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+    ) -> None:
+        super().__init__(label, values=values)
+        self.a = a
+
+
+class FriedmannAccelerationInteraction(Interaction):
+    """Acceleration of the scale factor of a universe of matter and dark energy.
+
+    The scale factor `a` of the target follows `a'' = -Ω_m H0² / (2 a²) + Ω_Λ H0² a`, the force of the potential
+    `-Ω_m H0² / (2 a) - Ω_Λ H0² a² / 2`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the universe.
 
         H0:
             The Hubble constant.
@@ -45,27 +81,40 @@ class ScaleFactorElement(Element):
             The density parameter of dark energy.
 
     Examples:
-        >>> from skcomplex.systems.physics.cosmology import ScaleFactorElement
-        >>> ScaleFactorElement('universe', H0=2.0).H0
+        >>> from skcomplex.systems.physics.cosmology import FriedmannAccelerationInteraction
+        >>> FriedmannAccelerationInteraction('acceleration', target='universe', H0=2.0).H0
         2.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        a: Annotated[float, StateSpec(domain=RealSet.open(0, oo), order=2)] = 1.0,
-        a_d1: float = 0.0,
-        H0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        omega_matter: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        omega_lambda: Annotated[float, ParameterSpec()] = 0.7,
+        target: Role,
+        H0: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        omega_matter: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        omega_lambda: float = 0.7,
     ) -> None:
         super().__init__(label)
-        self.a = a
-        self.a_d1 = a_d1
+        self.target = target
         self.H0 = H0
         self.omega_matter = omega_matter
         self.omega_lambda = omega_lambda
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the acceleration of the scale factor.
+
+        Args:
+            context:
+                The namespace of the universe, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            a = context.target.a
+            acceleration = -context.omega_matter * context.H0**2 / (2 * a**2) + context.omega_lambda * context.H0**2 * a
+            self.laws_ = [RateLaw(a.diff(context.t, 2), acceleration)]
 
 
 class FriedmannExpansionSystem(BaseSystem):
@@ -78,7 +127,7 @@ class FriedmannExpansionSystem(BaseSystem):
     `H0` at `a = 1`, so `a² a'' = -Ω_m H0² / 2 + Ω_Λ H0² a³`. The initial expansion rate follows from the Friedmann
     equation `a'² = H0² (Ω_m / a + Ω_Λ a² + 1 - Ω_m - Ω_Λ)`, which stays a first integral of the motion. Matter
     decelerates the expansion and dark energy accelerates it once `a` exceeds `(Ω_m / (2 Ω_Λ))^(1/3)`. The system has
-    the scale factor `universe.a` of order 2 and its rate `universe.a_d1`.
+    the scale factor `universe.a` and its rate `universe.a'`.
 
     Args:
         a:
@@ -96,13 +145,20 @@ class FriedmannExpansionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The universe does not expand at the initial scale factor.
 
     Examples:
         >>> from skcomplex.systems.physics.cosmology import FriedmannExpansionSystem
-        >>> FriedmannExpansionSystem(omega_matter=1.0, omega_lambda=0.0).prepare().system_.elements[0].a_d1
+        >>> system = FriedmannExpansionSystem(omega_matter=1.0, omega_lambda=0.0).prepare()
+        >>> float(system.simulate(until=1.0).get_values("universe.a'")[0])
         1.0
     """
 
@@ -120,30 +176,23 @@ class FriedmannExpansionSystem(BaseSystem):
         omega_matter: float = 0.3,
         omega_lambda: float = 0.7,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.a = a
         self.H0 = H0
         self.omega_matter = omega_matter
         self.omega_lambda = omega_lambda
 
-    @staticmethod
-    def _get_expansion_potential(s: SimpleNamespace) -> Expression:
-        """Return the potential of the acceleration equation.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the scale factor of a homogeneous universe of matter and dark energy.
 
-        The potential is `-omega_matter H0² / (2 a) - omega_lambda H0² a² / 2`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        universe = s.target
-        return (
-            -universe.omega_matter * universe.H0**2 / (2 * universe.a)
-            - universe.omega_lambda * universe.H0**2 * universe.a**2 / 2
-        )
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the scale factor of a homogeneous universe of matter and dark energy.
-
-        The system follows Friedmann and Lemaître.
-        """
+        super()._prepare(context)
         square = self.H0**2 * (
             self.omega_matter / self.a + self.omega_lambda * self.a**2 + 1 - self.omega_matter - self.omega_lambda
         )
@@ -153,18 +202,12 @@ class FriedmannExpansionSystem(BaseSystem):
                 'omega_matter, and omega_lambda for which it is positive.'
             )
             raise ValidationError(error_msg)
-        universe = ScaleFactorElement(
-            'universe',
-            a=self.a,
-            a_d1=math.sqrt(square),
+        universe = ScaleFactorElement('universe', a=self.a, values={"a'": math.sqrt(square)})
+        acceleration = FriedmannAccelerationInteraction(
+            'acceleration',
+            target='universe',
             H0=self.H0,
             omega_matter=self.omega_matter,
             omega_lambda=self.omega_lambda,
         )
-        acceleration = GradientInteraction(
-            'acceleration',
-            target='universe',
-            states='a',
-            potential=self._get_expansion_potential,
-        )
-        return CompositeSystem(self.label, elements=[universe], interactions=[acceleration])
+        self.system_ = System(self.label, elements=[universe], interactions=[acceleration])
