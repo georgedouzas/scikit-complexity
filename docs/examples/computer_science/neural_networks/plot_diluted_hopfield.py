@@ -14,7 +14,6 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy import integrate
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.neural_networks import DilutedHopfieldSystem
 
@@ -30,7 +29,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 system = DilutedHopfieldSystem(n_neurons=4000, connectivity=K, load=0.2, temperature_scale=3.0, overlap=0.3)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The annealed map of the overlap

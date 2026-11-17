@@ -25,14 +25,14 @@ def _format(archetype):
 
 def test_views_of_image_without_history_leave_out_space_time():
     """Test that a history of 0 rows declares no space-time view."""
-    problem = PassCompiler().prepare(ElementaryAutomatonSystem().prepare().system_).run().problem_
+    problem = PassCompiler().prepare(ElementaryAutomatonSystem().prepare().system_._get_composite()).run().problem_
     views = ImageVisual(history=0, path=problem.elements[0].path).prepare(problem).views_
     assert [str(view.origin) for view in views] == ['cells/alive']
 
 
 def test_image_visual_logs_space_time_of_one_dimensional_lattice():
     """Test that a one-dimensional lattice logs a space-time image that grows by one row per frame."""
-    problem, frames = _frames(ElementaryAutomatonSystem(size=21).prepare().system_, steps=5, dt=1.0)
+    problem, frames = _frames(ElementaryAutomatonSystem(size=21).prepare().system_._get_composite(), steps=5, dt=1.0)
     logs = Logs()
     visual = ImageVisual(path=problem.elements[0].path, recording=logs).prepare(problem)
     for frame in frames:
@@ -44,7 +44,7 @@ def test_image_visual_logs_space_time_of_one_dimensional_lattice():
 
 def test_image_visual_bounds_space_time_rows():
     """Test that the space-time image keeps only the most recent rows."""
-    problem, frames = _frames(ElementaryAutomatonSystem(size=21).prepare().system_, steps=5, dt=1.0)
+    problem, frames = _frames(ElementaryAutomatonSystem(size=21).prepare().system_._get_composite(), steps=5, dt=1.0)
     logs = Logs()
     visual = ImageVisual(history=3, path=problem.elements[0].path, recording=logs).prepare(problem)
     for frame in frames:
@@ -54,7 +54,7 @@ def test_image_visual_bounds_space_time_rows():
 
 def test_image_visual_logs_one_row_as_rgb_image():
     """Test that the current row of a one-dimensional lattice is an image one pixel high, not a column of grey."""
-    problem, frame = _first_frame(ElementaryAutomatonSystem(size=21).prepare().system_)
+    problem, frame = _first_frame(ElementaryAutomatonSystem(size=21).prepare().system_._get_composite())
     logs = Logs()
     ImageVisual(history=0, path=problem.elements[0].path, recording=logs).prepare(problem).run(frame)
     assert [path for path, _ in logs.logs] == ['cells/alive']

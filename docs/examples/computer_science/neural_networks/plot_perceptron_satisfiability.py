@@ -12,29 +12,27 @@ solutions run out near the critical load `p / N = 0.83`.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import sweep
 from skcomplex.systems.computer_science.neural_networks import PerceptronSatisfiabilitySystem
 
 SYSTEM = 'perceptron_satisfiability'
 
 system = PerceptronSatisfiabilitySystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The satisfiable share against the load
 # --------------------------------------
-# The patterns are quenched, so a `sweep` varies the `random_state` of the factory, and the share of satisfiable
-# draws falls ever more sharply as the system grows.
+# The patterns are quenched, so every `random_state` of the system draws other patterns, and the share of
+# satisfiable draws falls ever more sharply as the system grows.
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for n_weights in (15, 21):
-    bounds = {'n_weights': [n_weights], 'random_state': list(range(20))}
-    outputs = ['decide.satisfiable']
-    result = sweep(PerceptronSatisfiabilitySystem, bounds, until=31, outputs=outputs)
-    shares = result.get_series('decide.satisfiable').mean(axis=0)
+    runs = [
+        PerceptronSatisfiabilitySystem(n_weights, random_state=seed).prepare().simulate(until=31) for seed in range(20)
+    ]
+    shares = np.mean([run.get_values('decide.satisfiable') for run in runs], axis=0)
     ax.plot(np.arange(1, shares.size) / n_weights, shares[1:], 'o-', markersize=3, label=f'N = {n_weights}')
 ax.axvline(0.83, color='black', linestyle='--', label='critical load 0.83')
 ax.set_xlabel('load p / N')

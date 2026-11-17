@@ -723,7 +723,7 @@ def test_default_blueprint_rejects_unknown_primary_view():
 
 def test_primary_view_of_one_dimensional_lattice_is_space_time():
     """Test that a one-dimensional lattice puts its space-time image first."""
-    view = primary_view(ElementaryAutomatonSystem().prepare().system_)
+    view = primary_view(ElementaryAutomatonSystem().prepare().system_._get_composite())
     assert type(view).__name__ == 'Spatial2DView'
     assert str(view.origin) == 'cells/space_time/alive'
     assert str(view.name) == 'alive history'

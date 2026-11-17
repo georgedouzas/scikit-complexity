@@ -15,14 +15,15 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import NilpotentAutomatonSystem
 
 SYSTEM = 'nilpotent_automaton'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(NilpotentAutomatonSystem(n=4, size=80, density=0.7, random_state=0), observers=[observer])
+trajectory = (
+    NilpotentAutomatonSystem(n=4, size=80, density=0.7, random_state=0).prepare().simulate(observers=[observer])
+)
 
 # %%
 # Nilpotency class
@@ -36,7 +37,7 @@ largest = []
 for n in classes:
     steps = []
     for configuration in configurations[::41]:
-        values = simulate(NilpotentAutomatonSystem(n=n, initial=configuration), until=n)
+        values = NilpotentAutomatonSystem(n=n, initial=configuration).prepare().simulate(until=n)
         alive = values.get_values('cells.alive').any(axis=1)
         steps.append(int(np.argmin(alive)) if not alive[-1] else n + 1)
     largest.append(max(steps))

@@ -12,14 +12,15 @@ injective: the constant configurations 0 and 1 both map to 0. Its image is dense
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import RealQuadraticAutomatonSystem
 
 SYSTEM = 'real_quadratic_automaton'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(RealQuadraticAutomatonSystem(size=64, amplitude=0.25, random_state=0), observers=[observer])
+trajectory = (
+    RealQuadraticAutomatonSystem(size=64, amplitude=0.25, random_state=0).prepare().simulate(observers=[observer])
+)
 
 # %%
 # Collisions and the drift
@@ -30,7 +31,7 @@ trajectory = simulate(RealQuadraticAutomatonSystem(size=64, amplitude=0.25, rand
 
 
 def step(values):
-    return simulate(RealQuadraticAutomatonSystem(size=values.size, initial=values), until=1)
+    return RealQuadraticAutomatonSystem(size=values.size, initial=values).prepare().simulate(until=1)
 
 
 zero = step(np.zeros(8)).get_values('cells.value')[-1]

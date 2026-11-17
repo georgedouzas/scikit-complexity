@@ -13,7 +13,6 @@ forbids on amenable groups such as the integers.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import MullerAutomatonSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'muller_automaton'
 
 system = MullerAutomatonSystem(radius=5, modulus=2, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Image and pre-injectivity
@@ -40,7 +39,7 @@ for _ in range(40):
     chosen = rng.choice(interior, size=rng.integers(1, 6), replace=False)
     pairs[chosen] = rng.integers(0, 2, (chosen.size, 2))
     pairs[chosen[0], 0] = 1
-    image = simulate(MullerAutomatonSystem(radius=5, initial=pairs), until=1)
+    image = MullerAutomatonSystem(radius=5, initial=pairs).prepare().simulate(until=1)
     supports.append(int(pairs.any(axis=1).sum()))
     images.append(int(image.get_values('cells.first')[-1].astype(bool).sum()))
 fig, (coordinates, check) = plt.subplots(1, 2, figsize=(10, 4))

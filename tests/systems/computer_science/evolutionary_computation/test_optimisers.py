@@ -7,11 +7,9 @@ import numpy.typing as npt
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.evolutionary_computation import (
     CovarianceAdaptationSpec,
     DifferentialEvolutionSpec,
@@ -31,7 +29,7 @@ PATHS = {
 def _best(algorithm: str, landscape: str = 'rastrigin') -> np.ndarray:
     """Return the best value of a run of 100 generations after the initial frame."""
     system = EvolutionaryOptimisersSystem(algorithm=algorithm, landscape=landscape, random_state=1)
-    return simulate(system, until=100, random_state=1).get_values(PATHS.get(algorithm, 'search.best'))[1:]
+    return system.prepare().simulate(until=100, random_state=1).get_values(PATHS.get(algorithm, 'search.best'))[1:]
 
 
 @pytest.mark.parametrize('algorithm', PATHS)
@@ -74,7 +72,7 @@ def _rastrigin(values: np.ndarray) -> np.ndarray:
     return 20.0 + (values**2 - 10.0 * np.cos(2.0 * np.pi * values)).sum(axis=1)
 
 
-def _system(algorithm: object, count: int = 40) -> CompositeSystem:
+def _system(algorithm: object, count: int = 40) -> System:
     """Return a population on the Rastrigin function with an algorithm."""
     start = np.random.default_rng(0).uniform(-5.12, 5.12, (count, 2))
     group = GroupElement('swarm', element=CandidateElement, size=count, values={'x': start})
@@ -86,12 +84,12 @@ def _system(algorithm: object, count: int = 40) -> CompositeSystem:
         bounds=(-5.12, 5.12),
         algorithm=algorithm,
     )
-    return CompositeSystem(elements=[group], interactions=[search], time=DiscreteTime())
+    return System(elements=[group], interactions=[search])
 
 
 def test_run_differential_evolution_on_rastrigin() -> None:
     """Test that the best value is below 1e-3 by step 50 and never increases."""
-    trajectory = simulate(_system(DifferentialEvolutionSpec()), until=50, random_state=1)
+    trajectory = _system(DifferentialEvolutionSpec()).prepare().simulate(until=50, random_state=1)
     best = trajectory.get_values('search.best')[1:]
     assert best[-1] < 1e-3
     assert np.all(np.diff(best) <= 0)
@@ -104,7 +102,7 @@ def test_run_differential_evolution_on_rastrigin() -> None:
 )
 def test_run_same_seed_identical(algorithm: object) -> None:
     """Test that runs with the same seed are identical and the best value never increases."""
-    first, second = (simulate(_system(algorithm), until=10, random_state=1) for _ in range(2))
+    first, second = (_system(algorithm).prepare().simulate(until=10, random_state=1) for _ in range(2))
     assert np.array_equal(first.get_values('search.best')[1:], second.get_values('search.best')[1:])
     first_final = np.asarray(first.get_agents('swarm', 10).values['x'].tolist())
     second_final = np.asarray(second.get_agents('swarm', 10).values['x'].tolist())
@@ -114,7 +112,7 @@ def test_run_same_seed_identical(algorithm: object) -> None:
 
 def test_run_algorithm_that_converges_keeps_its_population() -> None:
     """Test that the steps after the algorithm stops itself report the same values and keep the candidates."""
-    trajectory = simulate(_system(CovarianceAdaptationSpec()), until=400, random_state=1)
+    trajectory = _system(CovarianceAdaptationSpec()).prepare().simulate(until=400, random_state=1)
     best = trajectory.get_values('search.best')
     assert best[-1] == best[-2]
     assert np.array_equal(

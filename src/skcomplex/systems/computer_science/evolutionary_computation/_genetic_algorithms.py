@@ -6,19 +6,22 @@ They are Mitchell's genetic algorithm and Gooding's evolution by circumstance of
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ParameterError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array, IntArray
 from ...general.agents import EvolutionInteraction
 
@@ -443,6 +446,12 @@ class RobbyGASystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The regime is unknown.
@@ -471,8 +480,10 @@ class RobbyGASystem(BaseSystem):
         switch: int | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_strategies = n_strategies
         self.mutation = mutation
         self.sessions = sessions
@@ -483,8 +494,9 @@ class RobbyGASystem(BaseSystem):
         self.switch = switch
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         if self.regime not in REGIMES:
             error_msg = f'Unknown regime {self.regime!r}. Use one of {", ".join(REGIMES)}.'
             raise ParameterError(error_msg)
@@ -523,8 +535,9 @@ class RobbyGASystem(BaseSystem):
                 size=self.n_strategies,
                 values={'actions': actions, 'score': scores, 'age': ages},
             )
-            return CompositeSystem(self.label, elements=[strategies], interactions=[circumstance, scoring])
-        return CompositeSystem(
+            self.system_ = System(self.label, elements=[strategies], interactions=[circumstance, scoring])
+            return
+        self.system_ = System(
             self.label,
             elements=[
                 GroupElement(

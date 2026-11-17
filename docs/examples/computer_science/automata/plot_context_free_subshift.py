@@ -15,14 +15,13 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import ContextFreeSubshiftSystem
 
 SYSTEM = 'context_free_subshift'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(ContextFreeSubshiftSystem(size=60, random_state=0), observers=[observer], random_state=0)
+trajectory = ContextFreeSubshiftSystem(size=60, random_state=0).prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Blocks and symbols

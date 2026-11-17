@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import networkx as nx
@@ -10,13 +11,15 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 
@@ -141,6 +144,12 @@ class HopfieldSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import HopfieldSystem
         >>> HopfieldSystem(n_neurons=16, n_patterns=2).prepare().system_.elements[0].prepare().size_
@@ -161,8 +170,10 @@ class HopfieldSystem(BaseSystem):
         noise: float = 0.2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.patterns = patterns
         self.n_neurons = n_neurons
         self.n_patterns = n_patterns
@@ -179,8 +190,9 @@ class HopfieldSystem(BaseSystem):
         np.fill_diagonal(weights, 0.0)
         return weights
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         stored: Array = np.asarray(
             rng.choice([-1.0, 1.0], size=(self.n_patterns, self.n_neurons)) if self.patterns is None else self.patterns,
@@ -194,7 +206,7 @@ class HopfieldSystem(BaseSystem):
             size=size,
             values={'spin': spins, 'weights': self._get_hebbian_weights(stored)},
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[neurons],
             interactions=[HopfieldUpdateInteraction('update', target='neurons')],

@@ -6,8 +6,8 @@ They are a self-indexed shift, power series, naturals, reals, and group values.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import functools
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping, Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -16,13 +16,18 @@ from sage.all__sagemath_gap import SymmetricGroup
 from sage.all__sagemath_symbolics import RR, ZZ
 from sage.groups.perm_gps.permgroup import PermutationGroup_generic
 
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import DeclaredElement, Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.interactions import Interaction
+from ....core.components.laws import LocalRuleLaw
+from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, PowerSeriesSpec, StateSpec
-from ....core.types import Array, Indices
+from ....core.specs import DeclaredVariableSpec, PowerSeriesSpec, Role, StateSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ..common.automata import CayleySpace, StateTranslationNeighborhood
 from ._groups import free_group
 from ._pascal_cell import PascalCellElement
@@ -36,14 +41,18 @@ class GroupCellElement(Element):
     """Cell of an automaton whose alphabet is a group.
 
     It holds a group element by its number. The number is the site of the element in a group space, or its position in
-    the list of a finite group, and a negative number names no element, the fill value read outside a ball.
+    the list of a finite group, and a negative number names no element, the fill value read outside a ball. With
+    `space`, the element holds one cell on every site.
 
     Args:
         label:
-            The label of the cell or the lattice group.
+            The label of the cells.
 
         value:
-            The number of the initial group element, 0 for the identity.
+            The number of the initial group element, 0 for the identity, or one number per cell.
+
+        space:
+            The space with one cell on every site, such as a lattice or a group, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import GroupCellElement
@@ -55,9 +64,10 @@ class GroupCellElement(Element):
         self,
         label: str,
         *,
-        value: Annotated[float, StateSpec(domain=ZZ)] = 0,
+        value: Annotated[float | Array, ZZ] = 0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.value = value
 
 
@@ -106,12 +116,17 @@ class PowerSeriesCellElement(DeclaredElement):
 class RealCellElement(Element):
     """Cell of an automaton over the real numbers.
 
+    With `space`, the element holds one cell on every site.
+
     Args:
         label:
-            The label of the cell or the lattice group.
+            The label of the cells.
 
         value:
-            The initial value.
+            The initial value, or one value per cell.
+
+        space:
+            The space with one cell on every site, such as a lattice, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import RealCellElement
@@ -123,10 +138,206 @@ class RealCellElement(Element):
         self,
         label: str,
         *,
-        value: Annotated[float, StateSpec(domain=RR)] = 0.0,
+        value: Annotated[float | Array, RR] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.value = value
+
+
+class SelfIndexedShiftInteraction(Interaction):
+    """Map `τ(x)(g) = x(g · x(g))` of cells whose values are elements of the group of their sites.
+
+    Every cell takes the value of the cell at the product of its site and its own value, so the cell it reads moves
+    with the configuration.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells on a group space, whose state `value` the map changes.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import SelfIndexedShiftInteraction
+        >>> SelfIndexedShiftInteraction('translation', target='cells').target
+        'cells'
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _translate(value: Array) -> Array:
+        """Return the value read at the product of a site and its own value, `x(g · x(g))`."""
+        return value
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the read at the product of every site and its value as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            value = context.target.value
+            self.laws_: list[BaseComponent] = [
+                LocalRuleLaw(value, StateTranslationNeighborhood(), self._translate, label=self.label),
+            ]
+
+
+class PowerSeriesDifferenceInteraction(Interaction):
+    """Difference `τ(x)(n) = x(n) - t x(n + 1)` of cells holding truncated power series.
+
+    The coefficients of every series sit on the last axis of the state `value`, and the product with `t` shifts them
+    by one place in the ring.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `value` the difference changes.
+
+        ring:
+            The truncated power series ring of the values.
+
+    Examples:
+        >>> from skcomplex.core.specs import PowerSeriesSpec
+        >>> from skcomplex.systems.computer_science.automata import PowerSeriesDifferenceInteraction
+        >>> PowerSeriesDifferenceInteraction('difference', target='cells', ring=PowerSeriesSpec(3)).ring.order
+        3
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells', ring: PowerSeriesSpec = RATIONAL_SERIES) -> None:
+        super().__init__(label)
+        self.target = target
+        self.ring = ring
+
+    def _get_function(self) -> Callable[[Array, Array], Array]:
+        """Return `x(n) - t x(n + 1)` in the ring, with the coefficients on the last axis."""
+        ring = self.ring
+        variable = ring.get_coefficients_of(ring.ring.gen())
+
+        def difference(here: Array, right: Array) -> Array:
+            return ring.reduce(here - ring.multiply(variable, right))
+
+        return difference
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the difference with the cell to the right as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            value = context.target.value
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, FORWARD, self._get_function(), label=self.label)]
+
+
+class SubtractionRuleInteraction(Interaction):
+    """Truncated difference `τ(x)(n) = max(0, x(n) - x(n + 1))` of cells holding natural numbers.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `value` the difference changes.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import SubtractionRuleInteraction
+        >>> SubtractionRuleInteraction('subtraction', target='cells').target
+        'cells'
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _subtract(here: Array, right: Array) -> Array:
+        """Return the truncated difference `max(0, x(n) - x(n + 1))` of the naturals."""
+        return np.maximum(0.0, here - right)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the truncated difference with the cell to the right as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            value = context.target.value
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, FORWARD, self._subtract, label=self.label)]
+
+
+class QuadraticRuleInteraction(Interaction):
+    """Rule `τ(x)(n) = x(n + 1) - x(n)^2` of cells holding real numbers.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `value` the rule changes.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import QuadraticRuleInteraction
+        >>> QuadraticRuleInteraction('quadratic', target='cells').target
+        'cells'
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _get_quadratic(here: Array, right: Array) -> Array:
+        """Return `x(n + 1) - x(n)^2`."""
+        return right - here**2
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule on a cell and the cell to its right as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            value = context.target.value
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, FORWARD, self._get_quadratic, label=self.label)]
+
+
+class GroupDifferenceInteraction(Interaction):
+    """Difference `τ(x)(n) = x(n)^-1 x(n + 1)` of cells holding elements of a finite group.
+
+    Cells hold group elements by their number in the Cayley table of Sage, the identity first.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells whose state `value` the difference changes.
+
+        group:
+            The finite group, a Sage permutation group, or `None` for the symmetric group of degree 3.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import GroupDifferenceInteraction
+        >>> GroupDifferenceInteraction('difference', target='cells').group is None
+        True
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells', group: PermutationGroup_generic | None = None) -> None:
+        super().__init__(label)
+        self.target = target
+        self.group = group
+
+    def _get_function(self) -> Callable[[Array, Array], Array]:
+        """Return the number of `x(n)^-1 x(n + 1)`, read from the Cayley table and the inverses."""
+        alphabet = SymmetricGroup(3) if self.group is None else self.group
+        product = np.asarray(alphabet.cayley_table().table(), dtype=np.intp)
+        inverse = np.argmin(product, axis=1).astype(np.intp)
+
+        def difference(here: Array, right: Array) -> Array:
+            return product[inverse[here.astype(np.intp)], right.astype(np.intp)].astype(float)
+
+        return difference
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the difference with the cell to the right as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            value = context.target.value
+            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, FORWARD, self._get_function(), label=self.label)]
 
 
 class SelfIndexedShiftSystem(BaseSystem):
@@ -155,10 +366,16 @@ class SelfIndexedShiftSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import SelfIndexedShiftSystem
-        >>> SelfIndexedShiftSystem(radius=2).prepare().system_.elements[0].prepare().size_
-        17
+        >>> SelfIndexedShiftSystem(radius=2).prepare().simulate(until=1).get_values('cells.value').shape
+        (2, 17)
     """
 
     field = 'computer_science/automata'
@@ -175,40 +392,28 @@ class SelfIndexedShiftSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.group = group
         self.radius = radius
         self.initial = initial
         self.random_state = random_state
 
-    @staticmethod
-    def _translate(value: Array) -> Array:
-        """Return the value read at the product of a site and its own value, `x(g · x(g))`."""
-        return value
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the cells on a ball of the group and the self-indexed shift."""
+        super()._prepare(context)
         space = CayleySpace(free_group(2) if self.group is None else self.group, ball=self.radius, fill=NO_ELEMENT)
         size = space.prepare().size_
         if self.initial is None:
             values = np.random.default_rng(self.random_state).integers(0, size, size).astype(float)
         else:
             values = np.asarray(self.initial, dtype=float)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement('cells', element=GroupCellElement, space=space, values={'value': values}, on='sites'),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'translation',
-                    target='cells',
-                    state='value',
-                    rule=self._translate,
-                    neighborhood=StateTranslationNeighborhood(),
-                ),
-            ],
+            elements=[GroupCellElement('cells', value=values, space=space)],
+            interactions=[SelfIndexedShiftInteraction('translation', target='cells')],
         )
 
 
@@ -238,6 +443,12 @@ class PowerSeriesAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import PowerSeriesAutomatonSystem
         >>> PowerSeriesAutomatonSystem(5, order=3).prepare().system_.elements[0].values['value'].shape
@@ -258,48 +469,35 @@ class PowerSeriesAutomatonSystem(BaseSystem):
         field: str = 'QQ',
         initial: npt.ArrayLike | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.order = order
         self.field = field
         self.initial = initial
 
-    @staticmethod
-    def _get_power_series_difference(here: Array, right: Array, *, ring: PowerSeriesSpec, variable: Array) -> Array:
-        """Return `x(n) - t x(n + 1)` in a truncated power series ring.
-
-        The coefficients are on the last axis.
-        """
-        return ring.reduce(here - ring.multiply(variable, right))
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the cells of truncated series and their difference."""
+        super()._prepare(context)
         ring = PowerSeriesSpec(self.order, self.field)
         if self.initial is None:
             values = np.zeros((self.size, self.order))
             values[self.size // 2, 0] = 1.0
         else:
             values = np.asarray(self.initial, dtype=float)
-        rule = functools.partial(
-            self._get_power_series_difference,
-            ring=ring,
-            variable=ring.get_coefficients_of(ring.ring.gen()),
+        cells = GroupElement(
+            'cells',
+            element=PowerSeriesCellElement,
+            space=LatticeSpace(self.size),
+            values={'ring': ring, 'value': values},
+            on='sites',
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'cells',
-                    element=PowerSeriesCellElement,
-                    space=LatticeSpace(self.size),
-                    values={'ring': ring, 'value': values},
-                    on='sites',
-                ),
-            ],
-            interactions=[
-                LocalRuleInteraction('difference', target='cells', state='value', rule=rule, neighborhood=FORWARD),
-            ],
+            elements=[cells],
+            interactions=[PowerSeriesDifferenceInteraction('difference', target='cells', ring=ring)],
         )
 
 
@@ -325,13 +523,19 @@ class SubtractionAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The height is negative.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import SubtractionAutomatonSystem
-        >>> SubtractionAutomatonSystem(12, height=3).prepare().system_.elements[0].values['value'].tolist()
+        >>> SubtractionAutomatonSystem(12, height=3).prepare().system_.elements[0].value.tolist()
         [3.0, 3.0, 3.0, 3.0, 2.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     """
 
@@ -348,22 +552,17 @@ class SubtractionAutomatonSystem(BaseSystem):
         height: int = 10,
         initial: npt.ArrayLike | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.height = height
         self.initial = initial
 
-    @staticmethod
-    def _subtract(here: Array, right: Array) -> Array:
-        """Return the truncated difference `max(0, x(n) - x(n + 1))` of the naturals."""
-        return np.maximum(0.0, here - right)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the automaton `τ(x)(n) = max(0, x(n) - x(n + 1))` over the naturals.
-
-        Its image is not closed.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the staircase on a segment and the truncated difference."""
+        super()._prepare(context)
         if self.height < 0:
             error_msg = f'The height of the staircase is a natural number, but it is {self.height}.'
             raise ParameterError(error_msg)
@@ -373,26 +572,10 @@ class SubtractionAutomatonSystem(BaseSystem):
             values = np.where(steps < 0, self.height, np.maximum(0, self.height - steps)).astype(float)
         else:
             values = np.asarray(self.initial, dtype=float)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'cells',
-                    element=PascalCellElement,
-                    space=LatticeSpace(self.size, boundary='fixed'),
-                    values={'value': values},
-                    on='sites',
-                ),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'subtraction',
-                    target='cells',
-                    state='value',
-                    rule=self._subtract,
-                    neighborhood=FORWARD,
-                ),
-            ],
+            elements=[PascalCellElement('cells', value=values, space=LatticeSpace(self.size, boundary='fixed'))],
+            interactions=[SubtractionRuleInteraction('subtraction', target='cells')],
         )
 
 
@@ -420,10 +603,16 @@ class RealQuadraticAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import RealQuadraticAutomatonSystem
-        >>> RealQuadraticAutomatonSystem(8).prepare().system_.elements[0].prepare().size_
-        8
+        >>> RealQuadraticAutomatonSystem(8).prepare().simulate(until=1).get_values('cells.value').shape
+        (2, 8)
     """
 
     field = 'computer_science/automata'
@@ -440,44 +629,26 @@ class RealQuadraticAutomatonSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.amplitude = amplitude
         self.initial = initial
         self.random_state = random_state
 
-    @staticmethod
-    def _get_quadratic(here: Array, right: Array) -> Array:
-        """Return `x(n + 1) - x(n)^2`."""
-        return right - here**2
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the automaton `τ(x)(n) = x(n + 1) - x(n)^2` over the reals on a ring."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a ring of real cells and the quadratic rule."""
+        super()._prepare(context)
         if self.initial is None:
             values = np.random.default_rng(self.random_state).uniform(-self.amplitude, self.amplitude, self.size)
         else:
             values = np.asarray(self.initial, dtype=float)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'cells',
-                    element=RealCellElement,
-                    space=LatticeSpace(self.size),
-                    values={'value': values},
-                    on='sites',
-                ),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'quadratic',
-                    target='cells',
-                    state='value',
-                    rule=self._get_quadratic,
-                    neighborhood=FORWARD,
-                ),
-            ],
+            elements=[RealCellElement('cells', value=values, space=LatticeSpace(self.size))],
+            interactions=[QuadraticRuleInteraction('quadratic', target='cells')],
         )
 
 
@@ -506,10 +677,16 @@ class GroupDifferenceAutomatonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import GroupDifferenceAutomatonSystem
-        >>> GroupDifferenceAutomatonSystem(10).prepare().system_.elements[0].prepare().size_
-        10
+        >>> GroupDifferenceAutomatonSystem(10).prepare().simulate(until=1).get_values('cells.value').shape
+        (2, 10)
     """
 
     field = 'computer_science/automata'
@@ -526,46 +703,25 @@ class GroupDifferenceAutomatonSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.group = group
         self.initial = initial
         self.random_state = random_state
 
-    @staticmethod
-    def _get_group_difference(here: Array, right: Array, *, product: Indices, inverse: Indices) -> Array:
-        """Return the number of the group element `x(n)^-1 x(n + 1)`.
-
-        It is read from a Cayley table and the inverses.
-        """
-        return product[inverse[here.astype(np.intp)], right.astype(np.intp)].astype(float)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the automaton `τ(x)(n) = x(n)^-1 x(n + 1)` over a finite group.
-
-        The finite group is its alphabet. It runs on a ring.
-        """
-        alphabet = SymmetricGroup(3) if self.group is None else self.group
-        product = np.asarray(alphabet.cayley_table().table(), dtype=np.intp)
-        inverse = np.argmin(product, axis=1).astype(np.intp)
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a ring of group elements and their difference."""
+        super()._prepare(context)
+        order = int((SymmetricGroup(3) if self.group is None else self.group).order())
         if self.initial is None:
-            values = np.random.default_rng(self.random_state).integers(0, product.shape[0], self.size).astype(float)
+            values = np.random.default_rng(self.random_state).integers(0, order, self.size).astype(float)
         else:
             values = np.asarray(self.initial, dtype=float)
-        rule = functools.partial(self._get_group_difference, product=product, inverse=inverse)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'cells',
-                    element=GroupCellElement,
-                    space=LatticeSpace(self.size),
-                    values={'value': values},
-                    on='sites',
-                ),
-            ],
-            interactions=[
-                LocalRuleInteraction('difference', target='cells', state='value', rule=rule, neighborhood=FORWARD),
-            ],
+            elements=[GroupCellElement('cells', value=values, space=LatticeSpace(self.size))],
+            interactions=[GroupDifferenceInteraction('difference', target='cells', group=self.group)],
         )

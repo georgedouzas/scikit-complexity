@@ -13,14 +13,13 @@ most ones any halting machine of its size can write on a blank tape: six ones in
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import TuringMachineSystem
 
 SYSTEM = 'turing_machine'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(TuringMachineSystem(), observers=[observer], random_state=0)
+trajectory = TuringMachineSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The busy beaver at work
