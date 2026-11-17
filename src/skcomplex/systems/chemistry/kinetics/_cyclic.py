@@ -87,6 +87,8 @@ class CyclicAdvanceInteraction(Interaction):
         'cells'
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(self, label: str, *, target: Role = 'cells') -> None:
         super().__init__(label)
         self.target = target
