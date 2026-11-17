@@ -13,13 +13,14 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 class GridNodeElement(Element):
@@ -147,8 +148,9 @@ class PowerGridSystem(BaseSystem):
         self.added_line = added_line
         self.doubled_line = doubled_line
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         elements = [
             GridNodeElement(
                 f'node_{index}',
@@ -178,4 +180,4 @@ class PowerGridSystem(BaseSystem):
                     K=self.K,
                 ),
             )
-        return CompositeSystem(self.label, elements=elements, interactions=interactions)
+        self.system_ = System(self.label, elements=elements, interactions=interactions)

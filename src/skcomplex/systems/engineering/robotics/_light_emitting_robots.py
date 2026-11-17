@@ -7,6 +7,7 @@ The light is sensed with a delay or a prediction.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, cast
 
@@ -14,13 +15,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 
@@ -302,8 +304,9 @@ class LightEmittingRobotsSystem(BaseSystem):
         self.step = step
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         positions = rng.uniform(0.0, self.side, (self.n_robots, 2))
         robots = GroupElement(
@@ -325,7 +328,7 @@ class LightEmittingRobotsSystem(BaseSystem):
             step=self.step,
             side=self.side,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[robots],
             interactions=[motion],

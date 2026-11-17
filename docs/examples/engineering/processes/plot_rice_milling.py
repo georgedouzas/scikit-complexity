@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.processes import RiceMillingSystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=4)
-trajectory = simulate(RiceMillingSystem(), observers=[observer])
+trajectory = RiceMillingSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Capacity lags the harvest

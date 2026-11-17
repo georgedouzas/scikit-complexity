@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.processes import CascadeClassifierSystem
 
@@ -37,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 system = CascadeClassifierSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Barsky's fractional extraction
@@ -51,7 +50,7 @@ z = 10
 fractions = np.linspace(0.3, 0.7, 9)
 shares = []
 for k in fractions:
-    run = simulate(CascadeClassifierSystem(k=float(k)), until=300, dt=1.0)
+    run = CascadeClassifierSystem(k=float(k)).prepare().simulate(until=300, dt=1.0)
     shares.append(run.get_values('fine.m')[-1] - run.get_values('fine.m')[-2])
 grid = np.linspace(0.3, 0.7, 200)
 feed = z // 2
