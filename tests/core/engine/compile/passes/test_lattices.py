@@ -365,7 +365,7 @@ def test_ising_on_grid_graph_has_transition():
     graph = nx.grid_2d_graph(64, 64, periodic=True)
     temperatures = [1.5, 2.2, 2.4, 3.5]
     result = sweep(
-        lambda temperature: GraphIsingSystem(graph, temperature=temperature, initial='up').prepare().system_,
+        lambda temperature: GraphIsingSystem(graph, temperature=temperature, initial='up'),
         {'temperature': temperatures},
         replicates=4,
         until=1000,
@@ -473,7 +473,7 @@ def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
 
 def test_graph_lattices_stream_nodes_and_static_edges():
     """Test that a lattice group on a graph logs its edges once and its nodes at every frame."""
-    trajectory = simulate(GraphIsingSystem(nx.cycle_graph(8)).prepare().system_, until=1, dt=1)
+    trajectory = GraphIsingSystem(nx.cycle_graph(8)).prepare().simulate(until=1, dt=1)
     frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], trajectory.problem)
     recording = Recording()
     visual = SiteVisual(low=-1, high=1, path=trajectory.problem.elements[0].path, recording=recording)

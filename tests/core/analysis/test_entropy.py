@@ -105,7 +105,7 @@ def test_permutation_entropy_matches_previous_values():
 def test_permutation_entropy_of_fields_of_two_domains():
     """Test that a hot Ising lattice gives above 0.98 and a Gray-Scott pattern at least 0.1 less."""
     settings = {'dimension': (2, 2), 'ties': 'random', 'random_state': 0}
-    spins = simulate(IsingSystem(size=64, temperature=10.0), until=20, random_state=0)
+    spins = IsingSystem(size=64, temperature=10.0).prepare().simulate(until=20, random_state=0)
     hot = _entropy('permutation', spins, **settings)[-1]
     spots = simulate(GrayScottSystem(), random_state=0)
     pattern = _entropy('permutation', spots, **settings)[-1]

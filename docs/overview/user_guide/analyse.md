@@ -364,7 +364,7 @@ from skcomplex.core.analysis import applicable_analyses, spectrum
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
-spins = simulate(IsingSystem(size=32), until=20)
+spins = IsingSystem(size=32).prepare().simulate(until=20)
 wavenumbers = spectrum(spins, kind='structure-factor').wavenumbers[:3].round(3).tolist()
 discovery = applicable_analyses(np.zeros((16, 16)))
 applicable_analyses(spins).kinds, wavenumbers, discovery.kinds

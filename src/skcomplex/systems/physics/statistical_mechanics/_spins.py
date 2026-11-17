@@ -11,30 +11,34 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, Expression, cos, oo, pi
+from sage.all__sagemath_symbolics import Expression, cos, oo, pi
 from sage.sets.real_set import RealSet
 
+from ....core import systems
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import neighbors, where
-from ....core.components.spaces import BaseNeighborhood, LatticeSpace
+from ....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement, SpinSamplingInteraction
 
 
 class PottsSpinElement(Element):
-    """Spin of the q-state Potts system, in a state from 0 to `q - 1`.
+    """Spins of the q-state Potts system, each in a state from 0 to `q - 1`.
 
-    The spin has its coupling `J` and its temperature.
+    Every spin has its coupling `J` and its temperature.
 
     A `PottsSamplingInteraction` redraws the states by Monte Carlo sweeps at the temperature of the spins.
 
     Args:
         label:
-            The label of the spin or the lattice group.
+            The label of the spin or the lattice of spins.
 
         color:
-            The initial state.
+            The initial state, or one state per site.
 
         J:
             The coupling between neighbouring spins.
@@ -42,9 +46,8 @@ class PottsSpinElement(Element):
         temperature:
             The temperature in units of the coupling.
 
-    Attributes:
-        default_visual_:
-            How the spin is drawn by default, the `visual` of its class.
+        space:
+            The lattice of the spins, or `None` for one spin.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import PottsSpinElement
@@ -56,11 +59,12 @@ class PottsSpinElement(Element):
         self,
         label: str,
         *,
-        color: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        J: Annotated[float, ParameterSpec()] = 1.0,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        color: object = 0.0,
+        J: float = 1.0,
+        temperature: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.color = color
         self.J = J
         self.temperature = temperature
@@ -226,7 +230,7 @@ class XYSamplingInteraction(SpinSamplingInteraction):
         return -namespace.target.J * neighbors(cos(angle - other), over=self.neighborhood)
 
 
-class IsingSystem(BaseSystem):
+class IsingSystem(systems.BaseSystem):
     """The two-dimensional Ising system on a torus.
 
     The system orders below the critical temperature `2 / ln(1 + sqrt 2)`.
@@ -258,9 +262,15 @@ class IsingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import IsingSystem
-        >>> IsingSystem(8, temperature=1.5).prepare().system_.elements[0].values['temperature']
+        >>> IsingSystem(8, temperature=1.5).prepare().system_.elements[0].temperature
         1.5
     """
 
@@ -288,8 +298,10 @@ class IsingSystem(BaseSystem):
         sampler: str = 'metropolis',
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.temperature = temperature
         self.J = J
@@ -298,30 +310,36 @@ class IsingSystem(BaseSystem):
         self.sampler = sampler
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the Ising spins of a torus, all up or random at the start.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         shape = IsingSystem._get_square(self.size)
         spins = (
             np.ones(shape)
             if self.initial == 'up'
             else np.random.default_rng(self.random_state).choice([-1.0, 1.0], size=shape)
         )
-        space = LatticeSpace(shape)
-        group = GroupElement(
+        group = IsingSpinElement(
             'spins',
-            element=IsingSpinElement,
-            space=space,
-            values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
-            on='sites',
+            spin=spins.ravel(),
+            J=self.J,
+            h=self.h,
+            temperature=self.temperature,
+            space=LatticeSpace(shape),
         )
-        return CompositeSystem(
+        self.system_ = systems.System(
             self.label,
             elements=[group],
             interactions=[IsingSamplingInteraction('sampling', target='spins', rule=self.sampler)],
         )
 
 
-class PottsSystem(BaseSystem):
+class PottsSystem(systems.BaseSystem):
     """The q-state Potts system on a torus.
 
     The system orders below the critical temperature `1 / ln(1 + sqrt q)`.
@@ -350,6 +368,12 @@ class PottsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import PottsSystem
         >>> PottsSystem(8, q=4).prepare().system_.interactions[0].q
@@ -372,8 +396,10 @@ class PottsSystem(BaseSystem):
         sampler: str = 'heat-bath',
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.q = q
         self.temperature = temperature
@@ -381,22 +407,24 @@ class PottsSystem(BaseSystem):
         self.sampler = sampler
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the q-state Potts system on a torus.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the q-state Potts system on a torus, which orders below the temperature `1 / ln(1 + sqrt q)`.
 
-        The system orders below the critical temperature `1 / ln(1 + sqrt q)`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         shape = IsingSystem._get_square(self.size)
         colors = np.random.default_rng(self.random_state).integers(0, self.q, size=shape).astype(float)
-        space = LatticeSpace(shape)
-        group = GroupElement(
+        group = PottsSpinElement(
             'spins',
-            element=PottsSpinElement,
-            space=space,
-            values={'color': colors, 'J': self.J, 'temperature': self.temperature},
-            on='sites',
+            color=colors.ravel(),
+            J=self.J,
+            temperature=self.temperature,
+            space=LatticeSpace(shape),
         )
-        return CompositeSystem(
+        self.system_ = systems.System(
             self.label,
             elements=[group],
             interactions=[PottsSamplingInteraction('sampling', target='spins', q=self.q, rule=self.sampler)],

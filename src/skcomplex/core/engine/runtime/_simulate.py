@@ -15,6 +15,7 @@ from ...components.systems import BaseSystem, CompositeSystem
 from ...errors import TagError, ValidationError
 from ..backends import BaseBackend, NumpyBackend
 from ..compile import BaseCompiler
+from ..compile._pass_compiler import PassCompiler
 from ..problems import BaseProblemSpec
 from ..solvers import BaseSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
@@ -147,7 +148,8 @@ def _prepare_runners(
     stepper = _clone_setting(settings['solver'] if solver is None else solver)
     runner = _clone_setting(settings['backend'] if backend is None else backend)
     form = _clone_setting(settings['compiler'] if compiler is None else compiler)
-    tags = system.get_tags()
+    declared = PassCompiler()._get_declared_system(system) if isinstance(system, CompositeSystem) else system
+    tags = declared.get_tags()
     if stepper is not None:
         _check_support(stepper, 'solver', tags)
     if runner is not None:

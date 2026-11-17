@@ -528,17 +528,23 @@ def test_monte_carlo_energy_change_is_symbolic():
 @pytest.mark.parametrize('sampler', ['metropolis', 'glauber', 'heat-bath'])
 def test_samplers_order_cold_ising(sampler):
     """Test that every sampler keeps a cold Ising lattice ordered and disorders a hot one."""
-    cold = simulate(
-        IsingSystem(16, temperature=0.5, initial='up', sampler=sampler).prepare().system_,
-        until=200,
-        dt=50,
-        random_state=0,
+    cold = (
+        IsingSystem(16, temperature=0.5, initial='up', sampler=sampler)
+        .prepare()
+        .simulate(
+            until=200,
+            dt=50,
+            random_state=0,
+        )
     )
-    hot = simulate(
-        IsingSystem(16, temperature=10.0, initial='up', sampler=sampler).prepare().system_,
-        until=200,
-        dt=50,
-        random_state=0,
+    hot = (
+        IsingSystem(16, temperature=10.0, initial='up', sampler=sampler)
+        .prepare()
+        .simulate(
+            until=200,
+            dt=50,
+            random_state=0,
+        )
     )
     assert abs(cold.states[-1].mean()) > 0.95
     assert abs(hot.states[-1].mean()) < 0.3
@@ -546,12 +552,15 @@ def test_samplers_order_cold_ising(sampler):
 
 def test_temperature_changes_live():
     """Test that raising the temperature of an ordered lattice during a run disorders it."""
-    trajectory = simulate(
-        IsingSystem(16, temperature=0.5, initial='up').prepare().system_,
-        until=200,
-        dt=50,
-        random_state=0,
-        schedule={'spins.temperature': lambda time: 0.5 if time < 100 else 20.0},
+    trajectory = (
+        IsingSystem(16, temperature=0.5, initial='up')
+        .prepare()
+        .simulate(
+            until=200,
+            dt=50,
+            random_state=0,
+            schedule={'spins.temperature': lambda time: 0.5 if time < 100 else 20.0},
+        )
     )
     magnetization = np.abs(trajectory.get_values('spins.spin').mean(axis=1))
     assert magnetization[2] > 0.95

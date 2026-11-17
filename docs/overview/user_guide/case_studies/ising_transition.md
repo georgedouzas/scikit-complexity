@@ -31,7 +31,6 @@ time is one sweep, an attempt to flip every spin once by the Metropolis rule. An
 ```python
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.components import Observable
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
@@ -41,7 +40,7 @@ tags = lattice.get_tags()
 order = []
 for temperature in (1.8, 3.0):
     lattice.set_params(temperature=temperature)
-    run = simulate(lattice, until=500, observables=[magnetization], random_state=0)
+    run = lattice.prepare().simulate(until=500, observables=[magnetization], random_state=0)
     order.append(round(float(np.abs(run.get_values('magnetization')[100:]).mean()), 2))
 sorted(tags.space), tags.randomness, order
 ```

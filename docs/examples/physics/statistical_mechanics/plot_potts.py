@@ -15,7 +15,6 @@ into domains of the `q` colors that meet at junctions of three. The view shows t
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import PottsSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'potts'
 
 system = PottsSystem(size=256, q=5, temperature=0.6, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=100, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=100, observers=[observer], random_state=0)
 
 # %%
 # Energy through the transition
@@ -48,7 +47,7 @@ for q, color in ((3, 'tab:blue'), (8, 'tab:orange')):
     measured = []
     for ratio in ratios:
         system_q = PottsSystem(size=40, q=q, temperature=ratio * critical, random_state=1)
-        run = simulate(system_q, until=1000, random_state=1)
+        run = system_q.prepare().simulate(until=1000, random_state=1)
         measured.append(energy(run.get_values('spins.color')[300:], 40).mean())
     ax.plot(ratios, measured, 'o-', color=color, label=f'q = {q}')
     ax.plot(1.0, -(1 + 1 / np.sqrt(q)), '*', color=color, markersize=14, markeredgecolor='black')
