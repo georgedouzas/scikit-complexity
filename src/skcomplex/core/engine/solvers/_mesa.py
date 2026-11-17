@@ -31,7 +31,7 @@ from ...components.spaces import (
     NetworkSpace,
 )
 from ...components.systems import CompositeSystem
-from ...enums import FormKind, OrderKind, VariableKind
+from ...enums import ActivationKind, FormKind, OrderKind, VariableKind
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
 from ...types import Array
 from .._utils import declarations_of, default_of
@@ -1025,13 +1025,31 @@ class AgentView:
 class MesaSolver(ExternalSolver):
     """A solver that runs agent-based problems in Mesa, one step per unit of time.
 
-    The agents are the members of the elements and groups whose laws include `RuleLaw`s, and of the variable groups.
-    Every step advances Mesa's clock by one, activates all agents in random order, or by the phases of the system's
-    discrete time, and each agent runs the rules of its element type in declaration order. Interaction rules run once
-    after the agents. Rules add and remove members of variable groups only. The class variable `supports` declares
-    what the backend runs, which validation checks systems against: discrete time, no space or a lattice, network, or
-    continuous space, rule, boundary, transfer, and matching laws, and elements and fixed and variable
-    groups with any domain but Hilbert spaces. It runs a continuous space as a box of two or three sides.
+    An agent is a member of a group whose interactions give it rules, such as `UpdateLaw(s.target, move)` with
+    `def move(agent, system): agent.x += system.rng.normal()`. Every step advances Mesa's clock by one and activates
+    the agents by `activation`, and each agent runs its rules in the order the interactions give them. A rule may add
+    members with `agent.create()` and remove them with `agent.remove()`. A step may also run in named phases, such as
+    traders that quote in the phase `'quote'` before a clerk settles in the phase `'settle'`, each phase with an
+    activation of its own. It runs walkers, flocks, traders, and branching populations, with no space or on a lattice,
+    a network, or a continuous box of two or three sides.
+
+    Read more in the user guide, under Agents.
+
+    Args:
+        activation:
+            The order in which the agents run their rules at every step: `'random'`, a new random order every step,
+            `'sequential'`, the order of creation, `'simultaneous'`, every agent reading the values at the start of
+            the step, or `'by-type'`, group after group, each in random order.
+
+        phases:
+            The named phases of a step after the default one, such as `[PhaseSpec('quote'), PhaseSpec('settle')]`,
+            which rules join with `UpdateLaw(s.target, quote, phase='quote')`.
+
+        random_state:
+            The seed or generator of the random numbers, or `None`.
+
+        until:
+            The end time of the run the solver prepares for.
 
     Attributes:
         system_:
@@ -1040,29 +1058,45 @@ class MesaSolver(ExternalSolver):
         members_:
             Every agent created in the run by its id, which reference states name.
 
+    See Also:
+        GillespieSolver: The solver of jump processes, for populations counted rather than followed one by one.
+
     Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.laws import RuleLaw
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import UpdateLaw
         >>> from skcomplex.core.engine.solvers import MesaSolver
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class CounterElement(Element):
-        ...     def __init__(self, label, count: Annotated[float, StateSpec()] = 0.0):
+        >>> from skcomplex.core.specs import Role
+        >>> from skcomplex.core.systems import System
+        >>> class Tick(Interaction):
+        ...     def __init__(self, label, *, target: Role):
         ...         super().__init__(label)
-        ...         self.count = count
+        ...         self.target = target
         ...
-        ...     def _get_laws(self, namespace):
-        ...         return [RuleLaw(self.tick)]
+        ...     def _prepare(self, context):
+        ...         super()._prepare(context)
+        ...         self.laws_ = [UpdateLaw(context.target, self.tick)]
         ...
         ...     def tick(self, agent, system):
         ...         agent.count += 1
-        >>> system = CompositeSystem(elements=[GroupElement('counters', element=CounterElement, size=3)])
-        >>> trajectory = simulate(system, until=4, solver=MesaSolver())
-        >>> trajectory.get_agents('counters', 4).values['count'].tolist()
-        [4.0, 4.0, 4.0]
+        >>> counters = Element('counters', values={'count': 0}, size=3)
+        >>> tick = Tick('tick', target='counters')
+        >>> system = System(elements=[counters], interactions=[tick], solver=MesaSolver(activation='sequential'))
+        >>> system.prepare().simulate(until=4).get_agents('counters', 4).values['count'].tolist()
+        [4, 4, 4]
     """
+
+    def __init__(
+        self,
+        *,
+        activation: str = 'random',
+        phases: Sequence[PhaseSpec] = (),
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
+        super().__init__(random_state=random_state, until=until)
+        self.activation = activation
+        self.phases = phases
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
@@ -1174,8 +1208,7 @@ class MesaSolver(ExternalSolver):
                 continue
             for path in view._get_paths(rule.members):
                 self._member_rules.setdefault(path, []).append((view, rule))
-        declared = self._get_declared_phases(problem.system) if problem.system is not None else []
-        self._phases = self._get_phase_plan(declared, problem)
+        self._phases = self._get_phase_plan(self._get_phases(problem), problem)
         owners = [(item.path, type(item.interaction)) for item in problem.interactions] + [
             (spec.path, spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element))
             for spec in problem.agents
@@ -1189,6 +1222,24 @@ class MesaSolver(ExternalSolver):
             self._resolve_references(spec)
         self._populating = False
         self._collect()
+
+    def _get_phases(self, problem: ProblemSpec) -> list[PhaseSpec]:
+        """Return the phases of the solver and the system, with the default activation.
+
+        Raises:
+            ValidationError:
+                The activation is not one of the known orders.
+        """
+        if self.activation not in ActivationKind:
+            error_msg = (
+                f'The activation of the Mesa solver is {self.activation!r}. Give one of '
+                f'{", ".join(repr(str(kind)) for kind in ActivationKind)}.'
+            )
+            raise ValidationError(error_msg)
+        declared = [*self.phases, *(self._get_declared_phases(problem.system) if problem.system is not None else [])]
+        if self.activation != ActivationKind.RANDOM and all(phase.name != DEFAULT_PHASE for phase in declared):
+            declared = [PhaseSpec(DEFAULT_PHASE, activation=self.activation), *declared]
+        return declared
 
     def _get_agent_class(self, spec: _CompiledAgentsSpec) -> type:
         """Return the Mesa agent class of a group, created on first use."""
