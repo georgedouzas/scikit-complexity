@@ -365,9 +365,10 @@ class _StateInference:
 
     @staticmethod
     def _get_steps(compilation: Compilation) -> dict[str, str]:
-        """Return the value that every update law adds to its target, as `v` in `x <- x + v`, by its dotted name.
+        """Return what every update law adds to its target, as `v` in `x <- x + v`.
 
-        Each name maps to the name of the value it moves, so the step of a position in discrete time is its velocity.
+        The dotted name of each such value maps to that of the value it moves, so the step of a position in discrete
+        time is its velocity.
         """
         census = Compilation._get_required(compilation.census, 'census')
         layout = Compilation._get_required(compilation.layout, 'layout')

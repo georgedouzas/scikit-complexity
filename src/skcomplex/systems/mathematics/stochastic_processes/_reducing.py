@@ -160,7 +160,7 @@ class FragmentElement(Element):
 class BreakingInteraction(Interaction):
     """Breaking of every fragment larger than 1 with the probability `rate` at a uniformly random whole point.
 
-    The fragment keeps the part left of the cut, and a new fragment takes the rest, so the total size stays the same.
+    The fragment keeps the size left of the cut, and a new fragment takes the rest, so the total size stays the same.
 
     Args:
         label:
@@ -190,9 +190,9 @@ class BreakingInteraction(Interaction):
         """Set the breaking of every fragment as the rule."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._break)]
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._split)]
 
-    def _break(self, agent: FragmentView, system: SystemView) -> None:
+    def _split(self, agent: FragmentView, system: SystemView) -> None:
         """Cut a fragment in two with the probability `rate`, unless it has size 1."""
         length = round(agent.length)
         if length > 1 and system.rng.random() < self.rate:

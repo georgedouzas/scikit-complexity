@@ -97,9 +97,9 @@ class BranchingInteraction(Interaction):
         """Set the reproduction of every individual as the rule."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._reproduce)]
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._replace)]
 
-    def _reproduce(self, agent: IndividualView, system: SystemView) -> None:
+    def _replace(self, agent: IndividualView, system: SystemView) -> None:
         """Create the offspring of an individual and remove it."""
         for _ in range(int(system.rng.poisson(self.m))):
             agent.create(generation=agent.generation + 1)

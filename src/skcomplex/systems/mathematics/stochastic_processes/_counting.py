@@ -161,9 +161,9 @@ class BernoulliTrialInteraction(Interaction):
         """Set the trial of every sequence as the rule."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._try)]
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._run_trial)]
 
-    def _try(self, agent: BernoulliTrialView, system: SystemView) -> None:
+    def _run_trial(self, agent: BernoulliTrialView, system: SystemView) -> None:
         """Run one trial of a sequence and count its success."""
         agent.outcome = float(system.rng.random() < self.p)
         agent.successes += agent.outcome
