@@ -1,6 +1,7 @@
 """Test triangular lattices, lattice laws on graphs, neighbour sums, and colored schedules."""
 
 import itertools
+from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -10,7 +11,7 @@ from sage.all__sagemath_symbolics import cos, var
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.core.components.interactions import Interaction, LocalRuleInteraction
 from skcomplex.core.components.laws import (
     LinearRuleSpec,
     LocalRuleLaw,
@@ -21,6 +22,7 @@ from skcomplex.core.components.laws import (
     SamplerSpec,
     TableSpec,
     TotalisticSpec,
+    UpdateLaw,
 )
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
@@ -38,9 +40,14 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver, SiteVisual
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, Role, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Array
 from skcomplex.systems.physics.criticality import HexagonalForestFireSystem
 from skcomplex.systems.physics.statistical_mechanics import GraphIsingSystem
+
+LIFE = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
+MOORE = RadiusNeighborhood(1, metric='chebyshev')
 
 
 class BurnElement(Element):
@@ -520,3 +527,45 @@ def test_life_simulation_agrees_with_the_run_of_its_law():
     law = LocalRuleLaw(var('alive'), RadiusNeighborhood(1, metric='chebyshev'), rule).prepare()
     image = law.run({'space': space, 'alive': start.astype(int)}).value_
     np.testing.assert_array_equal(trajectory.get_values('cells.alive')[-1].astype(int), image)
+
+
+class CellElement(Element):
+    """Plain cell whose value `alive` a local rule changes."""
+
+    def __init__(self, label: str, *, alive: float | Array = 0.0, space=None) -> None:
+        super().__init__(label, space=space)
+        self.alive = alive
+
+
+class LifeInteraction(Interaction):
+    """Game of Life written as an update with a neighbourhood."""
+
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context):
+        """Set the life rule of the cells."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target.alive, LIFE, neighborhood=MOORE)]
+
+
+def test_update_with_a_neighborhood_lowers_to_the_kernel_of_a_local_rule():
+    """Test that Life as an update with a neighbourhood compiles to the fused lookup and table of `LocalRuleLaw`."""
+    start = (np.random.default_rng(0).random(1600) < 0.3).astype(float)
+    space = LatticeSpace((40, 40))
+    new = System(elements=[CellElement('cells', alive=start, space=space)], interactions=[LifeInteraction('life')])
+    old = CompositeSystem(
+        elements=[GroupElement('cells', element=OnOffElement, space=space, values={'alive': start}, on='sites')],
+        interactions=[LocalRuleInteraction('life', target='cells', state='alive', rule=LIFE, neighborhood=MOORE)],
+    )
+    (rule,) = new.prepare()._problem.lattice
+    (reference,) = PassCompiler().prepare(old).run().problem_.lattice
+    assert (rule.lookup.kind, rule.fused) == (reference.lookup.kind, reference.fused) == ('outer', True)
+    np.testing.assert_array_equal(rule.lookup.values, reference.lookup.values)
+    np.testing.assert_array_equal(rule.table, reference.table)
+    np.testing.assert_array_equal(
+        new.simulate(until=20, dt=1).get_values('cells.alive'),
+        simulate(old, until=20, dt=1).get_values('cells.alive'),
+    )

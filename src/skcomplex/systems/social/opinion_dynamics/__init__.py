@@ -90,6 +90,7 @@ from ._undecided import (
     UndecidedView,
 )
 from ._voters import (
+    MajorityRuleInteraction,
     MajorityRuleSystem,
     MajorityVoterElement,
     VariantVoterElement,
@@ -138,6 +139,7 @@ __all__: list[str] = [
     'InfluentialsSystem',
     'JoinAClubSystem',
     'KineticOpinionSystem',
+    'MajorityRuleInteraction',
     'MajorityRuleSystem',
     'MajorityVoterElement',
     'NamerElement',

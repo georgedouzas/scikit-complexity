@@ -15,7 +15,7 @@ from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import LocalRuleLaw
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import (
     BaseSpace,
     LatticeNeighborhood,
@@ -107,7 +107,9 @@ class ElementaryRuleInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             alive = context.target.alive
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(alive, ELEMENTARY, Wolfram(self.rule), label=self.label)]
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(alive, Wolfram(self.rule), neighborhood=ELEMENTARY, label=self.label),
+            ]
 
 
 class LangtonsAntInteraction(Interaction):
@@ -151,7 +153,7 @@ class LangtonsAntInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             states = (context.target.color, context.target.ant)
             self.laws_: list[BaseComponent] = [
-                LocalRuleLaw(states, VON_NEUMANN, self._get_next, reads=states, label=self.label),
+                UpdateLaw(states, self._get_next, neighborhood=VON_NEUMANN, label=self.label),
             ]
 
 

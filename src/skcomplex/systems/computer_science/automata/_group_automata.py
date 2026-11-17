@@ -17,7 +17,7 @@ from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
-from ....core.components.laws import LocalRuleLaw, TotalisticSpec
+from ....core.components.laws import TotalisticSpec, UpdateLaw
 from ....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -138,7 +138,7 @@ class MajorityRuleInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             alive = context.target.alive
             self.laws_: list[BaseComponent] = [
-                LocalRuleLaw(alive, self.neighborhood, self._get_majority, label=self.label),
+                UpdateLaw(alive, self._get_majority, neighborhood=self.neighborhood, label=self.label),
             ]
 
 
@@ -182,7 +182,9 @@ class ParityRuleInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             parity = TotalisticSpec({total: total % 2 for total in range(len(self.neighborhood.elements) + 1)})
             alive = context.target.alive
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(alive, self.neighborhood, parity, label=self.label)]
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(alive, parity, neighborhood=self.neighborhood, label=self.label),
+            ]
 
 
 class LaplacianRuleInteraction(Interaction):
@@ -223,7 +225,9 @@ class LaplacianRuleInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             value = context.target.value
-            self.laws_: list[BaseComponent] = [LocalRuleLaw(value, THREE_CELLS, self._get_function(), label=self.label)]
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(value, self._get_function(), neighborhood=THREE_CELLS, label=self.label),
+            ]
 
 
 class GoldenMeanMoveInteraction(Interaction):
@@ -262,12 +266,11 @@ class GoldenMeanMoveInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             alive = context.target.alive
             self.laws_: list[BaseComponent] = [
-                LocalRuleLaw(
+                UpdateLaw(
                     alive,
-                    THREE_CELLS,
                     self._get_move,
+                    neighborhood=THREE_CELLS,
                     schedule='random-sequential',
-                    stochastic=True,
                     label=self.label,
                 ),
             ]

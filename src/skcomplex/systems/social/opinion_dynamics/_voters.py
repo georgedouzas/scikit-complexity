@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -13,23 +14,25 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction, MapInteraction
-from ....core.components.laws import TotalisticSpec
-from ....core.components.spaces import LatticeSpace, NetworkSpace, RadiusNeighborhood
+from ....core.components.interactions import Interaction, MapInteraction
+from ....core.components.laws import TotalisticSpec, UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
 
 MAJORITY = 5
+MOORE = RadiusNeighborhood(1, metric='chebyshev', center=True)
 
 
 class MajorityVoterElement(Element):
     """Cell that takes the majority opinion of its Moore neighbourhood.
 
-    The neighbourhood includes the cell itself. The majority rule is a `LocalRuleInteraction` of the lattice, which
+    The neighbourhood includes the cell itself. The majority rule is a `MajorityRuleInteraction` of the lattice, which
     `MajorityRuleSystem` adds.
 
     Args:
@@ -263,6 +266,46 @@ class VoterImitationInteraction(MapInteraction):
         return float(neighbors[int(system.rng.integers(len(neighbors)))].opinion)
 
 
+class MajorityRuleInteraction(Interaction):
+    """Majority rule of voters on a lattice: every voter takes the opinion of most of its Moore neighbourhood.
+
+    The neighbourhood holds the voter and its eight neighbours, so it has no ties, and a voter takes opinion 1 when at
+    least five of the nine hold it.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The voters whose state `opinion` the rule updates.
+
+    Examples:
+        >>> from skcomplex.systems.social.opinion_dynamics import MajorityRuleInteraction
+        >>> MajorityRuleInteraction('majority', target='voters').target
+        'voters'
+    """
+
+    def __init__(self, label: str, *, target: Role = 'voters') -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _is_majority(total: IntArray) -> npt.NDArray[np.bool_]:
+        """Return whether the opinions 1 of a Moore neighbourhood are a majority.
+
+        The neighbourhood has nine cells.
+        """
+        return total >= MAJORITY
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the majority rule of the opinions as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            opinion = context.target.opinion
+            rule = TotalisticSpec(self._is_majority)
+            self.laws_: list[BaseComponent] = [UpdateLaw(opinion, rule, neighborhood=MOORE, label=self.label)]
+
+
 class MajorityRuleSystem(BaseSystem):
     """Voters that take the majority opinion of their neighbourhood.
 
@@ -309,14 +352,6 @@ class MajorityRuleSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _is_majority(total: IntArray) -> npt.NDArray[np.bool_]:
-        """Return whether the opinions 1 of a Moore neighbourhood are a majority.
-
-        The neighbourhood has nine cells.
-        """
-        return total >= MAJORITY
-
-    @staticmethod
     def _get_random_cells(
         shape: Sequence[int],
         density: float,
@@ -340,13 +375,7 @@ class MajorityRuleSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                LocalRuleInteraction(
-                    'majority',
-                    target='voters',
-                    state='opinion',
-                    rule=TotalisticSpec(self._is_majority),
-                    neighborhood=RadiusNeighborhood(1, metric='chebyshev', center=True),
-                ),
+                MajorityRuleInteraction('majority', target='voters'),
             ],
         )
 

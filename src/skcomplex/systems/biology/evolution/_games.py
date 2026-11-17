@@ -7,18 +7,21 @@ The strategies spread with their payoff.
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import total
-from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
+from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec
+from ....core.specs import Role, StateSpec
 from ....core.types import Array
 from ..common.populations import ReplicatorInteraction
 
@@ -31,7 +34,7 @@ class CyclicSpeciesElement(Element):
 
     Each strategy beats the one before it.
 
-    The sites update one at a time in random order by a `LocalRuleInteraction`, and a site adopts the strategy of a
+    The sites update one at a time in random order by a `CyclicInvasionInteraction`, and a site adopts the strategy of a
     random neighbour that beats it.
 
     Args:
@@ -159,6 +162,50 @@ class ReplicatorDynamicsSystem(BaseSystem):
         return CompositeSystem(self.label, elements=[population], interactions=[replication])
 
 
+class CyclicInvasionInteraction(Interaction):
+    """Invasion of the sites of rock, paper, and scissors by a random neighbour that beats them.
+
+    The sites update one at a time in a random order, and each adopts the strategy of a random von Neumann neighbour
+    when that strategy beats its own, rock 0 beaten by paper 1, paper by scissors 2, and scissors by rock.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The sites whose state `strategy` the rule updates.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import CyclicInvasionInteraction
+        >>> CyclicInvasionInteraction('invasion', target='lattice').target
+        'lattice'
+    """
+
+    def __init__(self, label: str, *, target: Role = 'lattice') -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _invade(strategy: Array, *around: Array, random: Array) -> Array:
+        """Return the strategy of every site after invasion.
+
+        A random neighbour that beats a site invades it.
+        """
+        choice = np.minimum((random * len(around)).astype(int), len(around) - 1)
+        neighbor = np.choose(choice, np.stack(around))
+        beaten = neighbor == np.mod(strategy + 1, STRATEGIES)
+        return np.where(beaten, neighbor, strategy)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the invasion of the sites as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            strategy = context.target.strategy
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(strategy, self._invade, neighborhood=NEAREST, schedule='random-sequential', label=self.label),
+            ]
+
+
 class RockPaperScissorsSystem(BaseSystem):
     """Rock, paper, and scissors on a lattice.
 
@@ -200,17 +247,6 @@ class RockPaperScissorsSystem(BaseSystem):
         self.shape = shape
         self.random_state = random_state
 
-    @staticmethod
-    def _invade(strategy: Array, *around: Array, random: Array) -> Array:
-        """Return the strategy of every site after invasion.
-
-        A random neighbour that beats a site invades it.
-        """
-        choice = np.minimum((random * len(around)).astype(int), len(around) - 1)
-        neighbor = np.choose(choice, np.stack(around))
-        beaten = neighbor == np.mod(strategy + 1, STRATEGIES)
-        return np.where(beaten, neighbor, strategy)
-
     def _build_system(self) -> CompositeSystem:
         """Return the components of rock, paper, and scissors on a lattice."""
         strategies = (
@@ -228,14 +264,6 @@ class RockPaperScissorsSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                LocalRuleInteraction(
-                    'invasion',
-                    target='lattice',
-                    state='strategy',
-                    rule=self._invade,
-                    neighborhood=NEAREST,
-                    schedule='random-sequential',
-                    stochastic=True,
-                ),
+                CyclicInvasionInteraction('invasion', target='lattice'),
             ],
         )
