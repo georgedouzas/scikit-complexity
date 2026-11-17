@@ -13,7 +13,6 @@ the drive and oscillates exactly at the driving frequency, over a whole plateau 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.nonlinear_oscillators import ForcedVanDerPolSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'forced_van_der_pol'
 
 system = ForcedVanDerPolSystem(x=2.0, v=0.0, mu=1.0, A=0.3, omega=0.95)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-trajectory = simulate(system, until=60, observers=[observer])
+trajectory = system.prepare().simulate(until=60, observers=[observer])
 
 # %%
 # Frequency locking
@@ -34,7 +33,7 @@ trajectory = simulate(system, until=60, observers=[observer])
 
 def response_frequency(omega):
     """Return the mean angular frequency of the response after a transient."""
-    run = simulate(ForcedVanDerPolSystem(x=2.0, v=0.0, mu=1.0, A=0.3, omega=omega), until=400, dt=0.025)
+    run = ForcedVanDerPolSystem(x=2.0, v=0.0, mu=1.0, A=0.3, omega=omega).prepare().simulate(until=400, dt=0.025)
     times, x = np.asarray(run.times), np.ravel(run.get_values('oscillator.x'))
     late = times > 150
     crossings = times[late][1:][(x[late][:-1] < 0) & (x[late][1:] >= 0)]

@@ -13,7 +13,6 @@ right amplitude every impulse reverses the motion, and the oscillator repeats wi
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.nonlinear_oscillators import ImpulsiveOscillatorSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'impulsive_oscillator'
 
 system = ImpulsiveOscillatorSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, dt=0.005, observers=[observer])
+trajectory = system.prepare().simulate(dt=0.005, observers=[observer])
 
 # %%
 # Temporal dipole shift
@@ -31,7 +30,7 @@ trajectory = simulate(system, dt=0.005, observers=[observer])
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for gamma in (0.0, 0.2, 0.4):
-    run = simulate(ImpulsiveOscillatorSystem(gamma=gamma), until=5, dt=0.005)
+    run = ImpulsiveOscillatorSystem(gamma=gamma).prepare().simulate(until=5, dt=0.005)
     times = np.asarray(run.times)
     ax.plot(times, np.ravel(run.get_values('oscillator.x')), label=f'gamma = {gamma}')
 ax.set_xlabel('time')

@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import section
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.nonlinear_oscillators import NuclearQuadrupoleSystem
 
@@ -28,7 +27,7 @@ def start(q2, p2, energy=ENERGY):
 
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
-trajectory = simulate(start(1.0, 0.0), until=100, observers=[observer])
+trajectory = start(1.0, 0.0).prepare().simulate(until=100, observers=[observer])
 
 # %%
 # Poincaré section
