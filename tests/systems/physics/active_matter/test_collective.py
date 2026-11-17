@@ -53,9 +53,9 @@ def _mean_neighbors(positions, size, radius):
 
 def test_motility_induced_phase_separation_gathers_disks():
     """Test that fast repulsive swimmers gather into clusters without passing through each other."""
-    system = MotilityInducedPhaseSeparationSystem(200).prepare().system_
-    size = system.space.prepare().extent_[0]
-    trajectory = simulate(system, until=5, dt=0.5, solver=EulerMaruyamaSolver(dt=0.005), random_state=0)
+    system = MotilityInducedPhaseSeparationSystem(200, solver=EulerMaruyamaSolver(dt=0.005)).prepare()
+    size = system.system_.elements[0].space.prepare().extent_[0]
+    trajectory = system.simulate(until=5, dt=0.5, random_state=0)
     positions = trajectory.get_values('swimmers.x')
     assert _mean_neighbors(positions[-1], size, 1.1) > 3 * _mean_neighbors(positions[0], size, 1.1)
     distances = np.linalg.norm(positions[-1][:, None] - positions[-1][None], axis=-1)
@@ -66,9 +66,8 @@ def test_living_crystals_form_only_with_phoretic_attraction():
     """Test that active colloids gather into clusters with phoretic attraction and stay apart without it."""
     neighbors = {}
     for v0 in (0.0, 50.0):
-        system = LivingCrystalsSystem(50, size=30.0, v0=v0)
-        solver = EulerMaruyamaSolver(dt=0.002)
-        trajectory = simulate(system, until=5, dt=0.5, solver=solver, random_state=0)
+        system = LivingCrystalsSystem(50, size=30.0, v0=v0, solver=EulerMaruyamaSolver(dt=0.002))
+        trajectory = system.prepare().simulate(until=5, dt=0.5, random_state=0)
         neighbors[v0] = _mean_neighbors(trajectory.get_values('swimmers.x')[-1], 30.0, 2.5)
     assert neighbors[50.0] > 4 * neighbors[0.0]
 
@@ -83,8 +82,8 @@ def test_cucker_smale_flock_aligns_and_keeps_momentum():
 
 def test_toner_tu_flock_orders_at_the_mean_field_speed():
     """Test that the polar fluid conserves its mass and moves together at `sqrt(a (rho0 - rho_c) / beta)`."""
-    system = TonerTuSystem((16, 16))
-    trajectory = simulate(system, until=30, dt=1.0, solver=EulerMaruyamaSolver(dt=0.02), random_state=0)
+    system = TonerTuSystem((16, 16), solver=EulerMaruyamaSolver(dt=0.02))
+    trajectory = system.prepare().simulate(until=30, dt=1.0, random_state=0)
     vx, vy, rho = (
         trajectory.get_values('flock.vx')[-1],
         trajectory.get_values('flock.vy')[-1],

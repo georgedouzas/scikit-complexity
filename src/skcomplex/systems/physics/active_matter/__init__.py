@@ -3,7 +3,12 @@
 The package covers self-propelled particles, flocking, polar fluids, chemotaxis, squirmers, and Active System B+.
 """
 
-from ..common.particles import ActiveParticleElement, PropulsionStepInteraction, SelfPropulsionInteraction
+from ..common.particles import (
+    ActiveDiffusionInteraction,
+    ActiveParticleElement,
+    PropulsionStepInteraction,
+    SelfPropulsionInteraction,
+)
 from ._active_passive import ActivePassiveFlockingSystem, FlockingAgentElement
 from ._alignment import AligningActiveBrownianParticlesSystem, PolarAlignmentInteraction
 from ._cells import MotileCellElement, SzaboCellsSystem
@@ -15,6 +20,7 @@ from ._collective import (
     MotilityInducedPhaseSeparationSystem,
     PhoreticAttractionInteraction,
     PolarFluidElement,
+    TonerTuInteraction,
     TonerTuSystem,
 )
 from ._collisions import BinaryCollisionFlockingSystem, BinaryCollisionsInteraction, FlockerElement, FlockerView
@@ -46,9 +52,12 @@ from ._particles import (
     ChiralActiveParticlesSystem,
     DepotBrownianParticlesSystem,
     DepotParticleElement,
+    DepotPumpingInteraction,
     InertialActiveBrownianParticlesSystem,
     InertialActiveParticleElement,
+    InertialPropulsionInteraction,
     OrnsteinUhlenbeckParticleElement,
+    OrnsteinUhlenbeckPropulsionInteraction,
     RunAndTumbleSystem,
     TumblerElement,
     TumblerView,
@@ -60,6 +69,7 @@ from ._system_b import ActiveScalarElement, ActiveSystemBSystem
 __all__: list[str] = [
     'ActiveBeadElement',
     'ActiveBrownianParticlesSystem',
+    'ActiveDiffusionInteraction',
     'ActiveGelsSystem',
     'ActiveOrnsteinUhlenbeckParticlesSystem',
     'ActiveParticleElement',
@@ -85,6 +95,7 @@ __all__: list[str] = [
     'DelayedVicsekParticleElement',
     'DepotBrownianParticlesSystem',
     'DepotParticleElement',
+    'DepotPumpingInteraction',
     'DryActiveNematicsSystem',
     'FlockerElement',
     'FlockerView',
@@ -94,6 +105,7 @@ __all__: list[str] = [
     'HeadingAlignmentInteraction',
     'InertialActiveBrownianParticlesSystem',
     'InertialActiveParticleElement',
+    'InertialPropulsionInteraction',
     'KellerSegelSystem',
     'LandauDeGennesEnergyInteraction',
     'LivingCrystalsSystem',
@@ -105,6 +117,7 @@ __all__: list[str] = [
     'NonreciprocalMoverElement',
     'NonreciprocalVicsekSystem',
     'OrnsteinUhlenbeckParticleElement',
+    'OrnsteinUhlenbeckPropulsionInteraction',
     'PhoreticAttractionInteraction',
     'PolarAlignmentInteraction',
     'PolarFluidElement',
@@ -116,6 +129,7 @@ __all__: list[str] = [
     'SquirmerSlipInteraction',
     'SquirmersSystem',
     'SzaboCellsSystem',
+    'TonerTuInteraction',
     'TonerTuSystem',
     'TumblerElement',
     'TumblerView',

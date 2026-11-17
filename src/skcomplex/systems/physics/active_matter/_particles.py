@@ -7,45 +7,91 @@ The module covers active Brownian, chiral, Ornstein-Uhlenbeck, run-and-tumble, a
 # License: MIT
 
 import math
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, cos, oo, sin, sqrt, vector
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw, RuleLaw
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, EulerMaruyamaSolver, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, EulerMaruyamaSolver, SystemView
+from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
-from ..common.particles import POINTS, ActiveParticleElement, SelfPropulsionInteraction
+from ..common.particles import POINTS, ActiveDiffusionInteraction, ActiveParticleElement, SelfPropulsionInteraction
 
 
 class DepotParticleElement(Element):
-    """Brownian particle pumped by an internal energy depot.
+    """Particles with the positions `x`, the velocities `v`, and the energy depots `e`.
+
+    Args:
+        label:
+            The label of the particles.
+
+        x:
+            The initial positions, one row per particle or shared.
+
+        v:
+            The initial velocities, one row per particle or shared.
+
+        e:
+            The initial energy of the depots.
+
+        size:
+            The number of particles, or `None` for one.
+
+        space:
+            The continuous space of the particles, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import DepotParticleElement
+        >>> DepotParticleElement('walker', e=1.0).e
+        1.0
+    """
+
+    visual = POINTS
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = (0.0, 0.0),
+        v: object = (0.0, 0.0),
+        e: object = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space)
+        self.x = x
+        self.v = v
+        self.e = e
+
+
+class DepotPumpingInteraction(Interaction):
+    """Brownian motion pumped by an internal energy depot.
 
     The particle follows the system of Schweitzer, Ebeling, and Tilch.
 
     The depot takes energy at the rate `q`, loses it at the rate `c e`, and converts it into motion at the rate
     `d e |v|^2`, so `de/dt = q - c e - d e |v|^2` and `dv = (-gamma v + d e v) dt + sqrt(2 D) dW`. Above
-    `q d = c gamma` the particle moves at the speed `sqrt(q / gamma - c / d)`.
+    `q d = c gamma` the particle moves at the speed `sqrt(q / gamma - c / d)`. It is a swimming cell that burns food, or
+    a walker that spends stored energy.
 
     Args:
         label:
-            The label of the particle or the group.
+            The label of the interaction.
 
-        x:
-            The initial position.
-
-        v:
-            The initial velocity.
-
-        e:
-            The initial energy of the depot.
+        target:
+            The path of the particles, with the positions `x`, the velocities `v`, and the depots `e`.
 
         gamma:
             The friction coefficient.
@@ -63,87 +109,112 @@ class DepotParticleElement(Element):
             The intensity of the velocity noise.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import DepotParticleElement
-        >>> DepotParticleElement('walker').q
+        >>> from skcomplex.systems.physics.active_matter import DepotPumpingInteraction
+        >>> DepotPumpingInteraction('pumping', target='walkers').q
         10.0
     """
 
-    visual = POINTS
-
-    law_classes = (
-        NoiseLaw,
-        RateLaw,
-    )
+    law_classes = (NoiseLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        v: Annotated[npt.ArrayLike, StateSpec(vector=True, role='velocity')] = 0.0,
-        e: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        target: Role,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 20.0,
+        q: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        c: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        d: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        D: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
     ) -> None:
         super().__init__(label)
-        self.x = x
-        self.v = v
-        self.e = e
+        self.target = target
         self.gamma = gamma
         self.q = q
         self.c = c
         self.d = d
         self.D = D
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the particle.
-
-        They are the motion, the friction and pumping of the velocity, its noise, and the depot balance.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the motion, the pumped friction and the noise of the velocity, and the depot balance of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [
-            RateLaw(s.x, s.v),
-            RateLaw(s.v, (-s.gamma + s.d * s.e) * s.v),
-            NoiseLaw(s.v, sqrt(2 * s.D)),
-            RateLaw(s.e, s.q - s.c * s.e - s.d * s.e * s.v.dot_product(s.v)),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            x, v, e = s.target.x, s.target.v, s.target.e
+            self.laws_ = [
+                RateLaw(x, v),
+                RateLaw(v, (-s.gamma + s.d * e) * v),
+                NoiseLaw(v, sqrt(2 * s.D)),
+                RateLaw(e.diff(s.t), s.q - s.c * e - s.d * e * v.dot_product(v)),
+            ]
 
 
 class InertialActiveParticleElement(Element):
-    """Active Brownian particle with mass and moment of inertia.
+    """Active particles with the positions `x` and the orientations `theta`, both of order 2.
 
-    Its velocity and spin relax with friction.
+    Args:
+        label:
+            The label of the particles.
+
+        x:
+            The initial positions, one row per particle or shared.
+
+        theta:
+            The initial orientations, one per particle or shared.
+
+        size:
+            The number of particles, or `None` for one.
+
+        space:
+            The continuous space of the particles, or `None` for none.
+
+        values:
+            Further values by name, such as the initial velocities `x'` and angular velocities `theta'`, or `None`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import InertialActiveParticleElement
+        >>> InertialActiveParticleElement('swimmer', theta=1.0).theta
+        1.0
+    """
+
+    visual = POINTS
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = (0.0, 0.0),
+        theta: object = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+        values: Mapping[str, object] | None = None,
+    ) -> None:
+        super().__init__(label, values=values, size=size, space=space)
+        self.x = x
+        self.theta = theta
+
+
+class InertialPropulsionInteraction(Interaction):
+    """Self-propulsion of active particles with mass and moment of inertia.
+
+    Their velocities and spins relax with friction.
 
     With unit friction, the position follows `m x'' = -x' + v0 n + sqrt(2 D_t) xi` along the orientation
     `n = (cos theta, sin theta)`, and the orientation follows `J theta'' = -theta' + sqrt(2 D_r) xi_r`. The velocity
     relaxes over the time `m` and the angular velocity over the time `J`, and both vanish to give the overdamped
-    active Brownian particle.
+    active Brownian particle. It is a vibrated grain, a flying insect, or a macroscopic robot.
 
     Args:
         label:
-            The label of the particle or the group.
+            The label of the interaction.
 
-        x:
-            The initial position.
-
-        x_d1:
-            The initial velocity.
-
-        theta:
-            The initial orientation.
-
-        theta_d1:
-            The initial angular velocity.
+        target:
+            The path of the particles, with the positions `x` and the orientations `theta`.
 
         speed:
             The self-propulsion speed `v0`.
@@ -161,80 +232,106 @@ class InertialActiveParticleElement(Element):
             The rotational diffusion coefficient.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import InertialActiveParticleElement
-        >>> InertialActiveParticleElement('swimmer').mass
+        >>> from skcomplex.systems.physics.active_matter import InertialPropulsionInteraction
+        >>> InertialPropulsionInteraction('propulsion', target='swimmers').mass
         0.5
     """
 
-    visual = POINTS
-
-    law_classes = (
-        NoiseLaw,
-        RateLaw,
-    )
+    law_classes = (NoiseLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
-        x_d1: npt.ArrayLike = 0.0,
-        theta: Annotated[float, StateSpec(order=2, role='direction')] = 0.0,
-        theta_d1: float = 0.0,
-        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        mass: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        moment: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Role,
+        speed: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        mass: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        moment: Annotated[float, RealSet.open(0, oo)] = 0.1,
+        D_t: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        D_r: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
-        self.theta = theta
-        self.theta_d1 = theta_d1
+        self.target = target
         self.speed = speed
         self.mass = mass
         self.moment = moment
         self.D_t = D_t
         self.D_r = D_r
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the accelerations of the position and orientation, and their noises.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the accelerations of the position and the orientation of the target, and their noises.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        heading = vector(SR, [cos(s.theta), sin(s.theta)])
-        return [
-            RateLaw(s.x, (s.speed * heading - s.x_d1) / s.mass),
-            NoiseLaw(s.x, sqrt(2 * s.D_t) / s.mass),
-            RateLaw(s.theta, -s.theta_d1 / s.moment),
-            NoiseLaw(s.theta, sqrt(2 * s.D_r) / s.moment),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context, context.t
+            x, theta = s.target.x, s.target.theta
+            heading = vector(SR, [cos(theta), sin(theta)])
+            self.laws_ = [
+                RateLaw(x, (s.speed * heading - x.diff(t)) / s.mass, order=2),
+                NoiseLaw(x, sqrt(2 * s.D_t) / s.mass, order=2),
+                RateLaw(theta.diff(t, 2), -theta.diff(t) / s.moment),
+                NoiseLaw(theta, sqrt(2 * s.D_r) / s.moment, order=2),
+            ]
 
 
 class OrnsteinUhlenbeckParticleElement(Element):
-    """Active Ornstein-Uhlenbeck particle.
-
-    Its propulsion velocity `u` is an Ornstein-Uhlenbeck process.
-
-    The laws are `dx = u dt + sqrt(2 D_t) dW` and `tau du = -u dt + sqrt(2 D) dW`, so the propulsion keeps its
-    direction for the persistence time `tau` and the particle diffuses with `D + D_t` at long times.
+    """Active particles with the positions `x` and the propulsion velocities `u`.
 
     Args:
         label:
-            The label of the particle or the group.
+            The label of the particles.
 
         x:
-            The initial position.
+            The initial positions, one row per particle or shared.
 
         u:
-            The initial propulsion velocity.
+            The initial propulsion velocities, one row per particle or shared.
+
+        size:
+            The number of particles, or `None` for one.
+
+        space:
+            The continuous space of the particles, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import OrnsteinUhlenbeckParticleElement
+        >>> OrnsteinUhlenbeckParticleElement('swimmer', u=(1.0, 0.0)).u
+        (1.0, 0.0)
+    """
+
+    visual = POINTS
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = (0.0, 0.0),
+        u: object = (0.0, 0.0),
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space)
+        self.x = x
+        self.u = u
+
+
+class OrnsteinUhlenbeckPropulsionInteraction(Interaction):
+    """Propulsion of active particles by an Ornstein-Uhlenbeck process.
+
+    The laws are `dx = u dt + sqrt(2 D_t) dW` and `tau du = -u dt + sqrt(2 D) dW`, so the propulsion keeps its
+    direction for the persistence time `tau` and the particle diffuses with `D + D_t` at long times. It is a bacterium
+    or a colloid whose swimming direction forgets itself smoothly.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particles, with the positions `x` and the propulsions `u`.
 
         tau:
             The persistence time.
@@ -246,52 +343,45 @@ class OrnsteinUhlenbeckParticleElement(Element):
             The translational diffusion coefficient.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import OrnsteinUhlenbeckParticleElement
-        >>> OrnsteinUhlenbeckParticleElement('swimmer').tau
+        >>> from skcomplex.systems.physics.active_matter import OrnsteinUhlenbeckPropulsionInteraction
+        >>> OrnsteinUhlenbeckPropulsionInteraction('propulsion', target='swimmers').tau
         1.0
     """
 
-    visual = POINTS
-
-    law_classes = (
-        NoiseLaw,
-        RateLaw,
-    )
+    law_classes = (NoiseLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        u: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Role,
+        tau: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        D: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        D_t: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
         super().__init__(label)
-        self.x = x
-        self.u = u
+        self.target = target
         self.tau = tau
         self.D = D
         self.D_t = D_t
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the propulsion, its relaxation and noise, and the translational noise.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the propulsion of the position, the relaxation and noise of the propulsion, and the position noise.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [
-            RateLaw(s.x, s.u),
-            NoiseLaw(s.x, sqrt(2 * s.D_t)),
-            RateLaw(s.u, -s.u / s.tau),
-            NoiseLaw(s.u, sqrt(2 * s.D) / s.tau),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            x, u = s.target.x, s.target.u
+            self.laws_ = [
+                RateLaw(x, u),
+                NoiseLaw(x, sqrt(2 * s.D_t)),
+                RateLaw(u, -u / s.tau),
+                NoiseLaw(u, sqrt(2 * s.D) / s.tau),
+            ]
 
 
 class TumblerView(AgentView):
@@ -430,9 +520,15 @@ class ActiveBrownianParticlesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import ActiveBrownianParticlesSystem
-        >>> ActiveBrownianParticlesSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> ActiveBrownianParticlesSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -441,7 +537,6 @@ class ActiveBrownianParticlesSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Bechinger et al. 2016', 'Volpe, Gigan, and Volpe 2014')
     until = 20.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     @staticmethod
     def _get_swimmers(
@@ -463,8 +558,10 @@ class ActiveBrownianParticlesSystem(BaseSystem):
         size: float = 50.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.speed = speed
         self.D_t = D_t
@@ -472,20 +569,31 @@ class ActiveBrownianParticlesSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return active Brownian particles in the plane.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of active Brownian particles in the plane.
 
-        The particles swim at a constant speed in a diffusing direction.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_particles, self.size, self.random_state)
-        group = GroupElement(
+        swimmers = ActiveParticleElement(
             'swimmers',
-            element=ActiveParticleElement,
+            x=positions,
+            theta=angles,
             size=self.n_particles,
-            values={'x': positions, 'theta': angles, 'D_t': self.D_t, 'D_r': self.D_r},
+            space=ContinuousSpace(n_dim=2),
         )
-        propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)
-        return CompositeSystem(self.label, elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
+        self.system_ = System(
+            self.label,
+            elements=[swimmers],
+            interactions=[
+                ActiveDiffusionInteraction('diffusion', target='swimmers', D_t=self.D_t, D_r=self.D_r),
+                SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed),
+            ],
+            solver=EulerMaruyamaSolver(dt=0.01),
+        )
 
 
 class ChiralActiveParticlesSystem(BaseSystem):
@@ -521,9 +629,15 @@ class ChiralActiveParticlesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import ChiralActiveParticlesSystem
-        >>> ChiralActiveParticlesSystem(10, omega=1.0).prepare().system_.elements[0].values['omega']
+        >>> ChiralActiveParticlesSystem(10, omega=1.0).prepare().system_.interactions[0].omega
         1.0
     """
 
@@ -532,7 +646,6 @@ class ChiralActiveParticlesSystem(BaseSystem):
     references = ('Bechinger et al. 2016', 'van Teeffelen and Löwen 2008')
     until = 20.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -545,8 +658,10 @@ class ChiralActiveParticlesSystem(BaseSystem):
         size: float = 50.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.speed = speed
         self.omega = omega
@@ -555,20 +670,35 @@ class ChiralActiveParticlesSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return chiral active particles.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of chiral active particles.
 
-        The particles swim along circles of radius `v / omega` that drift by diffusion.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_particles, self.size, self.random_state)
-        group = GroupElement(
+        swimmers = ActiveParticleElement(
             'swimmers',
-            element=ActiveParticleElement,
+            x=positions,
+            theta=angles,
             size=self.n_particles,
-            values={'x': positions, 'theta': angles, 'omega': self.omega, 'D_t': self.D_t, 'D_r': self.D_r},
+            space=ContinuousSpace(n_dim=2),
         )
-        propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)
-        return CompositeSystem(self.label, elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
+        diffusion = ActiveDiffusionInteraction(
+            'diffusion',
+            target='swimmers',
+            D_t=self.D_t,
+            D_r=self.D_r,
+            omega=self.omega,
+        )
+        self.system_ = System(
+            self.label,
+            elements=[swimmers],
+            interactions=[diffusion, SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)],
+            solver=EulerMaruyamaSolver(dt=0.01),
+        )
 
 
 class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
@@ -601,9 +731,15 @@ class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import ActiveOrnsteinUhlenbeckParticlesSystem
-        >>> ActiveOrnsteinUhlenbeckParticlesSystem(10, tau=0.5).prepare().system_.elements[0].values['tau']
+        >>> ActiveOrnsteinUhlenbeckParticlesSystem(10, tau=0.5).prepare().system_.interactions[0].tau
         0.5
     """
 
@@ -612,7 +748,6 @@ class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
     references = ('Bechinger et al. 2016', 'Fodor et al. 2016')
     until = 20.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -624,8 +759,10 @@ class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
         size: float = 50.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.tau = tau
         self.D = D
@@ -633,24 +770,41 @@ class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return active Ornstein-Uhlenbeck particles in the plane.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of active Ornstein-Uhlenbeck particles in the plane.
 
-        The particles are driven by exponentially correlated propulsion.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         positions = rng.uniform(0.0, self.size, (self.n_particles, 2))
         propulsion = rng.normal(0.0, math.sqrt(self.D / self.tau), (self.n_particles, 2))
-        group = GroupElement(
+        swimmers = OrnsteinUhlenbeckParticleElement(
             'swimmers',
-            element=OrnsteinUhlenbeckParticleElement,
+            x=positions,
+            u=propulsion,
             size=self.n_particles,
-            values={'x': positions, 'u': propulsion, 'tau': self.tau, 'D': self.D, 'D_t': self.D_t},
+            space=ContinuousSpace(n_dim=2),
         )
-        return CompositeSystem(self.label, elements=[group], space=ContinuousSpace(n_dim=2))
+        self.system_ = System(
+            self.label,
+            elements=[swimmers],
+            interactions=[
+                OrnsteinUhlenbeckPropulsionInteraction(
+                    'propulsion',
+                    target='swimmers',
+                    tau=self.tau,
+                    D=self.D,
+                    D_t=self.D_t,
+                ),
+            ],
+            solver=EulerMaruyamaSolver(dt=0.01),
+        )
 
 
-class RunAndTumbleSystem(BaseSystem):
+class RunAndTumbleSystem(OldBaseSystem):
     """Run-and-tumble agents in a periodic square.
 
     The agents diffuse with `v^2 (1 + q) / (4 (1 - q))` per step.
@@ -755,9 +909,15 @@ class DepotBrownianParticlesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import DepotBrownianParticlesSystem
-        >>> DepotBrownianParticlesSystem(5).prepare().system_.elements[0].values['q']
+        >>> DepotBrownianParticlesSystem(5).prepare().system_.interactions[0].q
         10.0
     """
 
@@ -766,7 +926,6 @@ class DepotBrownianParticlesSystem(BaseSystem):
     references = ('Schweitzer, Ebeling, and Tilch 1998', 'Helbing 2001')
     until = 10.0
     dt = 0.1
-    solver = EulerMaruyamaSolver(dt=0.001)
 
     def __init__(
         self,
@@ -779,8 +938,10 @@ class DepotBrownianParticlesSystem(BaseSystem):
         D: float = 0.01,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.gamma = gamma
         self.q = q
@@ -789,16 +950,37 @@ class DepotBrownianParticlesSystem(BaseSystem):
         self.D = D
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Brownian particles with energy depots.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         velocities = np.random.default_rng(self.random_state).normal(0.0, 0.01, (self.n_particles, 2))
-        group = GroupElement(
+        walkers = DepotParticleElement(
             'walkers',
-            element=DepotParticleElement,
+            x=np.zeros((self.n_particles, 2)),
+            v=velocities,
             size=self.n_particles,
-            values={'v': velocities, 'gamma': self.gamma, 'q': self.q, 'c': self.c, 'd': self.d, 'D': self.D},
+            space=ContinuousSpace(n_dim=2),
         )
-        return CompositeSystem(self.label, elements=[group], space=ContinuousSpace(n_dim=2))
+        pumping = DepotPumpingInteraction(
+            'pumping',
+            target='walkers',
+            gamma=self.gamma,
+            q=self.q,
+            c=self.c,
+            d=self.d,
+            D=self.D,
+        )
+        self.system_ = System(
+            self.label,
+            elements=[walkers],
+            interactions=[pumping],
+            solver=EulerMaruyamaSolver(dt=0.001),
+        )
 
 
 class InertialActiveBrownianParticlesSystem(BaseSystem):
@@ -812,8 +994,8 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
     orientation falls below `v0`. With rotational inertia alone, the orientation correlation is `exp(-D_r (t - J (1 -
     exp(-t / J))))`, which gives the steady projection `v0 / m ∫ exp(-t / m) exp(-D_r (t - J (1 - exp(-t / J)))) dt`,
     and `v0 / (1 + m D_r)` without rotational inertia. The particles start at rest at uniform positions and
-    orientations. The system has the positions `swimmers.x`, the velocities `swimmers.x_d1`, the orientations
-    `swimmers.theta`, and the angular velocities `swimmers.theta_d1`.
+    orientations. The system has the positions `swimmers.x`, the velocities `swimmers.x'`, the orientations
+    `swimmers.theta`, and the angular velocities `swimmers.theta'`.
 
     Args:
         n_particles:
@@ -843,9 +1025,15 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import InertialActiveBrownianParticlesSystem
-        >>> InertialActiveBrownianParticlesSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> InertialActiveBrownianParticlesSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -854,7 +1042,6 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
     references = ('Löwen 2020', 'Scholz et al. 2018', 'Bechinger et al. 2016')
     until = 20.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.005)
 
     def __init__(
         self,
@@ -868,8 +1055,10 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
         size: float = 50.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.speed = speed
         self.mass = mass
@@ -879,21 +1068,34 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of active Brownian particles with inertia.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_particles, self.size, self.random_state)
-        group = GroupElement(
+        swimmers = InertialActiveParticleElement(
             'swimmers',
-            element=InertialActiveParticleElement,
+            x=positions,
+            theta=angles,
             size=self.n_particles,
-            values={
-                'x': positions,
-                'theta': angles,
-                'speed': self.speed,
-                'mass': self.mass,
-                'moment': self.moment,
-                'D_t': self.D_t,
-                'D_r': self.D_r,
-            },
+            space=ContinuousSpace(n_dim=2),
         )
-        return CompositeSystem(self.label, elements=[group], space=ContinuousSpace(n_dim=2))
+        propulsion = InertialPropulsionInteraction(
+            'propulsion',
+            target='swimmers',
+            speed=self.speed,
+            mass=self.mass,
+            moment=self.moment,
+            D_t=self.D_t,
+            D_r=self.D_r,
+        )
+        self.system_ = System(
+            self.label,
+            elements=[swimmers],
+            interactions=[propulsion],
+            solver=EulerMaruyamaSolver(dt=0.005),
+        )

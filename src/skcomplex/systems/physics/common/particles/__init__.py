@@ -3,6 +3,7 @@
 The package holds point masses, active and Brownian particles, forces, relaxation, and the Stokesian mobility.
 """
 
+from ._active_diffusion import ActiveDiffusionInteraction
 from ._active_particle import POINTS, ActiveParticleElement
 from ._brownian_particle import BrownianParticleElement
 from ._constant_force import ConstantForceInteraction
@@ -29,6 +30,7 @@ __all__: list[str] = [
     'LAMMPS_FIXES',
     'LAMMPS_PAIRS',
     'POINTS',
+    'ActiveDiffusionInteraction',
     'ActiveParticleElement',
     'BrownianParticleElement',
     'ConstantForceInteraction',
