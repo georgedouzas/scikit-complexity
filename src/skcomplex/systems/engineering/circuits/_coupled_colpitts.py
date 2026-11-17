@@ -8,17 +8,19 @@ They lock their phases through a coupling.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.components.spaces import BaseSpace
+from ....core.specs import ParameterSpec, Role
 from ....core.systems import BaseSystem, System
 
 
@@ -66,21 +68,19 @@ class ColpittsOscillatorElement(Element):
         30.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 0.1,
-        y: Annotated[float, StateSpec()] = 0.0,
-        z: Annotated[float, StateSpec()] = 0.0,
-        omega: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        c: Annotated[float, ParameterSpec()] = 20.0,
-        d: Annotated[float, ParameterSpec()] = 1.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        x: float = 0.1,
+        y: float = 0.0,
+        z: float = 0.0,
+        omega: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 30.0,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        c: float = 20.0,
+        d: float = 1.0,
+        epsilon: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -93,26 +93,52 @@ class ColpittsOscillatorElement(Element):
         self.d = d
         self.epsilon = epsilon
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the three variables of the oscillator.
+
+class ColpittsDynamicsInteraction(Interaction):
+    """Dynamics of one Colpitts oscillator, with the constants the oscillator holds.
+
+    It sets `x' = omega y - a F(z)`, `y' = c - omega x - z - b y`, and `z' = epsilon (y - d)`, with
+    `F(z) = max(0, -1 - z)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the oscillator.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.circuits import ColpittsDynamicsInteraction
+        >>> ColpittsDynamicsInteraction('dynamics', target='oscillator').target
+        'oscillator'
+    """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the three variables of the oscillator.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The space the interaction inherits from its system, or the namespace of the oscillator.
         """
-        conduction = where(s.z < -1, -1 - s.z, 0)
-        return [
-            RateLaw(s.x, s.omega * s.y - s.a * conduction),
-            RateLaw(s.y, s.c - s.omega * s.x - s.z - s.b * s.y),
-            RateLaw(s.z, s.epsilon * (s.y - s.d)),
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        o, t = context.target, context.t
+        conduction = where(o.z < -1, -1 - o.z, 0)
+        self.laws_: list[BaseComponent] = [
+            RateLaw(o.x.diff(t), o.omega * o.y - o.a * conduction),
+            RateLaw(o.y.diff(t), o.c - o.omega * o.x - o.z - o.b * o.y),
+            RateLaw(o.z.diff(t), o.epsilon * (o.y - o.d)),
         ]
 
 
-class ColpittsCouplingInteraction(RateInteraction):
+class ColpittsCouplingInteraction(Interaction):
     """Coupling of a Colpitts oscillator to another through their second variables.
 
     It adds `y_t' += k (y_s - y_t)`.
@@ -136,31 +162,33 @@ class ColpittsCouplingInteraction(RateInteraction):
         0.4
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        source: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
+        source: Role,
+        target: Role,
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
     ) -> None:
-        super().__init__(label, target=target, state='y')
+        super().__init__(label)
         self.source = source
+        self.target = target
         self.k = k
 
-    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return `k (y_s - y_t)`.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate `k (y_s - y_t)` of the second variable of the target.
 
         Args:
-            namespace:
-                The namespace of the symbols the rate can use.
-
-        Returns:
-            rate:
-                The rate of the second variable of the target.
+            context:
+                The space the interaction inherits from its system, or the namespace of both oscillators.
         """
-        rate: Expression = namespace.k * (namespace.source.y - namespace.target.y)
-        return rate
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        y = context.target.y
+        self.laws_: list[BaseComponent] = [RateLaw(y.diff(context.t), context.k * (context.source.y - y))]
 
 
 class CoupledColpittsSystem(BaseSystem):
@@ -252,8 +280,11 @@ class CoupledColpittsSystem(BaseSystem):
             )
             for index, (omega, start) in enumerate(zip(self.omegas, starts, strict=True))
         ]
+        dynamics = [
+            ColpittsDynamicsInteraction(f'dynamics_{index}', target=f'oscillator_{index}') for index in range(2)
+        ]
         couplings = [
             ColpittsCouplingInteraction(f'coupling_{target}', source=source, target=target, k=self.k)
             for source, target in (('oscillator_1', 'oscillator_0'), ('oscillator_0', 'oscillator_1'))
         ]
-        self.system_ = System(self.label, elements=oscillators, interactions=couplings)
+        self.system_ = System(self.label, elements=oscillators, interactions=[*dynamics, *couplings])
