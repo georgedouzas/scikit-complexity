@@ -40,9 +40,6 @@ class CowElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         bite:
             The grass a cow eats in a week.
 
@@ -53,14 +50,15 @@ class CowElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'radius': 0.4})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.4}),
         *,
         bite: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.bite = bite
 
     @classmethod
@@ -86,9 +84,6 @@ class PastureElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         grass:
             The amount of grass, between 0 and 1.
 
@@ -102,17 +97,18 @@ class PastureElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 1.0)})
+
     law_classes = (RuleLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 1.0)}),
         *,
         grass: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         growth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.grass = grass
         self.growth = growth
 
@@ -350,7 +346,7 @@ class MeadowCapacitySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of cows that graze a summer of 25 weeks on a meadow."""
+        """Return the components of cows that graze a summer of 25 weeks on a meadow."""
         rng = np.random.default_rng(self.random_state)
         cells = [(column, row) for column in range(self.width) for row in range(self.height)]
         picks = rng.choice(len(cells), size=self.cows, replace=False)

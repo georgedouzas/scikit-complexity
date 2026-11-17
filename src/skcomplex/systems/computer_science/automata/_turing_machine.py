@@ -14,10 +14,10 @@ from sage.all__sagemath_symbolics import NN, ZZ
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 from ....core.types import Array
 
 BUSY_BEAVER = {
@@ -43,9 +43,6 @@ class TapeCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         symbol:
             The initial symbol.
 
@@ -61,12 +58,11 @@ class TapeCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         symbol: Annotated[float, StateSpec(domain=NN)] = 0,
         head: Annotated[float, StateSpec(domain=ZZ)] = -1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.symbol = symbol
         self.head = head
 
@@ -191,7 +187,7 @@ class TuringMachineSystem(BaseSystem):
                     target='tape',
                     state=('symbol', 'head'),
                     rule=self._get_turing_rule(actions),
-                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
+                    neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
                     reads=('symbol', 'head'),
                 ),
             ],

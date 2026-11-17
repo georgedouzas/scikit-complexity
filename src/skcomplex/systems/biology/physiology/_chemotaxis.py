@@ -16,7 +16,7 @@ from ....core.components.laws.utils import divergence, gradient
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ChemotacticTissueElement(Element):
@@ -34,9 +34,6 @@ class ChemotacticTissueElement(Element):
     Args:
         label:
             The label of the tissue.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         n:
             The initial cell density.
@@ -85,7 +82,6 @@ class ChemotacticTissueElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[float, StateSpec()] = 0.0,
         qx: Annotated[float, StateSpec()] = 0.0,
@@ -100,7 +96,7 @@ class ChemotacticTissueElement(Element):
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         alpha: Annotated[float, ParameterSpec()] = 0.33,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.qx = qx
         self.qy = qy
@@ -218,7 +214,7 @@ class HyperbolicChemotaxisSystem(BaseSystem):
         self.width = width
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of cells and a chemical moving with finite speed."""
+        """Return the components of cells and a chemical moving with finite speed."""
         spacing = 0.8 / self.sites
         axis = -0.4 + spacing * (np.arange(self.sites) + 0.5)
         x, y = np.meshgrid(axis, axis, indexing='ij')

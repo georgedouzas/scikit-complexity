@@ -15,20 +15,30 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.interactions import ConnectionInteraction
-from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import (
+    BaseLaw,
+    BoundaryLaw,
+    CallSpec,
+    ConstraintLaw,
+    EventLaw,
+    JumpLaw,
+    NoiseLaw,
+    RateLaw,
+    UpdateLaw,
+)
 from ....components.laws.utils._reductions import reductions_in
-from ....components.spaces import StaticTime
+from ....enums import VariableKind
 from ....errors import ValidationError
-from ....specs import CallSpec, IssueSpec
-from ....specs._orders_spec import _OrdersSpec
-from ....types import Array, VariableKind
+from ....types import Array
 from ..._utils import components_of, declarations_of, symbol, vector
 from ...problems._block_spec import BlockSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._relation_spec import _RelationSpec
 from .._base import BasePass
 from .._compilation import Compilation
+from .._issue_spec import IssueSpec
 from .._laws import KERNEL_FREE_LAWS
+from .._orders_spec import _OrdersSpec
 from .._renewal_law import RenewalLaw
 from ._complex import LowerComplexPass
 from ._equation_blocks import EquationBlocksLowering
@@ -56,7 +66,7 @@ class OrdersPass(BasePass):
         blocks = list(Compilation._get_required(compilation.layout, 'layout').blocks.values())
         orders = self._get_orders_of(blocks, self._get_program_variables(compilation))
         specs = self._get_specs_of(compilation, orders)
-        if isinstance(compilation.system.time, StaticTime):
+        if compilation.is_static():
             compilation.ordered = self._solve_static(specs)
         elif orders.algebraic:
             relations, unknowns = self._get_unknowns_of(specs, blocks, orders)
@@ -259,7 +269,7 @@ class OrdersPass(BasePass):
                 error_msg = (
                     f'{owner} uses {call}, but laws read derivatives of a state only below its declared order, here '
                     f'{order}. Declare a higher order with `state(order=...)`, or state the highest derivative with an '
-                    '`EquationLaw`.'
+                    '`ConstraintLaw`.'
                 )
                 raise ValidationError(error_msg)
             replacements[call] = OrdersPass._get_companion_symbol(spec, item, f'_d{int(degree)}')
@@ -342,7 +352,7 @@ class OrdersPass(BasePass):
         return laws
 
     @staticmethod
-    def _get_relation(spec: KernelSpec, law: EquationLaw, orders: _OrdersSpec) -> _RelationSpec:
+    def _get_relation(spec: KernelSpec, law: ConstraintLaw, orders: _OrdersSpec) -> _RelationSpec:
         """Return an equation law as a relation in highest derivative placeholders.
 
         The placeholders stand for the highest derivatives it contains.
@@ -410,7 +420,7 @@ class OrdersPass(BasePass):
         owner = f'A {type(law).__name__} of {spec.owner}'
         if isinstance(law, JumpLaw):
             return JumpLaw(OrdersPass._substitute(law.rate, spec, orders, owner), law.changes)
-        if isinstance(law, CrossingLaw | RenewalLaw):
+        if isinstance(law, EventLaw | RenewalLaw):
             reset = {
                 OrdersPass._substitute(SR(target), spec, orders, owner): (
                     value if BaseLaw._is_function(value) else OrdersPass._substitute(SR(value), spec, orders, owner)
@@ -458,13 +468,13 @@ class OrdersPass(BasePass):
         for law in laws:
             if isinstance(law, RateLaw | NoiseLaw):
                 OrdersPass._check_order(law, spec, orders)
-        if not orders.orders and not orders.lags and not any(isinstance(law, EquationLaw) for law in laws):
+        if not orders.orders and not orders.lags and not any(isinstance(law, ConstraintLaw) for law in laws):
             return list(laws)
         result: list[BaseLaw | _RelationSpec] = []
         for law in laws:
             if isinstance(law, KERNEL_FREE_LAWS):
                 result.append(law)
-            elif isinstance(law, EquationLaw):
+            elif isinstance(law, ConstraintLaw):
                 result.append(OrdersPass._get_relation(spec, law, orders))
             else:
                 result.append(OrdersPass._get_ordered_law(spec, law, orders))

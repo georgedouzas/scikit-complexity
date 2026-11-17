@@ -15,22 +15,17 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import clip, sign
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import (
-    ObservableSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 
@@ -53,7 +48,7 @@ class PriceAdjustmentInteraction(MapInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or group whose state steps.
@@ -141,7 +136,7 @@ class PriceAdjustmentInteraction(MapInteraction):
         self.lower = lower
         self.upper = upper
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown stepping, a symbolic form that is not synchronous, or an uncallable signal.
 
         Args:
@@ -254,9 +249,6 @@ class ResidentElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         bid:
             The highest price the shopper pays.
 
@@ -282,10 +274,11 @@ class ResidentElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'travel', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'travel', 'color_range': (0.0, 1.0)}),
         *,
         bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
         demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -294,7 +287,7 @@ class ResidentElement(Element):
         distance_cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         online: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.bid = bid
         self.demand = demand
         self.money = money
@@ -361,9 +354,6 @@ class StoreElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         price:
             The price of a unit.
 
@@ -404,10 +394,11 @@ class StoreElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'price'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'price'}),
         *,
         price: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
@@ -421,7 +412,7 @@ class StoreElement(Element):
         fixed_cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
         adjustment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.price = price
         self.ask = ask
         self.supply = supply
@@ -565,9 +556,9 @@ class ShopsSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 sec. 6.3-6.4',)
     until = 100
     observables = (
-        ObservableSpec('open_shops', group='shops', variable='price', reduce='count'),
-        ObservableSpec('mean_price', group='shops', variable='price', reduce='mean'),
-        ObservableSpec('concentration', group='shops', variable='sales', reduce=_get_largest_share),
+        Observable('open_shops', group='shops', variable='price', reduce='count'),
+        Observable('mean_price', group='shops', variable='price', reduce='mean'),
+        Observable('concentration', group='shops', variable='sales', reduce=_get_largest_share),
     )
 
     def __init__(
@@ -596,7 +587,7 @@ class ShopsSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
         places = rng.choice(len(cells), size=min(self.n_shops, len(cells)), replace=False)

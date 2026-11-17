@@ -14,11 +14,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.agents import ChoiceInteraction
 
 
@@ -50,9 +51,6 @@ class ConsumerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         fair:
             One when the consumer bought fair food in the last step, zero otherwise.
 
@@ -80,10 +78,11 @@ class ConsumerElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'fair', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'fair', 'color_range': (0.0, 1.0)}),
         *,
         fair: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         ethics: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
@@ -93,7 +92,7 @@ class ConsumerElement(Element):
         price_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
         social_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.fair = fair
         self.ethics = ethics
         self.budget = budget
@@ -167,7 +166,7 @@ class FairFoodSystem(BaseSystem):
     topics = ('consumer choice', 'social influence', 'agents', 'grid')
     references = ('Brock and Durlauf 2001',)
     until = 50
-    observables = (ObservableSpec('fair_share', group='consumers', variable='fair'),)
+    observables = (Observable('fair_share', group='consumers', variable='fair'),)
 
     def __init__(
         self,
@@ -215,7 +214,7 @@ class FairFoodSystem(BaseSystem):
         )
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
         consumers = GroupElement(

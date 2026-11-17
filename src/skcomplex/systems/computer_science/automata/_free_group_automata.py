@@ -13,12 +13,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import CayleySpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 from ._codes import life
@@ -39,9 +40,6 @@ class PairCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         first:
             The initial first coordinate, an integer from 0 to `modulus - 1`.
 
@@ -60,13 +58,12 @@ class PairCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         first: Annotated[float, StateSpec(domain=ZZ)] = 0,
         second: Annotated[float, StateSpec(domain=ZZ)] = 0,
         modulus: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.first = first
         self.second = second
         self.modulus = modulus
@@ -114,8 +111,8 @@ class MullerAutomatonSystem(BaseSystem):
     until = 10
     dt = 1
     observables = (
-        ObservableSpec('first_mean', group='cells', variable='first'),
-        ObservableSpec('second_mean', group='cells', variable='second'),
+        Observable('first_mean', group='cells', variable='first'),
+        Observable('second_mean', group='cells', variable='second'),
     )
 
     @staticmethod
@@ -251,8 +248,8 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
     until = 10
     dt = 1
     observables = (
-        ObservableSpec('first_mean', group='cells', variable='first'),
-        ObservableSpec('second_mean', group='cells', variable='second'),
+        Observable('first_mean', group='cells', variable='first'),
+        Observable('second_mean', group='cells', variable='second'),
     )
 
     def __init__(
@@ -330,7 +327,7 @@ class LifeInATreeSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 20
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,

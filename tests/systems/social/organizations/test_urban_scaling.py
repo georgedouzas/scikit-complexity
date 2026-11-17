@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import scaling
+from skcomplex.core.components import Observable
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.systems.social.organizations import GravityUrbanScalingSystem
 
 POPULATIONS = [100, 200, 400, 800, 1600]
@@ -13,7 +13,7 @@ POPULATIONS = [100, 200, 400, 800, 1600]
 
 def _totals(alpha: float, gamma: float, seeds: list[int]) -> np.ndarray:
     """Return the total interaction of every population, averaged over seeds."""
-    total = ObservableSpec('total_contacts', group='residents', variable='contacts', reduce='sum')
+    total = Observable('total_contacts', group='residents', variable='contacts', reduce='sum')
     bounds = {'population': POPULATIONS, 'alpha': [alpha], 'gamma': [gamma], 'random_state': seeds}
     result = sweep(
         lambda **arguments: GravityUrbanScalingSystem(**arguments).prepare().system_,

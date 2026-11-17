@@ -17,18 +17,23 @@ from sage.all__sagemath_symbolics import Expression
 
 from ....core.components.elements import FieldElement
 from ....core.components.laws.utils import coordinate, gradient, inverse_helmholtz, maximum_entropy, moment
-from ....core.components.spaces import LatticeSpace, PhaseSpace
+from ....core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver, SemiLagrangianSolver, SSPRKSolver, StrangSplittingSolver
 from ....core.errors import ValidationError
-from ....core.specs import AxisSpec, RoleSpec, VisualSpec
+from ....core.specs import RoleSpec, VisualSpec
 from ...general.kinetics import EncounterInteraction
 from ..common.fields import AdvectionInteraction, PhaseSpaceDensityElement
 from ..common.particles import RelaxationTimeInteraction
 
 SETUPS = ('landau', 'two-stream')
 VELOCITY_AXES = ('vx', 'vy')
-VLASOV_VISUAL = VisualSpec('image', {'moments': (0,)})
+
+
+class GasDensityElement(PhaseSpaceDensityElement):
+    """Phase space density of a gas, drawn as its density along position."""
+
+    visual = VisualSpec('image', {'moments': (0,)})
 
 
 class BhatnagarGrossKrookInteraction(RelaxationTimeInteraction):
@@ -38,7 +43,7 @@ class BhatnagarGrossKrookInteraction(RelaxationTimeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field on a phase space.
@@ -250,7 +255,7 @@ class EnskogSystem(BaseSystem):
         self.half_width = half_width
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         gas, frequency = BoltzmannEquationSystem._get_uniform_gas(
             self.positions,
             self.velocities,
@@ -362,11 +367,10 @@ class BGKEquationSystem(BaseSystem):
         values = self._get_maxwellian(density, np.zeros(self.positions), temperature, space.coordinates_['v'])
         gas = FieldElement(
             'gas',
-            element=PhaseSpaceDensityElement,
+            element=GasDensityElement,
             space=space,
             values={'x': values},
             discretization='finite-volume',
-            visual=VLASOV_VISUAL,
         )
         stream = AdvectionInteraction('stream', target='gas', state='x', drift=self._get_streaming)
         relax = BhatnagarGrossKrookInteraction('relax', target='gas', axes=('v',), time=self.knudsen)
@@ -446,7 +450,7 @@ class VlasovEquationSystem(BaseSystem):
         return [coordinate('v'), -gradient(inverse_helmholtz(1 - density), 1)[0]]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.setup not in SETUPS:
             error_msg = f'Unknown set-up {self.setup!r} of the Vlasov equation. Use one of {", ".join(SETUPS)}.'
             raise ValidationError(error_msg)
@@ -463,11 +467,10 @@ class VlasovEquationSystem(BaseSystem):
             profile = (np.exp(-2 * (v - 1.5) ** 2) + np.exp(-2 * (v + 1.5) ** 2)) * np.sqrt(2 / np.pi) / 2
         gas = FieldElement(
             'gas',
-            element=PhaseSpaceDensityElement,
+            element=GasDensityElement,
             space=space,
             values={'x': np.outer(1.0 + self.amplitude * np.cos(0.5 * x), profile)},
             discretization='finite-volume',
-            visual=VLASOV_VISUAL,
         )
         return CompositeSystem(
             self.label,

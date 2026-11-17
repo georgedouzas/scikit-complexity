@@ -15,13 +15,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
 from ...general.matching.types import MatchingRule
 
@@ -52,9 +53,6 @@ class BarterTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         good1:
             The holding of the first good.
 
@@ -80,7 +78,6 @@ class BarterTraderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         good1: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
         good2: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
@@ -88,7 +85,7 @@ class BarterTraderElement(Element):
         links: Annotated[float, StateSpec(domain=NN)] = 0.0,
         partners: Annotated[float, StateSpec()] = math.inf,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.good1 = good1
         self.good2 = good2
         self.mrs = mrs
@@ -362,8 +359,8 @@ class WilhiteTradeNetworksSystem(BaseSystem):
     references = ('Wilhite 2001', 'Gooding 2019')
     until = 60
     observables = (
-        ObservableSpec('dispersion', group='traders', variable='mrs', reduce=_log_spread),
-        ObservableSpec('utility', _get_utility, group='traders'),
+        Observable('dispersion', group='traders', variable='mrs', reduce=_log_spread),
+        Observable('utility', _get_utility, group='traders'),
     )
 
     def __init__(
@@ -422,7 +419,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
         return graph
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = self._trade_network(self.topology, self.n_agents, self.n_groups, self.shortcuts, rng)
         goods = rng.integers(1, int(self.endowment) + 1, size=(2, self.n_agents)).astype(float)

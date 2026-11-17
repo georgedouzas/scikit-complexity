@@ -6,13 +6,13 @@
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Executor
 
-from ..components.specs import ScenarioSpec
+from ..components import Observable
 from ..engine.runtime import Trajectory
 from ..engine.solvers import BaseSolver
-from ..specs import ObservableSpec
 from ._designs import _get_rows
 from ._results import ExperimentResult
 from ._runs import _run_experiment
+from ._scenario_spec import ScenarioSpec
 from .types import Bounds, Output, Source
 
 
@@ -29,7 +29,7 @@ def sweep(
     solver: BaseSolver | None = None,
     outputs: Sequence[Output] | None = None,
     warmup: float = 0.0,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> ExperimentResult:
@@ -37,7 +37,8 @@ def sweep(
 
     It is in the role of `validation_curve` of scikit-learn. A name without a dot is a model parameter, set on a copy of
     the system with `set_params`, or passed to the factory. A dotted path names an initial state or a parameter of a
-    part, such as `population.x` or `growth.r`, which keeps its value for the whole run. The rows come from the design:
+    component, such as `population.x` or `growth.r`, which keeps its value for the whole run. The rows come from the
+    design:
 
     - `'grid'`: every combination of a sequence of values per name, the last name varying fastest.
     - `'random'`: `n` independent samples, uniform within a pair `(low, high)` or drawn from a SciPy distribution.

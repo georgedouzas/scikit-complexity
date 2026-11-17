@@ -19,7 +19,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import logistic, mean
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.excitable import ThetaNeuronElement
 from ._leaky_integration import LeakyIntegrationInteraction
 
@@ -38,9 +38,6 @@ class PolyhomeostaticNeuronElement(Element):
     Args:
         label:
             The label of the neuron.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial membrane potential.
@@ -81,7 +78,6 @@ class PolyhomeostaticNeuronElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         a: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -94,7 +90,7 @@ class PolyhomeostaticNeuronElement(Element):
         A: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         omega: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.a = a
         self.b = b
@@ -116,9 +112,6 @@ class RateUnitElement(Element):
         label:
             The label of the unit.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial activity.
 
@@ -139,13 +132,12 @@ class RateUnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         I: Annotated[float, ParameterSpec()] = 1.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.I = I
         self.tau = tau
@@ -177,9 +169,6 @@ class WilsonCowanElement(Element):
     Args:
         label:
             The label of the populations.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial excitatory activity.
@@ -238,7 +227,6 @@ class WilsonCowanElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
@@ -257,7 +245,7 @@ class WilsonCowanElement(Element):
         tau_e: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         tau_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.I = I
         self.c1 = c1
@@ -485,7 +473,7 @@ class WilsonCowanSystem(BaseSystem):
         return inhibition
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         cortex = WilsonCowanElement(
             'cortex',
             E=self.E,
@@ -587,7 +575,7 @@ class ThetaNeuronsSystem(BaseSystem):
         return [float(value) for value in center + width * stats.cauchy.ppf(levels)]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a network of theta neurons."""
+        """Return the components of a network of theta neurons."""
         phases = np.random.default_rng(self.random_state).uniform(0.0, 2 * math.pi, self.n_neurons)
         neurons = GroupElement(
             'neurons',
@@ -661,7 +649,7 @@ class WinnersTakeAllSystem(BaseSystem):
         self.x = x
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a winner-take-all network of units.
+        """Return the components of a winner-take-all network of units.
 
         The units have self-limited growth and mutual inhibition.
         """
@@ -747,7 +735,7 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
         return gradient
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a neuron."""
+        """Return the components of a neuron."""
         neuron = PolyhomeostaticNeuronElement(
             'neuron',
             mu=self.mu,

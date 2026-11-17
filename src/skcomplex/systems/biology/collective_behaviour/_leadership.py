@@ -18,15 +18,9 @@ from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import (
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 from ._zones import ClampSpec, RadiusSpec, ZoneCouplingInteraction
@@ -48,7 +42,7 @@ class ShoalMemberView(AgentView):
     speed: float
     max_turn: float
     noise: float
-    size: float
+    side: float
 
 
 class ShoalMemberElement(Element):
@@ -66,9 +60,6 @@ class ShoalMemberElement(Element):
     Args:
         label:
             The label of the fish or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         vx:
             The horizontal component of the unit heading.
@@ -100,7 +91,7 @@ class ShoalMemberElement(Element):
         noise:
             The standard deviation of the angular noise.
 
-        size:
+        side:
             The side of the square torus.
 
     Examples:
@@ -109,10 +100,11 @@ class ShoalMemberElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'omega'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'omega'}),
         *,
         vx: Annotated[float, StateSpec(role='velocity')] = 1.0,
         vy: Annotated[float, StateSpec(role='velocity')] = 0.0,
@@ -124,9 +116,9 @@ class ShoalMemberElement(Element):
         speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
         max_turn: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
         noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        side: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.vx = vx
         self.vy = vy
         self.omega = omega
@@ -137,7 +129,7 @@ class ShoalMemberElement(Element):
         self.speed = speed
         self.max_turn = max_turn
         self.noise = noise
-        self.size = size
+        self.side = side
 
     @classmethod
     def _get_view(cls) -> type[ShoalMemberView]:
@@ -153,12 +145,12 @@ class SchoolingInteraction(ZoneCouplingInteraction):
     When neighbours lie within the zone of repulsion `alpha`, the desired direction points away from them, and
     repulsion overrides the other zones. Otherwise it points toward the neighbours within the zone of interaction `rho`
     and along their headings and the fish's own, and an informed fish adds its preferred direction with the weight
-    `omega`. A fish with no neighbour keeps its heading. Offsets are the shortest ones on the torus of side `size`. It
+    `omega`. A fish with no neighbour keeps its heading. Offsets are the shortest ones on the torus of side `side`. It
     is the agent form of coupling over two radii of different priorities, with a clamp of the turn.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of fish.
@@ -198,9 +190,9 @@ class SchoolingInteraction(ZoneCouplingInteraction):
 
         It lies along the shortest offset on the torus.
         """
-        size = agent.size
+        side = agent.side
         offset = np.asarray(other.location, dtype=float) - np.asarray(agent.location, dtype=float)
-        return self._get_unit((offset + size / 2) % size - size / 2)
+        return self._get_unit((offset + side / 2) % side - side / 2)
 
     def _get_repulsion(self, agent: ShoalMemberView, other: ShoalMemberView, system: SystemView) -> Array:
         """Return the direction away from a close neighbour."""
@@ -243,11 +235,11 @@ class SwimmingInteraction(MovementInteraction):
 
     The heading is turned first by its angular noise `deviation`.
 
-    The heading `(vx, vy)` stays a unit vector, and the fish moves on the torus of side `size`.
+    The heading `(vx, vy)` stays a unit vector, and the fish moves on the torus of side `side`.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of fish.
@@ -291,7 +283,7 @@ class SwimmingInteraction(MovementInteraction):
         angle = math.atan2(fish.vy, fish.vx) + fish.deviation
         fish.vx, fish.vy = math.cos(angle), math.sin(angle)
         position = np.asarray(fish.location, dtype=float) + fish.speed * np.array([fish.vx, fish.vy])
-        return tuple(float(item) for item in np.mod(position, fish.size))
+        return tuple(float(item) for item in np.mod(position, fish.side))
 
 
 class CouzinLeadershipSystem(BaseSystem):
@@ -319,7 +311,7 @@ class CouzinLeadershipSystem(BaseSystem):
         preferred:
             The angle of the preferred direction.
 
-        size:
+        side:
             The side of the square torus.
 
         random_state:
@@ -347,7 +339,7 @@ class CouzinLeadershipSystem(BaseSystem):
         informed: float = 0.1,
         omega: float = 0.5,
         preferred: float = 0.0,
-        size: float = 100.0,
+        side: float = 100.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
     ) -> None:
@@ -356,7 +348,7 @@ class CouzinLeadershipSystem(BaseSystem):
         self.informed = informed
         self.omega = omega
         self.preferred = preferred
-        self.size = size
+        self.side = side
         self.random_state = random_state
 
     @staticmethod
@@ -368,14 +360,14 @@ class CouzinLeadershipSystem(BaseSystem):
         return float(system.rng.normal(0.0, agent.noise))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Couzin shoal."""
+        """Return the components of the Couzin shoal."""
         rng = np.random.default_rng(self.random_state)
         radius = 5.0 * np.sqrt(rng.uniform(0.0, 1.0, self.n_fish))
         place = rng.uniform(0.0, 2 * math.pi, self.n_fish)
         headings = rng.uniform(0.0, 2 * math.pi, self.n_fish)
         weights = np.zeros(self.n_fish)
         weights[: round(self.informed * self.n_fish)] = self.omega
-        locations = self.size / 2 + np.column_stack([radius * np.cos(place), radius * np.sin(place)])
+        locations = self.side / 2 + np.column_stack([radius * np.cos(place), radius * np.sin(place)])
         shoal = GroupElement(
             'shoal',
             element=ShoalMemberElement,
@@ -385,7 +377,7 @@ class CouzinLeadershipSystem(BaseSystem):
                 'vy': np.sin(headings),
                 'omega': weights,
                 'preferred': self.preferred,
-                'size': self.size,
+                'side': self.side,
             },
             location=[tuple(point) for point in locations],
         )
@@ -405,7 +397,7 @@ class CouzinLeadershipSystem(BaseSystem):
                 ),
                 SwimmingInteraction('swimming', target='shoal', phase='swim'),
             ],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+            space=ContinuousSpace(extent=(self.side, self.side), boundary='periodic'),
             time=DiscreteTime(
                 schedule=PhasesScheduleSpec([PhaseSpec('turn', activation='simultaneous'), PhaseSpec('swim')]),
             ),

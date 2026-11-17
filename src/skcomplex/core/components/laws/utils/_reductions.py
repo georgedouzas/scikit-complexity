@@ -13,18 +13,21 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression, arctan2, cos, sin, var, vector
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....enums import ComponentReductionKind, PathReductionKind
 from ....errors import ValidationError
-from ....specs import HyperedgeReductionSpec, LayerSpec, NeighborReductionSpec, ReductionSpec
 from ....types import AnyArray
 from ...spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
-    LatticeNeighborhood,
+    LayerSpec,
     MemoryNeighborhood,
     NearestNeighborhood,
     RadiusNeighborhood,
 )
 from ...spaces._lattice import BOUNDARIES
+from .._hyperedge_reduction_spec import _HyperedgeReductionSpec
+from .._neighbor_reduction_spec import _NeighborReductionSpec
+from .._reduction_spec import _ReductionSpec
 from ._conditions import both
 from ._draws import draws_in
 from ._operators import _OperatorFunction
@@ -43,8 +46,6 @@ KINDS = {
 NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean', 'argmax')
 MIN_HYPEREDGE_SIZE = 2
 MAX_NEIGHBOR_HYPEREDGE_SIZE = 5
-COMPONENT_REDUCTIONS = ('label', 'size', 'largest', 'giant')
-PATH_REDUCTIONS = ('betweenness', 'closeness')
 WEIGHTS: dict[str, object] = {}
 FUNCTIONS: dict[str, Callable[[AnyArray], object]] = {}
 NEIGHBORHOODS: dict[str, object] = {}
@@ -145,7 +146,7 @@ class _ComponentsFunction(_OperatorFunction):
         parts = [str(active)]
         if not _ReductionFunction._is_placeholder(over, 0):
             parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
-        parts.append(f'reduce={COMPONENT_REDUCTIONS[int(SR(kind))]!r}')
+        parts.append(f'reduce={tuple(ComponentReductionKind)[int(SR(kind))].value!r}')
         return f'components({", ".join(parts)})'
 
 
@@ -166,7 +167,7 @@ class _ShortestPathsFunction(_OperatorFunction):
         parts = [str(active)]
         if not _ReductionFunction._is_placeholder(over, 0):
             parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
-        parts.append(f'reduce={PATH_REDUCTIONS[int(SR(kind))]!r}')
+        parts.append(f'reduce={tuple(PathReductionKind)[int(SR(kind))].value!r}')
         return f'shortest_paths({", ".join(parts)})'
 
 
@@ -739,24 +740,28 @@ def neighbors(
     Examples:
         >>> from sage.all__sagemath_symbolics import sin, var
         >>> from skcomplex.core.components.laws.utils import neighbors
-        >>> from skcomplex.core.components.spaces import BallNeighborhood, RadiusNeighborhood
+        >>> from skcomplex.core.components.spaces import LatticeNeighborhood, RadiusNeighborhood
         >>> neighbors(sin(var('theta_other')), over=RadiusNeighborhood(1.0), reduce='mean')
         neighbors(sin(theta_other), over=RadiusNeighborhood(radius=1.0), reduce='mean')
         >>> neighbors(var('strategy_other'), reduce='argmax', weight=var('payoff_other'))
         neighbors(strategy_other, reduce='argmax', weight=payoff_other)
-        >>> values = neighbors(var('spin'), BallNeighborhood(metric='manhattan'), reduce='each')
+        >>> values = neighbors(var('spin'), LatticeNeighborhood(((0, 1), (1, 0))), reduce='each')
         >>> len(values), values[0]
-        (4, neighbor(spin, 0))
+        (2, neighbor(spin, 0))
     """
     if reduce == 'each':
-        if isinstance(over, LatticeNeighborhood):
-            size = len(over.prepare().offsets_)
-        elif isinstance(over, MemoryNeighborhood):
-            size = len(over.prepare().elements_)
+        items: tuple[object, ...] | None
+        if isinstance(over, MemoryNeighborhood):
+            items = over.prepare().elements_
         else:
-            error_msg = f"The reduction 'each' reads a lattice or a memory neighbourhood, not {over!r}."
+            items = over._get_offsets() if isinstance(over, BaseNeighborhood) else None
+        if items is None:
+            error_msg = (
+                f"The reduction 'each' reads a neighbourhood whose offsets are known before its lattice, such as a "
+                f'LatticeNeighborhood, or a memory neighbourhood, not {over!r}.'
+            )
             raise ValidationError(error_msg)
-        return vector(SR, [NEIGHBOR(expression, index) for index in range(size)])
+        return vector(SR, [NEIGHBOR(expression, index) for index in range(len(items))])
     if reduce == 'circular-mean':
         sines = neighbors(sin(SR(expression)), over, 'sum', weight)
         return arctan2(sines, neighbors(cos(SR(expression)), over, 'sum', weight))
@@ -939,7 +944,7 @@ def _calls_in(expression: object, names: set[str]) -> list[Expression]:
     return list(found.values())
 
 
-def reductions_in(expression: object) -> list[ReductionSpec]:
+def reductions_in(expression: object) -> list[_ReductionSpec]:
     """Return the outermost reduction calls of an expression.
 
     They may hold further reductions in their arguments.
@@ -964,7 +969,7 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
     for call in _calls_in(expression, set(KINDS)):
         argument, condition, weights, over = call.operands()
         reductions.append(
-            ReductionSpec(
+            _ReductionSpec(
                 call=call,
                 kind=KINDS[call.operator().name()],
                 argument=argument,
@@ -981,37 +986,37 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
     return reductions
 
 
-def _component_reduction(call: Expression) -> NeighborReductionSpec:
+def _component_reduction(call: Expression) -> _NeighborReductionSpec:
     """Return the neighbourhood reduction of the links of a components call.
 
     It is of the kind `'component-'` and its name.
     """
     active, over, kind = call.operands()
-    return NeighborReductionSpec(
+    return _NeighborReductionSpec(
         call=call,
-        kind=f'component-{COMPONENT_REDUCTIONS[int(SR(kind))]}',
+        kind=f'component-{tuple(ComponentReductionKind)[int(SR(kind))]}',
         argument=active,
         weight=None,
         over=None if _ReductionFunction._is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
     )
 
 
-def _path_reduction(call: Expression) -> NeighborReductionSpec:
+def _path_reduction(call: Expression) -> _NeighborReductionSpec:
     """Return the neighbourhood reduction of the links of a shortest paths call.
 
     It is of the kind `'path-'` and its name.
     """
     active, over, kind = call.operands()
-    return NeighborReductionSpec(
+    return _NeighborReductionSpec(
         call=call,
-        kind=f'path-{PATH_REDUCTIONS[int(SR(kind))]}',
+        kind=f'path-{tuple(PathReductionKind)[int(SR(kind))]}',
         argument=active,
         weight=None,
         over=None if _ReductionFunction._is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
     )
 
 
-def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
+def neighborhoods_in(expression: object) -> list[_NeighborReductionSpec]:
     """Return the outermost neighbourhood reductions of an expression.
 
     They include the components reductions. A components reduction has the kind `'component-'` followed by its
@@ -1043,7 +1048,7 @@ def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
             continue
         argument, weight, over, kind = call.operands()
         reductions.append(
-            NeighborReductionSpec(
+            _NeighborReductionSpec(
                 call=call,
                 kind=NEIGHBOR_REDUCTIONS[int(SR(kind))],
                 argument=argument,
@@ -1054,7 +1059,7 @@ def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
     return reductions
 
 
-def hyperedges_in(expression: object) -> list[HyperedgeReductionSpec]:
+def hyperedges_in(expression: object) -> list[_HyperedgeReductionSpec]:
     """Return the outermost hyperedge reductions of an expression.
 
     Args:
@@ -1076,7 +1081,7 @@ def hyperedges_in(expression: object) -> list[HyperedgeReductionSpec]:
     for call in _calls_in(expression, {'hyperedges'}):
         argument, weight, size, kind, over = call.operands()
         reductions.append(
-            HyperedgeReductionSpec(
+            _HyperedgeReductionSpec(
                 call=call,
                 kind=NEIGHBOR_REDUCTIONS[int(SR(kind))],
                 argument=argument,

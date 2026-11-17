@@ -11,14 +11,15 @@ from typing import Annotated, ClassVar, SupportsFloat
 from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
-from ....core.components.interactions import SCHEDULES, JumpInteraction
+from ....core.components import Tags
+from ....core.components.base import BaseComponent
+from ....core.components.interactions import JumpInteraction
 from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.enums import ElementKind, ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, Tags
-from ....core.types import ElementKind
+from ....core.specs import ParameterSpec, RoleSpec
 from .types import Stoichiometry
 
 MODES = ('rate', 'jump', 'langevin')
@@ -59,7 +60,7 @@ class ReactionInteraction(JumpInteraction):
 
     Args:
         label:
-            The label of the reaction, unique among the parts of its system.
+            The label of the reaction, unique among the components of its system.
 
         target:
             The path of the element, group, or field whose states the species named by a state alone are, or `None`.
@@ -329,14 +330,14 @@ class ReactionInteraction(JumpInteraction):
             return SR(self.propensity(namespace))
         return self._get_product_propensity(namespace, self._get_parameter_symbol('k', namespace))
 
-    def _get_langevin_laws(self, propensity: Expression, changes: dict[Expression, float]) -> list[BasePart]:
+    def _get_langevin_laws(self, propensity: Expression, changes: dict[Expression, float]) -> list[BaseComponent]:
         """Return the drift of the reaction and the noise of its Wiener process.
 
         The noise of its one Wiener process acts on every state it changes.
         """
         amplitude = sqrt(where(propensity > 0, propensity, 0))
-        rates: list[BasePart] = [RateLaw(state, change * propensity) for state, change in changes.items()]
-        noises: list[BasePart] = [
+        rates: list[BaseComponent] = [RateLaw(state, change * propensity) for state, change in changes.items()]
+        noises: list[BaseComponent] = [
             NoiseLaw(state, change * amplitude, process=self.label) for state, change in changes.items()
         ]
         return rates + noises
@@ -384,7 +385,7 @@ class ReactionInteraction(JumpInteraction):
         if self.form not in FORMS:
             error_msg = f'Reaction {self.label!r} has the form {self.form!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
-        self._check_variant('schedule', self.schedule, SCHEDULES)
+        self._check_variant('schedule', self.schedule, ScheduleKind)
         if self.form != 'agent' and self.schedule != 'synchronous':
             error_msg = f'The schedule {self.schedule!r} of reaction {self.label!r} runs agent rules. Use form="agent".'
             raise ValidationError(error_msg)
@@ -503,7 +504,7 @@ class ReactionInteraction(JumpInteraction):
         """
         self._update_agents(system, self.schedule, self._get_agent_step, self._apply_agent_step)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the laws of the reaction in its mode, or the rule of the agent form.
 
         Args:

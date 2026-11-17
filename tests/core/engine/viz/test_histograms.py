@@ -11,9 +11,10 @@ from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import uniform
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems import AgentSnapshotSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import AgentsVisual, HistogramVisual, RerunObserver
-from skcomplex.core.specs import AgentSnapshotSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.biology.evolution import MoranProcessSystem, TangledNatureSystem
 from skcomplex.systems.engineering.traffic import CharbonneauTrafficSystem
 from skcomplex.systems.social.opinion_dynamics import DeffuantSystem
@@ -172,23 +173,22 @@ def test_traits_visual_logs_the_states_of_a_group(monkeypatch, tmp_path):
     class WalkerElement(Element):
         """Walker element."""
 
+        visual = VisualSpec('histograms', {'color_by': 'x', 'histogram_first': True})
+
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
             """Return the laws of the walker element."""
             return [UpdateLaw(s.x, s.x + uniform('step', -1, 1))]
 
-    walker = WalkerElement
-    visual = VisualSpec('histograms', {'color_by': 'x', 'histogram_first': True})
-    system = CompositeSystem(elements=[GroupElement('walkers', element=walker, size=50, visual=visual)])
+    system = CompositeSystem(elements=[GroupElement('walkers', element=WalkerElement, size=50)])
     views = [type(view).__name__ for view in _views(default_blueprint(PassCompiler().prepare(system).run().problem_))]
     assert views[:2] == ['BarChartView', 'TimeSeriesView']
     logged = []

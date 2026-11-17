@@ -20,9 +20,10 @@ from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SpaceError
-from ....core.specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec, VisualSpec
 
 MONTH = 30
 QUARTER = 90
@@ -56,9 +57,6 @@ class PremisesElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         brothel:
             Whether the premises are a brothel, 1, or a house, 0.
 
@@ -82,10 +80,11 @@ class PremisesElement(Element):
         ('premises', 'PremisesElement', 3)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'brothel', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'brothel', 'color_range': (0.0, 1.0)}),
         *,
         brothel: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         bills: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -93,7 +92,7 @@ class PremisesElement(Element):
         efficiency: Annotated[float, StateSpec()] = 1.0,
         day: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.brothel = brothel
         self.bills = bills
         self.last_bills = last_bills
@@ -128,9 +127,6 @@ class TravellerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         victim:
             Whether the woman is a trafficking victim, 1, or not, 0.
 
@@ -145,15 +141,16 @@ class TravellerElement(Element):
         ('women', 'TravellerElement', 4)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'victim', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'victim', 'color_range': (0.0, 1.0)}),
         *,
         victim: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         trips: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.victim = victim
         self.trips = trips
 
@@ -391,7 +388,7 @@ class TraffickingSystem(BaseSystem):
         return 0.0
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         n_places = self.n_houses + self.n_brothels
         cells = rng.permutation(self.width * self.height)[:n_places]

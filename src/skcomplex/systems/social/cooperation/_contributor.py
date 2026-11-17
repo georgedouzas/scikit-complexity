@@ -13,7 +13,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ContributorElement(Element):
@@ -26,9 +26,6 @@ class ContributorElement(Element):
     Args:
         label:
             The label of the player or the lattice group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
 
         strategy:
             The initial strategy, 1 or 0.
@@ -51,14 +48,13 @@ class ContributorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
         payoff: Annotated[float, StateSpec()] = 0.0,
         synergy: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.5,
         noise: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
         self.payoff = payoff
         self.synergy = synergy

@@ -10,13 +10,14 @@ from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
-from skcomplex.core.components.laws import ArrayUpdateLaw, CascadeLaw, JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
-from skcomplex.core.components.laws.utils import delayed, mean
+from skcomplex.core.components.laws import ArrayUpdateLaw, JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws.utils import delayed, mean, relax
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
-    BallNeighborhood,
     DiscreteTime,
+    LatticeNeighborhood,
     LatticeSpace,
+    LayerSpec,
     NetworkSpace,
 )
 from skcomplex.core.components.systems import CompositeSystem
@@ -25,7 +26,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import RoleError, ValidationError
-from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 
@@ -36,11 +37,10 @@ class NeuronElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
 
 
@@ -50,11 +50,10 @@ class SynapseElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         w: Annotated[object, StateSpec()] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.w = w
 
 
@@ -64,12 +63,11 @@ class PersonElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         infected: Annotated[object, StateSpec()] = 0.0,
         wage: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.infected = infected
         self.wage = wage
 
@@ -80,11 +78,10 @@ class JobElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         salary: Annotated[object, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.salary = salary
 
 
@@ -94,11 +91,10 @@ class ContactElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         contacted: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.contacted = contacted
 
 
@@ -108,12 +104,11 @@ class OscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[object, StateSpec()] = 0.0,
         omega: Annotated[object, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.omega = omega
 
@@ -124,12 +119,11 @@ class SISElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         s: Annotated[object, StateSpec()] = 1.0,
         i: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.s = s
         self.i = i
 
@@ -528,18 +522,17 @@ class GrainsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         height: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.height = height
 
 
 class PileElement(GrainsElement):
     """Pile of grains on the sites of a lattice, which topples over its neighbours."""
 
-    neighborhood: ClassVar[object] = BallNeighborhood(n_dim=1, center='inline')
+    neighborhood: ClassVar[object] = LatticeNeighborhood(((-1,), (0,), (1,)))
 
     def _get_laws(self, s):
         """Return the sandpile of the element's own heights."""
@@ -567,20 +560,14 @@ class ToppleInteraction(NeighborInteraction):
 
 def _sandpile(height, over):
     """Return a relaxation that drops a grain on site 2 and topples sites of three grains over a neighbourhood."""
-    return [
-        CascadeLaw(
-            drive=[ArrayUpdateLaw(height, lambda values, *, random: values + (np.arange(values.size) == 2))],
-            relax=[
-                LocalRuleLaw(
-                    height,
-                    over,
-                    lambda value, *around: value - 3 * (value >= 3) + sum(item >= 3 for item in around),
-                ),
-            ],
-            stable=lambda values: bool((values < 3).all()),
-            activity=lambda values: values >= 3,
-        ),
-    ]
+    relaxation = relax(
+        height,
+        LocalRuleLaw(height, over, lambda value, *around: value - 3 * (value >= 3) + sum(item >= 3 for item in around)),
+        lambda values: bool((values < 3).all()),
+        drive=ArrayUpdateLaw(height, lambda values, *, random: values + (np.arange(values.size) == 2)),
+        activity=lambda values: values >= 3,
+    )
+    return [UpdateLaw(height, relaxation)]
 
 
 def _drift(system, backend, path):

@@ -10,8 +10,8 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from .....core.components.interactions import GradientInteraction
 from .....core.specs import RoleSpec
+from ....general.gradients import GradientInteraction
 
 
 class PotentialEnergyInteraction(GradientInteraction):

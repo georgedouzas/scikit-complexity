@@ -50,12 +50,7 @@ from ._quantum_spins import (
     local_magnetization,
     total_magnetization,
 )
-from ._random_energy import (
-    BoltzmannAverageElement,
-    BoltzmannSumInteraction,
-    EnergyLevelElement,
-    RandomEnergySystem,
-)
+from ._random_energy import BoltzmannAverageElement, BoltzmannSumInteraction, EnergyLevelElement, RandomEnergySystem
 from ._spin_glasses import (
     BondSamplingInteraction,
     BondSpinElement,

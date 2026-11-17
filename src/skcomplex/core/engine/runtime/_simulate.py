@@ -10,9 +10,9 @@ import numpy.typing as npt
 from sklearn.base import clone
 
 from ...base import BaseConfig
+from ...components import Observable, Tags
 from ...components.systems import BaseSystem, CompositeSystem
 from ...errors import TagError, ValidationError
-from ...specs import ObservableSpec, Tags
 from ..backends import BaseBackend, NumpyBackend
 from ..compile import BaseCompiler
 from ..problems import BaseProblemSpec
@@ -94,6 +94,242 @@ def _choose_solver(tags: Tags) -> BaseSolver | None:
     return fitting.pop()() if len(fitting) == 1 else None
 
 
+def _prepare_runners(
+    system: BaseSystem,
+    solver: BaseSolver | None,
+    backend: BaseBackend | None,
+    compiler: BaseCompiler | None,
+    observables: Sequence[Observable],
+) -> tuple[CompositeSystem, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[Observable]]:
+    """Return the composite of a system with copies of its runners, and observables.
+
+    The runners are the solver, the backend, and the compiler. A setting left out comes from the tuned run settings of
+    the system. The tags are read before any compiling, so a solver or a backend that does not support them is rejected
+    first, and without a solver the tags choose the default one, unless the compiled form chooses it.
+
+    Args:
+        system:
+            The system.
+
+        solver:
+            The solver, or `None` for the tuned or the default one.
+
+        backend:
+            The backend, or `None` for the tuned one.
+
+        compiler:
+            The compiler, or `None` for the tuned one.
+
+        observables:
+            The observables, or none for the tuned ones.
+
+    Returns:
+        composite:
+            The composite of the components of the system.
+
+        solver:
+            The copy of the solver, or `None` for the compiled form to choose it.
+
+        backend:
+            The copy of the backend, or `None`.
+
+        compiler:
+            The copy of the compiler, or `None` for the pass compiler.
+
+        observables:
+            The observables of the run.
+
+    Raises:
+        TagError:
+            The components of the system disagree on a tag, or the solver or the backend does not support a tag.
+    """
+    settings = system.get_run_settings()
+    stepper = _clone_setting(settings['solver'] if solver is None else solver)
+    runner = _clone_setting(settings['backend'] if backend is None else backend)
+    form = _clone_setting(settings['compiler'] if compiler is None else compiler)
+    tags = system.get_tags()
+    if stepper is not None:
+        _check_support(stepper, 'solver', tags)
+    if runner is not None:
+        _check_support(runner, 'backend', tags)
+    composite = system.prepare().system_
+    form = Simulation._get_default_compiler(composite) if form is None else form
+    tuned_observables = () if isinstance(system, CompositeSystem) else settings['observables']
+    if stepper is None and form is None and not composite.systems:
+        stepper = _choose_solver(tags)
+    return composite, stepper, runner, form, observables or tuned_observables
+
+
+def compile_problem(
+    system: BaseSystem,
+    *,
+    solver: BaseSolver | None = None,
+    observables: Sequence[Observable] = (),
+) -> tuple[BaseProblemSpec, BaseSolver]:
+    """Return the problem compiled from a system, and the solver of its runs.
+
+    They serve runs that change only values. Runs of the problem through `run_problem` set their own initial states,
+    parameter schedules, and seeds without compiling again, so an experiment compiles a system once per structure and
+    keeps the problem for that call.
+
+    Args:
+        system:
+            The system.
+
+        solver:
+            The solver, or `None` for the tuned or the default one.
+
+        observables:
+            The observables, or none for the tuned ones.
+
+    Returns:
+        problem:
+            The compiled problem, with the initial values of the system.
+
+        solver:
+            The solver of the runs, which every run copies.
+
+    Examples:
+        >>> from skcomplex.core.engine.runtime import compile_problem
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> problem, solver = compile_problem(LotkaVolterraSystem())
+        >>> type(solver).__name__
+        'ScipyODESolver'
+    """
+    composite, stepper, runner, form, observed = _prepare_runners(system, solver, None, None, observables)
+    simulation = Simulation(composite, compiler=form, solver=stepper, backend=runner, observables=observed).prepare()
+    return simulation.problem_, simulation.stepper_
+
+
+def run_problem(
+    system: BaseSystem,
+    compiled: tuple[BaseProblemSpec, BaseSolver] | None,
+    *,
+    until: float | None = None,
+    dt: float | None = None,
+    initial_state: Mapping[str, object] | None = None,
+    solver: BaseSolver | None = None,
+    backend: BaseBackend | None = None,
+    observables: Sequence[Observable] = (),
+    observers: Sequence[BaseObserver] = (),
+    invariants: Mapping[str, float] | None = None,
+    schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
+    compiler: BaseCompiler | None = None,
+    random_state: int | np.random.Generator | None = None,
+    checked: bool = False,
+    clock: BaseClock | None = None,
+    record_draws: bool = False,
+    replay: Trajectory | None = None,
+) -> Trajectory:
+    """Simulate a system as `simulate` does.
+
+    It starts from a problem compiled from the system by `compile_problem` when one is given.
+
+    Args:
+        system:
+            The system to simulate.
+
+        compiled:
+            The problem compiled from the system with the solver of its runs, or `None` to compile the system.
+
+        until:
+            The end time of the run, or `None` for the tuned one.
+
+        dt:
+            The time between frames, or `None` for the tuned one.
+
+        initial_state:
+            Initial values by dotted state name, or `None` for the tuned initial state.
+
+        solver:
+            The solver, or `None` for the tuned or the default one, or the one of the compiled problem.
+
+        backend:
+            The backend, or `None` for the tuned one.
+
+        observables:
+            The observables, or none for the tuned ones.
+
+        observers:
+            The observers that receive every frame.
+
+        invariants:
+            The tolerance of every observable that must stay constant, or `None` for the tuned invariants.
+
+        schedule:
+            A function of time per dotted parameter name, or `None` for the tuned schedule.
+
+        compiler:
+            The compiler, or `None` for the tuned one.
+
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        checked:
+            Whether to check after every frame that every state lies in its domain.
+
+        clock:
+            The clock that paces frames against wall time, or `None` to run as fast as possible.
+
+        record_draws:
+            Whether to record the named draws and jump firings of the run.
+
+        replay:
+            A trajectory recorded with its draws, whose draws the run forces, or `None`.
+
+    Returns:
+        trajectory:
+            The trajectory of the system from time 0 until the end time.
+
+    Raises:
+        ValidationError:
+            The system is not a system, or no end time is given or tuned.
+
+    Examples:
+        >>> from skcomplex.core.engine.runtime import compile_problem, run_problem
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> system = LotkaVolterraSystem()
+        >>> float(run_problem(system, compile_problem(system), until=5.0).times[-1])
+        5.0
+    """
+    if not isinstance(system, BaseSystem):
+        error_msg = f'simulate takes a system, not {system!r}.'
+        raise ValidationError(error_msg)
+    settings = system.get_run_settings()
+    end = settings['until'] if until is None else until
+    if end is None:
+        error_msg = f'{type(system).__name__} has no tuned end time. Pass `until`.'
+        raise ValidationError(error_msg)
+    if (record_draws or replay is not None) and backend is None:
+        backend = NumpyBackend()
+    source: CompositeSystem | BaseProblemSpec
+    if compiled is None:
+        source, stepper, runner, form, observed = _prepare_runners(system, solver, backend, compiler, observables)
+    else:
+        source, runner, form, observed = compiled[0], _clone_setting(backend), None, ()
+        stepper = clone(compiled[1] if solver is None else solver)
+    simulation = Simulation(
+        source,
+        compiler=form,
+        solver=stepper,
+        backend=runner,
+        dt=settings['dt'] if dt is None else dt,
+        observers=observers,
+        schedule=settings['schedule'] if schedule is None else schedule,
+        observables=observed,
+        invariants=settings['invariants'] if invariants is None else invariants,
+        initial_state=settings['initial_state'] if initial_state is None else initial_state,
+        random_state=random_state,
+        checked=checked,
+        clock=clock,
+        until=end,
+        record_draws=record_draws,
+        replay=replay,
+    )
+    trajectory: Trajectory = simulation.prepare().run().trajectory_
+    return trajectory
+
+
 def simulate(
     system: BaseSystem,
     *,
@@ -102,7 +338,7 @@ def simulate(
     initial_state: Mapping[str, object] | None = None,
     solver: BaseSolver | None = None,
     backend: BaseBackend | None = None,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
     observers: Sequence[BaseObserver] = (),
     invariants: Mapping[str, float] | None = None,
     schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
@@ -165,8 +401,8 @@ def simulate(
             time.
 
         compiler:
-            The compiler of the system, or `None` for the tuned compiler of the system, or else the compiler of the
-            library's form the system holds, such as the rewriting form of words and patches or the operator form of
+            The compiler of the system, or `None` for the tuned compiler of the system, or else the compiler an
+            element of the system names, such as the compiler of words and patches, or the operator compiler of
             quantum elements. A system package that brings a form of its own tunes a compiler it defines on
             `BaseCompiler`, the one documented hook to the compiled form.
 
@@ -207,7 +443,7 @@ def simulate(
             emission matrix.
 
         TagError:
-            The parts of the system disagree on a tag, or the solver or the backend does not support a tag of the
+            The components of the system disagree on a tag, or the solver or the backend does not support a tag of the
             system, named in the message.
 
     Examples:
@@ -221,7 +457,7 @@ def simulate(
         >>> round(simulate(system, until=20).get_values('rabbits.x')[-1])
         100
     """
-    return _simulate(
+    return run_problem(
         system,
         None,
         until=until,
@@ -240,225 +476,3 @@ def simulate(
         record_draws=record_draws,
         replay=replay,
     )
-
-
-def _prepare_runners(
-    system: BaseSystem,
-    solver: BaseSolver | None,
-    backend: BaseBackend | None,
-    compiler: BaseCompiler | None,
-    observables: Sequence[ObservableSpec],
-) -> tuple[CompositeSystem, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[ObservableSpec]]:
-    """Return the composite of a system with copies of its runners, and observables.
-
-    The runners are the solver, the backend, and the compiler. A setting left out comes from the tuned run settings of
-    the system. The tags are read before any compiling, so a solver or a backend that does not support them is rejected
-    first, and without a solver the tags choose the default one, unless the compiled form chooses it.
-
-    Args:
-        system:
-            The system.
-
-        solver:
-            The solver, or `None` for the tuned or the default one.
-
-        backend:
-            The backend, or `None` for the tuned one.
-
-        compiler:
-            The compiler, or `None` for the tuned one.
-
-        observables:
-            The observables, or none for the tuned ones.
-
-    Returns:
-        composite:
-            The composite of the parts of the system.
-
-        solver:
-            The copy of the solver, or `None` for the compiled form to choose it.
-
-        backend:
-            The copy of the backend, or `None`.
-
-        compiler:
-            The copy of the compiler, or `None` for the pass compiler.
-
-        observables:
-            The observables of the run.
-
-    Raises:
-        TagError:
-            The parts of the system disagree on a tag, or the solver or the backend does not support a tag.
-    """
-    settings = system.get_run_settings()
-    stepper = _clone_setting(settings['solver'] if solver is None else solver)
-    runner = _clone_setting(settings['backend'] if backend is None else backend)
-    form = _clone_setting(settings['compiler'] if compiler is None else compiler)
-    tags = system.get_tags()
-    if stepper is not None:
-        _check_support(stepper, 'solver', tags)
-    if runner is not None:
-        _check_support(runner, 'backend', tags)
-    composite = system.prepare().system_
-    form = Simulation._get_default_compiler(composite) if form is None else form
-    tuned_observables = () if isinstance(system, CompositeSystem) else settings['observables']
-    if stepper is None and form is None and not composite.systems:
-        stepper = _choose_solver(tags)
-    return composite, stepper, runner, form, observables or tuned_observables
-
-
-def _compile_problem(
-    system: BaseSystem,
-    *,
-    solver: BaseSolver | None = None,
-    observables: Sequence[ObservableSpec] = (),
-) -> tuple[BaseProblemSpec, BaseSolver]:
-    """Return the problem compiled from a system, and the solver of its runs.
-
-    They serve runs that change only values. Runs of the problem through `_simulate` set their own initial states,
-    parameter schedules, and seeds without compiling again, so an experiment compiles a system once per structure and
-    keeps the problem for that call.
-
-    Args:
-        system:
-            The system.
-
-        solver:
-            The solver, or `None` for the tuned or the default one.
-
-        observables:
-            The observables, or none for the tuned ones.
-
-    Returns:
-        problem:
-            The compiled problem, with the initial values of the system.
-
-        solver:
-            The solver of the runs, which every run copies.
-    """
-    composite, stepper, runner, form, observed = _prepare_runners(system, solver, None, None, observables)
-    simulation = Simulation(composite, compiler=form, solver=stepper, backend=runner, observables=observed).prepare()
-    return simulation.problem_, simulation.stepper_
-
-
-def _simulate(
-    system: BaseSystem,
-    compiled: tuple[BaseProblemSpec, BaseSolver] | None,
-    *,
-    until: float | None = None,
-    dt: float | None = None,
-    initial_state: Mapping[str, object] | None = None,
-    solver: BaseSolver | None = None,
-    backend: BaseBackend | None = None,
-    observables: Sequence[ObservableSpec] = (),
-    observers: Sequence[BaseObserver] = (),
-    invariants: Mapping[str, float] | None = None,
-    schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
-    compiler: BaseCompiler | None = None,
-    random_state: int | np.random.Generator | None = None,
-    checked: bool = False,
-    clock: BaseClock | None = None,
-    record_draws: bool = False,
-    replay: Trajectory | None = None,
-) -> Trajectory:
-    """Simulate a system as `simulate` does.
-
-    It starts from a problem compiled from the system by `_compile_problem` when one is given.
-
-    Args:
-        system:
-            The system to simulate.
-
-        compiled:
-            The problem compiled from the system with the solver of its runs, or `None` to compile the system.
-
-        until:
-            The end time of the run, or `None` for the tuned one.
-
-        dt:
-            The time between frames, or `None` for the tuned one.
-
-        initial_state:
-            Initial values by dotted state name, or `None` for the tuned initial state.
-
-        solver:
-            The solver, or `None` for the tuned or the default one, or the one of the compiled problem.
-
-        backend:
-            The backend, or `None` for the tuned one.
-
-        observables:
-            The observables, or none for the tuned ones.
-
-        observers:
-            The observers that receive every frame.
-
-        invariants:
-            The tolerance of every observable that must stay constant, or `None` for the tuned invariants.
-
-        schedule:
-            A function of time per dotted parameter name, or `None` for the tuned schedule.
-
-        compiler:
-            The compiler, or `None` for the tuned one.
-
-        random_state:
-            The seed or generator of stochastic solvers.
-
-        checked:
-            Whether to check after every frame that every state lies in its domain.
-
-        clock:
-            The clock that paces frames against wall time, or `None` to run as fast as possible.
-
-        record_draws:
-            Whether to record the named draws and jump firings of the run.
-
-        replay:
-            A trajectory recorded with its draws, whose draws the run forces, or `None`.
-
-    Returns:
-        trajectory:
-            The trajectory of the system from time 0 until the end time.
-
-    Raises:
-        ValidationError:
-            The system is not a system, or no end time is given or tuned.
-    """
-    if not isinstance(system, BaseSystem):
-        error_msg = f'simulate takes a system, not {system!r}.'
-        raise ValidationError(error_msg)
-    settings = system.get_run_settings()
-    end = settings['until'] if until is None else until
-    if end is None:
-        error_msg = f'{type(system).__name__} has no tuned end time. Pass `until`.'
-        raise ValidationError(error_msg)
-    if (record_draws or replay is not None) and backend is None:
-        backend = NumpyBackend()
-    source: CompositeSystem | BaseProblemSpec
-    if compiled is None:
-        source, stepper, runner, form, observed = _prepare_runners(system, solver, backend, compiler, observables)
-    else:
-        source, runner, form, observed = compiled[0], _clone_setting(backend), None, ()
-        stepper = clone(compiled[1] if solver is None else solver)
-    simulation = Simulation(
-        source,
-        compiler=form,
-        solver=stepper,
-        backend=runner,
-        dt=settings['dt'] if dt is None else dt,
-        observers=observers,
-        schedule=settings['schedule'] if schedule is None else schedule,
-        observables=observed,
-        invariants=settings['invariants'] if invariants is None else invariants,
-        initial_state=settings['initial_state'] if initial_state is None else initial_state,
-        random_state=random_state,
-        checked=checked,
-        clock=clock,
-        until=end,
-        record_draws=record_draws,
-        replay=replay,
-    )
-    trajectory: Trajectory = simulation.prepare().run().trajectory_
-    return trajectory

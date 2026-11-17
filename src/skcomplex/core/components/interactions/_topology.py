@@ -7,10 +7,11 @@ from collections.abc import Callable, Mapping
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
+from ...enums import ElementKind
 from ...errors import ValidationError
-from ...specs import BaseSpec, RoleSpec, Tags, TopologyRequestSpec
-from ...types import ElementKind
-from ..laws import BaseLaw, JumpLaw, UpdateLaw
+from ...specs import BaseSpec, RoleSpec
+from .._tags import Tags
+from ..laws import BaseLaw, JumpLaw, TopologyRequestSpec, UpdateLaw
 from ..laws.utils import where
 from ..spaces import BaseSpace
 from ._neighbor import NeighborInteraction
@@ -63,7 +64,7 @@ class TopologyInteraction(NeighborInteraction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'attachment'`.
+            The name of the interaction, unique among the components of its system, such as `'attachment'`.
 
         target:
             The path of the group on the nodes of the network, of the variable group on its hyperedges for
@@ -230,7 +231,7 @@ class TopologyInteraction(NeighborInteraction):
         self.inherit = inherit
         self.parent = parent
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for unknown options, a rate with a probability, or bad edges.
 
         Args:

@@ -12,7 +12,7 @@ from skcomplex.core.components.laws.utils import periodic_guard
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class LeakyElement(Element):
@@ -21,13 +21,12 @@ class LeakyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         v: Annotated[float, StateSpec()] = 0.0,
         drive: Annotated[float, ParameterSpec()] = 2.0,
         tau: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.drive = drive
         self.tau = tau
@@ -109,11 +108,10 @@ class DecayElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         c: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.c = c
 
     def _get_laws(self, s):

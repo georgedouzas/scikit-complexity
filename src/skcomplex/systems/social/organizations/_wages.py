@@ -49,9 +49,6 @@ class FarmerElement(Element):
         label:
             The label of the employer or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         wage:
             The daily wage the employer offers, the minimum wage being 1.
 
@@ -70,17 +67,18 @@ class FarmerElement(Element):
         1.5
     """
 
+    visual = VisualSpec('agents', {'color_by': 'wage', 'color_range': (0.0, 2.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'wage', 'color_range': (0.0, 2.0)}),
         *,
         wage: Annotated[float, StateSpec(domain=RealSet.closed(0, 2))] = 1.0,
         workforce: Annotated[float, StateSpec(domain=NN)] = 50.0,
         employed: Annotated[float, StateSpec(domain=NN)] = 0.0,
         area: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.wage = wage
         self.workforce = workforce
         self.employed = employed
@@ -101,9 +99,6 @@ class HarvesterElement(Element):
         label:
             The label of the worker or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         slum:
             The slum the worker lives in, 0 or 1.
 
@@ -122,17 +117,18 @@ class HarvesterElement(Element):
         1.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'pay', 'color_range': (0.0, 2.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'pay', 'color_range': (0.0, 2.0)}),
         *,
         slum: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         working: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         pay: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         total_pay: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.slum = slum
         self.working = working
         self.pay = pay
@@ -339,7 +335,7 @@ class AjanisChoiceSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         employers = GroupElement(
             'employers',

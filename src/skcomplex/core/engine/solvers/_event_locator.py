@@ -9,11 +9,11 @@ import numpy as np
 from scipy.optimize import brentq
 
 from ...errors import SolverError
-from ...specs import BaseRecordSpec, EventRecordSpec, RunStateSpec
 from ...types import Array
-from ..problems import ProblemSpec
+from ..problems import BaseRecordSpec, ProblemSpec, RunStateSpec
 from ..problems._event_kernel import EventKernel
 from ..types import Interpolant
+from ._event_record_spec import _EventRecordSpec
 
 SEPARATION = 1e-10
 
@@ -174,7 +174,7 @@ class EventLocator:
         self._last[(event.label, member)] = time
         single = event if member is None else self._get_member_event(event, member)
         after = single.run(RunStateSpec(time, state, p)).values_
-        self.records.append(EventRecordSpec(event.label, time, state.copy(), after.copy(), member))
+        self.records.append(_EventRecordSpec(event.label, time, state.copy(), after.copy(), member))
         if event.terminal:
             self.stopped_at = time
         return after

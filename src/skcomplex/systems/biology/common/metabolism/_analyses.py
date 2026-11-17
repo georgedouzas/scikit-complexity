@@ -16,10 +16,9 @@ from sklearn.base import clone
 from .....core.analysis.types import Source
 from .....core.components.spaces import StaticTime
 from .....core.components.systems import BaseSystem, CompositeSystem
-from .....core.engine.problems import ProblemSpec
+from .....core.engine.problems import ProblemSpec, RunStateSpec
 from .....core.engine.runtime import simulate
 from .....core.errors import AnalysisError
-from .....core.specs import RunStateSpec
 from .....core.types import Array
 from ...._extras import import_extra
 from ._cobra_io import load_extra, to_cobra

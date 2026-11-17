@@ -9,13 +9,14 @@ The module covers angle links sampled by the Wilson action, and lattice Maxwell 
 from collections.abc import Mapping, Sequence
 from functools import partial
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg
 from sage.all__sagemath_symbolics import Expression, pi
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import codifferential, exterior_derivative
@@ -23,7 +24,7 @@ from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSp
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import VelocityVerletSolver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.fields import WilsonSamplingInteraction
 
@@ -41,15 +42,12 @@ class GaugeLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         theta:
             The angle of the link.
 
     Attributes:
         default_visual_:
-            The visual of the link when it sets none.
+            How the link is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import GaugeLinkElement
@@ -57,14 +55,15 @@ class GaugeLinkElement(Element):
         0.5
     """
 
+    visual = VisualSpec('cell', {'state': 'theta'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
 
 
@@ -77,9 +76,6 @@ class MaxwellLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         A:
             The initial vector potential.
 
@@ -88,7 +84,7 @@ class MaxwellLinkElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the link when it sets none.
+            How the link is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import MaxwellLinkElement
@@ -96,15 +92,16 @@ class MaxwellLinkElement(Element):
         0.5
     """
 
+    visual = VisualSpec('cell', {'state': 'A'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec(order=2)] = 0.0,
         A_d1: float = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.A_d1 = A_d1
 
@@ -116,15 +113,12 @@ class StaticChargeElement(Element):
         label:
             The label of the site or the group on the sites.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         q:
             The electric charge.
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import StaticChargeElement
@@ -135,11 +129,10 @@ class StaticChargeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         q: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.q = q
 
 
@@ -292,7 +285,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
                 f'charge per site of its {space.size_} sites, of total 0.'
             )
             raise ValidationError(error_msg)
-        place = space.space
+        place = cast(LatticeSpace, space.space)
         sources = space.edges_[None][0]
         along_last = space.link_axes_ == place.n_dim_ - 1
         first = np.unravel_index(sources, place.shape_)[0]
@@ -303,7 +296,6 @@ class LatticeGaugeFieldsSystem(BaseSystem):
             space=space,
             on='edges',
             values={'A': wave, 'A_d1': -LatticeGaugeFieldsSystem._get_electric_field(space, density)},
-            visual=VisualSpec('cell', {'state': 'A'}),
         )
         sites = GroupElement('charges', element=StaticChargeElement, space=space, on='sites', values={'q': density})
         rate = RateInteraction('maxwell', target='links', state='A', rate=LatticeGaugeFieldsSystem._get_curl_of_curl)
@@ -321,21 +313,20 @@ class LatticeGaugeFieldsSystem(BaseSystem):
             space=space,
             on='edges',
             values={'theta': drawn if self.angles is None else np.asarray(self.angles, dtype=float)},
-            visual=VisualSpec('cell', {'state': 'theta'}),
         )
         move = {'move': 'rotate'} if self.n is None else {'move': 'random-value', 'values': values, 'rule': 'heat-bath'}
         sampling = WilsonSamplingInteraction('wilson', target='links', beta=self.beta, **move)
         return CompositeSystem(self.label, elements=[links], interactions=[sampling], time=DiscreteTime())
 
     @staticmethod
-    def _get_gauge_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_gauge_observables(system: CompositeSystem) -> list[Observable]:
         """Return the observables of the dynamics.
 
         They are the mean plaquette of a sampled system, or the Gauss residual and the field energy of a Maxwell one.
 
         Args:
             system:
-                The parts of the system.
+                The components of the system.
 
         Returns:
             observables:
@@ -345,17 +336,17 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         space = links.space.prepare()
         if links.element is GaugeLinkElement:
             return [
-                ObservableSpec(
+                Observable(
                     'mean_plaquette',
                     function=partial(LatticeGaugeFieldsSystem._get_mean_plaquette, space.incidences_[1]),
                 ),
             ]
         return [
-            ObservableSpec(
+            Observable(
                 'gauss_residual',
                 function=partial(LatticeGaugeFieldsSystem._get_gauss_residual, space.incidences_[0]),
             ),
-            ObservableSpec(
+            Observable(
                 'field_energy',
                 function=partial(LatticeGaugeFieldsSystem._get_field_energy, space.incidences_[1]),
             ),

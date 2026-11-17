@@ -22,7 +22,7 @@ The hares rise from 30.0 to 81.2 thousand in 1903 and fall to 18.6 thousand in 1
 ## Observables
 
 An observable is a quantity that a run computes at every frame from the states, such as the total of two populations.
-An [`ObservableSpec`][skcomplex.core.specs.ObservableSpec] pairs a label with an expression, a function of the
+An [`Observable`][skcomplex.core.components.Observable] pairs a label with an expression, a function of the
 namespace `s` of the system that returns a symbolic expression. `simulate` takes the observables in `observables`,
 records them in the trajectory under their labels, and logs them to Rerun when an observer runs.
 
@@ -33,7 +33,7 @@ The Lotka and Volterra model conserves a quantity along every cycle,
 import numpy as np
 from sage.all__sagemath_symbolics import log
 
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 
 
 def total(s):
@@ -44,7 +44,7 @@ def conserved(s):
     return 0.024 * s.prey.x - 0.80 * log(s.prey.x) + 0.028 * s.predators.x - 0.55 * log(s.predators.x)
 
 
-observables = [ObservableSpec('total', total), ObservableSpec('V', conserved)]
+observables = [Observable('total', total), Observable('V', conserved)]
 observed = simulate(system, until=20, dt=1.0, observables=observables)
 observed.get_values('total').round(1)[:4].tolist(), np.ptp(observed.get_values('V')) < 1e-4
 ```
@@ -59,7 +59,7 @@ An observable must pickle with its system, so its functions are module-level fun
 from skcomplex.core.errors import ValidationError
 
 try:
-    simulate(system, until=1, observables=[ObservableSpec('total', lambda s: s.prey.x + s.predators.x)])
+    simulate(system, until=1, observables=[Observable('total', lambda s: s.prey.x + s.predators.x)])
 except ValidationError as error:
     message = str(error)
 message.splitlines()[1][:80]
@@ -86,7 +86,8 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components import Observable
 
 
 class OscillatorElement(Element):
@@ -115,7 +116,7 @@ def order_parameter(s):
 
 values = {'theta': np.linspace(0, 1, 100), 'omega': np.linspace(0.9, 1.1, 100)}
 oscillators = CompositeSystem(elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)])
-observables = [ObservableSpec('z', phase_vector, group='phases'), ObservableSpec('order', order_parameter)]
+observables = [Observable('z', phase_vector, group='phases'), Observable('order', order_parameter)]
 order = simulate(oscillators, until=50, dt=1.0, observables=observables).get_values('order')
 round(float(order[0]), 3), round(float(order[-1]), 3)
 ```
@@ -169,7 +170,7 @@ coupled = CompositeSystem(
     elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)],
     interactions=[MeanFieldInteraction('coupling', target='phases', X='X', Y='Y', K=2.0)],
 )
-observables = [ObservableSpec('X', cosine, group='phases'), ObservableSpec('Y', sine, group='phases')]
+observables = [Observable('X', cosine, group='phases'), Observable('Y', sine, group='phases')]
 synchronised = simulate(coupled, until=20, dt=1.0, observables=observables)
 X, Y = synchronised.get_values('X'), synchronised.get_values('Y')
 round(float(np.hypot(X[0], Y[0])), 2), round(float(np.hypot(X[-1], Y[-1])), 2)
@@ -245,7 +246,6 @@ Both populations are drawn by a `ScalarsVisual`, one at the path `prey` and one 
 | `'bodies'` | `BodiesVisual` | bodies at positions computed from the states of an element |
 | `'matrix'` | `MatrixVisual` | a matrix-valued state or parameter as an image |
 | `'expectations'` | `ExpectationVisual` | the local expectations of operator elements and groups |
-| `'geometry'` | `GeometryVisual` | the structure of a rewritten element |
 | `'linear_program'` | `LinearProgramVisual` | the linear program of an element |
 
 The default visuals follow the kind of element:
@@ -262,9 +262,11 @@ The default visuals follow the kind of element:
   coloured over the range, and its phase under `<path>/<state>/phase`, coloured by a cyclic palette over `(-π, π]`. A
   complex scalar appears as the series `<path>/<state>/real` and `<path>/<state>/imag`.
 
-An element or a group sets its own visual with its argument `visual`. Below, two atoms joined by a spring move in
-three dimensions, and the second atom asks for points coloured by its velocity `x_d1` with
-`VisualSpec('points', {'position': 'x', 'color_by': 'x_d1'})`.
+An element class gives its default drawing in its class attribute `visual`, such as
+`visual = VisualSpec('points', {'position': 'x'})`. The observer draws chosen elements otherwise with `visuals`, a
+mapping from the path of an element to its drawing. Below, two atoms joined by a spring move in three dimensions, and
+the observer draws the second atom as points coloured by its velocity `x_d1` with
+`visuals={'b': VisualSpec('points', {'position': 'x', 'color_by': 'x_d1'})}`.
 
 ```python continuation
 from typing import Annotated
@@ -280,12 +282,11 @@ class AtomElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: object = 0.0,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
 
@@ -294,7 +295,7 @@ speed = VisualSpec('points', {'position': 'x', 'color_by': 'x_d1'})
 molecule = CompositeSystem(
     elements=[
         AtomElement('a', x=[0.0, 0.0, 0.0]),
-        AtomElement('b', visual=speed, x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0]),
+        AtomElement('b', x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0]),
     ],
     interactions=[
         RateInteraction('pull', target='a', sources=['b'], rate=lambda s: 4.0 * (s.sources[0].x - s.target.x)),
@@ -302,7 +303,7 @@ molecule = CompositeSystem(
     ],
     space=ContinuousSpace(n_dim=3),
 )
-atoms = RerunObserver('molecule', save_path=folder / 'molecule.rrd')
+atoms = RerunObserver('molecule', save_path=folder / 'molecule.rrd', visuals={'b': speed})
 simulate(molecule, until=5, dt=0.02, observers=[atoms])
 [type(visual).__name__ for visual in atoms.visuals_], type(atoms.views_[0]).__name__
 ```

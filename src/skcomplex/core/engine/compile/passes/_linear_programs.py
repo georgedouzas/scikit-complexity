@@ -13,12 +13,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from scipy import sparse
 
-from ....components.laws import LinearProgramLaw
-from ....specs import IssueSpec, LayoutSpec, LinearObjectiveSpec, RunStateSpec
+from ....components.laws import LinearObjectiveSpec, LinearProgramLaw
 from ....specs._base_spec import BaseSpec
 from ....types import Array, Indices
 from ..._utils import symbol, symbols_of
-from ...problems import ProblemSpec
+from ...enums import LinearProgramBound
+from ...problems import LayoutSpec, ProblemSpec, RunStateSpec
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._linear_program_kernel import LinearProgramKernel
@@ -29,9 +29,9 @@ from ...problems._linear_program_spec import (
     LinearProgramSpec,
 )
 from ...problems._reference_spec import ReferenceSpec
-from ...types import LinearProgramBound
 from .._base import BasePass
 from .._compilation import Compilation, Laws
+from .._issue_spec import IssueSpec
 from ._census import CensusPass
 
 ABSOLUTE = 'abs'
@@ -525,7 +525,7 @@ class _Lowering:
         self._offsets.append(float(rest) if rest.is_numeric() else 0.0)
 
     def _get_cost_matrix(self) -> Array:
-        """Return the costs of every objective, with the parts after the variables."""
+        """Return the costs of every objective, absolute values after the variables."""
         size, count = len(self._columns), len(self._parts)
         matrix = np.zeros((len(self._costs), size + 2 * count))
         for row, costs in enumerate(self._costs):

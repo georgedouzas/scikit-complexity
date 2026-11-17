@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import RR, SR, Expression
 from ...components.laws import (
     BaseLaw,
     BoundaryLaw,
-    CrossingLaw,
+    EventLaw,
     JumpLaw,
     NoiseLaw,
     RateLaw,
@@ -27,14 +27,16 @@ from ...components.laws.utils import shift_member
 from ...components.laws.utils._delays import delay_parts
 from ...components.laws.utils._draws import draws_in
 from ...components.spaces import DiscreteTime
+from ...enums import FormKind, VariableKind
 from ...errors import ConservationError, LabelError, ValidationError
 from ...specs import EntrySpec
-from ...specs._compiled_flow_spec import _CompiledFlowSpec
-from ...types import Array, VariableKind
+from ...types import Array
 from .._utils import declarations_of, symbol, symbols_of
+from ..enums import ReadKind
 from ..problems._block_spec import BlockSpec
 from ..problems._born_spec import _BornSpec
 from ..problems._compiled_delay_spec import _CompiledDelaySpec
+from ..problems._compiled_flow_spec import _CompiledFlowSpec
 from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._flow_term_spec import _FlowTermSpec
 from ..problems._kernel_spec import KernelSpec
@@ -44,7 +46,6 @@ from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._transfer_network_spec import TransferNetworkSpec
 from ..problems._transfer_state_spec import TransferStateSpec
-from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 from ._members import MemberLowering
@@ -124,7 +125,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
         Raises:
             LabelError:
-                Two flows reported under one part share a label.
+                Two flows reported under one component share a label.
 
             ConservationError:
                 A flow connects holders of different quantities.
@@ -261,6 +262,12 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         state, step, boundary, _ = offset
         return RateLaw(state, shift_member(change, -step, boundary=boundary))
 
+    def _is_ode_limit(self) -> bool:
+        """Return whether the solver solves ODEs, so flows at a rate move their mean."""
+        solver = self.compilation_.solver
+        get_form = getattr(type(solver), '_get_form', None)
+        return callable(get_form) and get_form() == FormKind.ODE
+
     def _expand_flow(
         self,
         spec: KernelSpec,
@@ -287,14 +294,15 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         compiled = _CompiledFlowSpec(path, source, sink, source_label, sink_label, next(iter(tags)))
         holders = [(item, sign) for item, sign in ((flow.source, -1), (flow.sink, 1)) if isinstance(item, Expression)]
         presence = self._get_presence(next(filter(None, map(self._get_offset_of, (flow.source, flow.sink))), None))
-        if flow.rate is not None:
+        if flow.rate is not None and not self._is_ode_limit():
             amount = SR(flow.amount)
             laws: list[BaseLaw] = [
                 JumpLaw(SR(flow.rate) * presence, {item: sign * amount for item, sign in holders}),
             ]
         else:
-            laws = [self._get_rate_law(item, sign * SR(flow.amount), presence) for item, sign in holders]
-            amount = SR(flow.amount) * presence
+            flux = SR(flow.amount) if flow.rate is None else SR(flow.amount) * SR(flow.rate)
+            laws = [self._get_rate_law(item, sign * flux, presence) for item, sign in holders]
+            amount = flux * presence
         sign = 1 if source is None else -1 if sink is None else 0
         born = _BornSpec(spec, compiled, amount, sign)
         self.flows_.append(born)
@@ -319,7 +327,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
         Raises:
             LabelError:
-                Two flows reported under one part share a label.
+                Two flows reported under one component share a label.
 
             ConservationError:
                 A flow connects holders of different quantities.
@@ -593,7 +601,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             return BasePass._get_replaced(law, value=TransferLowering._get_substituted(law.value, mapping))
         if isinstance(law, JumpLaw):
             return JumpLaw(TransferLowering._get_substituted(law.rate, mapping), law.changes)
-        if isinstance(law, CrossingLaw):
+        if isinstance(law, EventLaw):
             reset = (
                 None
                 if law.reset is None
@@ -690,7 +698,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
     def _get_owner_of(flow: TransferLaw, spec: KernelSpec) -> str:
         """Return the path a flow is reported under.
 
-        It is its owner in the system of the declaring part, or that part.
+        It is its owner in the system of the declaring component, or that component.
         """
         if not flow.owner:
             return spec.owner
@@ -698,9 +706,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         return f'{scope}/{flow.owner}' if scope else flow.owner
 
     def _claim_label(self, owner: str, label: str, set_index: int) -> None:
-        """Add the label of a flow reported under a part.
+        """Add the label of a flow reported under a component.
 
-        A label the part already reports raises an error.
+        A label the component already reports raises an error.
         """
         if (f'{owner}.{label}', set_index) in self.claimed_:
             error_msg = f'{owner} reports two flows labelled {label!r}. Rename one.'

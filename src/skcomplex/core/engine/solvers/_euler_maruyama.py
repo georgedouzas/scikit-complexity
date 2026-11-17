@@ -7,11 +7,12 @@ import math
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw, TransferLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.laws import BoundaryLaw, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, TransferLaw
+from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from ...enums import NoiseKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, NoiseKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems._steps import step_count
 from ._base import BaseSolver
 from ._sde import SDESolver
@@ -35,7 +36,7 @@ class EulerMaruyamaSolver(SDESolver):
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
         >>> from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> system = CompositeSystem(
         ...     elements=[AssetElement('stock', price=100)],
         ...     interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
@@ -51,13 +52,12 @@ class EulerMaruyamaSolver(SDESolver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={
                 JumpLaw,
                 RateLaw,
-                FluxLaw,
-                EquationLaw,
-                CrossingLaw,
+                ConstraintLaw,
+                EventLaw,
                 BoundaryLaw,
                 TransferLaw,
                 NoiseLaw,

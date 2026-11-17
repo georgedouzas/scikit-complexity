@@ -12,15 +12,15 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
+from ...enums import ElementKind, ScheduleKind
 from ...errors import ValidationError
-from ...specs import BaseSpec, RoleSpec, Tags
-from ...types import ElementKind
-from ..base import BasePart
+from ...specs import BaseSpec, RoleSpec
+from .._tags import Tags
+from ..base import BaseComponent
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import uniform
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
-from ._base import SCHEDULES
 from ._interaction import Interaction
 
 MODES = ('replace', 'increment')
@@ -55,7 +55,7 @@ class MapInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'growth'`.
+            The name of the interaction, unique among the components of its system, such as `'growth'`.
 
         target:
             The path of the element or group whose state the map sets.
@@ -111,8 +111,8 @@ class MapInteraction(Interaction):
         'RuleLaw'
         >>> from skcomplex.core.components.elements import GroupElement
         >>> class WeightsElement(Element):
-        ...     def __init__(self, label, visual=None, *, w: Annotated[object, StateSpec(vector=True)] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, w: Annotated[object, StateSpec(vector=True)] = 0.0):
+        ...         super().__init__(label)
         ...         self.w = w
         >>> group = GroupElement('weights', element=WeightsElement, size=1, values={'w': [1.0, 2.0]})
         >>> doubling = MapInteraction(
@@ -152,7 +152,7 @@ class MapInteraction(Interaction):
         self.form = form
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown mode, schedule, or form, or a bad function.
 
         Args:
@@ -167,7 +167,7 @@ class MapInteraction(Interaction):
         super()._prepare(context)
         self._check_variant('mode', self.mode, MODES, (BaseSpec,))
         for name, value, variants in (
-            ('schedule', self.schedule, SCHEDULES),
+            ('schedule', self.schedule, tuple(ScheduleKind)),
             ('form', self.form, FORMS),
         ):
             if value not in variants:
@@ -248,7 +248,7 @@ class MapInteraction(Interaction):
             return SR(0)
         return uniform(re.sub(r'\W', '_', f'order_{self.label}'))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the update of the state to its next value, or the rule of the agent form.
 
         Args:

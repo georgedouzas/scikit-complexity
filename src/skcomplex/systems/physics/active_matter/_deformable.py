@@ -19,7 +19,7 @@ from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.particles import POINTS
 
 
@@ -36,9 +36,6 @@ class DeformableParticleElement(Element):
     Args:
         label:
             The label of the particle or the group.
-
-        visual:
-            How the particle is drawn.
 
         x:
             The initial position.
@@ -70,6 +67,8 @@ class DeformableParticleElement(Element):
         0.5
     """
 
+    visual = POINTS
+
     law_classes = (
         NoiseLaw,
         RateLaw,
@@ -78,7 +77,6 @@ class DeformableParticleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         v: Annotated[npt.ArrayLike, StateSpec(vector=True, role='velocity')] = 0.0,
@@ -89,7 +87,7 @@ class DeformableParticleElement(Element):
         kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.v = v
         self.S = S

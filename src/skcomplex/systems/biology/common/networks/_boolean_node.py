@@ -8,7 +8,7 @@ from typing import Annotated
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from .....core.components.elements import Element
-from .....core.specs import StateSpec, VisualSpec
+from .....core.specs import StateSpec
 
 
 class BooleanNodeElement(Element):
@@ -17,9 +17,6 @@ class BooleanNodeElement(Element):
     Args:
         label:
             The label of the node.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial value, 0 or 1.
@@ -33,9 +30,8 @@ class BooleanNodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x

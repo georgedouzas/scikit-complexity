@@ -10,16 +10,16 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element, FieldElement, FiniteVolumeSpec
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate
-from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, PhaseSpace
+from skcomplex.core.components.spaces import AxisSpec, LatticeNeighborhood, LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import SpaceTooLargeError, ValidationError
-from skcomplex.core.specs import AxisSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 
 class AmountElement(Element):
@@ -28,11 +28,10 @@ class AmountElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 
@@ -96,9 +95,9 @@ def test_index_table_keeps_edges_per_axis() -> None:
 @pytest.mark.parametrize(
     ('discretization', 'options'),
     [
-        ('finite-volume', {'limiter': 'van-leer'}),
-        ('finite-difference', {'riemann': None}),
-        ('spectral', {'riemann': None}),
+        ('finite-volume', {'scheme': FiniteVolumeSpec(limiter='van-leer')}),
+        ('finite-difference', {}),
+        ('spectral', {}),
     ],
 )
 def test_periodic_class_axis_returns_after_one_turn(discretization: str, options: dict[str, object]) -> None:
@@ -112,8 +111,9 @@ def test_periodic_class_axis_returns_after_one_turn(discretization: str, options
         space=space,
         values={'x': start},
         discretization=discretization,
+        **options,
     )
-    drift = ConservationInteraction('turn', target='gas', state='x', flux=lambda s: [0, 1.0 * s.target.x], **options)
+    drift = ConservationInteraction('turn', target='gas', state='x', flux=lambda s: [0, 1.0 * s.target.x])
     trajectory = simulate(
         CompositeSystem(elements=[field], interactions=[drift]),
         until=2 * np.pi,
@@ -126,9 +126,9 @@ def test_periodic_class_axis_returns_after_one_turn(discretization: str, options
 @pytest.mark.parametrize(
     ('discretization', 'options'),
     [
-        ('finite-volume', {'limiter': 'van-leer'}),
-        ('finite-difference', {'riemann': None}),
-        ('spectral', {'riemann': None}),
+        ('finite-volume', {'scheme': FiniteVolumeSpec(limiter='van-leer')}),
+        ('finite-difference', {}),
+        ('spectral', {}),
     ],
 )
 def test_free_streaming_shifts_every_class_slice(discretization: str, options: dict[str, object]) -> None:
@@ -144,13 +144,13 @@ def test_free_streaming_shifts_every_class_slice(discretization: str, options: d
         space=space,
         values={'x': start},
         discretization=discretization,
+        **options,
     )
     drift = ConservationInteraction(
         'stream',
         target='gas',
         state='x',
         flux=lambda s: [coordinate('v') * s.target.x, 0],
-        **options,
     )
     trajectory = simulate(CompositeSystem(elements=[field], interactions=[drift]), until=1.0, solver=RK4Solver(dt=0.01))
     final = trajectory.get_values('gas.x')[-1].reshape(size, 16)

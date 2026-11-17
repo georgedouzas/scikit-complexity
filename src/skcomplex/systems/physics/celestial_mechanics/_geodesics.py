@@ -59,9 +59,6 @@ class GeodesicParticleElement(Element):
         x_d1:
             The initial four-velocity.
 
-        visual:
-            How the particle is drawn, or `None` for its class visual.
-
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import GeodesicParticleElement
         >>> GeodesicParticleElement('particle', x=[0.0, 10.0, 1.5708, 0.0]).x
@@ -82,9 +79,8 @@ class GeodesicParticleElement(Element):
         label: str,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2)] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
-        visual: VisualSpec | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
 

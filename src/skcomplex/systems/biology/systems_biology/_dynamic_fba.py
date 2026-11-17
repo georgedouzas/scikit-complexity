@@ -8,13 +8,7 @@ from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import CoSimulationSolver, RK4Solver
 from ....core.errors import ValidationError
-from ..common.metabolism import (
-    BiomassElement,
-    ExchangeInteraction,
-    GrowthInteraction,
-    SubstrateElement,
-    load_network,
-)
+from ..common.metabolism import BiomassElement, ExchangeInteraction, GrowthInteraction, SubstrateElement, load_network
 
 APPROACHES = ('static', 'direct')
 GROWTH = 'Biomass_Ecoli_core'
@@ -112,7 +106,7 @@ class DynamicFBASystem(BaseSystem):
         return settings
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a batch culture of the E. coli core system.
+        """Return the components of a batch culture of the E. coli core system.
 
         It needs the extra `metabolism`.
         """

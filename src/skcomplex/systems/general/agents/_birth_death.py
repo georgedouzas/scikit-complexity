@@ -7,13 +7,14 @@ from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
+from ....core.components import Tags
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec, Tags
-from ....core.types import ElementKind
+from ....core.specs import RoleSpec
 
 PLACEMENTS = ('here', 'neighbor')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
@@ -53,7 +54,7 @@ class BirthDeathInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the variable group whose agents give birth and die.
@@ -136,14 +137,14 @@ class BirthDeathInteraction(Interaction):
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class CellElement(Element):
-        ...     def __init__(self, label, visual=None, *, size: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
-        ...         self.size = size
-        >>> cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
-        >>> division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('size',))
+        ...     def __init__(self, label, *, mass: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.mass = mass
+        >>> cells = GroupElement('cells', element=CellElement, size=1, values={'mass': 8.0}, variable=True)
+        >>> division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('mass',))
         >>> system = CompositeSystem(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
         >>> trajectory = simulate(system, until=2, random_state=0)
-        >>> trajectory.get_agents('cells', 2).values['size'].tolist()
+        >>> trajectory.get_agents('cells', 2).values['mass'].tolist()
         [2.0, 2.0, 2.0, 2.0]
     """
 
@@ -244,7 +245,7 @@ class BirthDeathInteraction(Interaction):
         if self.placement == 'neighbor':
             self._check_grid('placement', self.placement, space, "placement='here', or a placement function")
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown placement, a doubled birth, or a bad function.
 
         Args:

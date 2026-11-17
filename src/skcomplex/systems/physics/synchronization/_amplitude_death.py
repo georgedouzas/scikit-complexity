@@ -15,11 +15,12 @@ from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 from scipy import stats
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
+from ....core.specs import ParameterSpec, RoleSpec
 from ..common.oscillators import StuartLandauElement
 
 QUANTILE_GRID_SIZE = 20001
@@ -35,7 +36,7 @@ class GlobalCouplingInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group.
@@ -140,10 +141,10 @@ class OscillatorDeathSystem(BaseSystem):
     until = 20.0
     dt = 0.2
     observables = (
-        ObservableSpec('amplitude', _get_amplitude, group='oscillators'),
-        ObservableSpec('X', group='oscillators', variable='x'),
-        ObservableSpec('Y', group='oscillators', variable='y'),
-        ObservableSpec('order', _get_order),
+        Observable('amplitude', _get_amplitude, group='oscillators'),
+        Observable('X', group='oscillators', variable='x'),
+        Observable('Y', group='oscillators', variable='y'),
+        Observable('order', _get_order),
     )
 
     @staticmethod
@@ -197,7 +198,7 @@ class OscillatorDeathSystem(BaseSystem):
         raise ValidationError(message)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         omegas = self._get_frequency_quantiles(self.n_oscillators, self.width, self.distribution)
         x, y = OscillatorDeathSystem._spread_on_circle(self.n_oscillators, self.random_state)
         oscillators = GroupElement(
@@ -274,11 +275,11 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
     until = 40.0
     dt = 0.2
     observables = (
-        ObservableSpec('amplitude', _get_amplitude, group='systems'),
-        ObservableSpec('X', group='systems', variable='x'),
-        ObservableSpec('Y', group='systems', variable='y'),
-        ObservableSpec('V', _get_time_scale_deviation_x, group='systems'),
-        ObservableSpec('W', _get_time_scale_deviation_y, group='systems'),
+        Observable('amplitude', _get_amplitude, group='systems'),
+        Observable('X', group='systems', variable='x'),
+        Observable('Y', group='systems', variable='y'),
+        Observable('V', _get_time_scale_deviation_x, group='systems'),
+        Observable('W', _get_time_scale_deviation_y, group='systems'),
     )
 
     def __init__(
@@ -301,7 +302,7 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         taus = 1 + self.heterogeneity * (2 * (np.arange(self.n_systems) + 1 / 2) / self.n_systems - 1)
         x, y = OscillatorDeathSystem._spread_on_circle(self.n_systems, self.random_state)
         radius = math.sqrt(abs(self.beta))

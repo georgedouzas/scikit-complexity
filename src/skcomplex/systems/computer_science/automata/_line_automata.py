@@ -9,12 +9,12 @@ They are a nilpotent automaton and an involution.
 import numpy as np
 import numpy.typing as npt
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 
@@ -66,7 +66,7 @@ class NilpotentAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 6
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     @staticmethod
     def _get_random_cells(size: int, density: float, random_state: int | np.random.Generator | None) -> Array:
@@ -128,7 +128,7 @@ class NilpotentAutomatonSystem(BaseSystem):
         return np.where(killed, 0.0, center)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.n < MIN_NILPOTENT_CLASS:
             error_msg = f'The nilpotency class of the automaton is at least 2, but it is {self.n}.'
             raise ParameterError(error_msg)
@@ -183,7 +183,7 @@ class InvolutiveAutomatonSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 10
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,
@@ -217,7 +217,7 @@ class InvolutiveAutomatonSystem(BaseSystem):
         return np.where(np.all(window == alpha, axis=0), 0.0, np.where(np.all(window == beta, axis=0), 1.0, center))
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.n < MIN_INVOLUTION_RUN:
             error_msg = f'The run length of the involutive automaton is at least 3, but it is {self.n}.'
             raise ParameterError(error_msg)

@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 
 from sage.all__sagemath_symbolics import Expression
 
+from ...components.laws import DrawSpec
 from ...specs._base_spec import BaseSpec
-from ...specs._draw_spec import DrawSpec
 from ._kernel_spec import KernelSpec
 
 

@@ -13,7 +13,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 
 
@@ -27,9 +27,6 @@ class RoadElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         velocity:
             The initial velocity, or -1 for an empty cell.
@@ -46,12 +43,11 @@ class RoadElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         velocity: Annotated[float, StateSpec(domain=ZZ)] = -1,
         slowdown: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.velocity = velocity
         self.slowdown = slowdown
 
@@ -133,7 +129,7 @@ class NagelSchreckenbergSystem(BaseSystem):
         return following
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         velocity = np.full(self.length, -1.0)
         velocity[rng.choice(self.length, size=round(self.density * self.length), replace=False)] = 0.0

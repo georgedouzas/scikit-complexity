@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, RateInteraction
 from ....core.components.laws.utils import clip, delayed
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -55,9 +55,6 @@ class MetastasisChemotherapyElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         Np:
             The initial normal cells at the primary site.
@@ -167,7 +164,6 @@ class MetastasisChemotherapyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         Np: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1460.0,
         Ap: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 165.0,
@@ -203,7 +199,7 @@ class MetastasisChemotherapyElement(Element):
         up: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         us: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.Np = Np
         self.Ap = Ap
         self.Up = Up
@@ -256,9 +252,6 @@ class MultidrugResistanceElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         S:
             The initial sensitive cells.
@@ -362,7 +355,6 @@ class MultidrugResistanceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         S: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 460500000000.0,
         R1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -396,7 +388,7 @@ class MultidrugResistanceElement(Element):
         u2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         u3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.S = S
         self.R1 = R1
         self.R2 = R2
@@ -447,9 +439,6 @@ class RestingHuntingChemotherapyElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial hunting cells.
@@ -514,7 +503,6 @@ class RestingHuntingChemotherapyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         Q: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.48,
@@ -535,7 +523,7 @@ class RestingHuntingChemotherapyElement(Element):
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 45.6,
         u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.Q = Q
         self.A = A
@@ -629,7 +617,7 @@ class DePillisRadunskayaSystem(BaseSystem):
         self.a2 = a2
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the de Pillis-Radunskaya system of immune."""
+        """Return the components of the de Pillis-Radunskaya system of immune."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -710,7 +698,7 @@ class MultidrugResistanceSystem(BaseSystem):
         self.u3 = u3
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour of eight populations resistant to three drugs.
+        """Return the components of a tumour of eight populations resistant to three drugs.
 
         The populations are resistant to subsets of the drugs.
         """
@@ -1022,7 +1010,7 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
         self.a = a
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the tumour-immune system of resting and hunting cells.
+        """Return the components of the tumour-immune system of resting and hunting cells.
 
         The conversion of the cells is delayed.
         """
@@ -1184,7 +1172,7 @@ class DelayedMetastasisSystem(BaseSystem):
         self.tau = tau
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of normal and tumour cells at a primary and a secondary site."""
+        """Return the components of normal and tumour cells at a primary and a secondary site."""
         patient = MetastasisChemotherapyElement(
             'patient',
             Np=self.Np,

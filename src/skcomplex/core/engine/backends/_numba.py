@@ -18,18 +18,11 @@ from numba.core.dispatcher import Dispatcher
 
 from ...components.laws import (
     ArrayUpdateLaw,
-    BilinearLaw,
     BoundaryLaw,
-    CascadeLaw,
-    CrossingLaw,
-    DissipatorLaw,
-    EquationLaw,
-    ExtremalLaw,
-    FluxLaw,
-    GeneratorLaw,
+    ConstraintLaw,
+    EventLaw,
     JumpLaw,
     LocalRuleLaw,
-    MatchLaw,
     NoiseLaw,
     RateLaw,
     RuleLaw,
@@ -44,13 +37,16 @@ from ...components.spaces import (
     ContinuousTime,
     DiscreteTime,
     LatticeSpace,
-    MeshSpace,
     NetworkSpace,
     StaticTime,
 )
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import BackendWarning, ValidationError
-from ...specs import AcceleratedSpec, EntrySpec, LoweredFunctionsSpec, NeighborReadSpec, SupportSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind, VectorFunction
+from ...specs import EntrySpec
+from ...types import Array, VectorFunction
+from ..enums import ReadKind
+from ..problems._accelerated_spec import _AcceleratedSpec
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
@@ -58,15 +54,17 @@ from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._metric_search import MetricSearch
+from ..problems._neighbor_read_spec import _NeighborReadSpec
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._source_loader import SourceLoader
 from ..problems._steps import step_count
-from ..types import ReadKind
 from . import _numba_components, _numba_neighbours, _numba_stencils
 from ._base import BaseBackend
+from ._lowered_functions_spec import LoweredFunctionsSpec
 from ._numba_loops import LOOPS, NO_BOUNDARY
 from ._numba_printer import NumbaPrinter
+from ._support_spec import SupportSpec
 
 FORM_KINDS: dict[FormKind, list[type]] = {
     FormKind.ODE: [RateLaw],
@@ -136,23 +134,17 @@ class NumbaBackend(BaseBackend):
         """
         return SupportSpec(
             time={ContinuousTime, DiscreteTime, StaticTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={
                 BoundaryLaw,
-                CrossingLaw,
-                DissipatorLaw,
+                EventLaw,
                 ArrayUpdateLaw,
-                EquationLaw,
-                ExtremalLaw,
-                FluxLaw,
-                GeneratorLaw,
+                ConstraintLaw,
                 JumpLaw,
                 LocalRuleLaw,
-                MatchLaw,
                 NoiseLaw,
                 BilinearLaw,
                 RateLaw,
-                CascadeLaw,
                 RuleLaw,
                 SampleLaw,
                 TransferLaw,
@@ -347,12 +339,12 @@ class NumbaBackend(BaseBackend):
         layout: np.ndarray,
         lowering: LoweredFunctionsSpec,
         draws: DrawKernel | None,
-    ) -> AcceleratedSpec:
+    ) -> _AcceleratedSpec:
         """Return the compiled stepper loop of a form bound to the layout."""
         function = getattr(module, loop)
         if loop == 'rk4':
             verlet, yoshida4 = module.velocity_verlet, module.yoshida4
-            return AcceleratedSpec(
+            return _AcceleratedSpec(
                 rk4=lambda t, x, p, until, h: function(t, x, p, layout, until, h),
                 yoshida4=lambda t, x, p, until, h, first, second, weights: yoshida4(
                     t,
@@ -378,20 +370,20 @@ class NumbaBackend(BaseBackend):
             )
         if loop == 'euler_maruyama':
             noise = self._get_noise_arrays(lowering)
-            return AcceleratedSpec(
+            return _AcceleratedSpec(
                 euler_maruyama=lambda t, x, p, until, h, rng: function(t, x, p, layout, until, h, rng, *noise),
             )
         if loop == 'gillespie':
             targets, increments = self._get_channel_arrays(lowering)
-            return AcceleratedSpec(
+            return _AcceleratedSpec(
                 gillespie=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, targets, increments),
             )
         if loop == 'iterate_random' and draws is not None:
             offset, flags = draws.offset, draws.normal
-            return AcceleratedSpec(
+            return _AcceleratedSpec(
                 iterate=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, offset, flags),
             )
-        return AcceleratedSpec(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
+        return _AcceleratedSpec(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
 
     @staticmethod
     def _search_entries(search: object) -> dict[str, EntrySpec]:
@@ -428,7 +420,7 @@ class NumbaBackend(BaseBackend):
                     entries[search.target.name] = search.target
                 for reference in kernel.references.values():
                     read = reference.neighbor
-                    if isinstance(read, NeighborReadSpec) and read.entry is not None:
+                    if isinstance(read, _NeighborReadSpec) and read.entry is not None:
                         entries[read.entry.name] = read.entry
         for item in reductions.reductions:
             entries[item.entry.name] = item.entry

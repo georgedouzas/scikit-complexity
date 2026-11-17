@@ -36,9 +36,6 @@ class NodeRankElement(Element):
         label:
             The label of the page or the field.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         rank:
             The initial rank.
 
@@ -60,14 +57,13 @@ class NodeRankElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rank: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         damping: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.85,
         degree: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         n_nodes: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rank = rank
         self.damping = damping
         self.degree = degree
@@ -89,9 +85,6 @@ class NetworkWalkerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         steps:
             The initial number of steps taken.
 
@@ -103,14 +96,15 @@ class NetworkWalkerElement(Element):
         ('walkers', 'NetworkWalkerElement', 5)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'steps'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'steps'}),
         *,
         steps: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.steps = steps
 
     @classmethod
@@ -174,7 +168,7 @@ class NetworkRandomWalkSystem(BaseSystem):
             agent.steps += 1
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         graph = NetworkRandomWalkSystem._get_graph_or_default(self.graph)
         walk = MovementInteraction('walk', target='walkers', step='neighbor', cost=self._count_step)
         return CompositeSystem(

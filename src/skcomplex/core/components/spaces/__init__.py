@@ -9,7 +9,7 @@ once.
 # License: MIT
 
 from ._adjacency import AdjacencyNeighborhood
-from ._ball import BallNeighborhood
+from ._axis_spec import AxisSpec
 from ._base import BaseNeighborhood, BaseSpace, BaseTime
 from ._cayley import CayleySpace
 from ._cell_complex import CellComplexSpace
@@ -20,19 +20,19 @@ from ._delaunay import DelaunayNeighborhood
 from ._discrete_time import DiscreteTime
 from ._lattice import LatticeSpace
 from ._lattice_neighborhood import LatticeNeighborhood
+from ._layer_spec import LayerSpec
 from ._memory import MemoryNeighborhood
-from ._mesh import MeshSpace
 from ._nearest import NearestNeighborhood
 from ._network import NetworkSpace
 from ._phase import PhaseSpace
 from ._radius import RadiusNeighborhood
-from ._simplex import SimplexSpace
+from ._schedule_spec import ScheduleSpec
 from ._state_translation import StateTranslationNeighborhood
 from ._static_time import StaticTime
 
 __all__: list[str] = [
     'AdjacencyNeighborhood',
-    'BallNeighborhood',
+    'AxisSpec',
     'BaseNeighborhood',
     'BaseSpace',
     'BaseTime',
@@ -45,13 +45,13 @@ __all__: list[str] = [
     'DiscreteTime',
     'LatticeNeighborhood',
     'LatticeSpace',
+    'LayerSpec',
     'MemoryNeighborhood',
-    'MeshSpace',
     'NearestNeighborhood',
     'NetworkSpace',
     'PhaseSpace',
     'RadiusNeighborhood',
-    'SimplexSpace',
+    'ScheduleSpec',
     'StateTranslationNeighborhood',
     'StaticTime',
 ]

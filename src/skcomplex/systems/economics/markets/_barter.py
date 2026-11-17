@@ -14,11 +14,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import StateSpec, VisualSpec
 from ..common.exchange import ExchangeInteraction, cobb_douglas
 
 GOODS = ('chocolate', 'cigarettes')
@@ -78,9 +80,6 @@ class BartererElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         chocolate:
             The holding of chocolate.
 
@@ -99,19 +98,20 @@ class BartererElement(Element):
         2
     """
 
+    visual = VisualSpec('agents', {'color_by': 'chocolate_weight', 'color_range': (0.0, 1.0)})
+
     law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'chocolate_weight', 'color_range': (0.0, 1.0)}),
         *,
         chocolate: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
         cigarettes: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
         chocolate_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         cigarettes_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.chocolate = chocolate
         self.cigarettes = cigarettes
         self.chocolate_weight = chocolate_weight
@@ -189,8 +189,8 @@ class BarterSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 ch. 5', 'Radford 1945')
     until = 20
     observables = (
-        ObservableSpec('utility', _get_utility, group='barterers', reduce='mean'),
-        *(ObservableSpec(good, group='barterers', variable=good, reduce='sum') for good in GOODS),
+        Observable('utility', _get_utility, group='barterers', reduce='mean'),
+        *(Observable(good, group='barterers', variable=good, reduce='sum') for good in GOODS),
     )
 
     def __init__(
@@ -213,7 +213,7 @@ class BarterSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.n_barterers < EDGEWORTH_BARTERERS:
             error_msg = f'Barter needs at least two barterers, but got {self.n_barterers}.'
             raise ValueError(error_msg)

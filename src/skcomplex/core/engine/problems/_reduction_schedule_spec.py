@@ -11,10 +11,10 @@ from dataclasses import dataclass
 import numpy as np
 
 from ...specs._base_spec import BaseSpec
-from ...specs._run_state_spec import RunStateSpec
 from ...types import Array
 from ._neighborhood_kernel import NeighborhoodKernel
 from ._reduction_kernel import ReductionKernel
+from ._run_state_spec import RunStateSpec
 
 
 @dataclass(frozen=True)

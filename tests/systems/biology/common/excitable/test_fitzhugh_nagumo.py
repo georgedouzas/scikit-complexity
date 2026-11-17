@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.biology.common.excitable import FitzHughNagumoInteraction
 
 
@@ -19,12 +19,11 @@ class MembraneElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, StateSpec()] = -1.2,
         r: Annotated[float, StateSpec()] = -0.6,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.r = r
 

@@ -37,9 +37,6 @@ class CombinatorialEntityElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         exists:
             1 when the entity exists, 0 otherwise.
 
@@ -53,17 +50,18 @@ class CombinatorialEntityElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'exists'})
+
     law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'exists'}),
         *,
         exists: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
         fitness: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.exists = exists
         self.fitness = fitness
 
@@ -258,7 +256,7 @@ class CccModelSystem(BaseSystem):
         return tuple((int(i), int(j), int(k)) for i, j, k in triples)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         entities = GroupElement(
             'entities',

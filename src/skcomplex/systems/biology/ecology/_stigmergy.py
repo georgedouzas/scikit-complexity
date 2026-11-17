@@ -45,9 +45,6 @@ class EmotionMarksElement(Element):
         label:
             The label of the element or the lattice field.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         prey_happiness:
             The initial happiness left by prey.
 
@@ -72,7 +69,6 @@ class EmotionMarksElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         prey_happiness: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         prey_fear: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -80,7 +76,7 @@ class EmotionMarksElement(Element):
         predator_anger: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         decay: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.prey_happiness = prey_happiness
         self.prey_fear = prey_fear
         self.predator_happiness = predator_happiness
@@ -126,9 +122,6 @@ class ForagerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         age:
             The steps since the animal last bred.
 
@@ -169,10 +162,11 @@ class ForagerElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'happiness', 'radius': 0.35})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'happiness', 'radius': 0.35}),
         *,
         age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         hunger: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -186,7 +180,7 @@ class ForagerElement(Element):
         communication: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         emotions: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.age = age
         self.hunger = hunger
         self.happiness = happiness
@@ -215,9 +209,6 @@ class StigmergicPredatorElement(ForagerElement):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         age:
             The steps since the animal last bred.
@@ -258,10 +249,11 @@ class StigmergicPredatorElement(ForagerElement):
         'prey'
     """
 
+    visual = VisualSpec('agents', {'color_by': 'distress', 'radius': 0.45})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'distress', 'radius': 0.45}),
         *,
         age: float = 0.0,
         hunger: float = 0.0,
@@ -277,7 +269,6 @@ class StigmergicPredatorElement(ForagerElement):
     ) -> None:
         super().__init__(
             label,
-            visual=visual,
             age=age,
             hunger=hunger,
             happiness=happiness,
@@ -362,9 +353,6 @@ class PlantElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         age:
             The steps since the plant last spread.
 
@@ -378,15 +366,16 @@ class PlantElement(Element):
         100
     """
 
+    visual = VisualSpec('agents', {'radius': 0.25})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.25}),
         *,
         age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         maturity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.age = age
         self.maturity = maturity
 
@@ -774,7 +763,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         return [cells[start:end] for start, end in itertools.pairwise(bounds)]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of plants, prey, and predators on a grid."""
+        """Return the components of plants, prey, and predators on a grid."""
         rng = np.random.default_rng(self.random_state)
         plant_cells, prey_cells, predator_cells = self._get_random_cells(
             rng,

@@ -21,7 +21,7 @@ the results SHALL not depend on the number of worker processes.
 
 ### Requirement: Designs sweep parameters and initial states
 A design SHALL be the `design=` argument of `sweep`, one of `'grid'`, `'random'`, `'latin_hypercube'`, and `'sobol'`,
-which gives the rows of model parameters and dotted initial states or part parameters that the system runs over.
+which gives the rows of model parameters and dotted initial states or component parameters that the system runs over.
 
 #### Scenario: Orbit diagram sweep
 - **WHEN** a user sweeps the growth rate of the logistic map over 200 values and keeps its last 100 values per run

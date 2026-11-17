@@ -11,7 +11,15 @@ import pytest
 from sage.all__sagemath_symbolics import NN
 
 import skcomplex.core.analysis
-from skcomplex.core.analysis import bind_analysis, lyapunov, motifs, network_measures, renormalization, rolling
+from skcomplex.core.analysis import (
+    AnalysisTags,
+    bind_analysis,
+    lyapunov,
+    motifs,
+    network_measures,
+    renormalization,
+    rolling,
+)
 from skcomplex.core.analysis._base import (
     _composite,
     _get_analysis_tags,
@@ -23,12 +31,13 @@ from skcomplex.core.analysis._base import (
     _read_snapshots,
 )
 from skcomplex.core.analysis._discovery import ANALYSES
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import JumpLaw
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.laws import JumpLaw, RuleLaw
+from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import AnalysisError, TagError
-from skcomplex.core.specs import AnalysisTags, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.errors import AnalysisError, TagError, ValidationError
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.biology.ecology import (
     GeneralizedLotkaVolterraSystem,
     LogisticGrowthSystem,
@@ -57,6 +66,8 @@ from skcomplex.systems.physics.synchronization import (
 )
 from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterSystem
 
+from ...conftest import _queue_run
+
 
 class BirthDeathElement(Element):
     """Birth death element."""
@@ -64,13 +75,12 @@ class BirthDeathElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec(domain=NN)] = 10.0,
         birth: Annotated[object, ParameterSpec()] = 5.0,
         death: Annotated[object, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.birth = birth
         self.death = death
@@ -78,6 +88,25 @@ class BirthDeathElement(Element):
     def _get_laws(self, s):
         """Return the laws of the birth death element."""
         return [JumpLaw(s.birth, {s.n: 1}), JumpLaw(s.death * s.n, {s.n: -1})]
+
+
+class PhasedElement(Element):
+    """Agent with a state named `phase` that is no heading, and a state with the role of heading."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        phase: Annotated[float, StateSpec()] = 3.0,
+        bearing: Annotated[float, StateSpec(role='direction')] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.phase = phase
+        self.bearing = bearing
+
+    def _get_laws(self, s):
+        """Return no change."""
+        return [RuleLaw(lambda agent, system: None)]
 
 
 def test_analysis_reads_a_trajectory():
@@ -272,10 +301,10 @@ def test_networks_of_a_changing_network_snapshot():
 
 
 def test_surface_holds_analysis_functions_and_results():
-    """Test that the public names of the analysis package are functions, frozen results, and the binding helper."""
+    """Test that the public names of the analysis package are functions, frozen results, and frozen values."""
     for name in skcomplex.core.analysis.__all__:
         item = getattr(skcomplex.core.analysis, name)
-        if name.endswith('Result'):
+        if name.endswith(('Result', 'Spec', 'Tags')):
             assert dataclasses.is_dataclass(item)
             assert item.__dataclass_params__.frozen
         else:
@@ -299,8 +328,8 @@ def test_binding_rejects_unknown_settings_and_objects():
         bind_analysis(3)
 
 
-def test_a_system_class_is_read_as_the_composite_of_its_parts():
-    """Test that a system class that builds its parts is read as its prepared composite, other sources as they are."""
+def test_a_system_class_is_read_as_the_composite_of_its_components():
+    """Test that a system class that builds its components is read as its composite, other sources as they are."""
     composite = _composite(BrusselatorSystem((8,)))
     assert isinstance(composite, CompositeSystem)
     values = np.zeros(3)
@@ -340,3 +369,19 @@ def test_tags_are_not_checked_for_data_without_a_system():
     assert _get_source_tags(np.zeros(4)) is None
     assert network_measures(nx.cycle_graph(4)).mean_degree.tolist() == [2.0]
     assert lyapunov([0.5, -1.0]).exponents.tolist() == [0.5, -1.0]
+
+
+def test_series_analysis_refuses_a_state_of_objects_by_name():
+    """Test that an analysis that needs numbers names the state that holds objects."""
+    trajectory = _queue_run()
+    with pytest.raises(ValidationError, match='The state orders of the agents of queues holds objects'):
+        _read_series(trajectory, ['queues.orders'])
+
+
+def test_snapshots_read_headings_from_roles_alone():
+    """Test that a state named `phase` stays a state, and the state with the role is the heading."""
+    group = GroupElement('walkers', element=PhasedElement, size=3)
+    trajectory = simulate(CompositeSystem(elements=[group], time=DiscreteTime()), until=2, random_state=0)
+    snapshots = _read_snapshots(trajectory, 'walkers')
+    assert np.all(snapshots.directions == 0.5)
+    assert np.all(snapshots.states['phase'] == 3.0)

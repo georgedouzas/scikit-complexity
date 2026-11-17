@@ -71,7 +71,7 @@ symbolic(system).equations
 The result holds one equation per [state](glossary.md#state), as Sage relations. The prey change at
 `r_growth*x_prey - a_predation*x_predators*x_prey`, and the predators at
 `b_predation*x_predators*x_prey - d_death*x_predators`. These are the equations of Lotka and Volterra, with each
-parameter named after the part that holds it.
+parameter named after the component that holds it.
 
 The kind `'solve'` solves the equations exactly where a closed form exists. The Lotka and Volterra equations have none,
 so a harmonic oscillator shows it, a particle on a spring whose acceleration is `-4 x`.
@@ -564,7 +564,7 @@ They take the `'plugin'` estimator of `dit` for symbols, `'gaussian'` for the cl
   variables are shuffled independently.
 
 A macro feature, such as the parity of several bits, may have a life of its own, predicting its own future beyond what
-the parts predict.
+the bits predict.
 
 ```python continuation
 from skcomplex.core.analysis import emergence, epsilon_machine
@@ -941,7 +941,7 @@ from a network snapshot or from chosen `frames` of a trajectory.
 import numpy as np
 
 from skcomplex.core.analysis import autocatalytic_sets
-from skcomplex.core.specs import NetworkSnapshotSpec
+from skcomplex.core.engine.problems import NetworkSnapshotSpec
 
 reactions = np.array([[0, 1, 2], [2, 0, 3], [3, 1, 4]])
 snapshot = NetworkSnapshotSpec(np.arange(5), np.array([3, 4, 0]), np.array([2, 3, 4]), np.arange(3), reactions)

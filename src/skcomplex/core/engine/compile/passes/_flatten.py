@@ -1,4 +1,4 @@
-"""Flatten the system tree into the nodes of its parts."""
+"""Flatten the system tree into the nodes of its components."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,14 +9,13 @@ import re
 import numpy as np
 
 from ....components.elements import DeclaredElement, Element, GroupElement
-from ....components.interactions import BaseInteraction
+from ....components.interactions import BaseInteraction, WienerProcessSpec
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace
-from ....components.specs import NodeSpec
 from ....components.systems import CompositeSystem
+from ....enums import VariableKind
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
-from ....specs import WienerProcessSpec
-from ....types import VariableKind
 from ..._utils import declarations_of, probe_laws
+from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
 from .._laws import AGENT_LAWS
 
@@ -117,15 +116,19 @@ class FlattenPass(BasePass):
                 raise ValidationError(error_msg)
 
     @staticmethod
-    def _prepare_part(part: Element | GroupElement | BaseInteraction, place: BaseSpace | None, scope: str) -> None:
+    def _prepare_component(
+        component: Element | GroupElement | BaseInteraction,
+        place: BaseSpace | None,
+        scope: str,
+    ) -> None:
         """Prepare an element, group, or interaction on its place, checking its arguments.
 
-        Its error is raised with the path of the part.
+        Its error is raised with the path of the component.
         """
         try:
-            part.prepare(place)
+            component._prepare_on(place)
         except SkcomplexError as error:
-            error_msg = f'{scope}{part.label}: {error}'
+            error_msg = f'{scope}{component.label}: {error}'
             raise type(error)(error_msg) from error
 
     @staticmethod
@@ -181,7 +184,7 @@ class FlattenPass(BasePass):
     def _check_children(system: CompositeSystem, scope: str, places: dict[int, BaseSpace | None]) -> None:
         """Raise an error for a child of the wrong type or a duplicated label.
 
-        Every element and interaction is prepared on its place, by the identity of the part, which checks it.
+        Every element and interaction is prepared on its place, by the identity of the component, which checks it.
         """
         children: list[tuple[Element | GroupElement | BaseInteraction | CompositeSystem, type | tuple[type, ...]]] = [
             *((element, (Element, GroupElement)) for element in system.elements),
@@ -198,7 +201,7 @@ class FlattenPass(BasePass):
                 raise ValidationError(error_msg)
             FlattenPass._check_label(child.label, scope)
             if not isinstance(child, CompositeSystem):
-                FlattenPass._prepare_part(child, places.get(id(child)), scope)
+                FlattenPass._prepare_component(child, places.get(id(child)), scope)
             if isinstance(child, GroupElement):
                 FlattenPass._check_group(child, scope)
             if child.label in labels:
@@ -303,7 +306,7 @@ class FlattenPass(BasePass):
         scope: str,
         space: BaseSpace | None,
         seen: list[BaseSpace] | None = None,
-    ) -> list[NodeSpec]:
+    ) -> list[_NodeSpec]:
         """Return the nodes of a system tree in tree order."""
         if not isinstance(system, CompositeSystem):
             error_msg = f'{system!r} is not an instance of CompositeSystem.'
@@ -323,18 +326,18 @@ class FlattenPass(BasePass):
             sized, active = FlattenPass._copy_with_capacity(FlattenPass._get_sized(element, space), place)
             if isinstance(sized, GroupElement):
                 path, members = f'{scope}{element.label}', sized.size_
-                node = NodeSpec(path, scope, sized, place, sized.get_declaring_part(), members, active=active)
+                node = _NodeSpec(path, scope, sized, place, sized.get_declaring_element(), members, active=active)
             else:
                 declaring = sized if isinstance(sized, DeclaredElement) else type(sized)
-                node = NodeSpec(f'{scope}{element.label}', scope, sized, place, declaring)
+                node = _NodeSpec(f'{scope}{element.label}', scope, sized, place, declaring)
             nodes.append(node)
         nodes += [
-            NodeSpec(
+            _NodeSpec(
                 f'{scope}{interaction.label}',
                 scope,
                 interaction,
                 space,
-                type(interaction),
+                interaction if interaction._get_declared() else type(interaction),
                 interaction=True,
             )
             for interaction in system.interactions
@@ -344,7 +347,7 @@ class FlattenPass(BasePass):
         return nodes
 
     @staticmethod
-    def _flatten_system(system: CompositeSystem, scope: str = '', space: BaseSpace | None = None) -> list[NodeSpec]:
+    def _flatten_system(system: CompositeSystem, scope: str = '', space: BaseSpace | None = None) -> list[_NodeSpec]:
         """Return the elements and interactions of a system tree with their paths.
 
         Args:

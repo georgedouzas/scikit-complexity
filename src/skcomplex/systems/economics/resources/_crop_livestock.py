@@ -11,8 +11,9 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression, floor, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.laws.utils import lag, where
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -115,7 +116,7 @@ class CropLivestockHouseholdSystem(DynamicalSystem):
     until = 12
     observables = tuple(
         [
-            ObservableSpec(name, function, element='household')
+            Observable(name, function, element='household')
             for name, function in (
                 ('crop_production', _get_crop_production),
                 ('income_from_crop', _get_income_from_crop),

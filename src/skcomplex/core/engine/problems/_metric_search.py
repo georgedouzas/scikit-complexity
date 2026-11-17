@@ -10,15 +10,13 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import Delaunay, QhullError, cKDTree
 
-from ...components.spaces import (
-    DelaunayNeighborhood,
-    NearestNeighborhood,
-    RadiusNeighborhood,
-)
-from ...specs import DirectionSpec, EntrySpec, RunStateSpec
+from ...components.spaces import DelaunayNeighborhood, NearestNeighborhood, RadiusNeighborhood
+from ...specs import EntrySpec
 from ...types import Array, Indices
 from ..types import EdgesFound, Pairs
 from ._base import BaseSearch
+from ._direction_spec import _DirectionSpec
+from ._run_state_spec import RunStateSpec
 
 
 class MetricSearch(BaseSearch):
@@ -53,7 +51,7 @@ class MetricSearch(BaseSearch):
         neighbourhood: RadiusNeighborhood | NearestNeighborhood | DelaunayNeighborhood,
         positions: EntrySpec,
         periods: tuple[float, ...] | None = None,
-        direction: DirectionSpec | None = None,
+        direction: _DirectionSpec | None = None,
     ) -> None:
         self.neighbourhood = neighbourhood
         self.positions = positions

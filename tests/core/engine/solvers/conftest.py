@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 HORIZON = 1.0
 
@@ -27,12 +27,11 @@ class IntegratorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         u: Annotated[float, ParameterSpec(adaptive=True, bounds=(-10, 10))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.u = u
 
@@ -47,14 +46,13 @@ class FisheryElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         effort: Annotated[float, ParameterSpec(adaptive=True, bounds=(0, 1))] = 0.0,
         cost: Annotated[float, ParameterSpec()] = 0.2,
         discount: Annotated[float, ParameterSpec()] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.effort = effort
         self.cost = cost

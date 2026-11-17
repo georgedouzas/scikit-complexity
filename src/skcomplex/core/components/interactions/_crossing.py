@@ -9,10 +9,10 @@ from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import RoleSpec
-from ...types import ElementKind
-from ..laws import BaseLaw, CrossingLaw
+from ..laws import BaseLaw, EventLaw
 from ..spaces import BaseSpace
 from ._interaction import Interaction
 
@@ -35,7 +35,7 @@ class CrossingInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'bounce'`.
+            The name of the interaction, unique among the components of its system, such as `'bounce'`.
 
         target:
             The path of the element or group whose states the guard reads and the event sets.
@@ -81,7 +81,7 @@ class CrossingInteraction(Interaction):
         [1.0, 2.0]
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CrossingLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (EventLaw,)
 
     def __init__(
         self,
@@ -100,7 +100,7 @@ class CrossingInteraction(Interaction):
         self.direction = direction
         self.terminal = terminal
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an invalid direction, guard, or new value.
 
         Args:
@@ -143,7 +143,7 @@ class CrossingInteraction(Interaction):
             for name, f in (self.reset or {}).items()
         }
         return [
-            CrossingLaw(
+            EventLaw(
                 self._get_law_value(self.guard(namespace)),
                 reset or None,
                 self.direction,

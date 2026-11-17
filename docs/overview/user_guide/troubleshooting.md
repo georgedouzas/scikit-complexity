@@ -6,7 +6,7 @@ means, and the fix. Search the page for the name of the error a run raised. Each
 [ValidationError](#validationerror).
 
 `simulate` checks a whole system before it compiles and raises one error that lists every problem it found. Each line
-of that message names the path of the part, the problem, a fix, and a short code in brackets, such as `[role]`. The
+of that message names the path of the component, the problem, a fix, and a short code in brackets, such as `[role]`. The
 error takes the class of its problems when they share one, and is a `ValidationError` when they differ.
 
 Each section runs on its own. Most use a population of hares that grows at the rate 0.55 a year, or the hare and
@@ -38,7 +38,7 @@ the error. A few checks keep the errors of Python and scikit-learn, such as the 
 
 ## NotPreparedError
 
-A part runs only after `prepare` has checked it. A law run on its own before it is prepared raises this error.
+A component runs only after `prepare` has checked it. A law run on its own before it is prepared raises this error.
 
 ```python
 from sage.all__sagemath_symbolics import var
@@ -55,12 +55,12 @@ message, RateLaw(x, 0.5 * x).prepare('growth').run({'x': 10.0}).value_
 ```
 
 The message reads "RateLaw must be prepared before it runs. Call `prepare(...)` first." The fix calls `prepare` first,
-and the rate at `x = 10` is then 5.0. `simulate` prepares every part of a system itself, so a run never meets this
+and the rate at `x = 10` is then 5.0. `simulate` prepares every component of a system itself, so a run never meets this
 error.
 
 ## ValidationError
 
-A value that breaks a rule of its part or of the run raises a `ValidationError`, the parent of most errors below.
+A value that breaks a rule of its component or of the run raises a `ValidationError`, the parent of most errors below.
 Here the initial state names the hares by the label of the build tutorial, while the catalog class calls them `prey`.
 
 ```python
@@ -135,15 +135,15 @@ message.splitlines()[-1]
 ```
 
 The code is `algebraic-law`. The message says that the `RateLaw` of `level` targets the algebraic state `level.x`, and
-suggests an `EquationLaw` for its value or a state of order 1. The fix below states the value with an equation.
+suggests an `ConstraintLaw` for its value or a state of order 1. The fix below states the value with an equation.
 
 ```python continuation
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 
 
 class FixedLevelElement(LevelElement):
     def _get_laws(self, namespace):
-        return [EquationLaw(namespace.x, 2.0)]
+        return [ConstraintLaw(namespace.x, 2.0)]
 
 
 simulate(CompositeSystem(elements=[FixedLevelElement('level')]), until=1, dt=1.0).get_values('level.x').tolist()
@@ -163,7 +163,7 @@ import numpy as np
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.errors import ConservationError
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
@@ -174,7 +174,7 @@ def get_constant(t, values):
     return 0.024 * prey - 0.80 * np.log(prey) + 0.028 * predators - 0.55 * np.log(predators)
 
 
-constant = ObservableSpec('constant', function=get_constant)
+constant = Observable('constant', function=get_constant)
 try:
     simulate(
         system, until=20, dt=1.0, solver=EulerSolver(dt=0.1), observables=[constant], invariants={'constant': 1e-3}
@@ -271,8 +271,7 @@ A rewriting system grows a word at every generation, and `max_size` bounds its l
 replace `A` by `AB` and `B` by `A`.
 
 ```python
-from skcomplex.core.components.elements import WordElement
-from skcomplex.core.components.laws import ProductionLaw
+from skcomplex.systems.general.rewriting import ProductionLaw, WordElement
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RewritingError
@@ -299,7 +298,7 @@ the sizes run through the Fibonacci numbers 1, 2, 3, 5, 8, and 13.
 ## ParameterError
 
 A parameter name that the problem does not hold, or a value outside its domain, raises this error. A schedule names
-the parameters of the built parts by their path.
+the parameters of the built components by their path.
 
 ```python
 from skcomplex.core.engine.runtime import simulate
@@ -316,12 +315,12 @@ message
 
 The message lists the valid names, `growth.r`, `predation.a`, `predation.b`, and `death.d`. The fix is
 `schedule={'predation.a': lambda t: 0.0}`. `get_params` of a system lists its model parameters, and `names` of a
-trajectory lists the paths of the built parts.
+trajectory lists the paths of the built components.
 
 ## LabelError
 
-Every part of a system needs a label of its own, because roles, states, and parameters are named by it. Two elements
-called `hares` collide.
+Every component of a system needs a label of its own, because roles, states, and parameters are named by it. Two
+elements called `hares` collide.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -401,9 +400,9 @@ groups only.
 
 ## TagError
 
-The tags of a part say what it needs, such as continuous or discrete time. Parts that disagree on a tag, or a solver
-that does not support the tags of a system, raise this error. Here a rate in continuous time meets a map in discrete
-time.
+The tags of a component say what it needs, such as continuous or discrete time. Components that disagree on a tag, or a
+solver that does not support the tags of a system, raise this error. Here a rate in continuous time meets a map in
+discrete time.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
@@ -424,13 +423,13 @@ except TagError as error:
 message
 ```
 
-The message says that `births` has the time continuous and `deaths` the time discrete. The fix writes both parts in
+The message says that `births` has the time continuous and `deaths` the time discrete. The fix writes both components in
 one time, or splits the system into nested systems that run as partitions, as the tutorial
-[Simulate](simulate.md#co-simulation) shows. `get_tags` of each part shows where a tag comes from.
+[Simulate](simulate.md#co-simulation) shows. `get_tags` of each component shows where a tag comes from.
 
 ## SpaceError
 
-A part that needs a space, a vector state without a space to give its dimension, or a location outside its space
+A component that needs a space, a vector state without a space to give its dimension, or a location outside its space
 raises this error. Here a group sits on sites but has neither a size nor a space.
 
 ```python
@@ -479,7 +478,7 @@ is the product of all of them. `limit` guards the memory.
 ```python
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.errors import PhaseSpaceTooLargeError
-from skcomplex.core.specs import AxisSpec
+from skcomplex.core.components.spaces import AxisSpec
 
 try:
     PhaseSpace(LatticeSpace((100, 100)), [AxisSpec('v', 64, -4.0, 4.0)], limit=100_000).prepare()
@@ -554,10 +553,10 @@ except IncompatibleLawsError as error:
 message.splitlines()[-1]
 ```
 
-The message says that the `RateLaw` of births holds the random draw `normal_kick(0.55, 0.1)`. It suggests noise laws
-for Wiener processes, jump laws for random events, or renewal laws in continuous time. A nested system whose own parts
-mix law kinds raises the same error with the code `laws-mixed`, and the fix moves each kind into a nested system of
-its own.
+The message says that the `RateLaw` of births holds the random draw `normal_kick(0.55, 0.1)`. It suggests noise laws for
+Wiener processes, jump laws for random events, or renewal laws in continuous time. A nested system whose own components
+mix law kinds raises the same error with the code `laws-mixed`, and the fix moves each kind into a nested system of its
+own.
 
 ## BackendError
 
@@ -580,7 +579,7 @@ message
 
 The message lists what the LAMMPS backend cannot run, such as the element `prey`, which declares no vector position
 state of order 2. The fix leaves out `solver` and `backend`, so the tags choose a pair that runs the laws, or picks
-one from the [solvers page](../../parts/solvers.md) and the [backends page](../../parts/backends.md).
+one from the [solvers page](../../components/solvers.md) and the [backends page](../../components/backends.md).
 
 ## PipelineError
 
@@ -625,7 +624,8 @@ from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import InfeasibleError
-from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import LinearObjectiveSpec
 
 Output = Annotated[float, StateSpec(algebraic=True)]
 Demand = Annotated[float, ParameterSpec()]
@@ -697,7 +697,7 @@ from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import CapacityError
-from skcomplex.core.specs import TopologyRequestSpec
+from skcomplex.core.components.laws import TopologyRequestSpec
 
 
 class GrowthElement(Element):

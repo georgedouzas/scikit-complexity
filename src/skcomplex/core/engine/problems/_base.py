@@ -7,7 +7,7 @@ import numpy as np
 
 from ...base import BaseConfig
 from ...errors import ValidationError
-from ...specs import RunStateSpec
+from ._run_state_spec import RunStateSpec
 
 
 class BaseKernel(BaseConfig[object, RunStateSpec]):
@@ -29,7 +29,7 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.problems import BaseKernel
-        >>> from skcomplex.core.specs import RunStateSpec
+        >>> from skcomplex.core.engine.problems import RunStateSpec
         >>> class DecayKernel(BaseKernel):
         ...     def __init__(self, rate=1.0):
         ...         self.rate = rate

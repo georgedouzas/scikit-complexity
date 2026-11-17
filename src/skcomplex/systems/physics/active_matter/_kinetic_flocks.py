@@ -16,10 +16,10 @@ from sage.all__sagemath_symbolics import Expression, cos, sin
 
 from ....core.components.elements import FieldElement
 from ....core.components.laws.utils import coordinate
-from ....core.components.spaces import LatticeSpace, PhaseSpace
+from ....core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import AxisSpec, RoleSpec
+from ....core.specs import RoleSpec
 from ...general.kinetics import EncounterInteraction
 from ..common.fields import AdvectionInteraction, PhaseSpaceDensityElement
 
@@ -37,7 +37,7 @@ class AngularAlignmentInteraction(EncounterInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         candidate:
             The path of the field on a phase space with a periodic orientation axis.
@@ -132,7 +132,7 @@ class AngularDiffusionInteraction(EncounterInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         candidate:
             The path of the field on a phase space with a periodic orientation axis.

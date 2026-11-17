@@ -22,15 +22,16 @@ from skcomplex.core.components.laws.utils import (
     laplacian,
     shifted,
 )
-from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace, PhaseSpace
+from skcomplex.core.components.spaces import AxisSpec, CellComplexSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.problems._collision_kernel import CollisionKernel
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ParameterSpec, RunStateSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class HeatElement(Element):
@@ -39,12 +40,11 @@ class HeatElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 0.0,
         D: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.D = D
 
@@ -59,12 +59,11 @@ class DecayElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 2.0,
         k: Annotated[object, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
         self.k = k
 
@@ -79,11 +78,10 @@ class DriftElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
 
     def _get_laws(self, s):
@@ -97,11 +95,10 @@ class SpreadElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
 
     def _get_laws(self, s):
@@ -251,11 +248,10 @@ class MarkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         seen: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.seen = seen
 
     def _get_laws(self, s):
@@ -277,11 +273,10 @@ def test_agents_read_and_deposit_fields():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             u: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.u = u
 
         def _get_laws(self, s):
@@ -314,11 +309,10 @@ class GrowthElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
 
     def _get_laws(self, s):
@@ -358,14 +352,13 @@ def _operator_element(law):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             u: Annotated[object, StateSpec()] = 0.0,
             v: Annotated[object, StateSpec()] = 0.0,
             k: Annotated[object, ParameterSpec()] = 1.0,
             w: Annotated[object, ParameterSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.u = u
             self.v = v
             self.k = k
@@ -466,7 +459,7 @@ def test_inverse_helmholtz_converges_on_an_l_shaped_mesh():
         solution = np.sin(np.pi * mesh.p[0]) * np.sin(np.pi * mesh.p[1])
         rate = _rate(
             lambda s: inverse_helmholtz(s.u, 1),
-            MeshSpace(mesh.p, mesh.t),
+            CellComplexSpace(points=mesh.p, cells=mesh.t),
             {'u': -(2 * np.pi**2 + 1) * solution},
             discretization='finite-element',
             boundary={'u': ('fixed', 0.0)},
@@ -735,12 +728,11 @@ def _colliding_gas(kernel):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 0.0,
             nu: Annotated[object, ParameterSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.nu = nu
 

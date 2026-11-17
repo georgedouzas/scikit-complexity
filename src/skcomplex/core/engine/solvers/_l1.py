@@ -42,7 +42,7 @@ class L1Solver(ConvolutionSolver):
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import L1Solver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> class RelaxingElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec(order=0.5)] = 1.0):
         ...         super().__init__(label)

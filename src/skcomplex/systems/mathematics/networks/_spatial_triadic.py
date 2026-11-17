@@ -15,13 +15,15 @@ from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction, Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 CHUNK = 500
 ACTIVITY_VISUAL = VisualSpec('sites', {'states': ['active'], 'low': 0.0, 'high': 1.0})
@@ -36,9 +38,6 @@ class PercolatingNodeElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         active:
             1 when the node is in the giant component of the active links, and 0 otherwise.
 
@@ -48,14 +47,15 @@ class PercolatingNodeElement(Element):
         1.0
     """
 
+    visual = ACTIVITY_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = ACTIVITY_VISUAL,
         *,
         active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.active = active
 
 
@@ -67,9 +67,6 @@ class SignedLinkElement(Element):
     Args:
         label:
             The label of the link group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         active:
             1 when the link is active, and 0 otherwise.
@@ -91,13 +88,12 @@ class SignedLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
         negatives: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0,
         positives: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.active = active
         self.negatives = negatives
         self.positives = positives
@@ -117,7 +113,7 @@ class SignedRegulationInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         nodes:
             The path of the group on the nodes, whose activity the regulators read.
@@ -178,7 +174,7 @@ class PercolationInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         nodes:
             The path of the group on the nodes, whose activity the interaction sets.
@@ -283,7 +279,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
     references = ('Millán, Sun, Torres, and Bianconi 2023', 'Waxman 1988')
     until = 100
     dt = 1
-    observables = (ObservableSpec('giant', group='nodes', variable='active'),)
+    observables = (Observable('giant', group='nodes', variable='active'),)
 
     def __init__(
         self,
@@ -378,7 +374,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         return hyperedges, np.asarray(negatives), np.asarray(positives)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = self._get_waxman_torus(
             round(self.density * self.side**2),

@@ -14,14 +14,16 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.agents import ChoiceInteraction, MovementInteraction
 from ..common.learning import PayoffLearningInteraction
 
@@ -52,9 +54,6 @@ class CustomerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         s1:
             The satisfaction with the first shop.
 
@@ -80,7 +79,6 @@ class CustomerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         s1: Annotated[float, StateSpec()] = 0.5,
         s2: Annotated[float, StateSpec()] = 0.5,
@@ -88,7 +86,7 @@ class CustomerElement(Element):
         freshness: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 1.0,
         T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.s1 = s1
         self.s2 = s2
         self.shop = shop
@@ -198,9 +196,6 @@ class ProductElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         shelved:
             The time at which the product was put on the shelf.
 
@@ -217,12 +212,11 @@ class ProductElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         shelved: Annotated[float, StateSpec()] = 0.0,
         tau_a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.shelved = shelved
         self.tau_a = tau_a
 
@@ -324,7 +318,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
     topics = ('agents', 'discrete choice', 'symmetry breaking', 'phase transition', 'retail')
     references = ('Bertin 2021', 'Bouchaud 2013')
     until = 300
-    observables = (ObservableSpec('m', group='customers', expression=CustomerElement.get_preference),)
+    observables = (Observable('m', group='customers', expression=CustomerElement.get_preference),)
 
     def __init__(
         self,
@@ -346,7 +340,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         shelf = max(round(self.stock * self.customers), 1)
         satisfaction = 0.5 + 0.01 * rng.standard_normal((N_SHOPS, self.customers))

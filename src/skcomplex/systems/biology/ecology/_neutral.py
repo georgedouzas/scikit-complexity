@@ -12,7 +12,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import JumpInteraction
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.kinetics import CompartmentElement
 
 
@@ -27,9 +27,6 @@ class NeutralSpeciesElement(CompartmentElement):
     Args:
         label:
             The label of the species or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial number of individuals.
@@ -56,7 +53,6 @@ class NeutralSpeciesElement(CompartmentElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=NN)] = 10.0,
         b0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -64,7 +60,7 @@ class NeutralSpeciesElement(CompartmentElement):
         d0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x)
         self.b0 = b0
         self.b1 = b1
         self.d0 = d0
@@ -134,7 +130,7 @@ class NeutralMacroecologySystem(BaseSystem):
         self.d1 = d1
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of many species under neutral birth."""
+        """Return the components of many species under neutral birth."""
         return CompositeSystem(
             self.label,
             elements=[

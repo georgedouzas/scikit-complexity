@@ -8,21 +8,17 @@ from collections.abc import Callable, Mapping
 import numpy as np
 import numpy.typing as npt
 
-from ...components.laws import JumpLaw, UpdateLaw
+from ...components.laws import EDGE_KINDS, JumpLaw, TopologyRequestSpec, UpdateLaw
 from ...errors import ValidationError
-from ...specs import (
-    EDGE_KINDS,
-    CapacityRowsSpec,
-    EntrySpec,
-    NetworkRowsSpec,
-    NetworkSnapshotSpec,
-    RunStateSpec,
-    TopologyRequestSpec,
-)
+from ...specs import EntrySpec
 from ...types import Array, Indices, Pair
 from ._base import BaseKernel
+from ._capacity_rows_spec import _CapacityRowsSpec
 from ._compiled_request_spec import CompiledRequestSpec
+from ._network_rows_spec import _NetworkRowsSpec
+from ._network_snapshot_spec import NetworkSnapshotSpec
 from ._reduction_schedule_spec import ReductionScheduleSpec
+from ._run_state_spec import RunStateSpec
 
 NO_REDUCTIONS = ReductionScheduleSpec()
 MIN_EDGE_HYPEREDGE = 2
@@ -70,7 +66,7 @@ class TopologyKernel(BaseKernel):
 
     def __init__(
         self,
-        networks: tuple[NetworkRowsSpec, ...],
+        networks: tuple[_NetworkRowsSpec, ...],
         requests: tuple[CompiledRequestSpec, ...] = (),
         channels: Mapping[int, CompiledRequestSpec] | None = None,
         reductions: ReductionScheduleSpec = NO_REDUCTIONS,
@@ -608,7 +604,7 @@ class TopologyKernel(BaseKernel):
                 return
 
     @staticmethod
-    def _get_adjacent(network: NetworkRowsSpec, layer: str | None, node: int, p: Array) -> Indices:
+    def _get_adjacent(network: _NetworkRowsSpec, layer: str | None, node: int, p: Array) -> Indices:
         """Return the node rows joined to a node in a layer in either direction."""
         edges = network.edges[layer]
         sources, targets = edges.get_ends(p)
@@ -957,7 +953,7 @@ class TopologyKernel(BaseKernel):
         return {name: value(rng) if callable(value) else value for name, value in request.values}
 
     @staticmethod
-    def _get_row_values(group: CapacityRowsSpec, row: int, x: Array, p: Array) -> dict[str, Array]:
+    def _get_row_values(group: _CapacityRowsSpec, row: int, x: Array, p: Array) -> dict[str, Array]:
         """Return the values of the member in a row of a group by dotted name."""
         values = {}
         for entry, is_state in group.variables.values():
@@ -966,7 +962,7 @@ class TopologyKernel(BaseKernel):
         return values
 
     @staticmethod
-    def _get_new_values(group: CapacityRowsSpec, values: Mapping[str, object]) -> dict[str, Array]:
+    def _get_new_values(group: _CapacityRowsSpec, values: Mapping[str, object]) -> dict[str, Array]:
         """Return the values a new member of a group would take by dotted name.
 
         They are the given values or the defaults.
@@ -977,7 +973,7 @@ class TopologyKernel(BaseKernel):
         }
 
     @staticmethod
-    def _write(group: CapacityRowsSpec, row: int, x: Array, p: Array, values: Mapping[str, object]) -> None:
+    def _write(group: _CapacityRowsSpec, row: int, x: Array, p: Array, values: Mapping[str, object]) -> None:
         """Start a member in a row and mark the row present.
 
         The member takes the given values or the defaults.
@@ -1006,7 +1002,7 @@ class TopologyKernel(BaseKernel):
         p[group.active.start + row] = 1.0
 
     @staticmethod
-    def _clear(group: CapacityRowsSpec, row: int, p: Array) -> None:
+    def _clear(group: _CapacityRowsSpec, row: int, p: Array) -> None:
         """Mark a row free.
 
         Args:
@@ -1021,7 +1017,7 @@ class TopologyKernel(BaseKernel):
         """
         p[group.active.start + row] = 0.0
 
-    def _add_node(self, network: NetworkRowsSpec, x: Array, p: Array, values: Mapping[str, object]) -> int:
+    def _add_node(self, network: _NetworkRowsSpec, x: Array, p: Array, values: Mapping[str, object]) -> int:
         """Add a node in the first free node row of every group on the nodes.
 
         Args:
@@ -1048,7 +1044,7 @@ class TopologyKernel(BaseKernel):
 
     def _add_edge(
         self,
-        network: NetworkRowsSpec,
+        network: _NetworkRowsSpec,
         layer: str | None,
         ends: Pair,
         x: Array,
@@ -1084,7 +1080,7 @@ class TopologyKernel(BaseKernel):
         self._set_ends(edges, row, (first, second), p)
 
     @staticmethod
-    def _set_ends(edges: CapacityRowsSpec, row: int, ends: Pair, p: Array) -> None:
+    def _set_ends(edges: _CapacityRowsSpec, row: int, ends: Pair, p: Array) -> None:
         """Write the source and target node of an edge row into the parameter vector.
 
         Args:
@@ -1109,7 +1105,7 @@ class TopologyKernel(BaseKernel):
             raise ValidationError(error_msg)
         p[edges.source.start + row], p[edges.target.start + row] = ends
 
-    def _remove_node(self, network: NetworkRowsSpec, row: int, p: Array) -> None:
+    def _remove_node(self, network: _NetworkRowsSpec, row: int, p: Array) -> None:
         """Remove a node with every edge that joins it and every hyperedge that holds it.
 
         Args:

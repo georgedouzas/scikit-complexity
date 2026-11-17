@@ -8,12 +8,13 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TransferInteraction
-from skcomplex.core.components.laws import Sink, Source
+from skcomplex.core.components.laws import PartnerSpec, Sink, Source
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import PartnerSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.general.agents import BirthDeathInteraction
 
 
@@ -23,11 +24,10 @@ class ResourceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         resource: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.resource = resource
 
 
@@ -37,12 +37,11 @@ class ReserveElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         reserve: Annotated[float, StateSpec()] = 0.0,
         trait: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.reserve = reserve
         self.trait = trait
 

@@ -10,10 +10,12 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import RR, SR, Expression, I
 
 from ...base import BaseConfig
+from ...components.laws._reduction_spec import _ReductionSpec
 from ...components.laws.utils._reductions import reductions_in
 from ...errors import RoleError, ValidationError
-from ...specs import EntrySpec, ReadSpec, ReductionSpec
+from ...specs import EntrySpec
 from .._utils import symbol, symbols_of
+from ..problems._read_spec import _ReadSpec
 from ..problems._reduction_kernel import ReductionKernel
 
 
@@ -54,7 +56,7 @@ class _MemberReductions(BaseConfig[None, object]):
             The expression the last run lowered, with placeholders, or the value it ran on when not an expression.
     """
 
-    reads_: dict[Expression, ReadSpec]
+    reads_: dict[Expression, _ReadSpec]
     found_: dict[str, ReductionKernel]
     expression_: object
 
@@ -64,7 +66,7 @@ class _MemberReductions(BaseConfig[None, object]):
         path: str,
         group: str,
         size: int,
-        reads: Mapping[Expression, ReadSpec],
+        reads: Mapping[Expression, _ReadSpec],
         time: Expression,
         parameters: int,
     ) -> None:
@@ -117,7 +119,7 @@ class _MemberReductions(BaseConfig[None, object]):
         """Size of the parameter vector extended by the values of the reductions."""
         return max((item.entry.start + item.entry.size for item in self.found_.values()), default=self.parameters)
 
-    def _check_over(self, reduction: ReductionSpec) -> None:
+    def _check_over(self, reduction: _ReductionSpec) -> None:
         """Raise an error for a reduction over another group than the observable's."""
         read = self.reads_.get(reduction.over) if reduction.over is not None else None
         if reduction.over is None or (read is not None and read.per_member):
@@ -129,7 +131,7 @@ class _MemberReductions(BaseConfig[None, object]):
         )
         raise RoleError(error_msg)
 
-    def _read(self, item: Expression) -> ReadSpec:
+    def _read(self, item: Expression) -> _ReadSpec:
         """Return how the reduction pass reads one symbol of a reduction."""
         if item not in self.reads_:
             error_msg = (
@@ -140,7 +142,7 @@ class _MemberReductions(BaseConfig[None, object]):
             raise ValidationError(error_msg)
         return self.reads_[item]
 
-    def _get_weights(self, reduction: ReductionSpec) -> scipy.sparse.csr_array | None:
+    def _get_weights(self, reduction: _ReductionSpec) -> scipy.sparse.csr_array | None:
         """Return the weights of a reduction as a CSR array after checking their shape."""
         if reduction.weights is None:
             return None
@@ -161,7 +163,7 @@ class _MemberReductions(BaseConfig[None, object]):
             raise ValidationError(error_msg)
         return scipy.sparse.csr_array(source, dtype=float)
 
-    def _get_placeholder(self, reduction: ReductionSpec) -> Expression:
+    def _get_placeholder(self, reduction: _ReductionSpec) -> Expression:
         """Return the placeholder of a reduction, compiling it the first time it is found."""
         key = str(reduction.call)
         if key in self.found_:
@@ -196,5 +198,5 @@ class _MemberReductions(BaseConfig[None, object]):
             time=self.time,
         ).prepare()
         indices = entry.start + np.arange(self.size) if weights is not None else entry.start
-        self.reads_[placeholder] = ReadSpec(False, indices, entry)
+        self.reads_[placeholder] = _ReadSpec(False, indices, entry)
         return placeholder

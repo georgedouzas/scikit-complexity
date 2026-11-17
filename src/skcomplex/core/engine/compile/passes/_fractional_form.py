@@ -6,16 +6,18 @@
 from __future__ import annotations
 
 from ....components.spaces import ContinuousTime
-from ....components.specs import CensusRecordSpec, NodeSpec
 from ....components.systems import CompositeSystem
+from ....enums import FormKind, OrderKind, VariableKind
 from ....errors import BackendError, SolverError
-from ....specs import FractionalStateSpec, IssueSpec
-from ....types import FormKind, OrderKind, VariableKind
 from ..._utils import declarations_of
 from ...backends import BaseBackend
+from ...problems._node_spec import _NodeSpec
 from .._base import BaseCompiler, BasePass
+from .._census_record_spec import _CensusRecordSpec
 from .._compilation import Compilation
 from .._forms import FORMS
+from .._fractional_state_spec import _FractionalStateSpec
+from .._issue_spec import IssueSpec
 
 
 class FractionalFormPass(BasePass):
@@ -70,7 +72,7 @@ class FractionalFormPass(BasePass):
         return times
 
     @staticmethod
-    def _get_fractional_states(nodes: list[NodeSpec]) -> list[FractionalStateSpec]:
+    def _get_fractional_states(nodes: list[_NodeSpec]) -> list[_FractionalStateSpec]:
         """Return every state of a fractional order of the elements and groups of a system.
 
         Args:
@@ -87,11 +89,11 @@ class FractionalFormPass(BasePass):
                 continue
             for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
                 if declaration.is_fractional:
-                    found.append(FractionalStateSpec(node.path, f'{node.path}.{name}', declaration.order))
+                    found.append(_FractionalStateSpec(node.path, f'{node.path}.{name}', declaration.order))
         return found
 
     @staticmethod
-    def _get_owned_fractional(compilation: Compilation) -> list[FractionalStateSpec]:
+    def _get_owned_fractional(compilation: Compilation) -> list[_FractionalStateSpec]:
         """Return the fractional states of the owners that the layout declares.
 
         Agents are left out.
@@ -106,7 +108,7 @@ class FractionalFormPass(BasePass):
 
     @staticmethod
     def _support_issues(
-        states: list[FractionalStateSpec],
+        states: list[_FractionalStateSpec],
         solver: object,
         backend: BaseBackend | None,
     ) -> list[IssueSpec]:
@@ -128,7 +130,7 @@ class FractionalFormPass(BasePass):
         return issues
 
     @staticmethod
-    def _get_law_issues(states: list[FractionalStateSpec], records: list[CensusRecordSpec]) -> list[IssueSpec]:
+    def _get_law_issues(states: list[_FractionalStateSpec], records: list[_CensusRecordSpec]) -> list[IssueSpec]:
         """Return the laws on fractional states that take the problem off its forms.
 
         The class of the law takes the problem off the ODE and fractional forms.

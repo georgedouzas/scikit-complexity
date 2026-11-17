@@ -25,7 +25,9 @@ from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DatasetSpec, ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import DatasetSpec
+from skcomplex.core.components import Observable
 
 
 class DecayElement(Element):
@@ -56,7 +58,7 @@ training = TrainingInteraction(
     'fit',
     system='decay',
     trained=['unit.a'],
-    loss=ObservableSpec('error', squared_error),
+    loss=Observable('error', squared_error),
     data=DatasetSpec({'unit.observed': series[np.newaxis]}),
     learning_rate=0.05,
     batch_size=1,
@@ -67,25 +69,24 @@ round(float(trajectory.get_values('decay/unit.a')[-1]), 3), bool(trajectory.get_
 ```
 
 The trained rate is 0.8, the rate of the data, and the loss of the last epoch is below `1e-6`.
-`TrainingInteraction`, of `skcomplex.core.components.interactions`, writes this with the existing parts.
+`TrainingInteraction`, of `skcomplex.core.components.interactions`, writes this with the existing components.
 
 - The inner system is a nested system, such as `decay` above.
 - Its trained parameters are declared `ParameterSpec(adaptive=True)`.
 - The interaction binds the inner system through its role `system`.
 - The outer system runs under `DiscreteTime()`, one step per epoch.
 
-`TrainingInteraction` returns one [`GradientStepLaw`](../core_components/laws.md#gradientsteplaw), of
-`skcomplex.core.components.laws`, which differs from
-[`GradientInteraction`](../core_components/interactions.md#gradientinteraction).
+`TrainingInteraction` states no laws of its own, since `GradientDescentSolver` reads its settings, and it differs
+from [`GradientInteraction`](../core_components/general.md#gradientinteraction).
 
 - `GradientInteraction` moves the states of its target down the gradient of a potential, in the own time of the
   system, and compiles to rate laws.
-- `GradientStepLaw` takes optimizer steps on the adaptive parameters of a nested system once per epoch. It follows the
-  gradient of a loss over unrolled runs of that system, computed by automatic differentiation with JAX.
+- `TrainingInteraction` takes optimizer steps on the adaptive parameters of a nested system once per epoch. It follows
+  the gradient of a loss over unrolled runs of that system, computed by automatic differentiation with JAX.
 
-## The parts of training
+## The components of training
 
-This section describes each part of a training run and the options it takes.
+This section describes each component of a training run and the options it takes.
 
 - **The inner system.** It is an ordinary system, a discrete map or ordinary differential equations written as
   symbolic laws, so it runs, is analysed, and is visualised alone, before or after training. The trained system of a
@@ -98,12 +99,12 @@ This section describes each part of a training run and the options it takes.
   from the initial states of the system. `weights` masks steps out of the loss. It is one array for every observable,
   or a mapping from the label of the loss or of a metric to its own weights. `times` gives the inner times of an ODE
   system, `1, 2, ...` by default.
-- **The loss and the metrics.** `loss` and `metrics` are `ObservableSpec`s over the symbols of the inner system. The
+- **The loss and the metrics.** `loss` and `metrics` are `Observable`s over the symbols of the inner system. The
   loss of a batch is the weighted mean of the observable over its sequences and steps. The trajectory records the
   trained parameters under their inner paths, such as `decay/unit.a`, the mean batch loss of every epoch as
   `<interaction>/loss`, and every metric over the whole dataset as `<interaction>/<metric>`. The same observables given
   to `simulate` with the trained system record the loss in a forward run.
-- **The optimizer.** `optimizer` is one of `OPTIMIZERS`, `'sgd'`, `'momentum'`, `'rmsprop'`, and `'adam'`, run by
+- **The optimizer.** `optimizer` is one of `OptimizerKind`, `'sgd'`, `'momentum'`, `'rmsprop'`, and `'adam'`, run by
   Optax. Its hyperparameters, `learning_rate`, `momentum`, `beta1`, and `beta2`, the decay of `'rmsprop'`, are
   parameters of the interaction. So a schedule such as `{'fit.learning_rate': ...}` changes them at the next frame.
   `batch_size` sets the number of sequences of a batch, shuffled by the random stream of the run, so a seed repeats a

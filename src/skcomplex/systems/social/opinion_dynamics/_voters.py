@@ -15,11 +15,12 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction, MapInteraction
-from ....core.components.spaces import BallNeighborhood, LatticeSpace, NetworkSpace
+from ....core.components.laws import TotalisticSpec
+from ....core.components.spaces import LatticeSpace, NetworkSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TotalisticSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
 
 MAJORITY = 5
@@ -35,9 +36,6 @@ class MajorityVoterElement(Element):
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, 0 or 1.
 
@@ -50,11 +48,10 @@ class MajorityVoterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         opinion: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
 
 
@@ -81,9 +78,6 @@ class VariantVoterElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, 0 or 1.
 
@@ -102,16 +96,17 @@ class VariantVoterElement(Element):
         ('voters', 'VariantVoterElement', 10)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
         *,
         opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
         contrarian: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
         self.contrarian = contrarian
         self.threshold = threshold
@@ -143,9 +138,6 @@ class VoterElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, 0 or 1.
 
@@ -157,14 +149,15 @@ class VoterElement(Element):
         ('voters', 'VoterElement', 20)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
         *,
         opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
 
     @classmethod
@@ -333,7 +326,7 @@ class MajorityRuleSystem(BaseSystem):
         return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         values = self._get_random_cells(self.shape, self.density, self.random_state)
         return CompositeSystem(
             self.label,
@@ -352,7 +345,7 @@ class MajorityRuleSystem(BaseSystem):
                     target='voters',
                     state='opinion',
                     rule=TotalisticSpec(self._is_majority),
-                    neighborhood=BallNeighborhood(center='first'),
+                    neighborhood=RadiusNeighborhood(1, metric='chebyshev', center=True),
                 ),
             ],
         )
@@ -402,7 +395,7 @@ class VoterSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
@@ -471,7 +464,7 @@ class VoterVariantsSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph

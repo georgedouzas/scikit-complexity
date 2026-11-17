@@ -12,13 +12,13 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression
 
-from .....core.components.base import BasePart
-from .....core.components.interactions import GradientInteraction
+from .....core.components.base import BaseComponent
 from .....core.components.laws import RateLaw
 from .....core.components.laws.utils import derivative
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
+from ....general.gradients import GradientInteraction
 
 N_STATES = 2
 
@@ -75,7 +75,7 @@ class SpringDamperInteraction(GradientInteraction):
         self.stiffness = stiffness
         self.damping = damping
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for invalid states, stiffness, or damping.
 
         The states must be two names, and the stiffness and the damping names.
@@ -111,7 +111,7 @@ class SpringDamperInteraction(GradientInteraction):
         first, second = (getattr(namespace.target, name) for name in self._get_names())
         return getattr(namespace.target, self.stiffness) * (first - second) ** 2 / 2
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the rates of the spring and of the damper of both coordinates.
 
         Args:

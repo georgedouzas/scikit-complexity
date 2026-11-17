@@ -12,14 +12,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import SCHEDULES, NeighborInteraction
+from ....core.components import Tags
+from ....core.components.interactions import NeighborInteraction
 from ....core.components.laws import BaseLaw, JumpLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, neighbors, uniform, where
 from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.enums import ElementKind, ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, Tags
-from ....core.types import ElementKind
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec
 
 RULES = ('random', 'majority', 'best', 'better', 'fermi')
 FORMS = ('rate', 'probability', 'agent')
@@ -49,7 +50,7 @@ class ImitationInteraction(NeighborInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group on the nodes or sites.
@@ -160,7 +161,7 @@ class ImitationInteraction(NeighborInteraction):
 
         It also raises it for either of them not default outside the agent form.
         """
-        self._check_variant('schedule', self.schedule, SCHEDULES)
+        self._check_variant('schedule', self.schedule, ScheduleKind)
         self._check_variant('ties', self.ties, TIES)
         if self.form != 'agent' and (self.schedule != 'synchronous' or self.ties != 'first'):
             error_msg = (
@@ -169,7 +170,7 @@ class ImitationInteraction(NeighborInteraction):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for unknown rule, form, schedule, or ties, or repeated options.
 
         Args:

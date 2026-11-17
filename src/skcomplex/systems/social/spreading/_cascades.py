@@ -81,9 +81,6 @@ class ThresholdNodeElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         active:
             Whether the node starts active.
 
@@ -97,15 +94,16 @@ class ThresholdNodeElement(Element):
         ('nodes', 'ThresholdNodeElement', 10)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'active', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'active', 'color_range': (0.0, 1.0)}),
         *,
         active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         threshold: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.18,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.active = active
         self.threshold = threshold
 
@@ -167,7 +165,7 @@ class WattsCascadesSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.gnp_random_graph(200, 4 / 199, seed=int(rng.integers(2**31))) if graph is None else graph

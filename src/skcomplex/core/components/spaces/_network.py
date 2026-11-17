@@ -13,10 +13,11 @@ import scipy.sparse
 import xgi
 
 from ...errors import SpaceError, ValidationError
-from ...specs import LayerSpec, Tags
 from ...types import Indices
+from .._tags import Tags
 from ._adjacency import AdjacencyNeighborhood
 from ._base import BaseNeighborhood, BaseSpace
+from ._layer_spec import LayerSpec
 
 MIN_HYPEREDGE_NODES = 2
 
@@ -81,7 +82,7 @@ class NetworkSpace(BaseSpace):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.components.spaces import NetworkSpace
-        >>> from skcomplex.core.specs import LayerSpec
+        >>> from skcomplex.core.components.spaces import LayerSpec
         >>> NetworkSpace(nx.cycle_graph(5)).prepare().size_
         5
         >>> space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))])
@@ -164,6 +165,10 @@ class NetworkSpace(BaseSpace):
             for hyperedge in members
             if len(hyperedge) >= MIN_HYPEREDGE_NODES
         ]
+
+    def _get_lacks(self) -> frozenset[str]:
+        """Return that a network shows no image, having no grid of sites."""
+        return frozenset({'image'})
 
     def _count_parts(self, on: str, layer: str | None = None) -> int:
         """Return the number of nodes, of edges of a layer, or of hyperedges.

@@ -4,9 +4,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import SpectrumResult, spectrum
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import AnalysisError
+from skcomplex.core.errors import AnalysisError, ValidationError
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
+
+from ..engine.compile.conftest import PhaseElement
 
 
 def _spectrum(kind: str, source: object, **settings: object) -> SpectrumResult:
@@ -43,3 +46,11 @@ def test_unknown_kind_and_ignored_setting():
         spectrum(np.zeros(10), kind='unknown')
     with pytest.raises(AnalysisError, match='does not read spacing'):
         spectrum(np.zeros(10), kind='power', spacing=2.0)
+
+
+def test_power_spectrum_rejects_complex_series():
+    """Test that the power spectrum of a complex series names the real views to take first."""
+    values = simulate(CompositeSystem(elements=[PhaseElement('osc')]), until=5, dt=0.1).get_values('osc.z')
+    with pytest.raises(ValidationError, match=r'complex.*values\.real.*values\.imag.*np\.abs.*np\.angle'):
+        spectrum(values)
+    assert spectrum(values.real).power.size

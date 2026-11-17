@@ -15,12 +15,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import draw, either, where
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, RoleSpec, StateSpec
 from ....core.types import Array
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -40,15 +41,12 @@ class EnergySiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         energy:
             The initial energy.
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.criticality import EnergySiteElement
@@ -59,11 +57,10 @@ class EnergySiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         energy: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.energy = energy
 
 
@@ -78,7 +75,7 @@ class ToppleInteraction(LocalRuleInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the lattice group of sites.
@@ -98,7 +95,7 @@ class ToppleInteraction(LocalRuleInteraction):
             target=target,
             state='height',
             rule=self._get_topple,
-            neighborhood=BallNeighborhood(metric='manhattan', center='first'),
+            neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
         )
         self.threshold = threshold
 
@@ -152,7 +149,7 @@ class FixedEnergySandpileSystem(BaseSystem):
     references = ('Dickman, Vespignani, and Zapperi 1998', 'Vespignani et al. 2000', 'Gros 2015')
     until = 500
     dt = 1
-    observables = (ObservableSpec('activity', _get_active, group='pile'),)
+    observables = (Observable('activity', _get_active, group='pile'),)
 
     def __init__(
         self,
@@ -168,7 +165,7 @@ class FixedEnergySandpileSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         size = int(np.prod(self.shape))
         rng = np.random.default_rng(self.random_state)
         grains = rng.integers(size, size=round(self.density * size))

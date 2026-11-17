@@ -14,10 +14,10 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import GradientInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
+from ...general.gradients import GradientInteraction
 
 
 class ScaleFactorElement(Element):
@@ -28,9 +28,6 @@ class ScaleFactorElement(Element):
     Args:
         label:
             The label of the universe.
-
-        visual:
-            How the universe is drawn, or `None` for none.
 
         a:
             The initial scale factor.
@@ -56,7 +53,6 @@ class ScaleFactorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[float, StateSpec(domain=RealSet.open(0, oo), order=2)] = 1.0,
         a_d1: float = 0.0,
@@ -64,7 +60,7 @@ class ScaleFactorElement(Element):
         omega_matter: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         omega_lambda: Annotated[float, ParameterSpec()] = 0.7,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.a_d1 = a_d1
         self.H0 = H0

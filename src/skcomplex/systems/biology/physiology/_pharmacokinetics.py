@@ -10,7 +10,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import StateSpec
 from ...general.reactions import ReactionInteraction
 
 
@@ -24,9 +24,6 @@ class TwoCompartmentElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         Uc:
             The initial central concentration.
@@ -43,12 +40,11 @@ class TwoCompartmentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         Uc: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         Up: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.Uc = Uc
         self.Up = Up
 
@@ -109,7 +105,7 @@ class TwoCompartmentPharmacokineticsSystem(BaseSystem):
         self.k21 = k21
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         reactions = [
             ReactionInteraction(
                 'distribution',

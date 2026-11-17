@@ -15,12 +15,13 @@ from sage.all__sagemath_symbolics import Expression, cos, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
-from ....core.components.interactions import GradientInteraction, RateInteraction
+from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import mod, series, where
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, RoleSpec
+from ...general.gradients import GradientInteraction
 from ..common.particles import BrownianParticleElement, ThermalNoiseInteraction
 
 
@@ -319,7 +320,7 @@ class FlashingRatchetSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         times = np.cumsum(rng.exponential(1 / self.rate, int(2 * self.rate * self.duration) + 10))
         particles = GroupElement(

@@ -42,8 +42,8 @@ class IndividualCalibrationResult:
         >>> import pandas as pd
         >>> from skcomplex.core.experiments import IndividualCalibrationResult
         >>> table = pd.DataFrame({'r': [0.5, 0.7]}, index=pd.Index(['a', 'b'], name='individual'))
-        >>> IndividualCalibrationResult({}, table).estimates.loc['b', 'r']
-        np.float64(0.7)
+        >>> float(IndividualCalibrationResult({}, table).estimates.loc['b', 'r'])
+        0.7
     """
 
     calibrations: dict[Hashable, CalibrationResult]

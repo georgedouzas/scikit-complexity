@@ -21,7 +21,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import clip, delayed, where
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ..common.excitable import ThetaNeuronElement
 
 
@@ -31,9 +31,6 @@ class AxonElement(Element):
     Args:
         label:
             The label of the axon or of the group on the edges.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         tau:
             The initial conduction delay.
@@ -50,12 +47,11 @@ class AxonElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         tau: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         tau0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.tau = tau
         self.tau0 = tau0
 
@@ -70,9 +66,6 @@ class PhaseUnitElement(Element):
     Args:
         label:
             The label of the unit or of the group of units.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         theta:
             The initial phase.
@@ -91,12 +84,11 @@ class PhaseUnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
         omega: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.omega = omega
 
@@ -121,9 +113,6 @@ class SynapseElement(Element):
         label:
             The label of the synapse or of the group on the edges.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         kappa:
             The initial efficacy.
 
@@ -136,11 +125,10 @@ class SynapseElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         kappa: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.kappa = kappa
 
 
@@ -157,9 +145,6 @@ class TracedThetaNeuronElement(ThetaNeuronElement):
     Args:
         label:
             The label of the neuron or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         theta:
             The initial phase.
@@ -190,7 +175,6 @@ class TracedThetaNeuronElement(ThetaNeuronElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
         a: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -199,7 +183,7 @@ class TracedThetaNeuronElement(ThetaNeuronElement):
         tau_plus: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         tau_minus: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual, theta=theta, eta=eta)
+        super().__init__(label, theta=theta, eta=eta)
         self.a = a
         self.b = b
         self.tau_plus = tau_plus
@@ -490,7 +474,7 @@ class STDPNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of theta neurons on a random directed network."""
+        """Return the components of theta neurons on a random directed network."""
         rng = np.random.default_rng(self.seed)
         graph = nx.gnp_random_graph(self.n_neurons, self.p, seed=int(rng.integers(2**31)), directed=True)
         space = NetworkSpace(graph)
@@ -600,7 +584,7 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of phase units coupled all to all through adaptive delays.
+        """Return the components of phase units coupled all to all through adaptive delays.
 
         The conduction delays adapt to the activity of the units.
         """

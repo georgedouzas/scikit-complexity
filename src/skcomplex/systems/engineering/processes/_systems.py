@@ -13,11 +13,12 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.components.laws.utils import clip, distributed_delay, minimum, series, step
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 MONTHS_PER_YEAR = 12.0
 HUSK_SHARE = 0.2
@@ -39,7 +40,6 @@ class ReliefPipelineElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         in_transit: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='food')] = 0.0,
         warehouse: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='food')] = 0.0,
@@ -52,7 +52,7 @@ class ReliefPipelineElement(Element):
         pipeline_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 14.0,
         distribution_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.in_transit = in_transit
         self.warehouse = warehouse
         self.affected = affected
@@ -117,7 +117,6 @@ class RiceMillElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         paddy: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='grain')] = 2000.0,
         rice: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='grain')] = 1300.0,
@@ -136,7 +135,7 @@ class RiceMillElement(Element):
         perception_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 6.0,
         expansion_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.paddy = paddy
         self.rice = rice
         self.husk = husk
@@ -221,7 +220,6 @@ class IrrigationSchemeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         reservoir: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')] = 50.0,
         soil: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')] = 12.0,
@@ -242,7 +240,7 @@ class IrrigationSchemeElement(Element):
         pump_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
         baseflow_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 500.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.reservoir = reservoir
         self.soil = soil
         self.groundwater = groundwater
@@ -331,7 +329,6 @@ class WasteSystemElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         population: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 1000000.0,
         uncollected: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='waste')] = 0.0,
@@ -350,7 +347,7 @@ class WasteSystemElement(Element):
         composting_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         capacity_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.population = population
         self.uncollected = uncollected
         self.recycled = recycled
@@ -467,9 +464,9 @@ class RiceMillingSystem(BaseSystem):
     until = 120.0
     dt = 0.25
     observables = (
-        ObservableSpec('procurement', RiceMillElement._get_procurement, element='mill'),
-        ObservableSpec('indicated_milling', RiceMillElement._get_indicated_milling, element='mill'),
-        ObservableSpec('milling', RiceMillElement._get_milling, element='mill'),
+        Observable('procurement', RiceMillElement._get_procurement, element='mill'),
+        Observable('indicated_milling', RiceMillElement._get_indicated_milling, element='mill'),
+        Observable('milling', RiceMillElement._get_milling, element='mill'),
     )
 
     def __init__(
@@ -492,7 +489,7 @@ class RiceMillingSystem(BaseSystem):
         self.expansion_time = expansion_time
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         mill = RiceMillElement(
             'mill',
             paddy=self.harvest,
@@ -561,9 +558,9 @@ class SolidWasteSystem(BaseSystem):
     until = 40.0
     dt = 0.1
     observables = (
-        ObservableSpec('generation', WasteSystemElement._get_generation, element='city'),
-        ObservableSpec('collection', WasteSystemElement._get_collection, element='city'),
-        ObservableSpec('acceptance', WasteSystemElement._get_acceptance, element='city'),
+        Observable('generation', WasteSystemElement._get_generation, element='city'),
+        Observable('collection', WasteSystemElement._get_collection, element='city'),
+        Observable('acceptance', WasteSystemElement._get_acceptance, element='city'),
     )
 
     def __init__(
@@ -586,7 +583,7 @@ class SolidWasteSystem(BaseSystem):
         self.landfill_capacity = landfill_capacity
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         city = WasteSystemElement(
             'city',
             population=self.population,
@@ -649,8 +646,8 @@ class FoodReliefSystem(BaseSystem):
     until = 120.0
     dt = 0.5
     observables = (
-        ObservableSpec('need', ReliefPipelineElement._need, element='relief'),
-        ObservableSpec('shipments', ReliefPipelineElement._get_shipments, element='relief'),
+        Observable('need', ReliefPipelineElement._need, element='relief'),
+        Observable('shipments', ReliefPipelineElement._get_shipments, element='relief'),
     )
 
     def __init__(
@@ -673,7 +670,7 @@ class FoodReliefSystem(BaseSystem):
         self.stock_time = stock_time
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         relief = ReliefPipelineElement(
             'relief',
             affected=self.affected,
@@ -738,9 +735,9 @@ class IrrigationSystem(BaseSystem):
     until = 730.0
     dt = 1.0
     observables = (
-        ObservableSpec('demand', IrrigationSchemeElement._get_demand, element='scheme'),
-        ObservableSpec('release', IrrigationSchemeElement._get_reservoir_release, element='scheme'),
-        ObservableSpec('pumping', IrrigationSchemeElement._get_pumping, element='scheme'),
+        Observable('demand', IrrigationSchemeElement._get_demand, element='scheme'),
+        Observable('release', IrrigationSchemeElement._get_reservoir_release, element='scheme'),
+        Observable('pumping', IrrigationSchemeElement._get_pumping, element='scheme'),
     )
 
     def __init__(
@@ -763,7 +760,7 @@ class IrrigationSystem(BaseSystem):
         self.pump_capacity = pump_capacity
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         scheme = IrrigationSchemeElement(
             'scheme',
             river_inflow=self.river_inflow,

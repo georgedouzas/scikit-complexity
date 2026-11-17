@@ -11,11 +11,18 @@ import numpy.typing as npt
 from scipy import stats
 
 from ...base import BaseConfig
+from ...components.laws import DrawSpec
+from ...enums import DrawKind
 from ...errors import ValidationError
-from ...specs import DrawLogSpec, DrawRecordSpec, DrawSpec
 from ...types import Array
+from ._draw_log_spec import _DrawLogSpec
+from ._draw_record_spec import _DrawRecordSpec
 
-KEYWORDS = {'uniform': ('low', 'high'), 'normal': ('mean', 'deviation'), 'bernoulli': ('p',)}
+KEYWORDS: dict[str, tuple[str, ...]] = {
+    DrawKind.UNIFORM: ('low', 'high'),
+    DrawKind.NORMAL: ('mean', 'deviation'),
+    DrawKind.BERNOULLI: ('p',),
+}
 
 
 class DrawRecorder(BaseConfig[None, int]):
@@ -42,7 +49,7 @@ class DrawRecorder(BaseConfig[None, int]):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.problems._draw_recorder import DrawRecorder
-        >>> from skcomplex.core.specs import DrawSpec
+        >>> from skcomplex.core.components.laws import DrawSpec
         >>> recorder = DrawRecorder().prepare().run(1)
         >>> recorder.draw('walker.kick', DrawSpec('normal', 'kick'), [0.0, 1.0], np.array([0.5])).tolist()
         [0.5]
@@ -53,7 +60,7 @@ class DrawRecorder(BaseConfig[None, int]):
     step_: int
     log_probability_: float
 
-    def __init__(self, replay: DrawLogSpec | None = None) -> None:
+    def __init__(self, replay: _DrawLogSpec | None = None) -> None:
         self.replay = replay
 
     def _prepare(self, context: None) -> None:
@@ -245,7 +252,7 @@ class DrawRecorder(BaseConfig[None, int]):
         self.log_probability_ += value
 
     @property
-    def log_(self) -> DrawLogSpec:
+    def log_(self) -> _DrawLogSpec:
         """Log of the draws and firings so far."""
         draws = {}
         for label, draw in self._kinds.items():
@@ -253,7 +260,7 @@ class DrawRecorder(BaseConfig[None, int]):
             arguments = {
                 keyword: np.concatenate([item[keyword] for item in self._arguments[label]]) for keyword in keywords
             }
-            draws[label] = DrawRecordSpec(
+            draws[label] = _DrawRecordSpec(
                 draw.kind,
                 draw.distribution,
                 np.concatenate(self._steps[label]),
@@ -262,4 +269,4 @@ class DrawRecorder(BaseConfig[None, int]):
             )
         times = np.asarray([time for time, _ in self._firings], dtype=float)
         laws = np.asarray([law for _, law in self._firings], dtype=np.int64)
-        return DrawLogSpec(draws, times, laws, self.log_probability_)
+        return _DrawLogSpec(draws, times, laws, self.log_probability_)

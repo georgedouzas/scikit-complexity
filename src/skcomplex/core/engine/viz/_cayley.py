@@ -10,8 +10,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...components.spaces import CayleySpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import NODE_SPACING, UPWARD, BaseVisual
 
 NODE_SHARE = 0.15
@@ -113,7 +113,11 @@ class CayleyVisual(BaseVisual):
             )
             recording.log(path, drawn)
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return one graph view per chosen state, bounded by the outer ring.
 
         Args:

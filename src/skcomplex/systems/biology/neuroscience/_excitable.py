@@ -14,12 +14,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import AnyArray
 
 EXCITED = 1
@@ -39,9 +40,6 @@ class ExcitableElement(Element):
         label:
             The label of the element or the site group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         phase:
             The initial state, 0 for quiescent, 1 for excited, and 2 to `n_states - 1` for refractory.
 
@@ -60,13 +58,12 @@ class ExcitableElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         phase: Annotated[float, StateSpec(domain=NN)] = 0,
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         stimulus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phase = phase
         self.p = p
         self.stimulus = stimulus
@@ -126,7 +123,7 @@ class KinouchiCopelliSystem(BaseSystem):
     references = ('Kinouchi and Copelli 2006', 'Larremore et al. 2011')
     until = 1000
     dt = 1
-    observables = (ObservableSpec('activity', group='neurons', variable='phase', reduce=_get_excited_fraction),)
+    observables = (Observable('activity', group='neurons', variable='phase', reduce=_get_excited_fraction),)
 
     def __init__(
         self,
@@ -176,7 +173,7 @@ class KinouchiCopelliSystem(BaseSystem):
         ]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Kinouchi-Copelli network of excitable elements."""
+        """Return the components of the Kinouchi-Copelli network of excitable elements."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.gnp_random_graph(1000, 10 / 999, seed=int(rng.integers(2**31))) if graph is None else graph

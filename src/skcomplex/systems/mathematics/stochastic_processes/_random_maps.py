@@ -14,7 +14,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class RandomBranchMapElement(Element):
@@ -25,9 +25,6 @@ class RandomBranchMapElement(Element):
     Args:
         label:
             The label of the element or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial value, between 0 and 1.
@@ -51,13 +48,12 @@ class RandomBranchMapElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.5,
         p1: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.5,
         mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.p1 = p1
         self.mu = mu

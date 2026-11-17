@@ -12,10 +12,11 @@ from typing import Annotated, ClassVar, SupportsFloat
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, log
 
+from ...enums import ElementKind, ScheduleKind
 from ...errors import ValidationError
-from ...specs import RoleSpec, Tags
-from ...types import ElementKind
-from ..base import BasePart
+from ...specs import RoleSpec
+from .._tags import Tags
+from ..base import BaseComponent
 from ..laws import BaseLaw, JumpLaw, RuleLaw, TransitionLaw, UpdateLaw
 from ..laws.utils import both, neighbors, residence, uniform, where
 from ..spaces import BaseNeighborhood, BaseSpace
@@ -24,7 +25,6 @@ from ._interaction import Interaction
 
 KINDS = ('rate', 'probability', 'condition', 'matrix')
 OVERS = ('member', 'neighbors', 'cell')
-SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 FORMS = ('symbolic', 'agent')
 
 
@@ -57,7 +57,7 @@ class TransitionInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'infection'`.
+            The name of the interaction, unique among the components of its system, such as `'infection'`.
 
         target:
             The path of the element or group whose state moves.
@@ -236,10 +236,10 @@ class TransitionInteraction(Interaction):
         if self.form not in FORMS:
             error_msg = f'The form of transition {self.label!r} is {self.form!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
-        if self.schedule not in SCHEDULES or (self.form == 'symbolic' and self.schedule != 'synchronous'):
+        if self.schedule not in ScheduleKind or (self.form == 'symbolic' and self.schedule != 'synchronous'):
             error_msg = (
-                f'The schedule of transition {self.label!r} is {self.schedule!r}. Use one of {", ".join(SCHEDULES)}, '
-                'and the agent form for another than `synchronous`.'
+                f'The schedule of transition {self.label!r} is {self.schedule!r}. Use one of '
+                f'{", ".join(ScheduleKind)}, and the agent form for another than `synchronous`.'
             )
             raise ValidationError(error_msg)
         if self.over == 'cell' and (self.form != 'agent' or kind == 'matrix' or self.after is not None):
@@ -269,7 +269,7 @@ class TransitionInteraction(Interaction):
         """Raise an error for arguments the transition cannot take."""
         self._check_form()
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a transition without one kind, or with ignored arguments.
 
         Args:
@@ -331,12 +331,12 @@ class TransitionInteraction(Interaction):
         """Return the uniform draw of the transition in a step."""
         return uniform(re.sub(r'\W', '_', f'transition_{self.label}'))
 
-    def _get_chain(self, namespace: SimpleNamespace, value: Expression) -> list[BasePart]:
+    def _get_chain(self, namespace: SimpleNamespace, value: Expression) -> list[BaseComponent]:
         """Return the transition law of the state by its matrix.
 
         It comes with the emission law of the observed state.
         """
-        laws: list[BasePart] = []
+        laws: list[BaseComponent] = []
         if self.matrix is not None:
             laws.append(TransitionLaw(value, self.matrix(namespace), label=self.label))
         if self.emission is not None and self.observed is not None:
@@ -455,7 +455,7 @@ class TransitionInteraction(Interaction):
         for index in order:
             self._move_member(agents[int(index)], system)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the laws of the state, or the rule of the agent form.
 
         The laws are the jump, the update, the transition, or the emission law.

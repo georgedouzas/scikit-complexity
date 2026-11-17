@@ -12,12 +12,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from .....core.components import Tags
 from .....core.components.interactions import TransitionInteraction
 from .....core.components.laws import BaseLaw, JumpLaw
 from .....core.components.laws.utils import neighbors, where
 from .....core.components.spaces import AdjacencyNeighborhood
 from .....core.errors import ValidationError
-from .....core.specs import ParameterSpec, RoleSpec, Tags
+from .....core.specs import ParameterSpec, RoleSpec
 
 FORMS = ('number', 'fraction')
 
@@ -34,7 +35,7 @@ class SpreadingInteraction(TransitionInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group on the nodes or sites.

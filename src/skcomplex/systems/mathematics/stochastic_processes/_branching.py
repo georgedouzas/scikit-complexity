@@ -34,9 +34,6 @@ class IndividualElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         generation:
             The initial generation.
 
@@ -50,15 +47,16 @@ class IndividualElement(Element):
         ('population', 'IndividualElement', 10)
     """
 
+    visual = VisualSpec('agents', {'color_by': 'generation'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'generation'}),
         *,
         generation: Annotated[float, StateSpec(domain=NN)] = 0.0,
         m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.generation = generation
         self.m = m
 

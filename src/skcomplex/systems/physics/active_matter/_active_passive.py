@@ -14,10 +14,12 @@ from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression, sqrt
+from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import PairInteraction, RateInteraction
 from ....core.components.laws.utils import neighbors
@@ -26,7 +28,7 @@ from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.elements import PointElement
 
@@ -49,11 +51,11 @@ class FlockingAgentElement(PointElement):
         x_d1:
             The initial velocity.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         active:
             The mark, 1 for an active agent or 0 for a passive one.
+
+        radius:
+            The radius `r_0` of the agent, which it is drawn with.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import FlockingAgentElement
@@ -61,17 +63,23 @@ class FlockingAgentElement(PointElement):
         0.0
     """
 
+    visual = VisualSpec(
+        'points',
+        {'position': 'x', 'radius': 'radius', 'color_by': 'active', 'color_range': (0.0, 1.0)},
+    )
+
     def __init__(
         self,
         label: str,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
-        visual: VisualSpec | None = None,
         *,
         active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([PASSIVE_AGENT, ACTIVE_AGENT]))] = ACTIVE_AGENT,
+        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, x=x, x_d1=x_d1, visual=visual)
+        super().__init__(label, x=x, x_d1=x_d1)
         self.active = active
+        self.radius = radius
 
 
 class ActivePassiveFlockingSystem(BaseSystem):
@@ -267,7 +275,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
         return s.target.active * amplitude
 
     @staticmethod
-    def _get_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_observables(system: CompositeSystem) -> list[Observable]:
         """Return the observables of the agents.
 
         They are the velocity of the active agents, their polarization, and the mean distance within each kind.
@@ -279,11 +287,11 @@ class ActivePassiveFlockingSystem(BaseSystem):
             raise ValidationError(error_msg)
         size = float(system.space.extent[0])
         return [
-            ObservableSpec('velocity_x', ActivePassiveFlockingSystem._get_velocity_x, group='agents'),
-            ObservableSpec('velocity_y', ActivePassiveFlockingSystem._get_velocity_y, group='agents'),
-            ObservableSpec('mean_speed', ActivePassiveFlockingSystem._get_speed, group='agents'),
-            ObservableSpec('polarization', ActivePassiveFlockingSystem._get_polarization),
-            ObservableSpec(
+            Observable('velocity_x', ActivePassiveFlockingSystem._get_velocity_x, group='agents'),
+            Observable('velocity_y', ActivePassiveFlockingSystem._get_velocity_y, group='agents'),
+            Observable('mean_speed', ActivePassiveFlockingSystem._get_speed, group='agents'),
+            Observable('polarization', ActivePassiveFlockingSystem._get_polarization),
+            Observable(
                 'active_distance',
                 function=functools.partial(
                     ActivePassiveFlockingSystem._get_mean_distance,
@@ -291,7 +299,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
                     size=size,
                 ),
             ),
-            ObservableSpec(
+            Observable(
                 'passive_distance',
                 function=functools.partial(
                     ActivePassiveFlockingSystem._get_mean_distance,
@@ -304,7 +312,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         settings['observables'] = tuple(self._get_observables(self._build_system()))
@@ -330,11 +338,8 @@ class ActivePassiveFlockingSystem(BaseSystem):
                 'x': rng.uniform(0.0, self.size, (self.n_agents, 2)),
                 'x_d1': rng.uniform(-self.initial_speed, self.initial_speed, (self.n_agents, 2)),
                 'active': np.where(np.arange(self.n_agents) < self.n_active, ACTIVE_AGENT, PASSIVE_AGENT),
+                'radius': self.radius,
             },
-            visual=VisualSpec(
-                'points',
-                {'position': 'x', 'radius': self.radius, 'color_by': 'active', 'color_range': (0.0, 1.0)},
-            ),
         )
         energy = functools.partial(
             self._get_repulsion_energy,

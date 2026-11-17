@@ -36,7 +36,7 @@ class SimplexCouplingInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of oscillators on the nodes.
@@ -75,6 +75,12 @@ class SimplexCouplingInteraction(HyperedgeInteraction):
         if len(others) + 1 == PAIR:
             return [RateLaw(theta, s.K1 * sin(others[0] - theta))]
         return [RateLaw(theta, s.K2 * sin(sum(others) - len(others) * theta))]
+
+
+class NodeOscillatorElement(PhaseOscillatorElement):
+    """Phase oscillator on a node, drawn with its phase."""
+
+    visual = VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi})
 
 
 class HypergraphKuramotoSystem(BaseSystem):
@@ -165,7 +171,7 @@ class HypergraphKuramotoSystem(BaseSystem):
         return xgi.fast_random_hypergraph(n_oscillators, [links, triangles], seed=seed)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         hypergraph = self._get_simplices(self.n_oscillators, self.links, self.triangles, self.seed)
         space = NetworkSpace(nx.complete_graph(self.n_oscillators), hyperedges=hypergraph)
         sizes = [len(members) for members in hypergraph.edges.members(dtype=list)]
@@ -180,10 +186,9 @@ class HypergraphKuramotoSystem(BaseSystem):
         )
         oscillators = GroupElement(
             'oscillators',
-            element=PhaseOscillatorElement,
+            element=NodeOscillatorElement,
             space=space,
             values={'theta': theta, 'omega': omega},
-            visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
             on='sites',
         )
         coupling = SimplexCouplingInteraction(

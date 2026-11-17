@@ -7,12 +7,12 @@ static time, and solve it once per run.
 ## Requirements
 
 ### Requirement: Static systems compile to the static form
-A system under `StaticTime` whose laws are `EquationLaw`s with a target and no time derivative SHALL compile to the
+A system under `StaticTime` whose laws are `ConstraintLaw`s with a target and no time derivative SHALL compile to the
 form `FormKind.STATIC` and run on `RootSolver`, which solves the equations once and gives one frame. A target on a group
 SHALL give one unknown per member, and the equations of one target from several elements and interactions SHALL add.
 
 #### Scenario: Survival at a dose
-- **WHEN** an `EquationLaw` with target `S` reads `S == exp(-alpha*D - beta*D**2)` with `alpha = 0.3`, `beta = 0.03`,
+- **WHEN** an `ConstraintLaw` with target `S` reads `S == exp(-alpha*D - beta*D**2)` with `alpha = 0.3`, `beta = 0.03`,
   and `D = 2`, in a system with `StaticTime()`
 - **THEN** the one frame holds `S = exp(-0.72)` within 1e-12
 

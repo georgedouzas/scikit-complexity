@@ -13,12 +13,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TransitionInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
 
 
@@ -45,9 +47,6 @@ class EmployerElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         bid:
             The wage offered for the vacancy.
@@ -77,7 +76,6 @@ class EmployerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         demand: Annotated[float, StateSpec(domain=NN)] = 0.0,
@@ -86,7 +84,7 @@ class EmployerElement(Element):
         low_wage: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         high_wage: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.bid = bid
         self.demand = demand
         self.posted = posted
@@ -156,9 +154,6 @@ class JobseekerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         ask:
             The reservation wage.
 
@@ -199,7 +194,6 @@ class JobseekerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         supply: Annotated[float, StateSpec(domain=NN)] = 1.0,
@@ -212,7 +206,7 @@ class JobseekerElement(Element):
         reservation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         decline: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.ask = ask
         self.supply = supply
         self.employer = employer
@@ -361,8 +355,8 @@ class LabourMarketSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 ch. 7',)
     until = 200
     observables = (
-        ObservableSpec('unemployment', group='workers', variable='employer', reduce=_get_unemployment),
-        ObservableSpec('searching', group='workers', variable='supply', reduce='sum'),
+        Observable('unemployment', group='workers', variable='employer', reduce=_get_unemployment),
+        Observable('searching', group='workers', variable='supply', reduce='sum'),
     )
 
     def __init__(
@@ -393,7 +387,7 @@ class LabourMarketSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         employed = rng.random(self.n_workers) >= self.unemployment
         employers = np.where(employed, rng.integers(self.n_firms, size=self.n_workers), -1).astype(float)

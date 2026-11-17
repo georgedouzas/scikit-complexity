@@ -11,9 +11,9 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec, ProblemSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ..problems._linear_program_kernel import LinearProgramKernel
 from ._base import GRID_RADIUS, NODE_SPACING, SERIES_COLORS, BaseVisual
 
@@ -215,7 +215,11 @@ class LinearProgramVisual(BaseVisual):
         values = np.asarray([float(np.ravel(frame.get_value(name))[0]) for name in program.names], dtype=float)
         self._log_widths(recording, path, values)
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return the bar chart, the series of the objective values, and the graph views.
 
         There are two graph views when there is a graph.

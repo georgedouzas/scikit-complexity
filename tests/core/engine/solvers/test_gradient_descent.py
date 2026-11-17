@@ -7,19 +7,20 @@ import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, RateInteraction, TrainingInteraction
-from skcomplex.core.components.laws import BaseLaw, RateLaw
+from skcomplex.core.components.laws import BaseLaw, DatasetSpec, RateLaw
 from skcomplex.core.components.laws.utils import contraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import GradientDescentSolver
+from skcomplex.core.engine.solvers import GradientDescentSolver, StepSpec
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import DatasetSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, StepSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 
 RATES = {'alpha': 1.1, 'beta': 0.4, 'gamma': 0.4, 'delta': 0.1}
@@ -32,7 +33,6 @@ class PairElement(Element):
     def __init__(
         self,
         label: str,
-        visual: object = None,
         *,
         prey: Annotated[float, StateSpec()] = 10.0,
         predator: Annotated[float, StateSpec()] = 5.0,
@@ -43,7 +43,7 @@ class PairElement(Element):
         observed_prey: Annotated[float, ParameterSpec()] = 0.0,
         observed_predator: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.prey = prey
         self.predator = predator
         self.alpha = alpha
@@ -103,7 +103,7 @@ def _fitting(learning_rate=0.05, optimizer='adam'):
         'fit',
         system='lv',
         trained=[f'pair.{name}' for name in RATES],
-        loss=ObservableSpec('error', _squared_error),
+        loss=Observable('error', _squared_error),
         data=data,
         optimizer=optimizer,
         learning_rate=learning_rate,
@@ -166,7 +166,7 @@ def test_loss_at_the_start():
     system = ElmanNetworkSystem(n_bits=30).prepare().system_
     data, net = system.interactions[0].data, system.systems[0]
     trajectory = _trajectory(system, 1)
-    error = ObservableSpec('error', group='outputs', reduce='sum', expression=_output_error)
+    error = Observable('error', group='outputs', reduce='sum', expression=_output_error)
     losses = []
     for row in range(data.sequences):
         inputs, targets = data.values['inputs.x'][row], data.values['outputs.target'][row]
@@ -281,12 +281,11 @@ class TargetNodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: object = None,
         *,
         x: Annotated[float, StateSpec()] = 0.5,
         target: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.target = target
 
@@ -325,7 +324,7 @@ def test_tensor_trains():
         interactions=[AdaptiveCubicInteraction('cubic', target='species', T=tensor)],
     )
     data = DatasetSpec({'species.target': rng.uniform(0.4, 0.8, (1, 5, 4))}, times=np.linspace(0.2, 1.0, 5))
-    loss = ObservableSpec('error', group='species', reduce='sum', expression=_node_error)
+    loss = Observable('error', group='species', reduce='sum', expression=_node_error)
     training = TrainingInteraction('training', system='community', trained=['cubic.T'], loss=loss, data=data)
     system = CompositeSystem('fitting', systems=[inner], interactions=[training], time=DiscreteTime())
     gradient = _gradient(system, rate=1e-6)['community/cubic.T']
@@ -357,6 +356,6 @@ def test_trained_system_agrees_with_training():
         'inputs.x': lambda t: inputs[min(round(t), len(inputs) - 1)],
         'outputs.target': lambda t: targets[max(round(t) - 1, 0)],
     }
-    error = ObservableSpec('error', group='outputs', reduce='sum', expression=_output_error)
+    error = Observable('error', group='outputs', reduce='sum', expression=_output_error)
     run = simulate(net, until=data.steps, backend=NumpyBackend(), schedule=schedule, observables=[error])
     assert run.get_values('error')[1:].mean() == pytest.approx(expected, abs=1e-10)

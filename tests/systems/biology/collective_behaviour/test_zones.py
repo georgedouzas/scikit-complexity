@@ -11,7 +11,7 @@ from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.systems.biology.collective_behaviour import ClampSpec, RadiusSpec, ZoneCouplingInteraction
 
 
@@ -21,12 +21,11 @@ class HeadingElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         vx: Annotated[object, StateSpec()] = 0.0,
         vy: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.vx = vx
         self.vy = vy
 

@@ -7,9 +7,10 @@ from dataclasses import replace
 
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ....components import Observable
 from ....components.elements import FieldElement
 from ....errors import PipelineError
-from ....specs import LayoutSpec, ObservableSpec
+from ...problems import LayoutSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._output_spec import OutputSpec
@@ -84,7 +85,7 @@ class FieldProblemPass(BasePass):
         compilation: Compilation,
         spec: KernelSpec,
         path: str,
-        observable: ObservableSpec,
+        observable: Observable,
     ) -> LawKernel | None:
         """Return the kernel of an observable of a field.
 

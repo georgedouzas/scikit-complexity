@@ -32,15 +32,12 @@ class AdaptiveLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         kappa:
             The initial coupling weight.
 
     Attributes:
         default_visual_:
-            The visual of the link when it sets none.
+            How the link is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import AdaptiveLinkElement
@@ -51,11 +48,10 @@ class AdaptiveLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         kappa: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.kappa = kappa
 
 
@@ -70,7 +66,7 @@ class AdaptiveCouplingInteraction(NeighborInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         nodes:
             The path of the group of phase oscillators on the nodes.
@@ -134,6 +130,12 @@ class AdaptiveCouplingInteraction(NeighborInteraction):
             RateLaw(s.target.theta, -s.K * s.edge.kappa * sin(difference + s.alpha)),
             RateLaw(s.edge.kappa, -s.epsilon * (s.edge.kappa + sin(difference + s.beta))),
         ]
+
+
+class NodeOscillatorElement(PhaseOscillatorElement):
+    """Phase oscillator on a node, drawn with its phase."""
+
+    visual = VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi})
 
 
 class AdaptiveKuramotoSystem(BaseSystem):
@@ -212,11 +214,10 @@ class AdaptiveKuramotoSystem(BaseSystem):
         space = NetworkSpace(graph)
         nodes = GroupElement(
             'nodes',
-            element=PhaseOscillatorElement,
+            element=NodeOscillatorElement,
             space=space,
             on='sites',
             values={'theta': rng.uniform(0.0, 2 * math.pi, self.n_oscillators), 'omega': self.omega},
-            visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
         )
         links = GroupElement(
             'links',

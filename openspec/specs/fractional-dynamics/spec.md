@@ -16,7 +16,7 @@ specific to fractional states.
 - **THEN** its trajectory matches the exponential decay within the solver tolerance
 
 #### Scenario: Rate law on a fractional state
-- **WHEN** an element declares `x` with `state(order=0.6)` and the law `Rate(x, -x)`
+- **WHEN** an element declares `x` with `state(order=0.6)` and the law `RateLaw(x, -x)`
 - **THEN** the system compiles to the fractional form without any fractional law
 
 ### Requirement: Fractional orders are validated

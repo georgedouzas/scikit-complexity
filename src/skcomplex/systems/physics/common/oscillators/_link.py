@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.specs import ParameterSpec, VisualSpec
+from .....core.specs import ParameterSpec
 
 
 class LinkElement(Element):
@@ -24,15 +24,12 @@ class LinkElement(Element):
         label:
             The label of the edge or the group on the edges.
 
-        visual:
-            How the edge is drawn, or `None` for `default_visual_`.
-
         w:
             The weight of the edge.
 
     Attributes:
         default_visual_:
-            The visual of the edge when it sets none.
+            How the edge is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.common.oscillators import LinkElement
@@ -43,9 +40,8 @@ class LinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.w = w

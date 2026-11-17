@@ -9,10 +9,10 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...components.spaces import CellComplexSpace, LatticeSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
 from ...types import Array, Indices
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import BaseVisual
 
 FACES = 'faces'
@@ -243,7 +243,11 @@ class CellVisual(BaseVisual):
         self._log_segments(recording, path, space, values, cycle)
         self._log_faces(recording, f'{path}/{FACES}', space, space.incidences_[1] @ values, cycle)
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return one 2D spatial view of the state of the group.
 
         Args:

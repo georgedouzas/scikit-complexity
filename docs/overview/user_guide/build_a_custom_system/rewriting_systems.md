@@ -1,20 +1,19 @@
 # Rewriting systems
 
 This page grows a structure generation by generation, as an L-system grows a plant or a substitution tiling grows a
-fractal. A rewriting system replaces all its parts in parallel at every step, so one generation rewrites every symbol
+fractal. A rewriting system replaces every part of its structure in parallel at every step, so one generation rewrites every symbol
 of a word or every tile of a patch at once.
 
 ## A first rewriting system
 
 This section grows the algae of Lindenmayer, a word over the symbols `A` and `B` where every `A` becomes `AB` and every
-`B` becomes `A`. A [`WordElement`](../core_components/elements.md#wordelement) holds the word, and its `_get_laws`
-returns one [`ProductionLaw`](../core_components/laws.md#productionlaw) per rule. The
+`B` becomes `A`. A [`WordElement`](../core_components/general.md#wordelement) holds the word, and its `_get_laws`
+returns one [`ProductionLaw`](../core_components/general.md#productionlaw) per rule. The
 [`CompositeSystem`](../core_components/systems.md#compositesystem) runs five generations from the axiom `A`, the word of
 generation 0.
 
 ```python
-from skcomplex.core.components.elements import WordElement
-from skcomplex.core.components.laws import ProductionLaw
+from skcomplex.systems.general.rewriting import ProductionLaw, WordElement
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 
@@ -35,7 +34,7 @@ The lengths of the words are 1, 2, 3, 5, 8, and 13, the Fibonacci numbers, and t
 There are two kinds of rewritten element.
 
 - A `WordElement` is a string of symbols that grows by string productions, in the style of L-systems.
-- A [`PatchElement`](../core_components/elements.md#patchelement) is a set of tiles that grows by affine
+- A [`PatchElement`](../core_components/general.md#patchelement) is a set of tiles that grows by affine
   substitutions.
 
 `simulate` compiles a system of words or patches to the rewriting form, and every step is one generation.
@@ -57,11 +56,10 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.elements import WordElement
-from skcomplex.core.components.laws import ProductionLaw
+from skcomplex.systems.general.rewriting import ModuleSpec, ProductionLaw, WordElement
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ModuleSpec, ParameterSpec
+from skcomplex.core.specs import ParameterSpec
 
 x = var('x')
 
@@ -100,17 +98,23 @@ recorded.
 
 ## Word geometries
 
-This section draws a word as a curve and measures it. A `GeometrySpec` of `skcomplex.core.specs` draws a word as line
+This section draws a word as a curve and measures it. A `GeometrySpec` of the rewriting package draws a word as line
 segments in two or three dimensions, as the turtle interpretation of L-systems does. The Koch curve replaces every
 segment by four segments of a third of its length, turning by 60 degrees.
 
 ```python
 from skcomplex.core.analysis import scaling
-from skcomplex.core.components.elements import PatchElement, WordElement
-from skcomplex.core.components.laws import ProductionLaw, SubstitutionLaw
+from skcomplex.systems.general.rewriting import (
+    AffineSpec,
+    GeometrySpec,
+    PatchElement,
+    ProductionLaw,
+    PrototileSpec,
+    SubstitutionLaw,
+    WordElement,
+)
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import AffineSpec, GeometrySpec, PrototileSpec
 
 
 class KochElement(WordElement):
@@ -135,7 +139,7 @@ turtle have fixed meanings.
 
 This section grows a patch of tiles and measures it as a fractal. A `PatchElement` holds tiles. Each tile is a
 `PrototileSpec`, a segment or a polygon, under an affine placement. A
-[`SubstitutionLaw`](../core_components/laws.md#substitutionlaw) replaces every tile of a prototile by pieces, each
+[`SubstitutionLaw`](../core_components/general.md#substitutionlaw) replaces every tile of a prototile by pieces, each
 placed by an `AffineSpec` map relative to it. The Cantor set below keeps the outer thirds of every interval.
 
 ```python continuation

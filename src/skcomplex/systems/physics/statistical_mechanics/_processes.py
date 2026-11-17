@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, LocalRuleLaw, RuleLaw, Sink, Source
 from ....core.components.laws.utils import bernoulli
-from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
+from ....core.components.spaces import DiscreteTime, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -41,9 +41,6 @@ class ContactSiteElement(Element):
     Args:
         label:
             The label of the site or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         infected:
             The initial state, 1 for infected and 0 for healthy.
@@ -67,13 +64,12 @@ class ContactSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.infected = infected
         self.rate = rate
         self.tau = tau
@@ -92,7 +88,7 @@ class ContactSiteElement(Element):
         return [
             LocalRuleLaw(
                 s.infected,
-                BallNeighborhood(metric='manhattan', center='first'),
+                RadiusNeighborhood(1, metric='manhattan', center=True),
                 ContactSiteElement._spread,
                 stochastic=True,
             ),
@@ -119,9 +115,6 @@ class ExclusionSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         occupied:
             The initial occupation.
 
@@ -143,14 +136,13 @@ class ExclusionSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         occupied: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.occupied = occupied
         self.p = p
         self.alpha = alpha
@@ -169,9 +161,6 @@ class PercolationSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         cover:
             The initial cover, 0, 1, 2, or 3.
 
@@ -186,11 +175,10 @@ class PercolationSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         cover: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.cover = cover
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -205,7 +193,7 @@ class PercolationSiteElement(Element):
                 The laws of the component.
         """
         return [
-            LocalRuleLaw(s.cover, BallNeighborhood(metric='manhattan', center='first'), PercolationSiteElement._burn),
+            LocalRuleLaw(s.cover, RadiusNeighborhood(1, metric='manhattan', center=True), PercolationSiteElement._burn),
         ]
 
     @staticmethod
@@ -231,9 +219,6 @@ class Q2RSpinElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         spin:
             The initial spin, 1 or -1.
 
@@ -249,12 +234,11 @@ class Q2RSpinElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         phase: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.spin = spin
         self.phase = phase
 
@@ -284,9 +268,6 @@ class WalkerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         stuck:
             Whether the walker belongs to the aggregate.
 
@@ -296,6 +277,8 @@ class WalkerElement(Element):
         0.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'stuck', 'color_range': (0.0, 1.0)})
+
     draws = True
 
     law_classes = (RuleLaw,)
@@ -303,11 +286,10 @@ class WalkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'stuck', 'color_range': (0.0, 1.0)}),
         *,
         stuck: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.stuck = stuck
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -410,7 +392,7 @@ class Q2rSystem(BaseSystem):
         return (np.indices(shape).sum(axis=0) % 2 == 0).astype(float)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = tuple(self.shape)
         spins = np.where(np.random.default_rng(self.random_state).random(shape) < self.up, 1.0, -1.0)
         space = LatticeSpace(shape)
@@ -426,7 +408,7 @@ class Q2rSystem(BaseSystem):
             target='spins',
             state=('spin', 'phase'),
             rule=self._flip_without_cost,
-            neighborhood=BallNeighborhood(metric='manhattan', n_dim=len(shape), center='first'),
+            neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
         )
         return CompositeSystem(self.label, elements=[group], interactions=[flip])
 
@@ -478,7 +460,7 @@ class SitePercolationSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = tuple(self.shape)
         cover = (np.random.default_rng(self.random_state).random(shape) < self.p).astype(float)
         cover[0] *= BURNING
@@ -554,7 +536,7 @@ class ContactProcessSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         shape = tuple(self.shape)
         states = (np.random.default_rng(self.random_state).random(shape) < self.infected).astype(float)
         space = LatticeSpace(shape)
@@ -763,7 +745,7 @@ class DiffusionLimitedAggregationSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         middle = self.size // 2
         cells = rng.integers(0, self.size, (self.n_walkers, 2))

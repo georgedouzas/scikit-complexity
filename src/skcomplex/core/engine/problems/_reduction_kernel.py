@@ -13,10 +13,12 @@ from sage.all__sagemath_symbolics import Expression
 from scipy.special import logsumexp
 
 from ...errors import ValidationError
-from ...specs import EntrySpec, ReadSpec, RunStateSpec
+from ...specs import EntrySpec
 from ...types import AnyArray, Array
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
+from ._read_spec import _ReadSpec
+from ._run_state_spec import RunStateSpec
 
 REDUCTIONS: dict[str, Callable[[AnyArray], npt.ArrayLike]] = {
     'count': lambda array: np.full(array.shape[1:], float(array.shape[0])),
@@ -79,12 +81,12 @@ class ReductionKernel(BaseKernel):
         kind: str,
         argument: Expression,
         condition: Expression | None,
-        weights: scipy.sparse.csr_array | ReadSpec | None,
+        weights: scipy.sparse.csr_array | _ReadSpec | None,
         *,
         entry: EntrySpec,
         size: int,
         group: str | None,
-        reads: dict[Expression, ReadSpec],
+        reads: dict[Expression, _ReadSpec],
         time: Expression,
         members: EntrySpec | None = None,
         function: Callable[[AnyArray], object] | None = None,
@@ -151,7 +153,7 @@ class ReductionKernel(BaseKernel):
         if weights is None:
             error_msg = f'The reduction {self.symbol} has no weights.'
             raise ValidationError(error_msg)
-        if isinstance(weights, ReadSpec) and weights.entry is not None:
+        if isinstance(weights, _ReadSpec) and weights.entry is not None:
             return (x if weights.is_state else q)[weights.index].reshape(weights.entry.shape)
         return weights
 

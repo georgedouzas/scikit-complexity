@@ -9,20 +9,20 @@ from collections.abc import Callable
 import numpy as np
 
 from ...components.laws import (
-    BilinearLaw,
     BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
-    FluxLaw,
+    ConstraintLaw,
+    EventLaw,
     JumpLaw,
     LinearProgramLaw,
     RateLaw,
     TransferLaw,
 )
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._steps import step_count
 from ..types import Interpolant
 from ._base import BaseSolver
@@ -54,7 +54,7 @@ class RK4Solver(Solver):
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import RK4Solver
-        >>> from skcomplex.core.specs import StepSpec
+        >>> from skcomplex.core.engine.solvers import StepSpec
         >>> system = CompositeSystem(
         ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
@@ -71,14 +71,13 @@ class RK4Solver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
             laws={
                 JumpLaw,
                 LinearProgramLaw,
                 RateLaw,
-                FluxLaw,
-                EquationLaw,
-                CrossingLaw,
+                ConstraintLaw,
+                EventLaw,
                 BoundaryLaw,
                 TransferLaw,
                 BilinearLaw,

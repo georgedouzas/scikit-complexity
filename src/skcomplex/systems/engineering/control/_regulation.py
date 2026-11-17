@@ -15,14 +15,15 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.analysis import linearization
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, BoundaryLaw, EquationLaw, RateLaw
+from ....core.components.laws import BaseLaw, BoundaryLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import clip, derivative
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 GRAVITY = 9.81
 FORCE_LIMIT = 50.0
@@ -40,9 +41,6 @@ class CartPendulumElement(Element):
     Args:
         label:
             The label of the cart.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position of the cart.
@@ -77,12 +75,11 @@ class CartPendulumElement(Element):
         0.1
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
@@ -94,7 +91,7 @@ class CartPendulumElement(Element):
         l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = GRAVITY,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.theta = theta
@@ -119,13 +116,13 @@ class CartPendulumElement(Element):
         x_acceleration, theta_acceleration = derivative(s.x, 2), derivative(s.theta, 2)
         spin = derivative(s.theta, 1)
         return [
-            EquationLaw(
+            ConstraintLaw(
                 (s.M + s.m) * x_acceleration
                 - s.m * s.l * theta_acceleration * cos(s.theta)
                 + s.m * s.l * spin**2 * sin(s.theta)
                 == s.force,
             ),
-            EquationLaw(s.l * theta_acceleration - x_acceleration * cos(s.theta) == s.g * sin(s.theta)),
+            ConstraintLaw(s.l * theta_acceleration - x_acceleration * cos(s.theta) == s.g * sin(s.theta)),
         ]
 
 
@@ -137,9 +134,6 @@ class DrivenOscillatorElement(Element):
     Args:
         label:
             The label of the oscillator.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial displacement.
@@ -167,7 +161,6 @@ class DrivenOscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
@@ -175,7 +168,7 @@ class DrivenOscillatorElement(Element):
         omega: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         zeta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.force = force
@@ -203,9 +196,6 @@ class IntegratorElement(Element):
         label:
             The label of the integrator.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         value:
             The initial value of the integral.
 
@@ -218,11 +208,10 @@ class IntegratorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
 
 
@@ -444,7 +433,7 @@ class PidInvertedPendulumSystem(BaseSystem):
     until = 5.0
     dt = 0.05
     solver = RK4Solver(dt=0.001)
-    observables = (ObservableSpec('tilt', _get_tilt),)
+    observables = (Observable('tilt', _get_tilt),)
 
     def __init__(
         self,
@@ -468,7 +457,7 @@ class PidInvertedPendulumSystem(BaseSystem):
         self.l = l
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         cart = CartPendulumElement('cart', theta=self.theta, M=self.M, m=self.m, l=self.l)
         controller = PIDInteraction(
             'pid',
@@ -530,7 +519,7 @@ class LqrOscillatorSystem(BaseSystem):
     until = 10.0
     dt = 0.05
     solver = RK4Solver(dt=0.001)
-    observables = (ObservableSpec('energy', _get_oscillator_energy),)
+    observables = (Observable('energy', _get_oscillator_energy),)
 
     def __init__(
         self,
@@ -550,7 +539,7 @@ class LqrOscillatorSystem(BaseSystem):
         self.r = r
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         oscillator = DrivenOscillatorElement('oscillator', x=self.x, omega=self.omega, zeta=self.zeta)
         linear = linearization(
             CompositeSystem(elements=[oscillator]),

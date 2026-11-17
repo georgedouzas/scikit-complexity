@@ -17,13 +17,14 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 PAIR = 2
 TRIANGLE = 3
@@ -38,9 +39,6 @@ class InfectiveElement(Element):
         label:
             The label of the node or the group.
 
-        visual:
-            How the node is drawn, or `None` for `default_visual_`.
-
         infected:
             The initial state, 0 or 1.
 
@@ -53,17 +51,18 @@ class InfectiveElement(Element):
         1.0
     """
 
+    visual = VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0})
+
     law_classes = (JumpLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         recovery: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.infected = infected
         self.recovery = recovery
 
@@ -81,7 +80,7 @@ class SimplicialInfectionInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of nodes.
@@ -179,7 +178,7 @@ class SimplicialContagionSystem(BaseSystem):
     references = ('Iacopini et al. 2019', 'Majhi et al. 2022')
     until = 20.0
     dt = 0.5
-    observables = (ObservableSpec('prevalence', group='nodes', variable='infected'),)
+    observables = (Observable('prevalence', group='nodes', variable='infected'),)
 
     def __init__(
         self,
@@ -223,7 +222,7 @@ class SimplicialContagionSystem(BaseSystem):
         return graph, [*graph.edges, *(edge for edge in members if len(edge) == TRIANGLE)]
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         pairs = math.comb(self.n_nodes - 1, PAIR - 1)
         triples = math.comb(self.n_nodes - 1, TRIANGLE - 1)
         triangles = min(self.mean_triangles / triples, 1.0)
@@ -239,7 +238,6 @@ class SimplicialContagionSystem(BaseSystem):
             element=InfectiveElement,
             space=NetworkSpace(graph, hyperedges=hyperedges),
             values={'infected': infected, 'recovery': self.recovery},
-            visual=VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0}),
             on='sites',
         )
         infection = SimplicialInfectionInteraction(

@@ -39,9 +39,6 @@ class ConfidentElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The opinion, between 0 and 1.
 
@@ -54,15 +51,16 @@ class ConfidentElement(Element):
         0.1
     """
 
+    visual = VisualSpec('histograms', {'color_range': (0.0, 1.0), 'histogram_first': True})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('histograms', {'color_range': (0.0, 1.0), 'histogram_first': True}),
         *,
         opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         confidence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
         self.confidence = confidence
 
@@ -85,9 +83,6 @@ class DiscussantElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, between 0 and 1.
 
@@ -105,16 +100,17 @@ class DiscussantElement(Element):
         ('people', 'DiscussantElement', 10)
     """
 
+    visual = VisualSpec('histograms', {'color_by': 'opinion', 'color_range': (0.0, 1.0), 'histogram_first': True})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
         *,
         opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         confidence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
         convergence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.opinion = opinion
         self.confidence = confidence
         self.convergence = convergence
@@ -137,7 +133,7 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of agents, on the nodes of a network.
@@ -306,15 +302,13 @@ class DeffuantSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         opinions = np.random.default_rng(self.random_state).random(self.n_agents)
-        visual = VisualSpec('histograms', {'color_by': 'opinion', 'color_range': (0.0, 1.0), 'histogram_first': True})
         people = GroupElement(
             'people',
             element=DiscussantElement,
             size=self.n_agents,
             values={'opinion': opinions, 'confidence': self.confidence, 'convergence': self.convergence},
-            visual=visual,
         )
         encounters = EncountersInteraction('meetings', target='people', steepness=self.steepness)
         return CompositeSystem(self.label, elements=[people], interactions=[encounters])
@@ -374,7 +368,7 @@ class HegselmannKrauseSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         space = NetworkSpace(self.graph if self.graph is not None else nx.complete_graph(self.n_agents)).prepare()
         opinions = np.random.default_rng(self.random_state).random(space.size_)
         people = GroupElement(

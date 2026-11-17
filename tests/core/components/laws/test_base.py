@@ -7,10 +7,21 @@ import pytest
 from sage.all__sagemath_symbolics import var, vector
 
 from skcomplex.core.components import laws
-from skcomplex.core.components.laws import BaseLaw, CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, NoiseLaw, RateLaw
-from skcomplex.core.components.spaces import BallNeighborhood
+from skcomplex.core.components.laws import (
+    BaseLaw,
+    CallSpec,
+    ConstraintLaw,
+    EventLaw,
+    JumpLaw,
+    LocalRuleLaw,
+    NoiseLaw,
+    RateLaw,
+    RequirementSpec,
+    TotalisticSpec,
+)
+from skcomplex.core.components.spaces import LatticeNeighborhood
+from skcomplex.core.enums import LawTag
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import CallSpec, RequirementSpec, TotalisticSpec
 
 
 def test_every_law_derives_from_the_law_base():
@@ -47,10 +58,8 @@ def test_targets_are_a_tuple_once_prepared():
     """Test that preparing a law sets its targets as a tuple, and that laws without targets have none."""
     x, y = var('x y')
     assert RateLaw(x, 1).prepare().targets_ == (x,)
-    assert LocalRuleLaw(y, BallNeighborhood(n_dim=1, center='inline'), TotalisticSpec({2: 1})).prepare().targets_ == (
-        y,
-    )
-    assert CrossingLaw(x - 1).prepare().targets_ == ()
+    assert LocalRuleLaw(y, LatticeNeighborhood(((-1,), (0,), (1,))), TotalisticSpec({2: 1})).prepare().targets_ == (y,)
+    assert EventLaw(x - 1).prepare().targets_ == ()
 
 
 def test_law_reads_the_symbols_of_its_nested_arguments():
@@ -102,11 +111,11 @@ def test_laws_give_their_kind_times_and_randomness():
     rate = RateLaw(x, -x).get_tags()
     assert (rate.laws, rate.time, rate.randomness) == ({'rate'}, {'continuous'}, 'deterministic')
     assert NoiseLaw(x, 1.0).get_tags().randomness == 'stochastic'
-    assert EquationLaw(x).get_tags().time == {'continuous', 'static'}
+    assert ConstraintLaw(x).get_tags().time == {'continuous', 'static'}
 
 
 def test_every_core_law_names_a_known_kind():
     """Test that every law of the core names one of the law kinds of the tags."""
     for law in [item for item in vars(laws).values() if inspect.isclass(item) and issubclass(item, BaseLaw)]:
         if law is not BaseLaw:
-            assert law.law_tag in {'rate', 'noise', 'jump', 'update', 'equation', 'sampling'}, law.__name__
+            assert law.law_tag in set(LawTag), law.__name__

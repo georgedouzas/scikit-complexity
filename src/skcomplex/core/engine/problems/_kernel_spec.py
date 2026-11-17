@@ -22,7 +22,7 @@ from ._set_symbol_spec import SetSymbolSpec
 
 @dataclass(frozen=True)
 class KernelSpec(BaseSpec):
-    """A spec of the namespace, references, and indices of the laws of one part.
+    """A spec of the namespace, references, and indices of the laws of one component.
 
     The laws of the component are lowered with them.
 

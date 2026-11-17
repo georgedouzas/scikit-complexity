@@ -20,10 +20,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components, maximum, mod, neighbors, where
-from ....core.components.spaces import DiscreteTime, NetworkSpace
+from ....core.components.spaces import DiscreteTime, LayerSpec, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import LayerSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.networks import NetworkNodeElement
 from ..common.networks._regulated_node import ACTIVITY_VISUAL
 from ..common.networks._vertex import DEGREE_VISUAL
@@ -44,9 +44,6 @@ class DependentNodeElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         active:
             Whether the node is functional, 1 or 0.
 
@@ -56,14 +53,15 @@ class DependentNodeElement(Element):
         0.0
     """
 
+    visual = ACTIVITY_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = ACTIVITY_VISUAL,
         *,
         active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.active = active
 
 
@@ -75,9 +73,6 @@ class EnsembleNodeElement(Element):
     Args:
         label:
             The label of the node group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         degree:
             The number of edges of the node, read at the start of every step.
@@ -91,15 +86,16 @@ class EnsembleNodeElement(Element):
         0.1
     """
 
+    visual = DEGREE_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = DEGREE_VISUAL,
         *,
         degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.degree = degree
         self.rate = rate
 
@@ -116,9 +112,6 @@ class FailingElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         degree:
             The number of edges of the node, read at the start of every step.
 
@@ -134,16 +127,17 @@ class FailingElement(Element):
         1
     """
 
+    visual = DEGREE_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = DEGREE_VISUAL,
         *,
         degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         targeted: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.degree = degree
         self.rate = rate
 
@@ -219,7 +213,6 @@ class NetworkAttackSystem(BaseSystem):
             variable=True,
             capacity=space.prepare().size_,
             values=values,
-            visual=DEGREE_VISUAL,
         )
         links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
         return [nodes, links]
@@ -252,7 +245,7 @@ class NetworkAttackSystem(BaseSystem):
         return (1 - s.source.targeted) * s.source.rate + hub
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.strategy not in STRATEGIES:
             error_msg = f'Unknown strategy {self.strategy!r}. Use one of {", ".join(STRATEGIES)}.'
             raise ValidationError(error_msg)
@@ -342,7 +335,7 @@ class RandomGraphEnsemblesSystem(BaseSystem):
         self.steps = steps
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.ensemble not in ENSEMBLES:
             error_msg = f'Unknown ensemble {self.ensemble!r}. Use one of {", ".join(ENSEMBLES)}.'
             raise ValidationError(error_msg)

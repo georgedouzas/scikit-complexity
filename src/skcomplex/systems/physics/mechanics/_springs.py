@@ -126,7 +126,7 @@ class TwoMassSpringDamperSystem(BaseSystem):
         self.omega2 = omega2
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         rest1, rest2 = self.l1, self.l1 + self.l2
         return CompositeSystem(
             self.label,

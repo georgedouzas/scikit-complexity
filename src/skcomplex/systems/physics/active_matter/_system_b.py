@@ -21,7 +21,7 @@ from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class ActiveScalarElement(Element):
@@ -36,9 +36,6 @@ class ActiveScalarElement(Element):
     Args:
         label:
             The label of the site or the field.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
 
         phi:
             The initial field.
@@ -57,7 +54,7 @@ class ActiveScalarElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the element when it sets none.
+            How the element is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import ActiveScalarElement
@@ -73,7 +70,6 @@ class ActiveScalarElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         phi: Annotated[float, StateSpec()] = 0.0,
         kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -81,7 +77,7 @@ class ActiveScalarElement(Element):
         zeta: Annotated[float, ParameterSpec()] = 4.0,
         D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.phi = phi
         self.kappa = kappa
         self.lam = lam

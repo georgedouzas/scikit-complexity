@@ -10,9 +10,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, TensorSpec
-from ..types import Array, DataKind
+from ..specs import TensorSpec
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import (
     _check_choice,
     _check_settings,

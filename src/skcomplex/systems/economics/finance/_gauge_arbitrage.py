@@ -17,6 +17,7 @@ import scipy.sparse.linalg
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import NeighborInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -24,7 +25,7 @@ from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import CellComplexSpace, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 SOLVER_TOLERANCE = 1e-15
@@ -37,15 +38,12 @@ class GoodSiteElement(Element):
         label:
             The label of the site or the group on the sites.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         rho:
             The initial density of the good.
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.economics.finance import GoodSiteElement
@@ -56,11 +54,10 @@ class GoodSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         rho: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.rho = rho
 
 
@@ -73,9 +70,6 @@ class ExchangeLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         A:
             The initial exchange-rate potential.
 
@@ -84,7 +78,7 @@ class ExchangeLinkElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the link when it sets none.
+            How the link is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.economics.finance import ExchangeLinkElement
@@ -92,15 +86,16 @@ class ExchangeLinkElement(Element):
         0.5
     """
 
+    visual = VisualSpec('cell', {'state': 'A'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         A: Annotated[float, StateSpec()] = 0.0,
         E: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.E = E
 
@@ -117,7 +112,7 @@ class TraderCurrentInteraction(NeighborInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group on the sites.
@@ -238,12 +233,12 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         return float(np.abs(-(edges.T @ electric) - (density - density.mean())).max())
 
     @staticmethod
-    def _get_market_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_market_observables(system: CompositeSystem) -> list[Observable]:
         """Return the total of the good and the Gauss residual against its excess density."""
         space = system.elements[0].space.prepare()
         return [
-            ObservableSpec('total_good', function=GaugeArbitrageMarketSystem._get_total_good),
-            ObservableSpec(
+            Observable('total_good', function=GaugeArbitrageMarketSystem._get_total_good),
+            Observable(
                 'gauss_residual',
                 function=partial(GaugeArbitrageMarketSystem._get_gauss_residual, space.incidences_[0]),
             ),
@@ -296,7 +291,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         return np.asarray(field, dtype=float)
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         space = CellComplexSpace(LatticeSpace((self.size, self.size))).prepare()
         density = 1.0 + self.bump * np.random.default_rng(self.seed).random(self.size * self.size)
         field = self._get_initial_field(space.incidences_[0], density - density.mean())
@@ -306,7 +301,6 @@ class GaugeArbitrageMarketSystem(BaseSystem):
             space=space,
             on='sites',
             values={'rho': density},
-            visual=VisualSpec(),
         )
         links = GroupElement(
             'links',
@@ -314,7 +308,6 @@ class GaugeArbitrageMarketSystem(BaseSystem):
             space=space,
             on='edges',
             values={'E': field},
-            visual=VisualSpec('cell', {'state': 'A'}),
         )
         interactions = [
             RateInteraction('potential', target='links', state='A', rate=self._get_potential_rate),
@@ -326,7 +319,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         settings['observables'] = GaugeArbitrageMarketSystem._get_market_observables(self._get_pass_parameters())

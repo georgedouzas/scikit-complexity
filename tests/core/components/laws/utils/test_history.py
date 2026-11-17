@@ -8,12 +8,12 @@ from sage.all__sagemath_symbolics import abs_symbolic, cos, sin
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import EquationLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative, lag, residence, where
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 from ..conftest import PRECISE, MassElement
 
@@ -24,7 +24,6 @@ class DoublePendulumElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[object, StateSpec(order=2)] = 1.0,
         a_d1: float = 0.0,
@@ -32,7 +31,7 @@ class DoublePendulumElement(Element):
         b_d1: float = 0.0,
         g: Annotated[object, ParameterSpec()] = 9.81,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.a_d1 = a_d1
         self.b = b
@@ -42,11 +41,11 @@ class DoublePendulumElement(Element):
     def _get_laws(self, s):
         """Return the laws of the double pendulum element."""
         return [
-            EquationLaw(
+            ConstraintLaw(
                 2 * derivative(s.a, 2) + cos(s.a - s.b) * derivative(s.b, 2)
                 == -(derivative(s.b, 1) ** 2) * sin(s.a - s.b) - 2 * s.g * sin(s.a),
             ),
-            EquationLaw(
+            ConstraintLaw(
                 derivative(s.b, 2) + cos(s.a - s.b) * derivative(s.a, 2)
                 == derivative(s.a, 1) ** 2 * sin(s.a - s.b) - s.g * sin(s.b),
             ),
@@ -59,12 +58,11 @@ class TooFarElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(lags=1)] = 1.0,
         x_lag1: float = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_lag1 = x_lag1
 
@@ -79,14 +77,13 @@ class JerkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(order=3, initial=(0.0, 1.0))] = 0.0,
         x_d2: float = 1.0,
         x_d1: float = 0.0,
         A: Annotated[object, ParameterSpec()] = 0.6,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d2 = x_d2
         self.x_d1 = x_d1
@@ -155,12 +152,11 @@ class ToggleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
         held: Annotated[object, ParameterSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.held = held
 

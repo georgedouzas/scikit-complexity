@@ -32,13 +32,13 @@ nav:
         - Spaces, neighbourhoods, and times: overview/user_guide/core_components/spaces.md
         - Systems: overview/user_guide/core_components/systems.md
         - General realizations: overview/user_guide/core_components/general.md
-        - Choosing parts: overview/user_guide/core_components/choosing_parts.md
+        - Choosing components: overview/user_guide/core_components/choosing_components.md
       - Build a custom system:
         - overview/user_guide/build_a_custom_system/index.md
         - Defining elements: overview/user_guide/build_a_custom_system/defining_elements.md
         - Kinds of dynamics: overview/user_guide/build_a_custom_system/kinds_of_dynamics.md
         - General interactions: overview/user_guide/build_a_custom_system/general_interactions.md
-        - Connected components: overview/user_guide/build_a_custom_system/connected_components.md
+        - Ports and connections: overview/user_guide/build_a_custom_system/ports_and_connections.md
         - Delays, events, drivers, and noise: overview/user_guide/build_a_custom_system/delays_events_drivers_and_noise.md
         - Stochastic maps: overview/user_guide/build_a_custom_system/stochastic_maps.md
         - Anomalous processes: overview/user_guide/build_a_custom_system/anomalous_processes.md
@@ -77,16 +77,16 @@ nav:
       - Troubleshooting: overview/user_guide/troubleshooting.md
     - Changelog: overview/changelog.md
     - License: overview/license.md
-  - Parts:
-    - Elements: parts/elements.md
-    - Interactions: parts/interactions.md
-    - Laws: parts/laws.md
-    - Spaces: parts/spaces.md
-    - Systems: parts/systems.md
-    - Solvers: parts/solvers.md
-    - Backends: parts/backends.md
-    - Analyses: parts/analyses.md
-    - Experiments: parts/experiments.md
+  - Components:
+    - Elements: components/elements.md
+    - Interactions: components/interactions.md
+    - Laws: components/laws.md
+    - Spaces: components/spaces.md
+    - Systems: components/systems.md
+    - Solvers: components/solvers.md
+    - Backends: components/backends.md
+    - Analyses: components/analyses.md
+    - Experiments: components/experiments.md
   - Systems: systems/
   - API: api/
   - Examples:
@@ -102,6 +102,10 @@ nav:
     - development/index.md
     - Contributing: development/contributing.md
     - Code of Conduct: development/code_of_conduct.md
+
+validation:
+  links:
+    anchors: warn
 
 exclude_docs: |
   gallery_tools/
@@ -167,7 +171,20 @@ plugins:
       scripts:
       - docs/generate_api.py
       - docs/generate_systems.py
-      - docs/generate_parts.py
+      - docs/generate_components.py
+  - redirects:
+      redirect_maps:
+        parts/elements.md: components/elements.md
+        parts/interactions.md: components/interactions.md
+        parts/laws.md: components/laws.md
+        parts/spaces.md: components/spaces.md
+        parts/systems.md: components/systems.md
+        parts/solvers.md: components/solvers.md
+        parts/backends.md: components/backends.md
+        parts/analyses.md: components/analyses.md
+        parts/experiments.md: components/experiments.md
+        overview/user_guide/core_components/choosing_parts.md: overview/user_guide/core_components/choosing_components.md
+        overview/user_guide/build_a_custom_system/connected_components.md: overview/user_guide/build_a_custom_system/ports_and_connections.md
   - literate-nav:
       nav_file: SUMMARY.md
   - section-index

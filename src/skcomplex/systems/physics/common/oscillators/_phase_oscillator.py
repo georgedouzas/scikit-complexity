@@ -8,7 +8,7 @@ from typing import Annotated
 
 from .....core.components.elements import Element
 from .....core.components.laws import BaseLaw, RateLaw
-from .....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.specs import ParameterSpec, StateSpec
 
 
 class PhaseOscillatorElement(Element):
@@ -22,9 +22,6 @@ class PhaseOscillatorElement(Element):
         label:
             The label of the oscillator or the group.
 
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
-
         theta:
             The initial phase.
 
@@ -33,7 +30,7 @@ class PhaseOscillatorElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the oscillator when it sets none.
+            How the oscillator is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.core.components.systems import CompositeSystem
@@ -49,12 +46,11 @@ class PhaseOscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         theta: Annotated[float, StateSpec(role='phase')] = 0.0,
         omega: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.omega = omega
 

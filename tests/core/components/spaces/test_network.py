@@ -11,12 +11,12 @@ import xgi
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import AdjacencyNeighborhood, BallNeighborhood, NetworkSpace
+from skcomplex.core.components.spaces import AdjacencyNeighborhood, LayerSpec, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 
 BACKENDS = (NumpyBackend(), NumbaBackend())
 GENERATORS = [
@@ -144,7 +144,7 @@ def test_network_space_counts_its_hyperedges():
 def test_network_space_reads_an_adjacency_neighbourhood_only():
     """Test that a network rejects a lattice neighbourhood."""
     with pytest.raises(ValidationError, match='adjacency neighbourhood'):
-        NetworkSpace(nx.path_graph(4)).prepare()._get_index_table(BallNeighborhood(metric='manhattan'))
+        NetworkSpace(nx.path_graph(4)).prepare()._get_index_table(RadiusNeighborhood(1, metric='manhattan'))
 
 
 def test_network_space_gives_the_neighbours_of_a_node():
@@ -169,13 +169,12 @@ def test_reductions_read_the_edges_of_their_layer(backend):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             y: Annotated[object, StateSpec()] = 0.0,
             contacts: Annotated[object, StateSpec()] = 0.0,
             colleagues: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.y = y
             self.contacts = contacts
             self.colleagues = colleagues

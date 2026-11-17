@@ -14,20 +14,14 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.spaces import DelaunayNeighborhood, DiscreteTime
 from ....components.systems import CompositeSystem
+from ....enums import FormKind
 from ....errors import BackendWarning, ValidationError
-from ....specs import (
-    DEFAULT_PHASE,
-    EntrySpec,
-    LayoutSpec,
-    LoweredFunctionsSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RunStateSpec,
-)
-from ....types import Array, FormKind, Indices, VectorFunction
+from ....specs import EntrySpec
+from ....types import Array, Indices, VectorFunction
 from ..._utils import symbols_of
-from ...backends import BaseBackend, NumpyBackend
-from ...problems import ProblemSpec
+from ...backends import BaseBackend, LoweredFunctionsSpec, NumpyBackend
+from ...enums import ReadKind
+from ...problems import LayoutSpec, ProblemSpec, RunStateSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._draw_kernel import DrawKernel
 from ...problems._draw_recorder import DrawRecorder
@@ -41,11 +35,12 @@ from ...problems._output_spec import OutputSpec
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._sweep_spec import _SweepSpec
-from ...types import ReadKind
 from .._algebraic_law import AlgebraicLaw
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._forms import STEPWISE_FORMS
+from .._phase_spec import PhaseSpec
+from .._phases_schedule_spec import DEFAULT_PHASE, PhasesScheduleSpec
 
 
 class FunctionsPass(BasePass):

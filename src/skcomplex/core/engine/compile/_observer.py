@@ -11,17 +11,17 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...base import BaseConfig
+from ...components import Observable
 from ...components.laws.utils import count, maximum, mean, minimum, total, variance
-from ...components.specs import NodeSpec
 from ...errors import ValidationError
-from ...specs import ObservableSpec
 from .._utils import vector
+from ..enums import ReadKind
 from ..problems import ProblemSpec
 from ..problems._block_spec import BlockSpec
 from ..problems._declarations_spec import DeclarationsSpec
+from ..problems._node_spec import _NodeSpec
 from ..problems._observed_spec import ObservedSpec
 from ..problems._reference_spec import ReferenceSpec
-from ..types import ReadKind
 from ._observables import Declared, ObservableEvaluator
 
 REDUCERS: dict[str, Callable[..., Expression]] = {
@@ -33,7 +33,7 @@ REDUCERS: dict[str, Callable[..., Expression]] = {
 }
 
 
-class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
+class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
     """An observer of the values of the observables that laws read at a state.
 
     They are built from the blocks of a system. `prepare()` starts with no observable evaluated, and `run((node,
@@ -72,7 +72,7 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         """
         self.values_ = {}
 
-    def _run(self, inputs: tuple[NodeSpec, object] | None) -> None:
+    def _run(self, inputs: tuple[_NodeSpec, object] | None) -> None:
         """Set the namespace of the observable a role binds to.
 
         It is `None` for a role bound to no live observable.
@@ -101,7 +101,7 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         self,
         path: str,
         scope: str,
-        observable: ObservableSpec,
+        observable: Observable,
     ) -> tuple[object, dict[Expression, ReferenceSpec]]:
         """Return an expression of the symbols of a system's elements.
 
@@ -135,7 +135,7 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         self,
         path: str,
         scope: str,
-        observable: ObservableSpec,
+        observable: Observable,
     ) -> tuple[object, dict[Expression, ReferenceSpec]]:
         """Return the value of an observable with the references of the symbols it reads."""
         if path in self.values_:
@@ -173,7 +173,7 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         return SimpleNamespace(**symbols)
 
     @staticmethod
-    def _get_reduced_value(path: str, observable: ObservableSpec, block: BlockSpec) -> object:
+    def _get_reduced_value(path: str, observable: Observable, block: BlockSpec) -> object:
         """Return an observable that reduces a group over its member symbols."""
         namespace = Observer._get_namespace_of(block)
         if observable.reduce == 'count':
@@ -181,14 +181,12 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         if observable.variable is not None:
             if observable.variable not in block.symbols:
                 error_msg = (
-                    f'ObservableSpec {path} reduces {observable.variable}, which {block.node.path} does not declare.'
+                    f'Observable {path} reduces {observable.variable}, which {block.node.path} does not declare.'
                 )
                 raise ValidationError(error_msg)
             value: object = block.symbols[observable.variable]
         elif observable.expression is None:
-            error_msg = (
-                f'ObservableSpec {path} reduces {block.node.path} with {observable.reduce!r} but names no variable.'
-            )
+            error_msg = f'Observable {path} reduces {block.node.path} with {observable.reduce!r} but names no variable.'
             raise ValidationError(error_msg)
         else:
             value = observable.expression(namespace) if callable(observable.expression) else observable.expression

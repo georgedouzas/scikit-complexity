@@ -15,13 +15,14 @@ from typing import Annotated
 
 import numpy as np
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec
 from ....core.types import AnyArray, IntArray
 
 ADLEMAN_EDGES = (
@@ -58,9 +59,6 @@ class StrandElement(Element):
         label:
             The label of the strand or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         path:
             The initial nodes of the path, padded with -1 to the longest path the tube holds.
 
@@ -73,11 +71,10 @@ class StrandElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         path: Annotated[object, StateSpec()] = EMPTY,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.path = path
 
     @classmethod
@@ -239,7 +236,7 @@ class DNAComputationSystem(BaseSystem):
     topics = ('dna computing', 'molecular computation', 'hamiltonian path', 'agents', 'stochastic')
     references = ('Adleman 1994', 'Raman 2021')
     until = 60
-    observables = (ObservableSpec('solutions', group='strands', variable='path', reduce=_get_adleman_solutions),)
+    observables = (Observable('solutions', group='strands', variable='path', reduce=_get_adleman_solutions),)
 
     def __init__(
         self,

@@ -14,7 +14,8 @@ from sage.all__sagemath_symbolics import CC, NN, RR, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ..types import Array, ComplexArray, DomainKind
+from ..enums import DomainKind
+from ..types import Array, ComplexArray
 from ._base_spec import BaseSpec
 from ._power_series_spec import PowerSeriesSpec
 from ._subshift_spec import SubshiftSpec

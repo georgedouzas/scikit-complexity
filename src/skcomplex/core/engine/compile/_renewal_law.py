@@ -7,9 +7,8 @@ from collections.abc import Mapping
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.laws import BaseLaw
+from ...components.laws import BaseLaw, RequirementSpec
 from ...components.spaces import ContinuousTime
-from ...specs import RequirementSpec
 
 
 class RenewalLaw(BaseLaw):

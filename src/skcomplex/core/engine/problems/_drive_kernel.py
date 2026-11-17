@@ -7,12 +7,13 @@ from collections.abc import Callable
 
 import numpy as np
 
-from ...components.specs import LatticeStateSpec
-from ...specs import ArgumentsSpec, RunStateSpec
 from ...types import Array
+from ._arguments_spec import _ArgumentsSpec
 from ._base import BaseKernel
+from ._lattice_state_spec import _LatticeStateSpec
+from ._run_state_spec import RunStateSpec
 
-NO_ARGUMENTS = ArgumentsSpec()
+NO_ARGUMENTS = _ArgumentsSpec()
 
 
 class DriveKernel(BaseKernel):
@@ -51,9 +52,9 @@ class DriveKernel(BaseKernel):
     def __init__(
         self,
         owner: str,
-        target: LatticeStateSpec,
+        target: _LatticeStateSpec,
         function: Callable[..., object],
-        arguments: ArgumentsSpec = NO_ARGUMENTS,
+        arguments: _ArgumentsSpec = NO_ARGUMENTS,
         *,
         timed: bool = False,
         drawing: bool = True,
@@ -70,7 +71,7 @@ class DriveKernel(BaseKernel):
         self.spaced = spaced
 
     @property
-    def targets(self) -> tuple[LatticeStateSpec, ...]:
+    def targets(self) -> tuple[_LatticeStateSpec, ...]:
         """Lattice states the drive changes."""
         return (self.target,)
 

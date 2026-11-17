@@ -14,7 +14,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import clip
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class StandElement(Element):
@@ -23,9 +23,6 @@ class StandElement(Element):
     Args:
         label:
             The label of the stand.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         volume:
             The initial stem volume.
@@ -42,12 +39,11 @@ class StandElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         volume: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         mature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.volume = volume
         self.mature = mature
 
@@ -281,7 +277,7 @@ class MangroveSuccessionSystem(BaseSystem):
         self.seedlings = seedlings
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the regrowth of a mangrove forest after a clear cut.
+        """Return the components of the regrowth of a mangrove forest after a clear cut.
 
         The forest is of the Sundarbans.
         """

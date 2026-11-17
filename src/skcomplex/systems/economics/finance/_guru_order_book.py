@@ -15,11 +15,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.policy import PolicyRuleInteraction
 
@@ -54,9 +55,6 @@ class GuruTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         cash:
             The cash of the trader, including the cash held by its limit orders.
 
@@ -85,12 +83,13 @@ class GuruTraderElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'followers'})
+
     law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'followers'}),
         *,
         cash: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
         stocks: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
@@ -100,7 +99,7 @@ class GuruTraderElement(Element):
         sigma: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         followers: Annotated[float, StateSpec(domain=NN)] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.cash = cash
         self.stocks = stocks
         self.wealth = wealth
@@ -424,7 +423,7 @@ class GuruOrderBookSystem(BaseSystem):
     until = 300
     invariants: ClassVar[Mapping[str, float]] = {f'total_{name}': 1e-6 for name in HOLDINGS}
     observables = tuple(
-        [ObservableSpec(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS],
+        [Observable(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS],
     )
 
     def __init__(
@@ -451,7 +450,7 @@ class GuruOrderBookSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         links = rng.integers(self.n_traders - 1, size=self.n_traders)
         links += links >= np.arange(self.n_traders)

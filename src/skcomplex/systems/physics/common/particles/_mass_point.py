@@ -9,7 +9,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.specs import ParameterSpec, VisualSpec
+from .....core.specs import ParameterSpec
 from ....general.elements import PointElement
 
 
@@ -30,9 +30,6 @@ class MassPointElement(PointElement):
         x_d1:
             The initial velocity. A number applies to every component.
 
-        visual:
-            How the point is drawn, or `None` for `default_visual_`.
-
         m:
             The mass.
 
@@ -51,9 +48,8 @@ class MassPointElement(PointElement):
         label: str,
         x: npt.ArrayLike = 0.0,
         x_d1: npt.ArrayLike = 0.0,
-        visual: VisualSpec | None = None,
         *,
         m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, x=x, x_d1=x_d1, visual=visual)
+        super().__init__(label, x=x, x_d1=x_d1)
         self.m = m

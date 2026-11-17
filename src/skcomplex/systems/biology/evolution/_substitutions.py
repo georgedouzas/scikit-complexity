@@ -15,13 +15,14 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable, Tags
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import total
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, Tags, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 
@@ -31,9 +32,6 @@ class LocusElement(Element):
     Args:
         label:
             The label of the locus or the group of loci.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         s:
             The allele, `-1` or `1`.
@@ -48,15 +46,16 @@ class LocusElement(Element):
         10
     """
 
+    visual = VisualSpec('image', {'low': -1.0, 'high': 1.0, 'history': 64})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('image', {'low': -1.0, 'high': 1.0, 'history': 64}),
         *,
         s: Annotated[float, StateSpec(domain=ZZ)] = -1.0,
         h: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.s = s
         self.h = h
 
@@ -245,7 +244,7 @@ class OriginFixationWalkSystem(BaseSystem):
         return s.substitution.F0 + s.field_share + s.coupling_share
 
     @staticmethod
-    def _walk_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _walk_observables(system: CompositeSystem) -> list[Observable]:
         """Return the shares of the fields and the couplings, and the genome fitness.
 
         The shares are those in the fitness of the genome.
@@ -254,14 +253,14 @@ class OriginFixationWalkSystem(BaseSystem):
         loci = system.elements[0].prepare().size_
         matrix = np.zeros((loci, loci)) if couplings is None else np.asarray(couplings)
         return [
-            ObservableSpec('field_share', OriginFixationWalkSystem._get_field_share, group='genome', reduce='sum'),
-            ObservableSpec(
+            Observable('field_share', OriginFixationWalkSystem._get_field_share, group='genome', reduce='sum'),
+            Observable(
                 'coupling_share',
                 group='genome',
                 variable='s',
                 reduce=partial(OriginFixationWalkSystem._get_coupling_share, couplings=matrix),
             ),
-            ObservableSpec('fitness', OriginFixationWalkSystem._get_genome_fitness),
+            Observable('fitness', OriginFixationWalkSystem._get_genome_fitness),
         ]
 
     def __init__(
@@ -288,7 +287,7 @@ class OriginFixationWalkSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        They include the shares and the fitness of the genome of the built parts.
+        They include the shares and the fitness of the genome of the built components.
 
         Returns:
             settings:
@@ -299,7 +298,7 @@ class OriginFixationWalkSystem(BaseSystem):
         return settings
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a monomorphic population."""
+        """Return the components of a monomorphic population."""
         rng = np.random.default_rng(self.random_state)
         fields = rng.normal(0.0, self.field_scale, self.loci)
         upper = np.triu(rng.normal(0.0, self.coupling / np.sqrt(self.loci), (self.loci, self.loci)), 1)

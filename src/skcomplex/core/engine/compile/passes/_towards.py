@@ -9,13 +9,13 @@ from sage.all__sagemath_symbolics import SR
 
 from ....components.laws import BaseLaw, UpdateLaw
 from ....errors import ValidationError
-from ....specs._weight_spec import _WeightSpec
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import Compilation
+from .._weight_spec import _WeightSpec
 from ._specs import SpecsPass
 from ._topology_functions import TopologyFunctionsPass
 

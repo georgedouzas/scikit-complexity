@@ -12,8 +12,8 @@ import numpy.typing as npt
 from ..components.elements import DeclaredElement, Element, GroupElement
 from ..components.laws import (
     BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
+    ConstraintLaw,
+    EventLaw,
     JumpLaw,
     NoiseLaw,
     RateLaw,
@@ -24,9 +24,9 @@ from ..components.laws import (
 from ..components.systems import CompositeSystem
 from ..engine._utils import declared_variables, probe_laws
 from ..engine.runtime import Trajectory, simulate
+from ..enums import VariableKind
 from ..errors import ValidationError
 from ..specs import VariableSpec
-from ..types import VariableKind
 from ._runs import _check_source
 from ._utils import build_system
 from .types import Source
@@ -37,10 +37,10 @@ PLAIN_LAWS = (
     JumpLaw,
     UpdateLaw,
     BoundaryLaw,
-    CrossingLaw,
+    EventLaw,
     TransitionLaw,
     TransferLaw,
-    EquationLaw,
+    ConstraintLaw,
 )
 
 
@@ -188,7 +188,6 @@ def _replicate(
             element=type(element),
             size=size,
             values={**_member_settings(element), **by_label[element.label]},
-            visual=element.visual,
         )
         for element in system.elements
     ]

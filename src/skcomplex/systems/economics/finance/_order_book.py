@@ -15,13 +15,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ...general.agents import ImitationInteraction
 from ...general.matching import ContinuousMatchingSpec, MatchingInteraction, MatchSpec, RandomSearchSpec
 from ...general.matching.types import MatchingRule
@@ -63,9 +65,6 @@ class StockTraderElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         strategy:
             0 for a fundamentalist, 1 for a chartist.
@@ -113,12 +112,13 @@ class StockTraderElement(Element):
         4
     """
 
+    visual = VisualSpec('agents', {'color_by': 'strategy', 'color_range': (0.0, 1.0)})
+
     law_classes = (RuleLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'strategy', 'color_range': (0.0, 1.0)}),
         *,
         strategy: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         money: Annotated[float, StateSpec()] = 1000.0,
@@ -134,7 +134,7 @@ class StockTraderElement(Element):
         extrapolation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.strategy = strategy
         self.money = money
         self.shares = shares
@@ -401,9 +401,9 @@ class OrderBookSystem(BaseSystem):
     until = 200
     invariants: ClassVar[Mapping[str, float]] = {f'total_{name}': 1e-6 for name in HOLDINGS}
     observables = (
-        ObservableSpec('chartists', group='traders', variable='strategy', reduce='mean'),
-        ObservableSpec('mean_wealth', group='traders', variable='wealth', reduce='mean'),
-        *(ObservableSpec(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS),
+        Observable('chartists', group='traders', variable='strategy', reduce='mean'),
+        Observable('mean_wealth', group='traders', variable='wealth', reduce='mean'),
+        *(Observable(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS),
     )
 
     def __init__(
@@ -432,7 +432,7 @@ class OrderBookSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
         traders = GroupElement(

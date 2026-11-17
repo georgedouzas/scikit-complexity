@@ -14,9 +14,10 @@ from sage.all__sagemath_symbolics import SR, Expression, arctan2, cos, oo, sin
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
+from ...enums import ElementKind
 from ...errors import ValidationError
-from ...specs import BaseSpec, ParameterSpec, RoleSpec, Tags
-from ...types import ElementKind
+from ...specs import BaseSpec, ParameterSpec, RoleSpec
+from .._tags import Tags
 from ..laws import BaseLaw, RateLaw, UpdateLaw
 from ..laws.utils import count, delayed, hyperedges, maximum, minimum, neighbors, shift_member, total
 from ..spaces import BaseNeighborhood, BaseSpace
@@ -62,7 +63,7 @@ class CouplingInteraction(NeighborInteraction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'consensus'`.
+            The name of the interaction, unique among the components of its system, such as `'consensus'`.
 
         target:
             The path of the group of the members, such as `'people'`. In the mode `'group'` it may also be the path of
@@ -351,7 +352,7 @@ class CouplingInteraction(NeighborInteraction):
             error_msg = f'The coupling {self.label!r} takes a phase in the map form, but its form is {self.form!r}.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for unknown variants, bad functions, or unsuitable weights.
 
         Args:

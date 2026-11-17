@@ -8,13 +8,14 @@ from collections.abc import Callable
 import numpy as np
 import numpy.typing as npt
 
-from ...components.specs import LatticeStateSpec
 from ...errors import SolverError
-from ...specs import CascadeRecordSpec, RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
+from ._cascade_record_spec import _CascadeRecordSpec
 from ._drive_kernel import DriveKernel
+from ._lattice_state_spec import _LatticeStateSpec
 from ._rule_kernel import RuleKernel
+from ._run_state_spec import RunStateSpec
 
 
 class CascadeKernel(BaseKernel):
@@ -47,14 +48,14 @@ class CascadeKernel(BaseKernel):
             The record of the cascade of the last run, or `None` when the lattice did not change.
     """
 
-    values_: CascadeRecordSpec | None
+    values_: _CascadeRecordSpec | None
 
     def __init__(
         self,
         label: str,
         drive: tuple[RuleKernel | DriveKernel, ...],
         relax: tuple[RuleKernel | DriveKernel, ...],
-        targets: tuple[LatticeStateSpec, ...],
+        targets: tuple[_LatticeStateSpec, ...],
         stable: Callable[..., bool],
         *,
         max_iterations: int,
@@ -88,7 +89,7 @@ class CascadeKernel(BaseKernel):
         """
         self.values_ = self._relax(self._get_state_of(inputs))
 
-    def _relax(self, state: RunStateSpec) -> CascadeRecordSpec | None:
+    def _relax(self, state: RunStateSpec) -> _CascadeRecordSpec | None:
         """Apply the drive, then relax until stable, and return the record of a cascade.
 
         A record is returned only for a cascade that changed the lattice.
@@ -136,4 +137,4 @@ class CascadeKernel(BaseKernel):
         if not duration:
             return None
         area = int(changed.sum()) if changed is not None else 0
-        return CascadeRecordSpec(self.label, time, size, duration, area)
+        return _CascadeRecordSpec(self.label, time, size, duration, area)

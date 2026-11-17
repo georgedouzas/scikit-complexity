@@ -3,15 +3,16 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import TrainingInteraction
+from skcomplex.core.components.laws import DatasetSpec
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._learning_problem_spec import LearningProblemSpec
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.specs import DatasetSpec, ObservableSpec
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 
 from ....conftest import CallableGrowthInteraction, HoldingElement
@@ -67,7 +68,7 @@ def test_parameter_not_adaptive():
 
 def test_unknown_loss():
     """Test that a loss that reads a variable the nested system does not have names the loss and the variable."""
-    loss = ObservableSpec('error', group='outputs', reduce='sum', expression=_squared)
+    loss = Observable('error', group='outputs', reduce='sum', expression=_squared)
     issues = _issues(_elman(loss=loss))
     assert [issue.code for issue in issues] == ['learning-unknown-observable']
     assert 'error' in issues[0].message
@@ -96,7 +97,7 @@ def test_not_differentiable():
         interactions=[CallableGrowthInteraction('growth', target='cells')],
     )
     data = DatasetSpec({'growth.r': np.zeros((2, 3))})
-    loss = ObservableSpec('size', group='cells', reduce='sum', variable='n')
+    loss = Observable('size', group='cells', reduce='sum', variable='n')
     training = TrainingInteraction('training', system='net', trained=['growth.r'], loss=loss, data=data)
     issues = _issues(CompositeSystem('fit', systems=[net], interactions=[training], time=DiscreteTime()))
     assert [issue.code for issue in issues] == ['learning-not-differentiable']

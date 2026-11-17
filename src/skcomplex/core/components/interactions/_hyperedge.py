@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 from ...errors import ValidationError
-from ..base import BasePart
+from ..base import BaseComponent
 from ..spaces import BaseSpace
 from ._base import BaseInteraction
 
@@ -42,7 +42,7 @@ class HyperedgeInteraction(BaseInteraction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'consensus'`.
+            The name of the interaction, unique among the components of its system, such as `'consensus'`.
 
         size:
             The number of members of the hyperedges the laws run on, or `None` for every size.
@@ -72,7 +72,7 @@ class HyperedgeInteraction(BaseInteraction):
         super().__init__(label)
         self.size = size
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the interaction for one hyperedge, none by default.
 
         Args:
@@ -85,7 +85,7 @@ class HyperedgeInteraction(BaseInteraction):
         """
         return []
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for declared states or a size below two.
 
         Args:

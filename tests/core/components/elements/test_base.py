@@ -3,6 +3,8 @@
 from types import SimpleNamespace
 from typing import Annotated
 
+import pytest
+from sage.all__sagemath_symbolics import var
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import BaseElement, Element, GroupElement
@@ -10,20 +12,22 @@ from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class PopulationElement(BaseElement):
     """Population with a state, a parameter, and a visual of its own."""
 
+    visual = VisualSpec('line')
+
     def __init__(
         self,
         label: str,
         n: Annotated[float, StateSpec()] = 1.0,
         r: Annotated[float, ParameterSpec()] = 0.5,
-        visual: VisualSpec | None = VisualSpec('line'),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.r = r
 
@@ -32,20 +36,16 @@ class PopulationElement(BaseElement):
         return []
 
 
-def test_element_stores_its_states_parameters_and_visual():
-    """Test that an element stores its arguments, and its visual spec is one value, not a nested estimator."""
-    assert PopulationElement('rabbits', n=40).get_params() == {
-        'label': 'rabbits',
-        'n': 40,
-        'r': 0.5,
-        'visual': VisualSpec('line'),
-    }
+def test_element_stores_its_states_and_parameters():
+    """Test that an element stores its arguments, and its drawing is not one of them."""
+    assert PopulationElement('rabbits', n=40).get_params() == {'label': 'rabbits', 'n': 40, 'r': 0.5}
 
 
-def test_element_prepares_the_plain_visual():
-    """Test that preparing an element sets the plain visual as its default visual, whatever its own visual."""
+def test_element_prepares_the_visual_of_its_class():
+    """Test that preparing an element sets the drawing its class gives as its default visual."""
     element = PopulationElement('rabbits').prepare()
-    assert element.default_visual_ == VisualSpec()
+    assert element.default_visual_ == VisualSpec('line')
+    assert Element('ball', values={'x': 1.0}).prepare().default_visual_ == VisualSpec()
     assert element.run(SimpleNamespace()).laws_ == []
 
 
@@ -111,3 +111,29 @@ def test_variable_group_changes_its_membership():
     """Test that a variable group has the structure of a variable membership."""
     group = GroupElement('cells', element=CellElement, size=0, variable=True, capacity=4)
     assert group.get_tags().structure == {'variable membership'}
+
+
+class _FallingBall(Element):
+    """Ball that wrongly sets its own law of motion."""
+
+    def __init__(self, label: str, x: float = 10.0) -> None:
+        super().__init__(label)
+        self.x = x
+
+    def _prepare(self, context: LatticeSpace | None = None) -> None:
+        """Set a law, which only interactions may do."""
+        super()._prepare(context)
+        self.laws_ = [RateLaw(var('x'), -9.81)]
+
+
+def test_prepare_rejects_an_element_that_sets_laws():
+    """Test that an element whose _prepare sets laws_ raises an error pointing to interactions."""
+    with pytest.raises(ValidationError, match=r"'ball' sets laws_ in _prepare.*interaction"):
+        _FallingBall('ball').prepare()
+
+
+def test_prepare_twice_after_a_run_keeps_working():
+    """Test that an element run once, which sets laws_, prepares again without the error."""
+    element = Element('ball', values={'x': 1.0}).prepare()
+    element.run(SimpleNamespace())
+    assert element.prepare() is element

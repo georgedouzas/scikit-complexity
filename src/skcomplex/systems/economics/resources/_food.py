@@ -13,13 +13,14 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.components.laws.utils import series
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 INPUT_EFFECT = ((0.0, 0.25, 0.5, 0.75, 1.0, 1.5), (0.3, 0.45, 0.58, 0.68, 0.75, 0.8))
 LEARNING_EFFECT = ((0.0, 0.25, 0.5, 0.75, 1.0), (0.0, 0.4, 0.7, 0.9, 1.0))
@@ -47,9 +48,6 @@ class RiceSectorElement(Element):
     Args:
         label:
             The label of the sector.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         available_land:
             The initial land suitable for rice and not yet developed.
@@ -160,7 +158,6 @@ class RiceSectorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         available_land: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 0.088,
         rice_area: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 0.680647,
@@ -191,7 +188,7 @@ class RiceSectorElement(Element):
         intensity_target: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         implementation_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.available_land = available_land
         self.rice_area = rice_area
         self.population = population
@@ -247,7 +244,7 @@ class PartialAdjustmentInteraction(RateInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or group whose state relaxes.
@@ -409,7 +406,7 @@ class FoodSecuritySystem(BaseSystem):
     dt = 0.25
     observables = tuple(
         [
-            ObservableSpec(name, expression, element='rice')
+            Observable(name, expression, element='rice')
             for name, expression in (
                 ('input_ratio', _get_input_ratio),
                 ('productivity', _get_productivity),
@@ -438,7 +435,7 @@ class FoodSecuritySystem(BaseSystem):
         self.intensity_target = intensity_target
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         sector = RiceSectorElement(
             'rice',
             subsidy=self.subsidy,

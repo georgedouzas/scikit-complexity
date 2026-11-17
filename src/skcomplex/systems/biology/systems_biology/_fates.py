@@ -16,7 +16,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class FateLandscapeElement(Element):
@@ -31,9 +31,6 @@ class FateLandscapeElement(Element):
     Args:
         label:
             The label of the cell or of the group of cells.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial first coordinate.
@@ -67,7 +64,6 @@ class FateLandscapeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -77,7 +73,7 @@ class FateLandscapeElement(Element):
         v1: Annotated[float, ParameterSpec()] = 0.0,
         v2: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.a = a
@@ -116,9 +112,6 @@ class ProneuralCellElement(Element):
         label:
             The label of the cell or of the group of cells.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         a:
             The initial neural state.
 
@@ -134,12 +127,11 @@ class ProneuralCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
         width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.127,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.width = width
 
@@ -277,7 +269,7 @@ class ThreeWayFateDecisionSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+        """Return the components of the system."""
         rng = np.random.default_rng(self.seed)
         start = rng.uniform(-self.spread, self.spread, (2, self.cells))
         values = {
@@ -360,7 +352,7 @@ class BristleLateralInhibitionSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a ring of cells that inhibit the neural fate of neighbours."""
+        """Return the components of a ring of cells that inhibit the neural fate of neighbours."""
         index = np.arange(self.cells)
         distance = np.abs(index[:, None] - index[None, :])
         distance = np.minimum(distance, self.cells - distance)

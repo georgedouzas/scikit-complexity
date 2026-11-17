@@ -51,6 +51,6 @@ def test_join_a_club_separates_members_from_outsiders_at_strong_coupling():
 
 
 @pytest.mark.parametrize('system', [HegselmannKrauseSystem, CoevolvingVoterSystem, JoinAClubSystem])
-def test_opinion_network_systems_build_their_parts(system):
-    """Test that the systems build their parts with their default parameters."""
+def test_opinion_network_systems_build_their_components(system):
+    """Test that the systems build their components with their default parameters."""
     assert system().prepare().system_.elements

@@ -93,7 +93,7 @@ class CapitalStockSystem(DynamicalSystem):
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return {
             'K': self._get_net_investment,
         }

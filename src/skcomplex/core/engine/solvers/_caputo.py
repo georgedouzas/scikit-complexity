@@ -8,11 +8,12 @@ from abc import abstractmethod
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw, TransferLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.laws import BoundaryLaw, ConstraintLaw, RateLaw, TransferLaw
+from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, NetworkSpace
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ._solver import Solver
 
@@ -34,8 +35,8 @@ class CaputoSolver(Solver):
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
             time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw, TransferLaw},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, CayleySpace},
+            laws={RateLaw, ConstraintLaw, BoundaryLaw, TransferLaw},
             orders=frozenset(OrderKind),
         )
 

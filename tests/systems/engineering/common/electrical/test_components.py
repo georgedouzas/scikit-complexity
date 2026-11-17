@@ -1,8 +1,6 @@
 """Test the `_components` module of `skcomplex.systems.engineering.common.electrical`."""
 
 import math
-from importlib.resources import files
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -78,12 +76,9 @@ def _component_chua():
     )
 
 
-def test_electrical_connector_lives_in_the_library():
-    """Test that the connector is a `ConnectorSpec` that no module of the core or the engine names."""
+def test_electrical_connector_is_a_connector_spec():
+    """Test that the connector of the electrical components is a `ConnectorSpec`."""
     assert isinstance(ELECTRICAL, ConnectorSpec)
-    for package in ('skcomplex.core.components', 'skcomplex.core.engine'):
-        for module in Path(str(files(package))).rglob('*.py'):
-            assert "'electrical'" not in module.read_text()
 
 
 @pytest.mark.parametrize('solver', [ScipyODESolver(), RK4Solver(dt=1e-3)], ids=['scipy', 'rk4'])

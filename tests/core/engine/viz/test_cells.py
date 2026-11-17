@@ -26,16 +26,16 @@ COLOR_CHANNELS = 3
 class AngleElement(Element):
     """Cell with an angle `theta`."""
 
-    def __init__(self, label, visual=None, *, theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0):
+        super().__init__(label)
         self.theta = theta
 
 
 class ValueElement(Element):
     """Cell with a real value `u`."""
 
-    def __init__(self, label, visual=None, *, u: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
         self.u = u
 
 
@@ -51,9 +51,9 @@ class RecordingStub:
         self.logged.setdefault(path, []).append(archetype)
 
 
-def _system(space, element=AngleElement, part='edges', values=None, visual=None):
+def _system(space, element=AngleElement, part='edges', values=None):
     """Return a system of a group on a part of a complex, one of whose states grows at a constant rate."""
-    group = GroupElement('cells', element=element, space=space, on=part, values=values or {}, visual=visual)
+    group = GroupElement('cells', element=element, space=space, on=part, values=values or {})
     state = 'theta' if element is AngleElement else 'u'
     return CompositeSystem(
         elements=[group],
@@ -98,8 +98,8 @@ def test_recording_of_a_run_with_the_cell_visual_is_saved(tmp_path):
     """Test that a group that names the cell visual runs with a Rerun observer that saves its stream."""
     space = CellComplexSpace(LatticeSpace((SIDE, SIDE))).prepare()
     path = tmp_path / 'run.rrd'
-    system = _system(space, visual=VisualSpec('cell'))
-    simulate(system, until=2.0, dt=1.0, observers=[RerunObserver('cells', save_path=path)])
+    observer = RerunObserver('cells', save_path=path, visuals={'cells': VisualSpec('cell')})
+    simulate(_system(space), until=2.0, dt=1.0, observers=[observer])
     assert path.stat().st_size > 0
 
 

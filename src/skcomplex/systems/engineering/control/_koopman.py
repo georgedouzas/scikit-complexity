@@ -20,13 +20,15 @@ from sklearn.base import TransformerMixin
 from sklearn.preprocessing import PolynomialFeatures
 
 from ....core.analysis import ModeDecompositionResult, mode_decomposition
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, RateInteraction
+from ....core.components.laws import CallSpec
 from ....core.components.spaces import ContinuousTime, DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.runtime import Trajectory, simulate
 from ....core.errors import ValidationError
-from ....core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.types import Array
 
 DUFFING_A, DUFFING_B, DUFFING_D = 1.0, -1.0, -0.3
@@ -143,9 +145,6 @@ class ControlInputElement(Element):
         label:
             The label of the input.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         u:
             The value of the input.
 
@@ -158,11 +157,10 @@ class ControlInputElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: Annotated[float, ParameterSpec(adaptive=True, bounds=(-1.0, 1.0))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.u = u
 
 
@@ -172,9 +170,6 @@ class PlantStateElement(Element):
     Args:
         label:
             The label of the plant.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The value of the first variable.
@@ -191,12 +186,11 @@ class PlantStateElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
 
@@ -459,7 +453,7 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
         ).prepare()
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.plant not in PLANTS:
             error_msg = f'The plant {self.plant!r} is unknown. Use one of {", ".join(PLANTS)}.'
             raise ValidationError(error_msg)
@@ -501,5 +495,5 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
             symbolic=case.symbolic_reference,
         )
         settings = super().get_run_settings()
-        settings['observables'] = [ObservableSpec('reference', reference)]
+        settings['observables'] = [Observable('reference', reference)]
         return settings

@@ -13,13 +13,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import inverse_helmholtz, partial
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.fields import AdvectionInteraction, DiffusivityInteraction
 
 
@@ -35,9 +36,6 @@ class ContractileGelSiteElement(Element):
     Args:
         label:
             The label of the site or the gel.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
 
         c:
             The initial density of the cells.
@@ -72,7 +70,6 @@ class ContractileGelSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         u: Annotated[float, StateSpec()] = 0.0,
@@ -83,7 +80,7 @@ class ContractileGelSiteElement(Element):
         T0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
         c_sat: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.c = c
         self.u = u
         self.D = D
@@ -175,7 +172,7 @@ class ActiveViscoelasticGelSystem(BaseSystem):
     dt = 0.1
     solver = RK4Solver(dt=0.005)
     observables = (
-        ObservableSpec(
+        Observable(
             'v',
             _get_gel_velocity,
             group='gel',
@@ -250,8 +247,6 @@ class ActiveViscoelasticGelSystem(BaseSystem):
             target='gel',
             state='c',
             drift=self._transport,
-            limiter=None,
-            riemann=None,
         )
         diffusion = DiffusivityInteraction('diffusion', target='gel', state='c', coefficient=self._get_diffusion)
         displacement = RateInteraction('displacement', target='gel', state='u', rate=self._transport)

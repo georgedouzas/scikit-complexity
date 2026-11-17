@@ -14,11 +14,12 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.elements import FieldElement
 from ....components.interactions import (
+    BaseInteraction,
     GroupingInteraction,
     HyperedgeInteraction,
-    NeighborInteraction,
     PairInteraction,
     TopologyInteraction,
+    WienerProcessSpec,
 )
 from ....components.laws.utils._reductions import MAX_NEIGHBOR_HYPEREDGE_SIZE
 from ....components.spaces import (
@@ -27,25 +28,26 @@ from ....components.spaces import (
     CellComplexSpace,
     ContinuousSpace,
     LatticeSpace,
-    MeshSpace,
     NetworkSpace,
     PhaseSpace,
 )
-from ....components.specs import NodeSpec
+from ....enums import VariableKind
 from ....errors import LabelError, RoleError, ValidationError
-from ....specs import EntrySpec, NeighborReadSpec, WienerProcessSpec
-from ....types import Indices, VariableKind
+from ....specs import EntrySpec
+from ....types import Indices
 from ..._utils import bound_labels, declarations_of, domain_of, symbol, vector
+from ...enums import ReadKind
 from ...problems import ProblemSpec
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
+from ...problems._neighbor_read_spec import _NeighborReadSpec
+from ...problems._node_spec import _NodeSpec
 from ...problems._observed_spec import ObservedSpec
 from ...problems._pair_search import PairSearch
 from ...problems._reference_spec import ReferenceSpec
 from ...problems._set_symbol_spec import EDGE_NAMES, MEMBER_REFERENCE, SetSymbolSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from .._observables import ObservableEvaluator
@@ -188,7 +190,7 @@ class SpecsPass(BasePass):
         return block.node.space
 
     @staticmethod
-    def _get_space_period(node: NodeSpec) -> float | None:
+    def _get_space_period(node: _NodeSpec) -> float | None:
         """Return the side of the periodic box of a pair interaction, or `None`.
 
         The pair interaction measures minimum image distances in the box.
@@ -223,7 +225,7 @@ class SpecsPass(BasePass):
         return symbols
 
     @staticmethod
-    def _resolve_path(node: NodeSpec, role: str, label: object, elements: dict[str, BlockSpec]) -> BlockSpec:
+    def _resolve_path(node: _NodeSpec, role: str, label: object, elements: dict[str, BlockSpec]) -> BlockSpec:
         """Return the block a role of an interaction binds to by label.
 
         The block is that of an element, a group, or Wiener processes.
@@ -240,12 +242,12 @@ class SpecsPass(BasePass):
         return elements[path]
 
     @staticmethod
-    def _resolve_role(node: NodeSpec, role: str, elements: dict[str, BlockSpec]) -> BlockSpec:
+    def _resolve_role(node: _NodeSpec, role: str, elements: dict[str, BlockSpec]) -> BlockSpec:
         """Return the block of the element or group bound to a role of an interaction."""
         return SpecsPass._resolve_path(node, role, getattr(node.component, role), elements)
 
     @staticmethod
-    def _get_end_names(node: NodeSpec, ends: Sequence[str]) -> tuple[str, ...]:
+    def _get_end_names(node: _NodeSpec, ends: Sequence[str]) -> tuple[str, ...]:
         """Return the names the laws of an interaction give edge ends or pair members.
 
         Each end, such as `'source'`, `'target'`, `'edge'`, `'first'`, or `'second'`, takes the name the interaction's
@@ -256,7 +258,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _resolve_set(
-        node: NodeSpec,
+        node: _NodeSpec,
         role: str,
         labels: Sequence[str],
         elements: dict[str, BlockSpec],
@@ -284,7 +286,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _resolve_member(
-        node: NodeSpec,
+        node: _NodeSpec,
         role: str,
         reference: str,
         elements: dict[str, BlockSpec],
@@ -308,7 +310,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _resolve_entry(
-        node: NodeSpec,
+        node: _NodeSpec,
         role: str,
         entry: object,
         elements: dict[str, BlockSpec],
@@ -325,7 +327,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _resolve_entries(
-        node: NodeSpec,
+        node: _NodeSpec,
         role: str,
         entries: object,
         elements: dict[str, BlockSpec],
@@ -423,7 +425,7 @@ class SpecsPass(BasePass):
             )
             raise ValidationError(error_msg)
         table = np.repeat(np.arange(block.rows), target.size_ // target.position_size_)
-        read = NeighborReadSpec(table, None, None, None, 0)
+        read = _NeighborReadSpec(table, None, None, None, 0)
         namespace, references = SpecsPass._get_namespace(block, ReadKind.NEIGHBOR, alias='__broadcast')
         return namespace, {item: replace(reference, neighbor=read) for item, reference in references.items()}
 
@@ -504,7 +506,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_changing_search(
-        node: NodeSpec,
+        node: _NodeSpec,
         nodes: BlockSpec,
         edges: BlockSpec | None,
         changing: BlockSpec,
@@ -529,12 +531,12 @@ class SpecsPass(BasePass):
         return EdgeSearch(empty, empty, changing.entries[ENDS[0]], changing.entries[ENDS[1]]).prepare()
 
     @staticmethod
-    def _get_edge_layer(node: NodeSpec, nodes: BlockSpec, edges: BlockSpec | None) -> str | None:
+    def _get_edge_layer(node: _NodeSpec, nodes: BlockSpec, edges: BlockSpec | None) -> str | None:
         """Return the layer an interaction over neighbours runs on.
 
         It is checked against the layer of its edge group.
         """
-        declared = getattr(node.component, 'layer', None)
+        declared = node.component._get_layer() if isinstance(node.component, BaseInteraction) else None
         if edges is None:
             return declared
         space, edge_space = SpecsPass._get_group_space(nodes), SpecsPass._get_group_space(edges)
@@ -555,7 +557,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_edge_roles(
-        node: NodeSpec,
+        node: _NodeSpec,
         elements: dict[str, BlockSpec],
     ) -> tuple[BlockSpec, BlockSpec | None, BlockSpec | None]:
         """Return the node group, edge group, and second node group of an interaction.
@@ -586,7 +588,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_edge_search(
-        node: NodeSpec,
+        node: _NodeSpec,
         nodes: BlockSpec,
         edges: BlockSpec | None,
         elements: dict[str, BlockSpec],
@@ -673,7 +675,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _declare_degrees(
-        node: NodeSpec,
+        node: _NodeSpec,
         nodes: BlockSpec,
         search: EdgeSearch,
         declarations: DeclarationsSpec,
@@ -878,8 +880,11 @@ class SpecsPass(BasePass):
         place = component if isinstance(component, FieldElement) and edges is None and others is None else None
         spread = (
             place is not None
-            and isinstance(place.space, LatticeSpace | MeshSpace)
-            and getattr(node.component, 'layer', None) is None
+            and (
+                isinstance(place.space, LatticeSpace)
+                or (isinstance(place.space, CellComplexSpace) and place.space._is_mesh())
+            )
+            and not (isinstance(node.component, BaseInteraction) and node.component._get_layer() is not None)
         )
         if (
             others is not None
@@ -939,7 +944,7 @@ class SpecsPass(BasePass):
         return [spec, SpecsPass._get_end_spec(spec, nodes)], declarations
 
     @staticmethod
-    def _get_hyperedge_roles(node: NodeSpec, elements: dict[str, BlockSpec]) -> tuple[BlockSpec, BlockSpec | None]:
+    def _get_hyperedge_roles(node: _NodeSpec, elements: dict[str, BlockSpec]) -> tuple[BlockSpec, BlockSpec | None]:
         """Return the node group of a hyperedge interaction and the second role's group.
 
         The second role may bind no group.
@@ -983,7 +988,7 @@ class SpecsPass(BasePass):
         namespace, references = SpecsPass._get_namespace(block, ReadKind.NEIGHBOR, alias=alias)
         if table is None:
             return namespace, {}
-        read = NeighborReadSpec(table, None, None, None, 0, entry, order)
+        read = _NeighborReadSpec(table, None, None, None, 0, entry, order)
         return namespace, {item: replace(reference, neighbor=read) for item, reference in references.items()}
 
     @staticmethod
@@ -1027,7 +1032,7 @@ class SpecsPass(BasePass):
             paths[part] = second.node.path
         if growing is not None:
             activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", block.node.path)}_{mode}_hyperedges', RR)
-            read_activity = NeighborReadSpec(hyperedges, None, None, None, 0)
+            read_activity = _NeighborReadSpec(hyperedges, None, None, None, 0)
             references[activity] = ReferenceSpec(growing.entries[ACTIVE], False, 0, ReadKind.NEIGHBOR, read_activity)
         return KernelSpec(
             block.node.path,
@@ -1373,7 +1378,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_other_namespace(
-        node: NodeSpec,
+        node: _NodeSpec,
         role: str,
         label: str,
         elements: dict[str, BlockSpec],
@@ -1423,9 +1428,10 @@ class SpecsPass(BasePass):
             return [SpecsPass._get_member_spec(block, time)], declarations
         component = block.node.component
         bound = [role for role in declarations_of(component, VariableKind.ROLE) if getattr(component, role) is not None]
-        if isinstance(component, NeighborInteraction) and SpecsPass._binds_separate(block, bound, elements):
+        edges = isinstance(component, BaseInteraction) and component._runs_on_edges()
+        if edges and SpecsPass._binds_separate(block, bound, elements):
             return SpecsPass._separate_specs(block, bound, elements, time, observer), declarations
-        if isinstance(component, NeighborInteraction) and bound:
+        if edges and bound:
             return SpecsPass._get_edge_specs(block, elements, declarations)
         grouped = isinstance(component, GroupingInteraction) and component.form == 'symbolic'
         if (isinstance(component, HyperedgeInteraction) and bound) or (

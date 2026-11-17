@@ -9,8 +9,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import ValidationError
-from ...specs import ScheduleSpec
 from ._base import BaseTime
+from ._schedule_spec import ScheduleSpec
 
 SCHEDULES = ('synchronous', 'random-sequential')
 

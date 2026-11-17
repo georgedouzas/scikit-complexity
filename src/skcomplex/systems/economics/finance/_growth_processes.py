@@ -9,12 +9,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class GibratFirmView(AgentView):
@@ -37,9 +38,6 @@ class GibratFirmElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial size.
@@ -65,14 +63,13 @@ class GibratFirmElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 100.0,
         previous: Annotated[float, StateSpec()] = 100.0,
         mu: Annotated[float, ParameterSpec()] = 1.02,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.previous = previous
         self.mu = mu
@@ -123,9 +120,6 @@ class KestenFirmElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial size.
 
@@ -153,7 +147,6 @@ class KestenFirmElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
         lambda_low: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.48,
@@ -161,7 +154,7 @@ class KestenFirmElement(Element):
         b_low: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         b_high: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.lambda_low = lambda_low
         self.lambda_high = lambda_high
@@ -249,11 +242,11 @@ class ReflectingFloorInteraction(MapInteraction):
         return max(agent.x, self._get_floor(system))
 
 
-def _get_size_observables() -> list[ObservableSpec]:
+def _get_size_observables() -> list[Observable]:
     """Return the mean and the largest size of the firms."""
     return [
-        ObservableSpec('mean_size', group='firms', variable='x'),
-        ObservableSpec('max_size', group='firms', reduce='max', variable='x'),
+        Observable('mean_size', group='firms', variable='x'),
+        Observable('max_size', group='firms', reduce='max', variable='x'),
     ]
 
 
@@ -321,7 +314,7 @@ class GibratProcessSystem(BaseSystem):
         self.sigma = sigma
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         firms = GroupElement(
             'firms',
             element=GibratFirmElement,
@@ -392,7 +385,7 @@ class MultiplicativeProcessSystem(BaseSystem):
         self.c = c
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         firms = GroupElement(
             'firms',
             element=GibratFirmElement,
@@ -471,7 +464,7 @@ class KestenProcessSystem(BaseSystem):
         self.b_high = b_high
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         firms = GroupElement(
             'firms',
             element=KestenFirmElement,

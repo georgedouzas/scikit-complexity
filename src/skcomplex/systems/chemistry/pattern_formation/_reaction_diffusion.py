@@ -16,7 +16,7 @@ from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ....core.types import Array
 from ...general.dynamics import ReactionDiffusionSystem
 from ...general.reactions import ReactionInteraction
@@ -33,9 +33,6 @@ class BrusselatorElement(BrusselatorReactionElement):
     Args:
         label:
             The label of the site or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         u:
             The initial concentration of `u`.
@@ -64,7 +61,6 @@ class BrusselatorElement(BrusselatorReactionElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         u: float = 1.0,
         v: float = 3.0,
@@ -73,7 +69,7 @@ class BrusselatorElement(BrusselatorReactionElement):
         Du: Annotated[object, ParameterSpec()] = 1.0,
         Dv: Annotated[object, ParameterSpec()] = 8.0,
     ) -> None:
-        super().__init__(label, visual=visual, u=u, v=v, a=a, b=b)
+        super().__init__(label, u=u, v=v, a=a, b=b)
         self.Du = Du
         self.Dv = Dv
 
@@ -111,7 +107,7 @@ class GrayScottSystem(ReactionDiffusionSystem):
 
     Examples:
         >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
-        >>> GrayScottSystem((32, 32), F=0.04).prepare().system_.elements[0].get_declaring_part().get_value('F')
+        >>> GrayScottSystem((32, 32), F=0.04).prepare().system_.elements[0].get_declaring_element().get_value('F')
         0.04
     """
 
@@ -352,7 +348,7 @@ class SchnakenbergSystem(ReactionDiffusionSystem):
 
     Examples:
         >>> from skcomplex.systems.chemistry.pattern_formation import SchnakenbergSystem
-        >>> SchnakenbergSystem((8, 8)).prepare().system_.elements[0].get_declaring_part().get_value('Dv')
+        >>> SchnakenbergSystem((8, 8)).prepare().system_.elements[0].get_declaring_element().get_value('Dv')
         40.0
     """
 

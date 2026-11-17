@@ -6,13 +6,13 @@
 from collections.abc import Callable, Sequence
 from concurrent.futures import Executor
 
-from ..components.specs import ScenarioSpec
+from ..components import Observable
 from ..engine.runtime import Trajectory
 from ..engine.solvers import BaseSolver
 from ..errors import ValidationError
-from ..specs import ObservableSpec
 from ._results import ExperimentResult
 from ._runs import _run_experiment
+from ._scenario_spec import ScenarioSpec
 from .types import Output, Source
 
 
@@ -27,7 +27,7 @@ def compare_scenarios(
     solver: BaseSolver | None = None,
     outputs: Sequence[Output] | None = None,
     warmup: float = 0.0,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> ExperimentResult:
@@ -94,7 +94,7 @@ def compare_scenarios(
             The system is a name, or the worker processes stop before finishing.
 
     Examples:
-        >>> from skcomplex.core.components.specs import ScenarioSpec
+        >>> from skcomplex.core.experiments import ScenarioSpec
         >>> from skcomplex.core.experiments import compare_scenarios
         >>> from skcomplex.systems.biology.epidemiology import SIRSystem
         >>> scenarios = [ScenarioSpec(), ScenarioSpec('distancing', overrides={'beta': 0.0001})]

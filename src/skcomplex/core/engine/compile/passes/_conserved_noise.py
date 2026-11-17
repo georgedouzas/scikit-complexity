@@ -11,17 +11,18 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....components.elements import FieldElement
 from ....components.laws import NoiseLaw
 from ....components.spaces import LatticeSpace
-from ....components.specs import CensusRecordSpec
 from ....errors import ValidationError
-from ....specs import IssueSpec, NoiseProcessSpec
 from ....types import Indices
+from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._noise_process_spec import _NoiseProcessSpec
 from ...problems._output_spec import OutputSpec
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
 from .._base import BasePass
+from .._census_record_spec import _CensusRecordSpec
 from .._compilation import Compilation, Laws
 from .._field_lowering import FieldLowering
+from .._issue_spec import IssueSpec
 
 
 class ConservedNoisePass(BasePass):
@@ -191,10 +192,14 @@ class ConservedNoisePass(BasePass):
             for spacing, (following, preceding) in zip(space.spacings_, tables, strict=True):
                 scaled = amplitude / spacing
                 outputs.append(
-                    OutputSpec(reference, -scaled, process=NoiseProcessSpec(key, dimension=dimension, links=following)),
+                    OutputSpec(
+                        reference,
+                        -scaled,
+                        process=_NoiseProcessSpec(key, dimension=dimension, links=following),
+                    ),
                 )
                 outputs.append(
-                    OutputSpec(reference, scaled, process=NoiseProcessSpec(key, dimension=dimension, links=preceding)),
+                    OutputSpec(reference, scaled, process=_NoiseProcessSpec(key, dimension=dimension, links=preceding)),
                 )
         return outputs
 
@@ -209,7 +214,7 @@ class ConservedNoisePass(BasePass):
         )
 
     @staticmethod
-    def _get_conserved_issue(record: CensusRecordSpec, components: Mapping[str, object]) -> IssueSpec | None:
+    def _get_conserved_issue(record: _CensusRecordSpec, components: Mapping[str, object]) -> IssueSpec | None:
         """Return the issue of a conserved noise law outside a lattice field.
 
         The law drives a state outside a finite-difference lattice field.

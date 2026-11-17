@@ -45,15 +45,17 @@ distribution component is needed, and a population of several functional subsyst
 This section declares who meets whom and where they end up, and lets the compiler derive the equations. An encounter
 is a meeting of a candidate particle at activity `h` with a field particle at activity `k`. Traders here exchange
 wealth, and cooperation moves the candidate one class towards its partner while competition moves it one class away.
-A [`BilinearLaw`](../core_components/laws.md#bilinearlaw) states the rate of the encounters and the table of their
-outcomes, and an [`Interaction`](../core_components/interactions.md#interaction) subclass returns it with its role
-bound to the population. Encounters need continuous time, so the system takes a
+A [`RateLaw`](../core_components/laws.md#ratelaw) whose rate is the form `bilinear` of
+`skcomplex.core.components.laws.utils` states the rate of the encounters and the table of their outcomes, and an
+[`Interaction`](../core_components/interactions.md#interaction) subclass returns it with its role bound to the
+population. Encounters need continuous time, so the system takes a
 [`ContinuousTime`](../core_components/spaces.md#continuoustime) and a
 [`LatticeSpace`](../core_components/spaces.md#latticespace) of nine sites.
 
 ```python continuation
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import BilinearLaw
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import bilinear
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -80,7 +82,7 @@ class ExchangeInteraction(Interaction):
 
     def _get_laws(self, s):
         table = exchange_table(0.2, 0.3)
-        return [BilinearLaw(s.population.f, s.population.f, s.population.f, s.eta, table, conserved=True)]
+        return [RateLaw(s.population.f, bilinear(s.eta, table, s.population.f, s.population.f, conserved=True))]
 
 
 economy = CompositeSystem(
@@ -97,29 +99,163 @@ The total density stays at 1.0 from the start to the end, since every encounter 
 After 100 time units the wealth spreads to the two ends, with 0.173 in the poorest and the richest classes and 0.078 in
 the middle class. Competition, at the probability 0.3, outweighs cooperation at 0.2, so the traders drift apart.
 
-`BilinearLaw(target, first, second, rate, outcomes, conserved=True)` declares that a candidate of the first density at
-activity `h` meets a particle of the second density at activity `k` at the rate `eta[h, k]`. It ends at activity `i`
-with the probability `A[h, k, i]`. The compiler derives the gain and loss equations
+`RateLaw(target, bilinear(rate, outcomes, first, second, conserved=True))` declares that a candidate of the first
+density at activity `h` meets a particle of the second density at activity `k` at the rate `eta[h, k]`. It ends at
+activity `i` with the probability `A[h, k, i]`. The compiler derives the gain and loss equations
 
 `df_i/dt = sum_hk eta[h, k] A[h, k, i] f_h g_k - f_i sum_k eta[i, k] g_k`
 
-with no derivation by hand. When the target is another density than the first, the candidate moves into the target
-group, such as a cell that mutates into another subsystem. The law follows these rules.
+with no derivation by hand. When the target of a form that is not conserved is another density than the first, the
+candidate moves into the target group, such as a cell that mutates into another subsystem. The form follows these
+rules.
 
-- Without `conserved`, the law changes the target at the signed rate `r[h, k]`. A positive rate creates a particle
+- The form is the whole rate of its rate law, and the rate laws of one target add up.
+- Without `conserved`, the form changes the target at the signed rate `r[h, k]`. A positive rate creates a particle
   without removing the first density, at its activity or at an activity drawn from `outcomes`. A negative rate with the
   first density as the target removes it.
 - Rates and probabilities are numbers or parameter expressions, scalars or arrays. Only the nonzero probabilities enter
   the compiled code, as sparse contractions on NumPy and one fused loop on Numba.
-- Bilinear laws need continuous time, a lattice space, and real states. Validation reports a law whose system lacks
+- Bilinear forms need continuous time, a lattice space, and real states. Validation reports a form whose system lacks
   them, with the fix to declare them.
 - Before compilation, validation reports the encounters whose probabilities do not sum to one over the outcomes, with
   the candidate and field activities and the sum.
 - A system with encounters has no exact Jacobian, so implicit solvers estimate it by finite differences.
 
+## The bilinear form
+
+This section writes encounters of other fields with the same form. `bilinear(rate, outcomes, first, second)` is an
+operator of `skcomplex.core.components.laws.utils`, kept unevaluated in the rate of a `RateLaw` until the compiler
+lowers it to sparse contractions of the densities. Immune cells that meet tumour cells destroy them at the rate
+`0.5 f g`, where `f` and `g` are the two densities. A negative rate on the first density, with no outcome table, is a
+loss.
+
+```python continuation
+class DensityElement(Element):
+    def __init__(self, label, *, f: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.f = f
+
+
+class KillingInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        prey: Annotated[str, RoleSpec()],
+        hunter: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec()] = 0.5,
+    ):
+        super().__init__(label)
+        self.prey = prey
+        self.hunter = hunter
+        self.k = k
+
+    def _get_laws(self, s):
+        return [RateLaw(s.prey.f, bilinear(-s.k, None, s.prey.f, s.hunter.f))]
+
+
+tumour = GroupElement('tumour', element=DensityElement, size=1, on='sites', values={'f': 1.0})
+immune = GroupElement('immune', element=DensityElement, size=1, on='sites', values={'f': 0.4})
+killing = KillingInteraction('killing', prey='tumour', hunter='immune')
+body = CompositeSystem(elements=[tumour, immune], interactions=[killing], space=LatticeSpace(1))
+simulate(body, until=5, dt=5.0).get_values('tumour.f').round(3).tolist()
+```
+
+No law changes the immune cells, so they act as a fixed input, and the tumour falls from 1 to 0.368 after five units of
+time, which is `exp(-0.5 * 0.4 * 5)`.
+
+People shift their opinion after a conversation. Three classes hold the shares of people against, undecided, and for
+a proposal, and a person who talks with someone of another class moves one class towards them with probability one
+half. The form is conserved, so every person who leaves a class enters another.
+
+```python continuation
+class PersuasionInteraction(Interaction):
+    def __init__(self, label, *, people: Annotated[str, RoleSpec()]):
+        super().__init__(label)
+        self.people = people
+
+    def _get_laws(self, s):
+        outcomes = np.zeros((3, 3, 3))
+        for h in range(3):
+            for k in range(3):
+                outcomes[h, k, h + int(np.sign(k - h))] += 0.5
+                outcomes[h, k, h] += 0.5
+        f = s.people.f
+        return [RateLaw(f, bilinear(1.0, outcomes, f, f, conserved=True))]
+
+
+opinions = GroupElement('opinions', element=DensityElement, size=3, on='sites', values={'f': [0.6, 0.1, 0.3]})
+debate = CompositeSystem(
+    elements=[opinions], interactions=[PersuasionInteraction('persuasion', people='opinions')], space=LatticeSpace(3)
+)
+shares = simulate(debate, until=10, dt=10.0).get_values('opinions.f')
+shares.round(3).tolist(), shares.sum(axis=1).round(12).tolist()
+```
+
+The shares move from 0.6, 0.1, and 0.3 to 0.338, 0.625, and 0.038, and their total stays 1. The undecided gain from both
+sides, and the minority for the proposal shrinks most.
+
+Particles of smoke coagulate when they collide. A cluster of `h + 1` particles that meets a cluster of `k + 1` merges
+into a cluster of `h + k + 2`, so the equations of Smoluchowski are two forms on the same density. The gain is
+`kernel / 2` into the merged class, and the loss is `-kernel` with no outcome table. The rate arrays leave out the
+merges past the largest class, so the mass stays the same.
+
+```python continuation
+class CoagulationInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        particles: Annotated[str, RoleSpec()],
+        kernel: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        super().__init__(label)
+        self.particles = particles
+        self.kernel = kernel
+
+    def _get_laws(self, s):
+        fits = (np.add.outer(np.arange(6), np.arange(6)) < 5).astype(float)
+        merged = np.zeros((6, 6, 6))
+        for h, k in zip(*np.nonzero(fits)):
+            merged[h, k, h + k + 1] = 1.0
+        n = s.particles.f
+        gain = bilinear(fits * s.kernel / 2, merged, n, n)
+        loss = bilinear(-fits * s.kernel, None, n, n)
+        return [RateLaw(n, gain), RateLaw(n, loss)]
+
+
+clusters = GroupElement('clusters', element=DensityElement, size=6, on='sites', values={'f': [1, 0, 0, 0, 0, 0]})
+coagulation = CoagulationInteraction('coagulation', particles='clusters')
+smoke = CompositeSystem(elements=[clusters], interactions=[coagulation], space=LatticeSpace(6))
+sizes = simulate(smoke, until=1, dt=1.0).get_values('clusters.f')
+sizes[-1].round(3).tolist(), round(float(sizes[-1] @ np.arange(1, 7)), 3)
+```
+
+After one unit of time the single particles fall to 0.445 and the pairs reach 0.148, the exact solution
+`(1 + t / 2)^-2` and `(t / 2) (1 + t / 2)^-3` for a constant kernel, and the mass stays 1.
+
+A conserved form needs its table of outcomes, because without one its gain and loss cancel, and the call raises a
+`ValidationError`.
+
+```python continuation
+from sage.all__sagemath_symbolics import var
+
+from skcomplex.core.errors import ValidationError
+
+f, g = var('f g')
+try:
+    bilinear(1.0, None, f, g, conserved=True)
+except ValidationError as error:
+    message = str(error)
+message
+```
+
+The message says that the conserved bilinear form of `f` has no outcome table, so its gain and loss cancel, and asks
+for the outcome probabilities `B[h, k, i]`. The fix is an array `outcomes` of shape `(classes, classes, classes)`.
+
 ## External actions
 
-This section adds a policy that acts on the population from outside. External actions need no part of their own. A
+This section adds a policy that acts on the population from outside. External actions need no component of their own. A
 micro-scale action, such as a welfare policy that acts on the transitions between wealth classes, is an encounter whose
 field role binds a group with fixed states, a group that no law changes. A macro-scale action, such as a recruitment of
 security forces in proportion to the mean criminality, is a [`RateLaw`](../core_components/laws.md#ratelaw) that reads
@@ -147,7 +283,8 @@ class PolicyInteraction(Interaction):
             outcome = candidate + 1 if candidate < 3 else candidate - 1 if candidate >= 6 else candidate
             rates[candidate, 0] = float(outcome != candidate)
             table[candidate, 0, outcome] = 1.0
-        return [BilinearLaw(s.population.f, s.population.f, s.government.f, rates * s.tax, table, conserved=True)]
+        form = bilinear(rates * s.tax, table, s.population.f, s.government.f, conserved=True)
+        return [RateLaw(s.population.f, form)]
 
 
 welfare = CompositeSystem(
@@ -170,11 +307,11 @@ above.
 
 This section records the mean and the variance of the distribution as it changes. The function
 `moment(expression, order, coordinates)` sums `c_j^r f_j` over the members of a group, with the coordinate `c_j` of
-every member, here its wealth class. Each moment enters an `ObservableSpec`, which records it at every output time.
+every member, here its wealth class. Each moment enters an `Observable`, which records it at every output time.
 
 ```python continuation
 from skcomplex.core.components.laws.utils import moment
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 
 
 def mean_wealth(s):
@@ -186,8 +323,8 @@ def wealth_variance(s):
 
 
 observables = [
-    ObservableSpec('mean_wealth', mean_wealth, group='wealth'),
-    ObservableSpec('wealth_variance', wealth_variance, group='wealth'),
+    Observable('mean_wealth', mean_wealth, group='wealth'),
+    Observable('wealth_variance', wealth_variance, group='wealth'),
 ]
 trajectory = simulate(economy, until=100, dt=10.0, observables=observables)
 variance = trajectory.get_values('wealth_variance')
@@ -234,8 +371,8 @@ policed.get_values('wealth.f')[-1].round(2).tolist()
 ```
 
 The particles give 0.05, 0.07, 0.11, 0.19, 0.17, 0.19, 0.11, 0.07, and 0.05, the densities of the equations to two
-decimals. The solver supports continuous time, lattice spaces, site groups, and bilinear laws only. Validation reports
-a rate law with it and lists the solvers that run it.
+decimals. The solver supports continuous time, lattice spaces, site groups, and bilinear forms only. Validation reports
+any other rate law with it and lists the solvers that run it.
 
 ## Levels
 
@@ -298,7 +435,8 @@ from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec, TotalisticSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import TotalisticSpec
 
 tree = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=4).prepare()
 memory = MemoryNeighborhood(['1', *[word for name in tree.generators_ for word in (name, f'{name}^-1')]])
@@ -357,8 +495,8 @@ exceeds `max_sites`, 100,000 by default, raises `SpaceTooLargeError` before GAP 
 the issue `space-too-large`, which names the largest radius that fits.
 
 A group space lacks the regular geometry of a square lattice and an image layout. So validation reports a checkerboard
-schedule as `schedule-unsupported` and an image visual as `visual-unsupported`. Groups on group spaces stream to Rerun
-with `CayleyVisual`, which places the nodes on rings by word length, colours them by state, and logs the edges of the
+schedule as `schedule-unsupported`, and a member drawn as an image is drawn as the group space instead. Groups on group
+spaces stream to Rerun with `CayleyVisual`, which places the nodes on rings by word length, colours them by state, and logs the edges of the
 generators once.
 
 The core names no specific group, so a named group is written in one of the forms above. The Grigorchuk group acts on
@@ -389,7 +527,7 @@ universes, where they are decidable: periodic configurations on a torus or a fin
 It does not decide them on infinite groups. A cellular automaton is a `CompositeSystem` with a
 [`LocalRuleInteraction`](../core_components/interactions.md#localruleinteraction), and the analysis reads the system.
 The first system is the Game of Life on a torus of 6 by 6 cells, whose rule a
-[`BallNeighborhood`](../core_components/spaces.md#ballneighborhood) of the eight surrounding cells reads.
+[`RadiusNeighborhood`](../core_components/spaces.md#radiusneighborhood) of the eight surrounding cells reads.
 
 ```python
 from typing import Annotated
@@ -401,10 +539,11 @@ from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import OuterTotalisticSpec, StateSpec, TableSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.laws import OuterTotalisticSpec, TableSpec
 
 
 class CellElement(Element):
@@ -420,7 +559,7 @@ def cellular_automaton(space, neighborhood, rule):
 
 
 life_rule = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
-life = cellular_automaton(LatticeSpace((6, 6)), BallNeighborhood(), life_rule)
+life = cellular_automaton(LatticeSpace((6, 6)), RadiusNeighborhood(1, metric='chebyshev'), life_rule)
 automaton(life, kind='surjective').surjective
 ```
 
@@ -486,7 +625,8 @@ from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import LinearRuleSpec, StateSpec, SubshiftSpec, TableSpec
+from skcomplex.core.specs import StateSpec, SubshiftSpec
+from skcomplex.core.components.laws import LinearRuleSpec, TableSpec
 
 
 class CellElement(Element):

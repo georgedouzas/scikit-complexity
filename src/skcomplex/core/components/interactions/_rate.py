@@ -11,14 +11,16 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import SR, vector
 from sage.modules.free_module_element import FreeModuleElement
 
+from ...enums import ElementKind
 from ...errors import ValidationError
-from ...specs import RoleSpec, Tags, WienerProcessSpec
-from ...types import ElementKind
-from ..base import BasePart
+from ...specs import RoleSpec
+from .._tags import Tags
+from ..base import BaseComponent
 from ..laws import BaseLaw, NoiseLaw, RateLaw
 from ..spaces import BaseSpace
 from ._base import RATE_DOMAINS
 from ._interaction import Interaction
+from ._wiener_process_spec import WienerProcessSpec
 
 CONVENTIONS = ('ito', 'stratonovich', 'anti-ito')
 
@@ -43,7 +45,7 @@ class RateInteraction(Interaction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'recovery'`.
+            The name of the interaction, unique among the components of its system, such as `'recovery'`.
 
         target:
             The path of the element or group whose state the rate changes.
@@ -92,8 +94,8 @@ class RateInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.specs import StateSpec
         >>> class AmountElement(Element):
-        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
+        ...     def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
         ...         self.x = x
         >>> from skcomplex.core.components.interactions import RateInteraction
         >>> from skcomplex.core.components.systems import CompositeSystem
@@ -200,7 +202,7 @@ class RateInteraction(Interaction):
             error_msg = f'The noise of {self.label!r} takes {" and ".join(options)}. Give at most one of them.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a state, functions, or noise options it cannot take.
 
         Args:
@@ -259,7 +261,7 @@ class RateInteraction(Interaction):
         """
         return None if self.noise is None else self._evaluate(self.noise, namespace)
 
-    def _get_noise_law(self, state: object, amplitude: object, namespace: SimpleNamespace) -> BasePart:
+    def _get_noise_law(self, state: object, amplitude: object, namespace: SimpleNamespace) -> BaseComponent:
         """Return the noise law of an amplitude.
 
         It goes by the process, the convention, and the Hurst index.
@@ -273,7 +275,7 @@ class RateInteraction(Interaction):
             process = handle if self.index is None else handle[self.index]
         return NoiseLaw(state, amplitude, convention=self.convention, process=process, conserved=self.conserved)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the rate law of the state and its noise law, both divided by the divisor.
 
         Args:
@@ -286,7 +288,7 @@ class RateInteraction(Interaction):
         """
         state = getattr(self._get_member(namespace, 'target'), self.state)
         rate = self._divide(self._broadcast(self._get_rate(namespace), state), namespace)
-        laws: list[BasePart] = [RateLaw(state, rate)]
+        laws: list[BaseComponent] = [RateLaw(state, rate)]
         noise = self._get_noise(namespace)
         if noise is not None:
             laws.append(self._get_noise_law(state, self._divide(noise, namespace), namespace))

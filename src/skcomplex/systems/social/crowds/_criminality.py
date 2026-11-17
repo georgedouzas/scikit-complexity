@@ -15,12 +15,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
 
@@ -36,9 +37,6 @@ class SecurityAgentsElement(ActivityDensityElement):
     Args:
         label:
             The label of the distribution.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
 
         x:
             The initial density.
@@ -56,12 +54,11 @@ class SecurityAgentsElement(ActivityDensityElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         share: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x)
         self.share = share
 
 
@@ -381,7 +378,7 @@ def security_density(s: SimpleNamespace, forces: int) -> Expression:
     return moment(s.x, 0, np.arange(forces, dtype=float))
 
 
-def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
+def criminality_observables(classes: int, forces: int) -> list[Observable]:
     """Return the mean criminality, the criminal fraction, and the security density.
 
     The density is that of the security forces of the system.
@@ -404,9 +401,9 @@ def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
     """
     criminality = criminality_grid(classes)
     return [
-        ObservableSpec('mean_criminality', partial(mean_criminality, criminality=criminality), group='citizens'),
-        ObservableSpec('criminal_fraction', partial(criminal_fraction, criminality=criminality), group='citizens'),
-        ObservableSpec('security_forces', partial(security_density, forces=forces), group='security'),
+        Observable('mean_criminality', partial(mean_criminality, criminality=criminality), group='citizens'),
+        Observable('criminal_fraction', partial(criminal_fraction, criminality=criminality), group='citizens'),
+        Observable('security_forces', partial(security_density, forces=forces), group='security'),
     ]
 
 
@@ -499,7 +496,7 @@ class CriminalitySystem(BaseSystem):
         self.retirement = retirement
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         citizens = np.zeros(self.classes)
         citizens[0], citizens[-1] = 1.0 - self.criminals, self.criminals
         return CompositeSystem(
@@ -557,7 +554,7 @@ class CriminalitySystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         system = self._get_pass_parameters()

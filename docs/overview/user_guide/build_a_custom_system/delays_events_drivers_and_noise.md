@@ -65,14 +65,14 @@ start.
 ## Events
 
 Here a law changes states at the moment a condition is met, such as a ball that bounces off the floor. A
-[`CrossingLaw`](../core_components/laws.md#crossinglaw), `CrossingLaw(guard, reset, direction, terminal, label='')`, fires when the
+[`EventLaw`](../core_components/laws.md#crossinglaw), `EventLaw(guard, reset, direction, terminal, label='')`, fires when the
 guard crosses zero. The ball falls from the height 1 and keeps 0.8 of its speed at each impact.
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import CrossingLaw, RateLaw
+from skcomplex.core.components.laws import EventLaw, RateLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -95,7 +95,7 @@ class BallElement(Element):
 
     def _get_laws(self, s):
         bounce = {derivative(s.h, 1): -s.e * derivative(s.h, 1)}
-        return [RateLaw(s.h, -s.g), CrossingLaw(s.h, bounce, direction=-1, label='impact')]
+        return [RateLaw(s.h, -s.g), EventLaw(s.h, bounce, direction=-1, label='impact')]
 
 
 trajectory = simulate(CompositeSystem(elements=[BallElement('ball')]), until=3, dt=0.01)
@@ -221,7 +221,8 @@ from skcomplex.core.components.laws import NoiseLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-from skcomplex.core.specs import RoleSpec, StateSpec, WienerProcessSpec
+from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.components.interactions import WienerProcessSpec
 
 
 class StockElement(Element):
@@ -348,7 +349,7 @@ This section matches a solver to the noise of a system. Solvers and backends dec
 
 `EulerMaruyamaSolver`, `HeunSolver`, and the NumPy and Numba backends support all four. `MilsteinSolver`, whose
 derivative-free correction holds for diagonal noise only, and `LammpsSolver` support diagonal noise. Validation
-reports a system with shared, correlated, or conserved noise for them before compiling it. The [solvers page](../../../parts/solvers.md)
+reports a system with shared, correlated, or conserved noise for them before compiling it. The [solvers page](../../../components/solvers.md)
 lists their supported tags.
 
 The solvers of SciPy, RK4, Euler-Maruyama, Milstein, and Heun integrate delays, events, and drivers. Velocity Verlet,

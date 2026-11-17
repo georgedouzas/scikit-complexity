@@ -18,6 +18,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, I, atan2, cos, exp, oo, pi, sin, sqrt
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, CouplingInteraction
 from ....core.components.laws import BaseLaw, UpdateLaw
@@ -32,7 +33,7 @@ from ....core.components.spaces import (
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.particles import PropulsionStepInteraction
 
 CLOSE = 0.2
@@ -58,9 +59,6 @@ class CohesiveParticleElement(Element):
     Args:
         label:
             The label of the particle or the group.
-
-        visual:
-            How the particle is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.
@@ -88,13 +86,15 @@ class CohesiveParticleElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the particle when it sets none.
+            How the particle is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import CohesiveParticleElement
         >>> CohesiveParticleElement('bird').r_e
         0.5
     """
+
+    visual = HEADINGS
 
     draws = True
 
@@ -103,7 +103,6 @@ class CohesiveParticleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
@@ -114,7 +113,7 @@ class CohesiveParticleElement(Element):
         r_e: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         r_a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.8,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.eta = eta
@@ -172,9 +171,6 @@ class DelayedVicsekParticleElement(Element):
         label:
             The label of the particle or the group.
 
-        visual:
-            How the particle is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -186,7 +182,7 @@ class DelayedVicsekParticleElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the particle when it sets none.
+            How the particle is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import DelayedVicsekParticleElement
@@ -194,16 +190,17 @@ class DelayedVicsekParticleElement(Element):
         0.1
     """
 
+    visual = HEADINGS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi, role='direction', lags=MEMORY)] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.eta = eta
@@ -222,9 +219,6 @@ class NematicParticleElement(Element):
         label:
             The label of the particle or the group.
 
-        visual:
-            How the particle is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -236,7 +230,7 @@ class NematicParticleElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the particle when it sets none.
+            How the particle is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import NematicParticleElement
@@ -244,16 +238,17 @@ class NematicParticleElement(Element):
         0.2
     """
 
+    visual = HEADINGS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.eta = eta
@@ -272,9 +267,6 @@ class VicsekParticleElement(Element):
         label:
             The label of the particle or the group.
 
-        visual:
-            How the particle is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -286,7 +278,7 @@ class VicsekParticleElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the particle when it sets none.
+            How the particle is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import VicsekParticleElement
@@ -294,16 +286,17 @@ class VicsekParticleElement(Element):
         0.1
     """
 
+    visual = HEADINGS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.eta = eta
@@ -327,7 +320,7 @@ class HeadingAlignmentInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of particles.
@@ -411,16 +404,16 @@ class HeadingAlignmentInteraction(CouplingInteraction):
         return reduction + uniform('noise', -eta * math.pi, eta * math.pi)
 
 
-def _get_orders(group: str) -> list[ObservableSpec]:
+def _get_orders(group: str) -> list[Observable]:
     """Return the mean heading and axis of a group of flockers and their moduli.
 
     The moduli are the polar and nematic orders.
     """
     return [
-        ObservableSpec('mean_heading', _get_member_heading, group=group),
-        ObservableSpec('polarization', _get_polarization),
-        ObservableSpec('mean_axis', _get_axis, group=group),
-        ObservableSpec('nematic_order', _get_nematic_order),
+        Observable('mean_heading', _get_member_heading, group=group),
+        Observable('polarization', _get_polarization),
+        Observable('mean_axis', _get_axis, group=group),
+        Observable('nematic_order', _get_nematic_order),
     ]
 
 
@@ -551,7 +544,7 @@ class VicsekSystem(BaseSystem):
             'theta': rng.uniform(-math.pi, math.pi, n_particles),
             **values,
         }
-        flock = GroupElement('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
+        flock = GroupElement('flock', element=element, size=n_particles, values=initial)
         return CompositeSystem(
             label,
             elements=[flock],
@@ -589,7 +582,7 @@ class VicsekSystem(BaseSystem):
         self.memory = memory
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         if self.neighbors is not None and self.vision is not None:
             error_msg = 'A Vicsek flock aligns with its nearest neighbours or within a vision cone, not both.'
             raise ParameterError(error_msg)
@@ -776,7 +769,7 @@ class GinelliNematicsSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+        """Return the components of the system, built from its model parameters."""
         alignment = HeadingAlignmentInteraction('alignment', target='flock', nematic=True)
         return VicsekSystem._get_flock(
             self.label,

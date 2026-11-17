@@ -13,13 +13,13 @@ import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import both, either, neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec
 from ....core.types import AnyArray
 from ._binary_cell import BinaryCellElement
 
@@ -78,7 +78,7 @@ class SmallWorldLifeSystem(BaseSystem):
     references = ('Watts and Strogatz 1998', 'Gros 2015')
     until = 100
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive', reduce=_get_alive_fraction),)
+    observables = (Observable('density', group='cells', variable='alive', reduce=_get_alive_fraction),)
 
     def __init__(
         self,

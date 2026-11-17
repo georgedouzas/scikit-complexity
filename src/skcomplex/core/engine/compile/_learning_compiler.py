@@ -13,25 +13,27 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sklearn.base import clone
 
+from ...components import Observable
 from ...components.interactions import TrainingInteraction
-from ...components.laws import EquationLaw, GradientStepLaw, RateLaw, UpdateLaw
+from ...components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from ...components.spaces import DiscreteTime
 from ...components.systems import CompositeSystem
+from ...enums import FormKind
 from ...errors import SkcomplexError, SolverError, ValidationError
-from ...specs import EntrySpec, IssueSpec, LayoutSpec, ObservableSpec, ParameterSpec
-from ...types import FormKind
+from ...specs import EntrySpec, ParameterSpec
 from .._utils import symbol, symbols_of
 from ..backends import BaseBackend, JaxBackend
-from ..problems import BaseProblemSpec, ProblemSpec
+from ..problems import BaseProblemSpec, LayoutSpec, ProblemSpec
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._learning_problem_spec import LearningProblemSpec
 from ..types import TracedArray, TracedFunction
 from ._base import BaseCompiler
 from ._compilation import Compilation
+from ._issue_spec import IssueSpec
 from ._observables import ObservableEvaluator
 from .passes._functions import FunctionsPass
 
-DIFFERENTIABLE = (EquationLaw, RateLaw, UpdateLaw)
+DIFFERENTIABLE = (ConstraintLaw, RateLaw, UpdateLaw)
 INNER_FORMS = (FormKind.DISCRETE, FormKind.ODE)
 REDUCTIONS = ('sum', 'mean', 'max', 'min', 'var', 'count')
 
@@ -64,9 +66,6 @@ class _LearningCompiler(BaseCompiler):
         training_:
             The training interaction of the prepared system.
 
-        law_:
-            The gradient-step law it returns.
-
         inner_:
             The problem of the nested system, or `None` before it compiles.
 
@@ -81,7 +80,6 @@ class _LearningCompiler(BaseCompiler):
     """
 
     training_: TrainingInteraction | None
-    law_: GradientStepLaw
     inner_: ProblemSpec | None
     backend_: JaxBackend
     step_: TracedFunction
@@ -92,7 +90,7 @@ class _LearningCompiler(BaseCompiler):
         inner: BaseCompiler,
         backend: BaseBackend | None = None,
         solver: object = None,
-        observables: Sequence[ObservableSpec] = (),
+        observables: Sequence[Observable] = (),
     ) -> None:
         super().__init__(backend, solver, observables)
         self.inner = inner
@@ -118,12 +116,10 @@ class _LearningCompiler(BaseCompiler):
         issues = []
         if not isinstance(system.time, DiscreteTime):
             given = type(system.time).__name__ if system.time is not None else 'no time'
-            message = f'The GradientStepLaw of {training.label} needs DiscreteTime, one step per epoch, not {given}.'
+            message = f'The training {training.label} needs DiscreteTime, one step per epoch, not {given}.'
             issues.append(IssueSpec('law-time', training.label, message, 'Declare `DiscreteTime()` for the system.'))
         if self.solver is not None and self._get_form_of(type(self.solver)) != FormKind.LEARNING:
-            message = (
-                f'The solver {type(self.solver).__name__} does not run GradientStepLaw. Use GradientDescentSolver.'
-            )
+            message = f'The solver {type(self.solver).__name__} does not train. Use GradientDescentSolver.'
             fix = 'Pass `solver=GradientDescentSolver()`, or no solver.'
             issues.append(IssueSpec('solver-unsupported', system.label, message, fix, error=SolverError))
         return issues
@@ -336,7 +332,7 @@ class _LearningCompiler(BaseCompiler):
         return value
 
     @staticmethod
-    def _get_evaluated(observable: ObservableSpec, namespace: SimpleNamespace) -> object:
+    def _get_evaluated(observable: Observable, namespace: SimpleNamespace) -> object:
         """Return the expression of an observable in a namespace.
 
         It raises an error that names the variable it misses.
@@ -349,7 +345,7 @@ class _LearningCompiler(BaseCompiler):
             error_msg = f'The observable {observable.label} reads {error.name}, which the nested system does not have.'
             raise ValidationError(error_msg) from error
 
-    def _measure_of(self, problem: ProblemSpec, observable: ObservableSpec) -> TracedFunction:
+    def _measure_of(self, problem: ProblemSpec, observable: Observable) -> TracedFunction:
         """Return the pure JAX function of an observable of the nested system.
 
         The function is a value of its states and parameters.
@@ -424,7 +420,6 @@ class _LearningCompiler(BaseCompiler):
             training.prepare()
         except ValidationError as error:
             return [self._get_issue_of(error, training.label, 'value', 'Correct the training interaction.')]
-        self.law_ = next(item for item in training.run(SimpleNamespace()).laws_ if isinstance(item, GradientStepLaw))
         issues = self._get_setting_issues(system, training)
         trained = self._find_system(system, training.system)
         if trained is None:
@@ -495,7 +490,7 @@ class _LearningCompiler(BaseCompiler):
             inner=problem,
             trained_system=training.system,
             training=training.label,
-            law=self.law_,
+            interaction=training,
             trained=trained,
             hyperparameters=hyperparameters,
             step=step,

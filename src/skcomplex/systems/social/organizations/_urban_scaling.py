@@ -12,14 +12,15 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood, StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class CityResidentElement(Element):
@@ -76,7 +77,7 @@ class GravityContactInteraction(Interaction):
         1.5
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
@@ -91,7 +92,7 @@ class GravityContactInteraction(Interaction):
         self.reach = reach
         self.gamma = gamma
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the equation of the contacts of a resident.
 
         Args:
@@ -104,7 +105,7 @@ class GravityContactInteraction(Interaction):
         """
         dx, dy = s.target.other.x[0] - s.target.x[0], s.target.other.x[1] - s.target.x[1]
         contacts = neighbors((dx**2 + dy**2) ** (-s.gamma / 2), over=RadiusNeighborhood(self.reach))
-        return [EquationLaw(s.target.contacts == contacts, target=s.target.contacts)]
+        return [ConstraintLaw(s.target.contacts == contacts, target=s.target.contacts)]
 
 
 class GravityUrbanScalingSystem(BaseSystem):
@@ -141,7 +142,7 @@ class GravityUrbanScalingSystem(BaseSystem):
     field = 'social/organizations'
     topics = ('urban scaling', 'gravity system', 'static', 'allometry')
     references = ('Ribeiro and Netto 2024, arXiv 2404.02642', 'Ribeiro et al. 2017')
-    observables = (ObservableSpec('total_contacts', group='residents', variable='contacts', reduce='sum'),)
+    observables = (Observable('total_contacts', group='residents', variable='contacts', reduce='sum'),)
 
     def __init__(
         self,
@@ -159,7 +160,7 @@ class GravityUrbanScalingSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         radius = np.sqrt(self.population**self.alpha / np.pi)
         rng = np.random.default_rng(self.random_state)
         distances = radius * np.sqrt(rng.uniform(size=self.population))

@@ -19,10 +19,13 @@ from ..components.laws import BaseLaw, RateLaw
 from ..components.spaces import BaseTime, ContinuousTime
 from ..components.systems import CompositeSystem
 from ..engine.runtime import simulate
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, DeclaredVariableSpec, ParameterSpec, SamplesSpec, StateSpec, VisualSpec
-from ..types import Array, DataKind
+from ..specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _read_samples
+from ._samples_spec import _SamplesSpec
 from ._utils import load_module
 from .types import Runs
 
@@ -37,12 +40,11 @@ class _SurrogateElement(DeclaredElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         variables: Mapping[str, DeclaredVariableSpec] | None = None,
         laws: Callable[[SimpleNamespace], list[BaseLaw]] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, variables=variables)
+        super().__init__(label, variables=variables)
         self.laws = laws
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
@@ -95,7 +97,7 @@ class SparseIdentificationResult:
             The variables at the `horizon` samples after the last one, one row per sample.
     """
 
-    samples: SamplesSpec
+    samples: _SamplesSpec
     system: CompositeSystem
     labels: list[str]
     states: list[str]

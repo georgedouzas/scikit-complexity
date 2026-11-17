@@ -9,20 +9,22 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
+from scipy.linalg import expm
 from sklearn.base import clone
 
 from skcomplex.core.components.elements import BaseElement, Element, GroupElement
-from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import NoiseLaw, RateLaw
+from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
+from skcomplex.core.components.laws import NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.components.spaces import BaseSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.errors import LabelError, RoleError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
+from skcomplex.core.specs import ParameterSpec, Role, RoleSpec, StateSpec
+from skcomplex.core.systems import System
 
 from ....conftest import HoldingElement, _correlated
 
@@ -33,11 +35,10 @@ class StockElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
 
@@ -288,3 +289,70 @@ def test_edge_states_weigh_neighbourhood_reductions(backend):
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     expected = [10.0 * 2, 10.0 * 1 + 100.0 * 3, 100.0 * 2 + 1000.0 * 4, 1000.0 * 3]
     assert np.allclose(problem.states.read(drift, 'nodes.n'), expected, atol=1e-9)
+
+
+class _ExchangeInteraction(Interaction):
+    """Exchange of a value between the two ends of every edge."""
+
+    def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = True, k: float = 1.0) -> None:
+        super().__init__(label, among=among, along=along)
+        self.k = k
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the flow from the source to the target of an edge."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            flow = context.k * (context.source.x - context.target.x)
+            self.laws_ = [
+                RateLaw(context.target.x.diff(context.t), flow),
+                RateLaw(context.source.x.diff(context.t), -flow),
+            ]
+
+
+class _RewiringInteraction(Interaction):
+    """Rewiring that moves an edge away from two voters who disagree."""
+
+    def __init__(self, label: str, *, among: Role = 'voters', along: bool | str | None = True, p: float = 1.0) -> None:
+        super().__init__(label, among=among, along=along)
+        self.p = p
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rewiring of an edge with the probability that its ends disagree."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            disagreement = (context.source.opinion - context.target.opinion) ** 2
+            self.laws_ = [UpdateLaw(TopologyRequestSpec('rewire'), context.p * disagreement)]
+
+
+def test_interaction_along_edges_runs_once_per_edge():
+    """Test that an exchange along the edges of a path of four nodes follows the exact consensus `exp(-L t) x`."""
+    graph = nx.path_graph(4)
+    start = np.array([1.0, 0.0, 0.0, 0.0])
+    nodes = Element('nodes', values={'x': start}, space=NetworkSpace(graph))
+    system = System(elements=[nodes], interactions=[_ExchangeInteraction('exchange')]).prepare()
+    last = system.simulate(until=0.5, dt=0.01).get_values('nodes.x')[-1]
+    assert last == pytest.approx(expm(-nx.laplacian_matrix(graph).toarray() * 0.5) @ start, abs=1e-6)
+
+
+def test_interaction_along_edges_clones_with_its_binding():
+    """Test that the binding of an interaction is one of its parameters, kept by a clone."""
+    copy = clone(_ExchangeInteraction('exchange', among='cells', along='roads'))
+    assert (copy.among, copy.along, copy._get_layer(), copy._runs_on_edges()) == ('cells', 'roads', 'roads', True)
+    assert not Interaction('growth')._runs_on_edges()
+
+
+def test_interaction_rewires_the_edges_of_a_network():
+    """Test that updates on the edges move them away from disagreeing voters at every step until few remain."""
+    graph = nx.random_regular_graph(4, 30, seed=1)
+    opinions = np.array([0.0, 1.0] * 15)
+    voters = Element('voters', values={'opinion': opinions}, space=NetworkSpace(graph))
+    system = System(elements=[voters], interactions=[_RewiringInteraction('rewiring')]).prepare()
+    trajectory = system.simulate(until=6, random_state=0)
+    edges = [
+        {tuple(sorted((int(a), int(b)))) for a, b in zip(network.sources, network.targets, strict=True)}
+        for network in (trajectory.get_network(frame) for frame in range(len(trajectory.times)))
+    ]
+    discordant = [sum(opinions[a] != opinions[b] for a, b in frame) for frame in edges]
+    assert all(len(frame) == graph.number_of_edges() for frame in edges)
+    assert all(edges[i] != edges[i + 1] for i in range(len(edges) - 1) if discordant[i] > 0)
+    assert discordant[-1] < discordant[0] / 4

@@ -28,8 +28,8 @@
 - [ ] 4.1 Add the inventory entries `dynamic_network_dilemma`, `gossip_group_norms`, and `graph_punishment_game` under
   `[social.cooperation]` with the sources 2301.11982, 2204.10811, and 2401.11686 and the primitives of the design, and
   verify the inventory check passes
-- [ ] 4.2 If a system cannot be expressed with core parts, record it as blocked in the inventory, open a change for the
-  missing primitive, and verify the inventory check accepts the blocked entry
+- [ ] 4.2 If a system cannot be expressed with core components, record it as blocked in the inventory, open a change for
+  the missing primitive, and verify the inventory check accepts the blocked entry
 
 ## 5. Integration
 

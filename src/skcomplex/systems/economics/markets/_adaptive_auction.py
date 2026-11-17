@@ -41,9 +41,6 @@ class AdaptiveTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         value:
             The value of a unit to a buyer, or its cost to a seller.
 
@@ -60,18 +57,19 @@ class AdaptiveTraderElement(Element):
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'quote'})
+
     law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'quote'}),
         *,
         value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         quote: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         units: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
         self.quote = quote
         self.units = units
@@ -272,7 +270,7 @@ class GoodingDoubleAuctionSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         values = self.value * (1 + self.spread * rng.uniform(-1, 1, self.n_buyers))
         costs = self.cost * (1 + self.spread * rng.uniform(-1, 1, self.n_sellers))

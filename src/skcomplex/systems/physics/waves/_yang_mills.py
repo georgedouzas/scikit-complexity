@@ -10,17 +10,18 @@ import itertools
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import partial
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 import numpy.typing as npt
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.runtime import Trajectory
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import MatrixGroupSpec, ObservableSpec, StateSpec, VisualSpec
+from ....core.specs import MatrixGroupSpec, StateSpec
 from ....core.types import Array, Indices
 from ..common.fields import WilsonSamplingInteraction
 
@@ -41,15 +42,12 @@ class ColorLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         U:
             The real components of the matrix of the link, the identity by default.
 
     Attributes:
         default_visual_:
-            The visual of the link when it sets none.
+            How the link is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import ColorLinkElement
@@ -60,11 +58,10 @@ class ColorLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         U: Annotated[object, StateSpec(group=COLOR)] = tuple(COLOR.identity),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.U = U
 
 
@@ -77,15 +74,12 @@ class IsospinLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         U:
             The real components of the matrix of the link, the identity by default.
 
     Attributes:
         default_visual_:
-            The visual of the link when it sets none.
+            How the link is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import IsospinLinkElement
@@ -96,11 +90,10 @@ class IsospinLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         U: Annotated[object, StateSpec(group=ISOSPIN)] = tuple(ISOSPIN.identity),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.U = U
 
 
@@ -246,7 +239,7 @@ def _rectangles_of(space: CellComplexSpace, extents: tuple[int, int], first: int
 
     The frame comes first and the sites next.
     """
-    shape = space.space.shape_
+    shape = cast(LatticeSpace, space.space).shape_
     faces = np.flatnonzero(np.all(space.face_planes_ == (first, second), axis=1))
     corners = np.asarray([space.hyperedges_[face][0] for face in faces], dtype=np.intp)
     flat = np.zeros((sums.shape[0], int(np.prod(shape))))
@@ -263,7 +256,7 @@ def _get_paths(space: CellComplexSpace, moves: Sequence[tuple[int, int]]) -> tup
 
     A step is forward 1 or backward -1.
     """
-    place = space.space
+    place = cast(LatticeSpace, space.space)
     sites = np.arange(place.size_).reshape(place.shape_)
     forward = np.stack([np.roll(sites, -1, axis=axis).ravel() for axis in range(place.n_dim_)])
     backward = np.stack([np.roll(sites, 1, axis=axis).ravel() for axis in range(place.n_dim_)])
@@ -311,7 +304,7 @@ def _matrix_polyakov(space: CellComplexSpace, values: Array, group: MatrixGroupS
 
     The loops wind along the last axis.
     """
-    place = space.space
+    place = cast(LatticeSpace, space.space)
     last = place.n_dim_ - 1
     traces = _get_traces(values, group, *_get_paths(space, [(last, 1)] * place.shape_[last]))
     return np.abs(traces.mean(axis=1))
@@ -322,13 +315,13 @@ def _wilson(space: CellComplexSpace, values: Array, extents: tuple[int, int]) ->
     sums = (space.incidences_[1] @ values.T).T
     planes = np.unique(space.face_planes_, axis=0).reshape(-1, LOOP_AXES)
     loops = [_rectangles_of(space, extents, int(first), int(second), sums) for first, second in planes]
-    axes = tuple(range(1, space.space.n_dim_ + 1))
+    axes = tuple(range(1, cast(LatticeSpace, space.space).n_dim_ + 1))
     return np.mean([np.cos(loop).mean(axis=axes) for loop in loops], axis=0)
 
 
 def _polyakov(space: CellComplexSpace, values: Array) -> Array:
     """Return the mean cosine of the sums of the link angles along the last axis."""
-    place = space.space
+    place = cast(LatticeSpace, space.space)
     last = place.n_dim_ - 1
     links = np.flatnonzero(space.link_axes_ == last)
     flat = np.zeros((values.shape[0], place.size_))
@@ -454,23 +447,23 @@ class LatticeYangMillsSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _get_yang_mills_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_yang_mills_observables(system: CompositeSystem) -> list[Observable]:
         """Return the mean plaquette and the Polyakov loop of the links."""
         links = next(element for element in system.elements if element.label == 'links')
         space = links.space.prepare()
         group = next(group for element, group in LINKS.values() if links.element is element)
         return [
-            ObservableSpec(
+            Observable(
                 'mean_plaquette',
                 function=partial(LatticeYangMillsSystem._get_mean_plaquette, space, group),
             ),
-            ObservableSpec('polyakov_loop', function=partial(LatticeYangMillsSystem._get_polyakov_loop, space, group)),
+            Observable('polyakov_loop', function=partial(LatticeYangMillsSystem._get_polyakov_loop, space, group)),
         ]
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
 
-        The observables of the parts are built from the model parameters.
+        The observables of the components are built from the model parameters.
         """
         settings = super().get_run_settings()
         settings['observables'] = tuple(self._get_yang_mills_observables(self._build_system()))

@@ -10,12 +10,12 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.signals import PulseInteraction
@@ -31,7 +31,6 @@ class ChuaCircuitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.1,
         y: Annotated[object, StateSpec()] = 0.0,
@@ -41,7 +40,7 @@ class ChuaCircuitElement(Element):
         m0: Annotated[object, ParameterSpec()] = -8 / 7,
         m1: Annotated[object, ParameterSpec()] = -5 / 7,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -62,12 +61,11 @@ class ChuaCircuitElement(Element):
 class CircuitElement(Element):
     """RLC circuit whose charge follows `L q'' + R q' + q / C = V cos(ω t)`."""
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         q: Annotated[object, StateSpec(order=2)] = 1.0,
         q_d1: float = 0.0,
@@ -77,7 +75,7 @@ class CircuitElement(Element):
         V: Annotated[object, ParameterSpec()] = 0.0,
         omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.q = q
         self.q_d1 = q_d1
         self.L = L
@@ -89,7 +87,7 @@ class CircuitElement(Element):
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the equation of the charge."""
         return [
-            EquationLaw(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
+            ConstraintLaw(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
         ]
 
 
@@ -99,12 +97,11 @@ class KickedCircuitElement(Element):
     The impulses of strength `A` kick its rate.
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
@@ -113,7 +110,7 @@ class KickedCircuitElement(Element):
         C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         A: Annotated[object, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_d1 = x_d1
         self.L = L
@@ -123,7 +120,7 @@ class KickedCircuitElement(Element):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the free equation of the circuit between impulses."""
-        return [EquationLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0)]
+        return [ConstraintLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0)]
 
 
 class MixedModeChuaCircuitElement(Element):
@@ -134,7 +131,6 @@ class MixedModeChuaCircuitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.01,
         y: Annotated[object, StateSpec()] = 0.0,
@@ -147,7 +143,7 @@ class MixedModeChuaCircuitElement(Element):
         beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.005,
         c: Annotated[object, ParameterSpec()] = 0.00053,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -174,7 +170,6 @@ class MultiscrollChuaCircuitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 1.0,
         y: Annotated[object, StateSpec()] = 1.0,
@@ -185,7 +180,7 @@ class MultiscrollChuaCircuitElement(Element):
         b: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.11,
         c: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -279,7 +274,7 @@ class RlcCircuitSystem(BaseSystem):
         self.omega = omega
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return CompositeSystem(
             self.label,
             elements=[
@@ -369,7 +364,7 @@ class ChuaSystem(BaseSystem):
         self.beta = beta
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.nonlinearity not in CHUA_NONLINEARITIES:
             error_msg = f"Unknown nonlinearity {self.nonlinearity!r}. Use 'piecewise-linear' or 'sine'."
             raise ParameterError(error_msg)
@@ -462,7 +457,7 @@ class MixedModeChuaSystem(BaseSystem):
         self.c = c
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         circuit = MixedModeChuaCircuitElement(
             'circuit',
             x=self.x,
@@ -721,7 +716,7 @@ class ImpulsiveCircuitsSystem(BaseSystem):
         self.T = T
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         circuit = KickedCircuitElement('circuit', x=self.x, x_d1=self.current, L=self.L, R=self.R, C=self.C, A=self.A)
         kick = {'x_d1': lambda s: s.target.x_d1 + s.target.A / (s.target.L * s.target.C)}
         impulse = PulseInteraction('impulse', target='circuit', reset=kick, period=self.T)

@@ -1,0 +1,107 @@
+"""Define the law that fires an event when a guard crosses zero."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Mapping
+from typing import ClassVar
+
+from sage.all__sagemath_symbolics import Expression
+
+from ...errors import ValidationError
+from ..spaces import ContinuousTime
+from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
+
+
+class EventLaw(BaseLaw):
+    """A law that resets states or ends the run when a guard crosses zero.
+
+    The guard is an expression of the states whose sign change marks an event. At the event the states in `reset` take
+    new values, or the run ends when `terminal` is true. Solvers locate the crossing within their tolerance. A crossing
+    leaves the equations of a system as they are, so it combines with rate laws, and the trajectory records every
+    crossing with its time and the states before and after it.
+
+    Unlike `BoundaryLaw`, which corrects a state once per step, it finds the time of the event within the tolerance of
+    the solver. Choose it when the time of the event matters, such as an impact or a threshold.
+
+    It appears in many fields. A ball bounces off the floor, a neuron fires when its potential reaches a threshold, and
+    a thermostat switches a heater at a set temperature.
+
+    Args:
+        guard:
+            A symbolic expression of states and time whose crossing of zero triggers the event, or a function
+            `f(t, values)` of time and the mapping from the dotted name of every state and parameter to its value, or
+            `CallSpec(f, relative=True)` to read the names of the component. Over a group it returns one value per
+            member. It runs in Python, and a function does not lower the order of derivatives or read delays.
+
+        reset:
+            A mapping from state symbol to its new value, applied all at once, or `None` to keep the states. A value
+            may be a function like the guard's.
+
+        direction:
+            `1` for crossings from negative to positive, `-1` for the opposite, and `0` for both.
+
+        terminal:
+            Whether the crossing ends the run.
+
+        label:
+            The name of the crossing in the trajectory, or the empty string for the path of the element.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.components.laws import EventLaw
+        >>> y, z = var('y'), var('z')
+        >>> law = EventLaw(y, {z: -0.8 * z}, direction=-1).prepare()
+        >>> law.run({'z': -2.0}).value_
+        {z: 1.6}
+    """
+
+    law_tag: ClassVar[str] = 'update'
+
+    def __init__(
+        self,
+        guard: object,
+        reset: Mapping[Expression, object] | None = None,
+        direction: int = 0,
+        terminal: bool = False,
+        *,
+        label: str = '',
+    ) -> None:
+        super().__init__(label)
+        self.guard = guard
+        self.reset = reset
+        self.direction = direction
+        self.terminal = terminal
+
+    def _get_targets(self) -> tuple[object, ...]:
+        """Return the states the crossing resets."""
+        return tuple(self.reset or {})
+
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
+        """Return what the law requires of a system: continuous time."""
+        return RequirementSpec(time=(ContinuousTime,))
+
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for a direction that is not -1, 0, or 1.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
+        if self.direction not in {-1, 0, 1}:
+            error_msg = f'The direction of a crossing is -1, 0, or 1, but got {self.direction!r}.'
+            raise ValidationError(error_msg)
+
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the new values of the states at given symbol values.
+
+        The symbols are those the reset reads.
+
+        Args:
+            inputs:
+                A mapping from the name of every symbol the law reads to its value.
+        """
+        self.value_ = self._evaluate(dict(self.reset or {}), inputs)

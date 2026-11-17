@@ -10,6 +10,7 @@ from sage.all__sagemath_symbolics import ZZ
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.core.components.laws import TotalisticSpec
 from skcomplex.core.components.spaces import (
     CayleySpace,
     LatticeNeighborhood,
@@ -19,7 +20,7 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import PowerSeriesSpec, StateSpec, TotalisticSpec
+from skcomplex.core.specs import PowerSeriesSpec, StateSpec
 from skcomplex.systems.computer_science.automata import PowerSeriesCellElement
 
 SYMMETRIC = PermutationGroup([[(1, 2)], [(1, 2, 3)], [(3, 4)]])

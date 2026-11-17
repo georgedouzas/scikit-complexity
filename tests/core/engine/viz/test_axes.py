@@ -37,10 +37,10 @@ class _NematicElement(Element):
         return [RateLaw(namespace.Q, -namespace.Q), RateLaw(namespace.rho, 0.0 * namespace.rho)]
 
 
-def _film(visual):
+def _film():
     """Return a field on a lattice of 8 by 8 sites with a uniform tensor."""
     values = {'Q': np.tile([0.5, 0.0], (64, 1)), 'p': np.tile([1.0, 0.0], (64, 1)), 'rho': np.arange(64.0)}
-    field = FieldElement('film', element=_NematicElement, space=LatticeSpace((8, 8)), values=values, visual=visual)
+    field = FieldElement('film', element=_NematicElement, space=LatticeSpace((8, 8)), values=values)
     return CompositeSystem(elements=[field])
 
 
@@ -58,7 +58,7 @@ class _Recording:
 def _logged(state, scalar, every):
     """Return what the axes visual of a state logs at the first and second frames of a short run."""
     recording = _Recording()
-    system = _film(None)
+    system = _film()
     problem = PassCompiler().prepare(system).run().problem_
     visual = AxisVisual(state, scalar=scalar, every=every, path='film', recording=recording).prepare(problem)
     frames = []
@@ -87,8 +87,9 @@ def test_run_logs_one_segment_per_sampled_site_over_the_image_at_every_frame():
 
 def test_run_writes_a_recording_in_the_viewer_stream(tmp_path):
     """The nematic with a visual of axes writes a recording of its frames."""
-    system = _film(VisualSpec('axes', {'state': 'Q', 'scalar': 'rho', 'every': 2}))
-    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
+    visuals = {'film': VisualSpec('axes', {'state': 'Q', 'scalar': 'rho', 'every': 2})}
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', visuals=visuals)
+    system = _film()
     simulate(system, until=0.2, dt=0.1, observers=[observer])
     assert isinstance(observer.visuals_[0], AxisVisual)
     assert observer.logged_frames_ >= 2
@@ -107,7 +108,7 @@ def test_prepare_rejects_a_scalar_state():
     """A scalar state has no axes."""
     with pytest.raises(ValidationError, match='no tensor or vector'):
         AxisVisual('rho', path='film', recording=_Recording()).prepare(
-            PassCompiler().prepare(_film(None)).run().problem_,
+            PassCompiler().prepare(_film()).run().problem_,
         )
 
 

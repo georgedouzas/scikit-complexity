@@ -24,7 +24,7 @@ field at a fractional displacement by interpolation, which is semi-Lagrangian bu
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `reintegrate` | 2, an operator the backends lower | `skcomplex.core.components.laws.utils` | artificial life, conservative tracer advection in oceanography and climate, densities of cells and morphogens in biology, crowd densities in social systems, sediment and granular transport in physics |
 | `FlowLeniaSystem` | 3, one system | `computer_science/automata/_flow_lenia.py` | computer science |

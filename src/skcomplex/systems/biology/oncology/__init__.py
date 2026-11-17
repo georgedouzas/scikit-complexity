@@ -4,11 +4,7 @@ They cover tumour growth, the vessels that feed it, and the therapies that treat
 """
 
 from ._angiogenesis import SproutElement, TissueElement, TumourAngiogenesisSystem, TumourCellElement, VesselElement
-from ._antiangiogenic import (
-    AngiogenicTumourElement,
-    HahnfeldtSystem,
-    VascularCorePeripherySystem,
-)
+from ._antiangiogenic import AngiogenicTumourElement, HahnfeldtSystem, VascularCorePeripherySystem
 from ._cell_cycle_invasion import CellCycleInvasionInteraction, CellCycleInvasionSystem, CellSiteElement
 from ._cell_kinetics import (
     CellCycleChemotherapySystem,

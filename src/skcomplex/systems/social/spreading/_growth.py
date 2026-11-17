@@ -15,7 +15,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class GrowingWordView(AgentView):
@@ -37,9 +37,6 @@ class GrowingWordElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         count:
             The number of occurrences.
 
@@ -57,12 +54,11 @@ class GrowingWordElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         count: Annotated[float, StateSpec(domain=NN)] = 1.0,
         innovation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.count = count
         self.innovation = innovation
 
@@ -189,7 +185,7 @@ class SimonYuleSystem(BaseSystem):
         self.words_per_step = words_per_step
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         words = GroupElement(
             'words',
             element=GrowingWordElement,

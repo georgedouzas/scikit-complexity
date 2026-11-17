@@ -13,10 +13,7 @@ import numpy.typing as npt
 
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import (
-    BallNeighborhood,
-    LatticeSpace,
-)
+from ....core.components.spaces import LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ._binary_cell import BinaryCellElement
 from ._codes import life
@@ -97,7 +94,7 @@ class FredkinReplicatorSystem(BaseSystem):
                     target='cells',
                     state='alive',
                     rule=life((1, 3), (1, 3)),
-                    neighborhood=BallNeighborhood(metric='manhattan'),
+                    neighborhood=RadiusNeighborhood(1, metric='manhattan'),
                 ),
             ],
         )

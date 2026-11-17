@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ..common.particles import RelaxationTimeInteraction
 
 
@@ -29,9 +29,6 @@ class ColoredNoiseParticleElement(Element):
     Args:
         label:
             The label of the particle.
-
-        visual:
-            How the particle is drawn, or `None` for none.
 
         v:
             The initial velocity.
@@ -57,7 +54,6 @@ class ColoredNoiseParticleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         v: Annotated[float, StateSpec()] = 0.0,
         xi: Annotated[float, StateSpec()] = 0.0,
@@ -65,7 +61,7 @@ class ColoredNoiseParticleElement(Element):
         D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.xi = xi
         self.gamma = gamma

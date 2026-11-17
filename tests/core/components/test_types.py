@@ -9,12 +9,11 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RuleLaw
+from skcomplex.core.components.laws import PartnerSpec, RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.components.types import AgentViewProtocol, Process, SystemViewProtocol, Target
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import PartnerSpec
 from skcomplex.systems.general.matching import RandomSearchSpec
 from skcomplex.systems.general.matching.types import MatchingRule
 

@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
 from .....core.components.laws import BaseLaw, RateLaw
-from .....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.specs import ParameterSpec, StateSpec
 
 
 class StuartLandauElement(Element):
@@ -27,9 +27,6 @@ class StuartLandauElement(Element):
     Args:
         label:
             The label of the oscillator or the group.
-
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
 
         x:
             The initial real part of `z`.
@@ -54,7 +51,7 @@ class StuartLandauElement(Element):
 
     Attributes:
         default_visual_:
-            The visual of the oscillator when it sets none.
+            How the oscillator is drawn by default, the `visual` of its class.
 
     Examples:
         >>> import math
@@ -72,7 +69,6 @@ class StuartLandauElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         y: Annotated[float, StateSpec()] = 0.0,
@@ -82,7 +78,7 @@ class StuartLandauElement(Element):
         kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.mu = mu

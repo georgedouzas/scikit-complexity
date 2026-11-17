@@ -11,12 +11,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import RoleSpec, StateSpec
 from ....core.types import Array
 
 UNDISTRESSED = 0
@@ -44,9 +45,6 @@ class InterbankElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         h:
             The level of distress, between 0 and 1, where 1 is default.
 
@@ -68,13 +66,12 @@ class InterbankElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         h: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         status: Annotated[float, StateSpec(domain=NN)] = UNDISTRESSED,
         value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.h = h
         self.status = status
         self.value = value
@@ -212,7 +209,7 @@ class DebtrankSystem(BaseSystem):
     topics = ('systemic risk', 'network', 'contagion', 'agents')
     references = ('Thurner et al. 2018', 'Battiston et al. 2012')
     until = 10
-    observables = (ObservableSpec('value_at_risk', _get_value_at_risk, group='banks', reduce='sum'),)
+    observables = (Observable('value_at_risk', _get_value_at_risk, group='banks', reduce='sum'),)
 
     def __init__(
         self,
@@ -256,7 +253,7 @@ class DebtrankSystem(BaseSystem):
         return lent / lent.sum()
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.liabilities is None or self.capital is None:
             matrix, capitals = self._get_random_exposures(
                 self.n_banks,

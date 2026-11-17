@@ -15,28 +15,29 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...components.laws import BaseLaw
 from ...errors import ValidationError
-from ...specs._accelerated_spec import AcceleratedSpec
-from ...specs._breakpoints_spec import _BreakpointsSpec
-from ...specs._delay_spec import _DelaySpec
-from ...specs._fractional_rows_spec import FractionalRowsSpec
-from ...specs._jump_channels_spec import _JumpChannelsSpec
-from ...specs._layout_spec import LayoutSpec
 from ...specs._variable_spec import VariableSpec
-from ...specs._wiener_block_spec import WienerBlockSpec
 from ...types import Array, Indices, VectorFunction
+from ._accelerated_spec import _AcceleratedSpec
 from ._base import BaseKernel
 from ._base_problem_spec import BaseProblemSpec
+from ._breakpoints_spec import _BreakpointsSpec
+from ._delay_spec import _DelaySpec
 from ._diffusive_limit_spec import DiffusiveLimitSpec
 from ._draw_kernel import DrawKernel
 from ._event_kernel import EventKernel
 from ._finite_volume_kernel import FiniteVolumeKernel
+from ._fractional_rows_spec import _FractionalRowsSpec
 from ._jacobian_kernel import JacobianKernel
+from ._jump_channels_spec import _JumpChannelsSpec
 from ._law_kernel import LawKernel
+from ._layout_spec import LayoutSpec
 from ._linear_program_kernel import LinearProgramKernel
 from ._linear_term_spec import LinearTermSpec
+from ._neighborhood_kernel import NeighborhoodKernel
 from ._partition_spec import PartitionSpec
 from ._random_stream import RandomStream
 from ._reduction_kernel import ReductionKernel
+from ._wiener_block_spec import _WienerBlockSpec
 
 
 @dataclass(frozen=True)
@@ -145,8 +146,17 @@ class ProblemSpec(BaseProblemSpec):
         reductions:
             The reductions that laws read, in the order they are evaluated before the kernels.
 
+        neighbourhoods:
+            The reductions over neighbours that laws read, each with the symbol that stands for it in the equations.
+
         unknowns:
             The positions in the state vector that the equations of a static problem solve for numerically.
+
+        objective:
+            The sum of the objective laws of a static problem, the scalar its solver minimises, or `None` for none.
+
+        objective_targets:
+            The positions in the state vector that the objective is minimised over.
 
         jacobian:
             The Jacobian of the drift of an ODE problem, derived from its laws: its sparsity pattern and, for laws with
@@ -253,15 +263,18 @@ class ProblemSpec(BaseProblemSpec):
     volumes: tuple[FiniteVolumeKernel, ...] = field(default=(), repr=False)
     constrained: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     reductions: tuple[ReductionKernel, ...] = field(default=(), repr=False)
+    neighbourhoods: tuple[NeighborhoodKernel, ...] = field(default=(), repr=False)
     jacobian: JacobianKernel | None = field(default=None, repr=False)
     unknowns: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
+    objective: Expression | None = field(default=None, repr=False)
+    objective_targets: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     drift: VectorFunction | None = field(default=None, repr=False)
     sources: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     noise_columns: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     n_processes: int = 0
-    noise_blocks: tuple[WienerBlockSpec, ...] = field(default=(), repr=False)
+    noise_blocks: tuple[_WienerBlockSpec, ...] = field(default=(), repr=False)
     propensities: VectorFunction | None = field(default=None, repr=False)
     jumps: tuple[_JumpChannelsSpec, ...] = field(default=(), repr=False)
     update: Callable[..., Array] | None = field(default=None, repr=False)
@@ -269,12 +282,12 @@ class ProblemSpec(BaseProblemSpec):
     algebraic: VectorFunction | None = field(default=None, repr=False)
     programs: tuple[LinearProgramKernel, ...] = field(default=(), repr=False)
     draws: DrawKernel | None = field(default=None, repr=False)
-    fractional: tuple[FractionalRowsSpec, ...] = field(default=(), repr=False)
+    fractional: tuple[_FractionalRowsSpec, ...] = field(default=(), repr=False)
     orders: Array = field(default_factory=lambda: np.zeros(0), repr=False)
 
     backend: str = 'numpy'
     backends: Mapping[str, str] = field(default_factory=dict)
-    accelerated: AcceleratedSpec | None = field(default=None, repr=False)
+    accelerated: _AcceleratedSpec | None = field(default=None, repr=False)
 
     def _flatten_symbols(self, layout: LayoutSpec) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""

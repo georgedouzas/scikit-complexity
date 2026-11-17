@@ -4,12 +4,7 @@ The systems are compartmental, network, metapopulation, and agent-based.
 """
 
 from ..common.networks import HostElement, SpreadingInteraction
-from ._adaptive import (
-    ActiveHostElement,
-    ActivityDrivenEpidemicsSystem,
-    AdaptiveSISSystem,
-    QuenchedMeanFieldSISSystem,
-)
+from ._adaptive import ActiveHostElement, ActivityDrivenEpidemicsSystem, AdaptiveSISSystem, QuenchedMeanFieldSISSystem
 from ._agents import (
     AgentBasedSIRSystem,
     NetworkSIRSystem,

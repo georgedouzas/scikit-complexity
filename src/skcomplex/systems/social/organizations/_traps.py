@@ -12,12 +12,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, series, where
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 ACTORS = ('a', 'b', 'c')
 ALLOCATION_TABLE = ((0.0, 0.2, 0.5, 0.8, 1.0), (0.0, 0.05, 0.5, 0.95, 1.0))
@@ -29,7 +30,6 @@ class ArmsRaceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.0,
         b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.5,
@@ -37,7 +37,7 @@ class ArmsRaceElement(Element):
         adjustment_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         perception_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.b = b
         self.margin = margin
@@ -51,7 +51,6 @@ class BurdenElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         capability: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capability')] = 0.5,
         intervention: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='intervention')] = 0.0,
@@ -61,7 +60,7 @@ class BurdenElement(Element):
         solution_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         erosion: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.capability = capability
         self.intervention = intervention
         self.desired = desired
@@ -77,14 +76,13 @@ class ContestElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 55.0,
         b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 45.0,
         budget: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         lifetime: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.b = b
         self.budget = budget
@@ -97,7 +95,6 @@ class PerformanceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         performance: Annotated[object, StateSpec(quantity='performance')] = 1.0,
         perceived: Annotated[object, StateSpec(quantity='performance')] = 1.0,
@@ -108,7 +105,7 @@ class PerformanceElement(Element):
         goal_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
         erosion: Annotated[object, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.performance = performance
         self.perceived = perceived
         self.desired = desired
@@ -125,7 +122,6 @@ class StandoffElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         stock: Annotated[object, StateSpec(quantity='stock')] = 50.0,
         effort_a: Annotated[object, StateSpec(quantity='effort')] = 0.0,
@@ -139,7 +135,7 @@ class StandoffElement(Element):
         strength_c: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         intensification_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.stock = stock
         self.effort_a = effort_a
         self.effort_b = effort_b
@@ -205,8 +201,8 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
     until = 100.0
     dt = 0.5
     observables = (
-        ObservableSpec('success', _get_success, element='contest'),
-        ObservableSpec('allocation', _get_allocation, element='contest'),
+        Observable('success', _get_success, element='contest'),
+        Observable('allocation', _get_allocation, element='contest'),
     )
 
     def __init__(
@@ -251,7 +247,7 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
         return s.source.b / s.source.lifetime
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         allocation = TransferInteraction(
             'allocation',
             source='contest',
@@ -330,7 +326,7 @@ class ShiftingTheBurdenSystem(BaseSystem):
     references = ('Meadows 2008',)
     until = 60.0
     dt = 0.5
-    observables = (ObservableSpec('symptom', _get_symptom, element='burden'),)
+    observables = (Observable('symptom', _get_symptom, element='burden'),)
 
     def __init__(
         self,
@@ -370,7 +366,7 @@ class ShiftingTheBurdenSystem(BaseSystem):
         return s.source.erosion * s.source.intervention * s.source.capability
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         burden = BurdenElement(
             'burden',
             capability=self.capability,
@@ -456,8 +452,8 @@ class EscalationSystem(BaseSystem):
     until = 100.0
     dt = 0.5
     observables = (
-        ObservableSpec('desired_a', _get_desired_a, element='race'),
-        ObservableSpec('desired_b', _get_desired_b, element='race'),
+        Observable('desired_a', _get_desired_a, element='race'),
+        Observable('desired_b', _get_desired_b, element='race'),
     )
 
     def __init__(
@@ -492,7 +488,7 @@ class EscalationSystem(BaseSystem):
         return where(desired > race.b, desired - race.b, 0) / race.adjustment_time
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         race = ArmsRaceElement(
             'race',
             a=self.a,
@@ -567,7 +563,7 @@ class PolicyResistanceSystem(BaseSystem):
     references = ('Meadows 2008',)
     until = 100.0
     dt = 0.5
-    observables = (ObservableSpec('compromise', _get_compromise, element='standoff'),)
+    observables = (Observable('compromise', _get_compromise, element='standoff'),)
 
     @staticmethod
     def _pull(s: SimpleNamespace, actor: str) -> Expression:
@@ -628,7 +624,7 @@ class PolicyResistanceSystem(BaseSystem):
         return PolicyResistanceSystem._pull(s.source, 'c') / s.source.intensification_time
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         standoff = StandoffElement(
             'standoff',
             stock=self.stock,
@@ -711,7 +707,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
     references = ('Meadows 2008',)
     until = 100.0
     dt = 0.5
-    observables = (ObservableSpec('discrepancy', _get_discrepancy, element='performance'),)
+    observables = (Observable('discrepancy', _get_discrepancy, element='performance'),)
 
     def __init__(
         self,
@@ -759,7 +755,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
         return performance.erosion * (performance.perceived - performance.desired) / performance.goal_time
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         element = PerformanceElement(
             'performance',
             performance=self.performance,

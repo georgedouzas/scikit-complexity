@@ -8,10 +8,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ..engine.problems._cascade_record_spec import _CascadeRecordSpec
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, CascadeRecordSpec
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_path, _read_real, _read_series
 from ._utils import load_module
 from .types import Source
@@ -293,14 +295,14 @@ def _laminar_durations(values: Array, clock: Array, threshold: float) -> Array:
     return clock[ends[complete] - 1] - clock[starts[complete]] + step
 
 
-def _records(source: object) -> list[CascadeRecordSpec]:
+def _records(source: object) -> list[_CascadeRecordSpec]:
     """Return the records of excursions of a source.
 
     Each record has a size and a duration, and values give nothing.
     """
     if isinstance(source, np.ndarray | Trajectory) or not isinstance(source, Sequence):
         return []
-    records = [item for item in source if isinstance(item, CascadeRecordSpec)]
+    records = [item for item in source if isinstance(item, _CascadeRecordSpec)]
     return records if records and len(records) == len(source) else []
 
 

@@ -65,10 +65,10 @@ class FitzHughNagumoInteraction(Interaction):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class CellElement(Element):
         ...     def __init__(
-        ...         self, label, visual=None, *, v: Annotated[float, StateSpec()] = -1.2,
+        ...         self, label, *, v: Annotated[float, StateSpec()] = -1.2,
         ...         w: Annotated[float, StateSpec()] = -0.6,
         ...     ):
-        ...         super().__init__(label, visual=visual)
+        ...         super().__init__(label)
         ...         self.v = v
         ...         self.w = w
         >>> kinetics = FitzHughNagumoInteraction('kinetics', target='cell', I=0.5)
@@ -101,7 +101,7 @@ class FitzHughNagumoInteraction(Interaction):
         self.epsilon = epsilon
         self.I = I
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for state names that are not names or that coincide.
 
         Args:

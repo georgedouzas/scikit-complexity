@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import ConnectionInteraction
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -40,7 +40,7 @@ class SourceResistorElement(Element):
 
     def _get_laws(self, s):
         """Return Ohm's law from the pin to the fixed voltage."""
-        return [EquationLaw(s.a_v - s.e, s.R * s.a_i)]
+        return [ConstraintLaw(s.a_v - s.e, s.R * s.a_i)]
 
 
 class ReservoirElement(Element):
@@ -63,7 +63,7 @@ class ReservoirElement(Element):
 
     def _get_laws(self, s):
         """Return the flow of the reservoir."""
-        return [EquationLaw(s.a_n, s.a_mu - s.level)]
+        return [ConstraintLaw(s.a_n, s.a_mu - s.level)]
 
 
 def _run(system):

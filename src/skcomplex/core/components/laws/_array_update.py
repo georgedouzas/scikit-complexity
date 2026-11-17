@@ -10,9 +10,9 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec
 from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 
 class ArrayUpdateLaw(BaseLaw):

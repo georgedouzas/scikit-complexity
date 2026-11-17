@@ -16,9 +16,9 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import distribution
+from skcomplex.core.components import Observable
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.systems.economics.econophysics import BoltzmannWealthSystem
 
 SYSTEM = 'boltzmann_wealth'
@@ -31,7 +31,7 @@ def gini(wealth: np.ndarray) -> float:
 
 
 system = BoltzmannWealthSystem(n_agents=300)
-observables = [ObservableSpec('gini', group='traders', variable='wealth', reduce=gini)]
+observables = [Observable('gini', group='traders', variable='wealth', reduce=gini)]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(origin='/gini', name='Gini coefficient', axis_x=rrb.TimeAxis(view_range=whole_run)),

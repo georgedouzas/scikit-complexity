@@ -13,9 +13,11 @@ import numpy.typing as npt
 import ordpy
 from scipy import stats
 
+from ..enums import DataKind, TieKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, BaseSpec
-from ..types import Array, DataKind
+from ..specs import BaseSpec
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import SNAPSHOT_DIMENSIONS, _check_choice, _check_settings, _read_fields, _read_series
 from ._utils import load_module
 from .types import Source
@@ -51,7 +53,6 @@ SETTINGS = {
     'spectral': {'dt', 'normalize'},
     'ensemble': {'reference'},
 }
-TIES = ('order', 'random')
 TAGS = AnalysisTags(DataKind.SERIES)
 KIND_TAGS = {
     'ensemble': AnalysisTags(DataKind.ENSEMBLE),
@@ -204,7 +205,7 @@ def entropy(
     """
     _check_choice('entropy', 'kind', kind, KINDS)
     _check_choice('entropy', 'measure', measure, MEASURES)
-    _check_choice('entropy', 'ties', ties, TIES)
+    _check_choice('entropy', 'ties', ties, TieKind)
     _check_settings(
         entropy,
         'kind',

@@ -33,9 +33,6 @@ class ActiveParticleElement(Element):
         label:
             The label of the particle or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
@@ -57,6 +54,8 @@ class ActiveParticleElement(Element):
         2.0
     """
 
+    visual = POINTS
+
     law_classes = (
         NoiseLaw,
         RateLaw,
@@ -65,7 +64,6 @@ class ActiveParticleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
@@ -73,7 +71,7 @@ class ActiveParticleElement(Element):
         D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         omega: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.theta = theta
         self.D_t = D_t

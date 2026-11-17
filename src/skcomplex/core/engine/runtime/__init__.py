@@ -6,7 +6,7 @@ from ._conservation import ConservationObserver
 from ._invariants import InvariantObserver
 from ._real_time import RealTimeClock
 from ._recorder import RecorderObserver
-from ._simulate import simulate
+from ._simulate import compile_problem, run_problem, simulate
 from ._trajectories import Trajectory
 
 __all__: list[str] = [
@@ -18,5 +18,7 @@ __all__: list[str] = [
     'RealTimeClock',
     'RecorderObserver',
     'Trajectory',
+    'compile_problem',
+    'run_problem',
     'simulate',
 ]

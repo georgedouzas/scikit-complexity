@@ -9,9 +9,10 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _read_series
 from ._information import _dit_distribution
 from ._utils import load_module
@@ -31,7 +32,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class PartialInformationResult:
-    """A result of `partial_information`, the parts of what two sources tell.
+    """A result of `partial_information`, the parts of the information of two sources.
 
     Args:
         values:

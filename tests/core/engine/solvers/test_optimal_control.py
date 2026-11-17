@@ -9,9 +9,9 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import CollocationSolver, PontryaginSolver
+from skcomplex.core.engine.solvers import CollocationSolver, PontryaginSolver, StepSpec
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, StepSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class FreeElement(Element):
@@ -20,12 +20,11 @@ class FreeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec()] = 1.0,
         u: Annotated[float, ParameterSpec(adaptive=True)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.u = u
 

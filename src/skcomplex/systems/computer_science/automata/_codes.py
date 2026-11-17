@@ -10,7 +10,7 @@ import itertools
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from ....core.specs import OuterTotalisticSpec, TableSpec
+from ....core.components.laws import OuterTotalisticSpec, TableSpec
 
 ELEMENTARY_RULES = 256
 

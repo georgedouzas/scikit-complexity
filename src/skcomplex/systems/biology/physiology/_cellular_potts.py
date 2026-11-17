@@ -22,21 +22,22 @@ from sage.all__sagemath_symbolics import NN, SR, oo
 from sage.sets.real_set import RealSet
 from scipy.spatial import Voronoi
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import SamplingInteraction
 from ....core.components.laws import ArrayUpdateLaw, BaseLaw
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
-    BallNeighborhood,
     BaseNeighborhood,
     BaseSpace,
     DiscreteTime,
     LatticeSpace,
     NetworkSpace,
+    RadiusNeighborhood,
 )
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
 from ....core.types import Array, Indices
 
 MATRIX_AXES = 2
@@ -195,15 +196,12 @@ class TissueSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         cell:
             The initial label of the cell that covers the site, from 0.
 
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.biology.physiology import TissueSiteElement
@@ -214,11 +212,10 @@ class TissueSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         cell: Annotated[float, StateSpec(domain=NN)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.cell = cell
 
 
@@ -447,7 +444,7 @@ class CellAdhesionInteraction(RegionSamplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of sites.
@@ -564,7 +561,7 @@ class CellAdhesionInteraction(RegionSamplingInteraction):
         del labels
         return perimeter_strength, target_perimeter
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an invalid adhesion or kind.
 
         The adhesion must be a symmetric square matrix, and every kind one of its rows.
@@ -673,12 +670,12 @@ class CellularPottsSystem(BaseSystem):
             first, second = space.edges_[None]
             weights = np.asarray([weight for *_, weight in space.graph.edges(data='weight', default=1.0)], dtype=float)
             return np.concatenate([first, second]), np.concatenate([second, first]), np.concatenate([weights, weights])
-        neighborhood = BallNeighborhood(metric='hexagonal') if space.geometry == 'triangular' else BallNeighborhood()
+        neighborhood = RadiusNeighborhood(1, metric='hexagonal' if space.geometry == 'triangular' else 'chebyshev')
         coordinates = np.indices(space.shape_).reshape(2, -1)
         sites = np.arange(space.size_)
         pairs = [
             (sites, np.ravel_multi_index(tuple(coordinates + np.asarray(offset)[:, None]), space.shape_, mode='wrap'))
-            for offset in neighborhood.prepare().offsets_
+            for offset in neighborhood._get_offsets(space.n_dim_) or ()
         ]
         first, second = (np.concatenate(items) for items in zip(*pairs, strict=True))
         return first, second, np.ones(first.size)
@@ -713,20 +710,20 @@ class CellularPottsSystem(BaseSystem):
         return float(np.abs(areas - target_area).mean() / target_area)
 
     @staticmethod
-    def _get_cellular_potts_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_cellular_potts_observables(system: CompositeSystem) -> list[Observable]:
         """Return the share of homotypic contacts and the deviation of the areas.
 
         The deviation is that of the areas from their target.
         """
         tissue = next(element for element in system.elements if element.label == 'tissue')
-        adhesion = next(part for part in system.interactions if isinstance(part, CellAdhesionInteraction))
+        adhesion = next(item for item in system.interactions if isinstance(item, CellAdhesionInteraction))
         space = tissue.space.prepare()
         sizes = np.ones(space.size_)
         if isinstance(space, NetworkSpace):
             sizes = np.asarray([volume for _, volume in space.graph.nodes(data='volume', default=1.0)], dtype=float)
         kinds = np.asarray(adhesion.kinds, dtype=np.intp)
         return [
-            ObservableSpec(
+            Observable(
                 'homotypic_contacts',
                 function=partial(
                     CellularPottsSystem._get_homotypic_contacts,
@@ -734,7 +731,7 @@ class CellularPottsSystem(BaseSystem):
                     kinds,
                 ),
             ),
-            ObservableSpec(
+            Observable(
                 'area_deviation',
                 function=partial(CellularPottsSystem._get_area_deviation, sizes, float(adhesion.target_area)),
             ),
@@ -768,7 +765,7 @@ class CellularPottsSystem(BaseSystem):
         self.random_state = random_state
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the built parts.
+        """Return the tuned run settings, with the observables of the built components.
 
         The observables are the homotypic contacts and the deviation of the areas.
 
@@ -812,7 +809,7 @@ class CellularPottsSystem(BaseSystem):
         return graph
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the cellular Potts model of a confluent tissue."""
+        """Return the components of the cellular Potts model of a confluent tissue."""
         rows, columns = (int(size) for size in self.shape)
         height, width = (int(size) for size in self.cell_shape)
         if self.lattice not in LATTICES:

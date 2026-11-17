@@ -17,7 +17,7 @@ from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import clip
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class AlleleFrequencyElement(Element):
@@ -32,9 +32,6 @@ class AlleleFrequencyElement(Element):
     Args:
         label:
             The label of the allele or of the group of replicate populations.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial frequency.
@@ -57,12 +54,11 @@ class AlleleFrequencyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.5,
         Ns: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.Ns = Ns
 
@@ -135,7 +131,7 @@ class KimuraDiffusionSystem(BaseSystem):
         self.replicates = replicates
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of replicate populations."""
+        """Return the components of replicate populations."""
         alleles = GroupElement(
             'alleles',
             element=AlleleFrequencyElement,

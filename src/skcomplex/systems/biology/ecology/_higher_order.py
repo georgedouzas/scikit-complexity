@@ -159,7 +159,7 @@ class HigherOrderRandomLotkaVolterraSystem(BaseSystem):
         return tensor
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of a random Lotka-Volterra community of third order.
+        """Return the components of a random Lotka-Volterra community of third order.
 
         Its interactions are of third order.
         """

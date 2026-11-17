@@ -8,25 +8,29 @@ from dataclasses import replace
 
 from sage.all__sagemath_symbolics import SR
 
-from ....components.laws import BaseLaw, JumpLaw, UpdateLaw
+from ....components.laws import BaseLaw, JumpLaw, TopologyRequestSpec, UpdateLaw
 from ....components.spaces import NetworkSpace
+from ....enums import VariableKind
 from ....errors import PipelineError, ValidationError
-from ....specs import CapacityRowsSpec, EntrySpec, LayoutSpec, NetworkRowsSpec, TopologyRequestSpec
-from ....specs._weight_spec import _WeightSpec
-from ....types import Array, VariableKind
+from ....specs import EntrySpec
+from ....types import Array
 from ..._utils import declarations_of, declared_variables, default_of
+from ...problems import LayoutSpec
 from ...problems._block_spec import BlockSpec
+from ...problems._capacity_rows_spec import _CapacityRowsSpec
 from ...problems._compiled_request_spec import CompiledRequestSpec
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
+from ...problems._network_rows_spec import _NetworkRowsSpec
 from ...problems._output_spec import OutputSpec
 from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import Compilation, Laws
+from .._weight_spec import _WeightSpec
 from ._layout import LayoutPass
 from ._specs import SpecsPass
 
@@ -86,7 +90,7 @@ class TopologyFunctionsPass(BasePass):
     def _get_compiled_request(
         spec: KernelSpec,
         request: TopologyRequestSpec,
-        networks: dict[int, NetworkRowsSpec],
+        networks: dict[int, _NetworkRowsSpec],
         weights: dict[tuple[int, bool], LawKernel],
         declarations: DeclarationsSpec,
     ) -> CompiledRequestSpec:
@@ -145,7 +149,7 @@ class TopologyFunctionsPass(BasePass):
     def _check_hyperedge_size(
         spec: KernelSpec,
         request: TopologyRequestSpec,
-        hyperedges: CapacityRowsSpec,
+        hyperedges: _CapacityRowsSpec,
         declarations: DeclarationsSpec,
     ) -> None:
         """Raise an error for a request that forms hyperedges of the wrong size.
@@ -247,7 +251,7 @@ class TopologyFunctionsPass(BasePass):
         return TopologyKernel(tuple(networks.values()), tuple(requests), channels, reductions).prepare()
 
     @staticmethod
-    def _get_capacity_rows(block: BlockSpec) -> CapacityRowsSpec:
+    def _get_capacity_rows(block: BlockSpec) -> _CapacityRowsSpec:
         """Return the rows of a variable group with the values of one new member.
 
         Args:
@@ -271,10 +275,10 @@ class TopologyFunctionsPass(BasePass):
             default = 0.0 if default is dataclasses.MISSING else default
             defaults[name] = LayoutPass._coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
         source, target, members = (block.entries.get(name) for name in (*ENDS, MEMBERS))
-        return CapacityRowsSpec(node.path, variables, defaults, block.entries[ACTIVE], source, target, members)
+        return _CapacityRowsSpec(node.path, variables, defaults, block.entries[ACTIVE], source, target, members)
 
     @staticmethod
-    def _get_networks(declarations: DeclarationsSpec) -> dict[int, NetworkRowsSpec]:
+    def _get_networks(declarations: DeclarationsSpec) -> dict[int, _NetworkRowsSpec]:
         """Return the variable groups of every network whose groups are variable.
 
         They are keyed by the identity of the space.
@@ -312,7 +316,7 @@ class TopologyFunctionsPass(BasePass):
                 ),
                 None,
             )
-            networks[key] = NetworkRowsSpec(nodes, edges, directed, hyperedges)
+            networks[key] = _NetworkRowsSpec(nodes, edges, directed, hyperedges)
         return networks
 
     @staticmethod

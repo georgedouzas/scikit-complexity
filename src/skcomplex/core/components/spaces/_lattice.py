@@ -5,18 +5,20 @@
 
 from __future__ import annotations
 
+import itertools
 from collections.abc import Sequence
 from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
 
+from ...enums import BoundaryKind
 from ...errors import ValidationError
-from ._ball import BallNeighborhood
 from ._base import BaseNeighborhood, BaseSpace
 from ._lattice_neighborhood import LatticeNeighborhood
+from ._radius import RadiusNeighborhood
 
-BOUNDARIES = ('periodic', 'fixed', 'reflecting')
+BOUNDARIES = (BoundaryKind.PERIODIC, BoundaryKind.FIXED, BoundaryKind.REFLECTING)
 GEOMETRIES = ('square', 'triangular')
 SQUARE_METRICS = ('chebyshev', 'manhattan')
 TRIANGULAR_ROW_HEIGHT = float(np.sqrt(3.0) / 2)
@@ -168,19 +170,19 @@ class LatticeSpace(BaseSpace):
         """
         return LatticeSpace(self.shape_, boundary=boundary, fill=fill).prepare()
 
-    def _get_default_neighborhood(self) -> LatticeNeighborhood:
+    def _get_default_neighborhood(self) -> RadiusNeighborhood:
         """Return the neighbourhood agents query, the unit ball under the lattice metric."""
-        return BallNeighborhood(metric=self.metric_, n_dim=self.n_dim_)
+        return RadiusNeighborhood(1, metric=self.metric_)
 
     def _get_index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
         """Return the member index of every neighbour of every site.
 
         Sites outside fixed edges get `size_`.
         """
-        if not isinstance(neighborhood, LatticeNeighborhood):
+        offsets = neighborhood._get_offsets(self.n_dim_)
+        if offsets is None:
             error_msg = f'A lattice reads a lattice neighbourhood of offsets, but it was given {neighborhood!r}.'
             raise ValidationError(error_msg)
-        offsets = neighborhood.prepare().offsets_
         if offsets and len(offsets[0]) != self.n_dim_:
             error_msg = (
                 f'The neighbourhood has offsets of dimension {len(offsets[0])}, but the lattice has {self.n_dim_} '
@@ -211,7 +213,7 @@ class LatticeSpace(BaseSpace):
 
         It is the Chebyshev ball with the site itself in its lexicographic place, on both geometries.
         """
-        return BallNeighborhood(radius, n_dim=self.n_dim_, center='inline')
+        return LatticeNeighborhood(tuple(itertools.product(range(-radius, radius + 1), repeat=self.n_dim_)))
 
     def _get_neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
         """Return the pairs of distinct sites one step apart along a dimension.

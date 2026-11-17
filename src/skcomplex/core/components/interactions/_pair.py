@@ -10,9 +10,9 @@ from typing import Annotated, ClassVar, cast
 from sage.all__sagemath_symbolics import SR, oo, sqrt
 from sage.sets.real_set import RealSet
 
+from ...enums import ElementKind
 from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
-from ...types import ElementKind
 from ..laws import BaseLaw, RateLaw
 from ..spaces import BaseSpace
 from ..types import NamespaceFunction, PairPotential, Target
@@ -42,7 +42,7 @@ class PairInteraction(BaseInteraction):
 
     Args:
         label:
-            The name of the interaction, unique among the parts of its system, such as `'repulsion'`.
+            The name of the interaction, unique among the components of its system, such as `'repulsion'`.
 
         first:
             The path of the group whose members are the first of every pair.
@@ -118,7 +118,7 @@ class PairInteraction(BaseInteraction):
         self.divisor = divisor
         self.period = period
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error unless at most one of the function and the potential is given.
 
         The one given must be a callable.

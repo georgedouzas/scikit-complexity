@@ -7,29 +7,30 @@ import pytest
 from sage.all__sagemath_symbolics import ZZ
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import ArrayUpdateLaw, CascadeLaw, LocalRuleLaw, SampleLaw
-from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.laws import (
+    ArrayUpdateLaw,
+    LocalRuleLaw,
+    MoveSpec,
+    ObjectiveSpec,
+    OuterTotalisticSpec,
+    SampleLaw,
+    SamplerSpec,
+    TableSpec,
+    TotalisticSpec,
+    UpdateLaw,
+)
+from skcomplex.core.components.laws.utils import neighbors, relax
 from skcomplex.core.components.spaces import (
-    BallNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
+    RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import (
-    MoveSpec,
-    ObjectiveSpec,
-    OuterTotalisticSpec,
-    ParameterSpec,
-    SamplerSpec,
-    StateSpec,
-    TableSpec,
-    TotalisticSpec,
-    VisualSpec,
-)
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem, GameOfLifeSystem
 from skcomplex.systems.physics.criticality import ForestFireSystem
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, XYSystem
@@ -41,11 +42,10 @@ class ShiftElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         value: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.value = value
 
     def _get_laws(self, s):
@@ -62,11 +62,10 @@ def _shift(schedule):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
@@ -99,16 +98,18 @@ def _rule_30(n_steps, size):
 
 def test_moore_neighbourhood_wraps_on_torus():
     """Test that the Moore neighbours of a corner of a periodic 10 x 10 lattice wrap across both edges."""
-    neighbours = LatticeSpace((10, 10)).prepare()._get_neighbors(0, BallNeighborhood().prepare())
+    neighbours = LatticeSpace((10, 10)).prepare()._get_neighbors(0, RadiusNeighborhood(1, metric='chebyshev').prepare())
     assert sorted(neighbours.tolist()) == [1, 9, 10, 11, 19, 90, 91, 99]
 
 
 def test_fixed_and_reflecting_edges():
     """Test that fixed edges read the fill value and reflecting edges read the mirror image."""
     fixed_space = LatticeSpace((5,), boundary='fixed').prepare()
-    assert fixed_space._get_neighbors(0, BallNeighborhood(n_dim=1, center='inline').prepare()).tolist() == [0, 1]
+    assert fixed_space._get_neighbors(0, LatticeNeighborhood(((-1,), (0,), (1,))).prepare()).tolist() == [0, 1]
     reflecting_space = LatticeSpace((5,), boundary='reflecting').prepare()
-    assert reflecting_space._get_neighbors(0, BallNeighborhood(2, n_dim=1, center='inline').prepare())[:2].tolist() == [
+    assert reflecting_space._get_neighbors(0, LatticeNeighborhood(((-2,), (-1,), (0,), (1,), (2,))).prepare())[
+        :2
+    ].tolist() == [
         1,
         0,
     ]
@@ -119,11 +120,10 @@ def test_fixed_and_reflecting_edges():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
@@ -158,10 +158,10 @@ def test_fixed_and_reflecting_edges():
 
 def test_neighborhoods_are_ordered():
     """Test the order and the sizes of the built-in neighbourhoods."""
-    assert BallNeighborhood(center='first').prepare().offsets_[0] == (0, 0)
-    assert len(BallNeighborhood(2).prepare().offsets_) == 24
-    assert len(BallNeighborhood(2, metric='manhattan').prepare().offsets_) == 12
-    assert len(BallNeighborhood(n_dim=3).prepare().offsets_) == 26
+    assert RadiusNeighborhood(1, metric='chebyshev', center=True)._get_offsets(2)[0] == (0, 0)
+    assert len(RadiusNeighborhood(2, metric='chebyshev')._get_offsets(2)) == 24
+    assert len(RadiusNeighborhood(2, metric='manhattan')._get_offsets(2)) == 12
+    assert len(RadiusNeighborhood(1, metric='chebyshev')._get_offsets(3)) == 26
     with pytest.raises(ValidationError, match='same number of dimensions'):
         LatticeNeighborhood(((0, 1), (1,))).prepare()
 
@@ -199,16 +199,15 @@ def test_table_and_totalistic_rules():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             bit: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.bit = bit
 
         def _get_laws(self, s):
             """Return the laws of the parity element."""
-            return [LocalRuleLaw(s.bit, BallNeighborhood(n_dim=1, center='inline'), TotalisticSpec({1: 1, 3: 1}))]
+            return [LocalRuleLaw(s.bit, LatticeNeighborhood(((-1,), (0,), (1,))), TotalisticSpec({1: 1, 3: 1}))]
 
     ring = CompositeSystem(
         elements=[
@@ -229,11 +228,10 @@ def test_table_and_totalistic_rules():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             bit: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.bit = bit
 
         def _get_laws(self, s):
@@ -253,11 +251,10 @@ def test_table_and_totalistic_rules():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             bit: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.bit = bit
 
         def _get_laws(self, s):
@@ -307,17 +304,21 @@ def test_checkerboard_needs_bipartite_neighbourhood():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             alive: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.alive = alive
 
         def _get_laws(self, s):
             """Return the laws of the cell element."""
             return [
-                LocalRuleLaw(s.alive, BallNeighborhood(), lambda *values: values[0], schedule='checkerboard'),
+                LocalRuleLaw(
+                    s.alive,
+                    RadiusNeighborhood(1, metric='chebyshev'),
+                    lambda *values: values[0],
+                    schedule='checkerboard',
+                ),
             ]
 
     system = CompositeSystem(
@@ -332,7 +333,7 @@ def test_unknown_schedule_is_rejected():
     with pytest.raises(ValidationError, match='synchronous'):
         LocalRuleLaw(
             None,
-            BallNeighborhood(n_dim=1, center='inline'),
+            LatticeNeighborhood(((-1,), (0,), (1,))),
             lambda *values: values[0],
             schedule='parallel',
         ).prepare()
@@ -356,12 +357,11 @@ def test_rule_reads_parameters_by_keyword():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
             rate: Annotated[object, ParameterSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
             self.rate = rate
 
@@ -389,27 +389,28 @@ def test_relaxation_records_avalanches():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             height: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.height = height
 
         def _get_laws(self, s):
             """Return the laws of the pile element."""
             return [
-                CascadeLaw(
-                    drive=[ArrayUpdateLaw(s.height, lambda height, *, random: height + (np.arange(height.size) == 2))],
-                    relax=[
+                UpdateLaw(
+                    s.height,
+                    relax(
+                        s.height,
                         LocalRuleLaw(
                             s.height,
-                            BallNeighborhood(n_dim=1, center='inline'),
+                            LatticeNeighborhood(((-1,), (0,), (1,))),
                             lambda left, height, right: height - 2 * (height >= 2) + (left >= 2) + (right >= 2),
                         ),
-                    ],
-                    stable=lambda height: bool((height < 2).all()),
-                    activity=lambda height: height >= 2,
+                        lambda height: bool((height < 2).all()),
+                        drive=ArrayUpdateLaw(s.height, lambda z, *, random: z + (np.arange(z.size) == 2)),
+                        activity=lambda height: height >= 2,
+                    ),
                 ),
             ]
 
@@ -438,21 +439,23 @@ def test_relaxation_without_end_raises():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             value: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.value = value
 
         def _get_laws(self, s):
             """Return the laws of the restless element."""
             return [
-                CascadeLaw(
-                    [],
-                    [LocalRuleLaw(s.value, LatticeNeighborhood(((0,),)), lambda value: value + 1)],
-                    lambda _: False,
-                    10,
+                UpdateLaw(
+                    s.value,
+                    relax(
+                        s.value,
+                        LocalRuleLaw(s.value, LatticeNeighborhood(((0,),)), lambda value: value + 1),
+                        lambda _: False,
+                        max_iterations=10,
+                    ),
                 ),
             ]
 
@@ -474,7 +477,7 @@ def test_local_rule_needs_lattice_group():
 
 def test_monte_carlo_energy_change_is_symbolic():
     """Test that a flip move of an Ising energy changes the energy by `2 J s sum(neighbours)`."""
-    nearest = BallNeighborhood(metric='manhattan')
+    nearest = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
 
     class SpinElement(Element):
         """Spin element."""
@@ -482,13 +485,12 @@ def test_monte_carlo_energy_change_is_symbolic():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             spin: Annotated[object, StateSpec(domain=ZZ)] = 1.0,
             J: Annotated[object, ParameterSpec()] = 1.0,
             intensity: Annotated[object, ParameterSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.spin = spin
             self.J = J
             self.intensity = intensity
@@ -570,21 +572,24 @@ def _pile(activity, evaluated):
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             height: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.height = height
 
         def _get_laws(self, s):
             """Return the laws of the pile element."""
             return [
-                CascadeLaw(
-                    drive=[ArrayUpdateLaw(s.height, drop)],
-                    relax=[LocalRuleLaw(s.height, BallNeighborhood(metric='manhattan', center='first'), topple)],
-                    stable=lambda heights: bool((heights < 4).all()),
-                    activity=activity,
+                UpdateLaw(
+                    s.height,
+                    relax(
+                        s.height,
+                        LocalRuleLaw(s.height, RadiusNeighborhood(1, metric='manhattan', center=True), topple),
+                        lambda heights: bool((heights < 4).all()),
+                        drive=ArrayUpdateLaw(s.height, drop),
+                        activity=activity,
+                    ),
                     label='avalanche',
                 ),
             ]

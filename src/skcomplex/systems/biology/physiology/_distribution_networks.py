@@ -11,12 +11,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo, pi
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, EquationLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace, StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class BranchingVesselElement(Element):
@@ -32,9 +33,6 @@ class BranchingVesselElement(Element):
     Args:
         label:
             The label of the vessel or of the group on the edges.
-
-        visual:
-            How the vessel is drawn, or `None` for `default_visual_`.
 
         r:
             The radius.
@@ -69,12 +67,11 @@ class BranchingVesselElement(Element):
         3.0
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         r: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         l: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -86,7 +83,7 @@ class BranchingVesselElement(Element):
         r_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         l_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.r = r
         self.l = l
         self.volume = volume
@@ -112,10 +109,10 @@ class BranchingVesselElement(Element):
         """
         height = s.depth - s.level
         return [
-            EquationLaw(s.r == s.r_c * s.n ** (height / 2), target=s.r),
-            EquationLaw(s.l == s.l_c * s.n ** (height / 3), target=s.l),
-            EquationLaw(s.volume == pi * s.r**2 * s.l, target=s.volume),
-            EquationLaw(s.terminal == where(s.level > s.depth - 1 / 2, 1, 0), target=s.terminal),
+            ConstraintLaw(s.r == s.r_c * s.n ** (height / 2), target=s.r),
+            ConstraintLaw(s.l == s.l_c * s.n ** (height / 3), target=s.l),
+            ConstraintLaw(s.volume == pi * s.r**2 * s.l, target=s.volume),
+            ConstraintLaw(s.terminal == where(s.level > s.depth - 1 / 2, 1, 0), target=s.terminal),
         ]
 
 
@@ -158,8 +155,8 @@ class WestBrownEnquistSystem(BaseSystem):
     topics = ('allometry', 'kleiber law', 'fractal network', 'static', 'metabolic scaling')
     references = ('West, Brown, and Enquist 1997', 'Ribeiro and Netto 2024')
     observables = (
-        ObservableSpec('blood_volume', group='vessels', variable='volume', reduce='sum'),
-        ObservableSpec('capillaries', group='vessels', variable='terminal', reduce='sum'),
+        Observable('blood_volume', group='vessels', variable='volume', reduce='sum'),
+        Observable('capillaries', group='vessels', variable='terminal', reduce='sum'),
     )
 
     def __init__(
@@ -178,7 +175,7 @@ class WestBrownEnquistSystem(BaseSystem):
         self.l_c = l_c
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the distribution network of West."""
+        """Return the components of the distribution network of West."""
         graph = nx.balanced_tree(self.n, self.depth)
         space = NetworkSpace(graph).prepare()
         _, children = space.edges_[None]

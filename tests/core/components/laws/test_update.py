@@ -8,13 +8,13 @@ from sage.all__sagemath_symbolics import SR, var
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw, UpdateLaw
+from skcomplex.core.components.laws import RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import lag, total, where
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class EconomyElement(Element):
@@ -23,12 +23,11 @@ class EconomyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         price: Annotated[float, StateSpec()] = 1.0,
         rate: Annotated[float, ParameterSpec(adaptive=True)] = 0.02,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.price = price
         self.rate = rate
 
@@ -60,12 +59,11 @@ class FibonacciElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec(lags=1, initial=(1.0,))] = 1.0,
         x_lag1: float = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.x_lag1 = x_lag1
 
@@ -80,7 +78,6 @@ class IncomeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         Y: Annotated[object, StateSpec(lags=1, initial=(100.0,))] = 110.0,
         Y_lag1: float = 100.0,
@@ -88,7 +85,7 @@ class IncomeElement(Element):
         v: Annotated[object, ParameterSpec()] = 1.5,
         G: Annotated[object, ParameterSpec()] = 20.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.Y = Y
         self.Y_lag1 = Y_lag1
         self.c = c
@@ -106,13 +103,12 @@ class PumpElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 1.0,
         u: Annotated[object, ParameterSpec(adaptive=True, bounds=(0, 1))] = 0.0,
         weight: Annotated[object, ParameterSpec()] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.u = u
         self.weight = weight
@@ -172,11 +168,10 @@ class CounterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
 
 

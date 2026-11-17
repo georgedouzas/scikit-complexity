@@ -7,7 +7,8 @@ import pytest
 
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
-from skcomplex.core.components.laws import FluxLaw
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import divergence
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -29,8 +30,8 @@ class BurgersElement(CellElement):
     """Cell of a field that follows the Burgers equation written by hand."""
 
     def _get_laws(self, s):
-        """Return the Burgers flux."""
-        return [FluxLaw(s.u, s.u**2 / 2)]
+        """Return the divergence of the Burgers flux."""
+        return [RateLaw(s.u, -divergence([s.u**2 / 2]))]
 
 
 class WireConservationInteraction(ConservationInteraction):
@@ -56,8 +57,8 @@ def _run(element, *interactions):
     )
 
 
-def test_run_matches_the_flux_law_and_conserves_the_total():
-    """Test that the Burgers flux gives the trajectory of its flux law and keeps the total of the field."""
+def test_run_matches_the_rate_law_and_conserves_the_total():
+    """Test that the Burgers flux gives the trajectory of its rate law and keeps the total of the field."""
     burgers = ConservationInteraction('burgers', target='line', state='u', flux=lambda s: s.target.u**2 / 2)
     values = _run(CellElement, burgers)
     np.testing.assert_allclose(values, _run(BurgersElement), atol=1e-12)
@@ -82,12 +83,10 @@ def test_run_adds_the_source():
     [
         ({'state': '1u'}, 'no name'),
         ({'flux': 'quadratic'}, 'function of the namespace'),
-        ({'limiter': 'superbee'}, 'Unknown limiter'),
-        ({'riemann': 'roe'}, 'Unknown numerical flux'),
     ],
 )
 def test_check_rejects_invalid_arguments(arguments, message):
-    """Test that `check` rejects a bad state, function, limiter, or numerical flux."""
+    """Test that `check` rejects a bad state or function."""
     with pytest.raises(ValidationError, match=message):
         ConservationInteraction('conservation', target='line', **arguments).prepare()
 
@@ -113,8 +112,8 @@ class FluxWaterElement(WaterElement):
     """Cell of a channel whose shallow-water fluxes are written by hand."""
 
     def _get_laws(self, s):
-        """Return the fluxes of the depth and the discharge."""
-        return [FluxLaw(s.h, s.q), FluxLaw(s.q, s.q**2 / s.h + s.g * s.h**2 / 2)]
+        """Return the divergences of the fluxes of the depth and the discharge."""
+        return [RateLaw(s.h, -divergence([s.q])), RateLaw(s.q, -divergence([s.q**2 / s.h + s.g * s.h**2 / 2]))]
 
 
 def _run_water(element, gravity, *interactions):
@@ -157,8 +156,8 @@ def test_run_reads_parameters_that_vary_across_the_cells():
     np.testing.assert_allclose(values.sum(axis=1), values[0].sum(), rtol=1e-12)
 
 
-def test_run_without_numerical_flux_takes_the_divergence_on_a_spectral_field():
-    """Test that the Burgers flux without a numerical flux keeps the total of a spectral field."""
+def test_run_takes_the_divergence_on_a_spectral_field():
+    """Test that the Burgers flux keeps the total of a spectral field."""
     spacing = 2 * np.pi / CELLS
     values = {'u': 0.5 * np.sin(np.arange(CELLS) * spacing)}
     space = LatticeSpace((CELLS,), spacing=spacing, boundary='periodic')
@@ -168,7 +167,6 @@ def test_run_without_numerical_flux_takes_the_divergence_on_a_spectral_field():
         target='line',
         state='u',
         flux=lambda s: s.target.u**2 / 2,
-        riemann=None,
     )
     simulation = simulate(CompositeSystem(elements=[field], interactions=[burgers]), until=1.0, dt=0.1)
     trajectory = simulation.get_values('line.u')

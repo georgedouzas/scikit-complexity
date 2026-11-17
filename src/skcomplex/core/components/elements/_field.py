@@ -11,8 +11,9 @@ from sage.structure.element import Matrix
 
 from ...errors import ValidationError
 from ...specs import StateSpec, TensorSpec, VisualSpec
-from ..spaces import BaseSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ..spaces import BaseSpace, CellComplexSpace, LatticeSpace, NetworkSpace
 from ._base import BaseElement
+from ._finite_volume_spec import FiniteVolumeSpec
 from ._group import GroupElement
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
@@ -59,17 +60,19 @@ class FieldElement(GroupElement):
             The initial value of each state or parameter by name, as an array of the lattice shape, one value per node
             of a network in node order, or one value for all sites, such as `{'u': [9.0, 0.0, 0.0]}`.
 
-        visual:
-            How the field is drawn, such as `VisualSpec('image')`, or `None` for `default_visual_`.
-
         discretization:
             How the operators of space become numbers.
 
             - `'finite-difference'`: stencils on a lattice and the graph Laplacian on a network.
             - `'spectral'`: products of Fourier modes on a periodic lattice, with the two-thirds rule, which drops the
               highest modes so that their products create no false ones.
-            - `'finite-volume'`: averages over cells that change by the differences of the `FluxLaw`s of the states.
-            - `'finite-element'`: stiffness and mass matrices assembled on a `MeshSpace`.
+            - `'finite-volume'`: averages over cells. A rate `-divergence(flux)` of a state is a conservation law,
+              whose cells change by the differences of the flux between them under the scheme of `scheme`.
+            - `'finite-element'`: stiffness and mass matrices assembled on a `CellComplexSpace` of points and cells.
+
+        scheme:
+            The limiter, numerical flux, and wave speed of a finite-volume field, or `None` for the minmod limiter and
+            the Rusanov flux. Fields of other discretizations take none.
 
         symmetry:
             The parity of each state by name along every axis of a periodic lattice, `'odd'`, `'even'`, or `None`, which
@@ -79,8 +82,8 @@ class FieldElement(GroupElement):
 
     Attributes:
         default_visual_:
-            An image on a lattice and a coloured mesh on a mesh. On a network it is the visual of a member, or the sites
-            of the network when the member sets none.
+            The `visual` of the member class, or else an image on a lattice, a coloured mesh on a mesh, and the sites
+            of a network.
 
         size_:
             The number of sites of the space.
@@ -129,17 +132,22 @@ class FieldElement(GroupElement):
         label: str,
         *,
         element: type[BaseElement],
-        space: LatticeSpace | NetworkSpace | MeshSpace,
+        space: LatticeSpace | NetworkSpace,
         boundary: Mapping[str, object] | None = None,
         values: Mapping[str, object] | None = None,
-        visual: VisualSpec | None = None,
         discretization: str = 'finite-difference',
+        scheme: FiniteVolumeSpec | None = None,
         symmetry: Mapping[str, Sequence[object]] | None = None,
     ) -> None:
-        super().__init__(label, element=element, values=values, visual=visual, space=space, on='sites')
+        super().__init__(label, element=element, values=values, space=space, on='sites')
         self.boundary = boundary
         self.discretization = discretization
+        self.scheme = scheme
         self.symmetry = symmetry
+
+    def _get_scheme(self) -> FiniteVolumeSpec:
+        """Return the scheme of a finite-volume field, the default one without a scheme."""
+        return FiniteVolumeSpec() if self.scheme is None else self.scheme
 
     def _get_tensor_of(self, state: str) -> TensorSpec | None:
         """Return the independent components of a tensor state of the element.
@@ -176,7 +184,8 @@ class FieldElement(GroupElement):
             'reflecting': 'zero-flux',
             'fixed': ('fixed', getattr(self.space, 'fill', 0.0)),
         }
-        edges = 'reflecting' if isinstance(self.space, MeshSpace) else getattr(self.space, 'boundary', 'periodic')
+        mesh = isinstance(self.space, CellComplexSpace) and self.space._is_mesh()
+        edges = 'reflecting' if mesh else getattr(self.space, 'boundary', 'periodic')
         condition = (self.boundary or {}).get(state, default.get(edges, 'periodic'))
         if isinstance(condition, tuple | list):
             tensor = self._get_tensor_of(state)
@@ -190,7 +199,8 @@ class FieldElement(GroupElement):
 
         It first raises an error for an unknown discretization or boundary condition.
 
-        The default visual is an image on a lattice and a colored mesh on a mesh.
+        The default visual is the `visual` of the member class, or else an image on a lattice and a colored mesh on a
+        mesh.
 
         Args:
             context:
@@ -205,6 +215,14 @@ class FieldElement(GroupElement):
         if self.discretization not in DISCRETIZATIONS:
             error_msg = f'Unknown discretization {self.discretization!r} of {self.label}. Use one of {DISCRETIZATIONS}.'
             raise ValidationError(error_msg)
+        if self.scheme is not None:
+            if not isinstance(self.scheme, FiniteVolumeSpec) or self.discretization != 'finite-volume':
+                error_msg = (
+                    f'The scheme of {self.label} is {self.scheme!r}. Give a `FiniteVolumeSpec` to a field with '
+                    "discretization='finite-volume'."
+                )
+                raise ValidationError(error_msg)
+            self.scheme._check()
         for state in self.boundary or {}:
             try:
                 kind, _ = self._get_boundary(state)
@@ -217,7 +235,9 @@ class FieldElement(GroupElement):
                     "('fixed', value)."
                 )
                 raise ValidationError(error_msg)
+        if self.element.visual != VisualSpec():
+            return
         if isinstance(self.space, LatticeSpace):
             self.default_visual_ = VisualSpec('image')
-        elif isinstance(self.space, MeshSpace):
+        elif isinstance(self.space, CellComplexSpace) and self.space._is_mesh():
             self.default_visual_ = VisualSpec('mesh')

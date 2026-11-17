@@ -11,13 +11,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction, Interaction, JumpInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import NumbaBackend
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.kinetics import CompartmentElement
 
 
@@ -33,9 +34,6 @@ class HabitatPatchElement(CompartmentElement):
         label:
             The label of the patch or the lattice of patches.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial number of organisms.
 
@@ -48,15 +46,16 @@ class HabitatPatchElement(CompartmentElement):
         1.0
     """
 
+    visual = VisualSpec('image', {'low': 0.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('image', {'low': 0.0}),
         *,
         x: Annotated[float, StateSpec(domain=NN)] = 10.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x)
         self.alpha = alpha
 
 
@@ -157,8 +156,8 @@ class NeutralClusteringSystem(BaseSystem):
     dt = 0.5
     backend = NumbaBackend()
     observables = (
-        ObservableSpec('mean', group='patches', variable='x', reduce='mean'),
-        ObservableSpec('variance', group='patches', variable='x', reduce='var'),
+        Observable('mean', group='patches', variable='x', reduce='mean'),
+        Observable('variance', group='patches', variable='x', reduce='var'),
     )
 
     def __init__(
@@ -191,7 +190,7 @@ class NeutralClusteringSystem(BaseSystem):
         return pairs
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of organisms that divide."""
+        """Return the components of organisms that divide."""
         lattice = (self.shape,) if isinstance(self.shape, int) else tuple(self.shape)
         patches = GroupElement(
             'patches',

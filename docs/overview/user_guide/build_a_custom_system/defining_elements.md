@@ -50,7 +50,7 @@ deer.n, clone(birth).rate
 ```
 
 The deer start at 40.0, and the clone of the births keeps the rate 0.2. Every element class derives from `Element`,
-and every interaction class from `Interaction`. Both, like laws and systems, derive from `BasePart`, which is a
+and every interaction class from `Interaction`. Both, like laws and systems, derive from `BaseComponent`, which is a
 scikit-learn estimator. A class annotates each variable with `typing.Annotated` and a spec from
 `skcomplex.core.specs`. The class follows these rules.
 
@@ -61,8 +61,8 @@ scikit-learn estimator. A class annotates each variable with `typing.Annotated` 
 - The domain of a state or a parameter is a Sage set, such as `RR`, `ZZ`, `CC`, `RealSet.closed_open(0, oo)`, or
   `FiniteEnumeratedSet(['S', 'I', 'R'])`.
 - `_get_laws(s)` returns the laws of the class, and returns none by default.
-- `get_params`, `set_params`, `clone`, and `repr` follow the scikit-learn estimator contract, so every part clones with
-  its values.
+- `get_params`, `set_params`, `clone`, and `repr` follow the scikit-learn estimator contract, so every component clones
+  with its values.
 
 Inside `_get_laws`, `s` is the namespace of symbols. `s.rate` is the symbol of the parameter, and `s.target.n` is the
 symbol of the state of the element bound to the role `target`. Parameters stay symbols, so the `schedule` of
@@ -237,7 +237,7 @@ The herd falls from 60 to 50 and stays there, since the cull stops at 50.
 
 This section writes laws as Python functions, for rules that have no symbolic form. Every law whose value the engine
 evaluates numerically takes a function, and `CallSpec` sets how the function is called. Here a tank fills at a rate
-proportional to its level, and a [`CrossingLaw`](../core_components/laws.md#crossinglaw) resets the level to 1.0 when
+proportional to its level, and a [`EventLaw`](../core_components/laws.md#crossinglaw) resets the level to 1.0 when
 it crosses 2.0 upward. One tank sits at the top of the system and one inside a nested system `plant`.
 
 ```python
@@ -246,31 +246,32 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import CrossingLaw, JumpLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import EventLaw, JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import reduction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws import CallSpec
+from skcomplex.core.components import Observable
 
 
 class TankElement(Element):
     def __init__(
         self,
         label,
-        visual=None,
         *,
         level: Annotated[float, StateSpec()] = 1.0,
         rate: Annotated[float, ParameterSpec()] = 0.5,
     ):
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
         self.rate = rate
 
     def _get_laws(self, s):
         grow = CallSpec(lambda t, values: values['rate'] * values['level'], relative=True)
         full = CallSpec(lambda t, values: values['level'] - 2.0, relative=True)
-        return [RateLaw(s.level, grow), CrossingLaw(full, {s.level: lambda t, values: 1.0}, direction=1)]
+        return [RateLaw(s.level, grow), EventLaw(full, {s.level: lambda t, values: 1.0}, direction=1)]
 
 
 tanks = CompositeSystem(elements=[TankElement('a')], systems=[CompositeSystem('plant', elements=[TankElement('b')])])
@@ -287,11 +288,11 @@ Python with a `BackendWarning`. This table lists the laws that take a function, 
 | `RateLaw`, `NoiseLaw`, `UpdateLaw`, `BoundaryLaw` | `value` | `f(t, values)` or `CallSpec` |
 | `JumpLaw` | `rate`, and each value of `changes` | `f(t, values)` or `CallSpec` |
 | `JumpLaw` on a clock of waiting times | `waiting` | `f(rng, size=, t=, **values)` |
-| `CrossingLaw` | `guard`, and each value of `reset` | `f(t, values)` or `CallSpec(f, relative=True)` |
-| `FluxLaw` | `speed` | `f(t, values)`, which gives the wave speed of the Rusanov flux |
+| `EventLaw` | `guard`, and each value of `reset` | `f(t, values)` or `CallSpec(f, relative=True)` |
+| `FiniteVolumeSpec` | `speed` | `f(t, values)`, which gives the wave speed of the Rusanov flux |
 | `TransitionLaw` | `matrix` | `f(t, values)` or `CallSpec(f, relative=True)` |
 | `reduction(function, expression)` | `function` | `f(array)` of the values of the members |
-| `ObservableSpec` | `function` | `f(t, values)` |
+| `Observable` | `function` | `f(t, values)` |
 
 `CallSpec(f, (s.x, s.k))` calls `f(t, x, k)` once per member of a group. Three options change that.
 
@@ -364,7 +365,7 @@ def total_level(t, values):
     return values['a.level'] + values['a.rate']
 
 
-observables = [ObservableSpec('sum', function=total_level)]
+observables = [Observable('sum', function=total_level)]
 observed = simulate(CompositeSystem(elements=[TankElement('a')]), until=1, dt=0.5, observables=observables)
 observed.get_values('sum').shape
 ```
@@ -372,12 +373,13 @@ observed.get_values('sum').shape
 The observable holds three values, one per frame at the times 0, 0.5, and 1. Some laws need symbols by nature, and
 each says so when given a function.
 
-- [`EquationLaw`](../core_components/laws.md#equationlaw) is solved symbolically, so a function goes in a `RateLaw` of
+- [`ConstraintLaw`](../core_components/laws.md#equationlaw) is solved symbolically, so a function goes in a `RateLaw` of
   the highest derivative.
-- [`GeneratorLaw`](../core_components/laws.md#generatorlaw) and
-  [`DissipatorLaw`](../core_components/laws.md#dissipatorlaw) build quantum operators from symbols.
-- A [`FluxLaw`](../core_components/laws.md#fluxlaw) takes the derivative of its flux, for the wave speeds and for the critical points of the Godunov flux, so
-  a function goes in `speed=` or in a `RateLaw`.
+- `GeneratorLaw` and `DissipatorLaw` of the [quantum package](quantum_systems.md) build quantum operators from
+  symbols.
+- A conservation law `RateLaw(u, -divergence(flux))` on a finite-volume field takes the derivative of its flux, for the
+  wave speeds and for the critical points of the Godunov flux, so a function goes in the `speed` of the
+  [`FiniteVolumeSpec`](../core_components/elements.md#fieldelement) of the field.
 - A crossing, a matrix, and a jump change read no delays.
 - A reset of a renewal stays symbolic, because it shares its draws with the waiting time.
 
@@ -526,7 +528,7 @@ elementary functions over the complex plane, and `real_part`, `imag_part`, `conj
 ## Equations of any order
 
 This section writes an equation of motion as it reads, with second or higher derivatives. Newton's second law for a
-pendulum, `m l θ'' = -m g sin θ`, is an `EquationLaw` on a state of order 2.
+pendulum, `m l θ'' = -m g sin θ`, is an `ConstraintLaw` on a state of order 2.
 
 ```python
 from typing import Annotated
@@ -534,7 +536,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import pi, sin
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import EquationLaw
+from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -558,7 +560,7 @@ class PendulumElement(Element):
         self.l = l
 
     def _get_laws(self, s):
-        return [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
+        return [ConstraintLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
 
 
 bob = PendulumElement('bob', theta_d1=0.5)
@@ -576,7 +578,7 @@ solvers.
 - On a state of order `k`, rate and noise laws contribute to the `k`-th derivative and add up. So separate interactions
   supply separate forces, voltages, or growth terms. `RateLaw(s.target.x, -s.k * s.target.x / s.target.m)` from a
   spring and `RateLaw(s.target.x, -s.c * derivative(s.target.x, 1) / s.target.m)` from a damper superpose.
-- `derivative(x, j)` reads the companion `x_d<j>` below the state's order. An `EquationLaw` may contain the derivative
+- `derivative(x, j)` reads the companion `x_d<j>` below the state's order. An `ConstraintLaw` may contain the derivative
   of the state's own order, linearly. The compiler solves all equations of a system jointly for those derivatives,
   which couples, for example, the two angles of a double pendulum.
 - Any order works the same way, such as Sprott's chaotic jerk equation `x''' = -A x'' - x' + |x| - 1` on a state of

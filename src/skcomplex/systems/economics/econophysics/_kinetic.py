@@ -11,12 +11,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec
 
 
 class SavingTraderView(AgentView):
@@ -37,9 +38,6 @@ class SavingTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         wealth:
             The initial wealth, negative down to the debt limit.
 
@@ -54,11 +52,10 @@ class SavingTraderElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         wealth: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.wealth = wealth
 
     @classmethod
@@ -229,7 +226,7 @@ class KineticWealthExchangeSystem(BaseSystem):
     topics = ('wealth', 'agents', 'exchange', 'kinetic')
     references = ('Chakraborti and Chakrabarti 2000', 'Dragulescu and Yakovenko 2000', 'Yakovenko and Rosser 2009')
     until = 200
-    observables = (ObservableSpec('variance', group='traders', variable='wealth', reduce='var'),)
+    observables = (Observable('variance', group='traders', variable='wealth', reduce='var'),)
 
     def __init__(
         self,
@@ -249,7 +246,7 @@ class KineticWealthExchangeSystem(BaseSystem):
         self.amount = amount
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         if self.debt is not None and self.saving:
             error_msg = 'Give either a saving propensity or a debt limit, not both.'
             raise ValueError(error_msg)

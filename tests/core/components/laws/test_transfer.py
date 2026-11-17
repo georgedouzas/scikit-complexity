@@ -15,7 +15,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import ConservationObserver, simulate
 from skcomplex.core.errors import ConservationError, LabelError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
 class TanksElement(Element):
@@ -24,12 +24,11 @@ class TanksElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[float, StateSpec()] = 3.0,
         b: Annotated[float, StateSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.b = b
 
@@ -74,12 +73,11 @@ class TubElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         water: Annotated[object, StateSpec(quantity='water')] = 0.0,
         k: Annotated[object, ParameterSpec()] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.water = water
         self.k = k
 
@@ -94,13 +92,12 @@ class PopulationElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         n: Annotated[object, StateSpec(quantity='people')] = 10.0,
         b: Annotated[object, ParameterSpec()] = 0.03,
         d: Annotated[object, ParameterSpec()] = 0.01,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
         self.b = b
         self.d = d
@@ -116,11 +113,10 @@ class ClippedElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         water: Annotated[object, StateSpec(quantity='water')] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.water = water
 
     def _get_laws(self, s):
@@ -134,13 +130,12 @@ class LedgerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         a: Annotated[object, StateSpec(quantity='money')] = 10.0,
         b: Annotated[object, StateSpec(quantity='money')] = 0.0,
         c: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.b = b
         self.c = c
@@ -167,11 +162,10 @@ def test_transfer_from_the_environment_takes_a_source():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             n: Annotated[object, StateSpec()] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.n = n
 
         def _get_laws(self, s):
@@ -205,12 +199,11 @@ def test_flow_between_quantities_is_rejected():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec(quantity='mass')] = 1.0,
             y: Annotated[object, StateSpec(quantity='energy')] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.y = y
 
@@ -243,11 +236,10 @@ def test_flow_holders_and_labels_are_checked():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
         def _get_laws(self, s):
@@ -264,12 +256,11 @@ def test_flow_holders_and_labels_are_checked():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             x: Annotated[object, StateSpec()] = 1.0,
             k: Annotated[object, ParameterSpec()] = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
             self.k = k
 
@@ -290,7 +281,7 @@ def test_flow_takes_one_holder_read_at_a_member_offset():
         TransferLaw(shift_member(x, -1), shift_member(x, 1), 1.0).prepare()
 
 
-def test_flow_owner_reports_the_flow_under_another_part():
+def test_flow_owner_reports_the_flow_under_another_component():
     """Test that an owner reports a flow under its path, and that two flows reported as one path are rejected."""
 
     class ReportedElement(TanksElement):
@@ -328,12 +319,11 @@ def test_jump_flows_move_their_size_at_random_times():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
             a: Annotated[object, StateSpec(quantity='coins')] = 50.0,
             b: Annotated[object, StateSpec(quantity='coins')] = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.a = a
             self.b = b
 

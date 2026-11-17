@@ -14,12 +14,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, I, exp, oo, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import PairInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
+from ....core.specs import ParameterSpec, VisualSpec
 from ..common.particles import ActiveParticleElement, SelfPropulsionInteraction
 
 HEADINGS = VisualSpec(
@@ -38,7 +39,7 @@ class PolarAlignmentInteraction(PairInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         first:
             The path of the group or particle of the first members.
@@ -106,6 +107,12 @@ def _get_polarization(s: SimpleNamespace) -> Expression:
     return abs(s.mean_heading)
 
 
+class SwimmerElement(ActiveParticleElement):
+    """Active particle drawn as a point coloured by its heading."""
+
+    visual = HEADINGS
+
+
 class AligningActiveBrownianParticlesSystem(BaseSystem):
     """Active Brownian particles in a periodic box whose headings align.
 
@@ -159,8 +166,8 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
     dt = 1.0
     solver = EulerMaruyamaSolver(dt=0.05)
     observables = (
-        ObservableSpec('mean_heading', _get_heading, group='swimmers'),
-        ObservableSpec('polarization', _get_polarization),
+        Observable('mean_heading', _get_heading, group='swimmers'),
+        Observable('polarization', _get_polarization),
     )
 
     def __init__(
@@ -194,7 +201,7 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         swimmers = GroupElement(
             'swimmers',
-            element=ActiveParticleElement,
+            element=SwimmerElement,
             size=self.n_particles,
             values={
                 'x': rng.uniform(0.0, self.size, (self.n_particles, 2)),
@@ -202,7 +209,6 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
                 'D_t': self.D_t,
                 'D_r': self.D_r,
             },
-            visual=HEADINGS,
         )
         alignment = PolarAlignmentInteraction(
             'align',

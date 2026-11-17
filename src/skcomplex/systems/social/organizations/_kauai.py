@@ -20,6 +20,7 @@ from sage.sets.real_set import RealSet
 from shapely import Polygon
 from shapely.geometry import shape
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import ContinuousSpace
@@ -27,7 +28,7 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 
@@ -98,9 +99,6 @@ class ResidentElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         sentiment:
             The initial sentiment.
 
@@ -153,10 +151,11 @@ class ResidentElement(Element):
         10
     """
 
+    visual = VisualSpec('agents', {'color_by': 'sentiment', 'color_range': (-1.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sentiment', 'color_range': (-1.0, 1.0)}),
         *,
         sentiment: Annotated[float, StateSpec(domain=RealSet.closed(-1, 1))] = 0.0,
         weights: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
@@ -174,7 +173,7 @@ class ResidentElement(Element):
         cell_size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
         partners: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.sentiment = sentiment
         self.weights = weights
         self.home = home
@@ -206,7 +205,7 @@ class CommuteInteraction(MovementInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of residents.
@@ -244,7 +243,7 @@ class PlaceVisitsInteraction(MapInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of residents.
@@ -289,7 +288,7 @@ class SentimentInteraction(MapInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of residents.
@@ -496,7 +495,7 @@ class KauaiPopulationSystem(BaseSystem):
     topics = ('agents', 'continuous space', 'region layers', 'census', 'sentiment')
     references = ('Carmichael et al. 2019',)
     until = 30
-    observables = (ObservableSpec('mean_sentiment', group='residents', variable='sentiment', reduce='mean'),)
+    observables = (Observable('mean_sentiment', group='residents', variable='sentiment', reduce='mean'),)
 
     def __init__(
         self,
@@ -539,7 +538,7 @@ class KauaiPopulationSystem(BaseSystem):
         return weights
 
     def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         regions = load_island_layers() if self.layers is None else self.layers
         counts = load_island_populations() if self.populations is None else self.populations
         if len(counts) != len(regions['census']):

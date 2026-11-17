@@ -2,9 +2,9 @@
 
 from collections.abc import Mapping, Sequence
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.types import AnyArray
 
 
@@ -12,7 +12,7 @@ def _run(
     system: BaseSystem,
     until: float,
     dt: float | None = None,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
 ) -> Trajectory:
     """Return the trajectory of a system run with a fixed random state, with its tuned settings for the others."""
     return simulate(system, until=until, dt=dt, observables=observables, random_state=0)
@@ -26,7 +26,7 @@ def _agents(trajectory: Trajectory, group: str, frame: int) -> Mapping[str, AnyA
 def _run_observed(
     system: CompositeSystem,
     until: float,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
     invariants: Mapping[str, float] | None = None,
 ) -> Trajectory:
     """Return the trajectory of a system run with a fixed random state."""
