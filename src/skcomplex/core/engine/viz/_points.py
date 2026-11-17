@@ -209,7 +209,7 @@ class PointsVisual(BaseVisual):
 
     @staticmethod
     def _get_path(element: CompiledElementSpec, name: str) -> str:
-        """Return the dotted name of a value of an element, a state or a parameter, such as fixed positions."""
+        """Return the dotted name of a state or a parameter, such as a fixed position."""
         return element.states.get(name) or element.parameters[name]
 
     def _read_points(self, element: CompiledElementSpec, frame: FrameSpec) -> npt.NDArray[np.float64]:
