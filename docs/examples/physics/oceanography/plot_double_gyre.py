@@ -14,14 +14,13 @@ of currents such as the Gulf Stream. The state is the potential vorticity, inver
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.oceanography import DoubleGyreSystem
 
 SYSTEM = 'double_gyre'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=50)
-trajectory = simulate(DoubleGyreSystem(), observers=[observer], random_state=0)
+trajectory = DoubleGyreSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Western intensification
