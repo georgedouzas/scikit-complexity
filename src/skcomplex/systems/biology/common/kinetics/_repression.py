@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.laws.utils import hill
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.specs import RoleSpec
 from ....general.reactions import ReactionInteraction
 from ....general.reactions.types import Stoichiometry
 
@@ -62,14 +62,13 @@ class RepressionInteraction(ReactionInteraction):
             and a state name with a positive coefficient.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.systems_biology import RepressionInteraction, SpeciesElement
         >>> repression = RepressionInteraction(
         ...     'repression', products={('mRNA', 'x'): 1}, modifiers={('repressor', 'x'): 1}, alpha=2.0, K=1.0
         ... )
         >>> species = [SpeciesElement('mRNA'), SpeciesElement('repressor', x=1.0)]
-        >>> trajectory = simulate(CompositeSystem(elements=species, interactions=[repression]), until=1.0, dt=0.1)
+        >>> trajectory = System(elements=species, interactions=[repression]).prepare().simulate(until=1.0, dt=0.1)
         >>> round(float(trajectory.get_values('mRNA.x')[-1]), 3)
         1.0
     """
@@ -81,10 +80,10 @@ class RepressionInteraction(ReactionInteraction):
         reactants: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
         products: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
         modifiers: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        alpha0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        alpha0: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        K: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        n: Annotated[float, RealSet.open(0, oo)] = 1.0,
         mode: str = 'rate',
     ) -> None:
         super().__init__(label, reactants=reactants, products=products, modifiers=modifiers, mode=mode)

@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role, StateSpec
 from ...general.reactions import ReactionInteraction
 from ...general.reactions.types import Stoichiometry
 from ..common.kinetics import CompartmentElement
@@ -104,12 +104,11 @@ class TrailChoiceInteraction(ReactionInteraction):
             Whether ants are random events.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.collective_behaviour import BranchElement, TrailChoiceInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> choice = TrailChoiceInteraction('choice', chosen='left', other='right', stochastic=False)
-        >>> system = CompositeSystem(elements=[BranchElement('left'), BranchElement('right')], interactions=[choice])
-        >>> trajectory = simulate(system, until=2.0, dt=0.1)
+        >>> system = System(elements=[BranchElement('left'), BranchElement('right')], interactions=[choice])
+        >>> trajectory = system.prepare().simulate(until=2.0, dt=0.1)
         >>> round(float(trajectory.get_values('left.x')[-1]), 3)
         1.025
     """
@@ -118,11 +117,11 @@ class TrailChoiceInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        chosen: Annotated[str, RoleSpec()],
-        other: Annotated[str, RoleSpec()],
-        flux: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        chosen: Role,
+        other: Role,
+        flux: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
+        h: Annotated[float, RealSet.open(0, oo)] = 2.0,
         stochastic: bool = True,
     ) -> None:
         super().__init__(label)
@@ -202,13 +201,12 @@ class AlarmInteraction(ReactionInteraction):
             Whether changes are random events.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.collective_behaviour import AlarmInteraction, RatsElement
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> alarm = AlarmInteraction('alarm', calm='calm', nervous='nervous', stochastic=False)
         >>> rats = [RatsElement('calm', x=90.0), RatsElement('nervous', x=10.0)]
-        >>> system = CompositeSystem(elements=rats, interactions=[alarm])
-        >>> trajectory = simulate(system, until=5.0, dt=0.1)
+        >>> system = System(elements=rats, interactions=[alarm])
+        >>> trajectory = system.prepare().simulate(until=5.0, dt=0.1)
         >>> round(float(trajectory.get_values('calm.x')[-1] + trajectory.get_values('nervous.x')[-1]), 6)
         100.0
     """
@@ -217,10 +215,10 @@ class AlarmInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        calm: Annotated[str, RoleSpec()],
-        nervous: Annotated[str, RoleSpec()],
-        spontaneous: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        contagion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        calm: Role,
+        nervous: Role,
+        spontaneous: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        contagion: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
         stochastic: bool = True,
     ) -> None:
         super().__init__(label)

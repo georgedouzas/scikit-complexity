@@ -66,14 +66,13 @@ class MichaelisMentenInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.kinetics import MichaelisMentenInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> uptake = MichaelisMentenInteraction(
         ...     'uptake', target='cell', reactants={'x': 1}, substrate='x', vmax=1.0, km=100.0
         ... )
-        >>> system = CompositeSystem(elements=[CompartmentElement('cell', x=500.0)], interactions=[uptake])
-        >>> trajectory = simulate(system, until=10.0, dt=1.0)
+        >>> system = System(elements=[CompartmentElement('cell', x=500.0)], interactions=[uptake])
+        >>> trajectory = system.prepare().simulate(until=10.0, dt=1.0)
         >>> round(float(trajectory.get_values('cell.x')[-1]), 3)
         491.679
     """

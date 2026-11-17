@@ -32,7 +32,7 @@ from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from .._utils import bound_labels
 from ._compilation import Compilation
 
@@ -506,15 +506,25 @@ class _StateInference:
 
     @staticmethod
     def _get_agent_groups(compilation: Compilation) -> set[str]:
-        """Return the paths of the groups whose members run agent rules."""
+        """Return the paths of the groups whose members run agent rules.
+
+        A rule of the whole system, such as `UpdateLaw(s, react)`, may change every member of the groups its
+        interaction binds, so these groups are agents too.
+        """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
         groups: set[str] = set()
         for record in census.records:
             node = nodes.get(record.path)
-            if not isinstance(record.law, RuleLaw) or record.law.members is None or node is None:
+            if not isinstance(record.law, RuleLaw) or node is None:
                 continue
-            groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, record.law.members)))
+            roles = (
+                [record.law.members]
+                if record.law.members is not None
+                else [name for name, spec in node.component._get_specs().items() if isinstance(spec, RoleSpec)]
+            )
+            for role in roles:
+                groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, role, None)))
         return groups
 
     @staticmethod

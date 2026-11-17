@@ -11,7 +11,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.specs import Role
 from ....general.reactions import ReactionInteraction
 from ....general.reactions.types import Stoichiometry
 
@@ -50,13 +50,12 @@ class CubicAutocatalysisInteraction(ReactionInteraction):
             The mode is unknown, or a state name is not an identifier.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction
         >>> from skcomplex.systems.chemistry.kinetics import CubicAutocatalysisElement
         >>> reaction = CubicAutocatalysisInteraction('autocatalysis', target='reactor', substrate='a', autocatalyst='b')
         >>> reactor = CubicAutocatalysisElement('reactor', a=1.0, b=0.5)
-        >>> states = simulate(CompositeSystem(elements=[reactor], interactions=[reaction]), until=10, dt=1.0).states
+        >>> states = System(elements=[reactor], interactions=[reaction]).prepare().simulate(until=10, dt=1.0).states
         >>> round(float(states[-1].sum()), 6)
         1.5
     """
@@ -65,10 +64,10 @@ class CubicAutocatalysisInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         substrate: str = 'u',
         autocatalyst: str = 'v',
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         mode: str = 'rate',
     ) -> None:
         super().__init__(label, target=target, k=k, mode=mode)
