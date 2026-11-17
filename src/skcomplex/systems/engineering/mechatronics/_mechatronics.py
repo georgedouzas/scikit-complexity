@@ -18,8 +18,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
-from ....core.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.mechanics import EulerLagrangeInteraction
 from ..common.electrical import GroundElement, InductorElement, ResistorElement, TwoPinElement, VoltageSourceElement
 from ..common.mechanics import SpringDamperInteraction

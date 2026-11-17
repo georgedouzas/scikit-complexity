@@ -231,5 +231,7 @@ class MemristiveMixedModeOscillatorSystem(BaseSystem):
             b=self.b,
         )
         self.system_ = System(
-            self.label, elements=[circuit], solver=ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
+            self.label,
+            elements=[circuit],
+            solver=ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10),
         )
