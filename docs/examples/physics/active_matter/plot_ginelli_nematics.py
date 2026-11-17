@@ -15,7 +15,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import GinelliNematicsSystem
 
@@ -35,9 +34,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 system = GinelliNematicsSystem(n_particles=400, seed=0)
-observables = GinelliNematicsSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = simulate(system, until=150, observers=[observer], random_state=0, observables=observables)
+simulation = system.prepare().simulate(until=150, observers=[observer], random_state=0)
 
 # %%
 # Nematic and polar order
@@ -50,13 +48,7 @@ noises = np.linspace(0.04, 0.4, 10)
 nematic, polar = [], []
 for noise in noises:
     system_system = GinelliNematicsSystem(n_particles=400, eta=noise, seed=1)
-    trajectory = simulate(
-        system_system.prepare().system_,
-        until=150,
-        dt=5.0,
-        random_state=1,
-        observables=GinelliNematicsSystem.observables,
-    )
+    trajectory = system_system.prepare().simulate(until=150, dt=5.0, random_state=1)
     nematic.append(np.mean(np.asarray(trajectory.get_values('nematic_order'), dtype=float)[-10:]))
     polar.append(np.mean(np.asarray(trajectory.get_values('polarization'), dtype=float)[-10:]))
 fig, ax = plt.subplots(figsize=(6, 4))

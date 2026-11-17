@@ -6,22 +6,19 @@
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import abs_symbolic, cos, exp, pi, sin
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, MapInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import mod, where
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -29,45 +26,44 @@ from ...general.dynamics.types import Equations
 GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
 
 
-class LogisticMapElement(Element):
-    """Value and growth rate of the logistic map `x -> r x (1 - x)`.
+class LogisticMapInteraction(Interaction):
+    """The law of the logistic map `x' = r x (1 - x)`.
 
-    A `MapInteraction` iterates the value.
+    The growth rate `r` is a value of the element, so a group of maps can give every member a rate of its own.
 
     Args:
         label:
-            The label of the element.
+            The label of the interaction.
 
-        x:
-            The initial value, between 0 and 1.
-
-        r:
-            The growth rate, between 0 and 4.
+        target:
+            The element whose state `x` the map moves, with the growth rate `r` among its values.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapElement
-        >>> LogisticMapElement('map', r=3.2).r
-        3.2
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapInteraction
+        >>> LogisticMapInteraction('logistic', target='map').target
+        'map'
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 0.2,
-        r: Annotated[object, ParameterSpec()] = 3.7,
-    ) -> None:
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'map') -> None:
         super().__init__(label)
-        self.x = x
-        self.r = r
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next value of the state as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, r = context.target.x, context.target.r
+            self.laws_: list[BaseComponent] = [UpdateLaw(x, r * x * (1 - x))]
 
 
-class LogisticMapSystem(OldBaseSystem):
+class LogisticMapSystem(BaseSystem):
     """The logistic map `x_{t+1} = r x_t (1 - x_t)`.
 
     The map reaches chaos through period doubling as `r` grows.
 
-    The system has the state `map.x`.
+    The system has the state `map.x` and the parameter `map.r`.
 
     Args:
         x:
@@ -79,10 +75,16 @@ class LogisticMapSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
-        >>> LogisticMapSystem(r=3.2).prepare().system_.elements[0].r
-        3.2
+        >>> LogisticMapSystem(r=3.2).prepare().simulate(until=2).get_values('map.x').round(3).tolist()
+        [0.2, 0.512, 0.8]
     """
 
     field = 'mathematics/dynamical_systems'
@@ -97,23 +99,20 @@ class LogisticMapSystem(OldBaseSystem):
         *,
         r: float = 3.7,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.r = r
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        logistic = MapInteraction(
-            'x_map',
-            target='map',
-            state='x',
-            function=lambda s: s.target.r * s.target.x * (1 - s.target.x),
-        )
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the map and its law."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[LogisticMapElement('map', x=self.x, r=self.r)],
-            interactions=[logistic],
+            elements=[Element('map', values={'x': self.x, 'r': self.r})],
+            interactions=[LogisticMapInteraction('logistic', target='map')],
         )
 
 

@@ -15,7 +15,6 @@ drifting, its order rising and falling in a slow breathing rhythm.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import KuramotoSakaguchiChimeraSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'kuramoto_sakaguchi_chimera'
 
 system = KuramotoSakaguchiChimeraSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, until=300, observers=[observer])
+trajectory = system.prepare().simulate(until=300, observers=[observer])
 
 # %%
 # Order parameters

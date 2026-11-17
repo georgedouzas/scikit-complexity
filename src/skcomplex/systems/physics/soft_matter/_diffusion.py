@@ -12,23 +12,27 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, cos, exp, oo, sin, sqrt, vector
+from sage.all__sagemath_symbolics import SR, exp, oo, sin, sqrt, vector
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BaseInteraction, RateInteraction
-from ....core.components.laws import BaseLaw, BoundaryLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BoundaryLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import pulse_train, where
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
-from ...general.gradients import GradientInteraction
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ..common.particles import (
     POINTS,
     BrownianParticleElement,
     DoubleWellElement,
+    DoubleWellInteraction,
+    FrictionNoiseInteraction,
     LangevinThermostatInteraction,
     MassPointElement,
     ThermalNoiseInteraction,
@@ -36,17 +40,42 @@ from ..common.particles import (
 
 
 class ModulatedParticleElement(Element):
-    """Particle at the position `x` in a box `[0, L]` whose walls reflect it.
-
-    The noise amplitude `sigma = s0 + ds (x / L - 1/2)` grows across the box. The walls reflect the particle at every
-    frame, so frames must be short against the time to cross the box.
+    """Particles at the positions `x` in a box.
 
     Args:
         label:
-            The label of the particle or the group.
+            The label of the particles.
 
         x:
-            The initial position.
+            The initial position, one per particle or shared.
+
+        size:
+            The number of particles, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import ModulatedParticleElement
+        >>> ModulatedParticleElement('beads', x=5.0, size=10).x
+        5.0
+    """
+
+    def __init__(self, label: str, *, x: object = 50.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+
+
+class ModulatedNoiseInteraction(Interaction):
+    """Noise whose amplitude grows across a box `[0, L]` whose walls reflect the particles.
+
+    The noise amplitude is `sigma = s0 + ds (x / L - 1/2)`, read in the Itô, Stratonovich, or anti-Itô sense. The walls
+    reflect the particles at every frame, so frames must be short against the time to cross the box. It is a colloid
+    in a temperature gradient, or a particle whose mobility changes with its place.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particles.
 
         s0:
             The noise amplitude at the middle of the box.
@@ -57,54 +86,87 @@ class ModulatedParticleElement(Element):
         L:
             The length of the box.
 
+        convention:
+            The convention of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
+
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import ModulatedParticleElement
-        >>> ModulatedParticleElement('bead').ds
+        >>> from skcomplex.systems.physics.soft_matter import ModulatedNoiseInteraction
+        >>> ModulatedNoiseInteraction('noise', target='beads').ds
         1.8
     """
 
-    law_classes = (BoundaryLaw,)
+    law_classes = (NoiseLaw, BoundaryLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(role='position')] = 50.0,
-        s0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        ds: Annotated[float, ParameterSpec()] = 1.8,
-        L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        target: Role,
+        s0: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        ds: float = 1.8,
+        L: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        convention: str = 'anti-ito',
     ) -> None:
         super().__init__(label)
-        self.x = x
+        self.target = target
         self.s0 = s0
         self.ds = ds
         self.L = L
+        self.convention = convention
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reflection of the particle at the walls of the box.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the noise of the position of the target and its reflection at the walls.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The boundary law of the position.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [BoundaryLaw(s.x, where(s.x < 0, -s.x, where(s.x > s.L, 2 * s.L - s.x, s.x)))]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            x = s.target.x
+            self.laws_ = [
+                NoiseLaw(x, s.s0 + s.ds * (x / s.L - 0.5), convention=self.convention),
+                BoundaryLaw(x, where(x < 0, -x, where(x > s.L, 2 * s.L - x, x))),
+            ]
 
 
 class ScaledWalkerElement(Element):
-    """Walker at the position `x` whose diffusion coefficient changes in time.
-
-    The coefficient is `K alpha (t + t0)^(alpha - 1)`.
+    """Walkers at the positions `x`.
 
     Args:
         label:
-            The label of the walker or the group.
+            The label of the walkers.
 
         x:
-            The initial position.
+            The initial position, one per walker or shared.
+
+        size:
+            The number of walkers, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import ScaledWalkerElement
+        >>> ScaledWalkerElement('walkers', x=1.0, size=10).x
+        1.0
+    """
+
+    def __init__(self, label: str, *, x: object = 0.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+
+
+class ScaledNoiseInteraction(Interaction):
+    """Noise whose diffusion coefficient `K alpha (t + t0)^(alpha - 1)` changes in time.
+
+    The position follows `dx = sqrt(2 K alpha (t + t0)^(alpha - 1)) dW`, Brownian motion on the rescaled clock
+    `t^alpha`. It is a tracer in a cooling or ageing medium, or a walker whose steps shrink or grow in time.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the walkers.
 
         K:
             The generalized diffusion coefficient.
@@ -116,28 +178,42 @@ class ScaledWalkerElement(Element):
             The time offset of the diffusion coefficient.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import ScaledWalkerElement
-        >>> ScaledWalkerElement('walker', alpha=1.5).alpha
+        >>> from skcomplex.systems.physics.soft_matter import ScaledNoiseInteraction
+        >>> ScaledNoiseInteraction('noise', target='walkers', alpha=1.5).alpha
         1.5
     """
+
+    law_classes = (NoiseLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(role='position')] = 0.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        t0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        target: Role,
+        K: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        t0: Annotated[float, RealSet.open(0, oo)] = 0.01,
     ) -> None:
         super().__init__(label)
-        self.x = x
+        self.target = target
         self.K = K
         self.alpha = alpha
         self.t0 = t0
 
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the noise of the position of the target.
 
-class OpticalTrapInteraction(GradientInteraction):
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            self.laws_ = [NoiseLaw(s.target.x, sqrt(2 * s.K * s.alpha * (s.t + s.t0) ** (s.alpha - 1)))]
+
+
+class OpticalTrapInteraction(Interaction):
     """Harmonic optical trap on overdamped particles.
 
     The potential is `sum_d k_d (x_d - c_d(t))^2 / 2` over every axis.
@@ -151,7 +227,7 @@ class OpticalTrapInteraction(GradientInteraction):
             The label of the interaction.
 
         target:
-            The path of the particle or the group.
+            The path of the particles, whose positions are `x` and friction `gamma`.
 
         k:
             The stiffness along every axis.
@@ -174,49 +250,48 @@ class OpticalTrapInteraction(GradientInteraction):
         [1.0, 0.25]
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        k: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 1.0,
-        amplitude: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
-        frequency: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Role,
+        k: Sequence[float] = (1.0,),
+        amplitude: Sequence[float] = (0.0,),
+        frequency: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         blink_period: float | None = None,
         duty: float = 0.5,
     ) -> None:
-        super().__init__(label, target=target, states='x', divisor='gamma')
+        super().__init__(label)
+        self.target = target
         self.k = k
         self.amplitude = amplitude
         self.frequency = frequency
         self.blink_period = blink_period
         self.duty = duty
 
-    def _get_potential(self, namespace: SimpleNamespace) -> Expression:
-        """Return the potential of the trap, switched by the blinking.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the drift of the positions of the target towards the center of the trap.
 
         Args:
-            namespace:
-                The namespace of the symbols the potential can use.
-
-        Returns:
-            potential:
-                The potential.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        s = namespace
-        center = s.amplitude * sin(2 * math.pi * s.frequency * s.t)
-        on = 1 if self.blink_period is None else pulse_train(s.t, self.blink_period, self.duty * self.blink_period)
-        energy = sum(
-            (
-                stiffness * (item - middle) ** 2 / 2
-                for stiffness, item, middle in zip(s.k, s.target.x, center, strict=True)
-            ),
-            SR(0),
-        )
-        return on * energy
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context, context.t
+            x = s.target.x
+            wave = sin(2 * math.pi * s.frequency * t)
+            on = 1 if self.blink_period is None else pulse_train(t, self.blink_period, self.duty * self.blink_period)
+            rates = [
+                -on * stiffness * (item - shift * wave) / s.target.gamma
+                for stiffness, item, shift in zip(self.k, x, self.amplitude, strict=True)
+            ]
+            self.laws_ = [RateLaw(x, vector(SR, rates))]
 
 
-class SpeckleFieldInteraction(GradientInteraction):
+class SpeckleFieldInteraction(Interaction):
     """Random optical speckle field of Gaussian hotspots.
 
     The field drags particles up its gradient at `u grad(I)`.
@@ -229,7 +304,7 @@ class SpeckleFieldInteraction(GradientInteraction):
             The label of the interaction.
 
         target:
-            The path of the particle or the group.
+            The path of the particles, whose positions are `x`.
 
         strength:
             The product `u I0` of the polarizability constant and the reference intensity.
@@ -251,39 +326,40 @@ class SpeckleFieldInteraction(GradientInteraction):
         1.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Role,
+        strength: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         centers: tuple[tuple[float, float], ...] = (),
         intensities: tuple[float, ...] = (),
         lengths: tuple[float, ...] = (),
     ) -> None:
-        super().__init__(label, target=target, states='x')
+        super().__init__(label)
+        self.target = target
         self.strength = strength
         self.centers = centers
         self.intensities = intensities
         self.lengths = lengths
 
-    def _get_potential(self, namespace: SimpleNamespace) -> Expression:
-        """Return the potential `-u I(x)` of the speckle field.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the drift of the positions of the target up the gradient of the intensity.
 
         Args:
-            namespace:
-                The namespace of the symbols the potential can use.
-
-        Returns:
-            potential:
-                The potential.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        position = namespace.target.x
-        intensity = SR(0)
-        for center, height, length in zip(self.centers, self.intensities, self.lengths, strict=True):
-            offset = position - vector(SR, center)
-            intensity += height * exp(-offset.dot_product(offset) / length**2)
-        return -namespace.strength * intensity
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            gradient = vector(SR, [0] * len(x))
+            for center, height, length in zip(self.centers, self.intensities, self.lengths, strict=True):
+                offset = x - vector(SR, center)
+                gradient += -2 * height * exp(-offset.dot_product(offset) / length**2) * offset / length**2
+            self.laws_ = [RateLaw(x, context.strength * gradient)]
 
 
 class BeadElement(MassPointElement):
@@ -292,7 +368,7 @@ class BeadElement(MassPointElement):
     visual = POINTS
 
 
-class BrownianMotionSystem(BaseSystem):
+class BrownianMotionSystem(OldBaseSystem):
     """Free Brownian particles with or without inertia.
 
     With inertia they follow `m x'' = -gamma x' + sqrt(2 kT gamma) W`.
@@ -430,6 +506,12 @@ class OpticalTrapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import OpticalTrapSystem
         >>> OpticalTrapSystem(10, blink_period=2.0).prepare().system_.interactions[0].blink_period
@@ -441,7 +523,6 @@ class OpticalTrapSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Ashkin et al. 1986', 'Jones, Maragò, and Volpe 2015')
     until = 20.0
     dt = 0.1
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -455,8 +536,10 @@ class OpticalTrapSystem(BaseSystem):
         blink_period: float | None = None,
         duty: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.k = k
         self.gamma = gamma
@@ -466,17 +549,19 @@ class OpticalTrapSystem(BaseSystem):
         self.blink_period = blink_period
         self.duty = duty
 
-    def _build_system(self) -> CompositeSystem:
-        """Return overdamped particles in a harmonic optical trap.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of overdamped particles in a harmonic optical trap.
 
-        The trap is still, oscillating, or blinking.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         n_dim = len(self.k)
-        beads = GroupElement(
+        beads = Element(
             'beads',
-            element=BrownianParticleElement,
+            values={'x': np.zeros((self.n_particles, n_dim)), 'gamma': self.gamma},
             size=self.n_particles,
-            values={'x': np.zeros((self.n_particles, n_dim)), 'gamma': self.gamma, 'temperature': self.kT},
         )
         trap = OpticalTrapInteraction(
             'tweezers',
@@ -487,12 +572,13 @@ class OpticalTrapSystem(BaseSystem):
             blink_period=self.blink_period,
             duty=self.duty,
         )
-        bath = ThermalNoiseInteraction('bath', target='beads')
-        return CompositeSystem(
+        bath = FrictionNoiseInteraction('bath', target='beads', temperature=self.kT)
+        self.system_ = System(
             self.label,
             elements=[beads],
             interactions=[trap, bath],
             space=ContinuousSpace(n_dim=n_dim),
+            solver=EulerMaruyamaSolver(dt=0.01),
         )
 
 
@@ -517,9 +603,15 @@ class KramersEscapeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import KramersEscapeSystem
-        >>> KramersEscapeSystem(10, D=0.2).prepare().system_.elements[0].values['D']
+        >>> KramersEscapeSystem(10, D=0.2).prepare().system_.interactions[0].D
         0.2
     """
 
@@ -528,12 +620,6 @@ class KramersEscapeSystem(BaseSystem):
     references = ('Kramers 1940', 'Hänggi, Talkner, and Borkovec 1990', 'Gros 2015')
     until = 100.0
     dt = 1.0
-    solver = EulerMaruyamaSolver(dt=0.01)
-
-    @staticmethod
-    def _get_double_well_drive(s: SimpleNamespace) -> Expression:
-        """Return the periodic forcing `A cos(2 pi f t)` of a particle in a double well."""
-        return s.target.amplitude * cos(2 * math.pi * s.target.frequency * s.t)
 
     def __init__(
         self,
@@ -542,41 +628,28 @@ class KramersEscapeSystem(BaseSystem):
         D: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.D = D
         self.random_state = random_state
 
-    @staticmethod
-    def _get_double_well_interactions(target: str) -> list[BaseInteraction]:
-        """Return the interactions of particles in a double well.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of particles in a double well that start in the left well.
 
-        They are the gradient of the well and the noisy forcing.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return [
-            GradientInteraction('well', target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
-            RateInteraction(
-                'drive',
-                target=target,
-                rate=KramersEscapeSystem._get_double_well_drive,
-                noise=lambda s: sqrt(2 * s.target.D),
-            ),
-        ]
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+        super()._prepare(context)
         positions = -1.0 + np.random.default_rng(self.random_state).normal(0.0, 0.1, self.n_particles)
-        group = GroupElement(
-            'particles',
-            element=DoubleWellElement,
-            size=self.n_particles,
-            values={'x': positions, 'amplitude': 0.0, 'D': self.D},
-        )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[group],
-            interactions=self._get_double_well_interactions('particles'),
+            elements=[DoubleWellElement('particles', x=positions, size=self.n_particles)],
+            interactions=[DoubleWellInteraction('well', target='particles', amplitude=0.0, D=self.D)],
+            solver=EulerMaruyamaSolver(dt=0.01),
         )
 
 
@@ -607,6 +680,12 @@ class MultiplicativeNoiseSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import MultiplicativeNoiseSystem
         >>> MultiplicativeNoiseSystem(10, convention='ito').prepare().system_.interactions[0].convention
@@ -618,7 +697,6 @@ class MultiplicativeNoiseSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Volpe and Wehr 2016')
     until = 100.0
     dt = 0.05
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -629,29 +707,38 @@ class MultiplicativeNoiseSystem(BaseSystem):
         L: float = 100.0,
         convention: str = 'anti-ito',
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.s0 = s0
         self.ds = ds
         self.L = L
         self.convention = convention
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        group = GroupElement(
-            'particles',
-            element=ModulatedParticleElement,
-            size=self.n_particles,
-            values={'x': self.L / 2, 's0': self.s0, 'ds': self.ds, 'L': self.L},
-        )
-        noise = RateInteraction(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of free particles in a box with position-dependent noise.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        noise = ModulatedNoiseInteraction(
             'noise',
             target='particles',
-            noise=lambda s: s.target.s0 + s.target.ds * (s.target.x / s.target.L - 0.5),
+            s0=self.s0,
+            ds=self.ds,
+            L=self.L,
             convention=self.convention,
         )
-        return CompositeSystem(self.label, elements=[group], interactions=[noise])
+        self.system_ = System(
+            self.label,
+            elements=[ModulatedParticleElement('particles', x=self.L / 2, size=self.n_particles)],
+            interactions=[noise],
+            solver=EulerMaruyamaSolver(dt=0.01),
+        )
 
 
 class ScaledBrownianMotionSystem(BaseSystem):
@@ -679,9 +766,15 @@ class ScaledBrownianMotionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import ScaledBrownianMotionSystem
-        >>> ScaledBrownianMotionSystem(10, alpha=1.5).prepare().system_.elements[0].values['alpha']
+        >>> ScaledBrownianMotionSystem(10, alpha=1.5).prepare().system_.interactions[0].alpha
         1.5
     """
 
@@ -690,7 +783,6 @@ class ScaledBrownianMotionSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Lim and Muniandy 2002', 'Jeon et al. 2014')
     until = 10.0
     dt = 0.1
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -700,35 +792,28 @@ class ScaledBrownianMotionSystem(BaseSystem):
         K: float = 1.0,
         t0: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.alpha = alpha
         self.K = K
         self.t0 = t0
 
-    def _build_system(self) -> CompositeSystem:
-        """Return scaled Brownian motion, `dx = sqrt(2 K alpha (t + t0)^(alpha - 1)) dW`.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of walkers whose diffusion coefficient changes in time.
 
-        Its mean squared displacement is `<x^2> ~ 2 K t^alpha`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'walkers',
-                    element=ScaledWalkerElement,
-                    size=self.n_particles,
-                    values={'K': self.K, 'alpha': self.alpha, 't0': self.t0},
-                ),
-            ],
-            interactions=[
-                RateInteraction(
-                    'noise',
-                    target='walkers',
-                    noise=lambda s: sqrt(2 * s.target.K * s.target.alpha * (s.t + s.target.t0) ** (s.target.alpha - 1)),
-                ),
-            ],
+            elements=[ScaledWalkerElement('walkers', size=self.n_particles)],
+            interactions=[ScaledNoiseInteraction('noise', target='walkers', K=self.K, alpha=self.alpha, t0=self.t0)],
+            solver=EulerMaruyamaSolver(dt=0.01),
         )
 
 
@@ -770,6 +855,12 @@ class DiffusionInASpeckleFieldSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import DiffusionInASpeckleFieldSystem
         >>> len(DiffusionInASpeckleFieldSystem(5, n_hotspots=3).prepare().system_.interactions[0].centers)
@@ -781,7 +872,6 @@ class DiffusionInASpeckleFieldSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Volpe, Volpe, and Gigan 2014')
     until = 60.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -794,8 +884,10 @@ class DiffusionInASpeckleFieldSystem(BaseSystem):
         D: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.n_hotspots = n_hotspots
         self.size = size
@@ -804,8 +896,14 @@ class DiffusionInASpeckleFieldSystem(BaseSystem):
         self.D = D
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Brownian particles in a random speckle field.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         centers = rng.uniform(0.0, self.size, (self.n_hotspots, 2))
         intensities = (1 - rng.random(self.n_hotspots)) ** -0.5
@@ -819,16 +917,11 @@ class DiffusionInASpeckleFieldSystem(BaseSystem):
             lengths=tuple(float(item) for item in lengths),
         )
         positions = rng.uniform(self.size / 4, 3 * self.size / 4, (self.n_particles, 2))
-        beads = GroupElement(
-            'beads',
-            element=BrownianParticleElement,
-            size=self.n_particles,
-            values={'x': positions, 'gamma': 1.0, 'temperature': self.D},
-        )
-        bath = ThermalNoiseInteraction('bath', target='beads')
-        return CompositeSystem(
+        beads = Element('beads', values={'x': positions, 'gamma': 1.0}, size=self.n_particles)
+        self.system_ = System(
             self.label,
             elements=[beads],
-            interactions=[speckle, bath],
+            interactions=[speckle, FrictionNoiseInteraction('bath', target='beads', temperature=self.D)],
             space=ContinuousSpace(n_dim=2),
+            solver=EulerMaruyamaSolver(dt=0.01),
         )

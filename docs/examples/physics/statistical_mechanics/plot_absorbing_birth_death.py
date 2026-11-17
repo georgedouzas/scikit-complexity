@@ -15,15 +15,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import AbsorbingBirthDeathSystem
 
 SYSTEM = 'absorbing_birth_death'
 
-system = AbsorbingBirthDeathSystem(kappa=2.0, volume=100.0)
+system = AbsorbingBirthDeathSystem(kappa=2.0, volume=100.0, backend=NumbaBackend())
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, dt=0.5, observers=[observer], random_state=0, backend=NumbaBackend())
+trajectory = system.prepare().simulate(dt=0.5, observers=[observer], random_state=0)
 
 # %%
 # Large deviations of the density and the absorbing transition
@@ -43,18 +42,20 @@ def large_deviation(rho, kappa, nu=1.0, lam=1.0):
     return -(rho - rho_0) * (1 + np.log(kappa)) + (rate * np.log(rate) - kappa * np.log(kappa)) / lam
 
 
-long = simulate(
-    AbsorbingBirthDeathSystem(kappa=2.0, volume=100.0),
-    until=4000,
-    dt=0.5,
-    random_state=1,
-    backend=NumbaBackend(),
-)
+long = system.simulate(until=4000, dt=0.5, random_state=1)
 density = long.get_values('particles.n')[100:] / 100
 kappas = np.linspace(0.6, 2.4, 10)
 means = []
 for kappa in kappas:
-    run = simulate(AbsorbingBirthDeathSystem(kappa=kappa), until=200, dt=0.5, random_state=0, backend=NumbaBackend())
+    run = (
+        AbsorbingBirthDeathSystem(kappa=kappa, backend=NumbaBackend())
+        .prepare()
+        .simulate(
+            until=200,
+            dt=0.5,
+            random_state=0,
+        )
+    )
     means.append((run.get_values('particles.n')[100:] / 100).mean())
 grid = np.linspace(0.5, 1.5, 200)
 weights = np.exp(-100 * large_deviation(grid, 2.0))

@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import CurieWeissSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'curie_weiss'
 
 system = CurieWeissSystem(n_spins=200, temperature=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, dt=0.2, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(dt=0.2, observers=[observer], random_state=0)
 
 # %%
 # Magnetization against temperature
@@ -45,7 +44,7 @@ temperatures = np.linspace(0.4, 1.6, 9)
 measured = []
 for temperature in temperatures:
     ordered = CurieWeissSystem(n_spins=1000, temperature=temperature, initial='up')
-    run = simulate(ordered, until=40, dt=1.0, random_state=0)
+    run = ordered.prepare().simulate(until=40, dt=1.0, random_state=0)
     measured.append(np.abs(run.get_values('magnetization')[10:]).mean())
 grid = np.linspace(0.3, 1.7, 200)
 fig, (series, curve) = plt.subplots(1, 2, figsize=(10, 4))

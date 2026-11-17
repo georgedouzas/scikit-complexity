@@ -100,7 +100,7 @@ def test_adler_equation_locks_inside_the_tongue_and_slips_outside(detuning):
 
 def test_nuclear_quadrupole_conserves_energy():
     """Test that the quadrupole Hamiltonian stays within its invariant tolerance along a chaotic orbit."""
-    trajectory = simulate(NuclearQuadrupoleSystem(), random_state=0)
+    trajectory = NuclearQuadrupoleSystem().prepare().simulate(random_state=0)
     q1, q2, p1, p2 = (np.asarray(trajectory.get_values(f'nucleus.{name}')) for name in ('q1', 'q2', 'p1', 'p2'))
     q = q1**2 + q2**2
     energy = (q + p1**2 + p2**2) / 2 + 0.5 * q1 * (3 * q2**2 - q1**2) / math.sqrt(2) + q**2 / 8
@@ -131,7 +131,7 @@ def test_impulsive_oscillator_follows_the_exact_periodic_orbit():
     amplitude, a = 1.2, 0.4165
     q = math.cos(amplitude)
     trajectory = _run(ImpulsiveOscillatorSystem(), 3 * 4 * a, 0.001)
-    x, v = _series(trajectory, 'oscillator.x', 'oscillator.x_d1')
+    x, v = _series(trajectory, 'oscillator.x', "oscillator.x'")
     times = np.asarray(trajectory.times)
     assert x.max() == pytest.approx(math.asin(math.sin(amplitude) * math.sin(a / q)), abs=3e-3)
     for period in (1, 2, 3):

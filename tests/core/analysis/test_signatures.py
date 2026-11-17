@@ -33,7 +33,7 @@ def test_signature_analysis_of_a_series():
 
 def test_signature_analysis_of_a_map():
     """Test that a map gives its return map as points."""
-    (signature,) = _signatures(simulate(LogisticMapSystem(), until=100, random_state=0))
+    (signature,) = _signatures(LogisticMapSystem().prepare().simulate(100, random_state=0))
     assert signature.points
     assert signature.title == 'Return map'
 

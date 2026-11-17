@@ -18,6 +18,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import BackendError, SolverError, ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import BaseSystem
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 
@@ -28,7 +29,10 @@ KEY = jax.random.PRNGKey(0)
 
 def _final(system, backend, until):
     """Return the last recorded state of a run of a system on a backend."""
-    trajectory = simulate(system, until=until, backend=backend, random_state=0)
+    if isinstance(system, BaseSystem):
+        trajectory = system.set_params(backend=backend).prepare().simulate(until, random_state=0)
+    else:
+        trajectory = simulate(system, until=until, backend=backend, random_state=0)
     return np.array([trajectory.get_values(name)[-1] for name in trajectory.names])
 
 

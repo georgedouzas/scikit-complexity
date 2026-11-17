@@ -170,7 +170,7 @@ def test_system_name_raises_a_named_error(experiment):
 
 def test_unknown_names_are_rejected():
     """Test that a name that is no model parameter, and a path that is no state or parameter, name what is available."""
-    with pytest.raises(ValidationError, match=r'rate is not a model parameter of LogisticGrowthSystem\. Its model'):
+    with pytest.raises(ValidationError, match=r'rate is not a parameter of LogisticGrowthSystem\. Its parameters'):
         sweep(LogisticGrowthSystem(), {'rate': [1.0]}, until=1)
     with pytest.raises(ValidationError, match=r'growth\.rate is neither a state nor a parameter'):
         sweep(LogisticGrowthSystem(), {'growth.rate': [1.0]}, until=1)

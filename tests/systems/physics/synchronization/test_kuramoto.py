@@ -22,7 +22,7 @@ from .conftest import _random_drift
 
 def test_delayed_kuramoto_synchronizes():
     """Test that strongly coupled delayed oscillators lock their phases."""
-    trajectory = simulate(DelayedKuramotoSystem(K=2.0, tau=1.0))
+    trajectory = DelayedKuramotoSystem(K=2.0, tau=1.0).prepare().simulate()
     order = np.abs(np.exp(1j * trajectory.states).mean(axis=1))
     assert order[0] < 0.1
     assert order[-1] > 0.99
@@ -65,17 +65,11 @@ def test_kuramoto_transition(factor, synchronized):
 
 def test_kuramoto_sakaguchi_populations_form_a_chimera():
     """Test that every population reads both populations and that one synchronizes while the other drifts."""
-    system = KuramotoSakaguchiChimeraSystem().prepare().system_
-    assert {(item.target, item.source) for item in system.interactions} == {
+    system = KuramotoSakaguchiChimeraSystem()
+    assert {(item.target, item.source) for item in system.prepare().system_.interactions} == {
         (target, source) for target in ('first', 'second') for source in ('first', 'second')
     }
-    trajectory = _run(
-        system,
-        200.0,
-        5.0,
-        solver=ScipyODESolver(),
-        observables=KuramotoSakaguchiChimeraSystem.observables,
-    )
+    trajectory = _run(system, 200.0, 5.0, solver=ScipyODESolver())
     first, second = _series(trajectory, 'first_order', 'second_order')
     coherent, incoherent = max(first[-1], second[-1]), min(first[-1], second[-1])
     assert coherent > 0.99

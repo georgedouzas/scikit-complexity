@@ -12,7 +12,6 @@ their common centre of mass never moves, and the pair swings faster than a pendu
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import CartPendulumSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'cart_pendulum'
 
 system = CartPendulumSystem(theta=0.5, y=0.0, m1=1.0, m2=1.0, l=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Fixed centre of mass and a faster swing
@@ -36,8 +35,8 @@ bob = cart + np.sin(np.ravel(trajectory.get_values('cart.theta')))
 ratios = np.linspace(0.25, 4.0, 10)
 frequencies = []
 for ratio in ratios:
-    run = simulate(CartPendulumSystem(theta=0.05, m1=ratio, m2=1.0, l=1.0), until=20, dt=0.01)
-    velocity, steps = np.ravel(run.get_values('cart.theta_d1')), np.asarray(run.times)
+    run = CartPendulumSystem(theta=0.05, m1=ratio, m2=1.0, l=1.0).prepare().simulate(until=20, dt=0.01)
+    velocity, steps = np.ravel(run.get_values("cart.theta'")), np.asarray(run.times)
     crossings = steps[1:][(velocity[:-1] < 0) & (velocity[1:] >= 0)]
     frequencies.append(2 * np.pi / np.diff(crossings).mean())
 grid = np.linspace(0.2, 4.0, 200)

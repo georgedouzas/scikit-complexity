@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import TippingCascadeNetworkSystem
 
@@ -30,7 +29,7 @@ controls = np.zeros(40)
 controls[0] = 1.2
 system = TippingCascadeNetworkSystem(graph=graph, c=controls, d=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = simulate(system, until=18, observers=[observer])
+simulation = system.prepare().simulate(until=18, observers=[observer])
 
 # %%
 # Tipping order and the role of the coupling
@@ -40,7 +39,7 @@ simulation = simulate(system, until=18, observers=[observer])
 # element once its control passes 1, while the coupled network should tip all forty, already at a control a little
 # below 1, since the neighbours that the first element lifts slightly out of their lower states lift it in return.
 
-trajectory = simulate(TippingCascadeNetworkSystem(graph=graph, c=controls, d=0.2))
+trajectory = TippingCascadeNetworkSystem(graph=graph, c=controls, d=0.2).prepare().simulate()
 states = trajectory.get_values('elements.x')
 tipped_at = trajectory.times[np.argmax(states > 0, axis=0)]
 distance = nx.single_source_shortest_path_length(graph, 0)
@@ -52,7 +51,7 @@ for d in (0.0, 0.2):
     counts[d] = []
     for first in sweep:
         controls[0] = first
-        final = simulate(TippingCascadeNetworkSystem(graph=graph, c=controls, d=d), until=200, dt=1.0)
+        final = TippingCascadeNetworkSystem(graph=graph, c=controls, d=d).prepare().simulate(until=200, dt=1.0)
         counts[d].append(int((final.get_values('elements.x')[-1] > 0).sum()))
 
 fig, (order, cascade) = plt.subplots(1, 2, figsize=(10, 4))

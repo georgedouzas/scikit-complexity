@@ -12,14 +12,13 @@ diffuses faster along its long axis than across it, and a spiral couples its tra
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import AnisotropicBrownianParticlesSystem
 
 SYSTEM = 'anisotropic_brownian_particles'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = simulate(AnisotropicBrownianParticlesSystem(), until=10, observers=[observer], random_state=0)
+simulation = AnisotropicBrownianParticlesSystem().prepare().simulate(until=10, observers=[observer], random_state=0)
 
 # %%
 # Rotation and anisotropy
@@ -28,7 +27,8 @@ simulation = simulate(AnisotropicBrownianParticlesSystem(), until=10, observers=
 # displacements in the frame of the initial axis should be elongated along it at short times, and the gap should
 # shrink as the axis turns, towards the mean coefficient `(D_par + 2 D_perp) / 3`.
 
-trajectory = simulate(AnisotropicBrownianParticlesSystem(D_par=1.5, D_perp=0.5, D_r=0.5), until=10, random_state=0)
+ellipsoids = AnisotropicBrownianParticlesSystem(D_par=1.5, D_perp=0.5, D_r=0.5).prepare()
+trajectory = ellipsoids.simulate(until=10, random_state=0)
 times = np.asarray(trajectory.times)
 axes = np.stack([np.asarray(trajectory.get_values(f'particles.u{name}')) for name in 'xyz'], axis=-1)
 positions = np.stack([np.asarray(trajectory.get_values(f'particles.{name}')) for name in 'xyz'], axis=-1)

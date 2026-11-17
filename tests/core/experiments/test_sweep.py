@@ -9,8 +9,10 @@ from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.experiments import sweep
 from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
+from skcomplex.systems.mathematics.dynamical_systems import HenonMapInteraction, HenonMapSystem
 
 
 class LogisticMapElement(Element):
@@ -30,6 +32,28 @@ class LogisticMapElement(Element):
     def _get_laws(self, s):
         """Return the laws of the logistic map element."""
         return [UpdateLaw(s.x, s.r * s.x * (1 - s.x))]
+
+
+def henon():
+    """Return the Hénon map as a `System` of one element and one interaction."""
+    return System(
+        'henon_map',
+        elements=[Element('map', values={'x': 0.0, 'y': 0.0})],
+        interactions=[HenonMapInteraction('henon', target='map')],
+    )
+
+
+def count_prepares(monkeypatch):
+    """Return the list that records the label of every system `System._prepare` compiles."""
+    calls = []
+    prepare = System._prepare
+
+    def counted(self, context=None):
+        calls.append(self.label)
+        prepare(self, context)
+
+    monkeypatch.setattr(System, '_prepare', counted)
+    return calls
 
 
 def last_value(trajectory):
@@ -80,3 +104,38 @@ def test_summary_across_replicates():
             row,
         )
     assert result.convert_to_frame().shape[0] == 10
+
+
+def test_sweep_leaves_the_system_of_the_user_unchanged():
+    """Test that a sweep of a nested parameter runs clones, so the system keeps its parameters and is not prepared."""
+    system = henon()
+    before = system.get_params()
+    result = sweep(system, {'henon__a': [1.2, 1.4]}, until=20, outputs=['map.x'])
+    assert system.get_params() == before
+    assert not hasattr(system, 'system_')
+    assert result.get_column('henon__a').tolist() == [1.2, 1.4]
+
+
+def test_sweep_of_nested_parameters_matches_the_ready_made_system():
+    """Test that the nested parameter `henon__a` of a `System` gives the runs of `HenonMapSystem(a=...)`."""
+    result = sweep(henon(), {'henon__a': [1.2, 1.4]}, until=20, outputs=['map.x'])
+    for a, series in zip([1.2, 1.4], result.get_series('map.x'), strict=True):
+        expected = HenonMapSystem(a=a).prepare().simulate(20).get_values('map.x')
+        np.testing.assert_array_equal(series, expected)
+
+
+def test_sweep_prepares_per_parameter_and_once_for_initial_states(monkeypatch):
+    """Test that a sweep prepares once per value of a nested parameter and once for many initial states."""
+    calls = count_prepares(monkeypatch)
+    sweep(henon(), {'henon__a': [1.1, 1.2, 1.3]}, until=5, outputs=['map.x'])
+    assert len(calls) == 3
+    calls.clear()
+    sweep(henon(), {'map.x': [0.0, 0.1, 0.2], 'henon.b': [0.2, 0.3]}, until=5, outputs=['map.x'])
+    assert len(calls) == 1
+
+
+def test_sweep_of_a_ready_made_system_by_model_parameter_and_path():
+    """Test that a model parameter and the dotted path of the same parameter give the same runs."""
+    by_parameter = sweep(HenonMapSystem(), {'a': [1.2, 1.4]}, until=20, outputs=['map.x'])
+    by_path = sweep(HenonMapSystem(), {'henon.a': [1.2, 1.4]}, until=20, outputs=['map.x'])
+    np.testing.assert_allclose(by_parameter.get_series('map.x'), by_path.get_series('map.x'), atol=1e-12)

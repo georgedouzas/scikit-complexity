@@ -9,7 +9,8 @@ such as the period-3 window near `r = 3.83`.
 # %%
 # The map runs at the chaotic rate `r = 3.7`, and the system logs `x` as a time series. The orbit diagram, the values
 # that `x` visits after a transient of 500 steps at 400 values of `r`, is logged once as points, and the blueprint puts
-# it first, as the primary view.
+# it first, as the primary view. The dotted path `map.r` sets the rate of every run on one prepared copy of the system,
+# so the map is compiled once for all 400 rates.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,7 +18,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import orbit_diagram
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
@@ -43,7 +43,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(LogisticMapSystem(r=3.7), observers=[observer])
+trajectory = LogisticMapSystem(r=3.7).prepare().simulate(observers=[observer])
 rates = np.linspace(2.8, 4.0, 400)
 diagram = orbit_diagram(LogisticMapSystem(), 'map.r', rates, 'map.x', transient=500, keep=100, dt=1)
 points = np.array(

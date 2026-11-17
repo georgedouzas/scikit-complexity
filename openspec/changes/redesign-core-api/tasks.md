@@ -60,7 +60,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
 - [ ] 5.5 Wave 2: `biology`.
 - [ ] 5.6 Wave 2: `economics`.
 - [ ] 5.7 Wave 2: `social`.
-- [ ] 5.8 Rewrite the experiment functions in `src/skcomplex/core/experiments` to clone, set parameters, prepare, and simulate, preparing once when only initial or random states vary. Verify with tests that an ensemble prepares once and a sweep leaves the user's system unchanged.
+- [x] 5.8 Rewrite the experiment functions in `src/skcomplex/core/experiments` to clone, set parameters, prepare, and simulate, preparing once when only initial or random states vary. Verify with tests that an ensemble prepares once and a sweep leaves the user's system unchanged.
 
 ## 6. The old API goes
 

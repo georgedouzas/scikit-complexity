@@ -22,7 +22,7 @@ def test_discrete_master_equation_relaxes_to_boltzmann():
 
 def test_two_phase_zone_exchange_is_binomial():
     """Test that the number of particles in a zone settles on the binomial mean and variance."""
-    trajectory = simulate(TwoPhaseZoneExchangeSystem(300), until=12, random_state=0)
+    trajectory = TwoPhaseZoneExchangeSystem(300).prepare().simulate(until=12, random_state=0)
     numbers = trajectory.get_values('zones.N')[trajectory.times >= 8]
     assert numbers.mean() == pytest.approx(10.0, rel=0.05)
     assert numbers.var() == pytest.approx(9.0, rel=0.15)

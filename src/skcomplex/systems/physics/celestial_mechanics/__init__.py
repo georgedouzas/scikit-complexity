@@ -21,11 +21,19 @@ from ._orbits import (
     SitnikovSystem,
     TwoBodyOrbitSystem,
 )
-from ._spin_orbit import DumbbellElement, KeplerianDumbbellSystem, RelativisticOrbitSystem
+from ._spin_orbit import (
+    DumbbellElement,
+    DumbbellMotionInteraction,
+    EinsteinOrbitInteraction,
+    KeplerianDumbbellSystem,
+    RelativisticOrbitSystem,
+)
 
 __all__: list[str] = [
     'DipoleChargeElement',
     'DumbbellElement',
+    'DumbbellMotionInteraction',
+    'EinsteinOrbitInteraction',
     'GeodesicParticleElement',
     'KeplerBodyElement',
     'KeplerianDumbbellSystem',

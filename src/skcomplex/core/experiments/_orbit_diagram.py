@@ -63,7 +63,8 @@ def orbit_diagram(
             The system, or a factory of systems, such as a system class.
 
         parameter:
-            The model parameter or the dotted path to sweep.
+            The parameter to sweep, a name `set_params` takes such as `r` or `growth__r`, or a dotted path such as
+            `map.r`, which runs one prepared clone.
 
         values:
             The values of the parameter.

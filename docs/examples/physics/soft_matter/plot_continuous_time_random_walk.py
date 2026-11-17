@@ -13,7 +13,6 @@ waits and stay put, so the cloud spreads slower and slower and keeps a sharp pea
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import ContinuousTimeRandomWalkSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'continuous_time_random_walk'
 
 system = ContinuousTimeRandomWalkSystem(n_walkers=500, alpha=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Subdiffusion from waiting times without a mean

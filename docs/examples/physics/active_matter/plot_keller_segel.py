@@ -16,7 +16,6 @@ dark uniform background with a few bright, compact aggregates.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import KellerSegelSystem
 
@@ -24,7 +23,7 @@ SYSTEM = 'keller_segel'
 
 system = KellerSegelSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Linear instability and conservation

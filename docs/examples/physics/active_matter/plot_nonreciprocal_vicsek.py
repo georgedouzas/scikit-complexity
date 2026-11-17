@@ -17,7 +17,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import NonreciprocalVicsekSystem
 
@@ -38,7 +37,9 @@ blueprint = rrb.Blueprint(
 )
 system = NonreciprocalVicsekSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, until=250, backend=NumbaBackend(), observers=[observer], random_state=0)
+trajectory = (
+    system.set_params(backend=NumbaBackend()).prepare().simulate(until=250, observers=[observer], random_state=0)
+)
 
 # %%
 # Chasing against flocking
@@ -51,7 +52,7 @@ trajectory = simulate(system, until=250, backend=NumbaBackend(), observers=[obse
 def headings(coupling):
     """Return the times and the mean headings of both species for a coupling `(J_ab, J_ba)`."""
     system_system = NonreciprocalVicsekSystem(J_ab=coupling[0], J_ba=coupling[1])
-    run = simulate(system_system, backend=NumbaBackend(), random_state=0)
+    run = system_system.set_params(backend=NumbaBackend()).prepare().simulate(random_state=0)
     return run.times, run.get_values('heading_a'), run.get_values('heading_b')
 
 

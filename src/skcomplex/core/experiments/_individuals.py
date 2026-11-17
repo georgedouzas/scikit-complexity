@@ -13,9 +13,10 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from ..components.systems import BaseSystem
+from ..components.systems import BaseSystem as CompositeBaseSystem
 from ..engine.solvers import BaseSolver
 from ..errors import ValidationError
+from ..systems import BaseSystem
 from ._calibration import CalibrationResult, calibrate
 from ._runs import _check_source, _map_calls
 from ._utils import build_system
@@ -81,7 +82,7 @@ def calibrate_individuals(
 
     Args:
         system:
-            The system, whose copies take the model parameters through `set_params`, or a factory of systems.
+            The system, whose clones take the parameters through `set_params`, or a factory of systems.
 
         data:
             A mapping from individual to its data, a mapping from state or observable path to `(times, values)`.
@@ -172,7 +173,7 @@ def calibrate_individuals(
     sources: list[Source] = []
     for individual in data:
         values = dict(known.get(individual, {}))
-        if isinstance(source, BaseSystem):
+        if isinstance(source, BaseSystem | CompositeBaseSystem):
             sources.append(build_system(source, values))
         else:
             sources.append(functools.partial(source, **values))

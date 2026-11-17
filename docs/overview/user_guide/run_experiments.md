@@ -4,7 +4,9 @@ This tutorial runs the hare and lynx model many times and reads what the runs sa
 repeats a [stochastic](glossary.md#stochastic) version, compares an intervention with the baseline, ranks the rates by their effect, measures how
 often the lynx fall to a dangerous level, and finds where the cycles settle. Every experiment is a function of
 [`skcomplex.core.experiments`][skcomplex.core.experiments] that takes a [system](glossary.md#system) and returns a frozen result, as the model
-selection functions of scikit-learn take an estimator.
+selection functions of scikit-learn take an estimator. As `cross_val_score` fits clones of an estimator, an experiment
+clones the system, sets the values of a run with `set_params`, prepares the clone, and simulates it, so the system you
+pass in never changes.
 
 ## The running example
 
@@ -22,9 +24,10 @@ system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024,
 ```
 
 The system has the populations `prey` and `predators`, each with the [state](glossary.md#state) `x`, and the [interactions](glossary.md#interaction) `growth`,
-`predation`, and `death`. An experiment names a value in two ways. A name without a dot, such as `r`, is a model
-parameter of the system, set on a copy with `set_params`. A dotted path, such as `growth.r` or `prey.x`, is a parameter
-or an initial state of a component, which keeps its value for the whole run.
+`predation`, and `death`. An experiment names a value in two ways. A name without a dot is a name that `set_params`
+takes, such as the model parameter `r` of a ready-made system or the nested name `growth__r` of a `System`. It is set on
+a clone, which is prepared again. A dotted path, such as `growth.r` or `prey.x`, is a parameter or an initial state of
+a component, which keeps its value for the whole run of a clone prepared once.
 
 ## Sweeps
 
@@ -80,9 +83,9 @@ with a peak of 77.85 thousand. The designs are these:
 - `'latin_hypercube'` draws `n` rows with one in every stratum of every name.
 - `'sobol'` takes `n` points of a scrambled Sobol sequence, best with `n` a power of 2.
 
-The sweep compiled the model once for all eight rows. Runs that change only dotted paths, initial states, or seeds
-reuse one compiled problem, while a [model parameter](glossary.md#model-parameter) such as `r` builds a new system. A study of thousands of rows
-should therefore sweep dotted paths.
+The sweep prepared the model once for all eight rows. Runs that change only dotted paths, initial states, or seeds
+simulate one prepared clone, while each new value of a [model parameter](glossary.md#model-parameter) such as `r` clones and prepares the
+system again. A study of thousands of rows should therefore sweep dotted paths.
 
 A sequence of mappings is a design of given rows, which run as they are. The first argument may also be a factory of
 systems, such as the [system class](glossary.md#system-class) itself, which takes the values of a row as keyword arguments.
@@ -94,6 +97,31 @@ given.get_column('hare_peak').round(1).tolist()
 ```
 
 Twice as many lynx in 1900 hold the highest count of the hares down from 81.2 to 59.9 thousand.
+
+### Systems of components
+
+A [`System`][skcomplex.core.systems.System] reaches the parameters of its components by nested names,
+`<label>__<parameter>`, as a scikit-learn `Pipeline` reaches the parameters of its steps. Here the model is a component
+labelled `pelts` of a system, so its growth rate is `pelts__r` and its hares are `pelts/prey.x`.
+
+```python continuation
+from skcomplex.core.systems import System
+
+pelts = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80, label='pelts')
+records = System(systems=[pelts])
+before = records.get_params()
+
+
+def nested_peak(trajectory):
+    return float(trajectory.get_values('pelts/prey.x').max())
+
+
+nested = sweep(records, {'pelts__r': [0.45, 0.65]}, until=20, dt=1.0, outputs=[nested_peak])
+nested.get_column('nested_peak').round(1).tolist(), records.get_params() == before
+```
+
+The peaks are those of the sweep of `r` above, 69.8 and 85.8 thousand, and the system keeps its parameters, since every
+run sets `pelts__r` on a clone.
 
 ### Analyses of every run
 
@@ -117,7 +145,7 @@ peaks of the same runs are 11.4 and 10.0 years, and a study of the period would 
 ## Ensembles
 
 An [ensemble](glossary.md#ensemble) repeats the runs of a stochastic system with independent random streams, to show the spread of its
-outcomes. [`ensemble`][skcomplex.core.experiments.ensemble] refuses the [deterministic](glossary.md#deterministic) model, because its runs repeat one
+outcomes. Only the random streams change, so the system is prepared once and simulated once per stream. [`ensemble`][skcomplex.core.experiments.ensemble] refuses the [deterministic](glossary.md#deterministic) model, because its runs repeat one
 another.
 
 ```python continuation

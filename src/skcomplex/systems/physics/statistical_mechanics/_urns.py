@@ -6,15 +6,67 @@ The module holds the Ehrenfest system of balls moved one at a time between two b
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import bernoulli
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ...general.dynamics import DynamicalSystem
-from ...general.dynamics.types import Equations
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
-class EhrenfestUrnSystem(DynamicalSystem):
+class EhrenfestMoveInteraction(Interaction):
+    """Move of one ball drawn at random between the two boxes of the Ehrenfest urn.
+
+    The count `n` of the first box falls by one with probability `n / N` and rises by one otherwise.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the urn, whose value `n` counts the balls of the first box.
+
+        N:
+            The number of balls.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import EhrenfestMoveInteraction
+        >>> EhrenfestMoveInteraction('move', target='urn', N=10).N
+        10
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, N: Annotated[float, RealSet.open(0, oo)] = 40) -> None:
+        super().__init__(label)
+        self.target = target
+        self.N = N
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the move of one ball, out of the first box with probability `n / N` and into it otherwise.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            n = context.target.n
+            self.laws_ = [UpdateLaw(n, n + 1 - 2 * bernoulli('pick', n / context.N))]
+
+
+class EhrenfestUrnSystem(BaseSystem):
     """The Ehrenfest urn system.
 
     Balls move one at a time between two boxes, and the system relaxes to equal counts.
@@ -36,9 +88,16 @@ class EhrenfestUrnSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import EhrenfestUrnSystem
-        >>> EhrenfestUrnSystem(10).prepare().system_.elements[0].values['n']
+        >>> trajectory = EhrenfestUrnSystem(10).prepare().simulate(until=1, random_state=0)
+        >>> int(trajectory.get_values('urn.n')[0])
         10
     """
 
@@ -57,31 +116,21 @@ class EhrenfestUrnSystem(DynamicalSystem):
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label, solver=solver, backend=backend)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_balls = n_balls
         self.in_first = in_first
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'urn'
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the urn and the move of its balls.
 
-    def _get_time(self) -> str:
-        """Return the discrete time of the map."""
-        return 'discrete'
-
-    def _get_states(self) -> dict[str, object]:
-        """Return the initial value of every state by name."""
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         n = self.n_balls if self.in_first is None else self.in_first
-        return {
-            'n': n,
-        }
-
-    def _get_parameters(self) -> dict[str, object]:
-        """Return the value of every parameter by name."""
-        return {
-            'N': self.n_balls,
-        }
-
-    def _get_equations(self) -> Equations:
-        """Return the move of one ball, out of the box with probability `n / N` and into it otherwise."""
-        return {'n': lambda s: s.target.n + 1 - 2 * bernoulli('pick', s.target.n / s.target.N)}
+        self.system_ = System(
+            self.label,
+            elements=[Element('urn', values={'n': n})],
+            interactions=[EhrenfestMoveInteraction('move', target='urn', N=self.n_balls)],
+        )

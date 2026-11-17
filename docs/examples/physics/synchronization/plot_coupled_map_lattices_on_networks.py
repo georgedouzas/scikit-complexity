@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import CoupledMapLatticesOnNetworksSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'coupled_map_lattices_on_networks'
 system = CoupledMapLatticesOnNetworksSystem(n_nodes=100, degree=20, epsilon=0.9, seed=0)
 observables = CoupledMapLatticesOnNetworksSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='maps/x', interval=1)
-trajectory = simulate(system, until=60, observers=[observer], observables=observables)
+trajectory = system.prepare().simulate(until=60, observers=[observer], observables=observables)
 
 # %%
 # Synchronization window
@@ -40,7 +39,7 @@ couplings = np.linspace(0.05, 1.0, 20)
 variances = []
 for coupling in couplings:
     system_system = CoupledMapLatticesOnNetworksSystem(n_nodes=100, degree=20, epsilon=coupling, seed=0)
-    run = simulate(system_system, until=200)
+    run = system_system.prepare().simulate(until=200)
     variances.append(np.mean(np.asarray(run.get_values('spread'))[-20:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(couplings, np.maximum(variances, 1e-32), 'o-', label='late variance of the states')

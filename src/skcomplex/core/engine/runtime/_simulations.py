@@ -542,17 +542,20 @@ class Simulation(BaseConfig[None, float]):
 
         Its domain and shape are checked first.
         """
-        error_msg = (
+        if entry.contains(value):
+            try:
+                return entry.encode(value)
+            except ValueError as error:
+                raise ValidationError(self._get_value_error(name, entry, value)) from error
+        raise ValidationError(self._get_value_error(name, entry, value))
+
+    def _get_value_error(self, name: str, entry: EntrySpec, value: float | npt.ArrayLike) -> str:
+        """Return the message of a scheduled value that does not fit its entry."""
+        return (
             f'At t = {self.time_}, the schedule sets {name} = {value!r}, which is not a value of shape {entry.shape}, '
             f'or of a shape that broadcasts to it, in the domain {entry.domain}. The given value has shape '
             f'{np.shape(value)}.'
         )
-        if not entry.contains(value):
-            raise ValidationError(error_msg)
-        try:
-            return entry.encode(value)
-        except ValueError as error:
-            raise ValidationError(error_msg) from error
 
     def _check_matrices(self, changes: list[tuple[str, slice, Array]]) -> None:
         """Raise an error for scheduled values that break a transition or emission matrix."""

@@ -7,34 +7,43 @@ The module covers phase oscillators coupled all to all, in populations, on rings
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo, sin
+from sage.all__sagemath_symbolics import cos, oo, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import BaseInteraction, RateInteraction
-from ....core.components.laws.utils import delayed
-from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import count, total
+from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ..common.oscillators import (
     KuramotoCouplingInteraction,
     PhaseOscillatorElement,
+    PhaseRotationInteraction,
     SitedOscillatorElement,
     StuartLandauElement,
     order_parameter,
 )
 
 
-class DelayedCouplingInteraction(RateInteraction):
+class DelayedCouplingInteraction(Interaction):
     """Delayed sine coupling of one phase oscillator to another.
 
     The coupling is `theta_t' += K sin(theta_s(t - tau) - theta_t)`.
 
-    The target reads the phase of the source as it was a delay `tau` earlier.
+    The target reads the phase of the source as it was a delay `tau` earlier, as a signal that travels along a nerve
+    or a cable.
 
     Args:
         label:
@@ -53,41 +62,40 @@ class DelayedCouplingInteraction(RateInteraction):
             The delay.
 
     Examples:
-        >>> from types import SimpleNamespace
-        >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.systems.physics.synchronization import DelayedCouplingInteraction
-        >>> coupling = DelayedCouplingInteraction('coupling', source='a', target='b').prepare()
-        >>> namespace = SimpleNamespace(source=SimpleNamespace(theta=var('a')), target=SimpleNamespace(theta=var('b')))
-        >>> [law.value for law in coupling.run(SimpleNamespace(**vars(namespace), K=var('K'), tau=1)).laws_]
-        [K*sin(-b + delayed(a, 1))]
+        >>> DelayedCouplingInteraction('coupling', source='a', target='b', tau=2.0).tau
+        2.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        source: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
-        K: Annotated[float, ParameterSpec()] = 1.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        source: Role,
+        target: Role,
+        K: float = 1.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, target=target, state='theta')
+        super().__init__(label)
         self.source = source
+        self.target = target
         self.K = K
         self.tau = tau
 
-    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return `K sin(theta_s(t - tau) - theta_t)`.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate `K sin(theta_s(t - tau) - theta_t)` of the phase of the target.
 
         Args:
-            namespace:
-                The namespace of the symbols the rate can use.
-
-        Returns:
-            rate:
-                The rate of the phase of the target.
+            context:
+                The namespace of the source, the target, the time `t`, and the parameters.
         """
-        return namespace.K * sin(delayed(namespace.source.theta, namespace.tau) - namespace.target.theta)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            theta, t = context.target.theta, context.t
+            delayed = context.source.theta(t=t - context.tau)
+            self.laws_ = [RateLaw(theta.diff(t), context.K * sin(delayed - theta))]
 
 
 class DelayedKuramotoSystem(BaseSystem):
@@ -118,10 +126,16 @@ class DelayedKuramotoSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.synchronization import DelayedKuramotoSystem
         >>> len(DelayedKuramotoSystem(n_oscillators=3).prepare().system_.interactions)
-        6
+        9
     """
 
     field = 'physics/synchronization'
@@ -139,19 +153,24 @@ class DelayedKuramotoSystem(BaseSystem):
         spread: float = 0.2,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_oscillators = n_oscillators
         self.K = K
         self.tau = tau
         self.spread = spread
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Kuramoto phase oscillators coupled all to all through delayed signals.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Kuramoto phase oscillators coupled all to all through delayed signals.
 
-        The signals arrive after a delay.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         phases = [
             2 * math.pi * ((self.seed * 0.618 + index / self.n_oscillators) % 1.0)
             for index in range(self.n_oscillators)
@@ -160,10 +179,14 @@ class DelayedKuramotoSystem(BaseSystem):
             1.0 + self.spread * (index / max(self.n_oscillators - 1, 1) - 0.5) for index in range(self.n_oscillators)
         ]
         elements = [
-            PhaseOscillatorElement(f'oscillator_{index}', theta=phases[index], omega=omegas[index])
+            Element(f'oscillator_{index}', values={'theta': phases[index], 'omega': omegas[index]})
             for index in range(self.n_oscillators)
         ]
-        interactions = [
+        interactions: list[Interaction] = [
+            PhaseRotationInteraction(f'rotation_{index}', target=f'oscillator_{index}')
+            for index in range(self.n_oscillators)
+        ]
+        interactions += [
             DelayedCouplingInteraction(
                 f'coupling_{source}_{target}',
                 source=f'oscillator_{source}',
@@ -175,10 +198,10 @@ class DelayedKuramotoSystem(BaseSystem):
             for target in range(self.n_oscillators)
             if source != target
         ]
-        return CompositeSystem(self.label, elements=elements, interactions=interactions)
+        self.system_ = System(self.label, elements=elements, interactions=interactions)
 
 
-class KuramotoSystem(BaseSystem):
+class KuramotoSystem(OldBaseSystem):
     """Kuramoto oscillators coupled all to all.
 
     The oscillators follow `theta_i' = omega_i + (K / N) sum_j sin(theta_j - theta_i)`.
@@ -266,10 +289,59 @@ class KuramotoSystem(BaseSystem):
         )
 
 
-class RingOscillatorElement(PhaseOscillatorElement):
-    """Phase oscillator drawn on the phase ring."""
+class PopulationCouplingInteraction(Interaction):
+    """Kuramoto-Sakaguchi coupling of a population to the mean of a population of one size.
 
-    visual = VisualSpec('phase_ring', {'phase': 'theta'})
+    Oscillator `i` of the target turns as `theta_i' += (K / N) sum_j sin(theta_j - theta_i - alpha)`, a sum over every
+    member `j` of the source, the oscillator itself included when the source is the target. The coupling reads the
+    sums of `sin theta` and `cos theta` of the source once, so it costs time linear in the size of the populations, as
+    for two groups of fireflies or two hemispheres of a brain.
+
+    Args:
+        label:
+            The label of the interaction, unique among the components of its system.
+
+        target:
+            The path of the population whose phases the coupling turns.
+
+        source:
+            The path of the population whose phases the coupling reads, of the size of the target.
+
+        K:
+            The coupling strength.
+
+        alpha:
+            The phase lag.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import PopulationCouplingInteraction
+        >>> PopulationCouplingInteraction('coupling', target='first', source='second', alpha=1.5).alpha
+        1.5
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role, source: Role, K: float = 1.0, alpha: float = 0.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
+        self.K = K
+        self.alpha = alpha
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate of the phases of the target from the sums of the source.
+
+        Args:
+            context:
+                The namespace of the target, the source, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            theta, phases = context.target.theta, context.source.theta
+            shifted = theta + context.alpha
+            sines, cosines = total(sin(phases)), total(cos(phases))
+            rate = context.K * (sines * cos(shifted) - cosines * sin(shifted)) / count()
+            self.laws_ = [RateLaw(theta.diff(context.t), rate)]
 
 
 class KuramotoSakaguchiChimeraSystem(BaseSystem):
@@ -304,6 +376,12 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.synchronization import KuramotoSakaguchiChimeraSystem
         >>> len(KuramotoSakaguchiChimeraSystem(4).prepare().system_.interactions)
@@ -329,51 +407,44 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
         spread: float = 0.1,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_oscillators = n_oscillators
         self.A = A
         self.beta = beta
         self.spread = spread
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of two populations of identical phase oscillators with phase lag.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         alpha, mu, nu = math.pi / 2 - self.beta, (1 + self.A) / 2, (1 - self.A) / 2
+        first = rng.normal(0.0, self.spread, self.n_oscillators)
+        second = KuramotoSystem._spread_phases(self.n_oscillators, self.seed + 1)
         populations = [
-            GroupElement(
-                'first',
-                element=RingOscillatorElement,
-                size=self.n_oscillators,
-                values={'theta': rng.normal(0.0, self.spread, self.n_oscillators), 'omega': 0.0},
-            ),
-            GroupElement(
-                'second',
-                element=RingOscillatorElement,
-                size=self.n_oscillators,
-                values={'theta': KuramotoSystem._spread_phases(self.n_oscillators, self.seed + 1), 'omega': 0.0},
-            ),
+            Element('first', values={'theta': first}, size=self.n_oscillators),
+            Element('second', values={'theta': second}, size=self.n_oscillators),
         ]
-        interactions: list[BaseInteraction] = [
-            KuramotoCouplingInteraction(
+        interactions = [
+            PopulationCouplingInteraction(
                 f'{target}_from_{source}',
                 target=target,
                 source=source,
                 K=mu if target == source else nu,
                 alpha=alpha,
-                reduce='mean',
-                mode='group',
-                include_self=True,
             )
             for target in ('first', 'second')
             for source in ('first', 'second')
         ]
-        return CompositeSystem(
-            self.label,
-            elements=populations,
-            interactions=interactions,
-        )
+        self.system_ = System(self.label, elements=populations, interactions=interactions)
 
 
 class RingSitedOscillatorElement(SitedOscillatorElement):
@@ -382,7 +453,7 @@ class RingSitedOscillatorElement(SitedOscillatorElement):
     visual = VisualSpec('phase_ring', {'phase': 'theta', 'position': 'x'})
 
 
-class NonlocalRingChimeraSystem(BaseSystem):
+class NonlocalRingChimeraSystem(OldBaseSystem):
     """Identical phase oscillators on a ring.
 
     Each oscillator is coupled to its `R` nearest neighbours on both sides.
@@ -474,7 +545,7 @@ class NonlocalRingChimeraSystem(BaseSystem):
         )
 
 
-class OttAntonsenSystem(BaseSystem):
+class OttAntonsenSystem(OldBaseSystem):
     """The Ott-Antonsen equation for the order parameter of Kuramoto oscillators.
 
     The oscillators are infinitely many.

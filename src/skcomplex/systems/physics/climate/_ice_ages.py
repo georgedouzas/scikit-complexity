@@ -6,30 +6,28 @@ The module covers glacial cycles and the excitable carbon cycle.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, cos, pi
+from sage.all__sagemath_symbolics import cos, pi
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import hill
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
-from ...general.dynamics import DynamicalSystem
-from ...general.dynamics.types import Equations
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class SaltzmanMaaschElement(Element):
     """Climate of the Saltzman-Maasch glacial cycles.
 
-    The climate holds the anomalies of ice, carbon dioxide, and deep ocean temperature.
-
-    The anomalies of global ice volume `x`, atmospheric carbon dioxide `y`, and deep ocean temperature `z` follow
-    `dx/dt = -x - y - u z - nu F(t)`, `dy/dt = -p z + r y - s y^2 - y^3`, and `dz/dt = -q (x + z)`, where
-    `F(t) = cos(2π t0 t / 22.1) - cos(2π t0 t / 44.1)` is the orbital forcing of precession and obliquity.
+    The climate holds the anomalies of global ice volume `x`, atmospheric carbon dioxide `y`, and deep ocean
+    temperature `z`.
 
     Args:
         label:
@@ -43,6 +41,33 @@ class SaltzmanMaaschElement(Element):
 
         z:
             The initial deep ocean temperature anomaly.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import SaltzmanMaaschElement
+        >>> SaltzmanMaaschElement('climate').x
+        -0.2
+    """
+
+    def __init__(self, label: str, *, x: float = -0.2, y: float = 1.0, z: float = 0.0) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.z = z
+
+
+class SaltzmanMaaschInteraction(Interaction):
+    """Feedbacks of ice volume, carbon dioxide, and deep ocean temperature, with the orbital forcing.
+
+    The anomalies of the target follow `dx/dt = -x - y - u z - nu F(t)`, `dy/dt = -p z + r y - s y^2 - y^3`, and
+    `dz/dt = -q (x + z)`, where `F(t) = cos(2π t0 t / 22.1) - cos(2π t0 t / 44.1)` is the orbital forcing of
+    precession and obliquity.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the climate.
 
         p:
             The effect of the deep ocean temperature on carbon dioxide.
@@ -66,8 +91,8 @@ class SaltzmanMaaschElement(Element):
             The time unit in thousands of years, which scales the orbital periods.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import SaltzmanMaaschElement
-        >>> SaltzmanMaaschElement('climate').q
+        >>> from skcomplex.systems.physics.climate import SaltzmanMaaschInteraction
+        >>> SaltzmanMaaschInteraction('feedbacks', target='climate').q
         2.5
     """
 
@@ -77,21 +102,17 @@ class SaltzmanMaaschElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = -0.2,
-        y: Annotated[float, StateSpec()] = 1.0,
-        z: Annotated[float, StateSpec()] = 0.0,
-        p: Annotated[float, ParameterSpec()] = 1.0,
-        q: Annotated[float, ParameterSpec()] = 2.5,
-        r: Annotated[float, ParameterSpec()] = 1.3,
-        s: Annotated[float, ParameterSpec()] = 0.6,
-        u: Annotated[float, ParameterSpec()] = 0.2,
-        nu: Annotated[float, ParameterSpec()] = 0.0,
-        t0: Annotated[float, ParameterSpec()] = 10.0,
+        target: Role,
+        p: float = 1.0,
+        q: float = 2.5,
+        r: float = 1.3,
+        s: float = 0.6,
+        u: float = 0.2,
+        nu: float = 0.0,
+        t0: float = 10.0,
     ) -> None:
         super().__init__(label)
-        self.x = x
-        self.y = y
-        self.z = z
+        self.target = target
         self.p = p
         self.q = q
         self.r = r
@@ -100,40 +121,22 @@ class SaltzmanMaaschElement(Element):
         self.nu = nu
         self.t0 = t0
 
-    def _get_orbital_forcing(self, s: SimpleNamespace) -> Expression:
-        """Return the quasiperiodic orbital forcing.
-
-        The forcing has the periods of precession and obliquity.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the three anomalies.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            forcing:
-                The orbital forcing.
+            context:
+                The namespace of the climate, the time `t`, and the parameters.
         """
-        return cos(2 * pi * s.t0 * s.t / 22.1) - cos(2 * pi * s.t0 * s.t / 44.1)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the feedbacks of ice volume, carbon dioxide, and deep ocean temperature.
-
-        The feedbacks include the orbital forcing.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws of the three anomalies.
-        """
-        forcing = self._get_orbital_forcing(s)
-        return [
-            RateLaw(s.x, -s.x - s.y - s.u * s.z - s.nu * forcing),
-            RateLaw(s.y, -s.p * s.z + s.r * s.y - s.s * s.y**2 - s.y**3),
-            RateLaw(s.z, -s.q * (s.x + s.z)),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, y, z, t = context.target.x, context.target.y, context.target.z, context.t
+            forcing = cos(2 * pi * context.t0 * t / 22.1) - cos(2 * pi * context.t0 * t / 44.1)
+            self.laws_ = [
+                RateLaw(x.diff(t), -x - y - context.u * z - context.nu * forcing),
+                RateLaw(y.diff(t), -context.p * z + context.r * y - context.s * y**2 - y**3),
+                RateLaw(z.diff(t), -context.q * (x + z)),
+            ]
 
 
 class SaltzmanGlaciationSystem(BaseSystem):
@@ -178,9 +181,15 @@ class SaltzmanGlaciationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import SaltzmanGlaciationSystem
-        >>> SaltzmanGlaciationSystem(nu=0.5).prepare().system_.elements[0].nu
+        >>> SaltzmanGlaciationSystem(nu=0.5).prepare().system_.interactions[0].nu
         0.5
     """
 
@@ -203,8 +212,10 @@ class SaltzmanGlaciationSystem(BaseSystem):
         u: float = 0.2,
         nu: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -215,31 +226,141 @@ class SaltzmanGlaciationSystem(BaseSystem):
         self.u = u
         self.nu = nu
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the glacial cycles of Saltzman and Maasch.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the climate and its feedbacks.
 
-        The cycles are a self-sustained oscillation of ice, carbon, and ocean.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        feedbacks = SaltzmanMaaschInteraction(
+            'feedbacks',
+            target='climate',
+            p=self.p,
+            q=self.q,
+            r=self.r,
+            s=self.s,
+            u=self.u,
+            nu=self.nu,
+        )
+        self.system_ = System(
             self.label,
-            elements=[
-                SaltzmanMaaschElement(
-                    'climate',
-                    x=self.x,
-                    y=self.y,
-                    z=self.z,
-                    p=self.p,
-                    q=self.q,
-                    r=self.r,
-                    s=self.s,
-                    u=self.u,
-                    nu=self.nu,
-                ),
-            ],
+            elements=[SaltzmanMaaschElement('climate', x=self.x, y=self.y, z=self.z)],
+            interactions=[feedbacks],
         )
 
 
-class CarbonCycleSystem(DynamicalSystem):
+class CarbonCycleInteraction(Interaction):
+    """Rothman's balance of carbonate ion and dissolved inorganic carbon in the ocean.
+
+    The carbonate ion concentration `c` and the dissolved inorganic carbon `w` of the target follow `dc/dt = f(c) (mu (1
+    - b s(c, c_p) - theta (1 - s(c, c_x)) - nu) + w - w0)` and `dw/dt = mu (1 - b s(c, c_p) + theta (1 - s(c, c_x)) +
+    nu) - w + w0`, with the sigmoids `s(c, c*) = c^gamma / (c^gamma + c*^gamma)` of burial and respiration and the
+    buffer `f(c) = f0 c^beta / (c^beta + c_f^beta)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the ocean.
+
+        mu:
+            The characteristic rate of the carbon fluxes.
+
+        b:
+            The strength of the burial of organic carbon.
+
+        theta:
+            The strength of the respiration of organic carbon.
+
+        c_x:
+            The crossover carbonate concentration of respiration, which sets the excitability.
+
+        c_p:
+            The carbonate concentration at which the burial is half its maximum.
+
+        nu:
+            The rate of external carbon injection.
+
+        w0:
+            The dissolved inorganic carbon at which the input balances the output.
+
+        gamma:
+            The steepness of the sigmoids of burial and respiration.
+
+        f0:
+            The maximum of the buffer factor.
+
+        c_f:
+            The carbonate concentration at which the buffer factor is half its maximum.
+
+        beta:
+            The steepness of the buffer factor.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import CarbonCycleInteraction
+        >>> CarbonCycleInteraction('carbon', target='ocean', nu=0.1).nu
+        0.1
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        mu: float = 250.0,
+        b: float = 4.0,
+        theta: float = 5.0,
+        c_x: float = 55.0,
+        c_p: float = 110.0,
+        nu: float = 0.0,
+        w0: float = 2000.0,
+        gamma: float = 4.0,
+        f0: float = 0.694,
+        c_f: float = 43.9,
+        beta: float = 1.7,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.mu = mu
+        self.b = b
+        self.theta = theta
+        self.c_x = c_x
+        self.c_p = c_p
+        self.nu = nu
+        self.w0 = w0
+        self.gamma = gamma
+        self.f0 = f0
+        self.c_f = c_f
+        self.beta = beta
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the carbonate ion and the dissolved inorganic carbon.
+
+        Args:
+            context:
+                The namespace of the ocean, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            c, w, t = context.target.c, context.target.w, context.t
+            burial = context.b * hill(c, context.c_p, context.gamma)
+            respiration = context.theta * (1 - hill(c, context.c_x, context.gamma))
+            buffer = context.f0 * hill(c, context.c_f, context.beta)
+            self.laws_ = [
+                RateLaw(
+                    c.diff(t),
+                    buffer * (context.mu * (1 - burial - respiration - context.nu) + w - context.w0),
+                ),
+                RateLaw(w.diff(t), context.mu * (1 - burial + respiration + context.nu) - w + context.w0),
+            ]
+
+
+class CarbonCycleSystem(BaseSystem):
     """Rothman's excitable carbon cycle.
 
     A large enough perturbation of the ocean sets off an excursion.
@@ -267,9 +388,15 @@ class CarbonCycleSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import CarbonCycleSystem
-        >>> CarbonCycleSystem(nu=0.1).prepare().system_.elements[0].values['nu']
+        >>> CarbonCycleSystem(nu=0.1).prepare().system_.interactions[0].nu
         0.1
     """
 
@@ -290,104 +417,96 @@ class CarbonCycleSystem(DynamicalSystem):
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label, solver=solver, backend=backend)
+        super().__init__(label, solver=solver, backend=backend)
         self.c = c
         self.w = w
         self.c_x = c_x
         self.nu = nu
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'ocean'
-
-    def _get_states(self) -> dict[str, object]:
-        """Return the initial value of every state by name."""
-        return {
-            'c': self.c,
-            'w': self.w,
-        }
-
-    def _get_parameters(self) -> dict[str, object]:
-        """Return the value of every parameter by name."""
-        return {
-            'mu': 250.0,
-            'b': 4.0,
-            'theta': 5.0,
-            'c_x': self.c_x,
-            'c_p': 110.0,
-            'nu': self.nu,
-            'w0': 2000.0,
-            'gamma': 4.0,
-            'f0': 0.694,
-            'c_f': 43.9,
-            'beta': 1.7,
-        }
-
-    def _get_equations(self) -> Equations:
-        """Return Rothman's balance of carbonate ion and dissolved inorganic carbon."""
-        return {
-            'c': lambda s: (
-                self._get_buffer(s)
-                * (
-                    s.target.mu * (1 - self._get_burial(s) - self._get_respiration(s) - s.target.nu)
-                    + s.target.w
-                    - s.target.w0
-                )
-            ),
-            'w': lambda s: (
-                s.target.mu * (1 - self._get_burial(s) + self._get_respiration(s) + s.target.nu)
-                - s.target.w
-                + s.target.w0
-            ),
-        }
-
-    def _get_burial(self, s: SimpleNamespace) -> Expression:
-        """Return the burial of organic carbon.
-
-        The burial is a Hill function of the carbonate ion concentration.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the ocean and its carbon balance.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            burial:
-                The burial, relative to the characteristic rate.
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return s.target.b * hill(s.target.c, s.target.c_p, s.target.gamma)
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[Element('ocean', values={'c': self.c, 'w': self.w})],
+            interactions=[CarbonCycleInteraction('carbon', target='ocean', c_x=self.c_x, nu=self.nu)],
+        )
 
-    def _get_respiration(self, s: SimpleNamespace) -> Expression:
-        """Return the respiration of organic carbon.
 
-        The respiration is a decreasing Hill function of the carbonate ion concentration.
+class VanDerPolIceAgesInteraction(Interaction):
+    """Van der Pol relaxation of the ice volume and the climate, paced by the orbital forcing.
+
+    The slow ice volume `x` and the fast climate state `y` of the target follow `tau x' = -(y + beta + gamma F(t))` and
+    `tau y' = -alpha (y^3/3 - y - x)`, where `F(t) = cos(2 pi t/23) + cos(2 pi t/41)` stands for precession and
+    obliquity, with time in thousands of years.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the climate.
+
+        alpha:
+            The time-scale separation of the fast climate state.
+
+        beta:
+            The asymmetry of the cycle, between build-up and termination.
+
+        gamma:
+            The strength of the orbital forcing.
+
+        tau:
+            The time scale, in thousands of years.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import VanDerPolIceAgesInteraction
+        >>> VanDerPolIceAgesInteraction('relaxation', target='climate', gamma=0.4).gamma
+        0.4
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        alpha: float = 30.0,
+        beta: float = 0.75,
+        gamma: float = 0.0,
+        tau: float = 35.09,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+        self.tau = tau
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the slow ice volume and the fast climate.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            respiration:
-                The respiration, relative to the characteristic rate.
+            context:
+                The namespace of the climate, the time `t`, and the parameters.
         """
-        return s.target.theta * (1 - hill(s.target.c, s.target.c_x, s.target.gamma))
-
-    def _get_buffer(self, s: SimpleNamespace) -> Expression:
-        """Return the buffer factor of the carbonate ion concentration.
-
-        The factor is a Hill function of the concentration.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            buffer:
-                The buffer factor.
-        """
-        return s.target.f0 * hill(s.target.c, s.target.c_f, s.target.beta)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, y, t = context.target.x, context.target.y, context.t
+            forcing = cos(2 * pi * t / 23) + cos(2 * pi * t / 41)
+            self.laws_ = [
+                RateLaw(x.diff(t), -(y + context.beta + context.gamma * forcing) / context.tau),
+                RateLaw(y.diff(t), -context.alpha * (y**3 / 3 - y - x) / context.tau),
+            ]
 
 
-class VanDerPolIceAgesSystem(DynamicalSystem):
+class VanDerPolIceAgesSystem(BaseSystem):
     """Glacial cycles as a Van der Pol relaxation oscillator.
 
     The oscillator is optionally paced by orbital forcing.
@@ -420,9 +539,15 @@ class VanDerPolIceAgesSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import VanDerPolIceAgesSystem
-        >>> VanDerPolIceAgesSystem(gamma=0.4).prepare().system_.elements[0].values['gamma']
+        >>> VanDerPolIceAgesSystem(gamma=0.4).prepare().system_.interactions[0].gamma
         0.4
     """
 
@@ -445,7 +570,7 @@ class VanDerPolIceAgesSystem(DynamicalSystem):
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label, solver=solver, backend=backend)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.alpha = alpha
@@ -453,46 +578,24 @@ class VanDerPolIceAgesSystem(DynamicalSystem):
         self.gamma = gamma
         self.tau = tau
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'climate'
-
-    def _get_states(self) -> dict[str, object]:
-        """Return the initial value of every state."""
-        return {
-            'x': self.x,
-            'y': self.y,
-        }
-
-    def _get_parameters(self) -> dict[str, object]:
-        """Return the parameters of the equations."""
-        return {
-            'alpha': self.alpha,
-            'beta': self.beta,
-            'gamma': self.gamma,
-            'tau': self.tau,
-        }
-
-    def _get_equations(self) -> Equations:
-        """Return the slow ice volume and the fast climate of the relaxation oscillator."""
-        return {
-            'x': lambda s: -(s.target.y + s.target.beta + s.target.gamma * self._get_forcing(s)) / s.target.tau,
-            'y': lambda s: -s.target.alpha * (s.target.y**3 / 3 - s.target.y - s.target.x) / s.target.tau,
-        }
-
-    def _get_forcing(self, s: SimpleNamespace) -> Expression:
-        """Return `forcing` from the namespace of an equation."""
-        return self._get_orbital_forcing(s)
-
-    def _get_orbital_forcing(self, s: SimpleNamespace) -> Expression:
-        """Return the orbital forcing, the sum of the cycles of precession and obliquity.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the climate and its relaxation oscillation.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            forcing:
-                The orbital forcing.
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return cos(2 * pi * s.t / 23) + cos(2 * pi * s.t / 41)
+        super()._prepare(context)
+        relaxation = VanDerPolIceAgesInteraction(
+            'relaxation',
+            target='climate',
+            alpha=self.alpha,
+            beta=self.beta,
+            gamma=self.gamma,
+            tau=self.tau,
+        )
+        self.system_ = System(
+            self.label,
+            elements=[Element('climate', values={'x': self.x, 'y': self.y})],
+            interactions=[relaxation],
+        )

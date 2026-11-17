@@ -8,6 +8,7 @@ from collections.abc import Mapping
 
 import numpy as np
 import numpy.typing as npt
+from sklearn.base import clone
 
 from ..components.elements import DeclaredElement, Element, GroupElement
 from ..components.laws import (
@@ -23,12 +24,14 @@ from ..components.laws import (
 )
 from ..components.systems import CompositeSystem
 from ..engine._utils import declared_variables, probe_laws
+from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Trajectory, simulate
 from ..enums import VariableKind
 from ..errors import ValidationError
 from ..specs import VariableSpec
+from ..systems import BaseSystem, System
 from ._runs import _check_source
-from ._utils import build_system
+from ._utils import build_system, get_problem
 from .types import Source
 
 PLAIN_LAWS = (
@@ -200,14 +203,76 @@ def _replicate(
     )
 
 
+def _replicate_prepared(system: System, size: int, values: Mapping[str, npt.ArrayLike] | None = None) -> System:
+    """Return a system whose single elements become elements of many members.
+
+    It is the replication of `_replicate` for a `System`. Every element takes `size` members, which start from the
+    values of the element, except the dotted paths given in `values`, which take one value per member.
+
+    Args:
+        system:
+            The system of single elements and their interactions, without nested systems.
+
+        size:
+            The number of members of every element.
+
+        values:
+            A mapping from dotted path of a value of an element to its per-member values, one row per member.
+
+    Returns:
+        system:
+            The replicated system, with clones of the interactions of the original.
+
+    Raises:
+        ValidationError:
+            The system has nested systems or elements of many members, a path is not a value of an element, or its
+            values do not have one row per member.
+    """
+    plain = all(
+        isinstance(element, Element) and element.size is None and element.space is None and element.on is None
+        for element in system.elements
+    )
+    if system.systems or not plain:
+        error_msg = (
+            f'Only systems of single elements and their interactions replicate, but {system.label!r} has nested '
+            'systems or elements of many members. Build the ensemble as an element with `size=` instead.'
+        )
+        raise ValidationError(error_msg)
+    names = {element.label: set(element.values or {}) for element in system.elements}
+    by_label: dict[str, dict[str, object]] = {label: {} for label in names}
+    for path, value in (values or {}).items():
+        label, _, name = path.partition('.')
+        if label not in names or name not in names[label]:
+            available = ', '.join(f'{item}.{field}' for item, fields in names.items() for field in sorted(fields))
+            error_msg = f'{path} is not a value of an element of the system. Available paths are: {available}.'
+            raise ValidationError(error_msg)
+        array = np.asarray(value)
+        if array.ndim == 0 or array.shape[0] != size:
+            error_msg = f'The values of {path} have shape {array.shape}, but they need one row per member, {size} rows.'
+            raise ValidationError(error_msg)
+        by_label[label][name] = array
+    elements = [
+        clone(element).set_params(size=size, values={**(element.values or {}), **by_label[element.label]})
+        for element in system.elements
+    ]
+    return System(
+        system.label,
+        elements=elements,
+        interactions=[clone(interaction) for interaction in system.interactions],
+        space=system.space,
+        solver=system.solver,
+        backend=system.backend,
+    )
+
+
 def _run_replicated(
     source: Source,
     values: Mapping[str, npt.ArrayLike],
     until: float | None,
     dt: float | None,
     random_state: int | None,
-) -> tuple[Trajectory, CompositeSystem]:
-    """Return one run of a replicated system, and the composite of the system.
+) -> tuple[Trajectory, BaseProblemSpec]:
+    """Return one run of a replicated system, and the problem of the original.
 
     The system is replicated once per value of every path.
 
@@ -231,21 +296,31 @@ def _run_replicated(
         trajectory:
             The trajectory of the replicated system.
 
-        system:
-            The composite of the original system.
+        problem:
+            The compiled problem of the original system, which reads one member of the trajectory.
 
     Raises:
         ValidationError:
             The system has no tuned end time and none is given.
     """
     system = build_system(_check_source(source), {})
-    settings = system.get_run_settings()
-    composite = system.prepare().system_
-    end = until if until is not None else settings['until']
+    size = len(np.asarray(next(iter(values.values()))))
+    if isinstance(system, BaseSystem):
+        end, step = (system.until if until is None else until), (system.dt if dt is None else dt)
+    else:
+        settings = system.get_run_settings()
+        end, step = (settings['until'] if until is None else until), (settings['dt'] if dt is None else dt)
     if end is None:
         error_msg = f'{type(system).__name__} has no tuned end time. Pass `until`.'
         raise ValidationError(error_msg)
-    size = len(np.asarray(next(iter(values.values()))))
-    replicated = _replicate(composite, size, values)
-    step = dt if dt is not None else settings['dt']
-    return simulate(replicated, until=end, dt=step, random_state=random_state), composite
+    if isinstance(system, BaseSystem):
+        original = system.prepare().system_
+        if not isinstance(original, System):
+            error_msg = f'{type(system).__name__} prepares no System, so it does not replicate.'
+            raise ValidationError(error_msg)
+        replicated = _replicate_prepared(original, size, values)
+        trajectory = replicated.prepare().simulate(end, dt=step, random_state=random_state)
+        return trajectory, get_problem(original)
+    composite = system.prepare().system_
+    replicated_composite = _replicate(composite, size, values)
+    return simulate(replicated_composite, until=end, dt=step, random_state=random_state), get_problem(composite)

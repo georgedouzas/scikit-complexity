@@ -2,22 +2,22 @@
 
 import numpy as np
 
-from skcomplex.core.components.elements import FieldElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems.physics.active_matter import ActiveScalarElement, ActiveSystemBSystem
+from skcomplex.core.systems import System
+from skcomplex.systems.physics.active_matter import (
+    ActiveCahnHilliardInteraction,
+    ActiveScalarElement,
+    ActiveSystemBSystem,
+)
 
 
 def _bubble_areas(zeta):
     """Return the areas of a small and a large bubble of the dilute phase, after relaxation and at the end."""
     rows, columns = np.indices((24, 48))
     bubbles = (np.hypot(rows - 12, columns - 12) < 4) | (np.hypot(rows - 12, columns - 36) < 7)
-    values = {'phi': np.where(bubbles, -1.0, 1.0), 'zeta': zeta, 'D': 0.0}
-    system = CompositeSystem(
-        elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace((24, 48)), values=values)],
-    )
-    trajectory = simulate(system, until=300, dt=50.0)
+    fluid = ActiveScalarElement('fluid', phi=np.where(bubbles, -1.0, 1.0).ravel(), space=LatticeSpace((24, 48)))
+    currents = ActiveCahnHilliardInteraction('currents', target='fluid', zeta=zeta, D=0.0)
+    trajectory = System(elements=[fluid], interactions=[currents]).prepare().simulate(until=300, dt=50.0)
     phi = trajectory.get_lattice('fluid.phi')[[1, -1]] < 0
     return phi[:, :, :24].sum(axis=(1, 2)), phi[:, :, 24:].sum(axis=(1, 2))
 
@@ -25,7 +25,7 @@ def _bubble_areas(zeta):
 def test_active_system_b_keeps_the_mean_and_phase_separates():
     """Test that Active System B+ keeps the mean of phi under its conserved noise and separates into two phases."""
     system = ActiveSystemBSystem((32, 32))
-    trajectory = simulate(system, until=300, dt=50.0, random_state=0)
+    trajectory = system.prepare().simulate(until=300, dt=50.0, random_state=0)
     phi = trajectory.get_lattice('fluid.phi')
     np.testing.assert_allclose(phi.mean(axis=(1, 2)), phi[0].mean(), rtol=1e-9)
     assert phi[-1].max() > 0.9

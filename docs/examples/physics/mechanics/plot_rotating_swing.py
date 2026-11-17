@@ -9,14 +9,14 @@ speeds up whenever they fall in.
 # %%
 # Eight chairs hang on chains of length 1 from rods of length 1 on a stand of inertia 10 that starts turning at 2
 # radians per unit time, with the chains at 0.1 radians. The stand angle grows without bound and lies in `[0, 2π)`, so
-# the observer below logs only the chain angle and the angular velocity of the stand, which oscillate in opposition.
+# the observer below logs only the chain angle. The angular velocity of the stand, which oscillates in opposition,
+# is plotted after the run.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import RotatingSwingSystem
 
@@ -25,19 +25,17 @@ SYSTEM = 'rotating_swing'
 
 # Workaround: remove once the core draws angles wrapped to (-π, π] and lets a blueprint leave the stand angle out.
 class SwingObserver(RerunObserver):
-    """Observer that also logs the chain angle and the angular velocity of the stand."""
+    """Observer that also logs the chain angle."""
 
     def _prepare(self, problem):
         super()._prepare(problem)
-        for name, color in (('chain angle', [250, 150, 60]), ('stand speed', [90, 170, 230])):
-            path = 'chairs/' + name.replace(' ', '_')
-            self.recording_.log(path, rr.SeriesLines(colors=color, names=name, widths=2), static=True)
+        series = rr.SeriesLines(colors=[250, 150, 60], names='chain angle', widths=2)
+        self.recording_.log('chairs/chain_angle', series, static=True)
 
     def _run(self, frame=None):
         super()._run(frame)
         if frame is not None and frame.step % self.interval == 0:
             self.recording_.log('chairs/chain_angle', rr.Scalars(frame.get_value('swing.theta')))
-            self.recording_.log('chairs/stand_speed', rr.Scalars(frame.get_value('swing.phi_d1')))
 
 
 blueprint = rrb.Blueprint(
@@ -48,7 +46,7 @@ blueprint = rrb.Blueprint(
 )
 system = RotatingSwingSystem(omega=2.0, theta=0.1)
 observer = SwingObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Angular momentum and the equilibrium angle
@@ -59,7 +57,7 @@ trajectory = simulate(system, observers=[observer])
 
 times = np.asarray(trajectory.times)
 theta = np.ravel(trajectory.get_values('swing.theta'))
-speed = np.ravel(trajectory.get_values('swing.phi_d1'))
+speed = np.ravel(trajectory.get_values("swing.phi'"))
 momentum = (10.0 + 8 * (1 + np.sin(theta)) ** 2) * speed
 grid = np.linspace(0.0, 1.5, 3000)
 steady_speed = momentum[0] / (10.0 + 8 * (1 + np.sin(grid)) ** 2)

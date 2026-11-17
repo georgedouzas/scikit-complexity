@@ -4,7 +4,7 @@ The package covers sandpiles, forest fires, absorbing-state transitions, learner
 """
 
 from ..common.avalanches import SandpileCellElement
-from ._absorbing import ActiveFieldElement, DirectedPercolationLangevinSystem
+from ._absorbing import ActiveFieldElement, ActivePercolationInteraction, DirectedPercolationLangevinSystem
 from ._crackling_noise import CracklingNoiseResult, crackling_noise
 from ._criticality import (
     AvalancheInteraction,
@@ -15,11 +15,13 @@ from ._criticality import (
     MannaSandpileSystem,
     SandpileSystem,
 )
-from ._evolutionary_learning import EvolutionarySKGameSystem, LearnerElement
+from ._evolutionary_learning import EvolutionarySKGameSystem, LearnerElement, SKLearningInteraction
 from ._learning import LearningAgentElement, SKGameSystem
 from ._sandpiles import (
+    BranchingInteraction,
     EnergySiteElement,
     FixedEnergySandpileSystem,
+    GrainSiteElement,
     SelfOrganizedBranchingSystem,
     ToppleInteraction,
     ZhangSandpileSystem,
@@ -27,7 +29,9 @@ from ._sandpiles import (
 
 __all__: list[str] = [
     'ActiveFieldElement',
+    'ActivePercolationInteraction',
     'AvalancheInteraction',
+    'BranchingInteraction',
     'CracklingNoiseResult',
     'DirectedPercolationLangevinSystem',
     'EnergySiteElement',
@@ -36,11 +40,13 @@ __all__: list[str] = [
     'FixedEnergySandpileSystem',
     'ForestElement',
     'ForestFireSystem',
+    'GrainSiteElement',
     'HexagonalForestFireSystem',
     'LearnerElement',
     'LearningAgentElement',
     'MannaSandpileSystem',
     'SKGameSystem',
+    'SKLearningInteraction',
     'SandpileCellElement',
     'SandpileSystem',
     'SelfOrganizedBranchingSystem',

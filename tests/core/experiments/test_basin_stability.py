@@ -11,6 +11,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import basin_stability
 from skcomplex.core.specs import StateSpec
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 from skcomplex.systems.physics.nonlinear_oscillators import DuffingSystem
 
 BOUNDS = {'duffing.x': (-2.0, 2.0), 'duffing.x_d1': (-2.0, 2.0)}
@@ -75,3 +76,16 @@ def test_counting_states_start_from_integers():
     assert all(float(start).is_integer() and 0 <= start <= 5 for start in starts)
     assert {0, 5} <= set(starts)
     assert len(result.labels) == 40
+
+
+def test_vectorised_basins_of_a_system_match_separate_runs():
+    """Test that the basins of the logistic map run as one element of many members equal those of separate runs."""
+
+    def phase(trajectory):
+        return 'high' if trajectory.get_values('map.x')[-1] > 0.6 else 'low'
+
+    settings = {'n': 20, 'until': 101, 'dt': 1, 'random_state': 0}
+    serial = basin_stability(LogisticMapSystem(r=3.2), {'map.x': (0.05, 0.95)}, phase, **settings)
+    vectorised = basin_stability(LogisticMapSystem(r=3.2), {'map.x': (0.05, 0.95)}, phase, vectorized=True, **settings)
+    assert serial.labels == vectorised.labels
+    assert set(serial.labels) == {'high', 'low'}

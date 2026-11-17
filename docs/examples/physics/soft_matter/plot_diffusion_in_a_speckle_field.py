@@ -18,7 +18,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import DiffusionInASpeckleFieldSystem
@@ -41,7 +40,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-trajectory = simulate(system, solver=solver, dt=0.25, observers=[observer], random_state=0)
+trajectory = system.set_params(solver=solver).prepare().simulate(dt=0.25, observers=[observer], random_state=0)
 
 # %%
 # Trapping slows diffusion
@@ -53,13 +52,8 @@ trajectory = simulate(system, solver=solver, dt=0.25, observers=[observer], rand
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for strength in (0.0, 30.0, 100.0):
-    run = simulate(
-        DiffusionInASpeckleFieldSystem(n_particles=300, strength=strength).prepare().system_,
-        until=70,
-        solver=solver,
-        dt=0.25,
-        random_state=1,
-    )
+    field = DiffusionInASpeckleFieldSystem(n_particles=300, strength=strength, solver=solver).prepare()
+    run = field.simulate(until=70, dt=0.25, random_state=1)
     positions = run.get_values('beads.x')[40:]
     times = run.times[41:] - 10
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)

@@ -6,6 +6,7 @@ The energy return on investment of a finite fossil reserve falls as it is deplet
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,8 +16,10 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 def _get_gross_energy(s: SimpleNamespace) -> Expression:
@@ -186,6 +189,12 @@ class EnergyReturnSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import EnergyReturnSystem
         >>> EnergyReturnSystem(initial_eroi=20.0).prepare().system_.elements[0].initial_eroi
@@ -213,16 +222,24 @@ class EnergyReturnSystem(BaseSystem):
         reinvestment: float = 0.1,
         birth_rate: float = 0.03,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.reserve = reserve
         self.capacity = capacity
         self.initial_eroi = initial_eroi
         self.reinvestment = reinvestment
         self.birth_rate = birth_rate
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the energy sector and its finite reserve.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         sector = EnergySectorElement(
             'energy',
             reserve=self.reserve,
@@ -232,4 +249,4 @@ class EnergyReturnSystem(BaseSystem):
             reinvestment=self.reinvestment,
             birth_rate=self.birth_rate,
         )
-        return CompositeSystem(self.label, elements=[sector])
+        self.system_ = System(self.label, elements=[sector])

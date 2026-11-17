@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import ProjectileSystem
 
@@ -31,7 +30,7 @@ blueprint = rrb.Blueprint(
 )
 system = ProjectileSystem(speed=10.0, angle=45.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(system, until=1.44, observers=[observer])
+trajectory = system.prepare().simulate(until=1.44, observers=[observer])
 
 # %%
 # Parabola and drag
@@ -45,10 +44,10 @@ fig, ax = plt.subplots(figsize=(6, 4))
 grid = np.linspace(0, speed**2 / g, 200)
 ax.plot(grid, grid - g * grid**2 / speed**2, color='black', linewidth=3, alpha=0.3, label='parabola')
 for drag in [0.0, 0.3, 1.0]:
-    run = simulate(ProjectileSystem(speed=speed, angle=45.0, drag=drag), until=1.5, dt=0.005)
-    position = np.asarray(run.get_values('ball.x'))
-    above = position[:, 1] >= 0
-    ax.plot(position[above, 0], position[above, 1], label=f'drag = {drag}')
+    run = ProjectileSystem(speed=speed, angle=45.0, drag=drag).prepare().simulate(until=1.5, dt=0.005)
+    x, y = np.ravel(run.get_values('ball.x')), np.ravel(run.get_values('ball.y'))
+    above = y >= 0
+    ax.plot(x[above], y[above], label=f'drag = {drag}')
 ax.set_xlabel('horizontal distance')
 ax.set_ylabel('height')
 ax.set_title('Projectile paths with and without drag')

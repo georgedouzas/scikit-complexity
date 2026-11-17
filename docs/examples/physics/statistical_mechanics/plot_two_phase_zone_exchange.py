@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import TwoPhaseZoneExchangeSystem
 
@@ -24,7 +23,7 @@ SYSTEM = 'two_phase_zone_exchange'
 
 system = TwoPhaseZoneExchangeSystem(n_zones=10)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, dt=0.1, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(dt=0.1, observers=[observer], random_state=0)
 
 # %%
 # Binomial occupation
@@ -34,7 +33,7 @@ trajectory = simulate(system, dt=0.1, observers=[observer], random_state=0)
 # `Na p (1 - p) = 9`. Pooled over 2000 zones and the second half of the run, the histogram should match this
 # distribution.
 
-run = simulate(TwoPhaseZoneExchangeSystem(n_zones=2000), dt=1.0, random_state=1)
+run = TwoPhaseZoneExchangeSystem(n_zones=2000).prepare().simulate(dt=1.0, random_state=1)
 numbers = run.get_values('zones.N')[10:].ravel()
 counts = np.arange(numbers.max() + 2)
 fig, ax = plt.subplots(figsize=(7, 4))

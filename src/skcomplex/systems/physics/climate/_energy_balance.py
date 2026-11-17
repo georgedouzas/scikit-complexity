@@ -6,44 +6,76 @@ The module covers ice-albedo feedback, latitudinal heat transport, and Daisyworl
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, tanh
 
 from ....core.components import Observable
-from ....core.components.elements import Element, FieldElement
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import gradient, laplacian, where
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
 
 class LatitudeBandElement(Element):
-    """Latitude band of the Budyko-Sellers energy balance.
+    """Latitude bands of the Budyko-Sellers energy balance, their temperatures and positions.
 
-    The band is heated by the sun and exchanges heat with its neighbours.
-
-    The temperature of the band at `x = sin(latitude)` follows `C dT/dt = Q s(x) (1 - a(x, T)) - (A + B T) +
-    D d/dx((1 - x^2) dT/dx)`, with the annual insolation `s(x) = 1 + s2 P2(x)`, where `P2(x) = (3x^2 - 1) / 2`. The
-    albedo is `albedo_free + albedo_slope P2(x)` without ice and rises to `albedo_ice` where the temperature falls below
-    `T_ice`.
+    Every band sits at `x = sin(latitude)` and holds its temperature `T` in °C.
 
     Args:
         label:
-            The label of the band or the field.
+            The label of the bands.
 
         T:
-            The initial temperature in °C.
+            The initial temperature in °C, one value or one per band.
 
         x:
-            The sine of the latitude of the band.
+            The sine of the latitude, one value or one per band.
+
+        space:
+            The lattice of the bands, or `None` for one band.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import LatitudeBandElement
+        >>> LatitudeBandElement('band', x=0.25).x
+        0.25
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        T: object = 15.0,
+        x: object = 0.5,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space)
+        self.T = T
+        self.x = x
+
+
+class LatitudeEnergyBalanceInteraction(Interaction):
+    """Energy balance of latitude bands heated by the sun and exchanging heat with their neighbours.
+
+    The temperature of a band at `x = sin(latitude)` follows `C dT/dt = Q s(x) (1 - a(x, T)) - (A + B T) + D d/dx((1 -
+    x^2) dT/dx)`, with the annual insolation `s(x) = 1 + s2 P2(x)`, where `P2(x) = (3x^2 - 1) / 2`. The albedo is
+    `albedo_free + albedo_slope P2(x)` without ice and rises to `albedo_ice` where the temperature falls below `T_ice`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the bands.
 
         Q:
             The mean insolation in W m⁻².
@@ -79,8 +111,8 @@ class LatitudeBandElement(Element):
             The width of the transition to ice in kelvin.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import LatitudeBandElement
-        >>> LatitudeBandElement('band').albedo_ice
+        >>> from skcomplex.systems.physics.climate import LatitudeEnergyBalanceInteraction
+        >>> LatitudeEnergyBalanceInteraction('balance', target='bands').albedo_ice
         0.62
     """
 
@@ -90,23 +122,21 @@ class LatitudeBandElement(Element):
         self,
         label: str,
         *,
-        T: Annotated[float, StateSpec()] = 15.0,
-        x: Annotated[float, ParameterSpec()] = 0.5,
-        Q: Annotated[float, ParameterSpec()] = 334.4,
-        s2: Annotated[float, ParameterSpec()] = -0.482,
-        A: Annotated[float, ParameterSpec()] = 203.3,
-        B: Annotated[float, ParameterSpec()] = 2.09,
-        D: Annotated[float, ParameterSpec()] = 0.649,
-        C: Annotated[float, ParameterSpec()] = 10.0,
-        albedo_ice: Annotated[float, ParameterSpec()] = 0.62,
-        albedo_free: Annotated[float, ParameterSpec()] = 0.319,
-        albedo_slope: Annotated[float, ParameterSpec()] = 0.202,
-        T_ice: Annotated[float, ParameterSpec()] = -10.0,
-        width: Annotated[float, ParameterSpec()] = 1.0,
+        target: Role,
+        Q: float = 334.4,
+        s2: float = -0.482,
+        A: float = 203.3,
+        B: float = 2.09,
+        D: float = 0.649,
+        C: float = 10.0,
+        albedo_ice: float = 0.62,
+        albedo_free: float = 0.319,
+        albedo_slope: float = 0.202,
+        T_ice: float = -10.0,
+        width: float = 1.0,
     ) -> None:
         super().__init__(label)
-        self.T = T
-        self.x = x
+        self.target = target
         self.Q = Q
         self.s2 = s2
         self.A = A
@@ -119,59 +149,107 @@ class LatitudeBandElement(Element):
         self.T_ice = T_ice
         self.width = width
 
-    def _get_albedo(self, s: SimpleNamespace, legendre: Expression) -> Expression:
-        """Return the albedo of the band.
-
-        The albedo rises smoothly from its ice free value to that of ice as the band cools.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the absorbed insolation, the outgoing radiation, and the meridional diffusion of heat.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-            legendre:
-                The second Legendre polynomial of the sine of the latitude.
-
-        Returns:
-            albedo:
-                The albedo of the band.
+            context:
+                The namespace of the bands, the time `t`, and the parameters.
         """
-        free = s.albedo_free + s.albedo_slope * legendre
-        return (s.albedo_ice + free) / 2 - (s.albedo_ice - free) / 2 * tanh((s.T - s.T_ice) / s.width)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            T, x = context.target.T, context.target.x
+            legendre = (3 * x**2 - 1) / 2
+            insolation = context.Q * (1 + context.s2 * legendre)
+            free = context.albedo_free + context.albedo_slope * legendre
+            ice = context.albedo_ice
+            albedo = (ice + free) / 2 - (ice - free) / 2 * tanh((T - context.T_ice) / context.width)
+            transport = context.D * ((1 - x**2) * laplacian(T) - 2 * x * gradient(T, 1)[0])
+            balance = (insolation * (1 - albedo) - (context.A + context.B * T) + transport) / context.C
+            self.laws_ = [RateLaw(T.diff(context.t), balance)]
 
-    def _get_transport(self, s: SimpleNamespace) -> Expression:
-        """Return the meridional diffusion of heat on the sphere, in the sine of latitude.
+
+class IceAlbedoBalanceInteraction(Interaction):
+    """Global energy balance of a planet with the ice-albedo feedback.
+
+    In units of the mean insolation, the temperature `T` of the target follows `T' = s (1 - a(T)) - sigma epsilon T^4`,
+    with the albedo `a(T) = albedo - contrast tanh((T - T_ice) / width)`, high on an icy planet and low on a warm one.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the planet.
+
+        s:
+            The insolation relative to the present one.
+
+        epsilon:
+            The effective emissivity, lowered by the greenhouse effect.
+
+        sigma:
+            The Stefan-Boltzmann constant divided by the mean insolation.
+
+        albedo:
+            The albedo at the middle of the transition from ice to no ice.
+
+        contrast:
+            Half the difference between the albedos of a frozen and of a warm planet.
+
+        T_ice:
+            The temperature of the middle of the transition.
+
+        width:
+            The width of the transition in kelvin.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import IceAlbedoBalanceInteraction
+        >>> IceAlbedoBalanceInteraction('balance', target='earth', epsilon=0.6).epsilon
+        0.6
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        s: float = 1.0,
+        epsilon: float = 0.65,
+        sigma: float = 1.6e-10,
+        albedo: float = 0.5,
+        contrast: float = 0.2,
+        T_ice: float = 263.0,
+        width: float = 4.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.s = s
+        self.epsilon = epsilon
+        self.sigma = sigma
+        self.albedo = albedo
+        self.contrast = contrast
+        self.T_ice = T_ice
+        self.width = width
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate of the temperature, the absorbed insolation minus the outgoing radiation.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            transport:
-                The heat the band gains from its neighbours.
+            context:
+                The namespace of the planet, the time `t`, and the parameters.
         """
-        return s.D * ((1 - s.x**2) * laplacian(s.T) - 2 * s.x * gradient(s.T, 1)[0])
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the absorbed insolation, the outgoing radiation, and the heat diffusion.
-
-        The outgoing radiation is linearized, and the diffusion of heat is meridional.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate law of the temperature of the band.
-        """
-        legendre = (3 * s.x**2 - 1) / 2
-        insolation = s.Q * (1 + s.s2 * legendre)
-        albedo = self._get_albedo(s, legendre)
-        transport = self._get_transport(s)
-        return [RateLaw(s.T, (insolation * (1 - albedo) - (s.A + s.B * s.T) + transport) / s.C)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            T = context.target.T
+            albedo = context.albedo - context.contrast * tanh((T - context.T_ice) / context.width)
+            radiation = context.sigma * context.epsilon * T**4
+            self.laws_ = [RateLaw(T.diff(context.t), context.s * (1 - albedo) - radiation)]
 
 
-class EnergyBalanceSystem(DynamicalSystem):
+class EnergyBalanceSystem(BaseSystem):
     """The zero-dimensional energy balance of the Earth.
 
     The balance is bistable through the ice-albedo feedback.
@@ -209,9 +287,16 @@ class EnergyBalanceSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import EnergyBalanceSystem
-        >>> EnergyBalanceSystem(T=230.0).prepare().system_.elements[0].values['T']
+        >>> trajectory = EnergyBalanceSystem(T=230.0).prepare().simulate(until=5.0)
+        >>> float(trajectory.get_values('earth.T')[0])
         230.0
     """
 
@@ -236,7 +321,7 @@ class EnergyBalanceSystem(DynamicalSystem):
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label, solver=solver, backend=backend)
+        super().__init__(label, solver=solver, backend=backend)
         self.T = T
         self.s = s
         self.epsilon = epsilon
@@ -246,37 +331,26 @@ class EnergyBalanceSystem(DynamicalSystem):
         self.T_ice = T_ice
         self.width = width
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'earth'
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the global temperature and its energy balance.
 
-    def _get_states(self) -> dict[str, object]:
-        """Return the initial value of every state by name."""
-        return {
-            'T': self.T,
-        }
-
-    def _get_parameters(self) -> dict[str, object]:
-        """Return the value of every parameter by name."""
-        return {
-            's': self.s,
-            'epsilon': self.epsilon,
-            'sigma': self.sigma,
-            'albedo': self.albedo,
-            'contrast': self.contrast,
-            'T_ice': self.T_ice,
-            'width': self.width,
-        }
-
-    def _get_equations(self) -> Equations:
-        """Return the absorbed insolation and the outgoing radiation."""
-        return {
-            'T': lambda s: (
-                s.target.s
-                * (1 - (s.target.albedo - s.target.contrast * tanh((s.target.T - s.target.T_ice) / s.target.width)))
-                - s.target.sigma * s.target.epsilon * s.target.T**4
-            ),
-        }
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        balance = IceAlbedoBalanceInteraction(
+            'balance',
+            target='earth',
+            s=self.s,
+            epsilon=self.epsilon,
+            sigma=self.sigma,
+            albedo=self.albedo,
+            contrast=self.contrast,
+            T_ice=self.T_ice,
+            width=self.width,
+        )
+        self.system_ = System(self.label, elements=[Element('earth', values={'T': self.T})], interactions=[balance])
 
 
 class BudykoSellersSystem(BaseSystem):
@@ -315,10 +389,17 @@ class BudykoSellersSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import BudykoSellersSystem
-        >>> BudykoSellersSystem(10).prepare().system_.elements[0].prepare().size_
-        10
+        >>> trajectory = BudykoSellersSystem(10).prepare().simulate(until=2.0)
+        >>> trajectory.get_values('bands.T').shape
+        (2, 10)
     """
 
     field = 'physics/climate'
@@ -338,8 +419,10 @@ class BudykoSellersSystem(BaseSystem):
         D: float = 0.649,
         C: float = 10.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_bands = n_bands
         self.T = T
         self.Q = Q
@@ -348,28 +431,30 @@ class BudykoSellersSystem(BaseSystem):
         self.D = D
         self.C = C
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Budyko-Sellers energy balance of one hemisphere.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the latitude bands of one hemisphere and their energy balance.
 
-        The balance is resolved in the sine of latitude.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        x = (np.arange(self.n_bands) + 0.5) / self.n_bands
-        bands = FieldElement(
+        super()._prepare(context)
+        bands = LatitudeBandElement(
             'bands',
-            element=LatitudeBandElement,
-            space=LatticeSpace(self.n_bands, spacing=1 / self.n_bands),
-            boundary={'T': 'zero-flux'},
-            values={
-                'T': np.full(self.n_bands, float(self.T)),
-                'x': x,
-                'Q': self.Q,
-                'A': self.A,
-                'B': self.B,
-                'D': self.D,
-                'C': self.C,
-            },
+            T=np.full(self.n_bands, float(self.T)),
+            x=(np.arange(self.n_bands) + 0.5) / self.n_bands,
+            space=LatticeSpace(self.n_bands, spacing=1 / self.n_bands, boundary='reflecting'),
         )
-        return CompositeSystem(self.label, elements=[bands])
+        balance = LatitudeEnergyBalanceInteraction(
+            'balance',
+            target='bands',
+            Q=self.Q,
+            A=self.A,
+            B=self.B,
+            D=self.D,
+            C=self.C,
+        )
+        self.system_ = System(self.label, elements=[bands], interactions=[balance])
 
 
 def _get_daisyworld_temperature(s: SimpleNamespace) -> Expression:

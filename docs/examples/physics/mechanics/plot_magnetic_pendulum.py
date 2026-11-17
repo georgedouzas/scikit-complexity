@@ -13,7 +13,6 @@ one. Which magnet wins depends so sensitively on where the bob is released that 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import MagneticPendulumSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'magnetic_pendulum'
 
 system = MagneticPendulumSystem(x=1.0, y=1.5, n_magnets=3)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=25, dt=0.1, observers=[observer])
+trajectory = system.prepare().simulate(until=25, dt=0.1, observers=[observer])
 
 # %%
 # Sensitive dependence on the release point
@@ -35,8 +34,8 @@ magnets = np.column_stack([np.cos(angles), np.sin(angles)])
 starts = np.linspace(-2.0, 2.0, 80)
 winners = []
 for start in starts:
-    run = simulate(MagneticPendulumSystem(x=start, y=1.5, n_magnets=3), until=40, dt=0.1)
-    final = np.asarray(run.get_values('bob.x'))[-1]
+    run = MagneticPendulumSystem(x=start, y=1.5, n_magnets=3).prepare().simulate(until=40, dt=0.1)
+    final = np.array([run.get_values('bob.x')[-1], run.get_values('bob.y')[-1]]).ravel()
     winners.append(np.argmin(np.linalg.norm(magnets - final, axis=1)))
 fig, ax = plt.subplots(figsize=(8, 3))
 ax.scatter(starts, winners, c=winners, cmap='viridis', s=18)

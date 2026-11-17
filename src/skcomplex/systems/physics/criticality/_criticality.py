@@ -14,6 +14,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import (
@@ -23,8 +24,12 @@ from ....core.components.spaces import (
     NetworkSpace,
     RadiusNeighborhood,
 )
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.avalanches import SandpileCellElement, TopplingInteraction
 
@@ -188,7 +193,7 @@ class FireInteraction(LocalRuleInteraction):
         return np.where(cover == BURNING, 0.0, np.where(cover == 1, tree, empty))
 
 
-class SandpileSystem(BaseSystem):
+class SandpileSystem(OldBaseSystem):
     """The Bak-Tang-Wiesenfeld sandpile on a lattice with open edges.
 
     The pile starts from random stable heights.
@@ -263,10 +268,17 @@ class MannaSandpileSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.criticality import MannaSandpileSystem
-        >>> MannaSandpileSystem((10, 10)).prepare().system_.elements[0].prepare().size_
-        100
+        >>> trajectory = MannaSandpileSystem((10, 10)).prepare().simulate(until=2, dt=1, random_state=0)
+        >>> trajectory.get_values('pile.height').shape
+        (3, 100)
     """
 
     field = 'physics/criticality'
@@ -281,30 +293,33 @@ class MannaSandpileSystem(BaseSystem):
         *,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Manna sandpile.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the Manna sandpile, a stochastic sandpile of another universality class than Bak-Tang-Wiesenfeld.
 
-        It is a stochastic sandpile of another universality class than Bak-Tang-Wiesenfeld.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         heights = (
             np.random.default_rng(self.random_state).integers(0, MANNA_THRESHOLD, size=tuple(self.shape)).astype(float)
         )
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
-            ],
+            elements=[Element('pile', values={'height': heights.ravel()}, space=space)],
             interactions=[AvalancheInteraction('avalanche', target='pile', threshold=MANNA_THRESHOLD, mode='random')],
         )
 
 
-class ForestFireSystem(BaseSystem):
+class ForestFireSystem(OldBaseSystem):
     """The Drossel-Schwabl forest fire.
 
     Slow growth and rare lightning give fires of every size.
@@ -381,7 +396,7 @@ class ForestFireSystem(BaseSystem):
         )
 
 
-class HexagonalForestFireSystem(BaseSystem):
+class HexagonalForestFireSystem(OldBaseSystem):
     """The Drossel-Schwabl forest fire on a hexagonal lattice or on a graph.
 
     The hexagonal cells form a triangular lattice, and on a graph the sites are its nodes.

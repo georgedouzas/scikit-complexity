@@ -18,7 +18,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import ChiralActiveParticlesSystem
@@ -41,7 +40,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-trajectory = simulate(system, solver=solver, dt=0.1, observers=[observer], random_state=0)
+trajectory = system.set_params(solver=solver).prepare().simulate(dt=0.1, observers=[observer], random_state=0)
 
 # %%
 # Circling suppresses diffusion
@@ -56,7 +55,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 rotation = 0.1
 for omega, color in ((0.0, 'tab:blue'), (2.0, 'tab:orange')):
     system_o = ChiralActiveParticlesSystem(n_particles=500, omega=omega, size=1e5, random_state=1)
-    run = simulate(system_o, until=40, solver=solver, dt=0.1, random_state=1)
+    run = system_o.set_params(solver=solver).prepare().simulate(until=40, dt=0.1, random_state=1)
     positions = run.get_values('swimmers.x')
     times = run.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)

@@ -3,9 +3,11 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.components.elements import Element
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import orbit_diagram
-from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+from skcomplex.core.systems import System
+from skcomplex.systems.mathematics.dynamical_systems import HenonMapInteraction, LogisticMapSystem
 
 
 def _orbit_diagram(rates, **settings):
@@ -49,3 +51,16 @@ def test_orbit_diagram_needs_kept_frames_and_values():
         orbit_diagram(LogisticMapSystem(), 'map.r', [3.0], 'map.x', transient=10, keep=0)
     with pytest.raises(ValidationError, match='at least one value'):
         orbit_diagram(LogisticMapSystem(), 'map.r', [], 'map.x', transient=10, keep=1)
+
+
+def test_orbit_diagram_of_a_system_by_nested_name_and_path():
+    """Test that a `System` sweeps the parameter of an interaction by its nested name as by its dotted path."""
+    system = System(
+        elements=[Element('map', values={'x': 0.0, 'y': 0.0})],
+        interactions=[HenonMapInteraction('henon', target='map')],
+    )
+    by_name = orbit_diagram(system, 'henon__a', [0.2, 0.9], 'map.x', transient=500, keep=8)
+    by_path = orbit_diagram(system, 'henon.a', [0.2, 0.9], 'map.x', transient=500, keep=8)
+    for first, second in zip(by_name.points, by_path.points, strict=True):
+        np.testing.assert_allclose(first, second, atol=1e-12)
+    assert by_name.periods.tolist() == [1, 2]

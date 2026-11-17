@@ -15,7 +15,6 @@ direction. The view shows 50 particles started at the origin, flying apart along
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import DepotBrownianParticlesSystem
@@ -25,7 +24,7 @@ SYSTEM = 'depot_brownian_particles'
 system = DepotBrownianParticlesSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-trajectory = simulate(system, until=20, solver=solver, observers=[observer], random_state=0)
+trajectory = system.set_params(solver=solver).prepare().simulate(until=20, observers=[observer], random_state=0)
 
 # %%
 # Bifurcation to active motion
@@ -38,13 +37,8 @@ trajectory = simulate(system, until=20, solver=solver, observers=[observer], ran
 intakes = np.linspace(0.5, 12, 12)
 speeds = []
 for intake in intakes:
-    run = simulate(
-        DepotBrownianParticlesSystem(q=intake, random_state=1),
-        until=40,
-        solver=solver,
-        dt=0.5,
-        random_state=1,
-    )
+    system_q = DepotBrownianParticlesSystem(q=intake, random_state=1, solver=solver)
+    run = system_q.prepare().simulate(until=40, dt=0.5, random_state=1)
     speeds.append(np.linalg.norm(run.get_values('walkers.v')[-20:], axis=-1).mean())
 grid = np.linspace(0.5, 12, 300)
 fig, ax = plt.subplots(figsize=(7, 4))

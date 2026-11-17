@@ -193,15 +193,15 @@ class Trajectory:
         Examples:
             Three logistic maps run as one group, and the second member is the map that starts at 0.2.
 
-            >>> from skcomplex.core.components.elements import GroupElement
-            >>> from skcomplex.core.components.systems import CompositeSystem
-            >>> from skcomplex.core.engine.runtime import simulate
-            >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapElement, LogisticMapSystem
-            >>> system = LogisticMapSystem().prepare().system_
-            >>> group = GroupElement('map', element=LogisticMapElement, size=3, values={'x': [0.1, 0.2, 0.3]})
-            >>> ensemble = CompositeSystem(elements=[group], interactions=system.interactions)
-            >>> trajectory = simulate(ensemble, until=2, dt=1)
-            >>> trajectory.get_member(1, simulate(system, until=0).problem).get_values('map.x').round(3).tolist()
+            >>> from skcomplex.core.components.elements import Element
+            >>> from skcomplex.core.systems import System
+            >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapInteraction
+            >>> logistic = LogisticMapInteraction('logistic', target='map')
+            >>> single = System(elements=[Element('map', values={'x': 0.2, 'r': 3.7})], interactions=[logistic])
+            >>> maps = Element('map', values={'x': [0.1, 0.2, 0.3], 'r': 3.7}, size=3)
+            >>> trajectory = System(elements=[maps], interactions=[logistic]).prepare().simulate(2, dt=1)
+            >>> original = single.prepare().simulate(0).problem
+            >>> trajectory.get_member(1, original).get_values('map.x').round(3).tolist()
             [0.2, 0.592, 0.894]
         """
         frames = len(self.times)

@@ -14,7 +14,6 @@ approach advances a little every turn, so the orbit draws a rosette.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.celestial_mechanics import SchwarzschildPrecessionSystem
@@ -24,7 +23,7 @@ SYSTEM = 'schwarzschild_precession'
 system = SchwarzschildPrecessionSystem(semi_major_axis=100.0, eccentricity=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
 solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-trajectory = simulate(system, solver=solver, observers=[observer])
+trajectory = system.set_params(solver=solver).prepare().simulate(observers=[observer])
 
 # %%
 # Advance of the periapsis
@@ -33,7 +32,7 @@ trajectory = simulate(system, solver=solver, observers=[observer])
 # where the radial velocity turns positive, less whole turns, should step by about that much.
 
 x = np.asarray(trajectory.get_values('particle.x'))
-u = np.asarray(trajectory.get_values('particle.x_d1'))
+u = np.asarray(trajectory.get_values("particle.x'"))
 radius, angle = x[:, 1], x[:, 3]
 index = np.flatnonzero((u[:-1, 1] < 0) & (u[1:, 1] >= 0))
 advances = np.diff(np.concatenate([[0.0], angle[index]])) - 2 * np.pi

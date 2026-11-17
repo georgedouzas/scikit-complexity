@@ -9,7 +9,6 @@ Kuramoto oscillators are coupled in pairs and through the triangles of a hypergr
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
@@ -17,29 +16,35 @@ import xgi
 from sage.all__sagemath_symbolics import sin
 from scipy import stats
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import HyperedgeInteraction
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
-from ..common.oscillators import PhaseOscillatorElement, order_parameter
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import hyperedges
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
+from ..common.oscillators import PhaseRotationInteraction, order_parameter
 
 PAIR = 2
+TRIANGLE = 3
 
 
-class SimplexCouplingInteraction(HyperedgeInteraction):
+class SimplexCouplingInteraction(Interaction):
     """Kuramoto coupling through the simplices of a hypergraph, pairs and triangles.
 
     On a link, the focal oscillator `i` gets `K1 sin(theta_j - theta_i)`, and on a triangle `K2 sin(theta_j + theta_k -
-    2 theta_i)` from its two other members `j` and `k`.
+    2 theta_i)` from its two other members `j` and `k`, as for neurons that fire in groups or species that compete in
+    threes.
 
     Args:
         label:
             The label of the interaction, unique among the components of its system.
 
         target:
-            The path of the group of oscillators on the nodes.
+            The path of the group of oscillators on the nodes of a network with hyperedges.
 
         K1:
             The coupling of every link.
@@ -55,32 +60,25 @@ class SimplexCouplingInteraction(HyperedgeInteraction):
 
     law_classes = (RateLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        K1: Annotated[float, ParameterSpec()] = 0.0,
-        K2: Annotated[float, ParameterSpec()] = 1.0,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role, K1: float = 0.0, K2: float = 1.0) -> None:
         super().__init__(label)
         self.target = target
         self.K1 = K1
         self.K2 = K2
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the coupling of the focal oscillator to the rest of a link or a triangle."""
-        theta = s.member.theta
-        others = [other.theta for other in s.others]
-        if len(others) + 1 == PAIR:
-            return [RateLaw(theta, s.K1 * sin(others[0] - theta))]
-        return [RateLaw(theta, s.K2 * sin(sum(others) - len(others) * theta))]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the coupling of every oscillator to the rest of its links and triangles.
 
-
-class NodeOscillatorElement(PhaseOscillatorElement):
-    """Phase oscillator on a node, drawn with its phase."""
-
-    visual = VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi})
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            theta, others = context.target.theta, context.target.others
+            links = hyperedges(context.K1 * sin(others[0].theta - theta), size=PAIR)
+            triangles = hyperedges(context.K2 * sin(others[0].theta + others[1].theta - 2 * theta), size=TRIANGLE)
+            self.laws_ = [RateLaw(theta.diff(context.t), links + triangles)]
 
 
 class HypergraphKuramotoSystem(BaseSystem):
@@ -125,6 +123,12 @@ class HypergraphKuramotoSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.synchronization import HypergraphKuramotoSystem
         >>> system = HypergraphKuramotoSystem(6).prepare().system_
@@ -151,8 +155,10 @@ class HypergraphKuramotoSystem(BaseSystem):
         phases: Sequence[float] | None = None,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_oscillators = n_oscillators
         self.K1 = K1
         self.K2 = K2
@@ -170,13 +176,19 @@ class HypergraphKuramotoSystem(BaseSystem):
         """
         return xgi.fast_random_hypergraph(n_oscillators, [links, triangles], seed=seed)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Kuramoto oscillators coupled in pairs and by three-body interactions.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         hypergraph = self._get_simplices(self.n_oscillators, self.links, self.triangles, self.seed)
         space = NetworkSpace(nx.complete_graph(self.n_oscillators), hyperedges=hypergraph)
         sizes = [len(members) for members in hypergraph.edges.members(dtype=list)]
         mean_links = max(PAIR * sizes.count(PAIR) / self.n_oscillators, 1.0)
-        mean_triangles = max(3 * sizes.count(3) / self.n_oscillators, 1.0)
+        mean_triangles = max(TRIANGLE * sizes.count(TRIANGLE) / self.n_oscillators, 1.0)
         rng = np.random.default_rng(self.seed + 1)
         omega = self.width * stats.cauchy.ppf(rng.uniform(size=self.n_oscillators))
         theta = (
@@ -184,17 +196,14 @@ class HypergraphKuramotoSystem(BaseSystem):
             if self.phases is None
             else np.asarray(self.phases, dtype=float)
         )
-        oscillators = GroupElement(
-            'oscillators',
-            element=NodeOscillatorElement,
-            space=space,
-            values={'theta': theta, 'omega': omega},
-            on='sites',
-        )
         coupling = SimplexCouplingInteraction(
             'coupling',
             target='oscillators',
             K1=self.K1 / mean_links,
             K2=self.K2 / mean_triangles,
         )
-        return CompositeSystem(self.label, elements=[oscillators], interactions=[coupling])
+        self.system_ = System(
+            self.label,
+            elements=[Element('oscillators', values={'theta': theta, 'omega': omega}, space=space)],
+            interactions=[coupling, PhaseRotationInteraction('rotation', target='oscillators')],
+        )

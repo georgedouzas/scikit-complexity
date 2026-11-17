@@ -14,7 +14,6 @@ exponential.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.cosmology import FriedmannExpansionSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'friedmann_expansion'
 
 system = FriedmannExpansionSystem(a=0.3, H0=1.0, omega_matter=0.3, omega_lambda=0.7)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, dt=0.01, observers=[observer])
+trajectory = system.prepare().simulate(dt=0.01, observers=[observer])
 
 # %%
 # Exact solution
@@ -42,7 +41,7 @@ def exact(age):
 start = 2 / (3 * np.sqrt(vacuum)) * np.arcsinh(np.sqrt(vacuum / matter * 0.3**3))
 times = np.asarray(trajectory.times)
 scale = np.ravel(trajectory.get_values('universe.a'))
-rate = np.ravel(trajectory.get_values('universe.a_d1'))
+rate = np.ravel(trajectory.get_values("universe.a'"))
 fig, (growth, speed) = plt.subplots(1, 2, figsize=(10, 4))
 growth.plot(times, scale, label='simulated')
 growth.plot(times, exact(start + times), '--', color='black', label='exact')

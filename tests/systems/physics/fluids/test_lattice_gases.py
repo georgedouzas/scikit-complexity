@@ -3,13 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.fluids import FHPLatticeGasSystem, HPPLatticeGasSystem
 
 
 def _channels(system, until):
     """Return the four channels of a run, as arrays of frames, rows, and columns."""
-    trajectory = simulate(system, until=until, dt=1)
+    trajectory = system.prepare().simulate(until=until, dt=1)
     shape = (-1, *system.elements[0].space.shape)
     return [
         np.asarray(trajectory.get_values(f'gas.n{direction}'), dtype=float).reshape(shape) for direction in range(4)
@@ -18,7 +17,7 @@ def _channels(system, until):
 
 def test_fhp_lattice_gas_conserves_mass_and_momentum():
     """Test that the FHP gas on a periodic 64 x 64 lattice keeps its particle number and momentum for 500 steps."""
-    trajectory = simulate(FHPLatticeGasSystem((64, 64)), until=500, random_state=0)
+    trajectory = FHPLatticeGasSystem((64, 64)).prepare().simulate(until=500, random_state=0)
     occupations = np.stack(
         [trajectory.get_values(f'gas.n{direction}').astype(float).sum(axis=1) for direction in range(6)],
     )
@@ -36,7 +35,7 @@ def test_hpp_particle_moves_one_site_per_step_along_its_direction():
     gas = system.elements[0]
     values = {f'n{direction}': np.zeros(36) for direction in range(4)}
     values['n0'][0], values['n1'][7] = 1.0, 1.0
-    gas.set_params(values={**gas.values, **values, 'density': values['n0'] + values['n1']})
+    gas.set_params(**values, density=values['n0'] + values['n1'])
     east, north = _channels(system, 2)[:2]
     assert [np.flatnonzero(frame.ravel()).tolist() for frame in east] == [[0], [1], [2]]
     assert [np.flatnonzero(frame.ravel()).tolist() for frame in north] == [[7], [13], [19]]

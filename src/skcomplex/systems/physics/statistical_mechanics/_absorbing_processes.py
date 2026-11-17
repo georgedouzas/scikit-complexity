@@ -6,27 +6,27 @@ The reactions are branching, decay, and pair annihilation.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, JumpLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import JumpLaw
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class ReactingParticlesElement(Element):
-    """Number `n` of particles in a volume `V`.
-
-    The particles react by `A -> 2A`, `A -> 0`, and `2A -> A`.
-
-    A particle branches at rate `kappa`, decays at rate `nu`, and every pair annihilates at rate `lambda / V`, so
-    `W(n + 1 | n) = kappa n + epsilon delta_n0` and `W(n - 1 | n) = nu n + lambda n (n - 1) / V`. The empty state
-    absorbs when `epsilon = 0`.
+    """Number `n` of particles in a volume.
 
     Args:
         label:
@@ -34,6 +34,31 @@ class ReactingParticlesElement(Element):
 
         n:
             The initial number of particles.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import ReactingParticlesElement
+        >>> ReactingParticlesElement('particles').n
+        100.0
+    """
+
+    def __init__(self, label: str, *, n: Annotated[float, NN] = 100.0) -> None:
+        super().__init__(label)
+        self.n = n
+
+
+class BranchingAnnihilationInteraction(Interaction):
+    """Reactions `A -> 2A`, `A -> 0`, and `2A -> A` of the particles in a volume `V`.
+
+    A particle branches at rate `kappa`, decays at rate `nu`, and every pair annihilates at rate `lambda / V`, so
+    `W(n + 1 | n) = kappa n + epsilon delta_n0` and `W(n - 1 | n) = nu n + lambda n (n - 1) / V`. The empty state
+    absorbs when `epsilon = 0`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particles, whose value `n` counts them.
 
         kappa:
             The branching rate.
@@ -51,8 +76,8 @@ class ReactingParticlesElement(Element):
             The rate at which a particle appears in the empty state.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import ReactingParticlesElement
-        >>> ReactingParticlesElement('particles').kappa
+        >>> from skcomplex.systems.physics.statistical_mechanics import BranchingAnnihilationInteraction
+        >>> BranchingAnnihilationInteraction('reactions', target='particles').kappa
         2.0
     """
 
@@ -62,37 +87,35 @@ class ReactingParticlesElement(Element):
         self,
         label: str,
         *,
-        n: Annotated[float, StateSpec(domain=NN)] = 100.0,
-        kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        volume: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Role,
+        kappa: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        nu: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        lam: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        volume: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
         super().__init__(label)
-        self.n = n
+        self.target = target
         self.kappa = kappa
         self.nu = nu
         self.lam = lam
         self.volume = volume
         self.epsilon = epsilon
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the creation and the removal of one particle.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the creation and the removal of one particle.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        n = s.n
-        return [
-            JumpLaw(s.kappa * n + s.epsilon * where(n < 1, 1, 0), {n: 1}),
-            JumpLaw(s.nu * n + s.lam * n * (n - 1) / s.volume, {n: -1}),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, n = context, context.target.n
+            self.laws_ = [
+                JumpLaw(s.kappa * n + s.epsilon * where(n < 1, 1, 0), {n: 1}),
+                JumpLaw(s.nu * n + s.lam * n * (n - 1) / s.volume, {n: -1}),
+            ]
 
 
 class AbsorbingBirthDeathSystem(BaseSystem):
@@ -129,6 +152,12 @@ class AbsorbingBirthDeathSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import AbsorbingBirthDeathSystem
         >>> AbsorbingBirthDeathSystem(volume=50.0).prepare().system_.elements[0].n
@@ -151,8 +180,10 @@ class AbsorbingBirthDeathSystem(BaseSystem):
         density: float = 1.0,
         epsilon: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.kappa = kappa
         self.nu = nu
         self.lam = lam
@@ -160,15 +191,22 @@ class AbsorbingBirthDeathSystem(BaseSystem):
         self.density = density
         self.epsilon = epsilon
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        particles = ReactingParticlesElement(
-            'particles',
-            n=float(round(self.density * self.volume)),
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the particles and their reactions.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        reactions = BranchingAnnihilationInteraction(
+            'reactions',
+            target='particles',
             kappa=self.kappa,
             nu=self.nu,
             lam=self.lam,
             volume=self.volume,
             epsilon=self.epsilon,
         )
-        return CompositeSystem(self.label, elements=[particles])
+        particles = ReactingParticlesElement('particles', n=float(round(self.density * self.volume)))
+        self.system_ = System(self.label, elements=[particles], interactions=[reactions])

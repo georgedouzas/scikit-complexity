@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution, ergodicity, events, fit_law
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.criticality import EvolutionarySKGameSystem
 
@@ -27,7 +26,7 @@ TRANSIENT = 1500
 
 system = EvolutionarySKGameSystem(memory=0.75, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=50)
-trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=STEPS, observers=[observer], random_state=0)
 temperatures = np.asarray(trajectory.get_values('agents.temperature'))
 fitness = np.asarray(trajectory.get_values('agents.fitness'))[::3][TRANSIENT // 3 :]
 rewards = np.asarray(trajectory.get_values('agents.reward')).mean(axis=1)
@@ -57,11 +56,9 @@ scales = np.arange(-2, 3)
 coefficients = []
 for scale in scales:
     runs = [
-        simulate(
-            EvolutionarySKGameSystem(temperature=evolved * 2.0**scale, random_state=0),
-            until=300,
-            random_state=run,
-        )
+        EvolutionarySKGameSystem(temperature=evolved * 2.0**scale, random_state=0)
+        .prepare()
+        .simulate(until=300, random_state=run)
         .get_values('agents.reward')
         .mean(axis=1)[150:]
         for run in range(4)

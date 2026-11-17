@@ -3,11 +3,16 @@
 The package covers self-propelled particles, flocking, polar fluids, chemotaxis, squirmers, and Active System B+.
 """
 
-from ..common.particles import ActiveParticleElement, PropulsionStepInteraction, SelfPropulsionInteraction
+from ..common.particles import (
+    ActiveDiffusionInteraction,
+    ActiveParticleElement,
+    PropulsionStepInteraction,
+    SelfPropulsionInteraction,
+)
 from ._active_passive import ActivePassiveFlockingSystem, FlockingAgentElement
 from ._alignment import AligningActiveBrownianParticlesSystem, PolarAlignmentInteraction
-from ._cells import MotileCellElement, SzaboCellsSystem
-from ._chemotaxis import ChemotaxisElement, KellerSegelSystem
+from ._cells import CellMotilityInteraction, MotileCellElement, SzaboCellsSystem
+from ._chemotaxis import ChemotaxisElement, ChemotaxisInteraction, KellerSegelSystem
 from ._collective import (
     CuckerSmaleAlignmentInteraction,
     CuckerSmaleFlockingSystem,
@@ -15,11 +20,17 @@ from ._collective import (
     MotilityInducedPhaseSeparationSystem,
     PhoreticAttractionInteraction,
     PolarFluidElement,
+    TonerTuInteraction,
     TonerTuSystem,
 )
 from ._collisions import BinaryCollisionFlockingSystem, BinaryCollisionsInteraction, FlockerElement, FlockerView
-from ._deformable import DeformableActiveParticlesSystem, DeformableParticleElement
+from ._deformable import (
+    DeformableActiveParticlesSystem,
+    DeformableParticleElement,
+    ShapeVelocityCouplingInteraction,
+)
 from ._flocks import (
+    CohesiveAlignmentInteraction,
     CohesiveParticleElement,
     DelayedVicsekParticleElement,
     GinelliNematicsSystem,
@@ -39,32 +50,42 @@ from ._nematics import (
     NematicGelSiteElement,
     PolarGelSiteElement,
 )
-from ._nonreciprocal import NonreciprocalMoverElement, NonreciprocalVicsekSystem
+from ._nonreciprocal import (
+    NonreciprocalAlignmentInteraction,
+    NonreciprocalMoverElement,
+    NonreciprocalVicsekSystem,
+)
 from ._particles import (
     ActiveBrownianParticlesSystem,
     ActiveOrnsteinUhlenbeckParticlesSystem,
     ChiralActiveParticlesSystem,
     DepotBrownianParticlesSystem,
     DepotParticleElement,
+    DepotPumpingInteraction,
     InertialActiveBrownianParticlesSystem,
     InertialActiveParticleElement,
+    InertialPropulsionInteraction,
     OrnsteinUhlenbeckParticleElement,
+    OrnsteinUhlenbeckPropulsionInteraction,
     RunAndTumbleSystem,
     TumblerElement,
     TumblerView,
 )
-from ._polymers import ActiveBeadElement, ActivePolymerSystem
+from ._polymers import ActiveBeadElement, ActivePolymerSystem, ActiveRouseInteraction
 from ._squirmers import SquirmerElement, SquirmerSlipInteraction, SquirmersSystem
-from ._system_b import ActiveScalarElement, ActiveSystemBSystem
+from ._system_b import ActiveCahnHilliardInteraction, ActiveScalarElement, ActiveSystemBSystem
 
 __all__: list[str] = [
     'ActiveBeadElement',
     'ActiveBrownianParticlesSystem',
+    'ActiveCahnHilliardInteraction',
+    'ActiveDiffusionInteraction',
     'ActiveGelsSystem',
     'ActiveOrnsteinUhlenbeckParticlesSystem',
     'ActiveParticleElement',
     'ActivePassiveFlockingSystem',
     'ActivePolymerSystem',
+    'ActiveRouseInteraction',
     'ActiveScalarElement',
     'ActiveSystemBSystem',
     'ActiveViscoelasticGelSystem',
@@ -74,8 +95,11 @@ __all__: list[str] = [
     'BertinDrozGregoireSystem',
     'BinaryCollisionFlockingSystem',
     'BinaryCollisionsInteraction',
+    'CellMotilityInteraction',
     'ChemotaxisElement',
+    'ChemotaxisInteraction',
     'ChiralActiveParticlesSystem',
+    'CohesiveAlignmentInteraction',
     'CohesiveParticleElement',
     'ContractileGelSiteElement',
     'CuckerSmaleAlignmentInteraction',
@@ -85,6 +109,7 @@ __all__: list[str] = [
     'DelayedVicsekParticleElement',
     'DepotBrownianParticlesSystem',
     'DepotParticleElement',
+    'DepotPumpingInteraction',
     'DryActiveNematicsSystem',
     'FlockerElement',
     'FlockerView',
@@ -94,6 +119,7 @@ __all__: list[str] = [
     'HeadingAlignmentInteraction',
     'InertialActiveBrownianParticlesSystem',
     'InertialActiveParticleElement',
+    'InertialPropulsionInteraction',
     'KellerSegelSystem',
     'LandauDeGennesEnergyInteraction',
     'LivingCrystalsSystem',
@@ -102,9 +128,11 @@ __all__: list[str] = [
     'NematicDensitySiteElement',
     'NematicGelSiteElement',
     'NematicParticleElement',
+    'NonreciprocalAlignmentInteraction',
     'NonreciprocalMoverElement',
     'NonreciprocalVicsekSystem',
     'OrnsteinUhlenbeckParticleElement',
+    'OrnsteinUhlenbeckPropulsionInteraction',
     'PhoreticAttractionInteraction',
     'PolarAlignmentInteraction',
     'PolarFluidElement',
@@ -112,10 +140,12 @@ __all__: list[str] = [
     'PropulsionStepInteraction',
     'RunAndTumbleSystem',
     'SelfPropulsionInteraction',
+    'ShapeVelocityCouplingInteraction',
     'SquirmerElement',
     'SquirmerSlipInteraction',
     'SquirmersSystem',
     'SzaboCellsSystem',
+    'TonerTuInteraction',
     'TonerTuSystem',
     'TumblerElement',
     'TumblerView',

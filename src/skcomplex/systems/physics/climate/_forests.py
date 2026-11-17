@@ -6,28 +6,29 @@ A tropical forest warms its soil, alone or coupled with the mitigation of a popu
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
-from ....core.components.laws.utils import delayed
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class ForestCoverElement(Element):
-    """Vegetation cover of a tropical forest.
-
-    Its growth rate falls on both sides of an optimal temperature.
+    """Vegetation cover of a tropical forest and the temperature of its soil.
 
     The cover `v` runs from 0 for bare soil to 1 for full forest. Bare soil is warmer than forest by `a`, so the local
-    temperature is `T = Tv + a (1 - v)`, and the growth rate `g = g0 (1 - ((T - Topt) / beta)²)` peaks at `Topt`. A
-    rate interaction gives the logistic growth `g v (1 - v)` and the disturbance `gamma v`, so the element holds the
-    state and the parameters it reads.
+    temperature is `T = Tv + a (1 - v)`. `ForestGrowthInteraction` gives the growth of the cover.
 
     Args:
         label:
@@ -39,6 +40,65 @@ class ForestCoverElement(Element):
         Tv:
             The ambient temperature, the temperature under full forest cover, in degrees Celsius.
 
+        a:
+            The warming of bare soil over forest.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import ForestCoverElement
+        >>> ForestCoverElement('forest').Tv
+        30.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        v: Annotated[float, RealSet.closed(0, 1)] = 0.8,
+        Tv: float = 30.0,
+        a: float = 5.0,
+    ) -> None:
+        super().__init__(label)
+        self.v = v
+        self.Tv = Tv
+        self.a = a
+
+
+class MitigatorsElement(Element):
+    """Share of mitigators in a population.
+
+    The share `x` runs from 0 to 1, and `MitigationInteraction` gives its replicator dynamics.
+
+    Args:
+        label:
+            The label of the population.
+
+        x:
+            The initial share of mitigators.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import MitigatorsElement
+        >>> MitigatorsElement('people', x=0.3).x
+        0.3
+    """
+
+    def __init__(self, label: str, *, x: Annotated[float, RealSet.closed(0, 1)] = 0.5) -> None:
+        super().__init__(label)
+        self.x = x
+
+
+class ForestGrowthInteraction(Interaction):
+    """Logistic growth of the cover of a forest under its disturbance.
+
+    The cover `v` of the target follows `v' = g v (1 - v) - gamma v`, with the growth rate `g = g0 (1 - ((T - Topt) /
+    beta)²)` at the local temperature `T = Tv + a (1 - v)` of the forest, which peaks at `Topt`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the forest.
+
         g0:
             The largest growth rate.
 
@@ -48,61 +108,129 @@ class ForestCoverElement(Element):
         Topt:
             The optimal temperature of growth.
 
-        a:
-            The warming of bare soil over forest.
+        gamma:
+            The disturbance rate.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import ForestGrowthInteraction
+        >>> ForestGrowthInteraction('growth', target='forest').Topt
+        28.0
+    """
+
+    law_classes = (RateLaw,)
+
+    @staticmethod
+    def _get_temperature(forest: SimpleNamespace, cover: Expression) -> Expression:
+        """Return the local temperature `Tv + a (1 - v)` of a forest of a given cover."""
+        return forest.Tv + forest.a * (1 - cover)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        g0: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        beta: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        Topt: float = 28.0,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.g0 = g0
+        self.beta = beta
+        self.Topt = Topt
+        self.gamma = gamma
+
+    def _get_efficiency(self, context: SimpleNamespace) -> Expression | float:
+        """Return the factor of the growth rate, 1 for a forest on its own."""
+        return 1
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the logistic growth of the cover minus its disturbance.
+
+        Args:
+            context:
+                The namespace of the forest, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            forest = context.target
+            temperature = self._get_temperature(forest, forest.v)
+            growth = context.g0 * (1 - ((temperature - context.Topt) / context.beta) ** 2)
+            rate = growth * self._get_efficiency(context) * forest.v * (1 - forest.v) - context.gamma * forest.v
+            self.laws_ = [RateLaw(forest.v.diff(context.t), rate)]
+
+
+class MitigatedForestGrowthInteraction(ForestGrowthInteraction):
+    """Growth of the cover of a forest helped by the share of mitigators of a population.
+
+    The growth rate of `ForestGrowthInteraction` is scaled by `0.2 + 0.4 x`, where `x` is the share of mitigators.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the forest.
+
+        mitigators:
+            The path of the population whose share of mitigators helps the forest.
+
+        g0:
+            The largest growth rate.
+
+        beta:
+            The half width of the growth rate against the temperature.
+
+        Topt:
+            The optimal temperature of growth.
 
         gamma:
             The disturbance rate.
 
-    Attributes:
-        default_visual_:
-            How the forest is drawn by default, the `visual` of its class.
-
     Examples:
-        >>> from skcomplex.systems.physics.climate import ForestCoverElement
-        >>> ForestCoverElement('forest').Topt
-        28.0
+        >>> from skcomplex.systems.physics.climate import MitigatedForestGrowthInteraction
+        >>> MitigatedForestGrowthInteraction('growth', target='forest', mitigators='people').mitigators
+        'people'
     """
 
     def __init__(
         self,
         label: str,
         *,
-        v: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.8,
-        Tv: Annotated[float, ParameterSpec()] = 30.0,
-        g0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        Topt: Annotated[float, ParameterSpec()] = 28.0,
-        a: Annotated[float, ParameterSpec()] = 5.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        target: Role,
+        mitigators: Role,
+        g0: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        beta: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        Topt: float = 28.0,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
     ) -> None:
-        super().__init__(label)
-        self.v = v
-        self.Tv = Tv
-        self.g0 = g0
-        self.beta = beta
-        self.Topt = Topt
-        self.a = a
-        self.gamma = gamma
+        super().__init__(label, target=target, g0=g0, beta=beta, Topt=Topt, gamma=gamma)
+        self.mitigators = mitigators
+
+    def _get_efficiency(self, context: SimpleNamespace) -> Expression | float:
+        """Return the factor `0.2 + 0.4 x` of the growth rate."""
+        efficiency: Expression = 0.2 + 0.4 * context.mitigators.x
+        return efficiency
 
 
-class MitigatorsElement(Element):
-    """Share of mitigators in a population.
+class MitigationInteraction(Interaction):
+    """Replicator dynamics of the share of mitigators, who perceive the warming of a forest.
 
-    The population weighs the cost of mitigation against the perceived cost of warming.
-
-    The share `x` follows the replicator equation `x' = x (1 - x) (-alpha + f + delta (2 x - 1))`, with the cost of
-    mitigation `alpha`, the strength `delta` of the social norm, and the cost of warming
-    `f = fmax / (1 + exp(-w (Tf - Tc)))`. The perceived warming `Tf = tf / tp (T(t) - T(t - tp))` projects the warming
-    of the last `tp` years over `tf` years. A rate interaction reads the temperature it perceives, so the element holds
-    the state and the parameters it reads.
+    The share `x` of the target follows `x' = x (1 - x) (-alpha + f + delta (2 x - 1))`, with the cost of mitigation
+    `alpha`, the strength `delta` of the social norm, and the cost of warming `f = fmax / (1 + exp(-w (Tf - Tc)))`. The
+    perceived warming `Tf = tf / tp (T(t) - T(t - tp))` projects the warming of the forest over the last `tp` years
+    over `tf` years.
 
     Args:
         label:
-            The label of the population.
+            The label of the interaction.
 
-        x:
-            The initial share of mitigators.
+        target:
+            The path of the population.
+
+        forest:
+            The path of the forest whose warming the population perceives.
 
         alpha:
             The cost of mitigation.
@@ -125,31 +253,31 @@ class MitigatorsElement(Element):
         tf:
             The years ahead of the projection.
 
-    Attributes:
-        default_visual_:
-            How the population is drawn by default, the `visual` of its class.
-
     Examples:
-        >>> from skcomplex.systems.physics.climate import MitigatorsElement
-        >>> MitigatorsElement('people').tp
+        >>> from skcomplex.systems.physics.climate import MitigationInteraction
+        >>> MitigationInteraction('mitigation', target='people', forest='forest').tp
         10.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.5,
-        alpha: Annotated[float, ParameterSpec()] = 1.0,
-        delta: Annotated[float, ParameterSpec()] = 1.0,
-        fmax: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        Tc: Annotated[float, ParameterSpec()] = 1.0,
-        tp: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        tf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
+        target: Role,
+        forest: Role,
+        alpha: float = 1.0,
+        delta: float = 1.0,
+        fmax: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        w: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        Tc: float = 1.0,
+        tp: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        tf: Annotated[float, RealSet.closed_open(0, oo)] = 15.0,
     ) -> None:
         super().__init__(label)
-        self.x = x
+        self.target = target
+        self.forest = forest
         self.alpha = alpha
         self.delta = delta
         self.fmax = fmax
@@ -157,6 +285,29 @@ class MitigatorsElement(Element):
         self.Tc = Tc
         self.tp = tp
         self.tf = tf
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the replicator rate of the share of mitigators.
+
+        Args:
+            context:
+                The namespace of the population and the forest, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            people, forest, t = context.target, context.forest, context.t
+            past = forest.v(t=t - context.tp)
+            perceived = (
+                context.tf
+                / context.tp
+                * (
+                    ForestGrowthInteraction._get_temperature(forest, forest.v)
+                    - ForestGrowthInteraction._get_temperature(forest, past)
+                )
+            )
+            cost = context.fmax / (1 + exp(-context.w * (perceived - context.Tc)))
+            rate = people.x * (1 - people.x) * (-context.alpha + cost + context.delta * (2 * people.x - 1))
+            self.laws_ = [RateLaw(people.x.diff(t), rate)]
 
 
 class ForestDiebackSystem(BaseSystem):
@@ -196,6 +347,12 @@ class ForestDiebackSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import ForestDiebackSystem
         >>> ForestDiebackSystem(Tv=33.0).prepare().system_.elements[0].Tv
@@ -208,31 +365,6 @@ class ForestDiebackSystem(BaseSystem):
     until = 200.0
     dt = 0.5
 
-    @staticmethod
-    def _get_temperature(forest: SimpleNamespace, cover: Expression) -> Expression:
-        """Return the local temperature `Tv + a (1 - v)` of a forest of a given cover."""
-        return forest.Tv + forest.a * (1 - cover)
-
-    @staticmethod
-    def _get_growth(forest: SimpleNamespace) -> Expression:
-        """Return the growth rate `g0 (1 - ((T - Topt) / beta)²)` of a forest.
-
-        The rate is taken at its local temperature.
-        """
-        return forest.g0 * (
-            1 - ((ForestDiebackSystem._get_temperature(forest, forest.v) - forest.Topt) / forest.beta) ** 2
-        )
-
-    @staticmethod
-    def _get_logistic(forest: SimpleNamespace, efficiency: Expression | float) -> Expression:
-        """Return the logistic growth of a forest minus its disturbance.
-
-        The growth is scaled by an efficiency.
-        """
-        return (
-            ForestDiebackSystem._get_growth(forest) * efficiency * forest.v * (1 - forest.v) - forest.gamma * forest.v
-        )
-
     def __init__(
         self,
         v: float = 0.8,
@@ -244,8 +376,10 @@ class ForestDiebackSystem(BaseSystem):
         a: float = 5.0,
         gamma: float = 0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.v = v
         self.Tv = Tv
         self.g0 = g0
@@ -254,25 +388,27 @@ class ForestDiebackSystem(BaseSystem):
         self.a = a
         self.gamma = gamma
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        forest = ForestCoverElement(
-            'forest',
-            v=self.v,
-            Tv=self.Tv,
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the forest and the growth of its cover.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        growth = ForestGrowthInteraction(
+            'growth',
+            target='forest',
             g0=self.g0,
             beta=self.beta,
             Topt=self.Topt,
-            a=self.a,
             gamma=self.gamma,
         )
-        growth = RateInteraction(
-            'growth',
-            target='forest',
-            state='v',
-            rate=lambda s: ForestDiebackSystem._get_logistic(s.target, 1),
+        self.system_ = System(
+            self.label,
+            elements=[ForestCoverElement('forest', v=self.v, Tv=self.Tv, a=self.a)],
+            interactions=[growth],
         )
-        return CompositeSystem(self.label, elements=[forest], interactions=[growth])
 
 
 class SocialForestDiebackSystem(BaseSystem):
@@ -324,9 +460,15 @@ class SocialForestDiebackSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import SocialForestDiebackSystem
-        >>> SocialForestDiebackSystem(Tc=2.5).prepare().system_.elements[1].Tc
+        >>> SocialForestDiebackSystem(Tc=2.5).prepare().system_.interactions[1].Tc
         2.5
     """
 
@@ -350,8 +492,10 @@ class SocialForestDiebackSystem(BaseSystem):
         tp: float = 10.0,
         tf: float = 15.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.v = v
         self.x = x
         self.Tv = Tv
@@ -363,31 +507,18 @@ class SocialForestDiebackSystem(BaseSystem):
         self.tp = tp
         self.tf = tf
 
-    @staticmethod
-    def _get_replicator(s: SimpleNamespace) -> Expression:
-        """Return the replicator rate of the share of mitigators.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the forest, the population, and their coupling.
 
-        The mitigators perceive the warming of the forest.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        people, forest = s.target, s.sources[0]
-        past = delayed(forest.v, people.tp)
-        perceived = (
-            people.tf
-            / people.tp
-            * (
-                ForestDiebackSystem._get_temperature(forest, forest.v)
-                - ForestDiebackSystem._get_temperature(forest, past)
-            )
-        )
-        cost = people.fmax / (1 + exp(-people.w * (perceived - people.Tc)))
-        return people.x * (1 - people.x) * (-people.alpha + cost + people.delta * (2 * people.x - 1))
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        forest = ForestCoverElement('forest', v=self.v, Tv=self.Tv)
-        people = MitigatorsElement(
-            'people',
-            x=self.x,
+        super()._prepare(context)
+        mitigation = MitigationInteraction(
+            'mitigation',
+            target='people',
+            forest='forest',
             alpha=self.alpha,
             delta=self.delta,
             fmax=self.fmax,
@@ -396,18 +527,8 @@ class SocialForestDiebackSystem(BaseSystem):
             tp=self.tp,
             tf=self.tf,
         )
-        growth = RateInteraction(
-            'growth',
-            target='forest',
-            state='v',
-            sources=['people'],
-            rate=lambda s: ForestDiebackSystem._get_logistic(s.target, 0.2 + 0.4 * s.sources[0].x),
+        self.system_ = System(
+            self.label,
+            elements=[ForestCoverElement('forest', v=self.v, Tv=self.Tv), MitigatorsElement('people', x=self.x)],
+            interactions=[MitigatedForestGrowthInteraction('growth', target='forest', mitigators='people'), mitigation],
         )
-        mitigation = RateInteraction(
-            'mitigation',
-            target='people',
-            state='x',
-            sources=['forest'],
-            rate=self._get_replicator,
-        )
-        return CompositeSystem(self.label, elements=[forest, people], interactions=[growth, mitigation])

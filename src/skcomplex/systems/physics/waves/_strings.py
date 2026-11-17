@@ -7,6 +7,7 @@ The module covers chains of masses on springs, guitar strings, and standing wave
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,52 +16,88 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, oo, sin, vector
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import VelocityVerletSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, VelocityVerletSolver
+from ....core.specs import ParameterSpec, Role, RoleSpec
+from ....core.systems import BaseSystem, System
 from ..common.particles import HarmonicPotentialInteraction, MassPointElement, SpringInteraction
 
 
 class WaveStringElement(Element):
-    """Site of a string, with the transverse displacement `u` and the wave speed `c`.
-
-    The displacement has order 2.
+    """Sites of a string, with the transverse displacement `u`.
 
     Args:
         label:
-            The label of the site.
+            The label of the string.
 
         u:
-            The initial displacement.
+            The initial displacement, one value or one per site.
 
-        u_d1:
-            The initial transverse velocity.
+        space:
+            The lattice of the sites, or `None` for one site.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import WaveStringElement
+        >>> WaveStringElement('site', u=0.5).u
+        0.5
+    """
+
+    def __init__(self, label: str, *, u: object = 0.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
+        self.u = u
+
+
+class WaveTensionInteraction(Interaction):
+    """Tension of a string, which accelerates its displacement as the wave equation `u'' = c^2 laplacian(u)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the string.
 
         c:
             The wave speed.
 
     Examples:
-        >>> from skcomplex.systems.physics.waves import WaveStringElement
-        >>> WaveStringElement('site', c=2.0).c
+        >>> from skcomplex.systems.physics.waves import WaveTensionInteraction
+        >>> WaveTensionInteraction('tension', target='string', c=2.0).c
         2.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        u: Annotated[float, StateSpec(order=2)] = 0.0,
-        u_d1: float = 0.0,
-        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        c: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
-        self.u = u
-        self.u_d1 = u_d1
+        self.target = target
         self.c = c
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the acceleration of the displacement of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            u = context.target.u
+            self.laws_ = [RateLaw(u.diff(context.t, 2), context.c**2 * laplacian(u))]
 
 
 class DrivenAnchorInteraction(HarmonicPotentialInteraction):
@@ -114,7 +151,7 @@ class DrivenAnchorInteraction(HarmonicPotentialInteraction):
         return s.center + vector(SR, [0, s.amplitude * sin(s.omega * s.t)])
 
 
-class SpringChainSystem(BaseSystem):
+class SpringChainSystem(OldBaseSystem):
     """Masses joined in a row by springs of zero rest length between two anchors.
 
     The chain is a discrete string.
@@ -251,10 +288,10 @@ class StandingWavesSystem(BaseSystem):
 
     The string vibrates as a standing wave.
 
-    The displacement follows the wave equation `u'' = c² u_xx`, written as `u' = v` and `v' = c² laplacian(u)` on a
-    lattice whose edges hold the string at zero. The string starts at rest in the mode `amplitude sin(mode pi (x +
+    The displacement follows the wave equation `u'' = c² laplacian(u)` on a lattice whose edges hold the string at
+    zero. The string starts at rest in the mode `amplitude sin(mode pi (x +
     length / 2) / length)`, which oscillates in place with the period `2 length / (mode c)`, up to the discretization.
-    The system has the displacement `string.u` and the velocity `string.v`.
+    The system has the displacement `string.u` and the velocity `string.u'`.
 
     Args:
         n_sites:
@@ -275,10 +312,17 @@ class StandingWavesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.waves import StandingWavesSystem
-        >>> StandingWavesSystem(9).prepare().system_.elements[0].prepare().size_
-        9
+        >>> trajectory = StandingWavesSystem(9).prepare().simulate(until=0.1)
+        >>> trajectory.get_lattice('string.u').shape
+        (3, 9)
     """
 
     field = 'physics/waves'
@@ -296,35 +340,30 @@ class StandingWavesSystem(BaseSystem):
         mode: int = 1,
         amplitude: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.length = length
         self.c = c
         self.mode = mode
         self.amplitude = amplitude
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a string with fixed ends on `[-length / 2, length / 2]`.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a string with fixed ends that vibrates as a standing wave.
 
-        The string vibrates as a standing wave.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         spacing = self.length / (self.n_sites + 1)
         positions = spacing * np.arange(1, self.n_sites + 1)
         shape = self.amplitude * np.sin(self.mode * math.pi * positions / self.length)
-        space = LatticeSpace(self.n_sites, spacing=spacing)
-        edges = ('fixed', 0.0)
-        string = FieldElement(
-            'string',
-            element=WaveStringElement,
-            space=space,
-            boundary={'u': edges},
-            values={'u': shape, 'c': self.c},
+        space = LatticeSpace(self.n_sites, spacing=spacing, boundary='fixed', fill=0.0)
+        self.system_ = System(
+            self.label,
+            elements=[WaveStringElement('string', u=shape, space=space)],
+            interactions=[WaveTensionInteraction('tension', target='string', c=self.c)],
         )
-        tension = RateInteraction(
-            'tension',
-            target='string',
-            state='u',
-            rate=lambda s: s.target.c**2 * laplacian(s.target.u),
-        )
-        return CompositeSystem(self.label, elements=[string], interactions=[tension])

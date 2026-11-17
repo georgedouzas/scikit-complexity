@@ -24,20 +24,20 @@ from numpyro.infer.autoguide import AutoMultivariateNormal
 from scipy import stats
 from scipy.optimize import least_squares, minimize
 
-from ..components.systems import BaseSystem
 from ..engine.backends import JaxBackend
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import ProblemSpec
-from ..engine.runtime import Trajectory, simulate
+from ..engine.runtime import Trajectory
 from ..engine.solvers import BaseSolver
 from ..engine.types import TracedArray, TracedFunction
 from ..enums import CalibrationMethodKind, FormKind, LossKind
 from ..errors import SkcomplexError, ValidationError
+from ..systems import BaseSystem
 from ..types import Array
 from ._designs import _check_bounds
 from ._runs import _check_count, _check_source
-from ._utils import build_system
-from .types import Bounds, Source
+from ._utils import build_system, simulate_system
+from .types import AnySystem, Bounds, Source
 
 LOSSES: dict[str, tuple[LossKind, ...]] = {
     CalibrationMethodKind.LOCAL: (LossKind.SQUARES, LossKind.LIKELIHOOD, LossKind.EVENTS),
@@ -119,7 +119,7 @@ class CalibrationResult:
             a point fit.
     """
 
-    system: BaseSystem
+    system: AnySystem
     estimates: dict[str, float]
     r2: float
     rmse: float
@@ -219,9 +219,9 @@ class _CalibrationObjective:
         """Fixed streams of the replicates, so the loss is smooth in the parameters."""
         return np.random.SeedSequence(self.random_state).spawn(self.replicates)
 
-    def build(self, values: Sequence[float]) -> BaseSystem:
+    def build(self, values: Sequence[float]) -> AnySystem:
         """Return the candidate system of a parameter vector."""
-        return build_system(self.source, dict(zip(self.names, map(float, values), strict=True)))
+        return build_system(self.source, dict(zip(self.names, map(float, values), strict=True)), self.solver)
 
     def simulate(
         self,
@@ -237,9 +237,9 @@ class _CalibrationObjective:
         until = max(float(times.max()) for times, _ in self.series.values())
         runs = []
         for seed in self.seeds if seeds is None else seeds:
-            trajectory = simulate(
+            trajectory = simulate_system(
                 candidate,
-                until=until,
+                until,
                 dt=self.dt,
                 solver=self.solver,
                 random_state=np.random.default_rng(seed),
@@ -260,9 +260,9 @@ class _CalibrationObjective:
         if recorded is None:
             error_msg = 'The event likelihood needs a trajectory recorded with its draws.'
             raise ValidationError(error_msg)
-        return simulate(
+        return simulate_system(
             self.build(values),
-            until=float(recorded.times[-1]),
+            float(recorded.times[-1]),
             dt=self.dt,
             solver=self.solver,
             random_state=self.random_state,
@@ -332,7 +332,9 @@ class _CalibrationObjective:
         """
         backend = JaxBackend()
         try:
-            compiler = PassCompiler(backend=backend).prepare(self.build(values).prepare().system_)
+            prepared = self.build(values).prepare().system_
+            composite = prepared._get_composite() if isinstance(prepared, BaseSystem) else prepared
+            compiler = PassCompiler(backend=backend).prepare(composite)
             problem = compiler.run().problem_
         except SkcomplexError as error:
             error_msg = f'The system has no differentiable run on JAX: {error}'
@@ -510,7 +512,7 @@ def _check_settings(method: str, loss: str, data: object, bounds: Bounds, replic
     dotted = sorted(name for name in bounds if '.' in name)
     if dotted:
         error_msg = (
-            f'Calibration fits model parameters of the system, which `set_params` takes, not the dotted paths '
+            f'Calibration fits parameters of the system, which `set_params` takes, not the dotted paths '
             f'{", ".join(dotted)}.'
         )
         raise ValidationError(error_msg)
@@ -941,7 +943,7 @@ def calibrate(
 
     Args:
         system:
-            The system, whose copies take the model parameters through `set_params`, or a factory of systems, such as
+            The system, whose clones take the parameters through `set_params`, or a factory of systems, such as
             a system class, which takes them as keyword arguments.
 
         data:
@@ -949,7 +951,8 @@ def calibrate(
             its draws for the loss `'events'`.
 
         bounds:
-            A mapping from model parameter of the system to its `(low, high)` bounds or its SciPy prior.
+            A mapping from a parameter of the system, such as `r` or the nested `growth__r`, to its `(low, high)` bounds
+            or its SciPy prior.
 
         method:
             `'local'`, `'global'`, `'abc_smc'`, `'mcmc'`, or `'variational'`.

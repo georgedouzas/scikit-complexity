@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import scaling
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import FractionalBrownianMotionSystem
@@ -25,7 +24,7 @@ SYSTEM = 'fractional_brownian_motion'
 system = FractionalBrownianMotionSystem(n_walkers=500, H=0.3)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = FractionalEulerMaruyamaSolver(dt=0.01)
-trajectory = simulate(system, solver=solver, observers=[observer], random_state=0)
+trajectory = system.set_params(solver=solver).prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Scaling and memory

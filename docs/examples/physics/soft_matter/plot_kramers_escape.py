@@ -16,7 +16,6 @@ times.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import KramersEscapeSystem
@@ -26,7 +25,9 @@ SYSTEM = 'kramers_escape'
 system = KramersEscapeSystem(n_particles=6, D=0.07, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-trajectory = simulate(system, until=300, solver=solver, dt=1.5, observers=[observer], random_state=0)
+trajectory = (
+    system.set_params(solver=solver).prepare().simulate(until=300, dt=1.5, observers=[observer], random_state=0)
+)
 
 # %%
 # Exponential survival at the Kramers rate
@@ -38,7 +39,8 @@ trajectory = simulate(system, until=300, solver=solver, dt=1.5, observers=[obser
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for intensity, color in ((0.08, 'tab:blue'), (0.1, 'tab:orange')):
-    run = simulate(KramersEscapeSystem(n_particles=2000, D=intensity), until=400, solver=solver, random_state=1)
+    particles = KramersEscapeSystem(n_particles=2000, D=intensity, solver=solver).prepare()
+    run = particles.simulate(until=400, random_state=1)
     times = run.times
     escaped = np.maximum.accumulate(run.get_values('particles.x') >= 1.0, axis=0)
     rate = np.sqrt(2) / (2 * np.pi) * np.exp(-1 / (4 * intensity))

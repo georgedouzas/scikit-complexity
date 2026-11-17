@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.physics.synchronization import (
     AggregateAveragingSynchronizationSystem,
@@ -25,7 +24,7 @@ def test_identical_rossler_oscillators_synchronize_with_strong_coupling(k, synch
 @pytest.mark.parametrize(('kappa', 'synchronized'), [(0.45, True), (0.1, False)])
 def test_aggregate_averaging_synchronizes_chaotic_maps(kappa, synchronized):
     """Test that logistic maps synchronize above the coupling `3 / 8` and stay apart well below it."""
-    trajectory = simulate(AggregateAveragingSynchronizationSystem(kappa=kappa), until=100)
+    trajectory = AggregateAveragingSynchronizationSystem(kappa=kappa).prepare().simulate(until=100)
     first, second = _series(trajectory, 'first.x', 'second.x')
     assert (np.abs(first - second)[-20:].max() < 1e-9) == synchronized
 
@@ -41,7 +40,7 @@ def test_delay_coupled_bernoulli_maps_synchronize_inside_the_linear_window(kappa
     coefficients[-1] += 1.5 * kappa
     assert (np.abs(np.roots(coefficients)).max() < 1) == synchronized
     system = AggregateAveragingSynchronizationSystem(kind='bernoulli', r=1.5, kappa=kappa, delay=delay)
-    trajectory = simulate(system, until=400)
+    trajectory = system.prepare().simulate(until=400)
     first, second = (np.ravel(trajectory.get_values(name)) for name in ('first.x', 'second.x'))
     difference = np.abs(first - second)
     assert (np.minimum(difference, 1 - difference)[-50:].max() < 1e-8) == synchronized
@@ -52,7 +51,7 @@ def test_rossler_driven_lorenz_synchronizes_generally_above_the_critical_couplin
     """Test that the two Lorenz copies driven by the Rössler system converge for `k = 8` and not for `k = 2`."""
     errors = []
     for k in (2.0, 8.0):
-        trajectory = simulate(RosslerDrivenLorenzSystem(k=k), random_state=0)
+        trajectory = RosslerDrivenLorenzSystem(k=k).prepare().simulate(random_state=0)
         squares = [
             (np.ravel(trajectory.get_values(f'response.{name}')) - np.ravel(trajectory.get_values(f'auxiliary.{name}')))
             ** 2
