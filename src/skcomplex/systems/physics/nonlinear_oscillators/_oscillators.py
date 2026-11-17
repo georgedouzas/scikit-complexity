@@ -16,11 +16,9 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, EventLaw, RateLaw
+from ....core.components.laws import EventLaw, RateLaw
 from ....core.components.laws.utils import derivative, periodic_guard
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
@@ -129,15 +127,7 @@ class HenonHeilesElement(Element):
 
     visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None})
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 0.1,
-        px: Annotated[float, StateSpec()] = 0.35,
-        py: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
+    def __init__(self, label: str, *, x: float = 0.0, y: float = 0.1, px: float = 0.35, py: float = 0.0) -> None:
         super().__init__(label)
         self.x = x
         self.y = y
@@ -242,13 +232,11 @@ class QuadrupoleElement(Element):
 
 
 class VanDerPolElement(Element):
-    """Van der Pol oscillator `x'' = mu (1 - x^2) x' - x + A cos(omega t)`.
+    """Van der Pol oscillator at the displacement `x`, with the velocity `x'`.
 
-    The periodic forcing is optional.
-
-    The damping is negative for small amplitudes and positive for large ones, so the unforced oscillator, `A = 0`,
-    settles on a limit cycle of amplitude near 2. A forcing of amplitude `A` and frequency `omega` locks it or drives it
-    quasiperiodically or chaotically.
+    `ForcedVanDerPolInteraction` moves it by `x'' = mu (1 - x^2) x' - x + A cos(omega t)`. The damping is negative for
+    small amplitudes and positive for large ones, so the unforced oscillator, `A = 0`, settles on a limit cycle of
+    amplitude near 2.
 
     Args:
         label:
@@ -257,65 +245,28 @@ class VanDerPolElement(Element):
         x:
             The initial displacement.
 
-        x_d1:
-            The initial velocity.
-
-        mu:
-            The strength of the nonlinear damping.
-
-        A:
-            The amplitude of the forcing.
-
-        omega:
-            The frequency of the forcing.
-
-    Attributes:
-        default_visual_:
-            How the oscillator is drawn by default, the `visual` of its class.
+        values:
+            Further values by name, such as an initial velocity named with a prime, or `None`.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.physics.nonlinear_oscillators import VanDerPolElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(elements=[VanDerPolElement('oscillator', x=0.1)])
-        >>> trajectory = simulate(system, until=50.0, dt=0.1)
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import ForcedVanDerPolInteraction, VanDerPolElement
+        >>> damping = ForcedVanDerPolInteraction('damping', target='oscillator', A=0.0)
+        >>> system = System(elements=[VanDerPolElement('oscillator', x=0.1)], interactions=[damping]).prepare()
+        >>> trajectory = system.simulate(until=50.0, dt=0.1)
         >>> round(float(abs(trajectory.get_values('oscillator.x')[-300:]).max()), 1)
         2.0
     """
-
-    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(order=2)] = 2.0,
-        x_d1: float = 0.0,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        A: Annotated[float, ParameterSpec()] = 0.0,
-        omega: Annotated[float, ParameterSpec()] = 1.0,
+        x: float = 2.0,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values)
         self.x = x
-        self.x_d1 = x_d1
-        self.mu = mu
-        self.A = A
-        self.omega = omega
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the acceleration of the oscillator.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate of the second derivative of `x`.
-        """
-        x = namespace.x
-        damping = namespace.mu * (1 - x**2) * derivative(x, 1)
-        return [RateLaw(x, damping - x + namespace.A * cos(namespace.omega * namespace.t))]
 
 
 class DuffingSystem(DynamicalSystem):
@@ -410,12 +361,12 @@ class DuffingSystem(DynamicalSystem):
         }
 
 
-class VanDerPolSystem(OldBaseSystem):
+class VanDerPolSystem(BaseSystem):
     """The Van der Pol oscillator `x'' = μ (1 - x²) x' - x`.
 
     The oscillator settles on a limit cycle for `μ > 0`.
 
-    The system has the displacement `oscillator.x` of order 2 and its velocity `oscillator.x_d1`.
+    The system has the displacement `oscillator.x` and its velocity `oscillator.x'`.
 
     Args:
         x:
@@ -430,9 +381,15 @@ class VanDerPolSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import VanDerPolSystem
-        >>> VanDerPolSystem(mu=3.0).prepare().system_.elements[0].mu
+        >>> VanDerPolSystem(mu=3.0).prepare().system_.interactions[0].mu
         3.0
     """
 
@@ -449,18 +406,25 @@ class VanDerPolSystem(OldBaseSystem):
         *,
         mu: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.v = v
         self.mu = mu
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Van der Pol oscillator `x'' = μ (1 - x²) x' - x`.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Van der Pol oscillator, a forced one without a force.
 
-        The oscillator settles on a limit cycle for `μ > 0`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(self.label, elements=[VanDerPolElement('oscillator', x=self.x, x_d1=self.v, mu=self.mu)])
+        super()._prepare(context)
+        oscillator = VanDerPolElement('oscillator', x=self.x, values={"x'": self.v})
+        damping = ForcedVanDerPolInteraction('damping', target='oscillator', mu=self.mu, A=0.0)
+        self.system_ = System(self.label, elements=[oscillator], interactions=[damping])
 
 
 def _get_henon_heiles_energy(star: SimpleNamespace) -> Expression:
@@ -472,7 +436,7 @@ def _get_henon_heiles_energy(star: SimpleNamespace) -> Expression:
     return kinetic + (star.x**2 + star.y**2) / 2 + star.x**2 * star.y - star.y**3 / 3
 
 
-class HenonHeilesSystem(OldBaseSystem):
+class HenonHeilesSystem(BaseSystem):
     """The Hénon-Heiles system of a star in a galactic potential.
 
     The motion is chaotic at higher energies.
@@ -496,6 +460,12 @@ class HenonHeilesSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import HenonHeilesSystem
         >>> HenonHeilesSystem(px=0.3).prepare().system_.elements[0].px
@@ -507,7 +477,6 @@ class HenonHeilesSystem(OldBaseSystem):
     references = ('Hénon and Heiles 1964', 'Datseris and Parlitz 2022')
     until = 200.0
     dt = 0.05
-    solver = Yoshida4Solver(dt=0.01)
     invariants: ClassVar[Mapping[str, float]] = {'star.energy': 1e-6}
     observables = (Observable('energy', _get_henon_heiles_energy, element='star'),)
 
@@ -519,8 +488,10 @@ class HenonHeilesSystem(OldBaseSystem):
         py: float = 0.0,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.px = px
@@ -531,9 +502,15 @@ class HenonHeilesSystem(OldBaseSystem):
         """Return the Hénon-Heiles Hamiltonian of the target."""
         return _get_henon_heiles_energy(s.target)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a star in a galactic potential, integrated by the symplectic Yoshida method.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[HenonHeilesElement('star', x=self.x, y=self.y, px=self.px, py=self.py)],
             interactions=[
@@ -545,6 +522,7 @@ class HenonHeilesSystem(OldBaseSystem):
                     hamiltonian=self._get_henon_heiles_hamiltonian,
                 ),
             ],
+            solver=Yoshida4Solver(dt=0.01),
         )
 
 
