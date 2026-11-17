@@ -12,6 +12,7 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression, arctan2, cos, sin, var, vector
 from sage.modules.free_module_element import FreeModuleElement
+from sage.symbolic.function import SymbolicFunction
 
 from ....enums import ComponentReductionKind, PathReductionKind
 from ....errors import ValidationError
@@ -199,7 +200,8 @@ SHIFT_MEMBER = _ShiftMemberFunction('shift_member', nargs=4)
 def _over_symbol(over: object) -> Expression:
     """Return a symbol that names the group of a reduction, or 0 for none.
 
-    It comes from a namespace or a symbol.
+    It comes from a namespace or a symbol. An interaction reads every state as a function of the time, such as
+    `x(t)`, which names the group like the symbol `x`.
     """
     if over is None:
         return SR(0)
@@ -209,15 +211,24 @@ def _over_symbol(over: object) -> Expression:
                 continue
             if isinstance(value, FreeModuleElement):
                 return SR(next(iter(value)))
-            if isinstance(value, Expression) and value.is_symbol():
+            if _is_named(value):
                 return value
-    if isinstance(over, Expression) and over.is_symbol():
-        return over
+    if _is_named(over):
+        return SR(over)
     error_msg = (
         'A reduction takes the group to reduce over as a namespace such as `namespace.members`, or as one of its '
         f'symbols, not {over!r}.'
     )
     raise ValidationError(error_msg)
+
+
+def _is_named(value: object) -> bool:
+    """Return whether a value is a symbol, or a function of a symbol, such as `x(t)`."""
+    if not isinstance(value, Expression):
+        return False
+    operands = value.operands()
+    function = isinstance(value.operator(), SymbolicFunction) and len(operands) == 1 and operands[0].is_symbol()
+    return value.is_symbol() or function
 
 
 def _weights_symbol(weights: object) -> Expression:

@@ -4,19 +4,14 @@
 # License: MIT
 
 import numbers
-import re
 from collections.abc import Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
 
 from ...types import AnyArray
-from ..problems import AgentSnapshotSpec, BaseProblemSpec, BaseRecordSpec, NetworkSnapshotSpec
+from ..problems import AgentSnapshotSpec, BaseProblemSpec, BaseRecordSpec, LayoutSpec, NetworkSnapshotSpec
 from ..problems._draw_log_spec import _DrawLogSpec
-
-DERIVATIVE = re.compile(r"^(?P<base>.*?)(?P<primes>'+)(?P<index>\[\w+\])?$")
-LAG = re.compile(r'^(?P<base>.*?)\[-(?P<steps>\d+)\](?P<index>\[\w+\])?$')
-COMPANION = re.compile(r'_(?P<kind>d|lag)(?P<count>\d+)(?P<index>\[\w+\])?$')
 
 
 class Trajectory:
@@ -112,28 +107,6 @@ class Trajectory:
         shaped = present.reshape(present.shape + (1,) * (np.ndim(values) - present.ndim))
         return np.where(shaped, np.asarray(values, dtype=float), np.nan)
 
-    @staticmethod
-    def _get_internal_name(name: str) -> str:
-        """Return the engine name of a value, such as `x_d1` for `x'`."""
-        derivative = DERIVATIVE.match(name)
-        if derivative is not None:
-            return f"{derivative['base']}_d{len(derivative['primes'])}{derivative['index'] or ''}"
-        lag = LAG.match(name)
-        if lag is not None:
-            return f"{lag['base']}_lag{lag['steps']}{lag['index'] or ''}"
-        return name
-
-    @staticmethod
-    def _get_display_name(name: str) -> str:
-        """Return the name users read, such as `x'` for `x_d1`."""
-        companion = COMPANION.search(name)
-        if companion is None:
-            return name
-        base = name[: companion.start()]
-        count = int(companion['count'])
-        suffix = "'" * count if companion['kind'] == 'd' else f'[-{count}]'
-        return f"{base}{suffix}{companion['index'] or ''}"
-
     def get_values(self, name: str) -> AnyArray:
         """Return the values of a state or a parameter over time by dotted name.
 
@@ -150,7 +123,7 @@ class Trajectory:
             KeyError:
                 The name is neither a state nor a parameter.
         """
-        name = self._get_internal_name(name)
+        name = LayoutSpec._get_internal_name(name)
         if self.problem.states.has(name):
             entry = self.problem.states.get_entry(name)
             return self._get_present(name, entry.read(np.asarray(self.problem.states.read(self.states, name))))
@@ -168,7 +141,7 @@ class Trajectory:
         reporter_names = list(self.reporters[0]) if self.reporters else []
         observable_names = list(self.observables[0]) if self.observables else []
         names = [
-            self._get_display_name(item)
+            LayoutSpec._get_display_name(item)
             for item in [*self.problem.states.names, *self.problem.parameters.names, *reporter_names, *observable_names]
         ]
         error_msg = f'No state or parameter named {name!r}. Available names are: {", ".join(names)}.'
@@ -236,7 +209,7 @@ class Trajectory:
         reporters = list(self.reporters[0]) if self.reporters else []
         observables = list(self.observables[0]) if self.observables else []
         names = [*self.problem.states.names, *self.problem.parameters.names, *reporters, *observables]
-        return [self._get_display_name(name) for name in names]
+        return [LayoutSpec._get_display_name(name) for name in names]
 
     def get_agent_locations(self, group: str) -> list[AnyArray]:
         """Return the locations of the agents of a group.
