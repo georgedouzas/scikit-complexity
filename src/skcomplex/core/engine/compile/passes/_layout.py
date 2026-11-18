@@ -61,8 +61,9 @@ class LayoutPass(BasePass):
         declarations = DeclarationsSpec(time=symbol('t'))
         nodes = Compilation._get_required(compilation.nodes, 'nodes')
         groups = LayoutPass._get_group_sizes(nodes)
+        trained = frozenset(compilation.trained)
         for node in nodes:
-            declarations, _ = self._declare_component(declarations, node, groups)
+            declarations, _ = self._declare_component(declarations, node, groups, trained)
         self._check_symbol_names(declarations.blocks)
         compilation.layout = self._copy_with_program_values(
             declarations,
@@ -134,10 +135,12 @@ class LayoutPass(BasePass):
         declarations: DeclarationsSpec,
         node: _NodeSpec,
         groups: Mapping[str, int],
+        trained: frozenset[str] = frozenset(),
     ) -> tuple[DeclarationsSpec, BlockSpec]:
         """Return the declarations with a component added, and the block of the component.
 
-        The states and parameters of the component are added.
+        The states and parameters of the component are added. A parameter that a training trains is adaptive, a state
+        that no law of the component changes and the training sets.
 
         Args:
             declarations:
@@ -150,6 +153,9 @@ class LayoutPass(BasePass):
                 The number of members of every group of the system tree, by path, which give the shapes of shaped
                 parameters.
 
+            trained:
+                The dotted paths of the parameters a training trains, such as `recurrence.A`.
+
         Returns:
             declarations:
                 The declarations with the component.
@@ -161,6 +167,13 @@ class LayoutPass(BasePass):
         states = {} if node.is_agent else declarations_of(node.component_type, VariableKind.STATE)
         shaped = LayoutPass._get_member_shaped(node, groups)
         parameters = {**declarations_of(node.component_type, VariableKind.PARAMETER), **shaped}
+        adaptive = {
+            variable: replace(declaration, kind=VariableKind.STATE, adaptive=True)
+            for variable, declaration in parameters.items()
+            if f'{node.path}.{variable}' in trained
+        }
+        states = {**states, **adaptive}
+        parameters = {variable: item for variable, item in parameters.items() if variable not in adaptive}
         for variable, declaration in states.items():
             if declaration.shape is None:
                 declarations, block = LayoutPass._declare(declarations, block, variable, declaration, is_state=True)

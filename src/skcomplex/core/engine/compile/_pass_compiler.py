@@ -176,6 +176,10 @@ class PassCompiler(BaseCompiler):
             system, or `'subsystems'` to compile one partition for the elements of the root and one per child
             system, so a co-simulation can advance them with separate solvers.
 
+        trained:
+            The dotted paths of the parameters a training trains, such as `recurrence.A`, which the compilation makes
+            adaptive states.
+
     Attributes:
         passes_:
             The copies of the passes the compiler runs.
@@ -214,10 +218,13 @@ class PassCompiler(BaseCompiler):
         solver: object = None,
         observables: Sequence[Observable] = (),
         partition: str = 'plan',
+        *,
+        trained: Sequence[str] = (),
     ) -> None:
         super().__init__(backend, solver, observables)
         self.passes = passes
         self.partition = partition
+        self.trained = trained
 
     def _prepare(self, context: CompositeSystem | None) -> None:
         """Raise an error for passes that are not passes or an unknown partition.
@@ -353,7 +360,7 @@ class PassCompiler(BaseCompiler):
 
     def _get_new_compilation(self, system: CompositeSystem, held: tuple[str, ...] = ()) -> Compilation:
         """Return a new compilation of a system, with no pass run yet."""
-        compilation = Compilation(system, self.backend, self.solver, held=held)
+        compilation = Compilation(system, self.backend, self.solver, held=held, trained=tuple(self.trained))
         compilation.done = set()
         return compilation
 
@@ -371,7 +378,14 @@ class PassCompiler(BaseCompiler):
 
         It shares the nodes, the census, and the plan.
         """
-        fork = Compilation(compilation.system, compilation.backend, compilation.solver, owners, compilation.held)
+        fork = Compilation(
+            compilation.system,
+            compilation.backend,
+            compilation.solver,
+            owners,
+            compilation.held,
+            trained=compilation.trained,
+        )
         fork.nodes, fork.census, fork.plan = compilation.nodes, compilation.census, compilation.plan
         fork.done = {
             item

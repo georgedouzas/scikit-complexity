@@ -14,6 +14,7 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._learning_problem_spec import LearningProblemSpec
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
+from skcomplex.systems.computer_science.neural_networks._elman import TRAINED
 
 from ....conftest import CallableGrowthInteraction, HoldingElement
 
@@ -59,11 +60,12 @@ def test_untrained_parameter_path():
     assert 'readout.W' in issues[0].message
 
 
-def test_parameter_not_adaptive():
-    """Test that a trained parameter that is not adaptive asks to declare it adaptive."""
-    issues = _issues(_elman(trained=['inputs.x']))
-    assert [issue.code for issue in issues] == ['learning-not-adaptive']
-    assert 'ParameterSpec(adaptive=True)' in issues[0].fix
+def test_the_named_parameters_are_trained_with_no_marker():
+    """Test that the weights and biases the training names are adaptive states, though nothing declares them so."""
+    compiler = PassCompiler().prepare(_elman())
+    assert compiler.report_.ok
+    assert set(TRAINED) <= set(compiler.learning_.inner_.states.names)
+    assert 'inputs.x' in compiler.learning_.inner_.parameters.names
 
 
 def test_unknown_loss():

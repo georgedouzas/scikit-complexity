@@ -181,10 +181,14 @@ def test_simulation_updates_one_per_entry_weight_live():
 
 def test_closed_economy_changes_money_only_by_lending_and_repayment():
     """Test that total money changes by lending minus repayment, and every transaction-flow row sums to zero."""
-    trajectory = StockFlowConsistentEconomySystem().prepare().simulate(
-        until=100,
-        dt=1,
-        observers=[ConservationObserver()],
+    trajectory = (
+        StockFlowConsistentEconomySystem()
+        .prepare()
+        .simulate(
+            until=100,
+            dt=1,
+            observers=[ConservationObserver()],
+        )
     )
     money = (
         trajectory.get_values('households.deposits')

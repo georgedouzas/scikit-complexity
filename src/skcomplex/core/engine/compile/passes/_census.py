@@ -99,6 +99,7 @@ class CensusPass(BasePass):
         compilation.census = self._get_census_of(
             compilation.system,
             Compilation._get_required(compilation.nodes, 'nodes'),
+            frozenset(compilation.trained),
         )
 
     @staticmethod
@@ -237,7 +238,11 @@ class CensusPass(BasePass):
         return records
 
     @staticmethod
-    def _get_census_of(system: CompositeSystem, nodes: list[_NodeSpec]) -> _CensusSpec:
+    def _get_census_of(
+        system: CompositeSystem,
+        nodes: list[_NodeSpec],
+        trained: frozenset[str] = frozenset(),
+    ) -> _CensusSpec:
         """Return the census of the laws of a system.
 
         The errors of the components that fail are included. The census declares every component and collects its laws
@@ -251,6 +256,9 @@ class CensusPass(BasePass):
             nodes:
                 The nodes of the system.
 
+            trained:
+                The dotted paths of the parameters a training trains, which are adaptive.
+
         Returns:
             census:
                 The census.
@@ -261,7 +269,7 @@ class CensusPass(BasePass):
         groups = LayoutPass._get_group_sizes(nodes)
         for node in nodes:
             try:
-                declarations, block = LayoutPass._declare_component(declarations, node, groups)
+                declarations, block = LayoutPass._declare_component(declarations, node, groups, trained)
             except SkcomplexError as error:
                 errors.append((node.path, error))
                 continue

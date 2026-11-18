@@ -126,7 +126,7 @@ class _LearningCompiler(BaseCompiler):
 
     def _get_differentiable_issues(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the laws of the nested system that the JAX backend cannot differentiate."""
-        compiler = clone(self.inner).prepare(system)
+        compiler = clone(self.inner).set_params(trained=tuple(training.trained)).prepare(system)
         compilation = getattr(compiler, 'compilation_', None)
         census = getattr(compilation, 'census', None)
         records = census.records if census is not None else ()
@@ -148,7 +148,7 @@ class _LearningCompiler(BaseCompiler):
     def _compile_inner(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Compile the nested system into `inner_`, and return the issues that stop it."""
         self.inner_, self.backend_ = None, JaxBackend()
-        compiler = clone(self.inner).set_params(backend=self.backend_).prepare(system)
+        compiler = clone(self.inner).set_params(backend=self.backend_, trained=tuple(training.trained)).prepare(system)
         if not compiler.report_.ok:
             return list(compiler.report_.issues)
         try:
@@ -200,39 +200,30 @@ class _LearningCompiler(BaseCompiler):
         return phased
 
     @staticmethod
-    def _get_adaptive_names(problem: ProblemSpec) -> set[str]:
+    def _get_adaptive_names(problem: ProblemSpec, training: TrainingInteraction) -> set[str]:
         """Return the names of the adaptive parameters of a problem.
 
-        The parameters are those of its elements and interactions.
+        They are the adaptive parameters of its elements and the parameters the training names, which the compilation
+        makes adaptive states.
         """
-        names = set(problem.adaptive_parameters)
-        for compiled in problem.interactions:
-            for name, spec in compiled.interaction._get_specs().items():
-                if isinstance(spec, ParameterSpec) and spec.adaptive:
-                    names.add(f'{compiled.path}.{name}')
-        return names
+        return set(problem.adaptive_parameters) | (set(training.trained) & set(problem.states.names))
 
     def _get_trained_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the trained paths that are not adaptive parameters of the nested system.
 
         This includes the paths that are not parameters at all.
         """
-        adaptive = self._get_adaptive_names(problem)
+        adaptive = self._get_adaptive_names(problem, training)
         parameters = sorted(adaptive | set(problem.parameters.names))
         issues = []
         for path in training.trained:
             if path in adaptive:
                 continue
-            if path in problem.parameters.names:
-                message = f'The trained parameter {path} of {training.system} is not adaptive, so it cannot change.'
-                fix = f'Declare {path} `ParameterSpec(adaptive=True)`.'
-                issues.append(IssueSpec('learning-not-adaptive', training.label, message, fix))
-                continue
             message = (
                 f'{training.label} trains {path}, which is not a parameter of {training.system}. Its parameters are '
                 f'{", ".join(parameters)}.'
             )
-            fix = 'Name an adaptive parameter of the nested system by its dotted path.'
+            fix = 'Name a parameter of the nested system by its dotted path.'
             issues.append(IssueSpec('learning-trained-path', training.label, message, fix))
         return issues
 

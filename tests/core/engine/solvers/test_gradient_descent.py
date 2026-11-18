@@ -354,8 +354,8 @@ def test_trained_system_agrees_with_training():
     expected = _loss(single, trained)
     for interaction, name in zip(net.interactions, ('D', 'A', 'W'), strict=True):
         interaction.set_params(**{name: trained[f'net/{interaction.label}.{name}']})
-    net.elements[1].set_params(values={'b': trained['net/hidden.b']})
-    net.elements[2].set_params(values={'c': trained['net/outputs.c']})
+    net.elements[1].set_params(b=trained['net/hidden.b'])
+    net.elements[2].set_params(c=trained['net/outputs.c'])
     inputs, targets = data.values['inputs.x'][0], data.values['outputs.target'][0]
     schedule = {
         'inputs.x': lambda t: inputs[min(round(t), len(inputs) - 1)],
