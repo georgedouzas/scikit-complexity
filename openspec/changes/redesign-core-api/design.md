@@ -264,6 +264,13 @@ Two kinds of model need forms that the table above does not name yet.
 - Roles that bind several elements, such as the reactants of a reaction, are typed `tuple[Role, ...]`, and the states
   an interaction acts on are a plain `tuple[str, ...]` argument. Both follow from the type hint, so `RoleSpec` goes.
 
+- Random groups. An interaction bound to random groups of a group each step is written
+  `Interaction(label, among='citizens', along=RandomPartition(3))`, as `along='hyperedges'` binds hyperedges, and its
+  laws read `s.member` and `s.members`. `GroupingInteraction` goes.
+- Starts in a region. A continuous space may hold named regions, `ContinuousSpace(..., regions={'tract_1': polygon})`,
+  and an element value naming a region, `Element('residents', values={'region': 'tract_1'}, size=100)`, starts each
+  member at a point the run draws inside that region from its own generator.
+
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,
 such as the Lindblad equation, finite volumes, Cayley graphs, or rewriting, moves with that support: the field package
