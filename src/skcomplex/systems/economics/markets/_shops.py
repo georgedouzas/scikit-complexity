@@ -7,17 +7,19 @@ It also holds the digital market that removes distance.
 # License: MIT
 
 import math
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, SupportsFloat, cast
+from typing import Annotated, SupportsFloat
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import clip, sign
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -25,15 +27,17 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 
 STEPPINGS = ('multiplicative', 'additive')
+FORMS = ('symbolic', 'agent')
+SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 
 
-class PriceAdjustmentInteraction(MapInteraction):
+class PriceAdjustmentInteraction(Interaction):
     """Price adjustment of a state of discrete time by the sign of a signal, kept within bounds.
 
     Economics names it a price adjustment by trial and error, as a shop that raises its price while demand exceeds its
@@ -44,8 +48,9 @@ class PriceAdjustmentInteraction(MapInteraction):
 
     In the `'symbolic'` form, the signal, the step, and the bounds are numbers or functions of the namespace, where
     `namespace.target` holds the states and parameters of the target. In the `'agent'` form, the target is an agent
-    group and they are numbers or functions `f(agent, system)` that return numbers. The agents step under the schedules
-    of `MapInteraction`.
+    group and they are numbers or functions `f(agent, system)` that return numbers. Under the schedule `'synchronous'`
+    every agent steps from the values at the start of the rule, under `'sequential'` or `'random-sequential'` one after
+    the other, in their order or in a new random order, and under `'member'` each in its own activation.
 
     Args:
         label:
@@ -88,28 +93,24 @@ class PriceAdjustmentInteraction(MapInteraction):
             not callable, raised by `prepare`.
 
     Examples:
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.spaces import DiscreteTime
         >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.economics.markets import PriceAdjustmentInteraction
-        >>> class QuoteElement(Element):
-        ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
-        ...         super().__init__(label)
-        ...         self.x = x
         >>> search = PriceAdjustmentInteraction(
         ...     'search', target='quote', state='x', signal=lambda s: 2 - s.target.x, step=0.5, upper=2.0
         ... )
-        >>> system = System(elements=[QuoteElement('quote')], interactions=[search])
+        >>> system = System(elements=[Element('quote', values={'x': 1.0})], interactions=[search])
         >>> system.prepare().simulate(until=3).get_values('quote.x').tolist()
         [1.0, 1.5, 2.0, 2.0]
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: str,
+        target: Role,
         state: str,
         signal: Callable[..., object],
         step: float | Callable[..., object] = 0.1,
@@ -120,27 +121,24 @@ class PriceAdjustmentInteraction(MapInteraction):
         phase: str | None = None,
         schedule: str = 'synchronous',
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state=state,
-            function=self._get_next,
-            form=form,
-            phase=phase,
-            schedule=schedule,
-        )
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.signal = signal
         self.step = step
         self.stepping = stepping
         self.lower = lower
         self.upper = upper
+        self.form = form
+        self.phase = phase
+        self.schedule = schedule
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an unknown stepping, a symbolic form that is not synchronous, or an uncallable signal.
+        """Set the step of the state, or the rule of the agents, as the laws.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of the target.
 
         Raises:
             ValidationError:
@@ -148,6 +146,12 @@ class PriceAdjustmentInteraction(MapInteraction):
                 is not callable.
         """
         super()._prepare(context)
+        if self.form not in FORMS:
+            error_msg = f'The form of {self.label!r} is {self.form!r}. Use one of {", ".join(FORMS)}.'
+            raise ValidationError(error_msg)
+        if self.schedule not in SCHEDULES:
+            error_msg = f'The schedule of {self.label!r} is {self.schedule!r}. Use one of {", ".join(SCHEDULES)}.'
+            raise ValidationError(error_msg)
         if self.stepping not in STEPPINGS:
             error_msg = f'The stepping of {self.label!r} is {self.stepping!r}. Use one of {", ".join(STEPPINGS)}.'
             raise ValidationError(error_msg)
@@ -157,6 +161,14 @@ class PriceAdjustmentInteraction(MapInteraction):
         if not callable(self.signal):
             error_msg = f'The signal of {self.label!r} must be callable, but it is {self.signal!r}.'
             raise ValidationError(error_msg)
+        if not isinstance(context, SimpleNamespace):
+            return
+        if self.form == 'agent' and self.schedule == 'member':
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._step_member, phase=self.phase)]
+        elif self.form == 'agent':
+            self.laws_ = [UpdateLaw(context, self.step_agents, phase=self.phase)]
+        else:
+            self.laws_ = [UpdateLaw(getattr(context.target, self.state), self._get_next(context))]
 
     def _read(self, item: float | Callable[..., object] | None, *arguments: object) -> object:
         """Return a number, the value of a function at the arguments, or `None`."""
@@ -190,13 +202,31 @@ class PriceAdjustmentInteraction(MapInteraction):
             value = max(lower, value)
         return value
 
-    def _get_next(self, *arguments: object) -> object:
-        """Return the next value of the state, of the namespace or of an agent and its system."""
-        if self.form == 'agent':
-            agent, system = arguments
-            return self._get_agent_next(cast(AgentViewProtocol, agent), cast(SystemViewProtocol, system))
-        (namespace,) = arguments
-        value = SR(getattr(self._get_member(cast(SimpleNamespace, namespace), 'target'), self.state))
+    def _step_member(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Step the state of one agent, in its own activation."""
+        if agent.alive:
+            setattr(agent, self.state, self._get_agent_next(agent, system))
+
+    def step_agents(self, system: SystemViewProtocol) -> None:
+        """Step the state of every agent by the schedule.
+
+        Args:
+            system:
+                The system view of the adjustment.
+        """
+        agents = list(system.get_agents('target'))
+        if self.schedule == 'synchronous':
+            values = [self._get_agent_next(agent, system) for agent in agents]
+            for agent, value in zip(agents, values, strict=True):
+                setattr(agent, self.state, value)
+            return
+        order = system.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))
+        for index in order:
+            self._step_member(agents[int(index)], system)
+
+    def _get_next(self, namespace: SimpleNamespace) -> object:
+        """Return the next value of the state of the symbolic form."""
+        value = SR(getattr(namespace.target, self.state))
         direction = sign(self._read(self.signal, namespace))
         step = SR(self._read(self.step, namespace))
         stepped = value + step * direction if self.stepping == 'additive' else value * (1 + step * direction)
@@ -266,10 +296,18 @@ class ResidentElement(Element):
         online:
             The probability of shopping online in a step.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import ResidentElement
-        >>> GroupElement('shoppers', element=ResidentElement, size=3, values={'online': 1.0}).size
+        >>> ResidentElement('shoppers', online=1.0, size=3).size
         3
     """
 
@@ -279,14 +317,17 @@ class ResidentElement(Element):
         self,
         label: str,
         *,
-        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        money: Annotated[float, StateSpec()] = 1000.0,
-        travel: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        distance_cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        online: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        bid: Annotated[object, RealSet.closed_open(0, oo)] = 20.0,
+        demand: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        money: object = 1000.0,
+        travel: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        distance_cost: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        online: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.bid = bid
         self.demand = demand
         self.money = money
@@ -298,25 +339,6 @@ class ResidentElement(Element):
     def _get_view(cls) -> type[ResidentView]:
         """Return the view of a shopper, with its states and shopping parameters."""
         return ResidentView
-
-    @staticmethod
-    def get_travel(agent: ResidentView, system: SystemView) -> float:
-        """Return the travel cost per cell of the step.
-
-        It is zero when the shopper shops online with its probability.
-
-        Args:
-            agent:
-                The shopper.
-
-            system:
-                The system view of the plan.
-
-        Returns:
-            travel:
-                The travel cost per cell.
-        """
-        return 0.0 if system.rng.random() < agent.online else agent.distance_cost
 
     @staticmethod
     def get_preference(shopper: object, shop: object) -> float:
@@ -386,10 +408,18 @@ class StoreElement(Element):
         adjustment:
             The relative change of the price in a step.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import StoreElement
-        >>> GroupElement('shops', element=StoreElement, size=4, values={'price': 10.0}).size
+        >>> StoreElement('shops', price=10.0, size=4).size
         4
     """
 
@@ -399,19 +429,22 @@ class StoreElement(Element):
         self,
         label: str,
         *,
-        price: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        supply: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        sales: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        money: Annotated[float, StateSpec()] = 100.0,
-        profit: Annotated[float, StateSpec()] = 0.0,
-        direction: Annotated[float, StateSpec()] = 1.0,
-        capacity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
-        unit_cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        fixed_cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        adjustment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        price: Annotated[object, RealSet.closed_open(0, oo)] = 10.0,
+        ask: Annotated[object, RealSet.closed_open(0, oo)] = 10.0,
+        supply: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        sales: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        money: object = 100.0,
+        profit: object = 0.0,
+        direction: object = 1.0,
+        capacity: Annotated[object, RealSet.open(0, oo)] = 1000.0,
+        unit_cost: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        fixed_cost: Annotated[object, RealSet.closed_open(0, oo)] = 20.0,
+        adjustment: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.price = price
         self.ask = ask
         self.supply = supply
@@ -442,40 +475,6 @@ class StoreElement(Element):
                 The profit of the step.
         """
         return agent.sales * (agent.ask - agent.unit_cost) - agent.fixed_cost
-
-    @staticmethod
-    def get_opening() -> tuple[tuple[str, Callable[[StoreView, SystemView], float]], ...]:
-        """Return the states a shop sets when it opens for the market.
-
-        It offers its capacity at its price.
-
-        Returns:
-            opening:
-                The name of every state and the function of its value, of the shop and the system view.
-        """
-        return (
-            ('supply', lambda agent, system: agent.capacity),
-            ('ask', lambda agent, system: agent.price),
-            ('sales', lambda agent, system: 0.0),
-        )
-
-    @staticmethod
-    def get_settlement() -> tuple[tuple[str, Callable[[StoreView, SystemView], float]], ...]:
-        """Return the states a shop sets when it settles its accounts, in their order.
-
-        The shop turns its price back when its profit falls, records the profit, and pays its costs. The pricing of
-        the system then steps the price by the sign of the direction.
-
-        Returns:
-            settlement:
-                The name of every state and the function of its value, of the shop and the system view.
-        """
-        profit = StoreElement.get_profit
-        return (
-            ('direction', lambda agent, system: -agent.direction if profit(agent) < agent.profit else agent.direction),
-            ('profit', lambda agent, system: profit(agent)),
-            ('money', lambda agent, system: agent.money - agent.sales * agent.unit_cost - agent.fixed_cost),
-        )
 
     @staticmethod
     def record_sale(match: MatchSpec, system: SystemView) -> None:
@@ -593,71 +592,78 @@ class ShopsSystem(BaseSystem):
         self.value = value
         self.random_state = random_state
 
+    @staticmethod
+    def _open(system: SystemView) -> None:
+        """Open the market, where every shopper wants one unit and every shop offers its capacity.
+
+        A shopper shops online, at no travel cost, with its probability `online`, and in person otherwise.
+        """
+        shoppers = system.get_agents('shoppers', ResidentView)
+        for shopper in shoppers:
+            shopper.demand = 1.0
+        for shopper in shoppers:
+            shopper.travel = 0.0 if system.rng.random() < shopper.online else float(shopper.distance_cost)
+        shops = system.get_agents('shops', StoreView)
+        for shop in shops:
+            shop.supply = float(shop.capacity)
+        for shop in shops:
+            shop.ask = float(shop.price)
+        for shop in shops:
+            shop.sales = 0.0
+
+    @staticmethod
+    def _settle(system: SystemView) -> None:
+        """Settle the accounts of every shop.
+
+        A shop turns its price back when its profit falls, records the profit, and pays its costs. The pricing then
+        steps the price by the sign of the direction.
+        """
+        shops = system.get_agents('shops', StoreView)
+        for shop in shops:
+            shop.direction = float(-shop.direction if StoreElement.get_profit(shop) < shop.profit else shop.direction)
+        for shop in shops:
+            shop.profit = float(StoreElement.get_profit(shop))
+        for shop in shops:
+            shop.money = float(shop.money - shop.sales * shop.unit_cost - shop.fixed_cost)
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
         places = rng.choice(len(cells), size=min(self.n_shops, len(cells)), replace=False)
-        shoppers = GroupElement(
+        space = LatticeSpace((self.width, self.height), boundary='fixed', metric='chebyshev')
+        xs, ys = np.array(cells).T
+        shoppers = ResidentElement(
             'shoppers',
-            element=ResidentElement,
+            bid=self.value,
+            online=self.online,
+            distance_cost=self.distance_cost,
+            values={'x': xs, 'y': ys},
             size=len(cells),
-            values={'bid': self.value, 'online': self.online, 'distance_cost': self.distance_cost},
-            location=cells,
+            space=space,
         )
-        stores = GroupElement(
+        stores = StoreElement(
             'shops',
-            element=StoreElement,
+            price=rng.uniform(0.25 * self.value, 0.75 * self.value, len(places)),
+            capacity=self.capacity,
+            fixed_cost=self.fixed_cost,
+            values={'x': xs[places], 'y': ys[places]},
             size=len(places),
-            values={
-                'price': rng.uniform(0.25 * self.value, 0.75 * self.value, len(places)),
-                'capacity': self.capacity,
-                'fixed_cost': self.fixed_cost,
-            },
-            variable=True,
-            location=[cells[index] for index in places],
+            space=space,
         )
         plan = [
-            MapInteraction(
-                'demand',
-                target='shoppers',
-                state='demand',
-                function=lambda agent, system: 1.0,
-                form='agent',
-                phase='market',
-            ),
-            MapInteraction(
-                'travel',
-                target='shoppers',
-                state='travel',
-                function=ResidentElement.get_travel,
-                form='agent',
-                phase='market',
-            ),
-            *(
-                MapInteraction(
-                    f'opening_{name}',
-                    target='shops',
-                    state=name,
-                    function=function,
-                    form='agent',
-                    phase='market',
-                )
-                for name, function in StoreElement.get_opening()
+            Interaction(
+                'opening',
+                roles={'shoppers': 'shoppers', 'shops': 'shops'},
+                laws=lambda s: [UpdateLaw(s, ShopsSystem._open, phase='market')],
             ),
         ]
         settlement = [
-            *(
-                MapInteraction(
-                    f'settlement_{name}',
-                    target='shops',
-                    state=name,
-                    function=function,
-                    form='agent',
-                    phase='accounts',
-                )
-                for name, function in StoreElement.get_settlement()
+            Interaction(
+                'settlement',
+                roles={'shops': 'shops'},
+                laws=lambda s: [UpdateLaw(s, ShopsSystem._settle, phase='accounts')],
             ),
             PriceAdjustmentInteraction(
                 'settlement_price',
@@ -691,6 +697,6 @@ class ShopsSystem(BaseSystem):
             self.label,
             elements=[shoppers, stores],
             interactions=[*plan, shopping, *settlement],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', metric='chebyshev'),
+            space=space,
             solver=MesaSolver(phases=[PhaseSpec('market'), PhaseSpec('accounts')]),
         )
