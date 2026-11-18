@@ -16,14 +16,15 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import LatticeSpace
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import ImitationInteraction
 from ...general.matching import ContinuousMatchingSpec, MatchingInteraction, MatchSpec, RandomSearchSpec
@@ -37,8 +38,8 @@ HOLDINGS = ('money', 'shares')
 class StockTraderView(AgentView):
     """Stock trader as the rules see it.
 
-    It holds its strategy, holdings, order, wealth, gain, and fundamental value. The order is the limit prices `bid` and
-    `ask` and the quantities `demand` and `supply`.
+    It holds its strategy, holdings, order, wealth, gain, and the parameters of its forecast. The order is the limit
+    prices `bid` and `ask` and the quantities `demand` and `supply`.
     """
 
     strategy: float
@@ -51,6 +52,9 @@ class StockTraderView(AgentView):
     wealth: float
     gain: float
     fundamental: float
+    reversion: float
+    extrapolation: float
+    noise: float
 
 
 class StockTraderElement(Element):
@@ -106,36 +110,45 @@ class StockTraderElement(Element):
         noise:
             The standard deviation of the relative noise of a forecast.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.finance import StockTraderElement
-        >>> GroupElement('traders', element=StockTraderElement, size=4, values={'strategy': 1.0}).size
+        >>> StockTraderElement('traders', strategy=1.0, size=4).size
         4
     """
 
     visual = VisualSpec('agents', {'color_by': 'strategy', 'color_range': (0.0, 1.0)})
 
-    law_classes = (RuleLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        strategy: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        money: Annotated[float, StateSpec()] = 1000.0,
-        shares: Annotated[float, StateSpec()] = 10.0,
-        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        supply: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        wealth: Annotated[float, StateSpec()] = 0.0,
-        gain: Annotated[float, StateSpec()] = 0.0,
-        fundamental: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        reversion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        extrapolation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        strategy: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        money: object = 1000.0,
+        shares: object = 10.0,
+        bid: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        ask: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        demand: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        supply: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        wealth: object = 0.0,
+        gain: object = 0.0,
+        fundamental: Annotated[object, RealSet.open(0, oo)] = 100.0,
+        reversion: Annotated[object, RealSet.closed_open(0, oo)] = 0.2,
+        extrapolation: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        noise: Annotated[object, RealSet.closed_open(0, oo)] = 0.02,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.strategy = strategy
         self.money = money
         self.shares = shares
@@ -155,22 +168,59 @@ class StockTraderElement(Element):
         """Return the view of the agents of the element."""
         return StockTraderView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the quoting rule in its phase.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class LimitOrderInteraction(Interaction):
+    """Limit orders of the traders of the order book.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.quote, phase='quote')]
+    Every trader forecasts the price and quotes a limit order for one share. A fundamentalist expects the price to close
+    the share `reversion` of its gap to the fundamental value, and a chartist expects the last change of the price to
+    repeat by the share `extrapolation`, both with a relative normal noise of standard deviation `noise`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of traders.
+
+        phase:
+            The phase the traders quote in.
+
+    Examples:
+        >>> from skcomplex.systems.economics.finance import LimitOrderInteraction
+        >>> LimitOrderInteraction('quotes', target='traders').phase
+        'quote'
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role, phase: str | None = 'quote') -> None:
+        super().__init__(label)
+        self.target = target
+        self.phase = phase
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the quote of every trader as its rule."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.quote, phase=self.phase)]
 
     @staticmethod
-    def _get_prices(agent: StockTraderView, system: SystemView) -> tuple[float, float]:
-        """Return the last two prices of the book, the fundamental value before the first."""
+    def get_prices(agent: StockTraderView, system: SystemView) -> tuple[float, float]:
+        """Return the last two prices of the book, the fundamental value before the first.
+
+        Args:
+            agent:
+                The trader.
+
+            system:
+                The system view of the rule.
+
+        Returns:
+            prices:
+                The last price and the one before it.
+        """
         history = system.get_history('book.price', 2)
         prices = [value for value in history if math.isfinite(value)] or [agent.fundamental]
         return prices[-1], prices[0]
@@ -185,23 +235,71 @@ class StockTraderElement(Element):
             system:
                 The system.
         """
-        price, previous = self._get_prices(agent, system)
+        price, previous = self.get_prices(agent, system)
         if agent.strategy:
-            expected = heuristics.trend([previous, price], strength=system.get_parameter('extrapolation'))
+            expected = heuristics.trend([previous, price], strength=agent.extrapolation)
         else:
-            reversion = 1 - system.get_parameter('reversion')
+            reversion = 1 - agent.reversion
             expected = heuristics.fundamental(
                 [price],
-                fundamental=system.get_parameter('fundamental'),
+                fundamental=agent.fundamental,
                 reversion=reversion,
             )
-        expected = max(LOWEST_PRICE, expected * (1 + system.get_parameter('noise') * system.rng.normal()))
+        expected = max(LOWEST_PRICE, expected * (1 + agent.noise * system.rng.normal()))
         buying = expected > price
         new_bid, new_ask = (expected, 0.0) if buying else (0.0, expected)
         agent.bid = new_bid
         agent.ask = new_ask
         agent.demand = float(buying and agent.money >= expected)
         agent.supply = float(not buying and agent.shares >= 1)
+
+
+class AccountingInteraction(Interaction):
+    """Accounts of the traders of the order book after every step of trade.
+
+    Every trader values its money and shares at the last price, and its gain is the change of this wealth in the step.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of traders.
+
+        phase:
+            The phase the accounts run in.
+
+    Examples:
+        >>> from skcomplex.systems.economics.finance import AccountingInteraction
+        >>> AccountingInteraction('accounts', target='traders').phase
+        'account'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, phase: str | None = 'account') -> None:
+        super().__init__(label)
+        self.target = target
+        self.phase = phase
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the accounts of every step as the rule of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.account, phase=self.phase)]
+
+    def account(self, system: SystemView) -> None:
+        """Set the gain of every trader, and then its wealth at the last price.
+
+        Args:
+            system:
+                The system view of the accounts.
+        """
+        traders = system.get_agents('target', StockTraderView)
+        for trader in traders:
+            trader.gain = self.get_gain(trader, system)
+        for trader in traders:
+            trader.wealth = self.get_wealth(trader, system)
 
     @staticmethod
     def get_gain(agent: StockTraderView, system: SystemView) -> float:
@@ -220,7 +318,7 @@ class StockTraderElement(Element):
             gain:
                 The change of the wealth in the step.
         """
-        return StockTraderElement.get_wealth(agent, system) - agent.wealth if agent.wealth else 0.0
+        return AccountingInteraction.get_wealth(agent, system) - agent.wealth if agent.wealth else 0.0
 
     @staticmethod
     def get_wealth(agent: StockTraderView, system: SystemView) -> float:
@@ -237,7 +335,7 @@ class StockTraderElement(Element):
             wealth:
                 The wealth of the trader.
         """
-        price, _ = StockTraderElement._get_prices(agent, system)
+        price, _ = LimitOrderInteraction.get_prices(agent, system)
         return agent.money + agent.shares * price
 
 
@@ -296,8 +394,8 @@ class BookInteraction(MatchingInteraction[SystemView]):
         self,
         label: str,
         *,
-        requesters: Annotated[str, RoleSpec()],
-        providers: Annotated[str, RoleSpec()],
+        requesters: Role,
+        providers: Role,
         rule: MatchingRule = RandomSearchSpec(),
         reserve: str | tuple[str, str] = ('bid', 'ask'),
         quantity: str | tuple[str, str] = ('demand', 'supply'),
@@ -445,37 +543,27 @@ class OrderBookSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
-        traders = GroupElement(
+        space = LatticeSpace((self.width, self.height), boundary='periodic', metric='manhattan')
+        x, y = np.array(cells).T
+        traders = StockTraderElement(
             'traders',
-            element=StockTraderElement,
+            strategy=(rng.random(len(cells)) < self.chartists).astype(float),
+            money=10 * self.fundamental,
+            shares=10.0,
+            wealth=20 * self.fundamental,
+            fundamental=self.fundamental,
+            reversion=self.reversion,
+            extrapolation=self.extrapolation,
+            noise=self.noise,
+            values={'x': x, 'y': y},
             size=len(cells),
-            values={
-                'strategy': (rng.random(len(cells)) < self.chartists).astype(float),
-                'money': 10 * self.fundamental,
-                'shares': 10.0,
-                'wealth': 20 * self.fundamental,
-                'fundamental': self.fundamental,
-                'reversion': self.reversion,
-                'extrapolation': self.extrapolation,
-                'noise': self.noise,
-            },
-            location=cells,
+            space=space,
         )
-        accounts = [
-            MapInteraction(
-                f'{name}_account',
-                target='traders',
-                state=name,
-                function=function,
-                form='agent',
-                phase='account',
-            )
-            for name, function in (('gain', StockTraderElement.get_gain), ('wealth', StockTraderElement.get_wealth))
-        ]
         self.system_ = System(
             self.label,
             elements=[traders],
             interactions=[
+                LimitOrderInteraction('quotes', target='traders'),
                 BookInteraction(
                     'book',
                     requesters='traders',
@@ -483,7 +571,7 @@ class OrderBookSystem(BaseSystem):
                     rule=ContinuousMatchingSpec(),
                     opening=self.fundamental,
                 ),
-                *accounts,
+                AccountingInteraction('accounts', target='traders'),
                 ImitationInteraction(
                     'imitation',
                     target='traders',
@@ -495,7 +583,7 @@ class OrderBookSystem(BaseSystem):
                     phase='imitation',
                 ),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', metric='manhattan'),
+            space=space,
             solver=MesaSolver(
                 phases=[
                     PhaseSpec('quote'),
