@@ -31,11 +31,12 @@ from ._langevin import (
     TrafficMomentsElement,
     TrafficMomentsInteraction,
 )
-from ._ridesharing import ArrivalInteraction, CabElement, RiderElement, RidesharingSystem
+from ._ridesharing import ArrivalInteraction, CabDrivingInteraction, CabElement, RiderElement, RidesharingSystem
 from ._traffic import NagelSchreckenbergInteraction, NagelSchreckenbergSystem, RoadElement
 
 __all__: list[str] = [
     'ArrivalInteraction',
+    'CabDrivingInteraction',
     'CabElement',
     'CarelessBrakingInteraction',
     'CharbonneauTrafficSystem',
