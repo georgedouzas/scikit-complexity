@@ -275,18 +275,18 @@ class CensusPass(BasePass):
                 errors.append((block.node.path, error))
         scopes = CensusPass._get_continuous_scopes(records)
         records = [
-            replace(record, law=CensusPass._get_corrected(record.law, record.path, scopes)) for record in records
+            replace(record, law=CensusPass._get_corrected(record.law, record.owner, scopes)) for record in records
         ]
         return _CensusSpec(system, records, errors, declarations.agents)
 
     @staticmethod
     def _get_continuous_scopes(records: Sequence[_CensusRecordSpec]) -> frozenset[str]:
-        """Return the paths of the systems whose own components state rate or noise laws.
+        """Return the paths of the systems whose own elements change by rate or noise laws.
 
         The top system is the empty path.
         """
         return frozenset(
-            record.path.rpartition('/')[0]
+            record.owner.rpartition('/')[0]
             for record in records
             if KernelsPass._get_kind_of(record.law) in (RateLaw, NoiseLaw)
         )
@@ -305,7 +305,7 @@ class CensusPass(BasePass):
                 The law.
 
             path:
-                The path of the component that states the law.
+                The path of the element or group whose state the law changes.
 
             scopes:
                 The paths of the systems that flow in continuous time.
