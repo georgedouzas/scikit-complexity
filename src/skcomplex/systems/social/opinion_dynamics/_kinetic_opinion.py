@@ -17,7 +17,6 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import GroupElement
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -257,7 +256,7 @@ class KineticOpinionSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
-        >>> KineticOpinionSystem(levels=5).prepare().system_.elements[0].size
+        >>> KineticOpinionSystem(levels=5).prepare().system_.elements[0].x.size
         5
     """
 
@@ -270,7 +269,7 @@ class KineticOpinionSystem(BaseSystem):
     @staticmethod
     def _get_levels_of(system: System) -> int:
         """Return the number of opinion levels of a system, the size of its distribution."""
-        return int(next(item.size or 0 for item in system.elements if item.label == 'opinions'))
+        return int(np.size(next(item.x for item in system.elements if item.label == 'opinions')))
 
     def __init__(
         self,
@@ -298,12 +297,10 @@ class KineticOpinionSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
+                ActivityDensityElement(
                     'opinions',
-                    element=ActivityDensityElement,
-                    size=self.levels,
-                    on='sites',
-                    values={'x': initial / initial.sum()},
+                    x=initial / initial.sum(),
+                    space=LatticeSpace(self.levels, boundary='fixed'),
                 ),
             ],
             interactions=[

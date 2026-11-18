@@ -212,7 +212,9 @@ class EncounterInteraction(Interaction):
         kernel = None if self.kernel is None else self.kernel(namespace)
         if self.outcome == 'destructive':
             loss = -np.asarray(rate, dtype=object)
-            return [RateLaw(candidate, bilinear(loss, None, candidate, field), label=self.label)]
-        if self.outcome == 'proliferative':
-            return [RateLaw(candidate, bilinear(rate, kernel, candidate, field), label=self.label)]
-        return [RateLaw(candidate, bilinear(rate, kernel, candidate, field, conserved=True), label=self.label)]
+            form = bilinear(loss, None, candidate, field)
+        elif self.outcome == 'proliferative':
+            form = bilinear(rate, kernel, candidate, field)
+        else:
+            form = bilinear(rate, kernel, candidate, field, conserved=True)
+        return [RateLaw(candidate, form, label=self.label)]

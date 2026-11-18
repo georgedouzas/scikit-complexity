@@ -17,25 +17,23 @@ The package has one subpackage per concept, and every recipe is imported from it
 | `dynamics` | systems given as equations | `EquationInteraction`, `AnnotatedElement`, `DynamicalSystem`, `NetworkDynamicalSystem`, `ReactionDiffusionSystem`, `StockFlowSystem` |
 | `agents` | agent rules | `MovementInteraction`, `ChoiceInteraction`, `ImitationInteraction`, `EvolutionInteraction`, `BirthDeathInteraction` |
 | `matching` | markets that pair two groups | `MatchingInteraction`, its rule specs, and `MatchSpec` |
-| `rewriting` | words and tilings that grow by rules | `WordElement`, `PatchElement`, `ProductionLaw`, `SubstitutionLaw`, their specs, `GeometryVisual`, and `RewritingSolver` |
+| `rewriting` | words and tilings that grow by rules | `WordElement`, `PatchElement`, `RewritingInteraction`, `ProductionLaw`, `SubstitutionLaw`, their specs, `GeometryVisual`, and `RewritingSolver` |
 
 ## NonnegativeElement
 
 A `NonnegativeElement` holds one number `x` that stays at zero or above, such as a count of people or the moles of a
-chemical species. It is an [`Element`](elements.md#element) whose one state carries the domain `[0, +oo)`, and it
-returns no laws of its own. Here 100 infected people recover at a rate of 0.1 a day through a
-[`RateInteraction`](interactions.md#rateinteraction).
+chemical species. It is an [`Element`](elements.md#element) whose value `x` carries the allowed values `[0, +oo)`, and
+it takes `size` for many members and `space` for one member per site. Here 100 infected people recover at a rate of
+0.1 a day through a [`ReactionInteraction`](#reactioninteraction) with no products.
 
 ```python
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.general.elements import NonnegativeElement
+from skcomplex.systems.general.reactions import ReactionInteraction
 
-infected = NonnegativeElement('infected', x=100.0)
-recovery = RateInteraction('recovery', target='infected', state='x', rate=lambda s: -0.1 * s.target.x)
-epidemic = CompositeSystem(elements=[infected], interactions=[recovery])
-simulate(epidemic, until=10, dt=5.0).get_values('infected.x').round(1).tolist()
+recovery = ReactionInteraction('recovery', reactants={('infected', 'x'): 1}, k=0.1)
+epidemic = System(elements=[NonnegativeElement('infected', x=100.0)], interactions=[recovery]).prepare()
+epidemic.simulate(until=10, dt=5.0).get_values('infected.x').round(1).tolist()
 ```
 
 The infected fall from 100 to 60.7 after five days and to 36.8 after ten.
@@ -44,39 +42,39 @@ The same element holds the moles of a chemical species in a reactor. A species t
 two thirds of its amount in two seconds.
 
 ```python continuation
-species = NonnegativeElement('A', x=2.0)
-decay = RateInteraction('decay', target='A', state='x', rate=lambda s: -0.5 * s.target.x)
-simulate(CompositeSystem(elements=[species], interactions=[decay]), until=2, dt=1.0).get_values('A.x').round(3).tolist()
+decay = ReactionInteraction('decay', reactants={('A', 'x'): 1}, k=0.5)
+reactor = System(elements=[NonnegativeElement('A', x=2.0)], interactions=[decay]).prepare()
+reactor.simulate(until=2, dt=1.0).get_values('A.x').round(3).tolist()
 ```
 
 The amount falls from 2.0 to 1.213 and then to 0.736, which is `2 exp(-1)`.
 
-**How the engine runs it.** The element adds no laws. The compiler reads its state as it reads any annotated state, and
-the laws of the interactions that target it form the equations a solver integrates.
+**How the engine runs it.** The element adds no laws. A law of an interaction that changes `x` makes it a state, and
+without one `x` is a parameter.
 
 **How it combines.** It is the species of [`ReactionInteraction`](#reactioninteraction) and
-[`ReactionNetworkSystem`](#reactionnetworksystem), and a [`GroupElement`](elements.md#groupelement) of it on the sites
-of a lattice is the distribution that [`EncounterInteraction`](#encounterinteraction) reads.
+[`ReactionNetworkSystem`](#reactionnetworksystem), and on a lattice of classes, with `space=`, it is the distribution
+that [`EncounterInteraction`](#encounterinteraction) reads.
 
-**Limits and errors.** It holds one number. A system that tracks several numbers per member declares its own
-`Element`. The check of the domain runs when the system compiles, so a negative initial value raises a
-`ValidationError` from `simulate`.
+**Limits and errors.** It holds one number per member. A system that tracks several numbers per member uses its own
+`Element`. The allowed values are checked when the system is prepared, so a negative initial value raises a
+`ValidationError` from `prepare`.
 
 ```python continuation
 from skcomplex.core.errors import ValidationError
 
 try:
-    simulate(CompositeSystem(elements=[NonnegativeElement('A', x=-1.0)]), until=1, dt=1.0)
+    System(elements=[NonnegativeElement('A', x=-1.0)]).prepare()
 except ValidationError as error:
     message = str(error)
 message
 ```
 
-The message names the value `A.x = -1.0` and the domain `[0, +oo)` that does not hold it. The fix is an initial
+The message names the value `A.x` and the allowed values `[0, +oo)` that do not hold `-1.0`. The fix is an initial
 value of zero or above.
 
-**A field realization.** Biology names it a compartment of an epidemic and declares the same state again, so the
-docstring of the subclass can say that `x` counts people.
+**A field realization.** Biology names it a compartment of an epidemic, so the docstring of the subclass can say that
+`x` counts people.
 
 ```python continuation
 from typing import Annotated
@@ -84,12 +82,10 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.specs import StateSpec
-
 
 class CompartmentElement(NonnegativeElement):
-    def __init__(self, label, *, x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0):
-        super().__init__(label, x=x)
+    def __init__(self, label, *, x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0, size=None, space=None):
+        super().__init__(label, x=x, size=size, space=space)
 
 
 CompartmentElement('susceptible', x=990.0).get_params()
@@ -371,7 +367,7 @@ See its [API entry][skcomplex.systems.general.reactions].
 ## EncounterInteraction
 
 An `EncounterInteraction` models the meetings of members of two distributions in a kinetic system. A distribution is
-a `GroupElement` of `NonnegativeElement` with one member per class of a trait, such as the levels of an opinion. A
+a `NonnegativeElement` on a lattice with one value per class of a trait, such as the levels of an opinion. A
 candidate at class `h` meets the field at class `k` at the rate `rate[h, k]`, and a conservative encounter moves it to
 class `i` with the probability `kernel[h, k, i]`. Here candidates at three opinion levels meet a field that pulls every
 one of them to the first level.
@@ -379,10 +375,8 @@ one of them to the first level.
 ```python
 import numpy as np
 
-from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.systems.general.kinetics import EncounterInteraction
 
@@ -391,15 +385,15 @@ kernel[:, :, 0] = 1.0
 gather = EncounterInteraction(
     'gather', candidate='candidates', field='field', rate=lambda s: 1.0, kernel=lambda s: kernel
 )
-system = CompositeSystem(
+levels = LatticeSpace(3, boundary='fixed')
+system = System(
     elements=[
-        GroupElement('candidates', element=NonnegativeElement, size=3, on='sites', values={'x': [0.2, 0.3, 0.5]}),
-        GroupElement('field', element=NonnegativeElement, size=1, values={'x': 1.0}),
+        NonnegativeElement('candidates', x=[0.2, 0.3, 0.5], space=levels),
+        NonnegativeElement('field', x=[1.0], size=1),
     ],
     interactions=[gather],
-    space=LatticeSpace(3, boundary='fixed'),
-)
-np.round(simulate(system, until=4.0, dt=0.5).get_values('candidates.x')[-1], 2).tolist()
+).prepare()
+np.round(system.simulate(until=4.0, dt=0.5).get_values('candidates.x')[-1], 2).tolist()
 ```
 
 After four units of time 0.99 of the candidates hold the first level.
@@ -409,15 +403,14 @@ immune density of 0.4 at the rate 0.5, so it decays at the rate 0.2.
 
 ```python continuation
 killing = EncounterInteraction('killing', candidate='tumour', field='immune', rate=lambda s: 0.5, outcome='destructive')
-cells = CompositeSystem(
+cells = System(
     elements=[
-        GroupElement('tumour', element=NonnegativeElement, size=1, on='sites', values={'x': 1.0}),
-        GroupElement('immune', element=NonnegativeElement, size=1, values={'x': 0.4}),
+        NonnegativeElement('tumour', x=[1.0], space=LatticeSpace(1, boundary='fixed')),
+        NonnegativeElement('immune', x=[0.4], size=1),
     ],
     interactions=[killing],
-    space=LatticeSpace(1, boundary='fixed'),
-)
-simulate(cells, until=10.0, dt=5.0).get_values('tumour.x').round(3).tolist()
+).prepare()
+cells.simulate(until=10.0, dt=5.0).get_values('tumour.x').round(3).tolist()
 ```
 
 The tumour falls to 0.368 at time 5 and to 0.135 at time 10, which is `exp(-2)`.
@@ -429,8 +422,9 @@ a candidate at class `i`, and with a `cross_section` the rate is the collision i
 by a fast spectral method.
 
 **How it combines.** The candidates sit on the sites of a [`LatticeSpace`](spaces.md#latticespace) of classes, or on a
-[`PhaseSpace`](spaces.md#phasespace), where encounters pair classes at the same position. Without a field the
-encounter is a linear redistribution between classes.
+[`PhaseSpace`](spaces.md#phasespace), where encounters pair classes at the same position. A density the encounter
+reads is a state also when no law changes it, as the field of the tumour above. Without a field the encounter is a
+linear redistribution between classes.
 
 **Limits and errors.** The bilinear form needs a lattice of classes. A conservative encounter moves candidates by a
 kernel, so `prepare` raises a `ValidationError` without one.
@@ -455,24 +449,13 @@ A `GradientInteraction` takes a potential, one scalar function of the states, an
 gradient. Here a particle in the double well `U = (x^2 - 1)^2 / 4` slides from 0.5 to the bottom of the well at 1.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
+from skcomplex.core.systems import System
 from skcomplex.systems.general.gradients import GradientInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class AmountElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-
 
 well = GradientInteraction('well', target='particle', potential=lambda s: (s.target.x**2 - 1) ** 2 / 4)
-landscape = CompositeSystem(elements=[AmountElement('particle', x=0.5)], interactions=[well])
-simulate(landscape, until=10, dt=5.0).get_values('particle.x').round(3).tolist()
+landscape = System(elements=[Element('particle', values={'x': 0.5})], interactions=[well]).prepare()
+landscape.simulate(until=10, dt=5.0).get_values('particle.x').round(3).tolist()
 ```
 
 The particle reaches 1.0 by the fifth unit of time and stays there.
@@ -480,18 +463,10 @@ The particle reaches 1.0 by the fifth unit of time and stays there.
 The same class fits the two weights of a model by descending its loss, the squared distance to the values 1 and -2.
 
 ```python continuation
-class ModelElement(Element):
-    def __init__(
-        self, label, *, a: Annotated[float, StateSpec()] = 0.0, b: Annotated[float, StateSpec()] = 0.0
-    ):
-        super().__init__(label)
-        self.a = a
-        self.b = b
-
-
 loss = lambda s: (s.target.a - 1) ** 2 + (s.target.b + 2) ** 2
 descent = GradientInteraction('descent', target='model', states=('a', 'b'), potential=loss)
-trajectory = simulate(CompositeSystem(elements=[ModelElement('model')], interactions=[descent]), until=5, dt=5.0)
+model = Element('model', values={'a': 0.0, 'b': 0.0})
+trajectory = System(elements=[model], interactions=[descent]).prepare().simulate(until=5, dt=5.0)
 round(float(trajectory.get_values('model.a')[-1]), 3), round(float(trajectory.get_values('model.b')[-1]), 3)
 ```
 
@@ -509,11 +484,11 @@ The interaction emits rate laws.
 
 **How it combines.** The role `target` binds an element or a group, and `sources` names the elements the potential
 reads without moving them, such as the position of a fixed charge. Several gradient interactions on one state add
-their forces. On a `FieldElement`, with `variational=True`, the potential is the density of a functional and the field
+their forces. On an element with one member per site of a lattice, with `variational=True`, the potential is the density of a functional and the field
 follows the Allen-Cahn equation, and `conserved=True` gives the Cahn-Hilliard equation.
 
 **Limits and errors.** One potential gives every rate, so a force that is not the gradient of a potential, such as
-friction, needs a `RateInteraction`. The potential must be a function, and `prepare` raises a `ValidationError`
+friction, needs an interaction that sets its own rate law. The potential must be a function, and `prepare` raises a `ValidationError`
 otherwise.
 
 ```python continuation
@@ -532,18 +507,15 @@ The message reads "The potential of 'well' is 1.0. Give a function of the namesp
 **A field realization.** A field fixes the potential and names its parameters, such as a spring of stiffness `k`.
 
 ```python continuation
-from skcomplex.core.specs import ParameterSpec
-
-
 class SpringInteraction(GradientInteraction):
-    def __init__(self, label, *, target, k: Annotated[float, ParameterSpec()] = 1.0):
+    def __init__(self, label, *, target, k=1.0):
         super().__init__(label, target=target, potential=lambda s: s.k * s.target.x**2 / 2)
         self.k = k
 
 
 spring = SpringInteraction('spring', target='particle', k=2.0)
-relaxation = CompositeSystem(elements=[AmountElement('particle', x=1.0)], interactions=[spring])
-round(float(simulate(relaxation, until=1, dt=1.0).get_values('particle.x')[-1]), 3)
+relaxation = System(elements=[Element('particle', values={'x': 1.0})], interactions=[spring]).prepare()
+round(float(relaxation.simulate(until=1, dt=1.0).get_values('particle.x')[-1]), 3)
 ```
 
 The particle relaxes from 1 to 0.135 in one unit of time, which is `exp(-2)`.
@@ -557,42 +529,29 @@ its equations of motion. Here a pendulum swings from an angle of 0.1 radians, wi
 `q'^2 / 2 + cos q` in units where gravity and the length are 1.
 
 ```python
-from typing import Annotated
-
 from sage.all__sagemath_symbolics import cos
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.systems import System
 from skcomplex.systems.general.mechanics import EulerLagrangeInteraction
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
 
-
-class CoordinateElement(Element):
-    def __init__(self, label, *, q: Annotated[float, StateSpec(order=2)] = 0.1, q_d1: float = 0.0):
-        super().__init__(label)
-        self.q = q
-        self.q_d1 = q_d1
-
-
-lagrangian = lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q)
+lagrangian = lambda s: s.target.q.diff(s.t) ** 2 / 2 + cos(s.target.q)
 swing = EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=lagrangian)
-pendulum = CompositeSystem(elements=[CoordinateElement('bob')], interactions=[swing])
-simulate(pendulum, until=3.2, dt=1.6).get_values('bob.q').round(3).tolist()
+pendulum = System(elements=[Element('bob', values={'q': 0.1})], interactions=[swing]).prepare()
+pendulum.simulate(until=3.2, dt=1.6).get_values('bob.q').round(3).tolist()
 ```
 
 The angle passes through -0.003 at 1.6 seconds and reaches -0.1 at 3.2, half of the period `2 pi` of small swings.
-`derivative(q, 1)` is the velocity of the coordinate.
+`q.diff(t)` is the velocity of the coordinate, and the trajectory reports it as `"bob.q'"`.
 
 The same class gives an electric circuit of a coil and a capacitor, written by its energy. The charge `q` is the
 coordinate, the coil of inductance 2 stores `L q'^2 / 2`, and the capacitor of capacitance 0.5 stores `q^2 / (2 C)`.
 
 ```python continuation
-energy = lambda s: 2.0 * derivative(s.target.q, 1) ** 2 / 2 - s.target.q**2 / (2 * 0.5)
+energy = lambda s: 2.0 * s.target.q.diff(s.t) ** 2 / 2 - s.target.q**2 / (2 * 0.5)
 oscillation = EulerLagrangeInteraction('oscillation', target='circuit', states='q', lagrangian=energy)
-circuit = CompositeSystem(elements=[CoordinateElement('circuit', q=1.0)], interactions=[oscillation])
-simulate(circuit, until=3.14159, dt=3.14159 / 2).get_values('circuit.q').round(3).tolist()
+circuit = System(elements=[Element('circuit', values={'q': 1.0})], interactions=[oscillation]).prepare()
+circuit.simulate(until=3.14159, dt=3.14159 / 2).get_values('circuit.q').round(3).tolist()
 ```
 
 The charge goes from 1 to 0 and to -1 in half a period, since the frequency `1 / sqrt(L C)` is 1.
@@ -613,7 +572,8 @@ coordinates. Equations of one coordinate from several interactions add, so a spr
 interaction of its own whose Lagrangian holds only the coupling energy. `dissipation` and `forcing` add friction and
 external forces.
 
-**Limits and errors.** The coordinates are states of order 2, and the Lagrangian must be a function. `prepare` raises
+**Limits and errors.** The Lagrangian must be a function, and the coordinates take the order 2 its equations
+give them. `prepare` raises
 a `ValidationError` for a Lagrangian that is not one.
 
 ```python continuation
@@ -633,19 +593,9 @@ the namespace, as above.
 gravity `g`.
 
 ```python continuation
-from skcomplex.core.specs import ParameterSpec
-
-
 class PendulumInteraction(EulerLagrangeInteraction):
-    def __init__(
-        self,
-        label,
-        *,
-        target,
-        g: Annotated[float, ParameterSpec()] = 9.81,
-        l: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        lagrangian = lambda s: s.l**2 * derivative(s.target.q, 1) ** 2 / 2 + s.g * s.l * cos(s.target.q)
+    def __init__(self, label, *, target, g=9.81, l=1.0):
+        lagrangian = lambda s: s.l**2 * s.target.q.diff(s.t) ** 2 / 2 + s.g * s.l * cos(s.target.q)
         super().__init__(label, target=target, states='q', lagrangian=lagrangian)
         self.g = g
         self.l = l
@@ -1991,45 +1941,34 @@ use it.
 
 ## WordElement
 
-A `WordElement` holds a word of symbols that productions rewrite at every generation. In the algae of Lindenmayer `A`
-becomes `AB` and `B` becomes `A`, so the length of the word runs through the Fibonacci numbers.
+A `WordElement` holds a word of symbols, and the productions of an interaction that binds it rewrite it at every
+generation. In the algae of Lindenmayer `A` becomes `AB` and `B` becomes `A`, so the length of the word runs through
+the Fibonacci numbers.
 
 ```python
-from skcomplex.systems.general.rewriting import ProductionLaw, WordElement
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
+from skcomplex.systems.general.rewriting import ProductionLaw, RewritingInteraction, WordElement
 
-
-class AlgaeElement(WordElement):
-    law_classes = (ProductionLaw,)
-
-    def _get_laws(self, namespace):
-        return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-
-
-trajectory = simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A')]), until=5)
-trajectory.get_values('algae.size').tolist()
+growth = RewritingInteraction('growth', target='algae', laws=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])
+algae = System(elements=[WordElement('algae', axiom='A')], interactions=[growth]).prepare()
+algae.simulate(until=5).get_values('algae.size').tolist()
 ```
 
-The Thue and Morse sequence of symbolic dynamics comes from the same class, with `0` becoming `01` and `1` becoming
-`10`.
+The Thue and Morse sequence of symbolic dynamics comes from the same classes, with `0` becoming `01` and `1`
+becoming `10`.
 
 ```python continuation
-class MorseElement(WordElement):
-    law_classes = (ProductionLaw,)
-
-    def _get_laws(self, namespace):
-        return [ProductionLaw('0', '01'), ProductionLaw('1', '10')]
-
-
-simulate(CompositeSystem(elements=[MorseElement('morse', axiom='0')]), until=3).get_values('morse.size').tolist()
+doubling = RewritingInteraction('doubling', target='morse', laws=[ProductionLaw('0', '01'), ProductionLaw('1', '10')])
+morse = System(elements=[WordElement('morse', axiom='0')], interactions=[doubling]).prepare()
+morse.simulate(until=3).get_values('morse.size').tolist()
 ```
 
 **How the engine runs it.** Each generation applies every production to every matching symbol at once. The
 rewriting solver advances one generation per unit of time and records the size of the word as the state `size`.
 
-**How it combines.** Its productions are its own laws, so it usually runs alone. A `geometry` draws the word as line
-segments, as a turtle does, for plants and fractal curves.
+**How it combines.** The interactions that bind it set its productions, and a system of words holds only words,
+patches, and these interactions. A `geometry` draws the word as line segments, as a turtle does, for plants and fractal
+curves.
 
 **Limits and errors.** The word grows at every generation, so `max_size` bounds it. A symbol outside `alphabet`, or a
 word that would grow past `max_size`, raises a `RewritingError` during the run.
@@ -2038,7 +1977,7 @@ word that would grow past `max_size`, raises a `RewritingError` during the run.
 from skcomplex.core.errors import RewritingError
 
 try:
-    simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A', max_size=4)]), until=5)
+    System(elements=[WordElement('algae', axiom='A', max_size=4)], interactions=[growth]).prepare().simulate(until=5)
 except RewritingError as error:
     message = str(error)
 message
@@ -2047,8 +1986,36 @@ message
 The message says that the word would reach 5 symbols at generation 3, above its maximum size 4. The fix is a larger
 `max_size` or fewer generations.
 
-**A field realization.** The subclasses above are already field realizations, the algae of biology and the sequence
-of symbolic dynamics.
+**A field realization.** The `MorseSubshiftSystem` of computer science rewrites a Thue-Morse word, and the
+`KochCurveSystem` of mathematics a Koch curve, both with a `RewritingInteraction`.
+
+See its [API entry][skcomplex.systems.general.rewriting].
+
+## RewritingInteraction
+
+A `RewritingInteraction` rewrites the word or the patch it binds by the productions or substitutions it is given. Here
+it doubles every symbol of a word.
+
+```python
+from skcomplex.core.systems import System
+from skcomplex.systems.general.rewriting import ProductionLaw, RewritingInteraction, WordElement
+
+doubling = RewritingInteraction('doubling', target='word', laws=[ProductionLaw('A', 'AA')])
+word = System(elements=[WordElement('word', axiom='A')], interactions=[doubling]).prepare()
+word.simulate(until=3).get_values('word.size').tolist()
+```
+
+The word holds 1, 2, 4, and 8 symbols.
+
+**How the engine runs it.** The interaction sets its laws in `laws_` when it is prepared on the namespace of its word,
+and the rewriting compiler, which the word names, compiles them into one kernel per word or patch.
+
+**How it combines.** Rules that read parameters of their own, such as the ratio of a Cantor set, are written as a
+subclass of `Interaction` whose `_prepare` sets them, and its numeric arguments are parameters of the system that a
+`schedule` may change between generations.
+
+**Limits and errors.** It takes only productions and substitutions, and `prepare` raises a `RewritingError` for any
+other law.
 
 See its [API entry][skcomplex.systems.general.rewriting].
 
@@ -2058,20 +2025,12 @@ A `ProductionLaw` rewrites every matching symbol of a word by a string at every 
 Koch curve replaces each segment `F` by `F+F--F+F`, where `+` and `-` turn the drawing pen.
 
 ```python
-from skcomplex.systems.general.rewriting import ProductionLaw, WordElement
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
+from skcomplex.systems.general.rewriting import ProductionLaw, RewritingInteraction, WordElement
 
-
-class KochElement(WordElement):
-    law_classes = (ProductionLaw,)
-
-    def _get_laws(self, namespace):
-        return [ProductionLaw('F', 'F+F--F+F')]
-
-
-koch = KochElement('koch', axiom='F')
-simulate(CompositeSystem(elements=[koch]), until=3).get_values('koch.size').tolist()
+bend = RewritingInteraction('bend', target='koch', laws=[ProductionLaw('F', 'F+F--F+F')])
+koch = System(elements=[WordElement('koch', axiom='F')], interactions=[bend]).prepare()
+koch.simulate(until=3).get_values('koch.size').tolist()
 ```
 
 The word holds 1, 8, 36, and 148 symbols, since every segment becomes four segments and four turns.
@@ -2080,15 +2039,10 @@ The same law runs a grammar of linguistics. A sentence `S` becomes a noun phrase
 phrase becomes a determiner `D` and a word `W`, and a verb phrase takes a noun phrase as its object.
 
 ```python continuation
-class SentenceElement(WordElement):
-    law_classes = (ProductionLaw,)
-
-    def _get_laws(self, namespace):
-        return [ProductionLaw('S', 'NV'), ProductionLaw('N', 'DW'), ProductionLaw('V', 'VN')]
-
-
-sentence = SentenceElement('sentence', axiom='S')
-simulate(CompositeSystem(elements=[sentence]), until=3).get_values('sentence.size').tolist()
+grammar = [ProductionLaw('S', 'NV'), ProductionLaw('N', 'DW'), ProductionLaw('V', 'VN')]
+parsing = RewritingInteraction('grammar', target='sentence', laws=grammar)
+sentence = System(elements=[WordElement('sentence', axiom='S')], interactions=[parsing]).prepare()
+sentence.simulate(until=3).get_values('sentence.size').tolist()
 ```
 
 The structure holds 1, 2, 4, and 6 symbols.
@@ -2096,7 +2050,7 @@ The structure holds 1, 2, 4, and 6 symbols.
 **How the engine runs it.** The rewriting solver applies every production to every matching symbol at once, one
 generation per unit of time, and records the length of the word as the state `size`.
 
-**How it combines.** A `WordElement` returns its productions, which act on its word. A production may read a left or
+**How it combines.** An interaction that binds a `WordElement` sets its productions, which act on its word. A production may read a left or
 a right context, a condition on the parameters of a module, or a probability, so stochastic and parametric L-systems
 use the same law.
 
@@ -2122,47 +2076,41 @@ See its [API entry][skcomplex.systems.general.rewriting].
 
 ## PatchElement
 
-A `PatchElement` holds tiles, placed copies of basic shapes, that substitutions replace by smaller pieces at every
-generation. Keeping the outer thirds of every interval builds the Cantor set.
+A `PatchElement` holds tiles, placed copies of basic shapes, and the substitutions of an interaction that binds it
+replace them by smaller pieces at every generation. Keeping the outer thirds of every interval builds the Cantor set.
 
 ```python
-from skcomplex.systems.general.rewriting import AffineSpec, PatchElement, PrototileSpec, SubstitutionLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
+from skcomplex.systems.general.rewriting import (
+    AffineSpec,
+    PatchElement,
+    PrototileSpec,
+    RewritingInteraction,
+    SubstitutionLaw,
+)
 
-
-class CantorElement(PatchElement):
-    law_classes = (SubstitutionLaw,)
-
-    def _get_laws(self, namespace):
-        thirds = [AffineSpec(scale=1 / 3), AffineSpec(scale=1 / 3, translation=(2 / 3, 0))]
-        return [SubstitutionLaw('interval', [('interval', third) for third in thirds])]
-
-
-cantor = CantorElement('cantor', prototiles=[PrototileSpec('interval', [(0, 0), (1, 0)])])
-simulate(CompositeSystem(elements=[cantor]), until=3).get_values('cantor.size').tolist()
+thirds = [AffineSpec(scale=1 / 3), AffineSpec(scale=1 / 3, translation=(2 / 3, 0))]
+removal = RewritingInteraction(
+    'removal', target='cantor', laws=[SubstitutionLaw('interval', [('interval', third) for third in thirds])]
+)
+cantor = PatchElement('cantor', prototiles=[PrototileSpec('interval', [(0, 0), (1, 0)])])
+System(elements=[cantor], interactions=[removal]).prepare().simulate(until=3).get_values('cantor.size').tolist()
 ```
 
 Replacing every triangle by its three corner triangles builds the Sierpinski triangle of geometry.
 
 ```python continuation
-class SierpinskiElement(PatchElement):
-    law_classes = (SubstitutionLaw,)
-
-    def _get_laws(self, namespace):
-        corners = [(0, 0), (1 / 2, 0), (1 / 4, 1 / 2)]
-        pieces = [('triangle', AffineSpec(scale=1 / 2, translation=corner)) for corner in corners]
-        return [SubstitutionLaw('triangle', pieces)]
-
-
-triangle = SierpinskiElement('sierpinski', prototiles=[PrototileSpec('triangle', [(0, 0), (1, 0), (1 / 2, 1)])])
-simulate(CompositeSystem(elements=[triangle]), until=3).get_values('sierpinski.size').tolist()
+corners = [(0, 0), (1 / 2, 0), (1 / 4, 1 / 2)]
+pieces = [('triangle', AffineSpec(scale=1 / 2, translation=corner)) for corner in corners]
+copies = RewritingInteraction('copies', target='sierpinski', laws=[SubstitutionLaw('triangle', pieces)])
+triangle = PatchElement('sierpinski', prototiles=[PrototileSpec('triangle', [(0, 0), (1, 0), (1 / 2, 1)])])
+System(elements=[triangle], interactions=[copies]).prepare().simulate(until=3).get_values('sierpinski.size').tolist()
 ```
 
 **How the engine runs it.** Each generation applies every substitution to every tile of its prototile at once, and
 the rewriting solver records the number of tiles as the state `size`.
 
-**How it combines.** Its substitutions are its own laws, so it usually runs alone, and its tiles are drawn as polygons.
+**How it combines.** The interactions that bind it set its substitutions, and its tiles are drawn as polygons.
 
 **Limits and errors.** Every tile must name a prototile of the patch, and `prepare` raises a `RewritingError`
 otherwise.
@@ -2180,8 +2128,9 @@ message
 
 The message names the unknown prototile `square`. The fix is a tile of the prototile `interval`.
 
-**A field realization.** The two subclasses above are realizations of mathematics, and a tiling of physics, such as
-the Penrose tiling of a quasicrystal, is written the same way.
+**A field realization.** The `CantorInteraction` and `SierpinskiInteraction` of
+`skcomplex.systems.mathematics.fractals` are realizations of mathematics, and a tiling of physics, such as the Penrose
+tiling of a quasicrystal, is written the same way.
 
 See its [API entry][skcomplex.systems.general.rewriting].
 
@@ -2191,23 +2140,21 @@ A `SubstitutionLaw` replaces every tile of a prototile, a shape of tile, by smal
 The Sierpinski carpet keeps eight of the nine thirds of every square.
 
 ```python
-from skcomplex.systems.general.rewriting import AffineSpec, PatchElement, PrototileSpec, SubstitutionLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
+from skcomplex.systems.general.rewriting import (
+    AffineSpec,
+    PatchElement,
+    PrototileSpec,
+    RewritingInteraction,
+    SubstitutionLaw,
+)
 
-
-class CarpetElement(PatchElement):
-    law_classes = (SubstitutionLaw,)
-
-    def _get_laws(self, namespace):
-        corners = [(i / 3, j / 3) for i in range(3) for j in range(3) if (i, j) != (1, 1)]
-        pieces = [('square', AffineSpec(scale=1 / 3, translation=corner)) for corner in corners]
-        return [SubstitutionLaw('square', pieces)]
-
-
+corners = [(i / 3, j / 3) for i in range(3) for j in range(3) if (i, j) != (1, 1)]
+pieces = [('square', AffineSpec(scale=1 / 3, translation=corner)) for corner in corners]
 square = PrototileSpec('square', [(0, 0), (1, 0), (1, 1), (0, 1)])
-carpet = CarpetElement('carpet', prototiles=[square])
-simulate(CompositeSystem(elements=[carpet]), until=3).get_values('carpet.size').tolist()
+holes = RewritingInteraction('holes', target='carpet', laws=[SubstitutionLaw('square', pieces)])
+carpet = System(elements=[PatchElement('carpet', prototiles=[square])], interactions=[holes]).prepare()
+carpet.simulate(until=3).get_values('carpet.size').tolist()
 ```
 
 The carpet holds 1, 8, 64, and 512 squares.
@@ -2216,17 +2163,11 @@ The same law subdivides the square tiling of the plane, which is its own substit
 squares of half the size.
 
 ```python continuation
-class RefinementElement(PatchElement):
-    law_classes = (SubstitutionLaw,)
-
-    def _get_laws(self, namespace):
-        corners = [(0, 0), (1 / 2, 0), (0, 1 / 2), (1 / 2, 1 / 2)]
-        pieces = [('square', AffineSpec(scale=1 / 2, translation=corner)) for corner in corners]
-        return [SubstitutionLaw('square', pieces)]
-
-
-grid = RefinementElement('grid', prototiles=[square])
-simulate(CompositeSystem(elements=[grid]), until=3).get_values('grid.size').tolist()
+corners = [(0, 0), (1 / 2, 0), (0, 1 / 2), (1 / 2, 1 / 2)]
+pieces = [('square', AffineSpec(scale=1 / 2, translation=corner)) for corner in corners]
+refinement = RewritingInteraction('refinement', target='grid', laws=[SubstitutionLaw('square', pieces)])
+grid = System(elements=[PatchElement('grid', prototiles=[square])], interactions=[refinement]).prepare()
+grid.simulate(until=3).get_values('grid.size').tolist()
 ```
 
 The tiling holds 1, 4, 16, and 64 squares.
@@ -2234,7 +2175,7 @@ The tiling holds 1, 4, 16, and 64 squares.
 **How the engine runs it.** The rewriting solver applies every substitution to every tile of its prototile at once,
 one generation per unit of time, and records the number of tiles as the state `size`.
 
-**How it combines.** A `PatchElement` returns its substitutions, and several prototiles with one law each build a
+**How it combines.** An interaction that binds a `PatchElement` sets its substitutions, and several prototiles with one law each build a
 tiling of several shapes, as the Penrose tiling does.
 
 **Limits and errors.** Each piece pairs a prototile name with an `AffineSpec`, the map from the frame of the parent

@@ -18,7 +18,7 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ConstraintLaw, RateLaw
-from ....core.components.laws.utils import derivative, step
+from ....core.components.laws.utils import step
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -288,13 +288,13 @@ class DcMotorSystem(BaseSystem):
     @staticmethod
     def _get_rotor_lagrangian(s: SimpleNamespace) -> Expression:
         """Return the kinetic energy of the rotor."""
-        energy: Expression = s.target.J * derivative(s.target.phi, 1) ** 2 / 2
+        energy: Expression = s.target.J * s.target.phi.diff(s.t) ** 2 / 2
         return energy
 
     @staticmethod
     def _get_rotor_dissipation(s: SimpleNamespace) -> Expression:
         """Return the Rayleigh dissipation of the viscous friction of the rotor."""
-        dissipation: Expression = s.target.b * derivative(s.target.phi, 1) ** 2 / 2
+        dissipation: Expression = s.target.b * s.target.phi.diff(s.t) ** 2 / 2
         return dissipation
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:

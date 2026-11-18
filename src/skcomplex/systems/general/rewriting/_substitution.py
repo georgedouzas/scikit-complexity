@@ -18,7 +18,7 @@ class SubstitutionLaw(BaseLaw):
     """A law that replaces every tile of a prototile by smaller placed pieces.
 
     A prototile is a shape of tile. At every generation each tile of that shape is replaced by `pieces`, placed relative
-    to the tile. A patch element returns its substitutions from `_get_laws`, and every generation applies all of them at
+    to the tile. An interaction that binds a patch sets its substitutions, and every generation applies all of them at
     once.
 
     Unlike `ProductionLaw`, which rewrites symbols of a word, it rewrites tiles of the plane. Choose it when a tiling

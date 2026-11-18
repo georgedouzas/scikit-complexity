@@ -16,7 +16,6 @@ from sage.modules.free_module_element import FreeModuleElement
 from scipy.stats import irwinhall
 
 from ....core.components import Observable
-from ....core.components.elements import FieldElement
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import coordinate, integral_transform, integration_variable
 from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace, PhaseSpace
@@ -315,7 +314,7 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.social.cooperation import NonlinearPairwiseGroupConflictSystem
-        >>> NonlinearPairwiseGroupConflictSystem(40).prepare().system_.elements[0].prepare().size_
+        >>> NonlinearPairwiseGroupConflictSystem(40).prepare().system_.elements[0].x.size
         40
     """
 
@@ -426,15 +425,9 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         advantage = (self.punishment + self.interaction_cost) * z - (
             self.cost + self.fixed_cost + self.interaction_cost
         )
-        space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', self.cells, 0.0, 1.0)])
-        groups = FieldElement(
-            'groups',
-            element=ActivityDensityElement,
-            space=space,
-            values={'x': np.ones((1, self.cells))},
-            discretization='finite-volume',
-            scheme=FiniteVolumeSpec(limiter=None),
-        )
+        position = LatticeSpace((1,), discretization='finite-volume', scheme=FiniteVolumeSpec(limiter=None))
+        space = PhaseSpace(position, [AxisSpec('z', self.cells, 0.0, 1.0)])
+        groups = ActivityDensityElement('groups', x=np.ones((1, self.cells)), space=space)
         within = SelectionDriftInteraction(
             'within',
             target='groups',
@@ -505,7 +498,7 @@ class TwoLevelReplicatorSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.social.cooperation import TwoLevelReplicatorSystem
-        >>> TwoLevelReplicatorSystem(40).prepare().system_.elements[0].prepare().size_
+        >>> TwoLevelReplicatorSystem(40).prepare().system_.elements[0].x.size
         40
     """
 
@@ -564,15 +557,9 @@ class TwoLevelReplicatorSystem(BaseSystem):
         advantage = (self.punishment + self.interaction_cost) * z - (
             self.cost + self.fixed_cost + self.interaction_cost
         )
-        space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', self.cells, 0.0, 1.0)])
-        groups = FieldElement(
-            'groups',
-            element=ActivityDensityElement,
-            space=space,
-            values={'x': np.ones((1, self.cells))},
-            discretization='finite-volume',
-            scheme=FiniteVolumeSpec(limiter=None),
-        )
+        position = LatticeSpace((1,), discretization='finite-volume', scheme=FiniteVolumeSpec(limiter=None))
+        space = PhaseSpace(position, [AxisSpec('z', self.cells, 0.0, 1.0)])
+        groups = ActivityDensityElement('groups', x=np.ones((1, self.cells)), space=space)
         within = SelectionDriftInteraction(
             'within',
             target='groups',
@@ -641,7 +628,7 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.social.cooperation import TrimorphicMultilevelSelectionSystem
-        >>> TrimorphicMultilevelSelectionSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> TrimorphicMultilevelSelectionSystem(10).prepare().system_.elements[0].x.size
         100
     """
 
@@ -741,15 +728,9 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         gain = self._get_trimorphic_victory_gain(self.victory, payoffs)
         axes = [AxisSpec('x', self.cells, 0.0, 1.0), AxisSpec('y', self.cells, 0.0, 1.0)]
-        space = SimplexSpace(LatticeSpace((1,)), axes)
-        groups = FieldElement(
-            'groups',
-            element=GroupDensityElement,
-            space=space,
-            values={'x': 2.0 * (space.prepare().volumes_ > 0)},
-            discretization='finite-volume',
-            scheme=FiniteVolumeSpec(limiter=None),
-        )
+        position = LatticeSpace((1,), discretization='finite-volume', scheme=FiniteVolumeSpec(limiter=None))
+        space = SimplexSpace(position, axes)
+        groups = GroupDensityElement('groups', x=2.0 * (space.prepare().volumes_ > 0), space=space)
         drift = self._get_simplex_drift(payoffs)
         within = SelectionDriftInteraction('within', target='groups', state='x', drift=lambda _: drift)
         between = RateInteraction(

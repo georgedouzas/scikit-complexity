@@ -122,18 +122,13 @@ class GeometryVisual(BaseVisual):
                 otherwise, followed by the time series view, or none for a group of agents.
 
         Examples:
-            >>> from skcomplex.systems.general.rewriting import WordElement
-            >>> from skcomplex.systems.general.rewriting import ProductionLaw
-            >>> from skcomplex.core.components.spaces import DiscreteTime
-            >>> from skcomplex.systems.general.rewriting import GeometrySpec
-            >>> from skcomplex.core.components.systems import CompositeSystem
-            >>> from skcomplex.systems.general.rewriting import GeometryVisual
-            >>> class KochElement(WordElement):
-            ...     def _get_laws(self, namespace):
-            ...         return [ProductionLaw('F', 'F+F--F+F')]
-            >>> koch = KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))
-            >>> from skcomplex.core.engine.runtime import simulate
-            >>> problem = simulate(CompositeSystem(elements=[koch], time=DiscreteTime()), until=0).problem
+            >>> from skcomplex.core.systems import System
+            >>> from skcomplex.systems.general.rewriting import (
+            ...     GeometrySpec, GeometryVisual, ProductionLaw, RewritingInteraction, WordElement
+            ... )
+            >>> koch = WordElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))
+            >>> bend = RewritingInteraction('bend', target='koch', laws=[ProductionLaw('F', 'F+F--F+F')])
+            >>> problem = System(elements=[koch], interactions=[bend]).prepare().simulate(until=0).problem
             >>> views = GeometryVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]
             ['Spatial2DView', 'TimeSeriesView']

@@ -128,6 +128,11 @@ class Particle(Element):
 - The generic ready-made bases that build one element from a mapping of states, such as `DynamicalSystem` and
   `StockFlowSystem`, take the allowed values and quantities of those states as their own arguments, such as
   `allowed={'n': RealSet.closed_open(0, oo)}`, and keep them on the element they build. `Element` keeps its arguments.
+- A value that holds the index of a member of another group, such as the employer of a worker among the firms, says
+  so in `Annotated`: `employer: Annotated[int, Member('firms')] = -1`. The value -1 means none, and removing a member
+  of that group clears the links to it.
+- A network space names its one axis `node`, so an agent on a network starts at the node its value `node` gives and
+  moves by changing it, as `x` and `y` place agents on other spaces.
 - Values keep the order in which they are given, so states and parameters come out in that order and results do not
   depend on alphabetical order.
 - A value named after an axis of the element's space is a position, with no flag. In
@@ -243,6 +248,11 @@ Two kinds of model need forms that the table above does not name yet.
 - Fractional orders. A derivative of order `alpha` between 0 and 1 is the core operator `fractional(x, alpha)`, used as
   the target of a `RateLaw`, such as `RateLaw(fractional(s.target.x, 0.5), -s.k * s.target.x)` for anomalous
   relaxation. Sage has no such derivative, so the operator carries the order and the Caputo solver reads it.
+
+- Flows between stocks. A flow is two rate terms with the same label, `RateLaw(source.n, -f, label='births')` and
+  `RateLaw(sink.n, f, label='births')`, set by one interaction. The loops analysis and the flow matrix read a flow as
+  the rate terms that share a label across stocks, and the trajectory records each labelled flow by name. A flow from
+  outside the system or out of it has only its sink or its source. No law kind is added.
 
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,

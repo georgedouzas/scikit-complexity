@@ -1,42 +1,19 @@
 """Test the `_invariants` module of `skcomplex.systems.physics.common.mechanics`."""
 
-from typing import Annotated
-
 import pytest
 from sage.all__sagemath_symbolics import sqrt
 
 from skcomplex.core.analysis import invariants
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.general.mechanics import EulerLagrangeInteraction
 from skcomplex.systems.physics.celestial_mechanics import SitnikovSystem, TwoBodyOrbitSystem
 from skcomplex.systems.physics.common.mechanics import SymmetrySpec, noether, poisson_brackets
 from skcomplex.systems.physics.nonlinear_oscillators import HenonHeilesSystem
 
 MU = 0.01215
-
-
-class LagrangianBodyElement(Element):
-    """Light body of the rotating frame with coordinates of order 2."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[float, StateSpec(order=2)] = 0.5,
-        x_d1: float = 0.0,
-        y: Annotated[float, StateSpec(order=2)] = 0.0,
-        y_d1: float = 1.15,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
-        self.y = y
-        self.y_d1 = y_d1
 
 
 def _distances(x, y):
@@ -47,7 +24,7 @@ def _distances(x, y):
 def _rotating_lagrangian(s):
     """Return the Lagrangian of the rotating frame."""
     body = s.target
-    vx, vy = derivative(body.x, 1), derivative(body.y, 1)
+    vx, vy = body.x.diff(s.t), body.y.diff(s.t)
     first, second = _distances(body.x, body.y)
     kinetic = (vx**2 + vy**2) / 2 + body.x * vy - body.y * vx + (body.x**2 + body.y**2) / 2
     return kinetic + (1 - MU) / first + MU / second
@@ -60,10 +37,11 @@ def _jacobi(s):
     return body.x**2 + body.y**2 + 2 * (1 - MU) / first + 2 * MU / second - body.x_d1**2 - body.y_d1**2
 
 
-def _lagrangian_three_body() -> CompositeSystem:
+def _lagrangian_three_body() -> System:
     """Return the restricted three-body problem written with an Euler-Lagrange interaction."""
     motion = EulerLagrangeInteraction('motion', target='body', states=('x', 'y'), lagrangian=_rotating_lagrangian)
-    return CompositeSystem(elements=[LagrangianBodyElement('body')], interactions=[motion])
+    body = Element('body', values={'x': 0.5, 'y': 0.0})
+    return System(elements=[body], interactions=[motion])
 
 
 def _kepler_expressions() -> list[Observable]:
