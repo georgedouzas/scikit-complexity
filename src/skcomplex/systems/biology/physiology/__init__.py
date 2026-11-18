@@ -17,7 +17,11 @@ from ._cellular_potts import (
     RegionScoreSpec,
     TissueSiteElement,
 )
-from ._chemotaxis import ChemotacticTissueElement, HyperbolicChemotaxisSystem
+from ._chemotaxis import (
+    ChemotacticTissueElement,
+    HyperbolicChemotaxisInteraction,
+    HyperbolicChemotaxisSystem,
+)
 from ._circulation import CardiovascularSystem, ChamberElement, ResistiveFlowInteraction
 from ._disease import (
     AdaptivePhaseCouplingInteraction,
@@ -75,6 +79,7 @@ __all__: list[str] = [
     'FlowAdaptationInteraction',
     'GlucoseControlElement',
     'GlucoseDualHormoneControlSystem',
+    'HyperbolicChemotaxisInteraction',
     'HyperbolicChemotaxisSystem',
     'LayerCouplingInteraction',
     'MackeyGlassElement',

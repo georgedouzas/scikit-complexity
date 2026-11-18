@@ -13,7 +13,6 @@ are and draws them together.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import HyperbolicChemotaxisSystem
@@ -22,7 +21,7 @@ SYSTEM = 'hyperbolic_chemotaxis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = ScipyODESolver(method='BDF')
-trajectory = simulate(HyperbolicChemotaxisSystem(), solver=solver, observers=[observer])
+trajectory = HyperbolicChemotaxisSystem(solver=solver).prepare().simulate(observers=[observer])
 
 # %%
 # Spreading with a conserved mass
