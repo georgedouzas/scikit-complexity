@@ -30,6 +30,7 @@ from ...components.laws import (
     BaseLaw,
     ConstraintLaw,
     JumpLaw,
+    LinearProgramLaw,
     LocalRuleLaw,
     NoiseLaw,
     RateLaw,
@@ -629,7 +630,7 @@ class _StateInference:
                 orders[name] = _StateInference._get_order(name, 1, orders.get(name))
             for name, steps in _StateInference._get_lags(law, named).items():
                 lags[name] = max(steps, lags.get(name, 0))
-            order = (law.order or 1) if isinstance(law, RateLaw | NoiseLaw) else 1
+            order = (law.order or 1) if isinstance(law, RateLaw | NoiseLaw) else 0 if isinstance(law, LinearProgramLaw) else 1
             names = [entry.name for entry in record.targets]
             if isinstance(law, ConstraintLaw) and law.target is not None and str(law.target) in named:
                 names.append(named[str(law.target)])

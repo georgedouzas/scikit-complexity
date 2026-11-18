@@ -27,6 +27,14 @@ class ObjectiveLaw(BaseLaw):
     `u: Annotated[float, RealSet.closed(0, 1)] = 0.0`. A cost to maximise, such as a profit, is minimised with its sign
     changed.
 
+    A value linear in the targets is minimised as a linear program, with the constraint laws that read the targets,
+    equalities and inequalities alike, such as the fluxes of a metabolic network at its greatest growth,
+    `ObjectiveLaw(-v_growth, fluxes)` with a `ConstraintLaw(v <= upper)` per flux, or the dispatch of power plants at
+    least cost. The targets are then set at every time of a run, so the law also fits a system that changes in time.
+    A sum of absolute values of the targets counts as linear, and a sequence of values is minimised in order, each
+    minimum held while the next one is sought, such as the smallest total flux at the greatest growth,
+    `ObjectiveLaw([-v_growth, sum(abs(v) for v in fluxes)], fluxes)`.
+
     Unlike `ConstraintLaw`, which states a relation that holds, it gives a cost that the system makes least. Choose it
     when the answer is the best state rather than a path in time.
 
@@ -38,7 +46,8 @@ class ObjectiveLaw(BaseLaw):
 
     Args:
         value:
-            The scalar symbolic expression to minimise.
+            The scalar symbolic expression to minimise, or a sequence of them linear in the targets, minimised in
+            order.
 
         targets:
             The symbol of a state, or the symbols of the states, that the minimum is sought over, or `None` with
@@ -49,6 +58,15 @@ class ObjectiveLaw(BaseLaw):
 
         terminal:
             With controls, the cost at the end of the run, a symbolic expression or a number.
+
+        active:
+            For a linear value, a condition under which the minimum is sought, such as `biomass > 0`, or `None` for
+            always. Where it is false the targets are zero.
+
+        infeasible:
+            For a linear value, what a run does when the constraints cannot all hold: `'raise'` to raise an error,
+            `'zero'` to set the targets to zero, or `'hold'` to keep their last values, as a culture that stops
+            growing when its medium runs out.
 
         label:
             The name of the law, or the empty string for a law without one.
@@ -81,6 +99,8 @@ class ObjectiveLaw(BaseLaw):
         *,
         controls: Sequence[object] | None = None,
         terminal: object = 0,
+        active: object = None,
+        infeasible: str = 'raise',
         label: str = '',
     ) -> None:
         super().__init__(label)
@@ -88,6 +108,8 @@ class ObjectiveLaw(BaseLaw):
         self.targets = targets
         self.controls = controls
         self.terminal = terminal
+        self.active = active
+        self.infeasible = infeasible
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the states the minimum is sought over, or the controls."""
@@ -98,6 +120,12 @@ class ObjectiveLaw(BaseLaw):
         if isinstance(self.targets, Sequence) and not isinstance(self.targets, str):
             return tuple(self.targets)
         return (self.targets,)
+
+    def _get_values_in_order(self) -> tuple[object, ...]:
+        """Return the values to minimise in order, one for a single value."""
+        if isinstance(self.value, Sequence) and not isinstance(self.value, str | Expression):
+            return tuple(self.value)
+        return (self.value,)
 
     def _get_law_requirements(self) -> RequirementSpec:
         """Return the time the law needs, continuous with controls and static otherwise."""
