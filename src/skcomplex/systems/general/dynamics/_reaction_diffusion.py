@@ -27,8 +27,8 @@ class ReactionDiffusionSystem(DynamicalSystem):
     or a function of the namespace. An initial value is one number for every site or an array of the shape of the
     lattice. The system runs in continuous time.
 
-    A subclass returns the diffusivities from `_get_diffusivities` and the lattice from `_get_space`, besides the hooks
-    of `DynamicalSystem`. A system whose kinetics are reactions
+    A subclass returns the diffusivities from `_get_diffusivities`, the lattice from `_get_space`, and the boundary of
+    every field from `_get_boundaries`, besides the hooks of `DynamicalSystem`. A system whose kinetics are reactions
     returns them from `_get_equation_interactions`.
 
     Unlike `NetworkDynamicalSystem`, which couples nodes of a graph, it couples the sites of a lattice by a Laplacian,
@@ -89,6 +89,7 @@ class ReactionDiffusionSystem(DynamicalSystem):
         shape: Sequence[int] | int = 64,
         spacing: float = 1.0,
         boundary: str = 'periodic',
+        discretization: str = 'finite-difference',
         parameters: Mapping[str, object] | None = None,
         noises: Noises | None = None,
         convention: str = 'ito',
@@ -118,6 +119,9 @@ class ReactionDiffusionSystem(DynamicalSystem):
 
             boundary:
                 The boundary of the lattice, `'periodic'`, `'fixed'`, or `'reflecting'`.
+
+            discretization:
+                The discretization of the fields, `'finite-difference'` or `'spectral'`.
 
             parameters:
                 The value of every parameter by name, or `None` for none.
@@ -155,6 +159,7 @@ class ReactionDiffusionSystem(DynamicalSystem):
         self.shape = shape
         self.spacing = spacing
         self.boundary = boundary
+        self.discretization = discretization
 
     def _get_time(self) -> str:
         """Return the continuous time of the rates."""
@@ -167,12 +172,24 @@ class ReactionDiffusionSystem(DynamicalSystem):
         """
         return self.diffusivities or {}
 
+    def _get_boundaries(self) -> Mapping[str, object] | None:
+        """Return the boundary of every field, or `None` for the boundary of the lattice.
+
+        A subclass with boundaries per field returns them, such as `{'u': 'zero-flux'}`.
+        """
+        return None
+
     def _get_space(self) -> LatticeSpace:
-        """Return the lattice of the sites.
+        """Return the lattice of the sites, with its discretization and boundaries.
 
         A subclass with a lattice of its own returns it.
         """
-        return LatticeSpace(self.shape, spacing=self.spacing, boundary=self.boundary)
+        return LatticeSpace(
+            self.shape,
+            spacing=self.spacing,
+            boundary=self._get_boundaries() or self.boundary,
+            discretization=self.discretization,
+        )
 
     def _check_equations(self) -> None:
         """Raise an error for an equation, noise, or diffusivity of no state.

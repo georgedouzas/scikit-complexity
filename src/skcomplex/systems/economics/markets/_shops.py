@@ -7,7 +7,7 @@ It also holds the digital market that removes distance.
 # License: MIT
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated, SupportsFloat, cast
 
@@ -19,13 +19,14 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import clip, sign
-from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 
@@ -90,9 +91,7 @@ class PriceAdjustmentInteraction(MapInteraction):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import DiscreteTime
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.economics.markets import PriceAdjustmentInteraction
         >>> class QuoteElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
@@ -101,8 +100,8 @@ class PriceAdjustmentInteraction(MapInteraction):
         >>> search = PriceAdjustmentInteraction(
         ...     'search', target='quote', state='x', signal=lambda s: 2 - s.target.x, step=0.5, upper=2.0
         ... )
-        >>> system = CompositeSystem(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
-        >>> simulate(system, until=3).get_values('quote.x').tolist()
+        >>> system = System(elements=[QuoteElement('quote')], interactions=[search])
+        >>> system.prepare().simulate(until=3).get_values('quote.x').tolist()
         [1.0, 1.5, 2.0, 2.0]
     """
 
@@ -545,6 +544,12 @@ class ShopsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import ShopsSystem
         >>> [group.size for group in ShopsSystem(4, width=5, height=5).prepare().system_.elements]
@@ -574,8 +579,10 @@ class ShopsSystem(BaseSystem):
         value: float = 20.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_shops = n_shops
         self.width = width
         self.height = height
@@ -586,8 +593,9 @@ class ShopsSystem(BaseSystem):
         self.value = value
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
         places = rng.choice(len(cells), size=min(self.n_shops, len(cells)), replace=False)
@@ -679,10 +687,10 @@ class ShopsSystem(BaseSystem):
             phase='market',
             on_match=StoreElement.record_sale,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[shoppers, stores],
             interactions=[*plan, shopping, *settlement],
             space=LatticeSpace((self.width, self.height), boundary='fixed', metric='chebyshev'),
-            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('market'), PhaseSpec('accounts')])),
+            solver=MesaSolver(phases=[PhaseSpec('market'), PhaseSpec('accounts')]),
         )

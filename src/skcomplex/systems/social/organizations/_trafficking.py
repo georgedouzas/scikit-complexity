@@ -76,7 +76,7 @@ class PremisesElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.organizations import PremisesElement
         >>> group = GroupElement('premises', element=PremisesElement, size=3, values={'brothel': 1.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('premises', 'PremisesElement', 3)
     """
 
@@ -137,7 +137,7 @@ class TravellerElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.organizations import TravellerElement
         >>> group = GroupElement('women', element=TravellerElement, size=4, values={'victim': 1.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('women', 'TravellerElement', 4)
     """
 

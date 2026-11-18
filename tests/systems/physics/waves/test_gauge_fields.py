@@ -5,7 +5,6 @@ import pytest
 from scipy.special import iv
 
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ValidationError
 from skcomplex.systems.physics.waves import LatticeGaugeFieldsSystem, gauge_observables
 
@@ -36,7 +35,7 @@ def _charge_pair():
 
 def test_plaquette_of_the_defaults_is_the_exact_result():
     """Test that the default run after its transient is within 0.01 of `I_1(2) / I_0(2)`."""
-    series = simulate(LatticeGaugeFieldsSystem(), random_state=0).get_values('mean_plaquette')
+    series = LatticeGaugeFieldsSystem().prepare().simulate(random_state=0).get_values('mean_plaquette')
     assert abs(series[1001:].mean() - iv(1, 2) / iv(0, 2)) < 0.01
 
 
@@ -46,7 +45,7 @@ def test_gauge_transformation_of_the_initial_links_keeps_the_plaquette_series():
     angles = _random_angles(space)
     series = []
     for initial in (angles, _gauge_transform(angles, space)):
-        trajectory = simulate(LatticeGaugeFieldsSystem(16, angles=initial), until=200, dt=1, random_state=2)
+        trajectory = LatticeGaugeFieldsSystem(16, angles=initial).prepare().simulate(until=200, dt=1, random_state=2)
         series.append(trajectory.get_values('mean_plaquette'))
     assert np.abs(series[0] - series[1]).max() < 1e-12
 
@@ -54,13 +53,15 @@ def test_gauge_transformation_of_the_initial_links_keeps_the_plaquette_series():
 def test_z_n_links_stay_on_the_angles_of_the_group():
     """Test that Z_3 links sampled by heat bath keep the angles of the group."""
     system = LatticeGaugeFieldsSystem(6, n=3)
-    states = simulate(system, until=5, dt=1, random_state=0).get_values('links.theta')
+    states = system.prepare().simulate(until=5, dt=1, random_state=0).get_values('links.theta')
     assert set(np.round(np.mod(states[-1], 2 * np.pi) / (2 * np.pi / 3), 6)) <= {0.0, 1.0, 2.0}
 
 
 def test_maxwell_dynamics_conserve_the_gauss_law_and_the_energy():
     """Test the Gauss residual below 1e-10 at every frame and the energy within 1e-3 from a static charge pair."""
-    trajectory = simulate(LatticeGaugeFieldsSystem(dynamics='hamiltonian', charges=_charge_pair()), random_state=0)
+    trajectory = (
+        LatticeGaugeFieldsSystem(dynamics='hamiltonian', charges=_charge_pair()).prepare().simulate(random_state=0)
+    )
     assert trajectory.get_values('gauss_residual').max() < 1e-10
     energy = trajectory.get_values('field_energy')
     assert np.abs(energy - energy[0]).max() / energy[0] < 1e-3
@@ -134,7 +135,7 @@ def test_gauss_residual_reads_the_charges():
 def test_gauge_observables_reads_a_trajectory():
     """Test that a trajectory gives one value per frame."""
     system = LatticeGaugeFieldsSystem(4)
-    trajectory = simulate(system, until=3, dt=1, random_state=0)
+    trajectory = system.prepare().simulate(until=3, dt=1, random_state=0)
     result = gauge_observables(trajectory, kind='wilson', space=_space(4), variables='links.theta')
     assert result.value.shape == (4,)
 

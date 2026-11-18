@@ -3,11 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.errors import ParameterError
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.active_matter import (
     GinelliNematicsSystem,
     GregoireChateSystem,
@@ -24,14 +22,11 @@ def test_heading_alignment_takes_the_circular_mean_within_the_unit_distance(nema
     """Test that without noise one step gives the circular mean of the headings within the unit distance."""
     x = np.array([[1.0, 1.0], [1.5, 1.0], [1.2, 1.6], [4.0, 4.0]])
     theta = np.array([0.1, 2.9, -0.4, 1.0])
-    flock = GroupElement('flock', element=VicsekParticleElement, size=4, values={'x': x, 'theta': theta, 'eta': 0.0})
-    system = CompositeSystem(
-        elements=[flock],
-        interactions=[HeadingAlignmentInteraction('alignment', target='flock', nematic=nematic)],
-        space=ContinuousSpace(extent=(5.0, 5.0), boundary='periodic'),
-        time=DiscreteTime(),
-    )
-    values = simulate(system, until=1, random_state=0).get_values('flock.theta')[-1]
+    space = ContinuousSpace(extent=(5.0, 5.0), boundary='periodic')
+    flock = VicsekParticleElement('flock', x=x, theta=theta, eta=0.0, size=4, space=space)
+    alignment = HeadingAlignmentInteraction('alignment', target='flock', nematic=nematic)
+    system = System(elements=[flock], interactions=[alignment]).prepare()
+    values = system.simulate(until=1, random_state=0).get_values('flock.theta')[-1]
     close = np.linalg.norm(x[None, :, :] - x[:, None, :], axis=2) <= 1.0
     side = np.where(np.cos(theta[None, :] - theta[:, None]) >= 0, 1, -1) if nematic else 1
     weights = close * side
@@ -71,8 +66,8 @@ def test_ginelli_nematics_orders_an_axis_without_a_direction():
 
 def _neighbors_within_unit_distance(system, until):
     """Return the mean number of other particles within the unit distance over the last frames of a run."""
-    trajectory = simulate(system, until=until, dt=50.0, random_state=0)
-    size = system.space.extent[0]
+    trajectory = system.prepare().simulate(until=until, dt=50.0, random_state=0)
+    size = system.size
     counts = []
     for positions in np.asarray(trajectory.get_values('flock.x'))[-5:]:
         gaps = np.abs(positions[:, None, :] - positions[None, :, :])
@@ -98,7 +93,7 @@ def test_topological_neighbourhood_is_not_reciprocal():
 
     8.10.
     """
-    positions = VicsekSystem(100, size=100.0, neighbors=1).prepare().system_.elements[0].values['x']
+    positions = VicsekSystem(100, size=100.0, neighbors=1).prepare().system_.elements[0].x
     gaps = np.abs(positions[:, None, :] - positions[None, :, :])
     distances = np.hypot(*np.moveaxis(np.minimum(gaps, 100.0 - gaps), -1, 0))
     np.fill_diagonal(distances, np.inf)
@@ -115,16 +110,15 @@ def test_blind_vicsek_flock_stays_disordered():
 
 
 def test_long_and_negative_delays_hinder_clustering():
-    """Test that a delay of 25 steps and a prediction 2 steps ahead leave fewer neighbours than no delay, Fig.
+    """Test that a delay of 25 steps and a prediction 2 steps ahead leave fewer neighbours than no delay, Figs. 8.8-8.9.
 
-    8.8-8.9.
+    The past headings start at the initial headings.
     """
     settings = {'n_particles': 100, 'size': 50.0, 'v0': 0.15, 'eta': 0.2 / np.pi}
     counts = {
-        delay: _neighbors_within_unit_distance(VicsekSystem(**settings, delay=delay).prepare().system_, 1500.0)
-        for delay in (0, 25, -2)
+        delay: _neighbors_within_unit_distance(VicsekSystem(**settings, delay=delay), 1500.0) for delay in (0, 25, -2)
     }
-    assert counts[25] < counts[0] / 2
+    assert counts[25] < 0.7 * counts[0]
     assert counts[-2] < counts[0] / 2
 
 

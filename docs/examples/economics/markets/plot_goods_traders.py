@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import GoodsTradersSystem
 
@@ -37,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 system = GoodsTradersSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Prices converge while every good is conserved
@@ -50,7 +49,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 
 fig, (spread, utility, totals) = plt.subplots(1, 3, figsize=(14, 4))
 for goods in (2, 3):
-    run = simulate(GoodsTradersSystem(goods=goods, random_state=0), random_state=0)
+    run = GoodsTradersSystem(goods=goods, random_state=0).prepare().simulate(random_state=0)
     spread.semilogy(run.times[1:], run.get_values('exchange.dispersion')[1:], label=f'{goods} goods')
 spread.set_xlabel('step')
 spread.set_ylabel('standard deviation of log price')

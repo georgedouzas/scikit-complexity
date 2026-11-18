@@ -1,53 +1,38 @@
 """Test the `_nonnegative` module of `skcomplex.systems.general.elements`."""
 
-from types import SimpleNamespace
-
+import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import oo, var
-from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 from skcomplex.systems.general.elements import NonnegativeElement
+from skcomplex.systems.general.reactions import ReactionInteraction
 
 
-def test_nonnegative_lists_its_value_as_a_parameter():
-    """Test that a nonnegative element lists its label, its visual, and its value `x`."""
-    assert NonnegativeElement('S', x=990).get_params() == {'label': 'S', 'x': 990}
+def test_nonnegative_lists_its_value_and_its_members():
+    """Test that a nonnegative element lists its label, its value `x`, and its members."""
+    assert NonnegativeElement('S', x=990).get_params() == {'label': 'S', 'x': 990, 'size': None, 'space': None}
 
 
-def test_nonnegative_state_has_a_nonnegative_domain():
-    """Test that the one state `x` takes values in `[0, oo)`."""
-    states = NonnegativeElement('S').get_states()
-    assert list(states) == ['x']
-    assert states['x'].domain == RealSet.closed_open(0, oo)
-
-
-def test_nonnegative_keeps_its_value_without_laws():
-    """Test that declared elements keep their amounts and fractions, since the element has no laws."""
-    system = CompositeSystem(elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=0.25)])
-    trajectory = simulate(system, until=3, dt=1.0)
-    assert trajectory.get_values('S.x').tolist() == [990.0] * 4
-    assert trajectory.get_values('I.x').tolist() == [0.25] * 4
-
-
-def test_nonnegative_runs_into_no_laws():
-    """Test that a nonnegative element contributes no laws."""
-    assert NonnegativeElement('S', x=1.0).prepare().run(SimpleNamespace(x=var('x'))).laws_ == []
+def test_nonnegative_value_is_a_state_when_a_law_changes_it():
+    """Test that the value `x` is a state under a decay and a parameter without laws."""
+    decay = ReactionInteraction('decay', reactants={('S', 'x'): 1}, k=1.0)
+    changed = System(elements=[NonnegativeElement('S', x=1.0)], interactions=[decay]).prepare()
+    kept = System(elements=[NonnegativeElement('S', x=1.0)]).prepare()
+    assert changed.states_ == ('S.x',)
+    assert kept.parameters_ == ('S.x',)
 
 
 def test_nonnegative_rejects_a_negative_value():
-    """Test that a run rejects an element whose value is outside the nonnegative numbers."""
-    system = CompositeSystem(elements=[NonnegativeElement('S', x=-1.0)])
+    """Test that preparing rejects an element whose value is outside the nonnegative numbers."""
     with pytest.raises(ValidationError):
-        simulate(system, until=1, dt=1.0)
+        System(elements=[NonnegativeElement('S', x=-1.0)]).prepare()
 
 
 def test_nonnegative_members_form_a_distribution_over_classes():
-    """Test that a group of nonnegative elements on a lattice of classes has one member per class."""
-    classes = LatticeSpace(5, boundary='fixed')
-    group = GroupElement('distribution', element=NonnegativeElement, space=classes, on='sites', values={'x': 0.2})
-    assert group.prepare().size_ == 5
+    """Test that a nonnegative element on a lattice of classes has one value per class."""
+    distribution = NonnegativeElement('distribution', x=np.full(5, 0.2), space=LatticeSpace(5, boundary='fixed'))
+    decay = ReactionInteraction('decay', target='distribution', reactants={'x': 1}, k=1.0)
+    trajectory = System(elements=[distribution], interactions=[decay]).prepare().simulate(until=1, dt=1.0)
+    np.testing.assert_allclose(trajectory.get_lattice('distribution.x')[-1], 0.2 * np.exp(-1.0), rtol=1e-4)

@@ -102,20 +102,17 @@ AGENTS = {
         ChoiceInteraction,
         {'state': 'x', 'options': (0.0, 1.0), 'utility': lambda agent, system, option: option},
     ),
-    'reaction': (ReactionInteraction, {'reactants': {'x': 1}, 'products': {}}),
     'imitation': (ImitationInteraction, {'state': 'x', 'payoff': 'x', 'probability': 0.5}),
 }
 AGENT_ALIASES = {
     'choice-intensity': ('choice', 'intensity', 2.0),
     'choice-activity': ('choice', 'activity', 0.5),
-    'reaction-k': ('reaction', 'k', 0.4),
     'imitation-probability': ('imitation', 'probability', 0.5),
 }
 SYMBOLIC_ALIASES = {
     'choice-intensity': (ChoiceInteraction, 'intensity', 2.0, RENAMED['choice'][1]('target'), True),
     'choice-activity': (ChoiceInteraction, 'activity', 0.5, RENAMED['choice'][1]('target'), True),
     'sampling-intensity': (SamplingInteraction, 'intensity', 2.0, RENAMED['sampling'][1]('target'), True),
-    'reaction-k': (ReactionInteraction, 'k', 0.4, {'reactants': {'x': 1}, 'products': {}}, False),
     'coupling-lag': (CouplingInteraction, 'lag', 0.3, {'read': 'x', 'write': 'x'}, False),
 }
 GRID_ONLY = {

@@ -19,7 +19,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import PerishableGoodsDuopolySystem
 
@@ -42,7 +41,7 @@ blueprint = rrb.Blueprint(
 )
 system = PerishableGoodsDuopolySystem(customers=200, stock=0.5, tau_a=1.0, T=0.1, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 shops = np.array([trajectory.get_agents('customers', frame).values['shop'] for frame in range(len(trajectory.times))])
 for shop, color in zip(SHOPS, COLORS, strict=True):
     observer.recording_.log(
@@ -82,7 +81,7 @@ temperatures = np.linspace(0.3, 1.6, 6) * CRITICAL
 asymmetries = []
 for temperature in temperatures:
     system_system = PerishableGoodsDuopolySystem(customers=100, T=temperature, random_state=1)
-    run = simulate(system_system, random_state=1)
+    run = system_system.prepare().simulate(random_state=1)
     asymmetries.append(np.abs(run.get_values('m')[-100:]).mean())
 grid = np.linspace(0.2, 1.7, 200) * CRITICAL
 

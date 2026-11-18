@@ -16,7 +16,7 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.engine.runtime import ConservationObserver, simulate
+from skcomplex.core.engine.runtime import ConservationObserver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.macroeconomics import StockFlowConsistentEconomySystem
 
@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(StockFlowConsistentEconomySystem(), observers=[observer, ConservationObserver()])
+trajectory = StockFlowConsistentEconomySystem().prepare().simulate(observers=[observer, ConservationObserver()])
 
 # %%
 # Money changes only at the boundary

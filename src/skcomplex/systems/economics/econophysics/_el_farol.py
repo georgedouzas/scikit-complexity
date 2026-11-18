@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -16,11 +16,11 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import ChoiceInteraction
 from ..common.forecasting import heuristics
@@ -327,9 +327,15 @@ class ElFarolSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.econophysics import ElFarolSystem
-        >>> ElFarolSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> ElFarolSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -348,16 +354,19 @@ class ElFarolSystem(BaseSystem):
         discount: float = 0.9,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.capacity = capacity
         self.n_predictors = n_predictors
         self.discount = discount
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         masks = [
             float(sum(1 << int(index) for index in rng.choice(len(PREDICTORS), self.n_predictors, replace=False)))
@@ -394,13 +403,9 @@ class ElFarolSystem(BaseSystem):
             form='agent',
             phase='decide',
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[patrons, pool],
             interactions=[scoring, choice],
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec(
-                    [PhaseSpec(name) for name in ('learn', 'forecast', 'predict', 'decide')],
-                ),
-            ),
+            solver=MesaSolver(phases=[PhaseSpec(name) for name in ('learn', 'forecast', 'predict', 'decide')]),
         )

@@ -6,29 +6,36 @@ The module covers angle links sampled by the Wilson action, and lattice Maxwell 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping, Sequence
+import math
+from collections.abc import Callable, Mapping, Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated, cast
 
 import numpy as np
+import numpy.typing as npt
 import scipy.sparse
 import scipy.sparse.linalg
-from sage.all__sagemath_symbolics import Expression, pi
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import RateInteraction
+from ....core.components.elements import Element, Period
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative
-from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.solvers import VelocityVerletSolver
+from ....core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.runtime import BaseClock, BaseObserver, Trajectory
+from ....core.engine.solvers import BaseSolver, VelocityVerletSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.fields import WilsonSamplingInteraction
 
 DYNAMICS = ('monte-carlo', 'hamiltonian')
+MAXWELL_SOLVER = VelocityVerletSolver(dt=0.02)
+MAXWELL_UNTIL = 50.0
+MAXWELL_DT = 0.5
 SOLVER_TOLERANCE = 1e-15
 NEUTRAL_TOTAL = 1e-12
 
@@ -43,11 +50,13 @@ class GaugeLinkElement(Element):
             The label of the link or the group on the links.
 
         theta:
-            The angle of the link.
+            The angle of the link, or one angle per link, which wraps around the circle.
 
-    Attributes:
-        default_visual_:
-            How the link is drawn by default, the `visual` of its class.
+        space:
+            The cell complex of the links, or `None` for one link.
+
+        on:
+            `'edges'` for one link on every edge of the complex, or `None`.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import GaugeLinkElement
@@ -61,30 +70,34 @@ class GaugeLinkElement(Element):
         self,
         label: str,
         *,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space, on=on)
         self.theta = theta
 
 
 class MaxwellLinkElement(Element):
-    """Link of a lattice with a vector potential `A` of second order.
+    """Link of a lattice with a vector potential `A`.
 
-    Its velocity `A_d1` is the field `-E`.
+    Its velocity `A'` is the field `-E`.
 
     Args:
         label:
             The label of the link or the group on the links.
 
         A:
-            The initial vector potential.
+            The initial vector potential, or one per link.
 
-        A_d1:
-            The initial velocity of the vector potential, minus the electric field.
+        space:
+            The cell complex of the links, or `None` for one link.
 
-    Attributes:
-        default_visual_:
-            How the link is drawn by default, the `visual` of its class.
+        on:
+            `'edges'` for one link on every edge of the complex, or `None`.
+
+        values:
+            Further values by name, such as the initial velocity `A'`, minus the electric field, or `None`.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import MaxwellLinkElement
@@ -98,12 +111,13 @@ class MaxwellLinkElement(Element):
         self,
         label: str,
         *,
-        A: Annotated[float, StateSpec(order=2)] = 0.0,
-        A_d1: float = 0.0,
+        A: object = 0.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, space=space, on=on)
         self.A = A
-        self.A_d1 = A_d1
 
 
 class StaticChargeElement(Element):
@@ -114,11 +128,10 @@ class StaticChargeElement(Element):
             The label of the site or the group on the sites.
 
         q:
-            The electric charge.
+            The electric charge, or one charge per site.
 
-    Attributes:
-        default_visual_:
-            How the site is drawn by default, the `visual` of its class.
+        space:
+            The cell complex of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import StaticChargeElement
@@ -130,10 +143,49 @@ class StaticChargeElement(Element):
         self,
         label: str,
         *,
-        q: Annotated[float, ParameterSpec()] = 0.0,
+        q: object = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.q = q
+
+
+class MaxwellInteraction(Interaction):
+    """Lattice Maxwell equations of a potential `A` on the links of a cell complex.
+
+    The potential follows `A'' = -codifferential(dA)`, so its velocity `A' = -E` and the field `E` follows
+    `E' = codifferential(dA)`, as light in a vacuum or a wave on a crystal lattice.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the links with the potential `A`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import MaxwellInteraction
+        >>> MaxwellInteraction('maxwell', target='links').target
+        'links'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the acceleration of the potential.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            potential = context.target.A
+            self.laws_ = [RateLaw(potential.diff(context.t, 2), -codifferential(exterior_derivative(potential)))]
 
 
 class LatticeGaugeFieldsSystem(BaseSystem):
@@ -176,6 +228,12 @@ class LatticeGaugeFieldsSystem(BaseSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Raises:
         ValidationError:
@@ -240,14 +298,6 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         )[0]
         return np.asarray(field, dtype=float)
 
-    @staticmethod
-    def _get_curl_of_curl(namespace: SimpleNamespace) -> Expression:
-        """Return the rate of the velocity of the potential.
-
-        The rate is minus the codifferential of its exterior derivative.
-        """
-        return -codifferential(exterior_derivative(namespace.target.A))
-
     def __init__(
         self,
         size: int = 32,
@@ -261,8 +311,10 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         amplitude: float = 0.1,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.dimension = dimension
         self.n = n
@@ -273,7 +325,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         self.amplitude = amplitude
         self.seed = seed
 
-    def _get_maxwell_system(self, space: CellComplexSpace) -> CompositeSystem:
+    def _get_maxwell_system(self, space: CellComplexSpace) -> System:
         """Return a lattice Maxwell field on the links.
 
         The field comes from static charges and a transverse wave.
@@ -290,51 +342,39 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         along_last = space.link_axes_ == place.n_dim_ - 1
         first = np.unravel_index(sources, place.shape_)[0]
         wave = self.amplitude * np.cos(2 * np.pi * first / place.shape_[0]) * along_last
-        links = GroupElement(
+        links = MaxwellLinkElement(
             'links',
-            element=MaxwellLinkElement,
+            A=wave,
             space=space,
             on='edges',
-            values={'A': wave, 'A_d1': -LatticeGaugeFieldsSystem._get_electric_field(space, density)},
+            values={"A'": -LatticeGaugeFieldsSystem._get_electric_field(space, density)},
         )
-        sites = GroupElement('charges', element=StaticChargeElement, space=space, on='sites', values={'q': density})
-        rate = RateInteraction('maxwell', target='links', state='A', rate=LatticeGaugeFieldsSystem._get_curl_of_curl)
-        return CompositeSystem(self.label, elements=[links, sites], interactions=[rate])
+        sites = StaticChargeElement('charges', q=density, space=space)
+        maxwell = MaxwellInteraction('maxwell', target='links')
+        return System(self.label, elements=[links, sites], interactions=[maxwell], solver=MAXWELL_SOLVER)
 
-    def _get_monte_carlo_system(self, space: CellComplexSpace) -> CompositeSystem:
+    def _get_monte_carlo_system(self, space: CellComplexSpace) -> System:
         """Return U(1) or Z_N link angles sampled by the Wilson action under discrete time."""
         rng = np.random.default_rng(self.seed)
         size = space.incidences_[0].shape[0]
         values = () if self.n is None else tuple(2 * np.pi * np.arange(self.n) / self.n)
         drawn = rng.uniform(-np.pi, np.pi, size) if self.n is None else rng.choice(values, size)
-        links = GroupElement(
+        links = GaugeLinkElement(
             'links',
-            element=GaugeLinkElement,
+            theta=drawn if self.angles is None else np.asarray(self.angles, dtype=float),
             space=space,
             on='edges',
-            values={'theta': drawn if self.angles is None else np.asarray(self.angles, dtype=float)},
         )
         move = {'move': 'rotate'} if self.n is None else {'move': 'random-value', 'values': values, 'rule': 'heat-bath'}
         sampling = WilsonSamplingInteraction('wilson', target='links', beta=self.beta, **move)
-        return CompositeSystem(self.label, elements=[links], interactions=[sampling], time=DiscreteTime())
+        return System(self.label, elements=[links], interactions=[sampling])
 
-    @staticmethod
-    def _get_gauge_observables(system: CompositeSystem) -> list[Observable]:
+    def _get_gauge_observables(self, space: CellComplexSpace) -> list[Observable]:
         """Return the observables of the dynamics.
 
         They are the mean plaquette of a sampled system, or the Gauss residual and the field energy of a Maxwell one.
-
-        Args:
-            system:
-                The components of the system.
-
-        Returns:
-            observables:
-                The observables.
         """
-        links = next(element for element in system.elements if element.label == 'links')
-        space = links.space.prepare()
-        if links.element is GaugeLinkElement:
+        if self.dynamics != 'hamiltonian':
             return [
                 Observable(
                     'mean_plaquette',
@@ -352,28 +392,68 @@ class LatticeGaugeFieldsSystem(BaseSystem):
             ),
         ]
 
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the link variables on the cell complex of a periodic lattice, sampled or evolved in real time.
 
-        The settings have the observables of the dynamics, and velocity Verlet for Maxwell.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for those of the dynamics.
+
+        Raises:
+            ValidationError:
+                The dynamics are unknown, or the charges do not hold one value per site of total 0.
         """
-        settings = super().get_run_settings()
-        settings['observables'] = tuple(self._get_gauge_observables(self._build_system()))
-        if self.dynamics == 'hamiltonian':
-            settings['until'] = 50.0
-            settings['dt'] = 0.5
-            settings['solver'] = VelocityVerletSolver(dt=0.02)
-        return settings
-
-    def _build_system(self) -> CompositeSystem:
-        """Return link variables on the cell complex of a periodic lattice.
-
-        The variables are sampled or evolved in real time.
-        """
+        super()._prepare(context)
         if self.dynamics not in DYNAMICS:
             error_msg = f'Unknown dynamics {self.dynamics!r}. Use one of {", ".join(DYNAMICS)}.'
             raise ValidationError(error_msg)
         space = CellComplexSpace(LatticeSpace((self.size,) * self.dimension)).prepare()
+        if not context:
+            self.observables_ = tuple(self._get_gauge_observables(space))
         if self.dynamics == 'hamiltonian':
-            return self._get_maxwell_system(space)
-        return self._get_monte_carlo_system(space)
+            self.system_ = self._get_maxwell_system(space)
+        else:
+            self.system_ = self._get_monte_carlo_system(space)
+
+    def simulate(
+        self,
+        until: float | None = None,
+        *,
+        dt: float | None = None,
+        initial_state: Mapping[str, object] | None = None,
+        random_state: int | np.random.Generator | None = None,
+        observables: Sequence[Observable] = (),
+        observers: Sequence[BaseObserver] = (),
+        invariants: Mapping[str, float] | None = None,
+        schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
+        clock: BaseClock | None = None,
+        checked: bool = False,
+        record_draws: bool = False,
+        replay: Trajectory | None = None,
+    ) -> Trajectory:
+        """Simulate the prepared system, for 50 units of time every 0.5 with Hamiltonian dynamics by default.
+
+        The arguments are those of `BaseSystem.simulate`, whose end time and time between frames default to those of
+        the dynamics.
+
+        Returns:
+            trajectory:
+                The states and observables of the run at every frame.
+        """
+        if self.dynamics == 'hamiltonian':
+            until = MAXWELL_UNTIL if until is None else until
+            dt = MAXWELL_DT if dt is None else dt
+        return super().simulate(
+            until,
+            dt=dt,
+            initial_state=initial_state,
+            random_state=random_state,
+            observables=observables,
+            observers=observers,
+            invariants=invariants,
+            schedule=schedule,
+            clock=clock,
+            checked=checked,
+            record_draws=record_draws,
+            replay=replay,
+        )

@@ -14,7 +14,7 @@ from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import RoleSpec, StateSpec
 from skcomplex.systems.general.agents import EvolutionInteraction
 
 NEUTRAL_RUNS = 100
@@ -79,10 +79,12 @@ class AliasEvolutionInteraction(EvolutionInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         renamed: str,
-        alias: Annotated[float, ParameterSpec()],
-        **arguments: object,
+        alias: float,
+        phase: str | None = None,
+        replacement: str = 'generational',
+        mutation: float = 0.01,
     ) -> None:
-        super().__init__(label, target=target, **arguments)
+        super().__init__(label, target=target, phase=phase, replacement=replacement, mutation=mutation)
         self.renamed = renamed
         self.alias = alias
 

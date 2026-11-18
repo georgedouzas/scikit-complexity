@@ -12,11 +12,14 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import RateInteraction, WienerProcessSpec
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.components.base import BaseComponent
+from .....core.components.interactions import Interaction, WienerProcessSpec
+from .....core.components.laws import NoiseLaw, RateLaw
+from .....core.components.spaces import BaseSpace
+from .....core.specs import Role, RoleSpec
 
 
-class GeometricBrownianMotionInteraction(RateInteraction):
+class GeometricBrownianMotionInteraction(Interaction):
     """Geometric Brownian motion of the price of an asset.
 
     It follows `dS = mu * S * dt + sigma * S * dW`. The Wiener process `dW` is independent by default, or process
@@ -51,42 +54,34 @@ class GeometricBrownianMotionInteraction(RateInteraction):
         1
     """
 
+    law_classes = (RateLaw, NoiseLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        mu: Annotated[float, ParameterSpec()] = 0.05,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        target: Role,
+        mu: float = 0.05,
+        sigma: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
         process: Annotated[WienerProcessSpec | None, RoleSpec(noise=True)] = None,
         index: int | None = None,
     ) -> None:
-        super().__init__(label, target=target, state='price', process=process, index=index)
+        super().__init__(label)
+        self.target = target
         self.mu = mu
         self.sigma = sigma
+        self.process = process
+        self.index = index
 
-    def _get_rate(self, namespace: SimpleNamespace) -> object:
-        """Return the drift `mu * S`.
-
-        Args:
-            namespace:
-                The namespace of the symbols the rate can use.
-
-        Returns:
-            rate:
-                The drift.
-        """
-        return namespace.mu * namespace.target.price
-
-    def _get_noise(self, namespace: SimpleNamespace) -> object:
-        """Return the noise amplitude `sigma * S`.
-
-        Args:
-            namespace:
-                The namespace of the symbols the noise can use.
-
-        Returns:
-            noise:
-                The noise amplitude.
-        """
-        return namespace.sigma * namespace.target.price
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the drift `mu * S` and the noise `sigma * S dW` of the price as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            price = context.target.price
+            process = None
+            if self.process is not None:
+                process = context.process.dW if self.index is None else context.process.dW[self.index]
+            self.laws_: list[BaseComponent] = [
+                RateLaw(price, context.mu * price),
+                NoiseLaw(price, context.sigma * price, process=process),
+            ]

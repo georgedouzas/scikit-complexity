@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import Role
 from ...general.reactions import ReactionInteraction, ReactionNetworkSystem
 from ...general.reactions.types import Stoichiometry
 
@@ -44,14 +44,13 @@ class InfectionInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.epidemiology import InfectionInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[CompartmentElement('S', x=99.0), CompartmentElement('I', x=1.0)],
         ...     interactions=[InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01)],
         ... )
-        >>> trajectory = simulate(system, until=5.0, dt=0.1)
+        >>> trajectory = system.prepare().simulate(until=5.0, dt=0.1)
         >>> round(float(trajectory.get_values('S.x')[-1] + trajectory.get_values('I.x')[-1]), 6)
         100.0
     """
@@ -60,9 +59,9 @@ class InfectionInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        susceptible: Annotated[str, RoleSpec()],
-        infected: Annotated[str, RoleSpec()],
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        susceptible: Role,
+        infected: Role,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
         stochastic: bool = False,
     ) -> None:
         super().__init__(label)
@@ -134,9 +133,9 @@ class ImmunityLossInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        recovered: Annotated[str, RoleSpec()],
-        susceptible: Annotated[str, RoleSpec()],
-        xi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        recovered: Role,
+        susceptible: Role,
+        xi: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
         stochastic: bool = False,
     ) -> None:
         super().__init__(label)
@@ -200,14 +199,13 @@ class RecoveryInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.epidemiology import RecoveryInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[CompartmentElement('I', x=10.0), CompartmentElement('R')],
         ...     interactions=[RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.5)],
         ... )
-        >>> trajectory = simulate(system, until=2.0, dt=0.01)
+        >>> trajectory = system.prepare().simulate(until=2.0, dt=0.01)
         >>> round(float(trajectory.get_values('I.x')[-1]), 3)
         3.679
     """
@@ -216,9 +214,9 @@ class RecoveryInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        infected: Annotated[str, RoleSpec()],
-        recovered: Annotated[str, RoleSpec()],
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        infected: Role,
+        recovered: Role,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
         stochastic: bool = False,
     ) -> None:
         super().__init__(label)

@@ -14,7 +14,7 @@ import numpy as np
 
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, PartnerSpec, RuleLaw
+from ....core.components.laws import BaseLaw, PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs, transfer
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, Pairing, SystemViewProtocol
@@ -129,7 +129,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('value', 'volume', 'unmatched')
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def _get_draws(self) -> bool:
         """Return whether the rule draws.
@@ -786,8 +786,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         self._check_variant('rule', self.rule, (), RULES, functions=True)
         if isinstance(self.rule, RULES):
             self.rule._check()
+        if isinstance(context, SimpleNamespace):
+            self.laws_: Sequence[BaseComponent] = self._get_matching_laws(context)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
+    def _get_matching_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the rule that matches the members in the matching's phase.
 
         Args:
@@ -798,7 +800,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             laws:
                 The laws of the interaction.
         """
-        return [RuleLaw(self.match, phase=self.phase)]
+        return [UpdateLaw(namespace, self.match, phase=self.phase)]
 
     def match(self, system: SystemT) -> None:
         """Match the members, settle the matches, and report the results.

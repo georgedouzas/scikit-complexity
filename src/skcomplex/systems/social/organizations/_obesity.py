@@ -152,7 +152,7 @@ class EaterElement(Element):
         >>> group = GroupElement(
         ...     'people', element=EaterElement, size=5, values={'home': [1.0, 2.0], 'work': [3.0, 4.0]}
         ... )
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('people', 'EaterElement', 5)
     """
 
@@ -350,7 +350,7 @@ class RestaurantElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.organizations import RestaurantElement
         >>> group = GroupElement('restaurants', element=RestaurantElement, size=3, values={'kind': 2.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('restaurants', 'RestaurantElement', 3)
     """
 

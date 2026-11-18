@@ -14,14 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import linprog
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import EisenbergNoeClearingSystem
 
 SYSTEM = 'eisenberg_noe_clearing'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(EisenbergNoeClearingSystem(), observers=[observer])
+trajectory = EisenbergNoeClearingSystem().prepare().simulate(observers=[observer])
 
 # %%
 # The fixed point as a linear programme
@@ -32,7 +31,7 @@ trajectory = simulate(EisenbergNoeClearingSystem(), observers=[observer])
 system = EisenbergNoeClearingSystem()
 composite = system.prepare().system_
 matrix = np.asarray(composite.interactions[0].liabilities)
-external = composite.elements[0].values['external']
+external = composite.elements[0].external
 owed = matrix.sum(axis=1)
 shares = np.divide(matrix, owed[:, None], out=np.zeros_like(matrix), where=owed[:, None] > 0)
 size = len(owed)

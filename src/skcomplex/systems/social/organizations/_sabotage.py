@@ -148,7 +148,7 @@ class EmployeeElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.organizations import EmployeeElement
         >>> group = GroupElement('employees', element=EmployeeElement, size=10, values={'affect': 0.5})
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('employees', 'EmployeeElement', 10)
     """
 

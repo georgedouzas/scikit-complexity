@@ -6,6 +6,7 @@ Welfare policies act on the encounters.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
@@ -19,9 +20,11 @@ from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction
 from ....core.components.laws.utils import moment, total
-from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.components.spaces import LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.elements import NonnegativeElement
 from ...general.kinetics import EncounterInteraction
 
@@ -382,6 +385,12 @@ class KineticWealthWelfareSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.econophysics import KineticWealthWelfareSystem
         >>> [item.label for item in KineticWealthWelfareSystem(tax=0.2).prepare().system_.interactions]
@@ -395,7 +404,7 @@ class KineticWealthWelfareSystem(BaseSystem):
     dt = 1.0
 
     @staticmethod
-    def _get_classes_of(system: CompositeSystem) -> int:
+    def _get_classes_of(system: System) -> int:
         """Return the number of wealth classes of a system, the size of its distribution."""
         return int(next(item.size or 0 for item in system.elements if item.label == 'wealth'))
 
@@ -408,16 +417,19 @@ class KineticWealthWelfareSystem(BaseSystem):
         eta: float = 1.0,
         tax: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.classes = classes
         self.cooperation = cooperation
         self.competition = competition
         self.eta = eta
         self.tax = tax
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         initial = np.exp(-((wealth_classes(self.classes) - 0.5) ** 2) / 0.05)
         components: list[GroupElement] = [
             GroupElement(
@@ -450,20 +462,10 @@ class KineticWealthWelfareSystem(BaseSystem):
                     tax=self.tax,
                 ),
             )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=components,
             interactions=interactions,
             space=LatticeSpace(self.classes, boundary='fixed'),
-            time=ContinuousTime(),
         )
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the components are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        system = self._get_pass_parameters()
-        settings['observables'] = wealth_observables(KineticWealthWelfareSystem._get_classes_of(system))
-        return settings
+        self.observables_ = tuple(wealth_observables(KineticWealthWelfareSystem._get_classes_of(self.system_)))

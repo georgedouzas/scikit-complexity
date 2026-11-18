@@ -6,7 +6,7 @@ Firms post wage offers and unemployed workers accept the best one.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Annotated
 
 import numpy as np
@@ -16,11 +16,11 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TransitionInteraction
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
 
 
@@ -344,6 +344,12 @@ class LabourMarketSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import LabourMarketSystem
         >>> [group.size for group in LabourMarketSystem(20, 5).prepare().system_.elements]
@@ -373,8 +379,10 @@ class LabourMarketSystem(BaseSystem):
         unemployment: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_workers = n_workers
         self.n_firms = n_firms
         self.separation = separation
@@ -386,8 +394,9 @@ class LabourMarketSystem(BaseSystem):
         self.unemployment = unemployment
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         employed = rng.random(self.n_workers) >= self.unemployment
         employers = np.where(employed, rng.integers(self.n_firms, size=self.n_workers), -1).astype(float)
@@ -452,7 +461,7 @@ class LabourMarketSystem(BaseSystem):
             phase='matching',
             on_match=hire,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[firms, workers],
             interactions=[
@@ -461,5 +470,5 @@ class LabourMarketSystem(BaseSystem):
                 *spells,
                 market,
             ],
-            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers'), PhaseSpec('matching')])),
+            solver=MesaSolver(phases=[PhaseSpec('offers'), PhaseSpec('matching')]),
         )

@@ -13,7 +13,6 @@ strong enough: a synchronized cluster forms, and the order parameter `r` jumps f
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import KuramotoSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'kuramoto'
 
 system = KuramotoSystem(n_oscillators=50, K=4.0, sigma=1.0, seed=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
-trajectory = simulate(system, until=30, dt=0.2, observers=[observer])
+trajectory = system.prepare().simulate(until=30, dt=0.2, observers=[observer])
 
 # %%
 # Onset of synchronization
@@ -34,7 +33,7 @@ couplings = np.linspace(0.0, 4.0, 17)
 order = []
 for coupling in couplings:
     system_system = KuramotoSystem(n_oscillators=400, K=coupling, sigma=1.0, seed=1)
-    run = simulate(system_system, until=60, dt=0.2)
+    run = system_system.prepare().simulate(until=60, dt=0.2)
     order.append(np.mean(np.asarray(run.get_values('order'))[-100:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(couplings, order, 'o-')

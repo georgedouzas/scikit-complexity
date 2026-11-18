@@ -14,7 +14,6 @@ square, each heading in its own direction.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'run_and_tumble'
 
 system = RunAndTumbleSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=299, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=299, observers=[observer], random_state=0)
 
 # %%
 # Persistent random walk
@@ -36,11 +35,14 @@ trajectory = simulate(system, until=299, observers=[observer], random_state=0)
 fig, ax = plt.subplots(figsize=(7, 4))
 steps = np.arange(1, 301)
 for rate, color in ((0.1, 'tab:blue'), (1.0, 'tab:orange')):
-    run = simulate(
-        RunAndTumbleSystem(n_agents=500, tumble_rate=rate, size=1e5, random_state=1).prepare().system_,
-        until=300,
-        dt=1,
-        random_state=1,
+    run = (
+        RunAndTumbleSystem(n_agents=500, tumble_rate=rate, size=1e5, random_state=1)
+        .prepare()
+        .simulate(
+            until=300,
+            dt=1,
+            random_state=1,
+        )
     )
     positions = np.stack([run.get_agents('bacteria', frame).locations for frame in range(301)])
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)

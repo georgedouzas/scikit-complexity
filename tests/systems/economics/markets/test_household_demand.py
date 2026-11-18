@@ -11,7 +11,7 @@ from ..conftest import _run
 def _totals(demand):
     """Return the total demand, expenditure, budgets, and utilities of a run of one price rise of 10 percent."""
     system = HouseholdDemandSystem(demand=demand).prepare().system_
-    trajectory = _run(system, 1, observables=HouseholdDemandSystem().get_run_settings()['observables'])
+    trajectory = _run(system, 1, observables=HouseholdDemandSystem().prepare().observables_)
     return trajectory
 
 

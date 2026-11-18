@@ -6,6 +6,7 @@ The price cycles because capacity arrives after a construction delay.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,12 +14,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, series, step
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 PRICE_TABLE = ((0.0, 0.5, 1.0, 1.5, 2.0, 3.0), (3.0, 1.8, 1.0, 0.65, 0.5, 0.4))
 INVESTMENT_TABLE = ((0.0, 0.5, 1.0, 1.25, 1.5, 2.0, 3.0), (0.0, 0.1, 1.0, 2.5, 4.0, 5.0, 5.5))
@@ -84,18 +86,18 @@ class CommodityMarketElement(Element):
         self,
         label: str,
         *,
-        inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='commodity')] = 25.0,
-        capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capacity')] = 100.0,
-        demand: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        demand_step: Annotated[float, ParameterSpec()] = 10.0,
-        step_time: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        desired_coverage: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
-        reference_price: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        supply_elasticity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        demand_elasticity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        expectation_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        construction_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        lifetime: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
+        inventory: Annotated[float, RealSet.closed_open(0, oo), Quantity('commodity')] = 25.0,
+        capacity: Annotated[float, RealSet.closed_open(0, oo), Quantity('capacity')] = 100.0,
+        demand: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        demand_step: float = 10.0,
+        step_time: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        desired_coverage: Annotated[float, RealSet.open(0, oo)] = 0.25,
+        reference_price: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        supply_elasticity: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        demand_elasticity: Annotated[float, RealSet.closed_open(0, oo)] = 0.25,
+        expectation_time: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        construction_delay: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        lifetime: Annotated[float, RealSet.open(0, oo)] = 15.0,
     ) -> None:
         super().__init__(label)
         self.inventory = inventory
@@ -194,6 +196,12 @@ class CommodityCycleSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import CommodityCycleSystem
         >>> CommodityCycleSystem(construction_delay=5.0).prepare().system_.elements[0].construction_delay
@@ -236,8 +244,10 @@ class CommodityCycleSystem(BaseSystem):
         construction_delay: float = 3.0,
         lifetime: float = 15.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.inventory = inventory
         self.capacity = capacity
         self.demand = demand
@@ -275,8 +285,9 @@ class CommodityCycleSystem(BaseSystem):
         market = CommodityCycleSystem._get_market(s)
         return distributed_delay(_get_capacity_orders(market), order=3, time=market.construction_delay)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         market = CommodityMarketElement(
             'market',
             inventory=self.inventory,
@@ -312,4 +323,4 @@ class CommodityCycleSystem(BaseSystem):
             flow='completions',
             legs=[('capacity', Sink('retirement'), lambda s: s.source.capacity / s.source.lifetime, 'retirements')],
         )
-        return CompositeSystem(self.label, elements=[market], interactions=[commodity, capacity_flows])
+        self.system_ = System(self.label, elements=[market], interactions=[commodity, capacity_flows])

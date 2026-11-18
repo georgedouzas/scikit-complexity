@@ -2133,7 +2133,7 @@ class MesaSolver(ExternalSolver):
         }
         names.update({name: MesaSolver._get_state_property(name) for name in spec.states})
         names['__slots__'] = ()
-        base = MesaSolver._get_agent_type(spec)._get_view() or AgentView
+        base = MesaSolver._get_declared_view(spec) or MesaSolver._get_agent_type(spec)._get_view() or AgentView
         if not issubclass(base, AgentView):
             error_msg = f'The view of {spec.path} is {base.__name__}, which does not derive from AgentView.'
             raise ValidationError(error_msg)
@@ -2170,6 +2170,15 @@ class MesaSolver(ExternalSolver):
             item = array[index]
             return item.item() if np.ndim(item) == 0 else item
         return value
+
+    @staticmethod
+    def _get_declared_view(spec: _CompiledAgentsSpec) -> type | None:
+        """Return the view class of a declared element, or `None`."""
+        element = spec.element
+        if isinstance(element, GroupElement):
+            view = (element.values or {}).get('view')
+            return view if isinstance(view, type) else None
+        return element.view if isinstance(element, DeclaredElement) else None
 
     @staticmethod
     def _get_agent_type(spec: _CompiledAgentsSpec) -> type[BaseElement]:

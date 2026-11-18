@@ -15,7 +15,6 @@ traders drift towards the profitable direction faster and faster.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import ArbitrageTradersSystem
 
@@ -24,7 +23,7 @@ N_SITES, LENGTH, D, E, UNTIL = 200, 20.0, 0.5, 0.5, 3.5
 
 system = ArbitrageTradersSystem(n_sites=N_SITES, length=LENGTH, D=D, E=E)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='rho history', interval=1)
-trajectory = simulate(system, until=UNTIL, dt=0.02, observers=[observer])
+trajectory = system.prepare().simulate(until=UNTIL, dt=0.02, observers=[observer])
 
 # %%
 # Drift, spreading, and growth

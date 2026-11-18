@@ -89,7 +89,7 @@ class PairWellInteraction(GradientInteraction):
         second: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label, target=first, divisor='m')
+        super().__init__(label, target=first, divisor='m', order=2)
         self.first = first
         self.second = second
         self.k = k
@@ -100,13 +100,14 @@ class PairWellInteraction(GradientInteraction):
         return s.k * gap.dot_product(gap) / 2
 
 
-def _harmonic(label, k, divisor):
-    """Return a harmonic gradient on the state `x` of a target."""
+def _harmonic(label, k, divisor, order=1):
+    """Return a harmonic gradient on the state `x` of a target, on its derivative of an order."""
     return GradientInteraction(
         f'{label}_well',
         target=label,
         potential=lambda s: k * s.target.x.dot_product(s.target.x) / 2,
         divisor=divisor,
+        order=order,
     )
 
 
@@ -135,7 +136,7 @@ def test_run_gives_the_gradient_flow_and_the_newtonian_motion():
     """Test that a harmonic gradient decays a state of order 1 and oscillates a state of order 2 with its period."""
     system = CompositeSystem(
         elements=[OverdampedElement('slow', x=[1.0], gamma=2.0), BodyElement('fast', x=[1.0], m=2.0)],
-        interactions=[_harmonic('slow', 4.0, 'gamma'), _harmonic('fast', 4.0, 'm')],
+        interactions=[_harmonic('slow', 4.0, 'gamma'), _harmonic('fast', 4.0, 'm', order=2)],
         space=ContinuousSpace(n_dim=1),
     )
     solver = ScipyODESolver(rtol=1e-10, atol=1e-12)
@@ -173,7 +174,7 @@ def test_run_gives_the_functional_derivative_of_a_density():
         - KAPPA * s.target.phi * laplacian(s.target.phi) / 2,
         variational=True,
     )
-    rates = [item.prepare().run(SimpleNamespace(target=target)).laws_[0].value for item in (by_gradient, by_laplacian)]
+    rates = [item.prepare(SimpleNamespace(target=target)).laws_[0].value for item in (by_gradient, by_laplacian)]
     expected = phi - phi**3 + KAPPA * laplacian(phi)
     assert all(bool((rate - expected).expand() == 0) for rate in rates)
 
@@ -205,6 +206,7 @@ def test_run_matches_the_cahn_hilliard_equation_and_conserves_the_total():
         ({'states': ('x', '2y')}, 'Give names of states'),
         ({'divisor': 'm-1'}, 'name of a state or parameter'),
         ({'potential': 'quadratic'}, 'function of the namespace'),
+        ({'order': 3}, 'Give 1 for a gradient flow or 2 for Newton'),
     ],
 )
 def test_check_rejects_invalid_arguments(arguments, message):
@@ -244,6 +246,7 @@ def test_run_divides_every_state_by_its_own_divisor():
         states=('a', 'b'),
         potential=lambda s: (s.target.a - s.target.b) ** 2 / 2,
         divisor={'a': 'ma', 'b': 'mb'},
+        order=2,
     )
     system = CompositeSystem(elements=[CoordinatesElement('body')], interactions=[spring])
     trajectory = simulate(system, until=2.0, dt=0.1)
@@ -253,7 +256,7 @@ def test_run_divides_every_state_by_its_own_divisor():
 
 def test_run_divides_by_a_divisor_expression():
     """Test that a harmonic well divided by `4 m` oscillates at the frequency `1 / sqrt(4 m)`."""
-    well = _harmonic('body', 1.0, lambda member: 4 * member.m)
+    well = _harmonic('body', 1.0, lambda member: 4 * member.m, order=2)
     system = CompositeSystem(
         elements=[BodyElement('body', x=[1.0], m=1.0)],
         interactions=[well],

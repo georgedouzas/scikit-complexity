@@ -7,8 +7,7 @@ The gurus are on a network that rewires towards wealth.
 # License: MIT
 
 import math
-from collections.abc import Mapping
-from types import SimpleNamespace
+from collections.abc import Mapping, Sequence
 from typing import Annotated, ClassVar
 
 import numpy as np
@@ -16,11 +15,11 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.elements import Element
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.policy import PolicyRuleInteraction
 
@@ -76,30 +75,31 @@ class GuruTraderElement(Element):
         followers:
             The number of traders that follow the trader, its in-degree.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.finance import GuruTraderElement
-        >>> GroupElement('traders', element=GuruTraderElement, size=3).size
+        >>> GuruTraderElement('traders', size=3).size
         3
     """
 
     visual = VisualSpec('agents', {'color_by': 'followers'})
 
-    law_classes = ()
-
     def __init__(
         self,
         label: str,
         *,
-        cash: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
-        stocks: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        wealth: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2000.0,
-        expectation: Annotated[float, StateSpec()] = 0.0,
-        follows: Annotated[float, StateSpec(domain=NN)] = 0,
-        sigma: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        followers: Annotated[float, StateSpec(domain=NN)] = 0,
+        cash: Annotated[object, RealSet.closed_open(0, oo)] = 1000.0,
+        stocks: Annotated[object, RealSet.closed_open(0, oo)] = 100.0,
+        wealth: Annotated[object, RealSet.closed_open(0, oo)] = 2000.0,
+        expectation: object = 0.0,
+        follows: Annotated[object, NN] = 0.0,
+        sigma: Annotated[object, RealSet.closed_open(0, oo)] = 0.01,
+        followers: Annotated[object, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.cash = cash
         self.stocks = stocks
         self.wealth = wealth
@@ -112,19 +112,6 @@ class GuruTraderElement(Element):
     def _get_view(cls) -> type[GuruTraderView]:
         """Return the view of the agents of the element."""
         return GuruTraderView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the market rewires and trades for every trader.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class GuruMarketInteraction(PolicyRuleInteraction[SystemView]):
@@ -183,10 +170,10 @@ class GuruMarketInteraction(PolicyRuleInteraction[SystemView]):
         *,
         rule: None = None,
         phase: str | None = None,
-        traders: Annotated[str, RoleSpec()],
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        beta_step: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-        opening: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        traders: Role,
+        tau: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        beta_step: Annotated[float, RealSet.closed_open(0, oo)] = 1.5,
+        opening: Annotated[float, RealSet.open(0, oo)] = 10.0,
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
         self.traders = traders
@@ -411,9 +398,15 @@ class GuruOrderBookSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import GuruOrderBookSystem
-        >>> GuruOrderBookSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> GuruOrderBookSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -438,8 +431,10 @@ class GuruOrderBookSystem(BaseSystem):
         opening: float = 10.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_traders = n_traders
         self.tau = tau
         self.beta_step = beta_step
@@ -449,22 +444,20 @@ class GuruOrderBookSystem(BaseSystem):
         self.opening = opening
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         links = rng.integers(self.n_traders - 1, size=self.n_traders)
         links += links >= np.arange(self.n_traders)
-        traders = GroupElement(
+        traders = GuruTraderElement(
             'traders',
-            element=GuruTraderElement,
+            cash=self.cash,
+            stocks=self.stocks,
+            wealth=self.cash + self.opening * self.stocks,
+            follows=links.astype(float),
+            sigma=rng.uniform(0.0, self.sigma, self.n_traders),
             size=self.n_traders,
-            values={
-                'cash': self.cash,
-                'stocks': self.stocks,
-                'wealth': self.cash + self.opening * self.stocks,
-                'follows': links.astype(float),
-                'sigma': rng.uniform(0.0, self.sigma, self.n_traders),
-            },
         )
         market = GuruMarketInteraction(
             'market',
@@ -473,4 +466,4 @@ class GuruOrderBookSystem(BaseSystem):
             beta_step=self.beta_step,
             opening=self.opening,
         )
-        return CompositeSystem(self.label, elements=[traders], interactions=[market])
+        self.system_ = System(self.label, elements=[traders], interactions=[market])

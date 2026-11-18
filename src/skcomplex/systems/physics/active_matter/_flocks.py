@@ -15,30 +15,25 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, I, atan2, cos, exp, oo, pi, sin, sqrt
+from sage.all__sagemath_symbolics import Expression, I, atan2, cos, exp, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BaseInteraction, CouplingInteraction, Interaction
+from ....core.components.elements import Element, Period
+from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.laws.utils import lag, neighbors, uniform, where
+from ....core.components.laws.utils import neighbors, uniform, where
 from ....core.components.spaces import (
     BaseNeighborhood,
     BaseSpace,
     ContinuousSpace,
-    DiscreteTime,
     NearestNeighborhood,
     RadiusNeighborhood,
 )
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
-from ....core.components.types import Target
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.particles import PropulsionStepInteraction
@@ -85,7 +80,7 @@ class CohesiveParticleElement(Element):
         label: str,
         *,
         x: object = (0.0, 0.0),
-        theta: object = 0.0,
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
         size: int | None = None,
         space: BaseSpace | None = None,
     ) -> None:
@@ -187,53 +182,6 @@ class CohesiveAlignmentInteraction(Interaction):
             self.laws_ = [UpdateLaw(member.theta, atan2(along_y, along_x))]
 
 
-class DelayedVicsekParticleElement(Element):
-    """Particle of a delayed Vicsek flock.
-
-    The particle keeps its past headings for the delayed or predicted alignment.
-
-    The heading keeps its last 25 values, `theta_lag1` to `theta_lag25`, which a delayed alignment reads, and which
-    hold the initial heading before the start. A propulsion step moves the particle along its current heading.
-
-    Args:
-        label:
-            The label of the particle or the group.
-
-        x:
-            The initial position.
-
-        theta:
-            The initial heading, also its value before the start.
-
-        eta:
-            The amplitude of the noise, as a fraction of `pi`.
-
-    Attributes:
-        default_visual_:
-            How the particle is drawn by default, the `visual` of its class.
-
-    Examples:
-        >>> from skcomplex.systems.physics.active_matter import DelayedVicsekParticleElement
-        >>> DelayedVicsekParticleElement('bird').eta
-        0.1
-    """
-
-    visual = HEADINGS
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='direction', lags=MEMORY)] = 0.0,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.theta = theta
-        self.eta = eta
-
-
 class NematicParticleElement(Element):
     """Polar particles with the positions `x`, the headings `theta`, and the noise amplitudes `eta`.
 
@@ -273,7 +221,7 @@ class NematicParticleElement(Element):
         label: str,
         *,
         x: object = (0.0, 0.0),
-        theta: object = 0.0,
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
         eta: object = 0.1,
         size: int | None = None,
         space: BaseSpace | None = None,
@@ -285,30 +233,31 @@ class NematicParticleElement(Element):
 
 
 class VicsekParticleElement(Element):
-    """Particle of a Vicsek flock.
-
-    Every step its heading becomes the mean heading of its neighbours plus noise.
+    """Particles of a Vicsek flock with the positions `x`, the headings `theta`, and the noise amplitudes `eta`.
 
     `HeadingAlignmentInteraction` sets the new heading to the circular mean of the headings within the unit distance,
     itself included, plus a uniform angle in `[-eta pi, eta pi]`. A propulsion step moves the particle along its
-    heading.
+    heading, which wraps around the circle. A delayed alignment reads past headings, which hold the initial heading
+    before the start.
 
     Args:
         label:
-            The label of the particle or the group.
+            The label of the particles.
 
         x:
-            The initial position.
+            The initial positions, one row per particle or shared.
 
         theta:
-            The initial heading.
+            The initial headings, one per particle or shared.
 
         eta:
             The amplitude of the noise, as a fraction of `pi`.
 
-    Attributes:
-        default_visual_:
-            How the particle is drawn by default, the `visual` of its class.
+        size:
+            The number of particles, or `None` for one.
+
+        space:
+            The continuous space of the particles, or `None` for none.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import VicsekParticleElement
@@ -322,17 +271,19 @@ class VicsekParticleElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        x: object = (0.0, 0.0),
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
+        eta: Annotated[object, RealSet.closed_open(0, oo)] = 0.1,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.x = x
         self.theta = theta
         self.eta = eta
 
 
-class HeadingAlignmentInteraction(CouplingInteraction):
+class HeadingAlignmentInteraction(Interaction):
     """Vicsek alignment.
 
     Every particle turns to the circular mean heading of its neighbours plus noise.
@@ -340,13 +291,12 @@ class HeadingAlignmentInteraction(CouplingInteraction):
     Every step the heading `theta` of every particle becomes the circular mean of the headings within the unit
     distance, itself included, plus a uniform angle in `[-eta pi, eta pi]` with the parameter `eta` of the particle.
     With `nematic`, every heading is flipped to the side nearer the particle's own heading first, as for particles
-    with an axis rather than a direction. It is the map form of coupling with the circular mean over a radius. Another
-    neighbourhood, such as the `k` nearest particles or a vision cone, replaces the unit disk.
+    with an axis rather than a direction. Another neighbourhood, such as the `k` nearest particles or a vision cone,
+    replaces the unit disk.
 
     With a positive `latency` `h`, every particle reads the headings of its neighbours `h` steps ago. With a negative
     latency it reads their headings predicted `|h|` steps ahead, by a least-squares line through their last `memory`
-    headings, unwrapped by taking every change between two steps as the smallest angle. A latent alignment needs
-    particles that keep enough past headings, such as `DelayedVicsekParticleElement`.
+    headings, unwrapped by taking every change between two steps as the smallest angle.
 
     Args:
         label:
@@ -370,46 +320,38 @@ class HeadingAlignmentInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import HeadingAlignmentInteraction
-        >>> HeadingAlignmentInteraction('alignment', target='flock', nematic=True).reduce
-        'circular-mean'
+        >>> HeadingAlignmentInteraction('alignment', target='flock', nematic=True).nematic
+        True
     """
 
+    law_classes = (UpdateLaw,)
     draws = True
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         nematic: bool = False,
         neighborhood: BaseNeighborhood | None = None,
         latency: int = 0,
         memory: int = 5,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            read='theta',
-            write='theta',
-            function=self._get_heading,
-            reduce='circular-mean',
-            weights=self._get_side,
-            form='map',
-            combine=self._get_noisy,
-            neighborhood=RadiusNeighborhood(1.0, center=True) if neighborhood is None else neighborhood,
-        )
+        super().__init__(label)
+        self.target = target
         self.nematic = nematic
+        self.neighborhood = neighborhood
         self.latency = latency
         self.memory = memory
 
-    def _get_heading(self, namespace: SimpleNamespace) -> Expression:
-        """Return the heading of the neighbour, delayed or predicted."""
-        heading = namespace.other.theta
+    def _get_heading(self, heading: Expression, t: Expression) -> Expression:
+        """Return the heading of a neighbour, delayed or predicted."""
         if self.latency >= 0:
-            return lag(heading, self.latency)
-        unwrapped = [heading]
+            return heading if self.latency == 0 else heading(t=t - self.latency)
+        past = [heading if step == 0 else heading(t=t - step) for step in range(self.memory)]
+        unwrapped = [past[0]]
         for step in range(1, self.memory):
-            change = lag(heading, step - 1) - lag(heading, step)
+            change = past[step - 1] - past[step]
             unwrapped.append(unwrapped[-1] - atan2(sin(change), cos(change)))
         times = [-step for step in range(self.memory)]
         mean_time = sum(times) / self.memory
@@ -418,20 +360,22 @@ class HeadingAlignmentInteraction(CouplingInteraction):
         slope = sum((time - mean_time) * (value - mean_heading) for time, value in zip(times, unwrapped, strict=True))
         return mean_heading + slope / spread * (-self.latency - mean_time)
 
-    def _get_side(self, namespace: SimpleNamespace) -> Expression:
-        """Return -1 for a neighbour heading away from the particle when nematic.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the heading of every particle to the mean heading of its neighbours plus noise.
 
-        The sign is 1 otherwise.
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        if not self.nematic:
-            return SR(1)
-        return where(cos(namespace.other.theta - namespace.member.theta) >= 0, 1, -1)
-
-    @staticmethod
-    def _get_noisy(namespace: SimpleNamespace, reduction: Target) -> Target:
-        """Return the mean heading plus a uniform angle in `[-eta pi, eta pi]`."""
-        eta = namespace.member.eta
-        return reduction + uniform('noise', -eta * math.pi, eta * math.pi)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            member, other = context.target, context.target.other
+            over = RadiusNeighborhood(1.0, center=True) if self.neighborhood is None else self.neighborhood
+            side = where(cos(other.theta - member.theta) >= 0, 1, -1) if self.nematic else None
+            heading = self._get_heading(other.theta, context.t)
+            mean = neighbors(heading, over=over, reduce='circular-mean', weight=side)
+            noise = uniform('noise', -member.eta * math.pi, member.eta * math.pi)
+            self.laws_ = [UpdateLaw(member.theta, mean + noise)]
 
 
 def _get_orders(group: str) -> list[Observable]:
@@ -470,7 +414,7 @@ def _get_nematic_order(s: SimpleNamespace) -> Expression:
     return VicsekSystem._get_modulus('mean_axis', s)
 
 
-class VicsekSystem(OldBaseSystem):
+class VicsekSystem(BaseSystem):
     """The Vicsek system.
 
     Particles move at a constant speed along the mean heading of their neighbours.
@@ -492,9 +436,9 @@ class VicsekSystem(OldBaseSystem):
     had `h` steps ago, `theta_j(n + 1) = <theta_k(n - h)> + noise`. Argun et al. report that a short delay stabilizes
     the clusters, and a long delay hinders them. A negative delay is a prediction: the headings of the neighbours `|h|`
     steps ahead are extrapolated by a least-squares line through their last `memory` headings, and it hinders
-    clustering. Every particle then keeps its last 25 headings, so the delay lies in `[-25, 25]`, and before the start
-    they equal the initial heading. The system has the positions `flock.x`, the headings `flock.theta`, and the
-    observables `polarization` and `nematic_order`.
+    clustering. The delay lies in `[-25, 25]`, and before the start the past headings equal the initial heading. The
+    system has the positions `flock.x`, the headings `flock.theta`, and the observables `polarization` and
+    `nematic_order`.
 
     Args:
         n_particles:
@@ -528,6 +472,12 @@ class VicsekSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             Both `neighbors` and `vision` are given, or the delay or the memory exceeds the 25 kept headings.
@@ -552,40 +502,6 @@ class VicsekSystem(OldBaseSystem):
         """Return the modulus of an observable of a system."""
         return abs(getattr(s, name))
 
-    @staticmethod
-    def _get_flock(
-        label: str,
-        element: type[Element],
-        n_particles: int,
-        size: float,
-        seed: int,
-        *,
-        v0: float,
-        alignment: BaseInteraction | None = None,
-        **values: float,
-    ) -> CompositeSystem:
-        """Return a system of flockers of a type in a periodic box.
-
-        The system has a label, and the flockers have uniform positions and headings.
-        """
-        rng = np.random.default_rng(seed)
-        initial: dict[str, object] = {
-            'x': rng.uniform(0.0, size, (n_particles, 2)),
-            'theta': rng.uniform(-math.pi, math.pi, n_particles),
-            **values,
-        }
-        flock = GroupElement('flock', element=element, size=n_particles, values=initial)
-        return CompositeSystem(
-            label,
-            elements=[flock],
-            interactions=[
-                PropulsionStepInteraction('propulsion', target='flock', speed=v0),
-                *([] if alignment is None else [alignment]),
-            ],
-            space=ContinuousSpace(extent=(size, size), boundary='periodic'),
-            time=DiscreteTime(),
-        )
-
     def __init__(
         self,
         n_particles: int = 400,
@@ -599,8 +515,10 @@ class VicsekSystem(OldBaseSystem):
         delay: int = 0,
         memory: int = 5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.size = size
         self.v0 = v0
@@ -611,8 +529,18 @@ class VicsekSystem(OldBaseSystem):
         self.delay = delay
         self.memory = memory
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Vicsek particles in a periodic box.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ParameterError:
+                Both `neighbors` and `vision` are given, or the delay or the memory exceeds 25 past headings.
+        """
+        super()._prepare(context)
         if self.neighbors is not None and self.vision is not None:
             error_msg = 'A Vicsek flock aligns with its nearest neighbours or within a vision cone, not both.'
             raise ParameterError(error_msg)
@@ -627,6 +555,15 @@ class VicsekSystem(OldBaseSystem):
             neighborhood = NearestNeighborhood(self.neighbors, center=True)
         if self.vision is not None:
             neighborhood = RadiusNeighborhood(1.0, angle=self.vision, direction='theta', center=True)
+        rng = np.random.default_rng(self.seed)
+        flock = VicsekParticleElement(
+            'flock',
+            x=rng.uniform(0.0, self.size, (self.n_particles, 2)),
+            theta=rng.uniform(-math.pi, math.pi, self.n_particles),
+            eta=self.eta,
+            size=self.n_particles,
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+        )
         alignment = HeadingAlignmentInteraction(
             'alignment',
             target='flock',
@@ -634,16 +571,10 @@ class VicsekSystem(OldBaseSystem):
             latency=self.delay,
             memory=self.memory,
         )
-        element = VicsekParticleElement if self.delay == 0 else DelayedVicsekParticleElement
-        return VicsekSystem._get_flock(
+        self.system_ = System(
             self.label,
-            element,
-            self.n_particles,
-            self.size,
-            self.seed,
-            v0=self.v0,
-            alignment=alignment,
-            eta=self.eta,
+            elements=[flock],
+            interactions=[PropulsionStepInteraction('propulsion', target='flock', speed=self.v0), alignment],
         )
 
 

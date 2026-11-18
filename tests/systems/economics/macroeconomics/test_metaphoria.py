@@ -11,7 +11,7 @@ from ..conftest import _run_observed
 def _metaphoria(until, invariants=None, **arguments):
     """Return the trajectory of Metaphoria with its standard observables."""
     system = MetaphoriaSystem(100, random_state=0, **arguments)
-    return _run_observed(system.prepare().system_, until, system.get_run_settings()['observables'], invariants)
+    return _run_observed(system.prepare().system_, until, system.prepare().observables_, invariants)
 
 
 def test_metaphoria_hunter_gatherers_thrive_where_money_dies_out():

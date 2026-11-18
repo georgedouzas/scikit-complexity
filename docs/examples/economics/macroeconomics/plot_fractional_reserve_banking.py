@@ -16,7 +16,6 @@ ratio, the broad money falls to half.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.macroeconomics import FractionalReserveBankingSystem
 
@@ -37,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 system = FractionalReserveBankingSystem(base_money=BASE, ratio=0.1, new_ratio=0.2, change_at=150.0, random_state=0)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The money multiplier

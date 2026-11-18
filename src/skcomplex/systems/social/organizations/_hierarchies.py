@@ -54,7 +54,7 @@ class ContenderElement(Element):
     Examples:
         >>> from skcomplex.systems.social.organizations import ContenderElement
         >>> group = GroupElement('contenders', element=ContenderElement, size=10)
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('contenders', 'ContenderElement', 10)
     """
 

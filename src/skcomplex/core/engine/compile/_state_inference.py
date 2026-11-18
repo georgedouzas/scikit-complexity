@@ -15,8 +15,7 @@ from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...components.base import BaseComponent
-from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement, Quantity
-from ...components.interactions import BaseInteraction
+from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement, Period, Quantity
 from ...components.laws import (
     BaseLaw,
     ConstraintLaw,
@@ -31,14 +30,15 @@ from ...components.laws import (
 from ...components.laws.utils import derivative, lag
 from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
-from ...enums import TopologyKind
+from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from .._utils import bound_labels
+from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from .._utils import bound_labels, declarations_of
 from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values', 'on')
 LINKS = ('edges', 'hyperedges')
+OTHER = '__other'
 BOOLEAN = FiniteEnumeratedSet([0, 1])
 MEMBERSHIP = frozenset(
     {
@@ -87,8 +87,7 @@ class _StateInference:
                 )
                 raise ValidationError(error_msg)
         params = element.get_params(deep=False)
-        names = [name for name in inspect.signature(type(element)).parameters if name in params]
-        arguments = {name: params[name] for name in names if name not in RESERVED}
+        arguments = {name: params[name] for name in element._get_hints() if name in params and name not in RESERVED}
         return arguments | given
 
     @staticmethod
@@ -221,6 +220,18 @@ class _StateInference:
                 return item.name
         return None
 
+    @staticmethod
+    def _get_period(annotation: object) -> float | None:
+        """Return the period in the `Annotated` of a value, or `None`.
+
+        A value annotated as `Annotated[float, Period(2 * pi)]` wraps around after every step.
+        """
+        for item in get_args(annotation)[1:] if get_origin(annotation) is Annotated else ():
+            if isinstance(item, Period):
+                item._check()
+                return float(item.length)
+        return None
+
     def _get_spec(
         self,
         element: Element,
@@ -231,21 +242,25 @@ class _StateInference:
         lags: int = 0,
         starting: Mapping[int, object] | None = None,
         role: str | None = None,
+        moving: bool = False,
     ) -> DeclaredVariableSpec:
         """Return the declaration of a value as a state or a parameter.
 
         The starting values of the derivatives or past values a law reads are given by their index, and a missing one
         is zero for a derivative and the value itself for a past value. A state with the role `'position'` is a
-        position that walks, particle analyses, and drawings read.
+        position that walks, particle analyses, and drawings read. A periodic value wraps around after every step, and
+        analyses read it as a heading when its element moves in a space and as a phase otherwise.
 
         Raises:
             ValidationError:
                 A starting value is given for a parameter, or for a derivative or past value no law reads.
         """
-        parameter = inspect.signature(type(element)).parameters.get(name)
-        annotation = inspect.Parameter.empty if parameter is None else parameter.annotation
+        annotation = element._get_hints().get(name, inspect.Parameter.empty)
         domain = self._get_domain(annotation, value)
         quantity = self._get_quantity(annotation)
+        period = self._get_period(annotation)
+        if period is not None and role is None:
+            role = 'direction' if moving else 'phase'
         vector, n_dim, tensor = element._get_shape_of(value)
         value = element._get_matrix_entries(value, tensor)
         starting = {index: element._get_matrix_entries(item, tensor) for index, item in (starting or {}).items()}
@@ -282,6 +297,7 @@ class _StateInference:
             order=steps,
             lags=lags,
             initial=initial,
+            period=period,
             role=role,
             quantity=quantity,
         )
@@ -320,7 +336,11 @@ class _StateInference:
 
     @staticmethod
     def _get_lags(law: BaseComponent, named: Mapping[str, str]) -> dict[str, int]:
-        """Return the number of past values a law reads of every value, by its dotted name."""
+        """Return the number of past values a law reads of every value, by its dotted name.
+
+        A reduction over neighbours that reads past values of the other member, such as the delayed headings of a flock,
+        counts too.
+        """
         lags: dict[str, int] = {}
         values = law._get_values() if isinstance(law, BaseLaw) else []
         for value in values:
@@ -328,8 +348,9 @@ class _StateInference:
                 continue
             for found in value.find(lag(SR.wild(0), SR.wild(1))):
                 state, steps = found.operands()
-                if str(state) in named and SR(steps).is_integer():
-                    name = named[str(state)]
+                read = str(state).removesuffix(OTHER)
+                if read in named and SR(steps).is_integer():
+                    name = named[read]
                     lags[name] = max(int(steps), lags.get(name, 0))
         return lags
 
@@ -507,11 +528,10 @@ class _StateInference:
 
     @staticmethod
     def _get_agent_groups(compilation: Compilation) -> set[str]:
-        """Return the paths of the groups of agents.
+        """Return the paths of the groups whose members are agents.
 
-        They are the groups whose members run rules, and the groups bound to the roles of an interaction with a rule of
-        the whole system, such as `UpdateLaw(s, activate)`, which reads their agents even when no rule of their own
-        runs, as the nodes of a cascade that one rule activates in a random order.
+        Their members run agent rules, or a rule of the whole system, such as `UpdateLaw(s, clear)`, reads them
+        through the roles of its interaction, such as the traders a market clears.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
@@ -520,14 +540,9 @@ class _StateInference:
             node = nodes.get(record.path)
             if not isinstance(record.law, RuleLaw) or node is None:
                 continue
-            if record.law.members is not None:
-                roles = [record.law.members]
-            elif isinstance(node.component, BaseInteraction) and node.component._is_preparing_laws():
-                roles = [name for name, spec in node.component._get_specs().items() if isinstance(spec, RoleSpec)]
-            else:
-                continue
-            for role in roles:
-                groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, role)))
+            members = record.law.members
+            for role in declarations_of(node.component, VariableKind.ROLE) if members is None else (members,):
+                groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, role, None)))
         return groups
 
     @staticmethod
@@ -561,6 +576,11 @@ class _StateInference:
             boundary=boundary,
         )
 
+    @staticmethod
+    def _get_past_arrays(name: str, values: object, lags: int) -> dict[str, object]:
+        """Return the past values of many members, each its value before the start."""
+        return {f'{name}_lag{index}': values for index in range(1, lags + 1)}
+
     def _get_declared_elements(
         self,
         element: Element,
@@ -583,7 +603,8 @@ class _StateInference:
         position, also when no law changes it, and the value an update law adds to a position at every step, as `v` in
         `x <- x + v`, is its velocity. An element on the edges or hyperedges of a network is a group with one member on
         each. The probe that finds the orders reads no starting values of derivatives or past values. The element keeps
-        the drawing of its class, except a drawing of agents for members that run no agent rules.
+        the drawing of its class, except a drawing of agents for members that run no agent rules, and the view of its
+        agents.
         """
         values = self._get_values(element)
         starting = {} if probing else self._get_starting(element, values)
@@ -609,10 +630,12 @@ class _StateInference:
                     for index, given in starting.get(name, {}).items()
                 },
                 role='position' if name in axes else 'velocity' if name in velocities else None,
+                moving=any(axis in values for axis in axes),
             )
             tensor = element._get_shape_of(member)[2]
             if np.ndim(np.asarray(value, dtype=object)) > 0:
                 arrays[name] = element._get_matrix_entries(value, tensor)
+                arrays |= self._get_past_arrays(name, arrays[name], 0 if count is None or probing else lags(name))
             for index, given in starting.get(name, {}).items():
                 if count is not None and np.ndim(np.asarray(given, dtype=object)) > 0:
                     arrays[f'{name}_lag{index}' if lags(name) else f'{name}_d{index}'] = element._get_matrix_entries(
@@ -621,9 +644,10 @@ class _StateInference:
                     )
         visual = element._get_visual()
         drawing = None if visual == VisualSpec() or (visual.kind == 'agents' and not agents) else visual
+        view = element._get_view()
         if count is None:
-            return [DeclaredElement(element.label, variables=variables, drawing=drawing)]
-        values = {'variables': variables, 'drawing': drawing, **arrays}
+            return [DeclaredElement(element.label, variables=variables, drawing=drawing, view=view)]
+        values = {'variables': variables, 'drawing': drawing, 'view': view, **arrays}
         if network:
             nodes = GroupElement(
                 element.label,

@@ -8,7 +8,9 @@ from dataclasses import replace
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import SR, Expression
+from sage.symbolic.function import SymbolicFunction
+from sage.symbolic.operators import FDerivativeOperator
 
 from ...components.laws import BaseLaw, ConstraintLaw, EventLaw, ObjectiveLaw, RuleLaw, TopologyRequestSpec
 from ...components.spaces import StaticTime
@@ -42,6 +44,8 @@ from ._bound_renewal_spec import BoundRenewalSpec
 from ._census_spec import _CensusSpec
 from ._matrix_law_spec import _MatrixLawSpec
 from ._plan_spec import _PlanSpec
+
+TIME_FUNCTIONS = ('derivative', 'lag', 'delayed')
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
 type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
@@ -358,20 +362,48 @@ class Compilation:
             raise PipelineError(error_msg)
         return value
 
+    @staticmethod
+    def _is_balance(law: BaseLaw) -> bool:
+        """Return whether a law is a constraint free of the time and of derivatives.
+
+        Such a constraint, such as the best response `q1 == (a - q2) / 2` of a firm, holds at one moment only, while
+        a source `v == E * sin(t)` or a circuit `L * q.diff(t, 2) + q / C == V` changes with time.
+        """
+        if not isinstance(law, ConstraintLaw):
+            return False
+        relation = SR(law.lhs) - SR(0 if law.rhs is None else law.rhs)
+        return not Compilation._reads_time(relation)
+
+    @staticmethod
+    def _reads_time(expression: Expression) -> bool:
+        """Return whether an expression reads a derivative or the time itself."""
+        operator = expression.operator()
+        if isinstance(operator, FDerivativeOperator):
+            return True
+        name = getattr(operator, 'name', None)
+        if callable(name) and name() in TIME_FUNCTIONS:
+            return True
+        if isinstance(operator, SymbolicFunction):
+            return False
+        if operator is None:
+            return expression.is_symbol() and str(expression) == 't'
+        return any(Compilation._reads_time(operand) for operand in expression.operands())
+
     def is_static(self) -> bool:
         """Return whether the system is static.
 
-        It is static by its time, by an objective law, by laws that are all constraints, or by having no laws and no
-        states at all.
+        It is static by its time, by an objective law, by constraint laws alone, or by having no laws and no states at
+        all.
 
         A system with no laws, no states, and no time of its own, such as
         `System(elements=[Element('ball', values={'x': 1.0})])`, changes nothing, so it is static. A system whose laws
-        are all constraints, such as the balance of a market, is solved once, so it is static too.
+        are all constraints and that has no time of its own, such as the best responses of the firms of a Cournot game,
+        is solved once, so it is static too.
 
         Returns:
             static:
-                Whether the system has static time, an objective law, only constraint laws and no time, or no laws, no
-                states, and no time.
+                Whether the system has static time, an objective law, constraint laws alone, or no laws, no states,
+                and no time.
         """
         if isinstance(self.system.time, StaticTime):
             return True
@@ -384,7 +416,7 @@ class Compilation:
         if (
             census.records
             and self.system.time is None
-            and all(isinstance(record.law, ConstraintLaw) for record in census.records)
+            and all(self._is_balance(record.law) for record in census.records)
         ):
             return True
         return any(isinstance(record.law, ObjectiveLaw) for record in census.records)

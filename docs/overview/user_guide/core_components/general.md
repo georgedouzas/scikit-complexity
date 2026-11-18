@@ -12,10 +12,9 @@ The package has one subpackage per concept, and every recipe is imported from it
 | Subpackage | Concept | Recipes |
 | --- | --- | --- |
 | `elements` | amounts and bodies | `NonnegativeElement`, `PointElement` |
-| `flows` | chaotic flows | `LorenzElement` |
 | `reactions` | reactions at a product propensity | `ReactionInteraction`, `ReactionNetworkSystem` |
 | `kinetics` | encounters of distributions | `EncounterInteraction` |
-| `dynamics` | systems given as equations | `DynamicalSystem`, `NetworkDynamicalSystem`, `ReactionDiffusionSystem`, `StockFlowSystem` |
+| `dynamics` | systems given as equations | `EquationInteraction`, `AnnotatedElement`, `DynamicalSystem`, `NetworkDynamicalSystem`, `ReactionDiffusionSystem`, `StockFlowSystem` |
 | `agents` | agent rules | `MovementInteraction`, `ChoiceInteraction`, `ImitationInteraction`, `EvolutionInteraction`, `BirthDeathInteraction` |
 | `matching` | markets that pair two groups | `MatchingInteraction`, its rule specs, and `MatchSpec` |
 | `rewriting` | words and tilings that grow by rules | `WordElement`, `PatchElement`, `ProductionLaw`, `SubstitutionLaw`, their specs, `GeometryVisual`, and `RewritingSolver` |
@@ -164,66 +163,6 @@ AtomElement('argon', x=[1.0, 2.0]).get_params()
 ```
 
 See its [API entry][skcomplex.systems.general.elements].
-
-## LorenzElement
-
-A `LorenzElement` follows the Lorenz flow `x' = sigma (y - x)`, `y' = x (rho - z) - y`, `z' = x y - beta z`, which
-Lorenz derived from convection in the atmosphere. It is an `Element` that returns three
-[`RateLaw`](laws.md#ratelaw) laws. For `sigma = 10`, `rho = 28`, and `beta = 8/3` its runs never settle and never
-repeat.
-
-```python
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems.general.flows import LorenzElement
-
-trajectory = simulate(CompositeSystem(elements=[LorenzElement('lorenz')]), until=1.0, dt=0.5)
-trajectory.get_values('lorenz.x').round(3).tolist()
-```
-
-The state `x` moves from 1.0 to 1.198 and swings to -9.379 after one unit of time.
-
-Below the critical value of `rho` the same flow describes a water wheel that settles into a steady rotation. With
-`rho = 10` the state `z` settles at `rho - 1`.
-
-```python continuation
-wheel = simulate(CompositeSystem(elements=[LorenzElement('wheel', rho=10.0)]), until=20.0, dt=10.0)
-wheel.get_values('wheel.z').round(3).tolist()
-```
-
-The state `z` passes 9.023 at time 10 and rests at 9.0 at time 20.
-
-**How the engine runs it.** The three rates form an ordinary differential equation that `ScipyODESolver` integrates.
-
-**How it combines.** It runs alone as a model, or it drives a response system through an interaction that reads its
-states, as in studies of chaotic synchronization.
-
-**Limits and errors.** Its parameters are `sigma`, `rho`, and `beta`, and `set_params` raises a `ValueError` for any
-other name.
-
-```python continuation
-try:
-    LorenzElement('lorenz').set_params(r=1.0)
-except ValueError as error:
-    message = str(error)
-message
-```
-
-The message lists the valid parameters `beta`, `label`, `rho`, `sigma`, `visual`, `x`, `y`, and `z`. The fix is
-`rho=...`.
-
-**A field realization.** `LorenzSystem` of mathematics wraps the element in a system class that takes the parameters
-of the model, and the chaotic synchronization of physics drives a response system with it.
-
-```python continuation
-from skcomplex.systems.mathematics.dynamical_systems import LorenzSystem
-
-LorenzSystem(rho=20.0).prepare().system_.elements[0].rho
-```
-
-The system builds one `LorenzElement` with `rho = 20.0`.
-
-See its [API entry][skcomplex.systems.general.flows].
 
 ## ReactionInteraction
 
@@ -719,11 +658,79 @@ Its parameters are the label, the target, `g`, and `l`.
 
 See its [API entry][skcomplex.systems.general.mechanics].
 
+## EquationInteraction
+
+An `EquationInteraction` gives one state of an element its equation, written as a function. In continuous time the
+equation is the rate of the state, and in discrete time it is the next value. A state named with a prime takes the
+rate of its derivative, so `"x''"` gives an acceleration. The function reads the values of the element from `s.target`
+and the time from `s.t`. Here a tank drains at half its level.
+
+```python
+from skcomplex.core.components.elements import Element
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import EquationInteraction
+
+tank = Element('tank', values={'x': 1.0, 'k': 0.5})
+decay = EquationInteraction('decay', target='tank', state='x', equation=lambda s: -s.target.k * s.target.x)
+system = System(elements=[tank], interactions=[decay]).prepare()
+system.simulate(until=2.0, dt=1.0).get_values('tank.x').round(3).tolist()
+```
+
+The level falls from 1.0 to 0.607 and 0.368, the curve `exp(-t / 2)`. The same interaction with `time='discrete'` is
+the logistic map of a population, whose next value reads the value at the start of the step.
+
+```python continuation
+population = Element('population', values={'n': 0.2, 'r': 3.2})
+growth = EquationInteraction(
+    'growth',
+    target='population',
+    state='n',
+    equation=lambda s: s.target.r * s.target.n * (1 - s.target.n),
+    time='discrete',
+)
+logistic = System(elements=[population], interactions=[growth]).prepare()
+logistic.simulate(until=3).get_values('population.n').round(3).tolist()
+```
+
+The population runs through 0.2, 0.512, 0.8, and 0.513, on its way to a cycle of two values. A noise amplitude, such
+as `noise=0.1`, adds a noise in the Itô convention, or in the Stratonovich one with `convention='stratonovich'`.
+`DynamicalSystem` writes one such interaction for every state.
+
+See its [API entry][skcomplex.systems.general.dynamics].
+
+## AnnotatedElement
+
+An `AnnotatedElement` holds values by name, as `Element(label, values=...)` does, with the allowed values and the
+quantity of some of them. It reads them as a class would read `Annotated` on its arguments, so a value outside its
+allowed values is rejected and the conservation monitor follows a quantity. `DynamicalSystem` and `StockFlowSystem`
+build it from their `allowed=` and `quantities=`. Here a herd that cannot have a negative size is given one.
+
+```python
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import AnnotatedElement
+
+herd = AnnotatedElement('herd', values={'n': -5.0}, allowed={'n': RealSet.closed_open(0, oo)})
+try:
+    System(elements=[herd]).prepare()
+except ValidationError as error:
+    message = str(error)
+message
+```
+
+The message reads "herd.n = -5.0 is not in its domain [0, +oo)." A set of categories, such as
+`allowed={'status': {'S', 'I', 'R'}}`, allows only those.
+
+See its [API entry][skcomplex.systems.general.dynamics].
+
 ## DynamicalSystem
 
 A `DynamicalSystem` is a set of states and the equations that evolve them, rates in continuous time or next values in
-discrete time. It takes its data by name and writes one [`DeclaredElement`](elements.md#declaredelement) with one
-`RateInteraction` or [`MapInteraction`](interactions.md#mapinteraction) per state. The populations of Wilson and Cowan
+discrete time. It takes its data by name and writes one [`AnnotatedElement`](#annotatedelement) with one
+[`EquationInteraction`](#equationinteraction) per state. The populations of Wilson and Cowan
 in neuroscience are rates.
 
 ```python
@@ -773,8 +780,9 @@ and whose `t` holds the time.
 
 **How it combines.** It is a `BaseSystem`, so every workflow takes it. A subclass takes the parameters of its model
 under its own names and returns its data from the hooks `_get_states`, `_get_equations`, `_get_parameters`,
-`_get_noises`, `_get_time`, and `_get_element_label`. The hook `_get_variables` gives the specs of the states and the
-parameters, such as a domain or the order of a Caputo derivative.
+`_get_noises`, `_get_time`, and `_get_element_label`. The arguments `allowed` and `quantities`, or the hooks
+`_get_allowed` and `_get_quantities`, give the allowed values and the quantity of a state, such as
+`allowed={'n': RealSet.closed_open(0, oo)}` for a population that cannot be negative.
 
 **Limits and errors.** All states live in one element, so a model with many members uses
 [`NetworkDynamicalSystem`](#networkdynamicalsystem) or [`ReactionDiffusionSystem`](#reactiondiffusionsystem). A noise
@@ -1004,14 +1012,15 @@ tub.prepare().simulate(until=10.0, dt=5.0).get_values('tub.water').round(3).toli
 
 The water rises to 1.836 at time 5 and to 1.987 at time 10, towards the level 2 where the drain matches the tap.
 
-**How the engine runs it.** The stocks and parameters are the variables of one `DeclaredElement`. Every flow is a
+**How the engine runs it.** The stocks and parameters are the values of one [`AnnotatedElement`](#annotatedelement),
+which holds the allowed values and quantities given by `allowed=` and `quantities=`. Every flow is a
 [`TransferInteraction`](interactions.md#transferinteraction) from the element to itself, so a flow between two stocks
 keeps their total, and the trajectory reports it as `<element>.<flow>`. `None` stands for the environment, and a
 labelled [`Source`](laws.md#source) or [`Sink`](laws.md#sink) of `skcomplex.core.components.laws` in its place names
 it.
 
 **How it combines.** A subclass returns its data from the hooks `_get_stocks`, `_get_flows`, `_get_parameters`,
-`_get_element_label`, and `_get_variables`. The translator of system dynamics files reads models into this system.
+`_get_allowed`, `_get_quantities`, and `_get_element_label`. The translator of system dynamics files reads models into this system.
 
 **Limits and errors.** Every flow must leave or enter a declared stock, and `prepare` raises a `ValidationError`
 otherwise.
@@ -1027,7 +1036,26 @@ message
 ```
 
 The message says that the flow `'tap'` names the stock `'bath'`, which the system does not declare, and lists the
-declared stocks `['water']`.
+declared stocks `['water']`. A stock allowed only values of zero or more rejects a negative start.
+
+```python continuation
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+drained = StockFlowSystem(
+    stocks={'water': -1.0},
+    flows={'drain': ('water', None, lambda s: 0.5 * s.source.water)},
+    allowed={'water': RealSet.closed_open(0, oo)},
+    element='tub',
+)
+try:
+    drained.prepare()
+except ValidationError as error:
+    message = str(error)
+message
+```
+
+The message reads "tub.water = -1.0 is not in its domain [0, +oo)."
 
 See its [API entry][skcomplex.systems.general.dynamics].
 

@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import OrderBookSystem
 
@@ -38,7 +37,7 @@ blueprint = rrb.Blueprint(
 )
 system = OrderBookSystem(chartists=0.5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Chartists make the market volatile
@@ -51,7 +50,9 @@ trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
 shares = (0.0, 0.25, 0.5, 0.75)
 volatility, deviation = [], []
 for share in shares:
-    run = simulate(OrderBookSystem(chartists=share, imitation=0.0, random_state=0), until=STEPS, random_state=0)
+    run = (
+        OrderBookSystem(chartists=share, imitation=0.0, random_state=0).prepare().simulate(until=STEPS, random_state=0)
+    )
     prices = run.get_values('book.price')[1:]
     volatility.append(np.diff(np.log(prices)).std())
     deviation.append(np.abs(np.log(prices / 100)).mean())

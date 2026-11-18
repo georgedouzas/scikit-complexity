@@ -12,12 +12,15 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import RoleSpec, StateSpec
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 UNDISTRESSED = 0
@@ -54,24 +57,25 @@ class InterbankElement(Element):
         value:
             The economic value, the bank's share of all interbank lending.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.finance import InterbankElement
-        >>> GroupElement('banks', element=InterbankElement, size=3, values={'h': [1.0, 0.0, 0.0]}).size
+        >>> InterbankElement('banks', h=[1.0, 0.0, 0.0], size=3).size
         3
     """
-
-    law_classes = ()
 
     def __init__(
         self,
         label: str,
         *,
-        h: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        status: Annotated[float, StateSpec(domain=NN)] = UNDISTRESSED,
-        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        h: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        status: Annotated[object, NN] = float(UNDISTRESSED),
+        value: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.h = h
         self.status = status
         self.value = value
@@ -80,19 +84,6 @@ class InterbankElement(Element):
     def _get_view(cls) -> type[InterbankView]:
         """Return the view of the agents of the element."""
         return InterbankView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the cascade updates every bank at once.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class DebtRankCascadeInteraction(Interaction):
@@ -117,31 +108,24 @@ class DebtRankCascadeInteraction(Interaction):
         [[0.0, 0.5], [0.0, 0.0]]
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        banks: Annotated[str, RoleSpec()],
+        banks: Role,
         impact: Sequence[Sequence[float]] = (),
     ) -> None:
         super().__init__(label)
         self.banks = banks
         self.impact = impact
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the cascade rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.spread)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rules of the system as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.spread)]
 
     def spread(self, system: SystemView) -> None:
         """Advance the distress and the states of every bank by one step.
@@ -199,9 +183,15 @@ class DebtrankSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import DebtrankSystem
-        >>> DebtrankSystem([[0.0, 5.0], [0.0, 0.0]], [10.0, 10.0]).prepare().system_.elements[0].prepare().size_
+        >>> DebtrankSystem([[0.0, 5.0], [0.0, 0.0]], [10.0, 10.0]).prepare().system_.elements[0].size
         2
     """
 
@@ -222,8 +212,10 @@ class DebtrankSystem(BaseSystem):
         density: float = 0.3,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.liabilities = liabilities
         self.capital = capital
         self.distressed = distressed
@@ -252,8 +244,9 @@ class DebtrankSystem(BaseSystem):
         lent = np.asarray(liabilities, dtype=float).sum(axis=0)
         return lent / lent.sum()
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         if self.liabilities is None or self.capital is None:
             matrix, capitals = self._get_random_exposures(
                 self.n_banks,
@@ -266,13 +259,8 @@ class DebtrankSystem(BaseSystem):
         h = np.zeros(size)
         h[list(self.distressed)] = self.psi
         status = np.where(h > 0, DISTRESSED, UNDISTRESSED).astype(float)
-        banks = GroupElement(
-            'banks',
-            element=InterbankElement,
-            size=size,
-            values={'h': h, 'status': status, 'value': self._get_economic_values(matrix)},
-        )
-        return CompositeSystem(
+        banks = InterbankElement('banks', h=h, status=status, value=self._get_economic_values(matrix), size=size)
+        self.system_ = System(
             self.label,
             elements=[banks],
             interactions=[

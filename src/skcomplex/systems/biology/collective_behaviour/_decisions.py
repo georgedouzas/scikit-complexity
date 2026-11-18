@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ...general.reactions.types import Stoichiometry
@@ -121,11 +121,11 @@ class TrailChoiceInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        chosen: Annotated[str, RoleSpec()],
-        other: Annotated[str, RoleSpec()],
-        flux: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        chosen: Role,
+        other: Role,
+        flux: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
+        h: Annotated[float, RealSet.open(0, oo)] = 2.0,
         stochastic: bool = True,
     ) -> None:
         super().__init__(label)
@@ -219,10 +219,10 @@ class AlarmInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        calm: Annotated[str, RoleSpec()],
-        nervous: Annotated[str, RoleSpec()],
-        spontaneous: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        contagion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        calm: Role,
+        nervous: Role,
+        spontaneous: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        contagion: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
         stochastic: bool = True,
     ) -> None:
         super().__init__(label)

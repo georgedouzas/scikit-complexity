@@ -2,9 +2,12 @@
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.laws import Sink, Source
 from skcomplex.core.engine.backends import BaseBackend
+from skcomplex.core.engine.runtime import ConservationObserver
 from skcomplex.core.engine.solvers import BaseSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.general.dynamics import StockFlowSystem
@@ -108,3 +111,28 @@ def test_stock_flow_rejects_a_flow_between_two_environments():
     system = StockFlowSystem(stocks={'grain': 1.0}, flows={'pass': (Source('farms'), Sink('market'), lambda s: 1.0)})
     with pytest.raises(ValidationError, match=r"'pass' .* neither leaves nor enters"):
         system.prepare()
+
+
+def test_stock_flow_rejects_a_negative_stock_it_allows_only_nonnegative():
+    """Test that a stock allowed only nonnegative values rejects a negative one."""
+    system = StockFlowSystem(
+        stocks={'level': -1.0},
+        flows={'drain': ('level', None, lambda s: s.source.level)},
+        allowed={'level': RealSet.closed_open(0, oo)},
+        element='tank',
+    )
+    with pytest.raises(ValidationError, match='level'):
+        system.prepare()
+
+
+def test_stock_flow_keeps_the_quantity_of_a_stock():
+    """Test that the conservation monitor follows the quantity a stock holds."""
+    system = StockFlowSystem(
+        stocks={'water': 1.0},
+        flows={'drain': ('water', None, lambda s: s.source.water)},
+        quantities={'water': 'water'},
+        element='tub',
+    )
+    monitor = ConservationObserver()
+    system.prepare().simulate(until=1.0, dt=1.0, observers=[monitor])
+    assert monitor.totals_['water'] == pytest.approx(np.exp(-1.0), rel=1e-4)

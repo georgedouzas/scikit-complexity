@@ -13,7 +13,7 @@ def test_fractional_reserve_money_multiplier():
     trajectory = _run_observed(
         FractionalReserveBankingSystem(ratio=0.1, new_ratio=0.2, change_at=100.0).prepare().system_,
         200,
-        observables=FractionalReserveBankingSystem().get_run_settings()['observables'],
+        observables=FractionalReserveBankingSystem().prepare().observables_,
     )
     np.testing.assert_allclose(trajectory.get_values('reserves'), 1000.0)
     assert trajectory.get_values('broad_money')[90:100].mean() == pytest.approx(10_000.0, rel=0.05)

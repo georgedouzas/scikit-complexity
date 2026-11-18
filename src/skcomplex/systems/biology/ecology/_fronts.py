@@ -77,8 +77,12 @@ class FisherKPPSystem(ReactionDiffusionSystem):
         return 'line'
 
     def _get_space(self) -> LatticeSpace:
-        """Return the line of the sites, whose reflecting ends let no density through."""
-        return LatticeSpace(self.length, spacing=self.spacing, boundary='reflecting')
+        """Return the line of the sites, with the zero-flux boundary of the density."""
+        return LatticeSpace(self.length, spacing=self.spacing, boundary=self._get_boundaries())
+
+    def _get_boundaries(self) -> dict[str, object]:
+        """Return the zero-flux boundary of the density."""
+        return {'u': 'zero-flux'}
 
     def _get_states(self) -> dict[str, object]:
         """Return the initial value of every state by name."""

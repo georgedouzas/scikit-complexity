@@ -13,7 +13,6 @@ the map `K' = alpha beta z K^alpha` and fluctuates around a stationary distribut
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.macroeconomics import BrockMirmanGrowthSystem
 
@@ -21,8 +20,8 @@ SYSTEM = 'brock_mirman_growth'
 ALPHA, BETA = 1 / 3, 0.95
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(BrockMirmanGrowthSystem(), observers=[observer])
-long_run = simulate(BrockMirmanGrowthSystem(), until=5000)
+trajectory = BrockMirmanGrowthSystem().prepare().simulate(observers=[observer])
+long_run = BrockMirmanGrowthSystem().prepare().simulate(until=5000)
 
 # %%
 # Consumption rule and the stationary capital

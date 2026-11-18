@@ -7,6 +7,9 @@ Its orders through a supply line make the stock oscillate.
 # License: MIT
 
 
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
 from ....core.components.laws import Sink, Source
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -93,6 +96,22 @@ class GrainStorageSystem(StockFlowSystem):
         return {
             'stock': self.stock,
             'on_order': self.on_order,
+        }
+
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the stocks and parameters that have them, by name."""
+        return {
+            'desired_stock': RealSet.closed_open(0, oo),
+            'release_fraction': RealSet.closed_open(0, oo),
+            'receiving_delay': RealSet.open(0, oo),
+            'adjustment_delay': RealSet.open(0, oo),
+        }
+
+    def _get_quantities(self) -> dict[str, str]:
+        """Return the quantity every stock holds, by name."""
+        return {
+            'stock': 'grain',
+            'on_order': 'grain',
         }
 
     def _get_parameters(self) -> dict[str, object]:

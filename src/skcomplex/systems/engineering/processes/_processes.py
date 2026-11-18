@@ -107,6 +107,20 @@ class BathtubSystem(StockFlowSystem):
             'water': self.water,
         }
 
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the stocks and parameters that have them, by name."""
+        return {
+            'water': RealSet.closed_open(0, oo),
+            'inflow': RealSet.closed_open(0, oo),
+            'outflow': RealSet.closed_open(0, oo),
+        }
+
+    def _get_quantities(self) -> dict[str, str]:
+        """Return the quantity every stock holds, by name."""
+        return {
+            'water': 'water',
+        }
+
     def _get_parameters(self) -> dict[str, object]:
         """Return the value of every parameter by name."""
         return {

@@ -10,7 +10,8 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, tanh
+from sage.all__sagemath_symbolics import Expression, oo, tanh
+from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
@@ -532,6 +533,13 @@ class DaisyworldSystem(DynamicalSystem):
         return {
             'white': self.white,
             'black': self.black,
+        }
+
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the states and parameters that have them, by name."""
+        return {
+            'white': RealSet.closed_open(0, oo),
+            'black': RealSet.closed_open(0, oo),
         }
 
     def _get_parameters(self) -> dict[str, object]:

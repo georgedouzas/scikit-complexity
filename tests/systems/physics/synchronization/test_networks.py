@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.systems import System
 from skcomplex.systems.physics.synchronization import (
     CoupledMapLatticesOnNetworksSystem,
@@ -45,8 +44,8 @@ def test_kuramoto_on_networks_builds_its_network(network):
     """Test that every generator gives a valid system with one edge member per edge."""
     system = KuramotoOnNetworksSystem(40, network=network, degree=4).prepare().system_
     space = system.elements[0].space
-    assert system.elements[1].prepare().size_ == space.graph.number_of_edges()
-    assert PassCompiler().prepare(system).report_.ok
+    weights = system.simulate(until=0).get_values('links.w')[0]
+    assert np.size(weights) == space.graph.number_of_edges()
 
 
 def test_kuramoto_on_networks_rejects_an_unknown_network():

@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import CournotDuopolySystem
 
@@ -32,7 +31,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 system = CournotDuopolySystem(outputs=(0.0, 0.0), costs=COSTS, a=A, b=B, error=0.05)
-trajectory = simulate(system, until=60, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=60, observers=[observer], random_state=0)
 
 # %%
 # Reaction curves and convergence
@@ -50,7 +49,7 @@ def outputs(trajectory):
 
 exact_system = CournotDuopolySystem(outputs=(100.0, 0.0), costs=COSTS, a=A, b=B)
 exact = outputs(
-    simulate(exact_system, until=20, random_state=0),
+    exact_system.prepare().simulate(until=20, random_state=0),
 )
 noisy = outputs(trajectory)
 grid = np.linspace(0.0, 150.0, 2)

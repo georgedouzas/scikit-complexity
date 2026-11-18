@@ -6,6 +6,7 @@ It expands with its profit and collapses with its pests.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -17,8 +18,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink
 from ....core.components.laws.utils import clip, series
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 PROFITABILITY_EFFECT = (
     (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
@@ -239,6 +242,12 @@ class CocoaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import CocoaSystem
         >>> CocoaSystem(subsidy=1.0).prepare().system_.elements[0].subsidy
@@ -290,8 +299,10 @@ class CocoaSystem(BaseSystem):
         insect_growth: float = 0.6,
         subsidy: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.area = area
         self.price = price
         self.cost = cost
@@ -331,8 +342,9 @@ class CocoaSystem(BaseSystem):
             ],
         )
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         plantation = PlantationElement(
             'cocoa',
             area=self.area,
@@ -341,4 +353,4 @@ class CocoaSystem(BaseSystem):
             insect_growth=self.insect_growth,
             subsidy=self.subsidy,
         )
-        return CompositeSystem(self.label, elements=[plantation], interactions=[self._land_use()])
+        self.system_ = System(self.label, elements=[plantation], interactions=[self._land_use()])

@@ -208,8 +208,8 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
                 The tuned run settings by name.
 
         Examples:
-            >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
-            >>> sorted(GrayScottSystem().get_run_settings())
+            >>> from skcomplex.systems.mathematics.dynamical_systems import LorenzSystem
+            >>> sorted(LorenzSystem().get_run_settings())
             ['backend', 'compiler', 'dt', 'initial_state', 'invariants', 'observables', 'schedule', 'solver', 'until']
         """
         return RunSettings(

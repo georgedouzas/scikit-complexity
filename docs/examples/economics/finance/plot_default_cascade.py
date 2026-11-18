@@ -14,14 +14,13 @@ intermediate connectivity: sparse networks do not carry the shock far, and dense
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import DefaultCascadeSystem
 
 SYSTEM = 'default_cascade'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulate(DefaultCascadeSystem(), observers=[observer])
+DefaultCascadeSystem().prepare().simulate(observers=[observer])
 
 # %%
 # The window of contagion
@@ -36,9 +35,10 @@ for recovery in (0.0, 0.5):
     extents = np.array(
         [
             [
-                simulate(
-                    DefaultCascadeSystem(degree=degree, recovery=recovery, shocked=(seed,), random_state=seed),
-                ).get_values('cascade.defaults')[-1]
+                DefaultCascadeSystem(degree=degree, recovery=recovery, shocked=(seed,), random_state=seed)
+                .prepare()
+                .simulate()
+                .get_values('cascade.defaults')[-1]
                 / 250
                 for seed in range(10)
             ]

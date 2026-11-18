@@ -12,7 +12,7 @@ from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, Latti
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import RoleSpec, StateSpec
 from skcomplex.systems.general.agents import ImitationInteraction
 
 SIZE = 50
@@ -46,10 +46,11 @@ class PeerImitationInteraction(ImitationInteraction):
         label: str,
         *,
         peers: Annotated[str, RoleSpec()],
-        openness: Annotated[float, ParameterSpec()] = 1.0,
-        **arguments: object,
+        openness: float = 1.0,
+        rule: str = 'random',
+        form: str = 'rate',
     ) -> None:
-        super().__init__(label, target=peers, **arguments)
+        super().__init__(label, target=peers, rule=rule, form=form)
         self.peers = peers
         self.openness = openness
 

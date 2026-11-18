@@ -12,12 +12,12 @@ import numpy.typing as npt
 from sage.sets.real_set import RealSet
 
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ElementKind
 from ....core.errors import SimulationError, ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec
+from ....core.specs import BaseSpec, RoleSpec
 from ....core.types import Array
 
 SELECTIONS = ('tournament', 'roulette', 'proportional', 'rank')
@@ -128,7 +128,7 @@ class EvolutionInteraction(Interaction):
         >>> from types import SimpleNamespace
         >>> from skcomplex.systems.general.agents import EvolutionInteraction
         >>> evolution = EvolutionInteraction('evolution', target='agents', selection='roulette', phase='breeding')
-        >>> evolution.prepare().run(SimpleNamespace()).laws_[0].phase
+        >>> evolution.prepare(SimpleNamespace(target=SimpleNamespace())).laws_[0].phase
         'breeding'
         >>> EvolutionInteraction('evolution', target='agents', selection='rank', replacement='moran').selection
         'rank'
@@ -138,7 +138,7 @@ class EvolutionInteraction(Interaction):
         50
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     draws = True
 
@@ -154,16 +154,16 @@ class EvolutionInteraction(Interaction):
         fitness: str | None = 'fitness',
         selection: str = 'tournament',
         replacement: str = 'generational',
-        crossover: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.7,
+        crossover: Annotated[float, RealSet.closed(0, 1)] = 0.7,
         mutation: float | Callable[[Array, np.random.Generator], Array] = 0.01,
         elite: int = 0,
         tournament: int = 2,
         alphabet: int | None = 2,
         scale: float = 0.1,
-        death: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
+        death: Annotated[float, RealSet.closed(0, 1)] = 0.1,
         change: str = 'other',
         parents: str = 'survivors',
-        fraction: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
+        fraction: Annotated[float, RealSet.closed(0, 1)] = 0.1,
         period: int = 1,
         evaluate: Callable[[Array, SystemViewProtocol], Array] | None = None,
         reset: Mapping[str, float] | None = None,
@@ -251,6 +251,8 @@ class EvolutionInteraction(Interaction):
             raise ValidationError(error_msg)
         self._check_probabilities()
         self._check_counts()
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = self._get_evolution_laws(context)
 
     def _get_value(self, name: str, system: SystemViewProtocol) -> float:
         """Return a probability.
@@ -556,7 +558,7 @@ class EvolutionInteraction(Interaction):
         strategies, fitness = self._read(agents, system)
         self._write(agents, *self._breed(strategies, fitness, system))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+    def _get_evolution_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of one generation.
 
         Args:
@@ -567,4 +569,4 @@ class EvolutionInteraction(Interaction):
             laws:
                 The rule that breeds the next generation.
         """
-        return [RuleLaw(self._evolve, phase=self.phase)]
+        return [UpdateLaw(namespace, self._evolve, phase=self.phase)]

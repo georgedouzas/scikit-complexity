@@ -195,7 +195,7 @@ class WallsInteraction(GradientInteraction):
         falloff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
         radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
     ) -> None:
-        super().__init__(label, target=target, potential=self._get_potential)
+        super().__init__(label, target=target, potential=self._get_potential, order=2)
         self.width = width
         self.strength = strength
         self.falloff = falloff
