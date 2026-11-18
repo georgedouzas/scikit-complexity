@@ -15,6 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.interactions import CouplingInteraction, Interaction
 from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -79,7 +80,7 @@ class RayleighPropulsionInteraction(Interaction):
             self.laws_ = [RateLaw(x.diff(t, 2), (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity)]
 
 
-class MorseAlignmentInteraction(CouplingInteraction):
+class MorseAlignmentInteraction(Interaction):
     """Morse force and Cucker-Smale alignment between neighbours under a smooth cutoff.
 
     An agent `i` gains from every neighbour `j` within `R` the acceleration
@@ -117,30 +118,25 @@ class MorseAlignmentInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import MorseAlignmentInteraction
-        >>> MorseAlignmentInteraction('pairs', target='agents', R=3.0).neighborhood
-        RadiusNeighborhood(radius=3.0)
+        >>> MorseAlignmentInteraction('pairs', target='agents', R=3.0).R
+        3.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         R: float = 3.0,
-        C_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        l_r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        C_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        l_a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        l_v: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        C_r: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        l_r: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        C_a: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        l_a: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        l_v: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            write='x',
-            function=self._get_pair_term,
-            neighborhood=RadiusNeighborhood(R),
-        )
+        super().__init__(label)
+        self.target = target
         self.R = R
         self.C_r = C_r
         self.l_r = l_r
@@ -149,13 +145,23 @@ class MorseAlignmentInteraction(CouplingInteraction):
         self.gamma = gamma
         self.l_v = l_v
 
-    def _get_pair_term(self, s: SimpleNamespace) -> FreeModuleElement:
-        """Return the Morse force and the alignment of one neighbour under the cutoff."""
-        offset = s.other.x - s.member.x
-        rho = sqrt(offset.dot_product(offset))
-        slope = -s.C_r / s.l_r * exp(-rho / s.l_r) + s.C_a / s.l_a * exp(-rho / s.l_a)
-        cutoff = (1 - rho**2 / self.R**2) ** 2
-        return cutoff * (slope * offset / rho + s.gamma * exp(-rho / s.l_v) * (s.other.x_d1 - s.member.x_d1))
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the sum of the Morse forces and the alignments of the neighbours within `R`.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context, context.t
+            x, other = s.target.x, s.target.other.x
+            offset = other - x
+            rho = sqrt(offset.dot_product(offset))
+            slope = -s.C_r / s.l_r * exp(-rho / s.l_r) + s.C_a / s.l_a * exp(-rho / s.l_a)
+            cutoff = (1 - rho**2 / self.R**2) ** 2
+            term = cutoff * (slope * offset / rho + s.gamma * exp(-rho / s.l_v) * (other.diff(t) - x.diff(t)))
+            self.laws_ = [RateLaw(x.diff(t, 2), neighbors(term, RadiusNeighborhood(self.R)))]
 
 
 class FlankingInteraction(CouplingInteraction):
