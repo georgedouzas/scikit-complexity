@@ -10,10 +10,14 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.interactions import BaseInteraction, Interaction
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ..common.populations import (
     LogisticGrowthInteraction,
     MortalityInteraction,
@@ -78,14 +82,14 @@ class CompetitionInteraction(Interaction):
         self,
         label: str,
         *,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        K1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        K2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        alpha12: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        alpha21: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        first: Role,
+        second: Role,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        K1: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        K2: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        alpha12: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        alpha21: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
     ) -> None:
         super().__init__(label)
         self.first = first
@@ -97,22 +101,21 @@ class CompetitionInteraction(Interaction):
         self.alpha12 = alpha12
         self.alpha21 = alpha21
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the logistic rates with the competitor in the crowding term.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the logistic rates with the competitor in the crowding term.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
-        first, second = s.first.x, s.second.x
-        return [
-            RateLaw(first, s.r1 * first * (1 - (first + s.alpha12 * second) / s.K1)),
-            RateLaw(second, s.r2 * second * (1 - (second + s.alpha21 * first) / s.K2)),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            first, second = s.first.x, s.second.x
+            self.laws_ = [
+                RateLaw(first, s.r1 * first * (1 - (first + s.alpha12 * second) / s.K1)),
+                RateLaw(second, s.r2 * second * (1 - (second + s.alpha21 * first) / s.K2)),
+            ]
 
 
 class MutualismInteraction(Interaction):
@@ -154,11 +157,11 @@ class MutualismInteraction(Interaction):
         self,
         label: str,
         *,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        handling: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        first: Role,
+        second: Role,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        handling: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
     ) -> None:
         super().__init__(label)
         self.first = first
@@ -167,25 +170,24 @@ class MutualismInteraction(Interaction):
         self.b = b
         self.handling = handling
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the saturating benefits of both species.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the saturating benefits of both species.
 
         They are `a b n1 n2 / (1 + a T n2)` and `a b n1 n2 / (1 + a T n1)`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
-        first, second = s.first.x, s.second.x
-        encounters = s.a * s.b * first * second
-        return [
-            RateLaw(first, encounters / (1 + s.a * s.handling * second)),
-            RateLaw(second, encounters / (1 + s.a * s.handling * first)),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            first, second = s.first.x, s.second.x
+            encounters = s.a * s.b * first * second
+            self.laws_ = [
+                RateLaw(first, encounters / (1 + s.a * s.handling * second)),
+                RateLaw(second, encounters / (1 + s.a * s.handling * first)),
+            ]
 
 
 class CompetitionSystem(BaseSystem):
@@ -225,6 +227,12 @@ class CompetitionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import CompetitionSystem
         >>> CompetitionSystem(alpha12=0.2).prepare().system_.interactions[0].alpha12
@@ -249,8 +257,10 @@ class CompetitionSystem(BaseSystem):
         alpha12: float = 0.5,
         alpha21: float = 0.6,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.first = first
         self.second = second
         self.r1 = r1
@@ -260,12 +270,17 @@ class CompetitionSystem(BaseSystem):
         self.alpha12 = alpha12
         self.alpha21 = alpha21
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of two species that compete for the same resources.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of two species that compete for the same resources.
 
         They coexist or exclude each other.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('first', x=self.first), PopulationElement('second', x=self.second)],
             interactions=[
@@ -323,6 +338,12 @@ class MutualismSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import MutualismSystem
         >>> [interaction.label for interaction in MutualismSystem().prepare().system_.interactions]
@@ -348,8 +369,10 @@ class MutualismSystem(BaseSystem):
         b: float = 0.5,
         handling: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.first = first
         self.second = second
         self.r1 = r1
@@ -360,9 +383,15 @@ class MutualismSystem(BaseSystem):
         self.b = b
         self.handling = handling
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of two species that grow logistically and feed each other."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of two species that grow logistically and feed each other.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('first', x=self.first), PopulationElement('second', x=self.second)],
             interactions=[
@@ -405,6 +434,12 @@ class FoodWebsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import FoodWebsSystem
         >>> [element.label for element in FoodWebsSystem().prepare().system_.elements]
@@ -425,15 +460,23 @@ class FoodWebsSystem(BaseSystem):
         mortality: Mapping[str, float] | None = None,
         links: Sequence[tuple[str, str, float, float]] | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.populations = populations
         self.growth = growth
         self.mortality = mortality
         self.links = links
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a food web."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a food web.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         populations = self.populations
         growth = self.growth
         mortality = self.mortality
@@ -450,7 +493,7 @@ class FoodWebsSystem(BaseSystem):
             PredationInteraction(f'{predator}_eat_{prey}', predator=predator, prey=prey, a=a, b=b)
             for predator, prey, a, b in links
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[PopulationElement(name, x=n) for name, n in populations.items()],
             interactions=interactions,

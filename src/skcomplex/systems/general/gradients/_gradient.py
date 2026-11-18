@@ -23,14 +23,16 @@ from ....core.enums import ElementKind
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec
 
+ORDERS = (1, 2)
+
 
 class GradientInteraction(Interaction):
     """An interaction that moves states down the gradient of a potential.
 
-    Every state `x` that the interaction moves gets the rate `-dU/dx / d` on its highest time derivative, where `U` is
-    the potential and `d` the divisor of its member. On a state of order 1 this is a gradient flow `x' = -dU/dx / d`,
-    with `d` a friction. On a state of order 2 it is Newton's law `x'' = -dU/dx / d`, with `d` a mass or an inertia. A
-    vector state gets the gradient of every component.
+    Every state `x` that the interaction moves gets the rate `-dU/dx / d` on its time derivative of order `order`, where
+    `U` is the potential and `d` the divisor of its member. With order 1 this is a gradient flow `x' = -dU/dx / d`, with
+    `d` a friction. With order 2 it is Newton's law `x'' = -dU/dx / d`, with `d` a mass or an inertia. A vector state
+    gets the gradient of every component.
 
     On a field, the potential is the density `f` of a functional `F`, the integral of `f` over space, and may read the
     field, its derivatives, and its Laplacian. With `variational` the field moves by the functional derivative of `F`,
@@ -71,24 +73,20 @@ class GradientInteraction(Interaction):
         conserved:
             Whether the rate is the Laplacian of the derivative of the potential, which conserves the total of a field.
 
+        order:
+            The order of the time derivative that gets the rate, `1` for a gradient flow or `2` for Newton's law.
+
     Raises:
         ValidationError:
             A state or the divisor is not a name, or the potential is not callable.
 
     Examples:
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.specs import StateSpec
-        >>> class AmountElement(Element):
-        ...     def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.x = x
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.general.gradients import GradientInteraction
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> well = GradientInteraction('well', target='walker', states='x', potential=lambda s: s.target.x**2 / 2)
-        >>> system = CompositeSystem(elements=[AmountElement('walker', x=1.0)], interactions=[well])
-        >>> trajectory = simulate(system, until=1.0, dt=0.01)
+        >>> system = System(elements=[Element('walker', values={'x': 1.0})], interactions=[well])
+        >>> trajectory = system.prepare().simulate(until=1.0, dt=0.01)
         >>> round(float(trajectory.get_values('walker.x')[-1]), 4)
         0.3679
     """
@@ -108,6 +106,7 @@ class GradientInteraction(Interaction):
         ) = None,
         variational: bool = False,
         conserved: bool = False,
+        order: int = 1,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -117,6 +116,7 @@ class GradientInteraction(Interaction):
         self.divisor = divisor
         self.variational = variational
         self.conserved = conserved
+        self.order = order
 
     def _get_names(self) -> tuple[str, ...]:
         """Return the names of the states the interaction moves."""
@@ -153,6 +153,30 @@ class GradientInteraction(Interaction):
         if self.potential is not None and not callable(self.potential):
             error_msg = f'The potential of {self.label!r} is {self.potential!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
+        if isinstance(self.order, bool) or self.order not in ORDERS:
+            error_msg = f'The order of {self.label!r} is {self.order!r}. Give 1 for a gradient flow or 2 for Newton.'
+            raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            time = getattr(context, 't', SR.var('t'))
+            namespace = SimpleNamespace(
+                **{name: self._get_symbolic(item, time) for name, item in vars(context).items()},
+            )
+            self.laws_: list[BaseComponent] = self._get_gradient_laws(namespace)
+
+    def _get_symbolic(self, value: object, time: Expression) -> object:
+        """Return a value with every state `x(t)` read as its symbol `x`.
+
+        The gradient differentiates the potential by the states, which Sage takes as symbols only.
+        """
+        if isinstance(value, SimpleNamespace):
+            return SimpleNamespace(**{name: self._get_symbolic(item, time) for name, item in vars(value).items()})
+        if isinstance(value, tuple):
+            return tuple(self._get_symbolic(item, time) for item in value)
+        if isinstance(value, FreeModuleElement):
+            return vector(SR, [self._get_symbolic(item, time) for item in value])
+        if isinstance(value, Expression) and value.operator() is not None and value.operands() == [time]:
+            return SR.var(str(value.operator()))
+        return value
 
     def _get_potential(self, namespace: SimpleNamespace) -> object:
         """Return the potential.
@@ -299,19 +323,8 @@ class GradientInteraction(Interaction):
             if isinstance(spec, RoleSpec) and not spec.variadic and not spec.noise
         ]
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
-        """Return the rate of every moving state.
-
-        The rate is minus the derivative of the potential over the divisor.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, with the namespaces of the roles.
-
-        Returns:
-            laws:
-                The rate laws of the moving states.
-        """
+    def _get_gradient_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+        """Return the rate of every moving state, down the potential over the divisor."""
         potential = SR(self._get_potential(namespace))
         laws: list[BaseComponent] = []
         for member in self._get_members(namespace):
@@ -322,5 +335,5 @@ class GradientInteraction(Interaction):
                 divisor = self._get_divisor(member, name)
                 if divisor is not None:
                     rate = rate / divisor
-                laws.append(RateLaw(self._get_rate_state(member, name), rate))
+                laws.append(RateLaw(self._get_rate_state(member, name), rate, self.order))
         return laws

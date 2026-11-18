@@ -6,6 +6,7 @@ Traders with money and toys buy the cheapest toy they can see.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -13,13 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.policy import PolicyRuleInteraction
 
@@ -413,9 +416,15 @@ class ToyTraderSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import ToyTraderSystem
-        >>> ToyTraderSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> ToyTraderSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -436,8 +445,10 @@ class ToyTraderSystem(BaseSystem):
         size: float = 51.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_traders = n_traders
         self.sight = sight
         self.mutation = mutation
@@ -447,8 +458,9 @@ class ToyTraderSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         places = rng.uniform(0, self.size, (self.n_traders, 2))
         stocks = dict(zip(GOODS, STOCKS[: self.n_goods] + (0.0,) * (len(GOODS) - self.n_goods), strict=True))
@@ -468,4 +480,4 @@ class ToyTraderSystem(BaseSystem):
             n_goods=self.n_goods,
             fitness=self.fitness,
         )
-        return CompositeSystem(self.label, elements=[traders], interactions=[market])
+        self.system_ = System(self.label, elements=[traders], interactions=[market])

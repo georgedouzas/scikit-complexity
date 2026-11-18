@@ -86,7 +86,7 @@ def test_discovery_of_a_jump_path():
 
 def test_discovery_leaves_out_analyses_whose_tags_the_system_lacks():
     """Test that the Lyapunov exponents are listed for a deterministic system and left out for a stochastic one."""
-    deterministic = applicable_analyses(simulate(LogisticGrowthSystem(), until=5.0))
+    deterministic = applicable_analyses(LogisticGrowthSystem().prepare().simulate(until=5.0))
     stochastic = applicable_analyses(OnOffIntermittencySystem().prepare().simulate(5.0, random_state=0))
     assert ('lyapunov', 'largest') in _names(deterministic.analyses['series'])
     assert ('lyapunov', 'largest') not in _names(stochastic.analyses['series'])

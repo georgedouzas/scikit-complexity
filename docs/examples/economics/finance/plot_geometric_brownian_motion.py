@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
 
@@ -23,7 +22,7 @@ PRICE, MU, SIGMA, YEARS, DT = 100.0, 0.05, 0.2, 10, 0.05
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 system = GeometricBrownianMotionSystem(price=PRICE, mu=MU, sigma=SIGMA)
-trajectory = simulate(system, until=YEARS, dt=DT, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=YEARS, dt=DT, observers=[observer], random_state=0)
 
 # %%
 # Log returns
@@ -32,7 +31,9 @@ trajectory = simulate(system, until=YEARS, dt=DT, observers=[observer], random_s
 # `sigma^2 tau`. Along one path of 200 years, the variance of the log returns should grow linearly with the lag, and
 # the one-step log returns should follow that normal density.
 
-long_run = simulate(GeometricBrownianMotionSystem(price=PRICE, mu=MU, sigma=SIGMA), until=200, dt=DT, random_state=1)
+long_run = (
+    GeometricBrownianMotionSystem(price=PRICE, mu=MU, sigma=SIGMA).prepare().simulate(until=200, dt=DT, random_state=1)
+)
 logs = np.log(long_run.get_values('asset.price'))
 lags = np.unique(np.logspace(0, 2.5, 20).astype(int))
 returns = logs[1:] - logs[:-1]

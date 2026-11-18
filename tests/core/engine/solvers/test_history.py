@@ -124,12 +124,15 @@ def _divergence_rate(tau, until=1500.0, window=100.0):
     Lyapunov exponent while the distance stays small.
     """
     solver = ScipyODESolver(rtol=1e-9, atol=1e-12)
-    first = simulate(MackeyGlassSystem(tau=tau).prepare().system_, until=until, dt=0.5, solver=solver)
-    second = simulate(
-        MackeyGlassSystem(x=0.5 + 1e-8, tau=tau).prepare().system_,
-        until=until,
-        dt=0.5,
-        solver=clone(solver),
+    first = (
+        MackeyGlassSystem(tau=tau).prepare().system_.set_params(solver=solver).prepare().simulate(until=until, dt=0.5)
+    )
+    second = (
+        MackeyGlassSystem(x=0.5 + 1e-8, tau=tau)
+        .prepare()
+        .system_.set_params(solver=clone(solver))
+        .prepare()
+        .simulate(until=until, dt=0.5)
     )
     distance = np.abs(first.get_values('cells.x') - second.get_values('cells.x'))
     starts = np.arange(0.0, until, window)
@@ -144,7 +147,9 @@ def test_mackey_glass_is_chaotic_at_seventeen():
 
 def test_mackey_glass_is_periodic_at_six():
     """Test that Mackey-Glass at tau = 6 settles on a periodic orbit whose maxima repeat."""
-    values = simulate(MackeyGlassSystem(tau=6.0).prepare().system_, until=600, dt=0.1).get_values('cells.x')[3000:]
+    values = (
+        MackeyGlassSystem(tau=6.0).prepare().system_.prepare().simulate(until=600, dt=0.1).get_values('cells.x')[3000:]
+    )
     peaks = values[1:-1][(values[1:-1] > values[:-2]) & (values[1:-1] > values[2:])]
     assert peaks.size > 10
     assert np.ptp(peaks) < 1e-3
@@ -153,7 +158,13 @@ def test_mackey_glass_is_periodic_at_six():
 
 def test_hutchinson_oscillates_above_threshold():
     """Test that the delayed logistic oscillates around K with a stable amplitude when r tau is above pi/2."""
-    values = simulate(HutchinsonSystem(r=1.0, tau=2.0).prepare().system_, until=200, dt=0.1).get_values('population.x')
+    values = (
+        HutchinsonSystem(r=1.0, tau=2.0)
+        .prepare()
+        .system_.prepare()
+        .simulate(until=200, dt=0.1)
+        .get_values('population.x')
+    )
     middle, late = values[1000:1500], values[1500:]
     assert np.ptp(late) > 50
     assert np.ptp(late) == pytest.approx(np.ptp(middle), rel=0.01)
@@ -162,7 +173,13 @@ def test_hutchinson_oscillates_above_threshold():
 
 def test_hutchinson_settles_below_threshold():
     """Test that the delayed logistic settles at K when r tau is below pi/2."""
-    values = simulate(HutchinsonSystem(r=1.0, tau=1.0).prepare().system_, until=200, dt=0.1).get_values('population.x')
+    values = (
+        HutchinsonSystem(r=1.0, tau=1.0)
+        .prepare()
+        .system_.prepare()
+        .simulate(until=200, dt=0.1)
+        .get_values('population.x')
+    )
     assert values[-1] == pytest.approx(100, abs=1e-3)
 
 

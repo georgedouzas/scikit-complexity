@@ -13,14 +13,13 @@ they divide once more and die over the following weeks, while the survivors regr
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import LQRadiosensitizerSystem
 
 SYSTEM = 'lq_radiosensitizer'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(LQRadiosensitizerSystem(), dt=0.25, observers=[observer], until=40)
+trajectory = LQRadiosensitizerSystem().prepare().simulate(dt=0.25, observers=[observer], until=40)
 
 # %%
 # Surviving fractions
@@ -36,7 +35,7 @@ survival = [event.after[cells] / event.before[cells] for event in trajectory.eve
 predicted = [
     np.exp(-(1 + ap * event.before[sensitizer]) * (alpha * dose + beta * dose**2)) for event in trajectory.events
 ]
-alone = simulate(LQRadiosensitizerSystem(Us=0.0), dt=0.25, until=40)
+alone = LQRadiosensitizerSystem(Us=0.0).prepare().simulate(dt=0.25, until=40)
 
 
 def total(run):

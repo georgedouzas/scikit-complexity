@@ -20,7 +20,7 @@ from skcomplex.systems.biology.oncology import AngiogenesisImmunotherapySystem
 SYSTEM = 'angiogenesis_immunotherapy'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-combined = simulate(AngiogenesisImmunotherapySystem(), dt=0.5, observers=[observer])
+combined = AngiogenesisImmunotherapySystem().prepare().simulate(dt=0.5, observers=[observer])
 
 # %%
 # Each drug alone and both together

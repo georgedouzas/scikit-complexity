@@ -13,14 +13,13 @@ volume pulses with the heartbeat and the total volume of blood stays constant.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import CardiovascularSystem
 
 SYSTEM = 'cardiovascular'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(CardiovascularSystem(heart_rate=75.0), observers=[observer], until=5)
+trajectory = CardiovascularSystem(heart_rate=75.0).prepare().simulate(observers=[observer], until=5)
 
 # %%
 # Stroke volume and conservation

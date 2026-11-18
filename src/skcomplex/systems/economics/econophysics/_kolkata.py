@@ -15,13 +15,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import GroupingInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.systems import BaseSystem, System
 from ...general.agents import ChoiceInteraction
 
 STRATEGIES = ('random', 'crowd_avoiding')
@@ -56,10 +57,12 @@ class DinerElement(Element):
         served:
             Whether the diner got a meal, 1 or 0.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.econophysics import DinerElement
-        >>> GroupElement('diners', element=DinerElement, size=10).size
+        >>> DinerElement('diners', size=10).size
         10
     """
 
@@ -67,11 +70,12 @@ class DinerElement(Element):
         self,
         label: str,
         *,
-        restaurant: Annotated[float, StateSpec(domain=NN)] = 0,
-        crowd: Annotated[float, StateSpec(domain=NN)] = 0,
-        served: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        restaurant: Annotated[object, NN] = 0.0,
+        crowd: Annotated[object, NN] = 0.0,
+        served: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.restaurant = restaurant
         self.crowd = crowd
         self.served = served
@@ -265,6 +269,12 @@ class KolkataRestaurantSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             The strategy is unknown.
@@ -288,15 +298,18 @@ class KolkataRestaurantSystem(BaseSystem):
         strategy: str = 'random',
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.n_restaurants = n_restaurants
         self.strategy = strategy
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         n_restaurants = self.n_restaurants
         if self.strategy not in STRATEGIES:
             error_msg = f'Unknown strategy {self.strategy!r}. Use one of {STRATEGIES}.'
@@ -304,7 +317,7 @@ class KolkataRestaurantSystem(BaseSystem):
         n_restaurants = self.n_agents if n_restaurants is None else n_restaurants
         options = [float(restaurant) for restaurant in range(n_restaurants)]
         choices = np.random.default_rng(self.random_state).integers(n_restaurants, size=self.n_agents).astype(float)
-        diners = GroupElement('diners', element=DinerElement, size=self.n_agents, values={'restaurant': choices})
+        diners = DinerElement('diners', restaurant=choices, size=self.n_agents)
         choice = (
             CrowdAvoidanceInteraction('choice', target='diners', options=options)
             if self.strategy == 'crowd_avoiding'
@@ -319,4 +332,4 @@ class KolkataRestaurantSystem(BaseSystem):
             )
         )
         restaurants = RestaurantsInteraction('restaurants', target='diners', n_restaurants=n_restaurants)
-        return CompositeSystem(self.label, elements=[diners], interactions=[choice, restaurants])
+        self.system_ = System(self.label, elements=[diners], interactions=[choice, restaurants])

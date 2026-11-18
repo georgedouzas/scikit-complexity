@@ -6,6 +6,7 @@ Natural losses and the catch deplete the stages.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
@@ -14,12 +15,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import minimum
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 TONNES_PER_MILLION_KG = 1e3
 FEMALE_FRACTION = 0.5
@@ -130,33 +132,33 @@ class HilsaElement(Element):
         self,
         label: str,
         *,
-        eggs: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
-        larvae: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
-        juveniles: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
-        yearlings: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
-        adults: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
-        migrants: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
-        spawners: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 375.0,
-        female_fraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = FEMALE_FRACTION,
-        eggs_per_nest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2e5,
-        max_nests: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = MAX_NESTS,
-        spawning_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = SPAWNING_TIME,
-        hatching_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        larval_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        river_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
-        ocean_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
-        adult_ocean_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
-        migration_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        egg_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.99,
-        larval_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        juvenile_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        first_year_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        second_year_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        migration_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        juvenile_harvest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.48,
-        adult_harvest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        weight_per_adult: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.82,
-        weight_per_juvenile: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.09,
+        eggs: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 0.0,
+        larvae: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 0.0,
+        juveniles: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 0.0,
+        yearlings: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 0.0,
+        adults: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 0.0,
+        migrants: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 0.0,
+        spawners: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 375.0,
+        female_fraction: Annotated[float, RealSet.closed_open(0, oo)] = FEMALE_FRACTION,
+        eggs_per_nest: Annotated[float, RealSet.closed_open(0, oo)] = 2e5,
+        max_nests: Annotated[float, RealSet.closed_open(0, oo)] = MAX_NESTS,
+        spawning_time: Annotated[float, RealSet.open(0, oo)] = SPAWNING_TIME,
+        hatching_time: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        larval_time: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        river_time: Annotated[float, RealSet.open(0, oo)] = 8.0,
+        ocean_time: Annotated[float, RealSet.open(0, oo)] = 12.0,
+        adult_ocean_time: Annotated[float, RealSet.open(0, oo)] = 12.0,
+        migration_time: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        egg_loss: Annotated[float, RealSet.closed_open(0, oo)] = 0.99,
+        larval_loss: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
+        juvenile_loss: Annotated[float, RealSet.closed_open(0, oo)] = 0.4,
+        first_year_loss: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        second_year_loss: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        migration_loss: Annotated[float, RealSet.closed_open(0, oo)] = 0.25,
+        juvenile_harvest: Annotated[float, RealSet.closed_open(0, oo)] = 0.48,
+        adult_harvest: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
+        weight_per_adult: Annotated[float, RealSet.closed_open(0, oo)] = 0.82,
+        weight_per_juvenile: Annotated[float, RealSet.closed_open(0, oo)] = 0.09,
     ) -> None:
         super().__init__(label)
         self.eggs = eggs
@@ -248,6 +250,12 @@ class HilsaFisherySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import HilsaFisherySystem
         >>> HilsaFisherySystem(adult_harvest=0.5).prepare().system_.elements[0].adult_harvest
@@ -327,8 +335,10 @@ class HilsaFisherySystem(BaseSystem):
         adult_harvest: float = 0.8,
         migration_loss: float = 0.25,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.spawners = spawners
         self.eggs_per_nest = eggs_per_nest
         self.juvenile_harvest = juvenile_harvest
@@ -428,8 +438,9 @@ class HilsaFisherySystem(BaseSystem):
             inflow *= 1 - losses.get(name, fraction)
         return {**stages, 'spawners': spawners}
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         hilsa = HilsaElement(
             'hilsa',
             eggs_per_nest=self.eggs_per_nest,
@@ -446,4 +457,4 @@ class HilsaFisherySystem(BaseSystem):
                 self.migration_loss,
             ),
         )
-        return CompositeSystem(self.label, elements=[hilsa], interactions=self._get_birth_death())
+        self.system_ = System(self.label, elements=[hilsa], interactions=self._get_birth_death())

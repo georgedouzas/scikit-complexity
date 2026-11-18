@@ -13,16 +13,15 @@ from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 from scipy.special import expit, softmax
 
-from ....core.components import Tags
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, uniform, where
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ElementKind, ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec
+from ....core.specs import BaseSpec, RoleSpec
 
 RULES = ('logit', 'metropolis', 'fermi', 'best')
 FORMS = ('symbolic', 'agent')
@@ -113,8 +112,8 @@ class ChoiceInteraction(Interaction):
         >>> agents = ChoiceInteraction(
         ...     'choice', target='traders', state='plan', options=(0, 1), utility=lambda a, m, o: o, form='agent'
         ... )
-        >>> type(agents.prepare().run(SimpleNamespace()).laws_[0]).__name__
-        'RuleLaw'
+        >>> type(agents.prepare(SimpleNamespace(target=SimpleNamespace())).laws_[0]).__name__
+        'UpdateLaw'
         >>> ChoiceInteraction(
         ...     'heat-bath', target='spins', state='spin', options=(-1, 0, 1), utility=lambda s, o: o, rule='fermi',
         ...     proposal='all'
@@ -122,11 +121,7 @@ class ChoiceInteraction(Interaction):
         'all'
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
-
-    def _get_tags(self) -> Tags:
-        """Return the tags of the agent-form rules or of the symbolic choice updates."""
-        return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def _get_draws(self) -> bool:
         """Return whether the choice draws.
@@ -145,9 +140,9 @@ class ChoiceInteraction(Interaction):
         options: Sequence[float],
         utility: Callable[..., float | Expression],
         rule: str = 'logit',
-        intensity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        intensity: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         schedule: str = 'synchronous',
-        activity: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        activity: Annotated[float, RealSet.closed(0, 1)] = 1.0,
         form: str = 'symbolic',
         phase: str | None = None,
         proposal: str = 'others',
@@ -207,6 +202,17 @@ class ChoiceInteraction(Interaction):
         if not callable(self.utility):
             error_msg = f'The utility of {self.label!r} must be callable, but it is {self.utility!r}.'
             raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = self._get_choice_laws(context)
+
+    @staticmethod
+    def _get_draw_name(state: Expression, kind: str) -> str:
+        """Return the name of a draw of a state, such as `x_activity`.
+
+        A state read as a function of time, `x(t)`, names its draws after `x`.
+        """
+        name = str(state.operator()) if state.operator() is not None else str(state)
+        return f'{name}_{kind}'
 
     def _select(self, index: Expression, values: Sequence[Expression]) -> Expression:
         """Return the value at a symbolic index."""
@@ -214,7 +220,7 @@ class ChoiceInteraction(Interaction):
 
     def _draw_softmax(self, state: Expression, utilities: Sequence[Expression], intensity: Expression) -> Expression:
         """Return the option drawn with probabilities proportional to `exp(beta u_k)`."""
-        index = categorical(f'{state}_option', [exp(intensity * utility) for utility in utilities])
+        index = categorical(self._get_draw_name(state, 'option'), [exp(intensity * utility) for utility in utilities])
         return self._select(index, [SR(option) for option in self.options])
 
     def _draw_best(self, state: Expression, utilities: Sequence[Expression]) -> Expression:
@@ -227,7 +233,7 @@ class ChoiceInteraction(Interaction):
             weights = [
                 weight * where(sum(weights[:position], SR(0)) > 0, 0, 1) for position, weight in enumerate(weights)
             ]
-        index = categorical(f'{state}_best', weights)
+        index = categorical(self._get_draw_name(state, 'best'), weights)
         return self._select(index, [SR(option) for option in self.options])
 
     def _draw_proposal(self, state: Expression, utilities: Sequence[Expression], intensity: Expression) -> Expression:
@@ -236,7 +242,7 @@ class ChoiceInteraction(Interaction):
         The proposal is accepted by the Metropolis or the Fermi probability.
         """
         weights = [SR(1) if self.proposal == 'all' else where(state == option, 0, 1) for option in self.options]
-        index = categorical(f'{state}_proposal', weights)
+        index = categorical(self._get_draw_name(state, 'proposal'), weights)
         proposal = self._select(index, [SR(option) for option in self.options])
         gain = self._select(index, utilities) - sum(
             (where(state == option, utility, 0) for option, utility in zip(self.options, utilities, strict=True)),
@@ -246,7 +252,7 @@ class ChoiceInteraction(Interaction):
             acceptance = where(gain >= 0, 1, exp(intensity * gain))
         else:
             acceptance = 1 / (1 + exp(-intensity * gain))
-        return where(uniform(f'{state}_acceptance') < acceptance, proposal, state)
+        return where(uniform(self._get_draw_name(state, 'acceptance')) < acceptance, proposal, state)
 
     def _draw_symbolic(self, namespace: SimpleNamespace) -> Expression:
         """Return the option a member draws, as a symbolic expression of the namespace."""
@@ -330,7 +336,7 @@ class ChoiceInteraction(Interaction):
         """
         self._update_agents(system, self.schedule, self._get_choice, self._set_choice)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+    def _get_choice_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the update of the state of every revising member, or the agent-form rule.
 
         The agent form returns its rule instead.
@@ -345,12 +351,12 @@ class ChoiceInteraction(Interaction):
                 The update law of the state, or the rule that runs the choice of the agents.
         """
         if self.form == 'agent' and self.schedule == 'member':
-            return [RuleLaw(self._choose_member, phase=self.phase, members=self._get_role('target'))]
+            return [UpdateLaw(self._get_member(namespace, 'target'), self._choose_member, phase=self.phase)]
         if self.form == 'agent':
-            return [RuleLaw(self.choose, phase=self.phase)]
+            return [UpdateLaw(namespace, self.choose, phase=self.phase)]
         state = getattr(self._get_member(namespace, 'target'), self.state)
         revised = where(
-            uniform(f'{state}_activity') < self._get_parameter_symbol('activity', namespace),
+            uniform(self._get_draw_name(state, 'activity')) < self._get_parameter_symbol('activity', namespace),
             self._draw_symbolic(namespace),
             state,
         )

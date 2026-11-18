@@ -28,6 +28,7 @@ from skcomplex.core.engine.viz import (
 )
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem, LotkaVolterraSystem, WolfSheepSystem
@@ -57,7 +58,9 @@ class LoggedPaths:
 
 
 def _run(system, observer, until=1.0, dt=0.1):
-    """Return the trajectory of a system run with a Rerun observer."""
+    """Return the trajectory of a system run with a Rerun observer, prepared first when it has the new base."""
+    if isinstance(system, System):
+        return system.prepare().simulate(until=until, dt=dt, observers=[observer])
     return simulate(system, until=until, dt=dt, observers=[observer])
 
 
@@ -284,7 +287,7 @@ def test_rerun_observer_rejects_visuals_of_an_unknown_path():
 
 def test_visual_base_log_is_abstract():
     """Test that the base visual must be subclassed."""
-    trajectory = simulate(LotkaVolterraSystem().prepare().system_, until=0.0)
+    trajectory = LotkaVolterraSystem().prepare().system_.prepare().simulate(until=0.0)
     problem = trajectory.problem
     frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], problem)
     recording = rr.RecordingStream('test_visual_base_log_is_abstract')
@@ -483,7 +486,10 @@ def _logged_paths(monkeypatch, tmp_path, system, until, **settings):
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('paths', save_path=tmp_path / 'paths.rrd')
-    simulate(system, until=until, observers=[observer], **settings)
+    if isinstance(system, System):
+        system.prepare().simulate(until=until, observers=[observer], **settings)
+    else:
+        simulate(system, until=until, observers=[observer], **settings)
     return logged, observer
 
 
@@ -680,7 +686,7 @@ def test_rerun_observer_check_rejects_settings_without_the_default_blueprint(set
 def test_rerun_observer_saves_blueprint_next_to_recording(tmp_path):
     """Test that a saved recording gets its blueprint with the same stem."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint='default')
-    simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1, observers=[observer])
+    LotkaVolterraSystem().prepare().system_.prepare().simulate(until=1, dt=0.1, observers=[observer])
     assert (tmp_path / 'run.rrd').exists()
     assert (tmp_path / 'run.rbl').exists()
     assert isinstance(observer.blueprint_, rrb.Blueprint)
@@ -689,7 +695,7 @@ def test_rerun_observer_saves_blueprint_next_to_recording(tmp_path):
 def test_rerun_observer_without_blueprint_writes_recording_only(tmp_path):
     """Test that no blueprint is sent or saved when none is given."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
-    simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1, observers=[observer])
+    LotkaVolterraSystem().prepare().system_.prepare().simulate(until=1, dt=0.1, observers=[observer])
     assert observer.blueprint_ is None
     assert not (tmp_path / 'run.rbl').exists()
 
@@ -698,7 +704,7 @@ def test_rerun_observer_accepts_given_blueprint(tmp_path):
     """Test that a given blueprint is sent unchanged."""
     blueprint = rrb.Blueprint(rrb.TimeSeriesView(origin='/prey'))
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint=blueprint)
-    simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1, observers=[observer])
+    LotkaVolterraSystem().prepare().system_.prepare().simulate(until=1, dt=0.1, observers=[observer])
     assert observer.blueprint_ is blueprint
 
 
@@ -706,7 +712,7 @@ def test_rerun_observer_rejects_unknown_blueprint(tmp_path):
     """Test that an unknown blueprint name is rejected."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint='grid')
     with pytest.raises(ValidationError, match='default'):
-        simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1, observers=[observer])
+        LotkaVolterraSystem().prepare().system_.prepare().simulate(until=1, dt=0.1, observers=[observer])
 
 
 def test_default_blueprint_puts_named_primary_view_first():

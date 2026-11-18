@@ -140,11 +140,11 @@ class EncounterInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an unknown outcome, a bad function, or a missing kernel.
+        """Check the encounter, and set the rate law of the candidate for a binding.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of the candidate and the field.
 
         Raises:
             ValidationError:
@@ -153,6 +153,12 @@ class EncounterInteraction(Interaction):
                 cross-section, or a cross-section comes with a rate, a kernel, a field, or an outcome.
         """
         super()._prepare(context)
+        self._check_encounter()
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = self._get_encounter_laws(context)
+
+    def _check_encounter(self) -> None:
+        """Raise an error for an unknown outcome, a bad function, or a missing kernel."""
         if not isinstance(self.state, str) or not self.state.isidentifier():
             error_msg = f'{type(self).__name__} {self.label!r} reads the state {self.state!r}, which is no name.'
             raise ValidationError(error_msg)
@@ -192,17 +198,8 @@ class EncounterInteraction(Interaction):
         form = bilinear(rates[()], outcomes, candidate, conserved=True)
         return [RateLaw(candidate, form, label=self.label)]
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate law of the encounters or the collisions of the candidate.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, with `namespace.candidate` and `namespace.field`.
-
-        Returns:
-            laws:
-                The law of the encounters.
-        """
+    def _get_encounter_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rate law of the encounters or the collisions of the candidate."""
         candidate = getattr(self._get_member(namespace, 'candidate'), self.state)
         if self.cross_section is not None:
             factor = SR(1 if self.factor is None else self.factor(namespace))

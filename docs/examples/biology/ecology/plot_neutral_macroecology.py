@@ -14,14 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import nbinom
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import NeutralMacroecologySystem
 
 SYSTEM = 'neutral_macroecology'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(NeutralMacroecologySystem(species=100, n=10.0), observers=[observer], random_state=0)
+trajectory = NeutralMacroecologySystem(species=100, n=10.0).prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The negative binomial law

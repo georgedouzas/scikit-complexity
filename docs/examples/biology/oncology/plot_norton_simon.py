@@ -13,14 +13,13 @@ regrows quickly, since a smaller Gompertzian tumour grows faster.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import NortonSimonSystem
 
 SYSTEM = 'norton_simon'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(NortonSimonSystem(), observers=[observer])
+trajectory = NortonSimonSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Regrowth after a dose

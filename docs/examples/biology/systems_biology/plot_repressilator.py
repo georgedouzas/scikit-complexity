@@ -14,14 +14,13 @@ apart.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import RepressilatorSystem
 
 SYSTEM = 'repressilator'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-trajectory = simulate(RepressilatorSystem(), observers=[observer], until=300)
+trajectory = RepressilatorSystem().prepare().simulate(observers=[observer], until=300)
 
 # %%
 # Deterministic and noisy oscillations
@@ -30,7 +29,7 @@ trajectory = simulate(RepressilatorSystem(), observers=[observer], until=300)
 # process of single molecules should still oscillate, with irregular amplitudes and periods.
 
 deterministic = trajectory
-noisy = simulate(RepressilatorSystem(stochastic=True), random_state=0, until=300)
+noisy = RepressilatorSystem(stochastic=True).prepare().simulate(random_state=0, until=300)
 fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)
 for ax, trajectory, title in zip(axes, [deterministic, noisy], ['Differential equations', 'Jump process'], strict=True):
     for gene in range(3):

@@ -16,14 +16,13 @@ thrombin, the larger clot of fibrin that follows it and dissolves, and the slow 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import CoagulationPositiveFeedbackSystem
 
 SYSTEM = 'coagulation_positive_feedback'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(CoagulationPositiveFeedbackSystem(), observers=[observer], until=40)
+trajectory = CoagulationPositiveFeedbackSystem().prepare().simulate(observers=[observer], until=40)
 
 # %%
 # All or nothing
@@ -36,7 +35,7 @@ trajectory = simulate(CoagulationPositiveFeedbackSystem(), observers=[observer],
 injuries = np.linspace(0.05, 2.0, 40)
 peaks, clots = [], []
 for injury in injuries:
-    trajectory = simulate(CoagulationPositiveFeedbackSystem(injury=injury))
+    trajectory = CoagulationPositiveFeedbackSystem(injury=injury).prepare().simulate()
     peaks.append(trajectory.get_values('blood.T').max())
     clots.append(trajectory.get_values('blood.F').max())
 fig, (response, clot) = plt.subplots(1, 2, figsize=(10, 4))

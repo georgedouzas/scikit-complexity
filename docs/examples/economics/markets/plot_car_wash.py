@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import CarWashSystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=100)
-trajectory = simulate(CarWashSystem(n_workers=4), until=DAY, observers=[observer], random_state=0)
+trajectory = CarWashSystem(n_workers=4).prepare().simulate(until=DAY, observers=[observer], random_state=0)
 
 # %%
 # Revenue against demand
@@ -49,7 +48,7 @@ frames = np.arange(0, len(trajectory.times), 100)
 revenue = [trajectory.get_agents('till', frame).values['revenue'][0] for frame in frames]
 expected = P_PASS * P_ENTER * ((1 - P_VALET) * WASH + P_VALET * VALET)
 workers = np.array([1, 2, 3, 4, 6])
-days = [simulate(CarWashSystem(n_workers=n), until=DAY, random_state=0) for n in workers]
+days = [CarWashSystem(n_workers=n).prepare().simulate(until=DAY, random_state=0) for n in workers]
 earned = np.array([day.get_agents('till', len(day.times) - 1).values['revenue'][0] for day in days])
 fig, (till, labour) = plt.subplots(1, 2, figsize=(10, 4))
 till.plot(trajectory.times[frames] / 3600, revenue, label='till')

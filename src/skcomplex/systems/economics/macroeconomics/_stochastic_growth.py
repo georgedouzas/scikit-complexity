@@ -6,6 +6,7 @@ A representative agent grows under Markov productivity.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,8 +16,9 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, TransitionInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
 class StochasticGrowthElement(Element):
@@ -59,12 +61,12 @@ class StochasticGrowthElement(Element):
         self,
         label: str,
         *,
-        K: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 0.2,
-        regime: Annotated[float, StateSpec(domain=NN)] = 0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 1 / 3,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 0.95,
-        z_low: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.9,
-        z_high: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,
+        K: Annotated[float, RealSet.open(0, oo)] = 0.2,
+        regime: Annotated[float, NN] = 0.0,
+        alpha: Annotated[float, RealSet.open(0, 1)] = 1.0 / 3,
+        beta: Annotated[float, RealSet.open(0, 1)] = 0.95,
+        z_low: Annotated[float, RealSet.open(0, oo)] = 0.9,
+        z_high: Annotated[float, RealSet.open(0, oo)] = 1.1,
     ) -> None:
         super().__init__(label)
         self.K = K
@@ -157,6 +159,12 @@ class BrockMirmanGrowthSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import BrockMirmanGrowthSystem
         >>> BrockMirmanGrowthSystem(beta=0.9).prepare().system_.elements[0].beta
@@ -189,8 +197,10 @@ class BrockMirmanGrowthSystem(BaseSystem):
         persistence: float = 0.9,
         regime: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.K = K
         self.alpha = alpha
         self.beta = beta
@@ -199,10 +209,11 @@ class BrockMirmanGrowthSystem(BaseSystem):
         self.persistence = persistence
         self.regime = regime
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         chain = ((self.persistence, 1 - self.persistence), (1 - self.persistence, self.persistence))
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 StochasticGrowthElement(

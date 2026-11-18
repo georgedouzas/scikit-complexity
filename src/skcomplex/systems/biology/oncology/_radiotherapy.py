@@ -4,18 +4,21 @@
 # License: MIT
 
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import CrossingInteraction, RateInteraction
 from ....core.components.laws.utils import periodic_guard, pulse_train
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, RoleSpec
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
@@ -84,18 +87,18 @@ class IrradiatedTumourElement(Element):
         self,
         label: str,
         *,
-        A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 27.0,
-        A2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        A3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        A4: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        A5: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        A6: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Us: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        u_tot: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.04,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
-        a_gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.004,
-        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.544,
+        A1: Annotated[float, RealSet.closed_open(0, oo)] = 27.0,
+        A2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        A3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        A4: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        A5: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        A6: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        Us: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        u_tot: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        r: Annotated[float, RealSet.closed_open(0, oo)] = 0.04,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.26,
+        a_gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.004,
+        du: Annotated[float, RealSet.closed_open(0, oo)] = 5.544,
     ) -> None:
         super().__init__(label)
         self.A1 = A1
@@ -174,16 +177,16 @@ class RadiationCompetitionElement(Element):
         self,
         label: str,
         *,
-        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.008,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        b1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        b2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        N: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.008,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.4,
+        b1: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        b2: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 0.15,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
         period: float = 7.0,
         width: float = 5.0,
     ) -> None:
@@ -346,6 +349,12 @@ class RadiotherapyCompetitionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import RadiotherapyCompetitionSystem
         >>> RadiotherapyCompetitionSystem(a2=0.1).prepare().system_.elements[0].a2
@@ -372,8 +381,10 @@ class RadiotherapyCompetitionSystem(BaseSystem):
         period: float = 7.0,
         width: float = 5.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.N = N
         self.A = A
         self.r1 = r1
@@ -385,8 +396,14 @@ class RadiotherapyCompetitionSystem(BaseSystem):
         self.period = period
         self.width = width
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of normal and tumour cells in Lotka-Volterra competition."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of normal and tumour cells in Lotka-Volterra competition.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         tissue = RadiationCompetitionElement(
             'tissue',
             N=self.N,
@@ -440,7 +457,7 @@ class RadiotherapyCompetitionSystem(BaseSystem):
                 propensity=lambda s: s.target.a2 * pulse_train(s.t, self.period, self.width) * s.target.A,
             ),
         ]
-        return CompositeSystem(self.label, elements=[tissue], interactions=interactions)
+        self.system_ = System(self.label, elements=[tissue], interactions=interactions)
 
 
 class LQRadiosensitizerSystem(BaseSystem):
@@ -506,6 +523,12 @@ class LQRadiosensitizerSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import LQRadiosensitizerSystem
         >>> LQRadiosensitizerSystem(Us=0.0).prepare().system_.elements[0].Us
@@ -536,8 +559,10 @@ class LQRadiosensitizerSystem(BaseSystem):
         start: float = 0.125,
         fractions: int = 10,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.A1 = A1
         self.Us = Us
         self.r = r
@@ -553,11 +578,16 @@ class LQRadiosensitizerSystem(BaseSystem):
         self.start = start
         self.fractions = fractions
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a xenograft tumour irradiated in fractions.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a xenograft tumour irradiated in fractions.
 
         The linear-quadratic system scores the fractions.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         tumour = IrradiatedTumourElement(
             'tumour',
             A1=self.A1,
@@ -635,4 +665,4 @@ class LQRadiosensitizerSystem(BaseSystem):
             ),
             irradiation,
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(self.label, elements=[tumour], interactions=interactions)

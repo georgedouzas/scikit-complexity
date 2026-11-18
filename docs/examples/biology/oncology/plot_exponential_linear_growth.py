@@ -13,14 +13,13 @@ of 67.8 mm³ a day, near day 15.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import ExponentialLinearGrowthSystem
 
 SYSTEM = 'exponential_linear_growth'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ExponentialLinearGrowthSystem(n=2.0), observers=[observer])
+trajectory = ExponentialLinearGrowthSystem(n=2.0).prepare().simulate(observers=[observer])
 
 # %%
 # Growth rate

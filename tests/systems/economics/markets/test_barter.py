@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.markets import BarterSystem, contract_curve
 
 
@@ -13,7 +12,7 @@ from skcomplex.systems.economics.markets import BarterSystem, contract_curve
 )
 def test_barter_reaches_the_contract_curve(chocolate, cigarettes, weights):
     """Test that Edgeworth barter ends on the contract curve within 2% of the total endowment."""
-    simulation = simulate(BarterSystem(chocolate=chocolate, cigarettes=cigarettes, weights=weights), until=5)
+    simulation = BarterSystem(chocolate=chocolate, cigarettes=cigarettes, weights=weights).prepare().simulate(until=5)
     final = simulation.get_agents('barterers', 5).values
     expected = contract_curve(final['chocolate'][0], *weights, sum(chocolate), sum(cigarettes))
     assert abs(final['cigarettes'][0] - expected) < 0.02 * sum(cigarettes)
@@ -23,7 +22,7 @@ def test_barter_reaches_the_contract_curve(chocolate, cigarettes, weights):
 
 def test_red_cross_barter_settles_on_one_price():
     """Test that the prices of the barter among many prisoners converge."""
-    trajectory = simulate(BarterSystem(n_barterers=100), until=20)
+    trajectory = BarterSystem(n_barterers=100).prepare().simulate(until=20)
     dispersion = trajectory.get_values('exchange.dispersion')
     assert np.nanmean(dispersion[-5:]) < 0.1 * dispersion[1]
 
@@ -31,4 +30,4 @@ def test_red_cross_barter_settles_on_one_price():
 def test_barter_needs_two_barterers():
     """Test that barter rejects a single barterer."""
     with pytest.raises(ValueError, match='at least two'):
-        simulate(BarterSystem(n_barterers=1))
+        BarterSystem(n_barterers=1).prepare().simulate()

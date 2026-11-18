@@ -6,6 +6,7 @@ The barter is in an Edgeworth box and among prisoners with Red Cross parcels.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -17,10 +18,11 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import BaseSolver, MesaSolver
 from ....core.specs import StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ..common.exchange import ExchangeInteraction, cobb_douglas
 
 GOODS = ('chocolate', 'cigarettes')
@@ -174,13 +176,19 @@ class BarterSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             There are fewer than two barterers.
 
     Examples:
         >>> from skcomplex.systems.economics.markets import BarterSystem
-        >>> BarterSystem().prepare().system_.elements[0].prepare().size_
+        >>> BarterSystem().prepare().system_.elements[0].size
         2
     """
 
@@ -203,8 +211,10 @@ class BarterSystem(BaseSystem):
         quantity: float = 0.02,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_barterers = n_barterers
         self.chocolate = chocolate
         self.cigarettes = cigarettes
@@ -212,8 +222,9 @@ class BarterSystem(BaseSystem):
         self.quantity = quantity
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         if self.n_barterers < EDGEWORTH_BARTERERS:
             error_msg = f'Barter needs at least two barterers, but got {self.n_barterers}.'
             raise ValueError(error_msg)
@@ -237,7 +248,7 @@ class BarterSystem(BaseSystem):
             values={'chocolate_weight': shares, 'cigarettes_weight': 1 - shares, **holdings},
             variable=True,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[barterers],
             interactions=[
@@ -249,5 +260,5 @@ class BarterSystem(BaseSystem):
                     quantity=self.quantity,
                 ),
             ],
-            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('trade')])),
+            solver=MesaSolver(phases=[PhaseSpec('trade')]),
         )

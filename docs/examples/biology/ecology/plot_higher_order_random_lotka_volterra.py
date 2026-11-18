@@ -19,7 +19,6 @@ from scipy.integrate import quad
 from scipy.optimize import brentq
 from scipy.stats import norm
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem
@@ -29,7 +28,9 @@ MU, SIGMA, EXTINCT = -4.0, 1.0, 1e-6
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 solver = ScipyODESolver('RK45', rtol=1e-6, atol=1e-9)
-trajectory = simulate(HigherOrderRandomLotkaVolterraSystem(size=100), solver=solver, observers=[observer])
+trajectory = (
+    HigherOrderRandomLotkaVolterraSystem(size=100).set_params(solver=solver).prepare().simulate(observers=[observer])
+)
 
 # %%
 # Survivors against the theory

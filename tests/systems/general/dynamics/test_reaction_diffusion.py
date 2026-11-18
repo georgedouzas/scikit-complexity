@@ -1,5 +1,7 @@
 """Test the `_reaction_diffusion` module of `skcomplex.systems.general.dynamics`."""
 
+from collections.abc import Mapping
+
 import numpy as np
 import pytest
 
@@ -8,7 +10,10 @@ from skcomplex.systems.general.dynamics import EquationInteraction, ReactionDiff
 
 
 class DecaySystem(ReactionDiffusionSystem):
-    """A field that decays through a reaction it returns as an interaction."""
+    """A field that decays through a reaction it returns as an interaction, with its own boundary."""
+
+    def _get_boundaries(self) -> Mapping[str, object]:
+        return {'u': 'zero-flux'}
 
     def _get_equation_interactions(self) -> list[EquationInteraction]:
         return [EquationInteraction('decay', target='medium', state='u', equation=lambda s: -s.target.u)]
@@ -51,13 +56,29 @@ def test_reaction_diffusion_field_without_diffusivity_changes_site_by_site():
     np.testing.assert_allclose(values[-1], np.array([1.0, 0.0, 2.0, 0.0]) * np.exp(-1.0), rtol=1e-5)
 
 
-def test_reaction_diffusion_takes_its_own_kinetics():
-    """Test that a subclass gives its kinetics as interactions beside the diffusion."""
-    system = DecaySystem(states={'u': 1.0}, diffusivities={'u': 1.0}, shape=8, boundary='reflecting')
+def test_reaction_diffusion_takes_boundaries_per_field_and_its_own_kinetics():
+    """Test that a subclass gives the boundary of a field and its kinetics as interactions."""
+    system = DecaySystem(states={'u': 1.0}, diffusivities={'u': 1.0}, shape=8)
     system.prepare()
+    assert system.system_.elements[0].space.boundary == {'u': 'zero-flux'}
     assert [interaction.label for interaction in system.system_.interactions] == ['decay', 'u_diffusion']
     values = system.prepare().simulate(until=1.0, dt=1.0).get_values('medium.u')
     np.testing.assert_allclose(values[-1], np.exp(-1.0), rtol=1e-5)
+
+
+def test_reaction_diffusion_spectral_diffusion_damps_a_mode():
+    """Test that spectral diffusion damps a sine mode of a periodic line at the rate `D k^2`."""
+    size = 32
+    k = 2 * np.pi / size
+    initial = np.sin(k * np.arange(size))
+    system = ReactionDiffusionSystem(
+        states={'u': initial},
+        diffusivities={'u': 2.0},
+        shape=size,
+        discretization='spectral',
+    )
+    values = system.prepare().simulate(until=10.0, dt=10.0).get_values('medium.u')
+    np.testing.assert_allclose(values[-1], initial * np.exp(-2.0 * k**2 * 10.0), atol=1e-4)
 
 
 def test_reaction_diffusion_noise_is_stochastic():

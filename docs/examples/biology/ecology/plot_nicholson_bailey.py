@@ -13,14 +13,13 @@ amplitude, because their equilibrium is unstable: the populations spiral away fr
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import NicholsonBaileySystem
 
 SYSTEM = 'nicholson_bailey'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(NicholsonBaileySystem(hosts=25.0, parasitoids=12.0), observers=[observer])
+trajectory = NicholsonBaileySystem(hosts=25.0, parasitoids=12.0).prepare().simulate(observers=[observer])
 
 # %%
 # An unstable spiral

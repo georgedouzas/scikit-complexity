@@ -3,19 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import lag
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -125,6 +127,12 @@ class SolowSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import SolowSystem
         >>> SolowSystem(s=0.3).prepare().system_.interactions[0].s
@@ -145,16 +153,19 @@ class SolowSystem(BaseSystem):
         alpha: float = 0.3,
         delta: float = 0.05,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.k = k
         self.s = s
         self.alpha = alpha
         self.delta = delta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[EconomyElement('economy', k=self.k)],
             interactions=[

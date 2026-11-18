@@ -13,14 +13,13 @@ falls in a sawtooth.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import SkipperLogKillSystem
 
 SYSTEM = 'skipper_log_kill'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(SkipperLogKillSystem(), observers=[observer])
+trajectory = SkipperLogKillSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Logarithmic steps

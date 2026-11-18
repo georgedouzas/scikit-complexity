@@ -22,7 +22,7 @@ SYSTEM = 'chemoimmunotherapy'
 SOLVER = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-6)
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ChemoimmunotherapySystem(), dt=0.25, solver=SOLVER, observers=[observer])
+trajectory = ChemoimmunotherapySystem().set_params(solver=SOLVER).prepare().simulate(dt=0.25, observers=[observer])
 
 # %%
 # Each therapy alone and both together

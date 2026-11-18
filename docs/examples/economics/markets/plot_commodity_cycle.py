@@ -15,7 +15,6 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import CommodityCycleSystem
 
@@ -31,7 +30,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(CommodityCycleSystem(), observers=[observer])
+trajectory = CommodityCycleSystem().prepare().simulate(observers=[observer])
 
 # %%
 # The price leads the capacity

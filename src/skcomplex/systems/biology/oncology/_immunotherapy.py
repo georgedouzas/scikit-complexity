@@ -6,18 +6,20 @@ The therapies are adoptive therapy, vaccines, cytokines, and checkpoints.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, log, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import delayed, hill, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
@@ -123,29 +125,29 @@ class CheckpointTumourElement(Element):
         self,
         label: str,
         *,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.006,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3968,
-        UAP: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        ENC: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 8.81,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        C1_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5e-10,
-        C2_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.37e-11,
-        C1_ss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5e-10,
-        C2_ss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.37e-11,
-        psi_pp: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.365e-18,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.18,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1 / 0.8,
-        a_rho: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 57.5,
-        a_rl: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4908500.0,
-        rho_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.19e-07,
-        du1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        du2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.033,
-        sigma_l: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.56e-07,
-        c_l: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        u_ap: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-10,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 0.006,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 0.3968,
+        UAP: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        ENC: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 8.81,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        C1_50: Annotated[float, RealSet.open(0, oo)] = 1.5e-10,
+        C2_50: Annotated[float, RealSet.open(0, oo)] = 2.37e-11,
+        C1_ss: Annotated[float, RealSet.closed_open(0, oo)] = 1.5e-10,
+        C2_ss: Annotated[float, RealSet.closed_open(0, oo)] = 2.37e-11,
+        psi_pp: Annotated[float, RealSet.open(0, oo)] = 1.365e-18,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        r3: Annotated[float, RealSet.open(0, oo)] = 0.18,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 1 / 0.8,
+        a_rho: Annotated[float, RealSet.closed_open(0, oo)] = 57.5,
+        a_rl: Annotated[float, RealSet.closed_open(0, oo)] = 4908500.0,
+        rho_r: Annotated[float, RealSet.closed_open(0, oo)] = 3.19e-07,
+        du1: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        du2: Annotated[float, RealSet.open(0, oo)] = 0.033,
+        sigma_l: Annotated[float, RealSet.closed_open(0, oo)] = 3.56e-07,
+        c_l: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        sigma: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        u_ap: Annotated[float, RealSet.closed_open(0, oo)] = 1e-10,
     ) -> None:
         super().__init__(label)
         self.E = E
@@ -378,61 +380,61 @@ class DelayedVaccinatedTumourElement(Element):
         self,
         label: str,
         *,
-        A: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 500000.0,
-        ENK: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 44000.0,
-        ENC: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 120000.0,
-        E: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
-        ED: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 48.0,
-        ER: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1100000.0,
-        ENH: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 126000.0,
-        E1H: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.16,
-        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5000000000.0,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 6.9,
-        g1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.5,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 7.13e-10,
-        s1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 13200.0,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0412,
-        rho1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0668,
-        g2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 25000.0,
-        psi1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-07,
-        s2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 500000.0,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        rho2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.2,
-        g3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10**5.4,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        rho3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 8.98e-07,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.38,
-        rho4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.19,
-        g4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 6250000.0,
-        psi2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.3e-07,
-        d4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.237,
-        kappa1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 24380.0,
-        g5: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100000.0,
-        s3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 280.5,
-        d5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.5,
-        rho5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.1,
-        g6: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100000000000.0,
-        rho6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.99,
-        g7: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100000.0,
-        s4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 321200.0,
-        d6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        rho7: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
-        g8: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.5e17,
-        rho8: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.399,
-        g9: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10**4.4,
-        s5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 550000.0,
-        d7: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        rho9: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.05,
-        d8: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.44,
-        m2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.45,
-        psi3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 8e-07,
-        rho10: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.4,
-        tau1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.26,
-        tau2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.45,
-        tau3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.47,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1000000.0,
+        A: Annotated[float, RealSet.open(0, oo)] = 500000.0,
+        ENK: Annotated[float, RealSet.closed_open(0, oo)] = 44000.0,
+        ENC: Annotated[float, RealSet.closed_open(0, oo)] = 120000.0,
+        E: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        ED: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        C: Annotated[float, RealSet.closed_open(0, oo)] = 48.0,
+        ER: Annotated[float, RealSet.closed_open(0, oo)] = 1100000.0,
+        ENH: Annotated[float, RealSet.closed_open(0, oo)] = 126000.0,
+        E1H: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        r1: Annotated[float, RealSet.open(0, oo)] = 0.16,
+        b: Annotated[float, RealSet.open(0, oo)] = 5000000000.0,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 6.9,
+        g1: Annotated[float, RealSet.open(0, oo)] = 3.5,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 7.13e-10,
+        s1: Annotated[float, RealSet.closed_open(0, oo)] = 13200.0,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0412,
+        rho1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0668,
+        g2: Annotated[float, RealSet.open(0, oo)] = 25000.0,
+        psi1: Annotated[float, RealSet.closed_open(0, oo)] = 1e-07,
+        s2: Annotated[float, RealSet.closed_open(0, oo)] = 500000.0,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        rho2: Annotated[float, RealSet.closed_open(0, oo)] = 1.2,
+        g3: Annotated[float, RealSet.open(0, oo)] = 10**5.4,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 0.4,
+        rho3: Annotated[float, RealSet.closed_open(0, oo)] = 8.98e-07,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.38,
+        rho4: Annotated[float, RealSet.closed_open(0, oo)] = 0.19,
+        g4: Annotated[float, RealSet.open(0, oo)] = 6250000.0,
+        psi2: Annotated[float, RealSet.closed_open(0, oo)] = 4.3e-07,
+        d4: Annotated[float, RealSet.closed_open(0, oo)] = 0.237,
+        kappa1: Annotated[float, RealSet.closed_open(0, oo)] = 24380.0,
+        g5: Annotated[float, RealSet.open(0, oo)] = 100000.0,
+        s3: Annotated[float, RealSet.closed_open(0, oo)] = 280.5,
+        d5: Annotated[float, RealSet.closed_open(0, oo)] = 5.5,
+        rho5: Annotated[float, RealSet.closed_open(0, oo)] = 1.1,
+        g6: Annotated[float, RealSet.open(0, oo)] = 100000000000.0,
+        rho6: Annotated[float, RealSet.closed_open(0, oo)] = 4.99,
+        g7: Annotated[float, RealSet.open(0, oo)] = 100000.0,
+        s4: Annotated[float, RealSet.closed_open(0, oo)] = 321200.0,
+        d6: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        rho7: Annotated[float, RealSet.closed_open(0, oo)] = 0.26,
+        g8: Annotated[float, RealSet.open(0, oo)] = 4.5e17,
+        rho8: Annotated[float, RealSet.closed_open(0, oo)] = 0.399,
+        g9: Annotated[float, RealSet.open(0, oo)] = 10**4.4,
+        s5: Annotated[float, RealSet.closed_open(0, oo)] = 550000.0,
+        d7: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        rho9: Annotated[float, RealSet.closed_open(0, oo)] = 1.05,
+        d8: Annotated[float, RealSet.closed_open(0, oo)] = 0.44,
+        m2: Annotated[float, RealSet.closed_open(0, oo)] = 0.45,
+        psi3: Annotated[float, RealSet.closed_open(0, oo)] = 8e-07,
+        rho10: Annotated[float, RealSet.closed_open(0, oo)] = 1.4,
+        tau1: Annotated[float, RealSet.open(0, oo)] = 1.26,
+        tau2: Annotated[float, RealSet.open(0, oo)] = 0.45,
+        tau3: Annotated[float, RealSet.open(0, oo)] = 0.47,
+        dose: Annotated[float, RealSet.closed_open(0, oo)] = 1000000.0,
         period: float = 7.0,
         width: float = 1.0,
         start: float = 0.0,
@@ -578,24 +580,24 @@ class KirschnerPanettaTumourElement(Element):
         self,
         label: str,
         *,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        alpha_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        rho1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1245,
-        alpha1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20000000.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.18,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-09,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        alpha2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100000.0,
-        rho2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        alpha3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
-        du: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 500.0,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 70000000.0,
-        u1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        u2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        C: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        alpha_a: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        rho1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1245,
+        alpha1: Annotated[float, RealSet.open(0, oo)] = 20000000.0,
+        r1: Annotated[float, RealSet.open(0, oo)] = 0.18,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 1e-09,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        alpha2: Annotated[float, RealSet.open(0, oo)] = 100000.0,
+        rho2: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        alpha3: Annotated[float, RealSet.open(0, oo)] = 1000.0,
+        du: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 500.0,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 70000000.0,
+        u1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        u2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
         super().__init__(label)
         self.E = E
@@ -822,64 +824,64 @@ class SuppressedTumourElement(Element):
         self,
         label: str,
         *,
-        A: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        EUD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        ED: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        EPC: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        EPH: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        EH: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        EPR: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        ER: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        C1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        C2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        C3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.333,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 333.0,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        q: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2 / 3,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
-        g1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
-        g2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 11.0,
-        g3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        C3_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.5,
-        alpha_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        C2_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
-        ER_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20000000.0,
-        lambda_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.14,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 23.0,
-        g4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.33,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        a3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
-        EC1_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        EC3_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.9,
-        d4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        a4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 9.9,
-        d5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        a5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.9,
-        a6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.022,
-        g5: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.7,
-        d6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        a7: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.1,
-        d7: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        a8: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.1,
-        d8: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        a9: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.7e-05,
-        CC2_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.75,
-        CC3_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.9,
-        tau1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.08,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.4e-08,
-        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.3e-10,
-        tau2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
-        r5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.8e-08,
-        r6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.1e-07,
-        tau3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.07,
-        EMC: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10000.0,
-        EMH: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000.0,
-        EMR: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10000.0,
+        A: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        EUD: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        ED: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        EPC: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        EPH: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        EH: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        EPR: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        ER: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        C1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        C2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        C3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        r1: Annotated[float, RealSet.open(0, oo)] = 0.333,
+        r2: Annotated[float, RealSet.open(0, oo)] = 333.0,
+        n: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        p: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        q: Annotated[float, RealSet.open(0, oo)] = 2 / 3,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 0.9,
+        g1: Annotated[float, RealSet.open(0, oo)] = 1.2,
+        g2: Annotated[float, RealSet.open(0, oo)] = 11.0,
+        g3: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        C3_50: Annotated[float, RealSet.open(0, oo)] = 3.5,
+        alpha_a: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        C2_50: Annotated[float, RealSet.open(0, oo)] = 0.4,
+        ER_50: Annotated[float, RealSet.open(0, oo)] = 20000000.0,
+        lambda_a: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.14,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 23.0,
+        g4: Annotated[float, RealSet.open(0, oo)] = 0.33,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        a3: Annotated[float, RealSet.closed_open(0, oo)] = 16.0,
+        EC1_50: Annotated[float, RealSet.open(0, oo)] = 0.3,
+        EC3_50: Annotated[float, RealSet.open(0, oo)] = 2.9,
+        d4: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        a4: Annotated[float, RealSet.closed_open(0, oo)] = 9.9,
+        d5: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        a5: Annotated[float, RealSet.closed_open(0, oo)] = 1.9,
+        a6: Annotated[float, RealSet.closed_open(0, oo)] = 0.022,
+        g5: Annotated[float, RealSet.open(0, oo)] = 1.7,
+        d6: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        a7: Annotated[float, RealSet.closed_open(0, oo)] = 5.1,
+        d7: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        a8: Annotated[float, RealSet.closed_open(0, oo)] = 2.1,
+        d8: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        a9: Annotated[float, RealSet.closed_open(0, oo)] = 1.7e-05,
+        CC2_50: Annotated[float, RealSet.open(0, oo)] = 0.75,
+        CC3_50: Annotated[float, RealSet.open(0, oo)] = 0.9,
+        tau1: Annotated[float, RealSet.open(0, oo)] = 0.08,
+        r3: Annotated[float, RealSet.closed_open(0, oo)] = 1.4e-08,
+        r4: Annotated[float, RealSet.closed_open(0, oo)] = 1.3e-10,
+        tau2: Annotated[float, RealSet.open(0, oo)] = 0.05,
+        r5: Annotated[float, RealSet.closed_open(0, oo)] = 1.8e-08,
+        r6: Annotated[float, RealSet.closed_open(0, oo)] = 1.1e-07,
+        tau3: Annotated[float, RealSet.open(0, oo)] = 0.07,
+        EMC: Annotated[float, RealSet.closed_open(0, oo)] = 10000.0,
+        EMH: Annotated[float, RealSet.open(0, oo)] = 10000.0,
+        EMR: Annotated[float, RealSet.closed_open(0, oo)] = 10000.0,
     ) -> None:
         super().__init__(label)
         self.A = A
@@ -1050,29 +1052,29 @@ class VaccinatedTumourElement(Element):
         self,
         label: str,
         *,
-        EH: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        ED: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        s1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        s2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        rho1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        rho2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
-        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        c3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-07,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        EH: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        ED: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        C: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        s1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        s2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        rho1: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        rho2: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        r3: Annotated[float, RealSet.open(0, oo)] = 0.02,
+        r4: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        b1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        b2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        b3: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        c3: Annotated[float, RealSet.closed_open(0, oo)] = 1e-07,
+        dose: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
         period: float = 168.0,
         width: float = 1.0,
         start: float = 0.0,
@@ -1154,6 +1156,12 @@ class KirschnerPanettaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import KirschnerPanettaSystem
         >>> KirschnerPanettaSystem(u1=1.0).prepare().system_.elements[0].u1
@@ -1165,7 +1173,6 @@ class KirschnerPanettaSystem(BaseSystem):
     references = (BOOK_REFERENCE, 'Kirschner and Panetta 1998')
     until = 1000.0
     dt = 1.0
-    solver = STIFF_SOLVER
 
     def __init__(
         self,
@@ -1181,8 +1188,10 @@ class KirschnerPanettaSystem(BaseSystem):
         u1: float = 0.0,
         u2: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.E = E
         self.A = A
         self.C = C
@@ -1194,8 +1203,14 @@ class KirschnerPanettaSystem(BaseSystem):
         self.u1 = u1
         self.u2 = u2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Kirschner-Panetta system of effector cells."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Kirschner-Panetta system of effector cells.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = KirschnerPanettaTumourElement(
             'site',
             E=self.E,
@@ -1259,7 +1274,7 @@ class KirschnerPanettaSystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.C,
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(self.label, elements=[site], interactions=interactions, solver=STIFF_SOLVER)
 
 
 class DendriticCellVaccineSystem(BaseSystem):
@@ -1303,6 +1318,12 @@ class DendriticCellVaccineSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import DendriticCellVaccineSystem
         >>> DendriticCellVaccineSystem(dose=0.0).prepare().system_.elements[0].dose
@@ -1314,7 +1335,6 @@ class DendriticCellVaccineSystem(BaseSystem):
     references = (BOOK_REFERENCE, 'Castiglione and Piccoli 2006')
     until = 2880.0
     dt = 2.0
-    solver = STIFF_SOLVER
 
     def __init__(
         self,
@@ -1328,8 +1348,10 @@ class DendriticCellVaccineSystem(BaseSystem):
         start: float = 0.0,
         doses: int = 8,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.A = A
         self.rho2 = rho2
         self.r4 = r4
@@ -1339,8 +1361,14 @@ class DendriticCellVaccineSystem(BaseSystem):
         self.start = start
         self.doses = doses
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of helper and cytotoxic T cells."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of helper and cytotoxic T cells.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = VaccinatedTumourElement(
             'site',
             A=self.A,
@@ -1438,7 +1466,7 @@ class DendriticCellVaccineSystem(BaseSystem):
                 propensity=lambda s: s.target.d3 * s.target.C,
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(self.label, elements=[site], interactions=interactions, solver=STIFF_SOLVER)
 
 
 class AntiPD1CheckpointSystem(BaseSystem):
@@ -1483,6 +1511,12 @@ class AntiPD1CheckpointSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import AntiPD1CheckpointSystem
         >>> AntiPD1CheckpointSystem(u_ap=0.0).prepare().system_.elements[0].u_ap
@@ -1494,7 +1528,6 @@ class AntiPD1CheckpointSystem(BaseSystem):
     references = (BOOK_REFERENCE, 'Nikolopoulou et al. 2018')
     until = 150.0
     dt = 0.5
-    solver = STIFF_SOLVER
 
     def __init__(
         self,
@@ -1508,8 +1541,10 @@ class AntiPD1CheckpointSystem(BaseSystem):
         b: float = 1 / 0.8,
         c_l: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.E = E
         self.A = A
         self.u_ap = u_ap
@@ -1519,8 +1554,14 @@ class AntiPD1CheckpointSystem(BaseSystem):
         self.b = b
         self.c_l = c_l
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of activated T cells."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of activated T cells.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = CheckpointTumourElement(
             'site',
             E=self.E,
@@ -1594,7 +1635,7 @@ class AntiPD1CheckpointSystem(BaseSystem):
                 propensity=lambda s: s.target.du2 * s.target.UAP,
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(self.label, elements=[site], interactions=interactions, solver=STIFF_SOLVER)
 
 
 class DelayedDCVaccineSystem(BaseSystem):
@@ -1641,6 +1682,12 @@ class DelayedDCVaccineSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import DelayedDCVaccineSystem
         >>> DelayedDCVaccineSystem(tau2=0.5).prepare().system_.elements[0].tau2
@@ -1652,7 +1699,6 @@ class DelayedDCVaccineSystem(BaseSystem):
     references = (BOOK_REFERENCE, 'Qomlaqi et al. 2017')
     until = 30.0
     dt = 0.1
-    solver = STIFF_SOLVER
 
     def __init__(
         self,
@@ -1666,8 +1712,10 @@ class DelayedDCVaccineSystem(BaseSystem):
         tau2: float = 0.45,
         tau3: float = 0.47,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.dose = dose
         self.period = period
         self.width = width
@@ -1677,8 +1725,14 @@ class DelayedDCVaccineSystem(BaseSystem):
         self.tau2 = tau2
         self.tau3 = tau3
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a tumour and eight innate and adaptive immune populations."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour and eight innate and adaptive immune populations.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = DelayedVaccinatedTumourElement(
             'site',
             dose=self.dose,
@@ -1912,7 +1966,7 @@ class DelayedDCVaccineSystem(BaseSystem):
                 / (s.target.g3 + delayed(s.target.ED, s.target.tau3)),
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(self.label, elements=[site], interactions=interactions, solver=STIFF_SOLVER)
 
 
 class TumourImmuneSuppressionSystem(BaseSystem):
@@ -1953,6 +2007,12 @@ class TumourImmuneSuppressionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import TumourImmuneSuppressionSystem
         >>> TumourImmuneSuppressionSystem(alpha_a=1.0).prepare().system_.elements[0].alpha_a
@@ -1964,7 +2024,6 @@ class TumourImmuneSuppressionSystem(BaseSystem):
     references = (BOOK_REFERENCE, 'Robertson-Tessi, El-Kareh, and Goriely 2012')
     until = 200.0
     dt = 0.5
-    solver = STIFF_SOLVER
 
     def __init__(
         self,
@@ -1976,8 +2035,10 @@ class TumourImmuneSuppressionSystem(BaseSystem):
         EMH: float = 1e4,
         EMR: float = 1e4,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.alpha_a = alpha_a
         self.r1 = r1
         self.r2 = r2
@@ -1985,8 +2046,14 @@ class TumourImmuneSuppressionSystem(BaseSystem):
         self.EMH = EMH
         self.EMR = EMR
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a tumour against dendritic."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour against dendritic.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = SuppressedTumourElement(
             'site',
             alpha_a=self.alpha_a,
@@ -2199,4 +2266,4 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 propensity=lambda s: s.target.C3 / s.target.tau3,
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(self.label, elements=[site], interactions=interactions, solver=STIFF_SOLVER)

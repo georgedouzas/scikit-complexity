@@ -6,20 +6,23 @@ It grows back up to its capacity.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from types import SimpleNamespace
 
-from .....core.components.interactions import MapInteraction
-from .....core.components.types import AgentViewProtocol, SystemViewProtocol
-from .....core.specs import RoleSpec
+from .....core.components.base import BaseComponent
+from .....core.components.interactions import Interaction
+from .....core.components.laws import UpdateLaw
+from .....core.components.spaces import BaseSpace
+from .....core.components.types import SystemViewProtocol
+from .....core.specs import Role
 
 
-class RegrowthInteraction(MapInteraction):
+class RegrowthInteraction(Interaction):
     """Linear regrowth of a resource held by the agents of a group.
 
     It grows by a fixed amount a step up to their capacity. Every step the resource `x` of an agent grows by the amount
     `g` its parameter `growth` names, `x = min(K, x + g)`, or by that share of its capacity `K` when the regrowth is
-    relative, `x = min(K, x + g K)`. It is a map of the agent form, such as the sugar of a patch of Sugarscape or the
-    food of a plot of land.
+    relative, `x = min(K, x + g K)`. It is a rule of the system that grows every agent, such as the sugar of a patch of
+    Sugarscape or the food of a plot of land.
 
     Args:
         label:
@@ -46,29 +49,40 @@ class RegrowthInteraction(MapInteraction):
     Examples:
         >>> from skcomplex.systems.economics.common.resources import RegrowthInteraction
         >>> regrowth = RegrowthInteraction('regrowth', target='patches', state='sugar', growth='growback')
-        >>> regrowth.form
-        'agent'
+        >>> regrowth.growth
+        'growback'
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str,
         capacity: str = 'capacity',
         growth: str = 'growth',
         relative: bool = False,
         phase: str | None = None,
     ) -> None:
-        super().__init__(label, target=target, state=state, function=self._get_regrown, form='agent', phase=phase)
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.capacity = capacity
         self.growth = growth
         self.relative = relative
+        self.phase = phase
 
-    def _get_regrown(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the resource of an agent after it grows back, at most its capacity."""
-        del system
-        capacity = float(getattr(agent, self.capacity))
-        growth = float(getattr(agent, self.growth)) * (capacity if self.relative else 1.0)
-        return min(capacity, float(getattr(agent, self.state)) + growth)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the regrowth of every agent of the target as a rule of the system, in its phase."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._regrow, phase=self.phase)]
+
+    def _regrow(self, system: SystemViewProtocol) -> None:
+        """Grow the resource of every agent back, at most to its capacity."""
+        for agent in system.get_agents('target'):
+            capacity = float(getattr(agent, self.capacity))
+            growth = float(getattr(agent, self.growth)) * (capacity if self.relative else 1.0)
+            setattr(agent, self.state, min(capacity, float(getattr(agent, self.state)) + growth))

@@ -18,7 +18,7 @@ from skcomplex.systems.biology.oncology import GliomaChemovirotherapySystem
 SYSTEM = 'glioma_chemovirotherapy'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(GliomaChemovirotherapySystem(V=0.0, u1=0.0), observers=[observer])
+trajectory = GliomaChemovirotherapySystem(V=0.0, u1=0.0).prepare().simulate(observers=[observer])
 
 # %%
 # Therapy spares the neurons

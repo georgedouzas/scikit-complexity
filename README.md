@@ -184,8 +184,8 @@ with parameters and settings of your own.
 ```python continuation
 from skcomplex.core.engine.runtime import simulate
 
-trajectory = simulate(LotkaVolterraSystem())
-fast_prey = simulate(LotkaVolterraSystem(r=1.5), until=50, dt=0.1)
+trajectory = LotkaVolterraSystem().prepare().simulate()
+fast_prey = LotkaVolterraSystem(r=1.5).prepare().simulate(until=50, dt=0.1)
 round(float(fast_prey.get_values('prey.x').max()))
 ```
 

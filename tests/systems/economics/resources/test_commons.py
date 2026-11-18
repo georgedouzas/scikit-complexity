@@ -2,13 +2,12 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.resources import TragedyOfTheCommonsSystem
 
 
 def test_commons_collapse():
     """Test that an unregulated meadow with too many herders falls below a tenth of its grass and the herd shrinks."""
-    trajectory = simulate(TragedyOfTheCommonsSystem(), until=60)
+    trajectory = TragedyOfTheCommonsSystem().prepare().simulate(until=60)
     capacity = trajectory.get_values('grass')[0]
     collapse = int(np.argmax(trajectory.get_values('grass') < 0.1 * capacity))
     assert trajectory.get_values('grass')[collapse] < 0.1 * capacity
@@ -18,6 +17,6 @@ def test_commons_collapse():
 
 def test_regulated_commons_keeps_its_grass():
     """Test that a regulator with an adaptive quota keeps the grass above a tenth of its capacity."""
-    trajectory = simulate(TragedyOfTheCommonsSystem(quota=2.0), until=60)
+    trajectory = TragedyOfTheCommonsSystem(quota=2.0).prepare().simulate(until=60)
     assert trajectory.get_values('grass').min() > 0.1 * trajectory.get_values('grass')[0]
     assert np.diff(trajectory.get_values('quota')).any()

@@ -47,7 +47,7 @@ root mean square of the residuals of each series measures how far the run lies f
 ```python continuation
 from skcomplex.core.engine.runtime import simulate
 
-run = simulate(system, until=20, dt=1.0)
+run = system.prepare().simulate(until=20, dt=1.0)
 residuals = {'hares': run.get_values('prey.x') - hares, 'lynx': run.get_values('predators.x') - lynx}
 errors = {name: round(float(np.sqrt(np.mean(values**2))), 1) for name, values in residuals.items()}
 worst = {name: int(years[np.abs(values).argmax()]) for name, values in residuals.items()}

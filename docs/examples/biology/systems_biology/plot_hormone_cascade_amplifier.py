@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import HormoneCascadeAmplifierSystem
@@ -39,7 +38,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(HormoneCascadeAmplifierSystem(), observers=[observer], random_state=0)
+trajectory = HormoneCascadeAmplifierSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Amplification and the G-protein timer
@@ -52,7 +51,7 @@ trajectory = simulate(HormoneCascadeAmplifierSystem(), observers=[observer], ran
 
 precise = ScipyODESolver(rtol=1e-9, atol=1e-12)
 runs = {
-    k_gtp: simulate(HormoneCascadeAmplifierSystem(k_gtp=k_gtp), dt=0.05, solver=precise, until=60)
+    k_gtp: HormoneCascadeAmplifierSystem(k_gtp=k_gtp).set_params(solver=precise).prepare().simulate(dt=0.05, until=60)
     for k_gtp in (0.5, 0.05)
 }
 trajectory = runs[0.5]

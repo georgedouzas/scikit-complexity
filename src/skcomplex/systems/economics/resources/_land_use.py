@@ -10,15 +10,18 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
+from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace, LatticeSpace, StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 class LandCellElement(Element):
@@ -171,10 +174,15 @@ class VonThunenSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.resources import VonThunenSystem
-        >>> trajectory = simulate(VonThunenSystem(), until=1.0)
+        >>> trajectory = VonThunenSystem().prepare().simulate(until=1.0)
         >>> sorted(set(trajectory.get_values('plain.crop')[0].ravel().tolist()))
         [0.0, 1.0, 2.0, 3.0]
     """
@@ -192,16 +200,19 @@ class VonThunenSystem(BaseSystem):
         costs: Sequence[float] = (1.0, 0.5, 0.5),
         rates: Sequence[float] = (0.2, 0.2, 0.2),
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.yields = yields
         self.prices = prices
         self.costs = costs
         self.rates = rates
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         centre = (self.size - 1) / 2
         rows, columns = np.indices((self.size, self.size))
         distance = np.hypot(rows - centre, columns - centre)
@@ -219,4 +230,4 @@ class VonThunenSystem(BaseSystem):
             costs=self.costs,
             rates=self.rates,
         )
-        return CompositeSystem(self.label, elements=[plain], interactions=[bid], time=StaticTime())
+        self.system_ = System(self.label, elements=[plain], interactions=[bid])

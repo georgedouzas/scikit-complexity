@@ -20,7 +20,7 @@ from skcomplex.systems.biology.oncology import ChemovirotherapySystem
 SYSTEM = 'chemovirotherapy'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ChemovirotherapySystem(), dt=0.2, observers=[observer])
+trajectory = ChemovirotherapySystem().prepare().simulate(dt=0.2, observers=[observer])
 
 # %%
 # Each therapy alone and both together

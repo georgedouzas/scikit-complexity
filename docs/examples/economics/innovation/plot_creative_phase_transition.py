@@ -15,7 +15,6 @@ final diversity jumps discontinuously as the rule density crosses the critical l
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.innovation import CreativePhaseTransitionSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'creative_phase_transition'
 UNTIL = 50
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(CreativePhaseTransitionSystem(x=0.1, r=5.0), until=20, observers=[observer])
+trajectory = CreativePhaseTransitionSystem(x=0.1, r=5.0).prepare().simulate(until=20, observers=[observer])
 
 # %%
 # Phase diagram
@@ -55,7 +54,8 @@ series.legend()
 for index, start in enumerate((0.05, 0.1, 0.2)):
     diagram.plot(densities, [final_diversity(start, r) for r in densities], color=f'C{index}', label=f'x0 = {start}')
     finals = [
-        simulate(CreativePhaseTransitionSystem(x=start, r=r), until=UNTIL).get_values('system.x')[-1] for r in coarse
+        CreativePhaseTransitionSystem(x=start, r=r).prepare().simulate(until=UNTIL).get_values('system.x')[-1]
+        for r in coarse
     ]
     diagram.plot(coarse, finals, 'o', color=f'C{index}')
 diagram.set_xlabel('rule density r')

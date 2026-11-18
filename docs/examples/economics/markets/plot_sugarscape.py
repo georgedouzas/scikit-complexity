@@ -18,7 +18,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import SugarscapeSystem
 
@@ -47,7 +46,7 @@ blueprint = rrb.Blueprint(
 )
 system = SugarscapeSystem(width=50, height=50, n_foragers=400, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Carrying capacity and inequality

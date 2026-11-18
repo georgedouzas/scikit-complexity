@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import DoubleAuctionSystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(DoubleAuctionSystem(random_state=0), observers=[observer], random_state=0)
+trajectory = DoubleAuctionSystem(random_state=0).prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The budget constraint, not intelligence
@@ -49,7 +48,7 @@ efficiencies = {}
 for protocol in ('order_book', 'call_auction'):
     for constrained in (True, False):
         system = DoubleAuctionSystem(protocol=protocol, constrained=constrained, random_state=0)
-        trajectory = simulate(system, random_state=0)
+        trajectory = system.prepare().simulate(random_state=0)
         efficiencies[protocol, constrained] = trajectory.get_values('ledger.efficiency')[1:]
 labels = [
     f'{protocol.replace("_", " ")}\n{"ZI-C" if constrained else "ZI-U"}' for protocol, constrained in efficiencies

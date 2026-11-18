@@ -40,9 +40,19 @@ from ._factories import (
 from ._forest_size_structure import ForestSizeStructureSystem, SizeGrowthInteraction
 from ._fronts import FisherKPPSystem
 from ._higher_order import HigherOrderRandomLotkaVolterraSystem, TripletInteraction
-from ._instability import IntrinsicInstabilitySystem, UnstablePopulationsElement
+from ._instability import (
+    IntrinsicInstabilitySystem,
+    InvaderMapInteraction,
+    ResidentMapInteraction,
+    UnstablePopulationsElement,
+)
 from ._meadow import CowElement, GrazingInteraction, HerdingInteraction, MeadowCapacitySystem, PastureElement
-from ._microbial_communities import GeneralizedLotkaVolterraInteraction, GeneralizedLotkaVolterraSystem, MicrobeElement
+from ._microbial_communities import (
+    GeneralizedLotkaVolterraInteraction,
+    GeneralizedLotkaVolterraSystem,
+    MicrobeElement,
+    MicrobialGrowthInteraction,
+)
 from ._neutral import NeutralMacroecologySystem, NeutralSpeciesElement
 from ._predation import (
     LotkaVolterraWithHarvestingSystem,
@@ -97,6 +107,7 @@ __all__: list[str] = [
     'HoppingInteraction',
     'HutchinsonSystem',
     'IntrinsicInstabilitySystem',
+    'InvaderMapInteraction',
     'LinearGrowthInteraction',
     'LogisticGrowthSystem',
     'LotkaVolterraSystem',
@@ -104,6 +115,7 @@ __all__: list[str] = [
     'MangroveSuccessionSystem',
     'MeadowCapacitySystem',
     'MicrobeElement',
+    'MicrobialGrowthInteraction',
     'MutualismInteraction',
     'MutualismSystem',
     'NeutralBiodiversitySystem',
@@ -122,6 +134,7 @@ __all__: list[str] = [
     'PredatorElement',
     'PredatorPreyEventsInteraction',
     'PreyElement',
+    'ResidentMapInteraction',
     'ResourceElement',
     'ResourceTurnoverInteraction',
     'RickerGrowthInteraction',

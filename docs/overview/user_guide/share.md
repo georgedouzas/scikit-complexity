@@ -159,7 +159,7 @@ import numpy as np
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 reference = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-difference = simulate(system, until=20).states - simulate(reference, until=20, dt=1.0).states
+difference = simulate(system, until=20).states - reference.prepare().simulate(until=20, dt=1.0).states
 tags = system.get_tags()
 bool(np.abs(difference).max() < 1e-9), sorted(tags.time), tags.randomness, sorted(tags.laws)
 ```

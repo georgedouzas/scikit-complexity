@@ -12,14 +12,13 @@ its carrying capacity of 100 along an S-shaped curve.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 
 SYSTEM = 'logistic_growth'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(LogisticGrowthSystem(n=2.0, r=0.5, K=100.0), observers=[observer])
+trajectory = LogisticGrowthSystem(n=2.0, r=0.5, K=100.0).prepare().simulate(observers=[observer])
 
 # %%
 # Closed-form solution and growth rate

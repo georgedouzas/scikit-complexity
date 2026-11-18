@@ -13,14 +13,13 @@ the output, then return to the output they had before, perfect adaptation as in 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import EnzymeAdaptationCircuitSystem
 
 SYSTEM = 'enzyme_adaptation_circuit'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(EnzymeAdaptationCircuitSystem(), observers=[observer])
+trajectory = EnzymeAdaptationCircuitSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Sensitivity, precision, and robustness
@@ -34,7 +33,7 @@ rng = np.random.default_rng(0)
 scores = []
 for _ in range(30):
     factors = rng.uniform(0.8, 1.2, (4, 3))
-    run = simulate(EnzymeAdaptationCircuitSystem(k=(rates * factors).tolist()))
+    run = EnzymeAdaptationCircuitSystem(k=(rates * factors).tolist()).prepare().simulate()
     output, times = run.get_values('C.X'), run.times
     before, after = output[times < 300][-1], output[times >= 300]
     peak = after[np.argmax(np.abs(after - before))]

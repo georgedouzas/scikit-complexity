@@ -6,6 +6,7 @@ The urns share their adjacent possible.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,13 +14,15 @@ import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import NN
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components.spaces import NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 DRAW = 'draw'
 GROW = 'grow'
@@ -261,11 +264,17 @@ class InteractingUrnsNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.economics.innovation import InteractingUrnsNetworkSystem
         >>> system = InteractingUrnsNetworkSystem(nx.path_graph(3), rho=2, nu=1).prepare().system_
-        >>> [element.prepare().size_ for element in system.elements]
+        >>> [element.size for element in system.elements]
         [3, 6]
     """
 
@@ -282,22 +291,25 @@ class InteractingUrnsNetworkSystem(BaseSystem):
         nu: int = 1,
         m0: int | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.rho = rho
         self.nu = nu
         self.m0 = m0
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         graph = self.graph
         graph = nx.karate_club_graph() if graph is None else graph
         nodes = list(graph.nodes)
         initial = self.nu + 1 if self.m0 is None else self.m0
         places = [node for node in nodes for _ in range(initial)]
         colors = list(range(len(places)))
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 GroupElement(
@@ -317,7 +329,5 @@ class InteractingUrnsNetworkSystem(BaseSystem):
                 ),
             ],
             space=NetworkSpace(graph),
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec((PhaseSpec(DRAW, activation='simultaneous'), PhaseSpec(GROW))),
-            ),
+            solver=MesaSolver(phases=(PhaseSpec(DRAW, activation='simultaneous'), PhaseSpec(GROW))),
         )

@@ -16,14 +16,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import autocatalytic_sets
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.innovation import TapCatalysisSystem
 
 SYSTEM = 'tap_catalysis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(TapCatalysisSystem(), observers=[observer], random_state=0)
+trajectory = TapCatalysisSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Hockey stick and the probability of a RAF
@@ -37,7 +36,7 @@ goods = [len(trajectory.get_network(frame).nodes) for frame in range(len(traject
 probabilities = [0.002, 0.003, 0.0044, 0.006, 0.008]
 shares = []
 for pc in probabilities:
-    runs = [simulate(TapCatalysisSystem(pc=pc), random_state=seed) for seed in range(8)]
+    runs = [TapCatalysisSystem(pc=pc).prepare().simulate(random_state=seed) for seed in range(8)]
     found = [autocatalytic_sets(run, frames=[-1]).fractions[0] for run in runs]
     shares.append(found)
 fig, (growth, rafs) = plt.subplots(1, 2, figsize=(10, 4))

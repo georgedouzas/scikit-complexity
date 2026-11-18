@@ -13,21 +13,21 @@ from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Tags
-from ....core.components.interactions import NeighborInteraction
-from ....core.components.laws import BaseLaw, JumpLaw, RuleLaw, UpdateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, neighbors, uniform, where
 from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ElementKind, ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec
+from ....core.specs import BaseSpec, RoleSpec
 
 RULES = ('random', 'majority', 'best', 'better', 'fermi')
 FORMS = ('rate', 'probability', 'agent')
 TIES = ('first', 'random')
 
 
-class ImitationInteraction(NeighborInteraction):
+class ImitationInteraction(Interaction):
     """An interaction by which members copy a discrete state from their neighbours.
 
     The `rule` says whom a member copies:
@@ -108,7 +108,7 @@ class ImitationInteraction(NeighborInteraction):
         'better'
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, RuleLaw, UpdateLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, UpdateLaw)
 
     draws = True
 
@@ -119,7 +119,7 @@ class ImitationInteraction(NeighborInteraction):
         """
         form = self._get_argument('form')
         if form == 'agent':
-            return self._get_variant_tags((RuleLaw,))
+            return self._get_variant_tags((UpdateLaw,))
         if form == 'probability':
             return self._get_variant_tags((UpdateLaw,), stochastic=True)
         return self._get_variant_tags((JumpLaw,))
@@ -132,17 +132,17 @@ class ImitationInteraction(NeighborInteraction):
         state: str = 'state',
         payoff: str = 'payoff',
         options: Sequence[float] = (0.0, 1.0),
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        rate: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         rule: str = 'random',
-        intensity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        intensity: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         form: str = 'rate',
-        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        probability: Annotated[float, RealSet.closed(0, 1)] = 1.0,
         layer: str | None = None,
         phase: str | None = None,
         schedule: str = 'synchronous',
         ties: str = 'first',
     ) -> None:
-        super().__init__(label, layer=layer)
+        super().__init__(label)
         self.target = target
         self.state = state
         self.payoff = payoff
@@ -155,6 +155,15 @@ class ImitationInteraction(NeighborInteraction):
         self.phase = phase
         self.schedule = schedule
         self.ties = ties
+        self.layer = layer
+
+    def _runs_on_edges(self) -> bool:
+        """Return that the laws run once for every edge of the network or lattice."""
+        return True
+
+    def _get_layer(self) -> str | None:
+        """Return the layer whose edges the laws run on, or `None` for the space."""
+        return self.layer
 
     def _check_agent_options(self) -> None:
         """Raise an error for an unknown schedule or ties, or non-default ones off agents.
@@ -194,6 +203,8 @@ class ImitationInteraction(NeighborInteraction):
         if len(set(self.options)) < max(len(self.options), 2):
             error_msg = f'The options of imitation are {self.options!r}. Give at least two distinct values.'
             raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = self._get_imitation_laws(context)
 
     def _get_neighborhood(self) -> AdjacencyNeighborhood | None:
         """Return the neighbourhood of the layer.
@@ -279,6 +290,15 @@ class ImitationInteraction(NeighborInteraction):
         source, target = self._get_member(namespace, 'source'), self._get_member(namespace, 'target')
         return [*self._get_copies(target, source, namespace), *self._get_copies(source, target, namespace)]
 
+    @staticmethod
+    def _get_draw_name(state: Expression, kind: str) -> str:
+        """Return the name of a draw of a state, such as `x_activity`.
+
+        A state read as a function of time, `x(t)`, names its draws after `x`.
+        """
+        name = str(state.operator()) if state.operator() is not None else str(state)
+        return f'{name}_{kind}'
+
     def _draw_copy(self, namespace: SimpleNamespace) -> Expression:
         """Return the next state of the target by the random or the Fermi rule.
 
@@ -298,7 +318,7 @@ class ImitationInteraction(NeighborInteraction):
         else:
             weights = [probability * counts[option] for option in self.options]
         stay = degree - sum(weights, SR(0)) + where(degree == 0, 1, 0)
-        index = categorical(f'{value}_imitation', [stay, *weights])
+        index = categorical(self._get_draw_name(value, 'imitation'), [stay, *weights])
         return value + sum(
             (where(index == position + 1, option - value, 0) for position, option in enumerate(self.options)),
             SR(0),
@@ -324,7 +344,8 @@ class ImitationInteraction(NeighborInteraction):
             UpdateLaw(
                 value,
                 where(
-                    uniform(f'{value}_imitation') < self._get_parameter_symbol('probability', namespace),
+                    uniform(self._get_draw_name(value, 'imitation'))
+                    < self._get_parameter_symbol('probability', namespace),
                     imitated,
                     value,
                 ),
@@ -332,7 +353,7 @@ class ImitationInteraction(NeighborInteraction):
             ),
         ]
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+    def _get_imitation_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the jumps or the update of the state by the rule of the imitation.
 
         Args:
@@ -344,9 +365,9 @@ class ImitationInteraction(NeighborInteraction):
                 The jumps of the state between every pair of options, or the update of the state of every member.
         """
         if self.form == 'agent' and self.schedule == 'member':
-            return [RuleLaw(self._imitate_member, phase=self.phase, members=self._get_role('target'))]
+            return [UpdateLaw(self._get_member(namespace, 'target'), self._imitate_member, phase=self.phase)]
         if self.form == 'agent':
-            return [RuleLaw(self._imitate, phase=self.phase)]
+            return [UpdateLaw(namespace, self._imitate, phase=self.phase)]
         if self.form == 'probability':
             return self._get_update(namespace)
         return self._get_jumps(namespace)

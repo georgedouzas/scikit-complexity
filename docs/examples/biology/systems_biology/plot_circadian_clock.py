@@ -14,14 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import CircadianClockSystem
 
 SYSTEM = 'circadian_clock'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(CircadianClockSystem(), observers=[observer])
+trajectory = CircadianClockSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Period of the clock
@@ -40,7 +39,7 @@ series.legend()
 rates = np.linspace(0.8, 1.6, 9)
 lengths = []
 for rate in rates:
-    run = simulate(CircadianClockSystem(v_d=rate), until=480)
+    run = CircadianClockSystem(v_d=rate).prepare().simulate(until=480)
     peaks, _ = find_peaks(run.get_values('clock.M'))
     lengths.append(np.diff(run.times[peaks][-4:]).mean())
 periods.plot(rates, lengths, 'o-')

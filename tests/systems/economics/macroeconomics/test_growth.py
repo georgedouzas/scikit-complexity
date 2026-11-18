@@ -3,8 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.economics.macroeconomics import (
     EconomyElement,
     MultiplierAcceleratorSystem,
@@ -23,9 +22,9 @@ def test_multiplier_accelerator_stability(cv):
 def test_solow_reaches_steady_state():
     """Test that Solow capital approaches `(s / delta) ** (1 / (1 - alpha))`."""
     s, alpha, delta = 0.3, 0.4, 0.1
-    system = CompositeSystem(
+    system = System(
         elements=[EconomyElement('country', k=1.0)],
         interactions=[SolowGrowthInteraction('solow', target='country', s=s, alpha=alpha, delta=delta)],
     )
-    capital = simulate(system, until=300, dt=10.0).get_values('country.k')[-1]
+    capital = system.prepare().simulate(until=300, dt=10.0).get_values('country.k')[-1]
     assert capital == pytest.approx((s / delta) ** (1 / (1 - alpha)), rel=1e-3)

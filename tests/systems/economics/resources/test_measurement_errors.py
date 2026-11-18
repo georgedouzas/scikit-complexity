@@ -21,7 +21,7 @@ def test_fishery_measurement_errors_extinction_grows_with_the_noise():
 
     def extinct(**settings):
         system = FisheryMeasurementErrorsSystem(100, **settings).prepare().system_
-        observables = FisheryMeasurementErrorsSystem().get_run_settings()['observables']
+        observables = FisheryMeasurementErrorsSystem().prepare().observables_
         return float(_run(system, 2000, observables=observables).get_values('extinct')[-1])
 
     assert extinct(sigma_r=0.0) == 0.0

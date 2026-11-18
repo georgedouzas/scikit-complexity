@@ -182,7 +182,7 @@ def test_system_class_matches_components():
             MortalityInteraction('death', target='predators', d=0.4),
         ],
     )
-    first = simulate(LotkaVolterraSystem(a=0.2).prepare().system_, until=5, dt=0.1).states
+    first = LotkaVolterraSystem(a=0.2).prepare().system_.prepare().simulate(until=5, dt=0.1).states
     second = simulate(built, until=5, dt=0.1).states
     assert np.array_equal(first, second)
 

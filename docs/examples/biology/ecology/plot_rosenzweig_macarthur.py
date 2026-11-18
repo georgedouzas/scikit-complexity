@@ -14,14 +14,13 @@ collapse by thirty orders of magnitude before they return, a rate-induced tippin
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import RosenzweigMacarthurSystem
 
 SYSTEM = 'rosenzweig_macarthur'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(RosenzweigMacarthurSystem(rate=0.002), observers=[observer], until=149)
+trajectory = RosenzweigMacarthurSystem(rate=0.002).prepare().simulate(observers=[observer], until=149)
 
 # %%
 # Slow and fast change
@@ -30,7 +29,7 @@ trajectory = simulate(RosenzweigMacarthurSystem(rate=0.002), observers=[observer
 # fast rise should send them through a collapse of many orders of magnitude before they recover.
 
 fast = trajectory
-slow = simulate(RosenzweigMacarthurSystem(rate=0.0002), until=149)
+slow = RosenzweigMacarthurSystem(rate=0.0002).prepare().simulate(until=149)
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.semilogy(slow.times, slow.get_values('prey.x'), label='rate 0.0002: tracks the point')
 ax.semilogy(fast.times, fast.get_values('prey.x'), label='rate 0.002: tips')

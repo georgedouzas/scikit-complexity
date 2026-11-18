@@ -13,13 +13,14 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Tags
 from ....core.components.base import BaseComponent
-from ....core.components.interactions import JumpInteraction
-from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import where
+from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ElementKind, ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import RoleSpec
 from .types import Stoichiometry
 
 MODES = ('rate', 'jump', 'langevin')
@@ -28,7 +29,7 @@ AGENT_MODES = ('rate', 'jump')
 ENTRY_SIZE = 2
 
 
-class ReactionInteraction(JumpInteraction):
+class ReactionInteraction(Interaction):
     """An interaction that moves units from its reactants to its products.
 
     A reactant, a product, or a modifier is a pair of the path of an element and the name of its state, mapped to its
@@ -51,9 +52,9 @@ class ReactionInteraction(JumpInteraction):
 
     In the agent form every member of an agent group reacts on its own states at every step, by `schedule`.
 
-    Unlike `JumpInteraction`, which it extends, it builds the changes from a stoichiometric vector and the propensity
-    from mass action, and it can also run as a rate or a Langevin equation. Choose it when a model is written as
-    reactions between species.
+    Unlike `Interaction`, which takes laws written by hand, it builds the changes from a stoichiometric vector and the
+    propensity from mass action, and the same reaction runs as a rate, a jump, or a Langevin equation. Choose it when a
+    model is written as reactions between species.
 
     It appears in many fields. Molecules react in a cell, people pass from susceptible to infected in an epidemic,
     predators eat prey, and enzymes bind their substrates.
@@ -107,75 +108,52 @@ class ReactionInteraction(JumpInteraction):
             has an entry that is a pair, or has the mode `'langevin'`.
 
     Examples:
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.general.elements import NonnegativeElement
         >>> from skcomplex.systems.general.reactions import ReactionInteraction
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> infection = ReactionInteraction(
         ...     'infection', reactants={('S', 'x'): 1, ('I', 'x'): 1}, products={('I', 'x'): 2}, k=0.0005
         ... )
         >>> recovery = ReactionInteraction('recovery', reactants={('I', 'x'): 1}, products={('R', 'x'): 1}, k=0.1)
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=10), NonnegativeElement('R')],
         ...     interactions=[infection, recovery],
         ... )
-        >>> states = simulate(system, until=50, dt=1.0).states
+        >>> states = system.prepare().simulate(until=50, dt=1.0).states
         >>> round(float(states[-1].sum()), 6)
         1000.0
 
-        The decay `x -> 0` at every site of a field, at the rate `k x` of the site:
+        The decay `x -> 0` at every site of a lattice, at the rate `k x` of the site:
 
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import FieldElement
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> decay = ReactionInteraction('decay', target='cells', reactants={'x': 1}, k=1.0)
-        >>> values = {'x': np.arange(3.0)}
-        >>> cells = FieldElement('cells', element=NonnegativeElement, space=LatticeSpace((3,)), values=values)
-        >>> trajectory = simulate(CompositeSystem(elements=[cells], interactions=[decay]), until=1, dt=1.0)
+        >>> cells = NonnegativeElement('cells', x=np.arange(3.0), space=LatticeSpace((3,)))
+        >>> trajectory = System(elements=[cells], interactions=[decay]).prepare().simulate(until=1, dt=1.0)
         >>> np.round(trajectory.get_lattice('cells.x')[-1], 3).tolist()
         [0.0, 0.368, 0.736]
 
         A coefficient that is a parameter, the decay at the rate `x` that removes `1 / epsilon` units per event:
 
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> class ScaledElement(Element):
-        ...     def __init__(
-        ...         self,
-        ...         label,
-        ...         x: Annotated[float, StateSpec()] = 1.0,
-        ...         epsilon: Annotated[float, ParameterSpec()] = 0.5,
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...         self.epsilon = epsilon
         >>> scaled = ReactionInteraction(
         ...     'decay', target='box', reactants={'x': lambda s: 1 / s.target.epsilon}, propensity=lambda s: s.target.x
         ... )
-        >>> system = CompositeSystem(elements=[ScaledElement('box')], interactions=[scaled])
-        >>> trajectory = simulate(system, until=0.5, dt=0.01)
+        >>> box = Element('box', values={'x': 1.0, 'epsilon': 0.5})
+        >>> trajectory = System(elements=[box], interactions=[scaled]).prepare().simulate(until=0.5, dt=0.01)
         >>> round(float(trajectory.get_values('box.x')[-1]), 3)
         0.368
 
         Every agent of a group decays on its own states, by `k n` in a step of the rate equation:
 
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.components.spaces import DiscreteTime
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class CellElement(Element):
-        ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 3.0):
-        ...         super().__init__(label)
-        ...         self.n = n
-        >>> cells = GroupElement('cells', element=CellElement, size=2)
+        >>> cells = Element('cells', values={'n': 3.0}, size=2)
         >>> decay = ReactionInteraction('decay', target='cells', reactants={'n': 1}, k=0.1, form='agent')
-        >>> system = CompositeSystem(elements=[cells], interactions=[decay], time=DiscreteTime())
-        >>> trajectory = simulate(system, until=2)
+        >>> trajectory = System(elements=[cells], interactions=[decay]).prepare().simulate(until=2)
         >>> np.round(trajectory.get_agents('cells', 2).values['n'], 6).tolist()
         [2.43, 2.43]
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, JumpLaw, RuleLaw, UpdateLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, JumpLaw, UpdateLaw)
 
     def _get_tags(self) -> Tags:
         """Return the tags of the agent-form rules, or the laws of the symbolic one.
@@ -183,7 +161,7 @@ class ReactionInteraction(JumpInteraction):
         The laws of the symbolic form are rate, jump, or Langevin laws.
         """
         if self._get_argument('form') == 'agent':
-            return self._get_variant_tags((RuleLaw,), stochastic=self._get_mode() == 'jump')
+            return self._get_variant_tags((UpdateLaw,), stochastic=self._get_mode() == 'jump')
         modes: dict[object, tuple[type[BaseLaw], ...]] = {'jump': (JumpLaw,), 'langevin': (RateLaw, NoiseLaw)}
         return self._get_variant_tags(modes.get(self._get_mode(), (RateLaw,)))
 
@@ -197,7 +175,7 @@ class ReactionInteraction(JumpInteraction):
         ] = None,
         reactants: Annotated[Stoichiometry | None, RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = None,
         products: Annotated[Stoichiometry | None, RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = None,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         propensity: Callable[..., object] | None = None,
         modifiers: Annotated[Stoichiometry | None, RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = None,
         mode: str = 'rate',
@@ -205,7 +183,7 @@ class ReactionInteraction(JumpInteraction):
         phase: str | None = None,
         schedule: str = 'synchronous',
     ) -> None:
-        super().__init__(label, target='')
+        super().__init__(label)
         self.target = target
         self.reactants = reactants
         self.products = products
@@ -504,27 +482,38 @@ class ReactionInteraction(JumpInteraction):
         """
         self._update_agents(system, self.schedule, self._get_agent_step, self._apply_agent_step)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
-        """Return the laws of the reaction in its mode, or the rule of the agent form.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Check the reaction, and set its laws or its agent rule for a binding.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use, with the namespaces of the target, the reactants, the
+            context:
+                The space the interaction inherits from its system, or the namespace of the target, the reactants, the
                 products, and the modifiers.
 
-        Returns:
-            laws:
-                The rate laws, the jump law, the rate and noise laws, or the rule of the reaction.
+        Raises:
+            ValidationError:
+                The mode, the form, or the schedule is unknown, the reaction has neither reactants nor products, or an
+                entry or a coefficient is not valid.
+        """
+        super()._prepare(context)
+        self._check_jump()
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = self._get_reaction_laws(context)
+
+    def _get_reaction_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+        """Return the laws of the reaction in its mode, or the rule of the agent form.
+
+        The rule of the agent form changes one member, or every member of the target by the schedule.
         """
         if self.form == 'agent' and self.schedule == 'member':
-            return [RuleLaw(self._react_member, phase=self.phase, members=self._get_role('target'))]
+            return [UpdateLaw(self._get_member(namespace, 'target'), self._react_member, phase=self.phase)]
         if self.form == 'agent':
-            return [RuleLaw(self.react, phase=self.phase)]
-        mode = self._get_mode()
-        if mode == 'jump':
-            return [*super()._get_laws(namespace)]
+            return [UpdateLaw(namespace, self.react, phase=self.phase)]
         propensity = self._get_rate(namespace)
         changes = self._get_changes(namespace)
+        mode = self._get_mode()
+        if mode == 'jump':
+            return [JumpLaw(propensity, changes)]
         if mode == 'langevin':
             return self._get_langevin_laws(propensity, changes)
         return [RateLaw(state, change * propensity) for state, change in changes.items()]

@@ -7,7 +7,8 @@ They adopt when they can afford it and know a user.
 # License: MIT
 
 from collections import deque
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -15,12 +16,15 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 UPPER = 0
@@ -68,9 +72,18 @@ class HouseholdElement(Element):
         threshold:
             The income from which a household can afford a phone.
 
+        size:
+            The number of households, or `None` for one.
+
+        space:
+            The space the households live on, or `None` for none.
+
+        values:
+            More values by name, such as the cells `x` and `y` of the households on a lattice, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.economics.innovation import HouseholdElement
-        >>> GroupElement('households', element=HouseholdElement, size=4, values={'threshold': 1.5}).size
+        >>> HouseholdElement('households', threshold=1.5, size=4).size
         4
     """
 
@@ -80,13 +93,16 @@ class HouseholdElement(Element):
         self,
         label: str,
         *,
-        income: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        phone: Annotated[float, StateSpec(domain=NN)] = 0,
-        social_class: Annotated[float, StateSpec(domain=NN)] = MIDDLE,
-        growth: Annotated[float, ParameterSpec()] = 0.02,
-        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.2,
+        income: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        phone: Annotated[object, NN] = 0.0,
+        social_class: Annotated[object, NN] = float(MIDDLE),
+        growth: object = 0.02,
+        threshold: Annotated[object, RealSet.closed_open(0, oo)] = 1.2,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.income = income
         self.phone = phone
         self.social_class = social_class
@@ -98,43 +114,56 @@ class HouseholdElement(Element):
         """Return the view of the agents of the element."""
         return HouseholdView
 
-    @staticmethod
-    def get_income(agent: HouseholdView, system: SystemView) -> float:
-        """Return the income grown by a year.
 
-        Args:
-            agent:
-                The household.
+class AdoptionInteraction(Interaction):
+    """Growth of the incomes of households and their adoption of a phone.
 
-            system:
-                The system view of the growth.
+    Every year the income of every household grows by its rate, `income' = income (1 + growth)`. Then the households
+    decide one after the other in a new random order, and a household gets a phone when its income reaches its
+    threshold and one of its neighbours has a phone, so phones spread along chains of affording neighbours within a
+    year.
 
-        Returns:
-            income:
-                The income of the next year.
-        """
-        return agent.income * (1 + agent.growth)
+    Args:
+        label:
+            The label of the interaction.
 
-    @staticmethod
-    def get_phone(agent: HouseholdView, system: SystemView) -> float:
-        """Return 1 for a household that has or gets a phone, else 0.
+        target:
+            The households, on the cells of a lattice.
 
-        A household gets a phone when it is affordable and a neighbour has one.
+    Examples:
+        >>> from skcomplex.systems.economics.innovation import AdoptionInteraction
+        >>> AdoptionInteraction('adoption').target
+        'households'
+    """
 
-        Args:
-            agent:
-                The household.
+    law_classes = (UpdateLaw,)
 
-            system:
-                The system view of the adoption.
+    def __init__(self, label: str, *, target: Role = 'households') -> None:
+        super().__init__(label)
+        self.target = target
 
-        Returns:
-            phone:
-                1 for a household with a phone and 0 otherwise.
-        """
-        if agent.phone or agent.income < agent.threshold:
-            return float(agent.phone)
-        return float(any(isinstance(neighbor, HouseholdView) and neighbor.phone for neighbor in agent.get_neighbors()))
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the growth of the incomes and the adoption of phones as the rules of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._grow), UpdateLaw(context, self._adopt)]
+
+    def _grow(self, system: SystemView) -> None:
+        """Grow the income of every household by a year."""
+        for household in system.get_agents('target', HouseholdView):
+            household.income *= 1 + household.growth
+
+    def _adopt(self, system: SystemView) -> None:
+        """Give a phone to every household that can afford it and has a neighbour with one, in a random order."""
+        households = system.get_agents('target', HouseholdView)
+        for index in system.rng.permutation(len(households)):
+            household = households[int(index)]
+            if household.alive and not household.phone and household.income >= household.threshold:
+                household.phone = float(
+                    any(
+                        isinstance(neighbor, HouseholdView) and neighbor.phone for neighbor in household.get_neighbors()
+                    ),
+                )
 
 
 class PhoneAdoptionSystem(BaseSystem):
@@ -171,9 +200,15 @@ class PhoneAdoptionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.innovation import PhoneAdoptionSystem
-        >>> PhoneAdoptionSystem((10, 10)).prepare().system_.elements[0].prepare().size_
+        >>> PhoneAdoptionSystem((10, 10)).prepare().system_.elements[0].size
         100
     """
 
@@ -193,8 +228,10 @@ class PhoneAdoptionSystem(BaseSystem):
         class_incomes: Sequence[float] = (1.6, 1.0, 0.6),
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.growth = growth
         self.threshold = threshold
@@ -231,9 +268,9 @@ class PhoneAdoptionSystem(BaseSystem):
             queue.extend(((column + dx) % width) * height + (row + dy) % height for dx, dy in MOORE)
         return owners
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        growth = self.growth
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the households on a torus and their adoption."""
+        super()._prepare(context)
         width, height = (int(side) for side in self.shape)
         rng = np.random.default_rng(self.random_state)
         classes = self._get_social_classes(width, height)
@@ -241,39 +278,20 @@ class PhoneAdoptionSystem(BaseSystem):
         incomes = scales * rng.lognormal(0.0, INCOME_SIGMA, len(classes))
         incomes /= incomes.mean()
         owners = self._seed_network(incomes, classes, (width, height), self.threshold, self.initial_share)
-        locations = [(column, row) for column in range(width) for row in range(height)]
-        households = GroupElement(
+        columns, rows = np.divmod(np.arange(width * height), height)
+        households = HouseholdElement(
             'households',
-            element=HouseholdElement,
-            size=len(locations),
-            values={
-                'income': incomes,
-                'phone': owners,
-                'social_class': classes,
-                'growth': growth,
-                'threshold': self.threshold,
-            },
-            location=locations,
+            income=incomes,
+            phone=owners,
+            social_class=classes,
+            growth=self.growth,
+            threshold=self.threshold,
+            size=width * height,
+            space=LatticeSpace((width, height), boundary='periodic'),
+            values={'x': columns, 'y': rows},
         )
-        growth = MapInteraction(
-            'growth',
-            target='households',
-            state='income',
-            function=HouseholdElement.get_income,
-            form='agent',
-        )
-        adoption = MapInteraction(
-            'adoption',
-            target='households',
-            state='phone',
-            function=HouseholdElement.get_phone,
-            schedule='random-sequential',
-            form='agent',
-        )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[households],
-            interactions=[growth, adoption],
-            space=LatticeSpace((width, height), boundary='periodic'),
-            time=DiscreteTime(),
+            interactions=[AdoptionInteraction('adoption', target='households')],
         )

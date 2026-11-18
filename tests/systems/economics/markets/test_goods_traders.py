@@ -3,13 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.markets import GoodsTradersSystem
 
 
 def test_goods_traders_trades_conserve_goods():
     """Test that 50 steps of barter keep the total of every good while utility rises and prices converge."""
-    trajectory = simulate(GoodsTradersSystem(), until=50)
+    trajectory = GoodsTradersSystem().prepare().simulate(until=50)
     for good in ('sugar', 'spice', 'salt'):
         np.testing.assert_allclose(trajectory.get_values(good), trajectory.get_values(good)[0], rtol=1e-9)
     dispersion = trajectory.get_values('exchange.dispersion')
@@ -19,7 +18,7 @@ def test_goods_traders_trades_conserve_goods():
 
 def test_goods_traders_of_two_goods_trade_no_salt():
     """Test that toy traders of two goods hold no salt and still trade."""
-    trajectory = simulate(GoodsTradersSystem(goods=2), until=5)
+    trajectory = GoodsTradersSystem(goods=2).prepare().simulate(until=5)
     assert np.all(trajectory.get_values('salt') == 0)
     assert np.nansum(trajectory.get_values('exchange.volume')) > 0
 

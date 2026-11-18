@@ -6,7 +6,7 @@ The firms switch to cheaper lenders.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Annotated, ClassVar
 
 import numpy as np
@@ -17,11 +17,11 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerSwitchSpec
 
 
@@ -508,6 +508,12 @@ class CreditNetworksSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import CreditNetworksSystem
         >>> [element.label for element in CreditNetworksSystem().prepare().system_.elements]
@@ -545,8 +551,10 @@ class CreditNetworksSystem(BaseSystem):
         capital_ratio: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.firms = firms
         self.banks = banks
         self.sample = sample
@@ -572,8 +580,9 @@ class CreditNetworksSystem(BaseSystem):
         firm.rate = trade.value
         bank.lent += trade.quantity
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         lenders = GroupElement(
             'banks',
@@ -653,11 +662,9 @@ class CreditNetworksSystem(BaseSystem):
                 for name, function in FirmElement.get_default()
             ),
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[borrowers, lenders],
             interactions=[*plan, market, *settlement],
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec('plan'), PhaseSpec('credit'), PhaseSpec('settle')]),
-            ),
+            solver=MesaSolver(phases=[PhaseSpec('plan'), PhaseSpec('credit'), PhaseSpec('settle')]),
         )

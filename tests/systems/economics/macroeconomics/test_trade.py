@@ -13,7 +13,7 @@ def test_exchange_rates_reproduce_the_floating_and_fixed_stories():
         ExchangeRatesSystem().prepare().system_,
         2,
         dt=1,
-        observables=ExchangeRatesSystem().get_run_settings()['observables'],
+        observables=ExchangeRatesSystem().prepare().observables_,
     )
     assert floating.get_values('home.E')[-1] == pytest.approx(0.805, abs=1e-3)
     assert floating.get_values('home.M')[-1] == pytest.approx(30.6)
@@ -24,7 +24,7 @@ def test_exchange_rates_reproduce_the_floating_and_fixed_stories():
         ExchangeRatesSystem(floating=False).prepare().system_,
         2,
         dt=1,
-        observables=ExchangeRatesSystem().get_run_settings()['observables'],
+        observables=ExchangeRatesSystem().prepare().observables_,
     )
     assert set(fixed.get_values('home.E').round(9)) == {round(34 / (32 * 1.2), 9)}
     assert fixed.get_values('home.X')[-1] == pytest.approx(0.9 * 32)

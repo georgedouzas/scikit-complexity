@@ -16,7 +16,6 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...components.base import BaseComponent
 from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement, Period, Quantity
-from ...components.interactions import Interaction
 from ...components.laws import (
     BaseLaw,
     ConstraintLaw,
@@ -31,10 +30,10 @@ from ...components.laws import (
 from ...components.laws.utils import derivative, lag
 from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
-from ...enums import TopologyKind
+from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
 from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
-from .._utils import bound_labels
+from .._utils import bound_labels, declarations_of
 from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values', 'on')
@@ -449,12 +448,10 @@ class _StateInference:
         orders, lags = self._get_orders(compilation)
         orders = dict.fromkeys(self._get_rule_reads(compilation), 1) | orders
         kinds = self._get_topology_kinds(compilation)
-        runners, readers = self._get_agent_groups(compilation)
+        agents = self._get_agent_groups(compilation)
         steps = self._get_steps(compilation)
 
         def declare(element: Element, path: str) -> list[BaseElement]:
-            many = element.size is not None or element.space is not None
-            agents = runners | ({path} if path in readers and many else set())
             return self._get_declared_elements(
                 element,
                 (lambda name: 1) if path in agents else (lambda name: orders.get(f'{path}.{name}')),
@@ -530,27 +527,23 @@ class _StateInference:
         return frozenset(kinds)
 
     @staticmethod
-    def _get_agent_groups(compilation: Compilation) -> tuple[set[str], set[str]]:
-        """Return the paths of the groups whose members run agent rules, and of the elements whole rules bind.
+    def _get_agent_groups(compilation: Compilation) -> set[str]:
+        """Return the paths of the groups whose members are agents.
 
-        A rule of the whole system, such as the collisions of a flock, reads and moves the members of the groups its
-        interaction binds, so the members of such a group are agents too.
+        Their members run agent rules, or a rule of the whole system, such as `UpdateLaw(s, clear)`, reads them
+        through the roles of its interaction, such as the traders a market clears.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
-        runners: set[str] = set()
-        readers: set[str] = set()
+        groups: set[str] = set()
         for record in census.records:
             node = nodes.get(record.path)
             if not isinstance(record.law, RuleLaw) or node is None:
                 continue
-            component = node.component
-            if record.law.members is not None:
-                runners.update(f'{node.scope}{label}' for label in bound_labels(getattr(component, record.law.members)))
-            elif isinstance(component, Interaction) and type(component)._get_laws is Interaction._get_laws:
-                for role in component.get_requirements().roles:
-                    readers.update(f'{node.scope}{label}' for label in bound_labels(getattr(component, role, None)))
-        return runners, readers
+            members = record.law.members
+            for role in declarations_of(node.component, VariableKind.ROLE) if members is None else (members,):
+                groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, role, None)))
+        return groups
 
     @staticmethod
     def _get_field(label: str, space: LatticeSpace | NetworkSpace, values: Mapping[str, object]) -> FieldElement:
@@ -583,6 +576,11 @@ class _StateInference:
             boundary=boundary,
         )
 
+    @staticmethod
+    def _get_past_arrays(name: str, values: object, lags: int) -> dict[str, object]:
+        """Return the past values of a value of many members, each the value of its member before the start."""
+        return {f'{name}_lag{index}': values for index in range(1, lags + 1)}
+
     def _get_declared_elements(
         self,
         element: Element,
@@ -605,7 +603,8 @@ class _StateInference:
         position, also when no law changes it, and the value an update law adds to a position at every step, as `v` in
         `x <- x + v`, is its velocity. An element on the edges or hyperedges of a network is a group with one member on
         each. The probe that finds the orders reads no starting values of derivatives or past values. The element keeps
-        the drawing of its class, except a drawing of agents for members that run no agent rules.
+        the drawing of its class, except a drawing of agents for members that run no agent rules, and the view of its
+        agents.
         """
         values = self._get_values(element)
         starting = {} if probing else self._get_starting(element, values)
@@ -636,9 +635,7 @@ class _StateInference:
             tensor = element._get_shape_of(member)[2]
             if np.ndim(np.asarray(value, dtype=object)) > 0:
                 arrays[name] = element._get_matrix_entries(value, tensor)
-                if count is not None and not probing:
-                    for index in range(1, lags(name) + 1):
-                        arrays[f'{name}_lag{index}'] = arrays[name]
+                arrays |= self._get_past_arrays(name, arrays[name], 0 if count is None or probing else lags(name))
             for index, given in starting.get(name, {}).items():
                 if count is not None and np.ndim(np.asarray(given, dtype=object)) > 0:
                     arrays[f'{name}_lag{index}' if lags(name) else f'{name}_d{index}'] = element._get_matrix_entries(
@@ -647,9 +644,10 @@ class _StateInference:
                     )
         visual = element._get_visual()
         drawing = None if visual == VisualSpec() or (visual.kind == 'agents' and not agents) else visual
+        view = element._get_view()
         if count is None:
-            return [DeclaredElement(element.label, variables=variables, drawing=drawing)]
-        values = {'variables': variables, 'drawing': drawing, **arrays}
+            return [DeclaredElement(element.label, variables=variables, drawing=drawing, view=view)]
+        values = {'variables': variables, 'drawing': drawing, 'view': view, **arrays}
         if network:
             nodes = GroupElement(
                 element.label,
