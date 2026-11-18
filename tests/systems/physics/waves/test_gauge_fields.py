@@ -5,7 +5,6 @@ import pytest
 from scipy.special import iv
 
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ValidationError
 from skcomplex.systems.physics.waves import LatticeGaugeFieldsSystem, gauge_observables
 
@@ -54,7 +53,7 @@ def test_gauge_transformation_of_the_initial_links_keeps_the_plaquette_series():
 def test_z_n_links_stay_on_the_angles_of_the_group():
     """Test that Z_3 links sampled by heat bath keep the angles of the group."""
     system = LatticeGaugeFieldsSystem(6, n=3)
-    states = simulate(system, until=5, dt=1, random_state=0).get_values('links.theta')
+    states = system.prepare().simulate(until=5, dt=1, random_state=0).get_values('links.theta')
     assert set(np.round(np.mod(states[-1], 2 * np.pi) / (2 * np.pi / 3), 6)) <= {0.0, 1.0, 2.0}
 
 
@@ -136,7 +135,7 @@ def test_gauss_residual_reads_the_charges():
 def test_gauge_observables_reads_a_trajectory():
     """Test that a trajectory gives one value per frame."""
     system = LatticeGaugeFieldsSystem(4)
-    trajectory = simulate(system, until=3, dt=1, random_state=0)
+    trajectory = system.prepare().simulate(until=3, dt=1, random_state=0)
     result = gauge_observables(trajectory, kind='wilson', space=_space(4), variables='links.theta')
     assert result.value.shape == (4,)
 

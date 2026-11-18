@@ -15,7 +15,7 @@ from skcomplex.systems.physics.synchronization import (
     OttAntonsenSystem,
 )
 
-from ..conftest import _run, _series
+from ..conftest import ACCURATE, _run, _series
 from .conftest import _random_drift
 
 
@@ -43,9 +43,10 @@ def test_kuramoto_synchronizes_above_the_critical_coupling(K, synchronized):
 
 def test_kuramoto_in_linear_time():
     """Test that Kuramoto has no space and no pair interaction, and its drift is the all-to-all sum."""
-    system = KuramotoSystem(50).prepare().system_
-    assert system.space is None
-    assert not any(isinstance(interaction, PairInteraction) for interaction in system.interactions)
+    system = KuramotoSystem(50)
+    components = system.prepare().system_
+    assert components.space is None
+    assert not any(isinstance(interaction, PairInteraction) for interaction in components.interactions)
     problem, theta, rates = _random_drift(system)
     omega = problem.parameters.read(problem.initial_parameters, 'oscillators.omega')
     expected = omega + 4.0 / 50 * np.sin(theta[np.newaxis, :] - theta[:, np.newaxis]).sum(axis=1)
@@ -56,9 +57,8 @@ def test_kuramoto_in_linear_time():
 def test_kuramoto_transition(factor, synchronized):
     """Test that 2000 oscillators stay incoherent at half the critical coupling and synchronize at twice it."""
     critical = 2 * math.sqrt(2 / math.pi)
-    trajectory = (
-        KuramotoSystem(2000, K=factor * critical).prepare().simulate(until=100, solver=ScipyODESolver(method='RK45'))
-    )
+    system = KuramotoSystem(2000, K=factor * critical, solver=ScipyODESolver(method='RK45'))
+    trajectory = system.prepare().simulate(until=100)
     order = _series(trajectory, 'order')[0][trajectory.times >= 50].mean()
     assert (order > 0.6) == synchronized
     assert (order < 0.1) == (not synchronized)
@@ -80,8 +80,8 @@ def test_kuramoto_sakaguchi_populations_form_a_chimera():
 def test_nonlocal_ring_rotates_rigidly_when_synchronized():
     """Test that a synchronized ring turns at `omega - (2R + 1) sin(alpha) / (2R)`, counting every neighbour once."""
     system = NonlocalRingChimeraSystem(30, R=4, omega=1.0).prepare().system_
-    system.elements[0].values['theta'] = np.zeros(30)
-    trajectory = _run(system, 2.0, 0.5, observables=NonlocalRingChimeraSystem.observables)
+    system.elements[0].theta = np.zeros(30)
+    trajectory = system.set_params(solver=ACCURATE).prepare().simulate(until=2.0, dt=0.5)
     theta = _series(trajectory, 'ring.theta')[0]
     assert np.allclose(theta[-1], theta[-1][0])
     assert theta[-1][0] == pytest.approx(2.0 * (1.0 - 9 * math.sin(1.46) / 8), rel=1e-6)

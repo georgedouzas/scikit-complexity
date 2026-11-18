@@ -4,7 +4,6 @@ import math
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.synchronization import AdaptiveKuramotoSystem
 
 
@@ -14,7 +13,7 @@ def test_adaptive_kuramoto_splits_identical_oscillators_into_frequency_clusters(
     12).
     """
     trajectory = AdaptiveKuramotoSystem().prepare().simulate()
-    theta = np.asarray(trajectory.get_values('nodes.theta'))
+    theta = np.unwrap(np.asarray(trajectory.get_values('nodes.theta')), axis=0)
     frequencies = np.sort((theta[-1] - theta[-201]) / 200)
     clusters = np.split(frequencies, np.flatnonzero(np.diff(frequencies) > 0.05) + 1)
     assert len(clusters) >= 2
@@ -23,9 +22,10 @@ def test_adaptive_kuramoto_splits_identical_oscillators_into_frequency_clusters(
 
 def test_adaptive_kuramoto_weights_follow_the_phases_inside_a_cluster():
     """Test that the weights between members of the largest cluster approach `-sin(theta_i - theta_j + beta)`."""
-    system = AdaptiveKuramotoSystem(20).prepare().system_
-    trajectory = simulate(system, until=2000.0, dt=1.0)
-    theta = np.asarray(trajectory.get_values('nodes.theta'))
+    prepared = AdaptiveKuramotoSystem(20).prepare()
+    system = prepared.system_
+    trajectory = prepared.simulate(until=2000.0, dt=1.0)
+    theta = np.unwrap(np.asarray(trajectory.get_values('nodes.theta')), axis=0)
     kappa = np.asarray(trajectory.get_values('links.kappa'))[-1]
     frequencies = (theta[-1] - theta[-201]) / 200
     median = np.median(frequencies)

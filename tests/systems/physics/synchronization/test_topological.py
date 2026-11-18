@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.systems.physics.synchronization import TopologicalKuramotoSystem
 
 SYNCHRONIZATION_GAP = 0.3
@@ -25,7 +24,7 @@ def test_rates_follow_the_incidence_of_the_complex():
     6 of the review.
     """
     system = TopologicalKuramotoSystem(8, density=0.8, coupling=1.5).prepare().system_
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system._problem
     state = problem.initial_state
     rates = problem.drift(0.0, state, problem.initial_parameters)
     space = system.elements[0].space
@@ -48,7 +47,7 @@ def test_nodes_links_triangles_rates_follow_eq_8_of_the_review():
     8.
     """
     system = TopologicalKuramotoSystem(8, density=0.8, coupling=1.5, model='NLT').prepare().system_
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system._problem
     state = problem.initial_state
     rates = problem.drift(0.0, state, problem.initial_parameters)
     edges, faces = system.elements[0].space.incidences_[:2]
