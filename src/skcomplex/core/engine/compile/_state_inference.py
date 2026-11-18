@@ -191,12 +191,12 @@ class _StateInference:
     def _is_plain(component: BaseComponent) -> bool:
         """Return whether an element has values but declares no states or laws.
 
-        An element whose class names a compiler of its own, such as a word that productions rewrite, is read by that
-        compiler as it is, so it is not plain.
+        An element that names a compiler of its own, through its class as a word that productions rewrite does, or
+        through a value as the Hilbert space of a spin does, is read by that compiler as it is, so it is not plain.
         """
         if not isinstance(component, Element) or isinstance(component, DeclaredElement):
             return False
-        if type(component)._get_compiler is not BaseElement._get_compiler:
+        if component._get_compiler() is not None:
             return False
         if type(component)._get_laws is not Element._get_laws:
             return False

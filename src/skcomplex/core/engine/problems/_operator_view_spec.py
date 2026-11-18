@@ -109,7 +109,8 @@ class _OperatorViewSpec(BaseSpec):
             ValidationError:
                 The initial state names no basis state, or is a vector of the wrong size or norm.
         """
-        initial = getattr(self.element, self.state)
+        given = getattr(self.element, 'values', None) or {}
+        initial = given[self.state] if self.state in given else getattr(self.element, self.state)
         if isinstance(initial, str | int | np.integer):
             vector = np.zeros(self.dimension, dtype=complex)
             vector[self.get_basis_index(initial)] = 1.0
