@@ -22,7 +22,7 @@ from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-from skcomplex.core.errors import LabelError, RoleError
+from skcomplex.core.errors import LabelError, RoleError, ValidationError
 from skcomplex.core.specs import ParameterSpec, Role, RoleSpec, StateSpec
 from skcomplex.core.systems import System
 
@@ -366,3 +366,55 @@ def test_interaction_rewires_the_edges_of_a_network():
     assert all(len(frame) == graph.number_of_edges() for frame in edges)
     assert all(edges[i] != edges[i + 1] for i in range(len(edges) - 1) if discordant[i] > 0)
     assert discordant[-1] < discordant[0] / 4
+
+
+class GravityInteraction(Interaction):
+    """Gravity on the element of its target, `x'' = -g`."""
+
+    def __init__(self, label: str, *, target: Role, g: float = 9.81) -> None:
+        super().__init__(label)
+        self.target = target
+        self.g = g
+
+    def _prepare(self, context=None):
+        """Set the acceleration of the target."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.target.x.diff(context.t, 2), -context.g)]
+
+
+def test_an_interaction_without_a_class_runs_like_a_subclass():
+    """Test that a rule given by `roles` and `laws` gives the trajectory of the same rule written as a class."""
+    one_off = Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -9.81)])
+    trajectories = [
+        System(elements=[Element('ball', values={'x': 10.0})], interactions=[interaction])
+        .prepare()
+        .simulate(until=1.0, dt=0.5)
+        for interaction in (one_off, GravityInteraction('gravity', target='ball'))
+    ]
+    np.testing.assert_allclose(trajectories[0].get_values('ball.x'), trajectories[1].get_values('ball.x'))
+    np.testing.assert_allclose(trajectories[0].get_values('ball.x')[-1], 10.0 - 9.81 / 2)
+
+
+def test_an_interaction_without_a_class_binds_several_roles_and_clones():
+    """Test that a predation written without a class binds two roles, and that a clone keeps its roles and laws."""
+
+    def predation(s):
+        eaten = 0.1 * s.prey.n * s.predator.n
+        return [RateLaw(s.prey.n.diff(s.t), -eaten), RateLaw(s.predator.n.diff(s.t), eaten)]
+
+    interaction = Interaction('predation', roles={'predator': 'foxes', 'prey': 'rabbits'}, laws=predation)
+    elements = [Element('foxes', values={'n': 1.0}), Element('rabbits', values={'n': 10.0})]
+    system = System(elements=elements, interactions=[clone(interaction)]).prepare()
+    assert system.equations_ == {'foxes.n': '0.1*foxes.n*rabbits.n', 'rabbits.n': '-0.1*foxes.n*rabbits.n'}
+    assert clone(interaction).roles == {'predator': 'foxes', 'prey': 'rabbits'}
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'match'),
+    [({'roles': {'laws': 'ball'}, 'laws': lambda s: []}, 'name of an argument'), ({'laws': 'gravity'}, 'function')],
+)
+def test_an_interaction_without_a_class_rejects_wrong_arguments(arguments, match):
+    """Test that a role named after an argument, or laws that are no function, raise an error."""
+    with pytest.raises(ValidationError, match=match):
+        System(elements=[Element('ball', values={'x': 1.0})], interactions=[Interaction('rule', **arguments)]).prepare()

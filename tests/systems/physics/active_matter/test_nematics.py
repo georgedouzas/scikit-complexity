@@ -7,21 +7,19 @@ from scipy.integrate import solve_ivp
 
 from skcomplex.core.analysis import alignment, defects
 from skcomplex.core.components.laws.utils import laplacian, partial, upwind
-from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.systems.physics.active_matter import (
     ActiveGelsSystem,
     DryActiveNematicsSystem,
     LandauDeGennesEnergyInteraction,
-    PolarGelSiteElement,
+    PolarGelFlowInteraction,
 )
 
 
 def test_corotational_transport_of_a_tensor_is_a_square_matrix():
     """Test that the corotational transport of a symmetric tensor keeps its shape."""
     a, b = var('a, b')
-    transport = PolarGelSiteElement._get_corotational_transport(matrix(SR, [[a, b], [b, -a]]), [var('u'), 0])
+    transport = PolarGelFlowInteraction._get_corotational_transport(matrix(SR, [[a, b], [b, -a]]), [var('u'), 0])
     assert transport.dimensions() == (2, 2)
 
 
@@ -29,7 +27,7 @@ def test_corotational_turns_a_tensor_with_half_the_vorticity():
     """A zero co-rotational derivative in a uniform vorticity turns the principal axis at half the vorticity."""
     omega = 0.8
     a, b, u, v = var('a, b, u, v')
-    transport = PolarGelSiteElement._get_corotational_transport(matrix(SR, [[a, b], [b, -a]]), [u, v])
+    transport = PolarGelFlowInteraction._get_corotational_transport(matrix(SR, [[a, b], [b, -a]]), [u, v])
     flow = {partial(u, 0): 0, partial(u, 1): -omega / 2, partial(v, 0): omega / 2, partial(v, 1): 0}
     uniform = {upwind(item, axis, speed): 0 for item in (a, b) for axis, speed in enumerate((u, v))}
     rates = [(-transport[0, column]).subs(flow | uniform) for column in (0, 1)]
@@ -46,7 +44,7 @@ def test_corotational_turns_a_vector_with_half_the_vorticity():
     """A vector turns with the flow at half the vorticity, as a tensor does."""
     omega = 0.8
     p, q, u, v = var('p, q, u, v')
-    transport = PolarGelSiteElement._get_corotational_transport(vector(SR, [p, q]), [u, v])
+    transport = PolarGelFlowInteraction._get_corotational_transport(vector(SR, [p, q]), [u, v])
     flow = {partial(u, 0): 0, partial(u, 1): -omega / 2, partial(v, 0): omega / 2, partial(v, 1): 0}
     uniform = {upwind(item, axis, speed): 0 for item in (p, q) for axis, speed in enumerate((u, v))}
     rates = [(-item).subs(flow | uniform) for item in transport]
@@ -54,10 +52,9 @@ def test_corotational_turns_a_vector_with_half_the_vorticity():
     assert bool(rates[1] == omega / 2 * p)
 
 
-def _run_gel(system, until, dt, step):
+def _run_gel(system, until, dt):
     """Return the trajectory of a gel, with its velocity as the observables `u_x` and `u_y`."""
-    observables = ActiveGelsSystem.observables
-    return simulate(system, until=until, dt=dt, solver=RK4Solver(dt=step), observables=observables, random_state=0)
+    return system.prepare().simulate(until=until, dt=dt, random_state=0)
 
 
 def _kinetic_energy(trajectory):
@@ -82,8 +79,7 @@ def test_molecular_field_is_the_negative_derivative_of_the_energy():
 @pytest.mark.slow
 def test_dry_active_nematics_conserves_the_density():
     """The total density stays constant within 1e-10 relative error over 100 time units."""
-    system = DryActiveNematicsSystem((32, 32))
-    trajectory = simulate(system, until=100.0, dt=20.0, solver=RK4Solver(dt=0.02), backend=NumbaBackend())
+    trajectory = DryActiveNematicsSystem((32, 32)).prepare().simulate(until=100.0, dt=20.0)
     totals = np.asarray(trajectory.get_values('nematic.rho')).sum(axis=1)
     assert np.max(np.abs(totals - totals[0])) < 1e-10 * totals[0]
     assert np.abs(np.asarray(trajectory.get_values('nematic.Q'))).max() > 0.1
@@ -93,10 +89,8 @@ def test_dry_active_nematics_conserves_the_density():
 def test_active_gels_passive_nematic_relaxes_to_the_scalar_order():
     """A uniform passive nematic has no flow, and its scalar order relaxes to `sqrt(-2 a / c)`."""
     a, c = -0.5, 2.0
-    system = ActiveGelsSystem((8, 8), a=a, c=c, zeta=0.0, perturbation=0.0).prepare().system_
-    gel = system.elements[0]
-    gel.values['Q'] = np.tile([0.2, 0.0], (64, 1))
-    trajectory = _run_gel(system, until=30.0, dt=10.0, step=0.05)
+    system = ActiveGelsSystem((8, 8), a=a, c=c, zeta=0.0, perturbation=0.0, solver=RK4Solver(dt=0.05))
+    trajectory = system.prepare().simulate(until=30.0, dt=10.0, initial_state={'gel.Q': np.tile([0.2, 0.0], (64, 1))})
     assert np.abs(np.asarray(trajectory.get_values('u_x'))).max() < 1e-8
     assert np.abs(np.asarray(trajectory.get_values('u_y'))).max() < 1e-8
     frames = np.asarray(trajectory.get_lattice('gel.Q'))
@@ -105,24 +99,24 @@ def test_active_gels_passive_nematic_relaxes_to_the_scalar_order():
 
 
 def test_active_gels_polar_defaults_differ_from_the_nematic():
-    """The turbulent defaults belong to the nematic, and the polar gel keeps a small lattice and a long run."""
-    polar = ActiveGelsSystem(order='polar').prepare().system_.elements[0]
-    assert polar.space.shape == (32, 32)
-    assert polar.space.spacing == 1.0
-    assert np.abs(polar.values['p'][:, 1]).max() < 0.1
-    assert ActiveGelsSystem().prepare().system_.elements[0].space.shape == (128, 128)
-    assert ActiveGelsSystem(order='polar').get_run_settings()['dt'] == 1.0
-    assert ActiveGelsSystem(order='polar').get_run_settings()['solver'].dt == 0.05
-    assert ActiveGelsSystem().get_run_settings()['solver'].dt == 5e-4
+    """The turbulent defaults belong to the nematic, and the polar gel keeps a small lattice and a coarse step."""
+    polar = ActiveGelsSystem(order='polar').prepare().system_
+    assert polar.elements[0].space.shape == (32, 32)
+    assert polar.elements[0].space.spacing == 1.0
+    assert np.abs(polar.elements[0].p[:, 1]).max() < 0.1
+    assert polar.solver.dt == 0.05
+    nematic = ActiveGelsSystem((8, 8)).prepare().system_
+    assert ActiveGelsSystem()._get_gel().space.shape == (128, 128)
+    assert nematic.solver.dt == 5e-4
 
 
 @pytest.mark.slow
 def test_active_gels_extensile_nematic_turbulence_conserves_the_charge():
     """Well above the bend threshold defects appear in pairs, the charge stays 0, and the kinetic energy settles."""
-    system = ActiveGelsSystem().prepare().system_
-    values = system.elements[0].values
-    assert values['zeta'] > 10 * 2 * values['K'] * (2 * np.pi / 10.0) ** 2
-    trajectory = _run_gel(system, until=0.5, dt=0.025, step=5e-4)
+    system = ActiveGelsSystem()
+    gel = system._get_gel()
+    assert gel.zeta > 10 * 2 * gel.K * (2 * np.pi / 10.0) ** 2
+    trajectory = _run_gel(system, until=0.5, dt=0.025)
     axes = alignment(np.asarray(trajectory.get_lattice('gel.Q')), kind='principal-axis').axes
     angles = np.arctan2(axes[..., 1], axes[..., 0])
     found = defects(angles, period=np.pi)
@@ -147,22 +141,19 @@ def _polar_film_threshold(width, *, K, gamma, eta, length, xi):
 def _polar_film(zeta):
     """Return the kinetic energy of a polar film at an activity at every frame, with the threshold kept apart."""
     sites, width = 16, 16.0
-    system = (
-        ActiveGelsSystem(
-            (4, sites),
-            order='polar',
-            spacing=2 * width / sites,
-            film=True,
-            zeta=zeta,
-            perturbation=0.0,
-        )
-        .prepare()
-        .system_
+    system = ActiveGelsSystem(
+        (4, sites),
+        order='polar',
+        spacing=2 * width / sites,
+        film=True,
+        zeta=zeta,
+        perturbation=0.0,
+        solver=RK4Solver(dt=0.5),
     )
-    gel = system.elements[0]
     rows = np.tile(np.arange(sites) * 2 * width / sites, 4)
-    gel.values['p'] = np.column_stack([np.ones(4 * sites), 0.01 * np.sin(np.pi * rows / width)])
-    return _kinetic_energy(_run_gel(system, until=1000.0, dt=50.0, step=0.5))
+    start = np.column_stack([np.ones(4 * sites), 0.01 * np.sin(np.pi * rows / width)])
+    trajectory = system.prepare().simulate(until=1000.0, dt=50.0, initial_state={'gel.p': start}, random_state=0)
+    return _kinetic_energy(trajectory)
 
 
 @pytest.mark.slow

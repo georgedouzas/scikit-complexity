@@ -7,18 +7,15 @@ The module covers gases, fluids, and spin systems.
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR, vector
 
 from ....core.components import Observable
-from ....core.components.interactions import BaseInteraction, Interaction
-from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.interactions import BaseInteraction
+from ....core.components.spaces import ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, VelocityVerletSolver
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.particles import LangevinThermostatInteraction, LennardJonesInteraction, MassPointElement
 
@@ -35,48 +32,12 @@ class GasMoleculeElement(MassPointElement):
     visual = VisualSpec('points', {'position': 'x', 'color_by': "x'", 'states': ()})
 
 
-class FreeFlightInteraction(Interaction):
-    """Free flight of molecules, which keep their velocity `x'` between the walls, `x'' = 0`.
-
-    It is Newton's first law for the molecules of an ideal gas, for light rays in a cavity, or for billiard balls.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the molecules.
-
-    Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import FreeFlightInteraction
-        >>> FreeFlightInteraction('flight', target='gas').target
-        'gas'
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(self, label: str, *, target: Role) -> None:
-        super().__init__(label)
-        self.target = target
-
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the zero acceleration of the positions of the target.
-
-        Args:
-            context:
-                The namespace of the target and the time `t`.
-        """
-        super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_ = [RateLaw(x.diff(context.t, 2), vector(SR, [0] * len(x)))]
-
-
 class IdealGasSystem(BaseSystem):
     """An ideal gas of non-interacting molecules in a reflecting box.
 
     Positions are uniform in the box and velocity components are normal with variance `kT / mass`, with the mean
-    velocity removed. The molecules are drawn as points colored by speed. NOTE-RETURNS: The gas.
+    velocity removed. The molecules need no law: given their starting velocities `x'`, they keep them between the
+    walls, as Newton's first law says. The molecules are drawn as points colored by speed. NOTE-RETURNS: The gas.
 
     Args:
         n_molecules:
@@ -160,8 +121,7 @@ class IdealGasSystem(BaseSystem):
             size=self.n_molecules,
             space=box,
         )
-        flight = FreeFlightInteraction('flight', target='gas')
-        self.system_ = System(self.label, elements=[molecules], interactions=[flight], space=box)
+        self.system_ = System(self.label, elements=[molecules], space=box)
 
 
 class LennardJonesFluidSystem(BaseSystem):

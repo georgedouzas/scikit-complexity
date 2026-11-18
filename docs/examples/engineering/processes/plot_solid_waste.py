@@ -50,10 +50,10 @@ stocks.set_ylabel('tonnes')
 stocks.set_title('Waste stocks')
 stocks.legend()
 for path, label in [
-    ('city.recycling', 'recycling'),
-    ('city.composting', 'composting'),
-    ('city.landfilling', 'landfilling'),
-    ('city.dumping', 'dumping'),
+    ('flows.recycling', 'recycling'),
+    ('flows.composting', 'composting'),
+    ('flows.landfilling', 'landfilling'),
+    ('flows.dumping', 'dumping'),
 ]:
     flows.plot(times, trajectory.get_values(path), label=label)
 flows.set_xlabel('years')

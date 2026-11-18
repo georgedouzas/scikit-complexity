@@ -187,7 +187,11 @@ class RewritingCompiler(BaseCompiler):
         symbols: dict[str, Expression] = {}
         for path, component in components.items():
             if isinstance(component, BaseInteraction):
-                declared = {name: (item.spec.domain, item.value) for name, item in component._get_declared().items()}
+                declared = {
+                    name: (item.spec.domain, item.value)
+                    for name, item in component._get_declared().items()
+                    if not isinstance(item.spec, RoleSpec)
+                }
             else:
                 declared = {
                     name: (

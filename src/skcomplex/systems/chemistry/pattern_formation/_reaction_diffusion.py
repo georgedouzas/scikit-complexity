@@ -12,7 +12,8 @@ from sage.all__sagemath_symbolics import Expression
 
 from ....core.components import Observable
 from ....core.components.elements import FieldElement
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -249,23 +250,25 @@ class BrusselatorSystem(BaseSystem):
     dt = 1.0
 
     @staticmethod
-    def _get_diffusions() -> list[RateInteraction]:
+    def _get_diffusions() -> list[Interaction]:
         """Return the diffusions of `u` and `v` on the field `cells`.
 
         They run at the coefficients `Du` and `Dv` of its sites.
         """
         return [
-            RateInteraction(
+            Interaction(
                 'u_diffusion',
-                target='cells',
-                state='u',
-                rate=lambda s: GrayScottSystem._get_u_diffusion(s) * laplacian(s.target.u),
+                roles={'target': 'cells'},
+                laws=lambda s: [
+                    RateLaw(s.target.u.diff(s.t), GrayScottSystem._get_u_diffusion(s) * laplacian(s.target.u)),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'v_diffusion',
-                target='cells',
-                state='v',
-                rate=lambda s: GrayScottSystem._get_v_diffusion(s) * laplacian(s.target.v),
+                roles={'target': 'cells'},
+                laws=lambda s: [
+                    RateLaw(s.target.v.diff(s.t), GrayScottSystem._get_v_diffusion(s) * laplacian(s.target.v)),
+                ],
             ),
         ]
 

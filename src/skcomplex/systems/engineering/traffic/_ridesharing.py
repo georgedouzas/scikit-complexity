@@ -6,6 +6,7 @@ A stable matching sends the cabs.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,16 +15,18 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction, MapInteraction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import transfer
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
 
@@ -44,8 +47,6 @@ class CabView(AgentView):
     rider: float
     seats: float
     money: float
-    base_fare: float
-    block_fare: float
 
 
 class RiderView(AgentView):
@@ -61,8 +62,8 @@ class RiderView(AgentView):
 class CabElement(Element):
     """Cab that drives a rider to its destination for a fare.
 
-    It drives one block a step to its rider, collects the fare, and drives the rider to its destination. The fare is a
-    base fare plus a fare per block of the trip, paid as a transfer from rider to cab.
+    It drives one block a step to its rider, collects the fare, and drives the rider to its destination, by the rule of
+    `CabDrivingInteraction`.
 
     Args:
         label:
@@ -92,39 +93,40 @@ class CabElement(Element):
         money:
             The fares the cab collected.
 
-        base_fare:
-            The fare of every trip.
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
 
-        block_fare:
-            The fare per block of a trip.
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.engineering.traffic import CabElement
-        >>> GroupElement('cabs', element=CabElement, size=3).size
+        >>> CabElement('cabs', size=3).size
         3
     """
 
     visual = VisualSpec('agents', {'color_by': 'task', 'color_range': (0.0, 2.0)})
 
-    law_classes = (RuleLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        task: Annotated[float, StateSpec(domain=NN)] = IDLE,
-        target_x: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        target_y: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        destination_x: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        destination_y: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        rider: Annotated[float, StateSpec()] = -1.0,
-        seats: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        money: Annotated[float, StateSpec()] = 0.0,
-        base_fare: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        block_fare: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        task: Annotated[float, NN] = IDLE,
+        target_x: Annotated[float, NN] = 0.0,
+        target_y: Annotated[float, NN] = 0.0,
+        destination_x: Annotated[float, NN] = 0.0,
+        destination_y: Annotated[float, NN] = 0.0,
+        rider: float = -1.0,
+        seats: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        money: float = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.task = task
         self.target_x = target_x
         self.target_y = target_y
@@ -133,8 +135,6 @@ class CabElement(Element):
         self.rider = rider
         self.seats = seats
         self.money = money
-        self.base_fare = base_fare
-        self.block_fare = block_fare
 
     @classmethod
     def _get_view(cls) -> type[CabView]:
@@ -144,25 +144,69 @@ class CabElement(Element):
         """
         return CabView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the driving rule of the phase of driving.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class CabDrivingInteraction(Interaction):
+    """Driving rule of the cabs of the ridesharing system.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.drive, phase='drive')]
+    A cab drives one block a step to its rider, collects the fare, and drives the rider to its destination. The fare is
+    a base fare plus a fare per block of the trip, paid as a transfer from rider to cab.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of cabs.
+
+        riders:
+            The path of the group of riders.
+
+        base_fare:
+            The fare of every trip.
+
+        block_fare:
+            The fare per block of a trip.
+
+        phase:
+            The phase the cabs drive in.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.traffic import CabDrivingInteraction
+        >>> CabDrivingInteraction('drive', target='cabs', riders='riders').block_fare
+        0.5
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        riders: Role,
+        base_fare: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        block_fare: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        phase: str | None = 'drive',
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.riders = riders
+        self.base_fare = base_fare
+        self.block_fare = block_fare
+        self.phase = phase
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the driving rule of every cab."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.drive, phase=self.phase)]
 
     def _pick_up(self, agent: CabView, system: SystemView) -> None:
         """Collect the fare of the rider, take it on board, and head for its destination."""
-        rider = next(item for item in system.get_agents('riders', RiderView) if item.id == int(agent.rider))
+        rider = next(item for item in system.get_agents(self.riders, RiderView) if item.id == int(agent.rider))
         destination = (int(agent.destination_x), int(agent.destination_y))
-        blocks = CabElement._get_blocks(CabElement._get_cell(agent.location), destination)
-        fare = system.get_parameter('base_fare') + system.get_parameter('block_fare') * blocks
+        blocks = CabDrivingInteraction._get_blocks(CabDrivingInteraction._get_cell(agent.location), destination)
+        fare = self.base_fare + self.block_fare * blocks
         transfer(rider, agent, fare, 'money')
         rider.remove()
         new_target_x_value, new_target_y_value = destination
@@ -182,12 +226,12 @@ class CabElement(Element):
         """
         if agent.task == IDLE:
             return
-        x, y = CabElement._get_cell(agent.location)
+        x, y = CabDrivingInteraction._get_cell(agent.location)
         target = (int(agent.target_x), int(agent.target_y))
         if (x, y) != target:
             step = (int(np.sign(target[0] - x)), 0) if x != target[0] else (0, int(np.sign(target[1] - y)))
             agent.move_to((x + step[0], y + step[1]))
-        if CabElement._get_cell(agent.location) != target:
+        if CabDrivingInteraction._get_cell(agent.location) != target:
             return
         if agent.task == PICKING_UP:
             self._pick_up(agent, system)
@@ -234,10 +278,18 @@ class RiderElement(Element):
         money:
             The money of the rider.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.engineering.traffic import RiderElement
-        >>> GroupElement('riders', element=RiderElement, size=2, values={'money': 50.0}).size
+        >>> RiderElement('riders', money=50.0, size=2).size
         2
     """
 
@@ -247,13 +299,16 @@ class RiderElement(Element):
         self,
         label: str,
         *,
-        destination_x: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        destination_y: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        waited: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        seats: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        money: Annotated[float, StateSpec()] = 100.0,
+        destination_x: Annotated[float, NN] = 0.0,
+        destination_y: Annotated[float, NN] = 0.0,
+        waited: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        seats: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        money: float = 100.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.destination_x = destination_x
         self.destination_y = destination_y
         self.waited = waited
@@ -304,8 +359,8 @@ class ArrivalInteraction(BirthDeathInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        demand: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Role,
+        demand: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         width: int = 30,
         height: int = 30,
         phase: str | None = 'arrival',
@@ -412,6 +467,13 @@ class RidesharingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the agent solver with the phases of arrivals, dispatch, and
+            driving.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import RidesharingSystem
         >>> [group.size for group in RidesharingSystem(5).prepare().system_.elements]
@@ -439,8 +501,10 @@ class RidesharingSystem(BaseSystem):
         block_fare: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_cabs = n_cabs
         self.demand = demand
         self.width = width
@@ -455,7 +519,8 @@ class RidesharingSystem(BaseSystem):
         if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
             error_msg = f'A rider ranks cabs, but got {rider!r} and {cab!r}.'
             raise ValidationError(error_msg)
-        return -float(CabElement._get_blocks(CabElement._get_cell(rider.location), CabElement._get_cell(cab.location)))
+        cells = CabDrivingInteraction._get_cell(rider.location), CabDrivingInteraction._get_cell(cab.location)
+        return -float(CabDrivingInteraction._get_blocks(*cells))
 
     @staticmethod
     def _get_patience(cab: object, rider: object) -> float:
@@ -476,7 +541,7 @@ class RidesharingSystem(BaseSystem):
         if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
             error_msg = f'A ride matches a rider with a cab, but got {rider!r} and {cab!r}.'
             raise ValidationError(error_msg)
-        new_target_x_value, new_target_y_value = CabElement._get_cell(rider.location)
+        new_target_x_value, new_target_y_value = CabDrivingInteraction._get_cell(rider.location)
         cab.target_x = new_target_x_value
         cab.target_y = new_target_y_value
         new_destination_x, new_destination_y = rider.destination_x, rider.destination_y
@@ -485,29 +550,27 @@ class RidesharingSystem(BaseSystem):
         cab.rider = float(rider.id)
         cab.task = PICKING_UP
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers((self.width, self.height), size=(self.n_cabs + 1, 2))
-        riders = GroupElement(
+        grid = LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan')
+        riders = RiderElement(
             'riders',
-            element=RiderElement,
+            destination_x=float(rng.integers(self.width)),
+            destination_y=float(rng.integers(self.height)),
+            values={'x': [int(cells[0, 0])], 'y': [int(cells[0, 1])]},
             size=1,
-            values={
-                'destination_x': float(rng.integers(self.width)),
-                'destination_y': float(rng.integers(self.height)),
-            },
-            variable=True,
-            location=[(int(cells[0, 0]), int(cells[0, 1]))],
+            space=grid,
         )
-        cabs = GroupElement(
+        cabs = CabElement(
             'cabs',
-            element=CabElement,
+            values={'x': cells[1:, 0].astype(int), 'y': cells[1:, 1].astype(int)},
             size=self.n_cabs,
-            values={'base_fare': self.base_fare, 'block_fare': self.block_fare},
-            location=[(int(x), int(y)) for x, y in cells[1:]],
+            space=grid,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[riders, cabs],
             interactions=[
@@ -539,9 +602,14 @@ class RidesharingSystem(BaseSystem):
                     phase='dispatch',
                     on_match=self._dispatch,
                 ),
+                CabDrivingInteraction(
+                    'drive',
+                    target='cabs',
+                    riders='riders',
+                    base_fare=self.base_fare,
+                    block_fare=self.block_fare,
+                ),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan'),
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec('arrival'), PhaseSpec('dispatch'), PhaseSpec('drive')]),
-            ),
+            space=grid,
+            solver=MesaSolver(phases=[PhaseSpec('arrival'), PhaseSpec('dispatch'), PhaseSpec('drive')]),
         )

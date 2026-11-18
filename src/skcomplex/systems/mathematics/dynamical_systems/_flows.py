@@ -8,7 +8,6 @@ The module covers chaotic and conservative flows, delayed feedback, and singular
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import abs_symbolic, sin
 
@@ -16,13 +15,11 @@ from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.flows._rossler import RosslerInteraction
 
@@ -170,18 +167,9 @@ class NoseHooverInteraction(Interaction):
 
 
 class LorenzElement(Element):
-    """An element that follows the Lorenz flow of three states.
+    """An element with the three states of the Lorenz flow and its parameters.
 
-    The flow is `x' = sigma (y - x)`, `y' = x (rho - z) - y`, `z' = x y - beta z`. For `sigma = 10`, `rho = 28`, and
-    `beta = 8/3` its runs never settle and never repeat, the strange attractor of Lorenz. A subclass that declares the
-    states with a fractional `StateSpec(order=q)` gives the fractional Lorenz flow, with Caputo derivatives of order
-    `q`.
-
-    Unlike `Element`, which leaves its laws to a subclass, it returns the three rates of the Lorenz flow. Choose it when
-    a system needs a chaotic flow in three states, as a model or as a drive.
-
-    It appears in many fields. Lorenz derived it from convection in the atmosphere, it models a laser and a water wheel,
-    and it drives a response system in studies of chaotic synchronization.
+    `LorenzInteraction` gives the flow `x' = sigma (y - x)`, `y' = x (rho - z) - y`, `z' = x y - beta z`.
 
     Args:
         label:
@@ -206,27 +194,21 @@ class LorenzElement(Element):
             The geometric factor.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.mathematics.dynamical_systems import LorenzElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(elements=[LorenzElement('lorenz', x=0.0, y=0.0, z=2.0, beta=0.5)])
-        >>> trajectory = simulate(system, until=1.0, dt=0.5)
-        >>> [round(float(value), 4) for value in trajectory.get_values('lorenz.z')]
-        [2.0, 1.5576, 1.2131]
+        >>> LorenzElement('lorenz', rho=20.0).rho
+        20.0
     """
-
-    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        y: Annotated[float, StateSpec()] = 1.0,
-        z: Annotated[float, StateSpec()] = 1.0,
-        sigma: Annotated[float, ParameterSpec()] = 10.0,
-        rho: Annotated[float, ParameterSpec()] = 28.0,
-        beta: Annotated[float, ParameterSpec()] = 8 / 3,
+        x: float = 1.0,
+        y: float = 1.0,
+        z: float = 1.0,
+        sigma: float = 10.0,
+        rho: float = 28.0,
+        beta: float = 8 / 3,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -236,25 +218,50 @@ class LorenzElement(Element):
         self.rho = rho
         self.beta = beta
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the three modes.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class LorenzInteraction(Interaction):
+    """The Lorenz flow of the three states of the element it binds.
 
-        Returns:
-            laws:
-                The rates of `x`, `y`, and `z`.
-        """
-        return [
-            RateLaw(s.x, s.sigma * (s.y - s.x)),
-            RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
-            RateLaw(s.z, s.x * s.y - s.beta * s.z),
-        ]
+    The flow is `x' = sigma (y - x)`, `y' = x (rho - z) - y`, `z' = x y - beta z`, with the parameters of the element.
+    For `sigma = 10`, `rho = 28`, and `beta = 8/3` its runs never settle and never repeat, the strange attractor of
+    Lorenz. Lorenz derived it from convection in the atmosphere, it models a laser and a water wheel, and it drives a
+    response system in studies of chaotic synchronization.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element with the states `x`, `y`, and `z` and the parameters `sigma`, `rho`, and `beta`.
+
+    Examples:
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LorenzElement, LorenzInteraction
+        >>> lorenz = LorenzElement('lorenz', x=0.0, y=0.0, z=2.0, beta=0.5)
+        >>> system = System(elements=[lorenz], interactions=[LorenzInteraction('flow', target='lorenz')]).prepare()
+        >>> [round(float(value), 4) for value in system.simulate(until=1.0, dt=0.5).get_values('lorenz.z')]
+        [2.0, 1.5576, 1.2131]
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'lorenz') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the three modes as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context.target
+            self.laws_: list[BaseComponent] = [
+                RateLaw(s.x, s.sigma * (s.y - s.x)),
+                RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
+                RateLaw(s.z, s.x * s.y - s.beta * s.z),
+            ]
 
 
-class LorenzSystem(OldBaseSystem):
+class LorenzSystem(BaseSystem):
     """The Lorenz-63 system of convection.
 
     The system is chaotic on a butterfly-shaped attractor for its standard parameters.
@@ -283,6 +290,12 @@ class LorenzSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import LorenzSystem
         >>> LorenzSystem(rho=20.0).prepare().system_.elements[0].rho
@@ -305,8 +318,10 @@ class LorenzSystem(OldBaseSystem):
         rho: float = 28.0,
         beta: float = 8 / 3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -314,14 +329,11 @@ class LorenzSystem(OldBaseSystem):
         self.rho = rho
         self.beta = beta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        return CompositeSystem(
-            self.label,
-            elements=[
-                LorenzElement('lorenz', x=self.x, y=self.y, z=self.z, sigma=self.sigma, rho=self.rho, beta=self.beta),
-            ],
-        )
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
+        lorenz = LorenzElement('lorenz', x=self.x, y=self.y, z=self.z, sigma=self.sigma, rho=self.rho, beta=self.beta)
+        self.system_ = System(self.label, elements=[lorenz], interactions=[LorenzInteraction('flow')])
 
 
 class RosslerSystem(BaseSystem):

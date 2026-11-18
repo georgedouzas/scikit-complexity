@@ -15,7 +15,6 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem, HolmeKimSystem
 
@@ -37,7 +36,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(HolmeKimSystem(), dt=2.0, observers=[observer], random_state=0)
+trajectory = HolmeKimSystem().prepare().simulate(dt=2.0, observers=[observer], random_state=0)
 
 # %%
 # Clustering against triad formation
@@ -49,9 +48,9 @@ trajectory = simulate(HolmeKimSystem(), dt=2.0, observers=[observer], random_sta
 triads = np.linspace(0.0, 1.0, 6)
 clustering = []
 for triad in triads:
-    run = simulate(HolmeKimSystem(n_nodes=1004, triad=triad), until=1000, dt=500.0, random_state=1)
+    run = HolmeKimSystem(triad=triad).prepare().simulate(until=1000, dt=500.0, random_state=1)
     clustering.append(nx.average_clustering(run.get_network(-1).get_graph()))
-baseline = simulate(BarabasiAlbertSystem(n_nodes=1003, edges=3), until=1000, dt=500.0, random_state=1)
+baseline = BarabasiAlbertSystem(edges=3).prepare().simulate(until=1000, dt=500.0, random_state=1)
 fig, axis = plt.subplots(figsize=(6, 4))
 axis.plot(triads, clustering, 'o-', label='Holme-Kim')
 axis.axhline(

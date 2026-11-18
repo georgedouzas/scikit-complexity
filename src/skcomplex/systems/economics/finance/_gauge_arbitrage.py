@@ -19,7 +19,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import NeighborInteraction, RateInteraction
+from ....core.components.interactions import Interaction, NeighborInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import CellComplexSpace, LatticeSpace
@@ -319,8 +319,16 @@ class GaugeArbitrageMarketSystem(BaseSystem):
             values={'E': field},
         )
         interactions = [
-            RateInteraction('potential', target='links', state='A', rate=self._get_potential_rate),
-            RateInteraction('field', target='links', state='E', rate=self._get_field_rate),
+            Interaction(
+                'potential',
+                roles={'target': 'links'},
+                laws=lambda s: [RateLaw(s.target.A.diff(s.t), self._get_potential_rate(s))],
+            ),
+            Interaction(
+                'field',
+                roles={'target': 'links'},
+                laws=lambda s: [RateLaw(s.target.E.diff(s.t), self._get_field_rate(s))],
+            ),
             TraderCurrentInteraction('current', target='sites', links='links', D=self.D, q=self.q),
         ]
         self.system_ = System(self.label, elements=[sites, links], interactions=interactions, solver=RK4Solver(dt=0.02))

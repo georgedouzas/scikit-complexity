@@ -95,9 +95,11 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
         """Return the compiler a value of the element names, or `None` for the general one.
 
         A value names a compiler through its own `_get_compiler`, as the Hilbert space of a quantum state names the
-        compiler of operator dynamics. A subclass may name one itself, as a word that rewrites does.
+        compiler of operator dynamics, also when it is given in `values`. A subclass may name one itself, as a word
+        that rewrites does.
         """
-        for value in self.get_params(deep=False).values():
+        given = getattr(self, 'values', None)
+        for value in [*self.get_params(deep=False).values(), *(given.values() if isinstance(given, dict) else ())]:
             named = getattr(value, '_get_compiler', None)
             if callable(named) and not isinstance(value, type):
                 return named()

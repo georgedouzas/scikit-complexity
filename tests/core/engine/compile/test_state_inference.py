@@ -176,6 +176,22 @@ class Feedback(Interaction):
             self.laws_ = [RateLaw(x, -x(t=t - context.tau))]
 
 
+class DelayedDamping(Interaction):
+    """Interaction of a damping by the velocity a delay ago."""
+
+    def __init__(self, label: str, *, target: Role = 'ball', tau: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.tau = tau
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the delayed damping of the velocity as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.target.x, context.t
+            self.laws_ = [RateLaw(x.diff(t, 2), -x.diff(t)(t=t - context.tau))]
+
+
 class Wave(Interaction):
     """Interaction of the wave equation on a lattice."""
 
@@ -246,6 +262,17 @@ def test_get_declared_starts_a_derivative_from_a_value():
     assert trajectory.get_values('ball.x')[-1] == pytest.approx(10.0 + 3.0 - 9.81 / 2)
 
 
+def test_get_declared_moves_a_value_with_a_starting_velocity_and_no_law():
+    """Test that a point given the velocity `x'` and no law moves at that velocity, as Newton's first law says."""
+    ball = Element('ball', values={'x': 1.0, "x'": 3.0})
+    system = System(elements=[ball]).prepare()
+    assert system.states_ == ('ball.x', "ball.x'")
+    assert system.equations_ == {'ball.x': "ball.x'", "ball.x'": '0'}
+    trajectory = system.simulate(until=2.0, dt=1.0)
+    assert trajectory.get_values('ball.x').tolist() == pytest.approx([1.0, 4.0, 7.0])
+    assert trajectory.get_values("ball.x'").tolist() == pytest.approx([3.0, 3.0, 3.0])
+
+
 def test_get_declared_starts_past_values_from_values():
     """Test that values named with past indices start the lags, and a missing one is the value itself."""
     economy = Element('economy', values={'y': 1.0, 'y[-2]': 0.5})
@@ -299,6 +326,14 @@ def test_get_declared_reads_a_delay():
     system = System(elements=[Particle('ball', x=1.0)], interactions=[Feedback('feedback')]).prepare()
     assert system.equations_ == {'ball.x': '-ball.x(t - feedback.tau)'}
     values = system.simulate(until=2.0, dt=1.0).get_values('ball.x')
+    assert values == pytest.approx([1.0, 0.0, -0.5], abs=1e-6)
+
+
+def test_get_declared_reads_a_delayed_derivative():
+    """A derivative read a delay before the current time keeps its delay, as a driver reacts to a past speed."""
+    system = System(elements=[Particle('ball')], interactions=[DelayedDamping('damping')]).prepare()
+    assert system.equations_ == {'ball.x': "ball.x'", "ball.x'": "-ball.x'(t - damping.tau)"}
+    values = system.simulate(until=2.0, dt=1.0, initial_state={"ball.x'": 1.0}).get_values("ball.x'")
     assert values == pytest.approx([1.0, 0.0, -0.5], abs=1e-6)
 
 
@@ -807,8 +842,8 @@ class Percolation(Interaction):
 def test_get_declared_gives_the_signed_links_of_triadic_percolation():
     """Test that signed links on the edges, regulated along the hyperedges, run triadic percolation step for step."""
     ready = TriadicPercolationSystem(500, p=0.5).prepare().system_
-    expected = simulate(ready, until=10, random_state=0).get_values('nodes.active')
-    space, signs = ready.elements[0].space, ready.elements[1].values['sign']
+    expected = ready.simulate(until=10, random_state=0).get_values('nodes.active')
+    space, signs = ready.elements[0].space, ready.elements[1].sign
     nodes = Element('nodes', values={'active': 1}, space=space)
     links = Element('links', values={'active': 1, 'sign': signs}, space=space, on='edges')
     phases = PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation')))

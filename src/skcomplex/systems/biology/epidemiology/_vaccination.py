@@ -12,10 +12,10 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import BaseElement, DeclaredElement
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import ObjectiveLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, PontryaginSolver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -42,7 +42,8 @@ def _get_vaccinated(s: SimpleNamespace) -> Expression:
 class SIRVaccinationSystem(DynamicalSystem):
     """An SIR epidemic with the optimal vaccination rate.
 
-    The rate minimises the burden of infections and vaccines.
+    The rate minimises the burden of infections and vaccines, the objective law
+    `ObjectiveLaw(a I + b u^2 / 2, controls=[s.target.u])`, with `u` between 0 and 0.9.
 
     Run with an optimal control solver, vaccination is strongest early, while many are susceptible, and the epidemic
     peaks lower than without vaccination. With no weight `a` on the infections the optimal rate is 0, the epidemic
@@ -110,7 +111,16 @@ class SIRVaccinationSystem(DynamicalSystem):
 
     def _get_solver(self) -> BaseSolver:
         """Return the solver the system is tuned to."""
-        return PontryaginSolver(objective=_get_cost)
+        return PontryaginSolver()
+
+    def _get_interactions(self) -> list[BaseInteraction]:
+        """Return the flows between the fractions, and the burden that the vaccination rate minimises."""
+        burden = Interaction(
+            'burden',
+            roles={'target': self._get_element_label()},
+            laws=lambda s: [ObjectiveLaw(_get_cost(SimpleNamespace(population=s.target)), controls=[s.target.u])],
+        )
+        return [*super()._get_interactions(), burden]
 
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the states."""
@@ -124,24 +134,23 @@ class SIRVaccinationSystem(DynamicalSystem):
             'R': max(1 - self.S - self.I, 0.0),
         }
 
-    def _get_element(self) -> BaseElement:
-        """Return the element of the states, with the control declared as a bounded adaptive parameter.
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the vaccination rate, which the burden steers, and the parameters of the model."""
+        return {'u': 0.0, 'beta': self.beta, 'gamma': self.gamma, 'a': self.a, 'b': self.b}
 
-        A plain element cannot declare a control, so the element declares its values.
-        """
-        return DeclaredElement(
-            self._get_element_label(),
-            variables={
-                'S': DeclaredVariableSpec(self.S, StateSpec(domain=RealSet.closed_open(0, oo))),
-                'I': DeclaredVariableSpec(self.I, StateSpec(domain=RealSet.closed_open(0, oo))),
-                'R': DeclaredVariableSpec(max(1 - self.S - self.I, 0.0), StateSpec(domain=RealSet.closed_open(0, oo))),
-                'u': DeclaredVariableSpec(0.0, ParameterSpec(adaptive=True, bounds=(0.0, MAX_RATE))),
-                'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-                'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-                'a': DeclaredVariableSpec(self.a, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-                'b': DeclaredVariableSpec(self.b, ParameterSpec(domain=RealSet.open(0, oo))),
-            },
-        )
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the fractions, the vaccination rate, and the parameters."""
+        nonnegative = RealSet.closed_open(0, oo)
+        return {
+            'S': nonnegative,
+            'I': nonnegative,
+            'R': nonnegative,
+            'u': RealSet.closed(0, MAX_RATE),
+            'beta': nonnegative,
+            'gamma': nonnegative,
+            'a': nonnegative,
+            'b': RealSet.open(0, oo),
+        }
 
     def _get_equations(self) -> Equations:
         """Return the flows between the fractions."""

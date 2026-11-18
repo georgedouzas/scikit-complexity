@@ -20,8 +20,8 @@ class StockFlowSystem(BaseSystem):
 
     The stocks and parameters are the values of one element. Every flow leaves a stock, or comes from outside the
     system, and enters a stock, or leaves the system, at a rate that is a function of a namespace whose `target` holds
-    the stocks and parameters and whose `t` holds the time. A flow is a `FlowInteraction`, the rate terms `-f` on the
-    stock it leaves and `f` on the stock it enters, so the trajectory reports it as `<element>.<flow>`, and a flow
+    the stocks and parameters and whose `t` holds the time. A flow is a `FlowInteraction`, the rate law
+    `RateLaw({leaves: -1, enters: +1}, f, label=flow)`, so the trajectory reports it as `<element>.<flow>`, and a flow
     between two stocks keeps their total.
 
     A subclass returns the stocks, flows, and parameters from the hooks `_get_stocks`, `_get_flows`, and

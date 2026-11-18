@@ -14,14 +14,13 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import NodeMergingSystem
 
 SYSTEM = 'node_merging'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(NodeMergingSystem(), until=10000, dt=100.0, observers=[observer], random_state=0)
+trajectory = NodeMergingSystem().prepare().simulate(until=10000, dt=100.0, observers=[observer], random_state=0)
 
 # %%
 # Degree distribution

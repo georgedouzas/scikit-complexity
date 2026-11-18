@@ -11,14 +11,14 @@ def test_dc_motor_settles_at_its_closed_form_speed():
     V, R, k, b = 12.0, 1.0, 0.5, 0.2
     trajectory = DcMotorSystem(V, R=R, k=k, b=b).prepare().simulate(until=40.0, dt=0.05)
     speed = k * V / (R * b + k**2)
-    assert trajectory.get_values('rotor.phi_d1')[-1] == pytest.approx(speed, rel=0.01)
+    assert trajectory.get_values("rotor.phi'")[-1] == pytest.approx(speed, rel=0.01)
     assert trajectory.get_values('winding.i')[-1] == pytest.approx(b * speed / k, rel=0.01)
 
 
 def test_dc_motor_records_its_observables():
     """Test that the catalog entry of the motor records its speed and its current."""
     trajectory = DcMotorSystem().prepare().simulate(until=20.0, dt=0.1)
-    assert trajectory.get_values('speed')[-1] == pytest.approx(trajectory.get_values('rotor.phi_d1')[-1])
+    assert trajectory.get_values('speed')[-1] == pytest.approx(trajectory.get_values("rotor.phi'")[-1])
     assert trajectory.get_values('current')[-1] == pytest.approx(trajectory.get_values('winding.i')[-1])
     assert DcMotorSystem.field == 'engineering/mechatronics'
 

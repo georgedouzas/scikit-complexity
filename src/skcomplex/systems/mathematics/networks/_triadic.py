@@ -6,6 +6,7 @@ Regulating nodes switch the links of a network on and off from the giant compone
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,14 +16,16 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import HyperedgeInteraction, Interaction
-from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ..common.networks import RegulatedNodeElement
 
 
@@ -42,6 +45,9 @@ class RegulatedLinkElement(Element):
             1 when the regulating node lets the link be active while the node is active, and -1 when it lets it be
             active while the node is inactive.
 
+        space:
+            The network whose links hold one member each, or `None` for one link.
+
     Examples:
         >>> from skcomplex.systems.mathematics.networks import RegulatedLinkElement
         >>> RegulatedLinkElement('links', sign=-1).sign
@@ -52,10 +58,11 @@ class RegulatedLinkElement(Element):
         self,
         label: str,
         *,
-        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
-        sign: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([-1, 1]))] = 1,
+        active: Annotated[object, FiniteEnumeratedSet([0, 1])] = 1.0,
+        sign: Annotated[object, FiniteEnumeratedSet([-1, 1])] = 1,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space, on='edges' if space is not None else None)
         self.active = active
         self.sign = sign
 
@@ -90,8 +97,8 @@ class GiantComponentInteraction(Interaction):
         self,
         label: str,
         *,
-        nodes: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
+        nodes: Role,
+        links: Role,
         phase: str | None = None,
     ) -> None:
         super().__init__(label)
@@ -99,29 +106,32 @@ class GiantComponentInteraction(Interaction):
         self.links = links
         self.phase = phase
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the membership of the giant component of the active links."""
-        return [UpdateLaw(s.nodes.active, components(s.links.active, reduce='giant'), phase=self.phase)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the membership of the giant component of the active links."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            giant = components(context.links.active, reduce='giant')
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.nodes.active, giant, phase=self.phase)]
 
 
-class TriadicRegulationInteraction(HyperedgeInteraction):
+class TriadicRegulationInteraction(Interaction):
     """Regulation of every link by a third node.
 
     The node lets the link be active with probability `p` in its phase.
 
     Every hyperedge `(i, j, r)` holds the two ends of the link `(i, j)` and its regulating node `r`. In every step the
     link becomes active with probability `p` when a positive regulator is active or a negative regulator is inactive,
-    and inactive otherwise.
+    and inactive otherwise. The laws run once for every hyperedge and change the link on the edge `(i, j)`.
 
     Args:
         label:
             The label of the interaction, unique among the components of its system.
 
-        nodes:
+        among:
             The path of the group on the nodes, whose activity the regulators read.
 
-        links:
-            The path of the group on the edges, whose activity the regulation sets.
+        along:
+            `'hyperedges'`, the hyperedges of the network the regulation runs along.
 
         p:
             The probability that a link the regulation allows is active.
@@ -131,8 +141,8 @@ class TriadicRegulationInteraction(HyperedgeInteraction):
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import TriadicRegulationInteraction
-        >>> TriadicRegulationInteraction('regulation', nodes='nodes', links='links').size
-        3
+        >>> TriadicRegulationInteraction('regulation', among='nodes').along
+        'hyperedges'
     """
 
     draws = True
@@ -143,25 +153,24 @@ class TriadicRegulationInteraction(HyperedgeInteraction):
         self,
         label: str,
         *,
-        nodes: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.5,
+        among: Role = 'nodes',
+        along: str = 'hyperedges',
+        p: Annotated[float, RealSet.closed(0, 1)] = 0.5,
         phase: str | None = None,
     ) -> None:
-        super().__init__(label, size=3)
-        self.nodes = nodes
-        self.links = links
+        super().__init__(label, among=among, along=along)
         self.p = p
         self.phase = phase
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the activity of the link from its regulating node.
-
-        The regulating node is the third member of the hyperedge.
-        """
-        regulator = s.others[1].active
-        allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
-        return [UpdateLaw(s.edge.active, bernoulli('retained', s.p) * allowed, phase=self.phase)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the activity of the link from its regulating node, the third member of the hyperedge."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            regulator = s.others[1].active
+            allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
+            retained = bernoulli('retained', s.p) * allowed
+            self.laws_: list[BaseComponent] = [UpdateLaw(s.edge.active, retained, phase=self.phase)]
 
 
 class TriadicPercolationSystem(BaseSystem):
@@ -202,11 +211,15 @@ class TriadicPercolationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
-        >>> system = TriadicPercolationSystem(200, p=0.8).prepare().system_
-        >>> trajectory = simulate(system, until=3, random_state=0)
+        >>> trajectory = TriadicPercolationSystem(200, p=0.8).prepare().simulate(until=3, random_state=0)
         >>> giant = trajectory.get_values('nodes.active').mean(axis=1)
         >>> bool(giant[1] < 0.5 < giant[2])
         True
@@ -228,8 +241,10 @@ class TriadicPercolationSystem(BaseSystem):
         negative: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.mean_degree = mean_degree
         self.p = p
@@ -256,20 +271,17 @@ class TriadicPercolationSystem(BaseSystem):
         signs = np.where(rng.uniform(size=len(hyperedges)) < negative, -1, 1)
         return hyperedges, signs
 
-    def _build_system(self) -> CompositeSystem:
-        """Return triadic percolation.
-
-        Regulating nodes switch links on and off from the giant component.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to triadic percolation, whose regulating nodes switch links from the giant component."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         graph = nx.gnp_random_graph(self.n_nodes, self.mean_degree / (self.n_nodes - 1), seed=rng)
         hyperedges, signs = self._get_regulated_links(graph, self.negative, rng)
         space = NetworkSpace(graph, hyperedges=hyperedges)
-        nodes = GroupElement('nodes', element=RegulatedNodeElement, space=space, on='sites')
-        links = GroupElement('links', element=RegulatedLinkElement, space=space, on='edges', values={'sign': signs})
+        nodes = RegulatedNodeElement('nodes', space=space)
+        links = RegulatedLinkElement('links', sign=signs, space=space)
         interactions = [
-            TriadicRegulationInteraction('regulation', nodes='nodes', links='links', p=self.p, phase='regulation'),
+            TriadicRegulationInteraction('regulation', among='nodes', p=self.p, phase='regulation'),
             GiantComponentInteraction('percolation', nodes='nodes', links='links', phase='percolation'),
         ]
-        time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation'))))
-        return CompositeSystem(self.label, elements=[nodes, links], interactions=interactions, time=time)
+        self.system_ = System(self.label, elements=[nodes, links], interactions=interactions)

@@ -22,7 +22,7 @@ from ._fully_connected_spins import (
     GlauberFlipInteraction,
     SherringtonKirkpatrickSystem,
 )
-from ._gases import FreeFlightInteraction, GasMoleculeElement, IdealGasSystem, LennardJonesFluidSystem
+from ._gases import GasMoleculeElement, IdealGasSystem, LennardJonesFluidSystem
 from ._graph_spins import GraphIsingSystem
 from ._kinetic_temperature import KineticTemperatureResult, kinetic_temperature
 from ._master_equations import (
@@ -44,6 +44,9 @@ from ._processes import (
     DiffusionLimitedAggregationSystem,
     ExclusionSiteElement,
     FireSpreadInteraction,
+    LaneEntryInteraction,
+    LaneExitInteraction,
+    ParallelHopInteraction,
     PercolationSiteElement,
     Q2RFlipInteraction,
     Q2RSpinElement,
@@ -100,7 +103,6 @@ __all__: list[str] = [
     'ExclusionHopsInteraction',
     'ExclusionSiteElement',
     'FireSpreadInteraction',
-    'FreeFlightInteraction',
     'FullyConnectedSpinElement',
     'GasMoleculeElement',
     'GlauberFlipInteraction',
@@ -112,11 +114,14 @@ __all__: list[str] = [
     'KineticTemperatureResult',
     'LandauRelaxationInteraction',
     'LandauRelaxationSystem',
+    'LaneEntryInteraction',
+    'LaneExitInteraction',
     'LennardJonesFluidSystem',
     'MattisSpinElement',
     'MattisSpinGlassSystem',
     'MaxwellBoltzmannResult',
     'MicrostateElement',
+    'ParallelHopInteraction',
     'ParticleSiteElement',
     'PercolationSiteElement',
     'PottsSpinElement',

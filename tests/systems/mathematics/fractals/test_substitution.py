@@ -7,7 +7,6 @@ import pytest
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import scaling
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import ValidationError
@@ -22,7 +21,7 @@ from skcomplex.systems.mathematics.fractals import (
 
 def test_koch_curve():
     """Test the symbols, the length, and the box-counting dimension of the Koch curve at generation 5."""
-    trajectory = simulate(KochCurveSystem(), until=5)
+    trajectory = KochCurveSystem().prepare().simulate(until=5)
     curve = trajectory.get_structure('koch', 5)
     assert trajectory.get_values('koch.F')[-1] == 1024
     assert curve.get_length() == pytest.approx((4 / 3) ** 5, abs=1e-12)
@@ -34,7 +33,7 @@ def test_koch_curve():
 
 def test_cantor_set():
     """Test the number and the total length of the Cantor intervals at every generation."""
-    trajectory = simulate(CantorSetSystem(), until=8)
+    trajectory = CantorSetSystem().prepare().simulate(until=8)
     generations = np.arange(9)
     assert np.array_equal(trajectory.get_values('cantor.size'), 2.0**generations)
     assert np.allclose(trajectory.get_values('cantor.length'), (2 / 3) ** generations, rtol=0, atol=1e-12)
@@ -44,7 +43,7 @@ def test_cantor_set():
 
 def test_sierpinski_carpet():
     """Test the number and the area of the squares of the carpet at generation 4."""
-    trajectory = simulate(SierpinskiSubstitutionSystem(shape='carpet'), until=4)
+    trajectory = SierpinskiSubstitutionSystem(shape='carpet').prepare().simulate(until=4)
     carpet = trajectory.get_structure('sierpinski', 4)
     assert carpet.parts == 4096
     assert carpet.get_area() == pytest.approx((8 / 9) ** 4, abs=1e-12)
@@ -54,7 +53,7 @@ def test_sierpinski_carpet():
 
 def test_filled_gasket():
     """Test that the raster of the filled gasket covers (3/4)^6 of the pixels of the triangle."""
-    trajectory = simulate(SierpinskiSubstitutionSystem(), until=6)
+    trajectory = SierpinskiSubstitutionSystem().prepare().simulate(until=6)
     first, last = trajectory.get_structure('sierpinski', 0), trajectory.get_structure('sierpinski', 6)
     bounds = first.get_bounds()
     share = last.get_raster(512, bounds).sum() / first.get_raster(512, bounds).sum()
@@ -63,7 +62,7 @@ def test_filled_gasket():
 
 def test_koch_curve_reference_values():
     """Test the word, the counts, the length, and the points of the Koch curve at generation 2 against literals."""
-    trajectory = simulate(KochCurveSystem(), until=2)
+    trajectory = KochCurveSystem().prepare().simulate(until=2)
     curve = trajectory.get_structure('koch', 2)
     assert curve.text == 'F+F--F+F+F+F--F+F--F+F--F+F+F+F--F+F'
     assert trajectory.get_values('koch.F').tolist() == [1.0, 4.0, 16.0]
@@ -82,7 +81,7 @@ def test_koch_curve_reference_values():
 
 def test_cantor_set_reference_values():
     """Test the counts, the lengths, and the intervals of the Cantor set at generation 2 against literal values."""
-    trajectory = simulate(CantorSetSystem(), until=2)
+    trajectory = CantorSetSystem().prepare().simulate(until=2)
     assert trajectory.get_values('cantor.size').tolist() == [1.0, 2.0, 4.0]
     assert trajectory.get_values('cantor.length').tolist() == pytest.approx(
         [1.0, 0.6666666666666665, 0.4444444444444444],
@@ -99,7 +98,7 @@ def test_cantor_set_reference_values():
 
 def test_sierpinski_substitution_reference_values():
     """Test the counts, the areas, the rasters, and the corners of the gasket and the carpet against literal values."""
-    trajectory = simulate(SierpinskiSubstitutionSystem(), until=2)
+    trajectory = SierpinskiSubstitutionSystem().prepare().simulate(until=2)
     gasket = trajectory.get_structure('sierpinski', 2)
     assert trajectory.get_values('sierpinski.size').tolist() == [1.0, 3.0, 9.0]
     assert gasket.get_area() == pytest.approx(0.24356964481437335, abs=1e-12)
@@ -107,7 +106,7 @@ def test_sierpinski_substitution_reference_values():
     assert gasket.get_raster(32).sum() == 264
     corners = [[[0.0, 0.0], [0.25, 0.0], [0.125, 0.216506350946]], [[0.25, 0.0], [0.5, 0.0], [0.375, 0.216506350946]]]
     assert np.allclose(gasket.get_polygons()[0][:2], corners, rtol=0, atol=1e-11)
-    trajectory = simulate(SierpinskiSubstitutionSystem(shape='carpet'), until=2)
+    trajectory = SierpinskiSubstitutionSystem(shape='carpet').prepare().simulate(until=2)
     carpet = trajectory.get_structure('sierpinski', 2)
     assert trajectory.get_values('sierpinski.size').tolist() == [1.0, 8.0, 64.0]
     assert carpet.get_area() == pytest.approx(0.7901234567901236, abs=1e-12)
@@ -117,7 +116,7 @@ def test_sierpinski_substitution_reference_values():
 def test_koch_curve_in_rerun(tmp_path):
     """Test that the Koch curve logs one frame per generation and that its view is the primary view."""
     observer = RerunObserver('koch', save_path=tmp_path / 'koch.rrd', blueprint='default')
-    simulate(KochCurveSystem(), until=5, observers=[observer])
+    KochCurveSystem().prepare().simulate(until=5, observers=[observer])
     assert observer.logged_frames_ == 6
     view = observer.views_[0]
     assert isinstance(view, rrb.Spatial2DView)
@@ -128,7 +127,7 @@ def test_filled_and_outlined_visuals(tmp_path):
     """Test that a filled patch and its outlines are logged."""
     for filled in (True, False):
         observer = RerunObserver('sierpinski', save_path=tmp_path / f'sierpinski_{filled}.rrd', blueprint='default')
-        simulate(SierpinskiSubstitutionSystem(filled=filled), until=3, observers=[observer])
+        SierpinskiSubstitutionSystem(filled=filled).prepare().simulate(until=3, observers=[observer])
         assert observer.logged_frames_ == 4
     assert repr(GeometryVisual()) == 'GeometryVisual()'
 

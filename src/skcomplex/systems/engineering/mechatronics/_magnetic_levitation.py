@@ -22,7 +22,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.signals import PulseInteraction
 
@@ -78,7 +78,7 @@ class DampingInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        b: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.target = target

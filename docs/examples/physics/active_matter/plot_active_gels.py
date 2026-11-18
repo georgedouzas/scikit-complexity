@@ -14,8 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import alignment, defects
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import ActiveGelsSystem
 
@@ -23,7 +21,7 @@ SYSTEM = 'active_gels'
 
 system = ActiveGelsSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=0.5, dt=0.025, solver=RK4Solver(dt=5e-4), observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=0.5, dt=0.025, observers=[observer], random_state=0)
 
 # %%
 # Defects and flow

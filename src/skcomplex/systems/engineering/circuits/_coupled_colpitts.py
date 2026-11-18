@@ -22,7 +22,7 @@ from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 
@@ -172,7 +172,7 @@ class ColpittsCouplingInteraction(Interaction):
         *,
         source: Role,
         target: Role,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 0.4,
     ) -> None:
         super().__init__(label)
         self.source = source

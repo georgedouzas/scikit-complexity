@@ -25,7 +25,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, Role, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 GRAVITY = 9.81
@@ -67,7 +67,7 @@ class CartPendulumInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = GRAVITY,
+        g: Annotated[float, RealSet.open(0, oo)] = GRAVITY,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -187,12 +187,12 @@ class PIDInteraction(Interaction):
         self,
         label: str,
         *,
-        plant: Annotated[str, RoleSpec()],
-        integrator: Annotated[str, RoleSpec()],
-        kp: Annotated[float, ParameterSpec()] = 1.0,
-        ki: Annotated[float, ParameterSpec()] = 0.0,
-        kd: Annotated[float, ParameterSpec()] = 0.0,
-        setpoint: Annotated[float, ParameterSpec()] = 0.0,
+        plant: Role,
+        integrator: Role,
+        kp: float = 1.0,
+        ki: float = 0.0,
+        kd: float = 0.0,
+        setpoint: float = 0.0,
         control: str = 'u',
         measure: str = 'y',
         limits: tuple[float, float] | None = None,
@@ -266,7 +266,7 @@ class StateFeedbackInteraction(Interaction):
         self,
         label: str,
         *,
-        plant: Annotated[str, RoleSpec()],
+        plant: Role,
         control: str = 'u',
         states: Sequence[str] = (),
         gain: Sequence[float] = (),

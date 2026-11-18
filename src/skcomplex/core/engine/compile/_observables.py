@@ -22,7 +22,7 @@ from ...enums import FormKind, VariableKind
 from ...errors import ValidationError
 from ...specs import EntrySpec, StateSpec
 from ...types import Array, Indices
-from .._utils import bound_labels, declarations_of, symbol, symbols_of
+from .._utils import binding_of, bound_labels, declarations_of, symbol, symbols_of
 from ..enums import ReadKind
 from ..problems import BaseProblemSpec, ProblemSpec, RunStateSpec
 from ..problems._drive_kernel import DriveKernel
@@ -97,7 +97,7 @@ class ObservableEvaluator:
         paths = set()
         for interaction in system.interactions:
             for name in declarations_of(interaction, VariableKind.ROLE):
-                labels = bound_labels(getattr(interaction, name))
+                labels = bound_labels(binding_of(interaction, name))
                 paths |= {f'{scope}/{label}' if scope else label for label in labels}
         for child in system.systems:
             paths |= ObservableEvaluator._get_role_paths(child, f'{scope}/{child.label}' if scope else child.label)
