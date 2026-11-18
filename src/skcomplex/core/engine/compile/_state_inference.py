@@ -174,7 +174,7 @@ class _StateInference:
         """
         space = element.space or (space if isinstance(space, ContinuousSpace) else None)
         if isinstance(space, ContinuousSpace) or (agents and isinstance(space, LatticeSpace | NetworkSpace)):
-            return space.prepare().axes_
+            return getattr(space.prepare(), 'axes_', ())
         return ()
 
     @staticmethod

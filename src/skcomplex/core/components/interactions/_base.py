@@ -927,7 +927,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             return any(cls._names_states(arg) for arg in args)
         if origin is tuple and args[1:] != (Ellipsis,):
             return False
-        if origin in (tuple, list, Sequence, Mapping, dict) and args:
+        if origin in (tuple, Mapping, dict) and args:
             first = args[0]
             keys = get_args(first) if get_origin(first) in (Union, UnionType) else (first,)
             return str in keys
