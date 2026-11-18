@@ -3,24 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, FieldElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import ConstraintLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 
@@ -37,6 +35,15 @@ class LandCellElement(Element):
         distance:
             The distance from the market.
 
+        values:
+            Further values by name, or `None` for none.
+
+        size:
+            The number of cells, or `None` for one.
+
+        space:
+            The plain with one cell per site, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import LandCellElement
         >>> LandCellElement('cell', distance=3.0).distance
@@ -46,10 +53,14 @@ class LandCellElement(Element):
     def __init__(
         self,
         label: str,
-        crop: Annotated[float, StateSpec()] = 0.0,
-        distance: Annotated[float, StateSpec()] = 0.0,
+        *,
+        crop: object = 0.0,
+        distance: object = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.crop = crop
         self.distance = distance
 
@@ -96,7 +107,7 @@ class BidRentInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         yields: Sequence[float],
         prices: Sequence[float],
         costs: Sequence[float],
@@ -128,24 +139,17 @@ class BidRentInteraction(Interaction):
                 'value per crop.'
             )
             raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [self._get_equation(context)]
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the equation of the crop of highest bid.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The equation of the crop of a cell.
-        """
+    def _get_equation(self, s: SimpleNamespace) -> ConstraintLaw:
+        """Return the equation of the crop of highest bid of a cell."""
         crop, best = SR(0), SR(0)
         crops = zip(self.yields, self.prices, self.costs, self.rates, strict=True)
         for index, (yield_, price, cost, rate) in enumerate(crops, start=1):
             bid = yield_ * (price - cost) - yield_ * rate * s.target.distance
             crop, best = where(bid > best, index, crop), where(bid > best, bid, best)
-        return [ConstraintLaw(s.target.crop == crop, target=s.target.crop)]
+        return ConstraintLaw(s.target.crop == crop, target=s.target.crop)
 
 
 class VonThunenSystem(BaseSystem):
@@ -216,12 +220,7 @@ class VonThunenSystem(BaseSystem):
         centre = (self.size - 1) / 2
         rows, columns = np.indices((self.size, self.size))
         distance = np.hypot(rows - centre, columns - centre)
-        plain = FieldElement(
-            'plain',
-            element=LandCellElement,
-            space=LatticeSpace((self.size, self.size)),
-            values={'distance': distance},
-        )
+        plain = LandCellElement('plain', distance=distance, space=LatticeSpace((self.size, self.size)))
         bid = BidRentInteraction(
             'bid',
             target='plain',
