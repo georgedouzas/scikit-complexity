@@ -19,6 +19,9 @@ class NonnegativeElement(Element):
     flows, and encounters of its system change it, and a value below zero is rejected. With `size` it holds one number
     per member, and with `space` one number per site, such as a distribution over the classes of a lattice.
 
+    Unlike `Element`, which takes any values, it fixes one value `x` at zero or above. Choose it when a system tracks an
+    amount that cannot be negative, such as a count, a mass, or a sum of money.
+
     It appears in many fields. The number of people infected in an epidemic, the moles of a chemical species in a
     reactor, the money in a bank account, and the tokens in a place of a Petri net are each one nonnegative number.
 

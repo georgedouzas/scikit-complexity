@@ -162,7 +162,7 @@ class ImitationInteraction(Interaction):
         return True
 
     def _get_layer(self) -> str | None:
-        """Return the layer whose edges the laws run on, or `None` for the edges of the space."""
+        """Return the layer whose edges the laws run on, or `None` for the space."""
         return self.layer
 
     def _check_agent_options(self) -> None:

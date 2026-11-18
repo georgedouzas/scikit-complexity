@@ -52,8 +52,9 @@ class ReactionInteraction(Interaction):
 
     In the agent form every member of an agent group reacts on its own states at every step, by `schedule`.
 
-    It builds the changes from a stoichiometric vector and the propensity from mass action, and the same reaction runs
-    as a rate, a jump, or a Langevin equation. Choose it when a model is written as reactions between species.
+    Unlike `Interaction`, which takes laws written by hand, it builds the changes from a stoichiometric vector and the
+    propensity from mass action, and the same reaction runs as a rate, a jump, or a Langevin equation. Choose it when a
+    model is written as reactions between species.
 
     It appears in many fields. Molecules react in a cell, people pass from susceptible to infected in an epidemic,
     predators eat prey, and enzymes bind their substrates.
@@ -482,7 +483,7 @@ class ReactionInteraction(Interaction):
         self._update_agents(system, self.schedule, self._get_agent_step, self._apply_agent_step)
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Check the reaction, and set the laws of its mode or the rule of the agent form for a binding.
+        """Check the reaction, and set its laws or its agent rule for a binding.
 
         Args:
             context:
