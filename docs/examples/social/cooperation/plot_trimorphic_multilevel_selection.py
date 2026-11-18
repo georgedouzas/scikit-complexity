@@ -16,7 +16,6 @@ down and the fraction of defectors across, empty beyond the slanted face.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.cooperation import TrimorphicMultilevelSelectionSystem
@@ -26,7 +25,7 @@ CELLS = 30
 
 system = TrimorphicMultilevelSelectionSystem(cells=CELLS)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='groups/x', interval=1)
-trajectory = simulate(system, solver=RK4Solver(dt=0.01), observers=[observer])
+trajectory = system.set_params(solver=RK4Solver(dt=0.01)).prepare().simulate(observers=[observer])
 
 # %%
 # Where the groups go
@@ -48,7 +47,7 @@ simplex.set_title('Density of groups at t = 30')
 fig.colorbar(image, ax=simplex)
 for victory in ('defectors', 'payoff'):
     model = TrimorphicMultilevelSelectionSystem(cells=CELLS, victory=victory)
-    run = simulate(model, solver=RK4Solver(dt=0.01))
+    run = model.set_params(solver=RK4Solver(dt=0.01)).prepare().simulate()
     values = run.get_values('groups.x').reshape(-1, CELLS, CELLS)
     shares.plot(run.times, 1 - (values * weights * defectors).sum(axis=(1, 2)), label=f'non-defectors, {victory}')
     shares.plot(

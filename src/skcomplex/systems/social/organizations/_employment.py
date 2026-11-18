@@ -6,19 +6,23 @@ They follow each other's colours.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import Role, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 TAKEOVER = 3
@@ -45,6 +49,9 @@ class WorkplaceElement(Element):
         employer:
             Whether the cell is an employer, 1, or a worker, 0.
 
+        space:
+            The space with one member per site, or `None` for one member.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import WorkplaceElement
         >>> WorkplaceElement('cell', employer=1).employer
@@ -55,10 +62,11 @@ class WorkplaceElement(Element):
         self,
         label: str,
         *,
-        colour: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        employer: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        colour: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0,
+        employer: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.colour = colour
         self.employer = employer
 
@@ -134,9 +142,15 @@ class EmploymentTakeoverSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import EmploymentTakeoverSystem
-        >>> EmploymentTakeoverSystem(4).prepare().system_.elements[0].prepare().size_
+        >>> EmploymentTakeoverSystem(4).prepare().system_.elements[0].colour.size
         16
     """
 
@@ -152,13 +166,16 @@ class EmploymentTakeoverSystem(BaseSystem):
         *,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         rows, columns = np.indices((self.size, self.size))
         employers = ((rows + columns) % 2 == 0).astype(float)
@@ -166,12 +183,11 @@ class EmploymentTakeoverSystem(BaseSystem):
         for kind in (1.0, 0.0):
             cells = np.flatnonzero(employers.ravel() == kind)
             colours.ravel()[rng.choice(cells, len(cells) // 2, replace=False)] = 1.0
-        cells = GroupElement(
+        cells = WorkplaceElement(
             'cells',
-            element=WorkplaceElement,
+            colour=colours,
+            employer=employers,
             space=LatticeSpace((self.size, self.size)),
-            values={'colour': colours, 'employer': employers},
-            on='sites',
         )
         takeover = EmploymentTakeoverInteraction('takeover', target='cells')
-        return CompositeSystem(self.label, elements=[cells], interactions=[takeover])
+        self.system_ = System(self.label, elements=[cells], interactions=[takeover])

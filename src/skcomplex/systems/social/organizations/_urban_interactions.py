@@ -6,6 +6,7 @@ Its residents meet their neighbours.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -18,10 +19,12 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import draw, logistic, neighbors
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 
 MEETINGS_VISUAL = VisualSpec('sites', {'states': ['meetings']})
 SMALLEST_ANGLE = 1e-12
@@ -116,14 +119,19 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The exponent is not above 2, or the temperature is not between 0 and 1.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.organizations import UrbanScalingInteractionsSystem
-        >>> trajectory = simulate(UrbanScalingInteractionsSystem(13, internal=0.0), until=10, random_state=0)
+        >>> trajectory = UrbanScalingInteractionsSystem(13, internal=0.0).prepare().simulate(until=10, random_state=0)
         >>> int(trajectory.get_network(-1).sources.size)
         23
     """
@@ -149,8 +157,10 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         temperature: float = 0.2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.population = population
         self.edges = edges
         self.internal = internal
@@ -176,8 +186,9 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         )
         return 1 - logistic(distance, radius - 2 * ln(spread), 2 * temperature)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         if self.exponent <= MIN_EXPONENT:
             error_msg = f'The degree exponent of the city is {self.exponent!r}. Give an exponent above {MIN_EXPONENT}.'
             raise ValidationError(error_msg)
@@ -227,10 +238,9 @@ class UrbanScalingInteractionsSystem(BaseSystem):
             state='meetings',
             function=lambda s: draw('meet', 'binom', n=s.target.degree, p=self.meeting),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[residents, links],
             interactions=[growth, bridging, ageing, degree, meetings],
             space=NetworkSpace(nx.complete_graph(seed_nodes)),
-            time=DiscreteTime(),
         )

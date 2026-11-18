@@ -182,13 +182,12 @@ so the integral is one.
 ```python
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.systems.social.cooperation import TrimorphicMultilevelSelectionSystem
 
-system = TrimorphicMultilevelSelectionSystem(cells=20)
-simplex = system.prepare().system_.elements[0].space.prepare()
-trajectory = simulate(system, until=1.0, dt=1.0, solver=RK4Solver(dt=0.01))
+system = TrimorphicMultilevelSelectionSystem(cells=20, solver=RK4Solver(dt=0.01)).prepare()
+simplex = system.system_.elements[0].space.prepare()
+trajectory = system.simulate(until=1.0, dt=1.0)
 density = np.asarray(trajectory.get_values('groups.x'))[-1]
 round(float((density * simplex.volumes_.ravel()).sum() / 20**2), 6)
 ```

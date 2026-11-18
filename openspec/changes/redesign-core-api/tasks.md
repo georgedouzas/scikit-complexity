@@ -66,7 +66,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [x] 5.2.1 Every chemistry and engineering ready-made system on the new base with `solver=` and `backend=`.
   - [x] 5.2.2 Companion states `x_d1` replaced by `x'`, and ports rewritten as interactions between node elements.
   - [x] 5.2.3 The shared bases of `general` with their subclasses, and the reactions, agents, matching, kinetics, gradients, mechanics, and rewriting recipes.
-  - [ ] 5.2.4 Stock-flow flows as rate terms that share a label, with the loops analysis and the flow matrix.
+  - [x] 5.2.4 Stock-flow flows as rate terms that share a label, with the loops analysis and the flow matrix.
   - [ ] 5.2.5 The remaining old parts of engineering: process, control, robot, and driver elements with laws of their own.
 - [ ] 5.3 Wave 1: `mathematics`.
   - [x] 5.3.1 Maps, flows, normal forms, ensembles, stochastic processes, fractals, walks, fractional dynamics, and the agent systems.
@@ -83,7 +83,8 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [ ] 5.6.2 Member links, agents on network nodes, and per-member constraints for labour, credit, commons, discovery, and oligopoly.
   - [ ] 5.6.3 The remaining old parts: groups, elements with laws, and old wrapper interactions.
 - [ ] 5.7 Wave 2: `social`.
-  - [ ] 5.7.1 Every social system on the new API.
+  - [x] 5.7.1 Every social system on the new base with identical results, interactions setting `laws_`, and plain elements.
+  - [ ] 5.7.2 The remaining old parts: the agent recipes' groups, symbolic groupings, pair potentials, position vectors, and the groups of growing networks.
 - [x] 5.8 Rewrite the experiment functions in `src/skcomplex/core/experiments` to clone, set parameters, prepare, and simulate, preparing once when only initial or random states vary. Verify with tests that an ensemble prepares once and a sweep leaves the user's system unchanged.
 
 ## 6. The old API goes
@@ -97,7 +98,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
 
 - [ ] 7.1 Rewrite every docstring of the core in the scikit-learn layout of `design.md`, with no jargon: say explicitly what a thing does in plain words and show it with a short example, such as `Element('ball', values={'x': 10.0, 'm': 1.0})` in place of "an element known only as data". Apply the same rule to the guide, the README, error messages, and replies, and replace the test of the "Unlike" template by tests of the layout and of short examples. Verify with the docstring tests and the doctests.
 - [ ] 7.2 Rewrite the README, the user guide, and the case studies on the new API, with the falling particle, the reaction network with two solvers, the heat equation, and the Ising model as the running examples. Verify with the documents test group and a strict documentation build.
-- [ ] 7.3 Restate the placement rule in `openspec/constitution.md`, `CONTRIBUTING.md`, and the extension page of the user guide, and rewrite the scenarios of the main specs that call `simulate(` in the method form. Verify that the three texts state the same rule and that `rg "simulate\(" openspec/specs` finds only method calls.
+- [x] 7.3 Restate the placement rule in `openspec/constitution.md`, `CONTRIBUTING.md`, and the extension page of the user guide, and rewrite the scenarios of the main specs that call `simulate(` in the method form. Verify that the three texts state the same rule and that `rg "simulate\(" openspec/specs` finds only method calls.
 
 ## 8. Checks
 

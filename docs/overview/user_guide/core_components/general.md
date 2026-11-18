@@ -14,7 +14,7 @@ The package has one subpackage per concept, and every recipe is imported from it
 | `elements` | amounts and bodies | `NonnegativeElement`, `PointElement` |
 | `reactions` | reactions at a product propensity | `ReactionInteraction`, `ReactionNetworkSystem` |
 | `kinetics` | encounters of distributions | `EncounterInteraction` |
-| `dynamics` | systems given as equations | `EquationInteraction`, `AnnotatedElement`, `DynamicalSystem`, `NetworkDynamicalSystem`, `ReactionDiffusionSystem`, `StockFlowSystem` |
+| `dynamics` | systems given as equations | `EquationInteraction`, `FlowInteraction`, `AnnotatedElement`, `DynamicalSystem`, `NetworkDynamicalSystem`, `ReactionDiffusionSystem`, `StockFlowSystem` |
 | `agents` | agent rules | `MovementInteraction`, `ChoiceInteraction`, `ImitationInteraction`, `EvolutionInteraction`, `BirthDeathInteraction` |
 | `matching` | markets that pair two groups | `MatchingInteraction`, its rule specs, and `MatchSpec` |
 | `rewriting` | words and tilings that grow by rules | `WordElement`, `PatchElement`, `RewritingInteraction`, `ProductionLaw`, `SubstitutionLaw`, their specs, `GeometryVisual`, and `RewritingSolver` |
@@ -620,6 +620,37 @@ as `noise=0.1`, adds a noise in the Itô convention, or in the Stratonovich one 
 
 See its [API entry][skcomplex.systems.general.dynamics].
 
+## FlowInteraction
+
+A `FlowInteraction` moves an amount per unit of time from one stock of an element to another. It sets two rate terms
+that share its label, `RateLaw(leaves, -f, label=label)` and `RateLaw(enters, f, label=label)`, so what leaves one
+stock enters the other and the trajectory records the flow `f` under its label. The amount reads the values of the
+element from `s.target` and the time from `s.t`. Here people die at a rate of 0.05 and are counted among the dead.
+
+```python
+from skcomplex.core.components.elements import Element
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import FlowInteraction
+
+population = Element('population', values={'alive': 100.0, 'dead': 0.0, 'd': 0.05})
+deaths = FlowInteraction(
+    'deaths',
+    target='population',
+    leaves='alive',
+    enters='dead',
+    amount=lambda s: s.target.d * s.target.alive,
+)
+trajectory = System(elements=[population], interactions=[deaths]).prepare().simulate(until=10.0, dt=10.0)
+trajectory.get_values('population.alive').round(2).tolist(), trajectory.get_values('population.deaths').round(2).tolist()
+```
+
+The living fall from 100 to 60.65, the curve `100 exp(-t / 20)`, the dead hold the other 39.35, and the flow
+`population.deaths` falls from 5.0 to 3.03 with them. A flow from outside the system gives only `enters`, such as
+births, and a flow out of it only `leaves`. The [loops analysis](../build_a_custom_system/stocks_and_flows.md#feedback-loops) reads the flow as
+a node between its stocks.
+
+See its [API entry][skcomplex.systems.general.dynamics].
+
 ## AnnotatedElement
 
 An `AnnotatedElement` holds values by name, as `Element(label, values=...)` does, with the allowed values and the
@@ -895,19 +926,18 @@ See its [API entry][skcomplex.systems.general.dynamics].
 
 ## StockFlowSystem
 
-A `StockFlowSystem` is a set of stocks that change only through named flows, each from a stock or a source to a stock
-or a sink. The trajectory reports every flow. The arms race of Richardson is two stocks of arms that grow with the arms
+A `StockFlowSystem` is a set of stocks that change only through named flows, each from a stock, or from outside the
+system, to a stock, or out of the system. The trajectory reports every flow. The arms race of Richardson is two stocks of arms that grow with the arms
 of the other nation.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.general.dynamics import StockFlowSystem
 
 race = StockFlowSystem(
     stocks={'a': 1.0, 'b': 1.0},
     flows={
-        'arming_a': (None, 'a', lambda s: s.source.k * s.source.b),
-        'arming_b': (None, 'b', lambda s: s.source.k * s.source.a),
+        'arming_a': (None, 'a', lambda s: s.target.k * s.target.b),
+        'arming_b': (None, 'b', lambda s: s.target.k * s.target.a),
     },
     parameters={'k': 0.1},
     element='nations',
@@ -921,12 +951,11 @@ The arms of each nation grow as `exp(0.1 t)`, to 2.718 at time 10, and the flow 
 The bathtub of engineering fills from a tap at a rate of 1 and drains at half its content.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.general.dynamics import StockFlowSystem
 
 tub = StockFlowSystem(
     stocks={'water': 0.0},
-    flows={'tap': (None, 'water', 1.0), 'drain': ('water', None, lambda s: 0.5 * s.source.water)},
+    flows={'tap': (None, 'water', 1.0), 'drain': ('water', None, lambda s: 0.5 * s.target.water)},
     element='tub',
 )
 tub.prepare().simulate(until=10.0, dt=5.0).get_values('tub.water').round(3).tolist()
@@ -936,10 +965,10 @@ The water rises to 1.836 at time 5 and to 1.987 at time 10, towards the level 2 
 
 **How the engine runs it.** The stocks and parameters are the values of one [`AnnotatedElement`](#annotatedelement),
 which holds the allowed values and quantities given by `allowed=` and `quantities=`. Every flow is a
-[`TransferInteraction`](interactions.md#transferinteraction) from the element to itself, so a flow between two stocks
-keeps their total, and the trajectory reports it as `<element>.<flow>`. `None` stands for the environment, and a
-labelled [`Source`](laws.md#source) or [`Sink`](laws.md#sink) of `skcomplex.core.components.laws` in its place names
-it.
+[`FlowInteraction`](#flowinteraction), the rate terms `-f` on the stock it leaves and `f` on the stock it enters, so a
+flow between two stocks keeps their total, and the trajectory reports it as `<element>.<flow>`. `None` stands for the
+outside of the system, which the flow matrix of the [loops analysis](../build_a_custom_system/stocks_and_flows.md#feedback-loops) books as
+`'environment'`. The amounts read the stocks and parameters from `s.target` and the time from `s.t`.
 
 **How it combines.** A subclass returns its data from the hooks `_get_stocks`, `_get_flows`, `_get_parameters`,
 `_get_allowed`, `_get_quantities`, and `_get_element_label`. The translator of system dynamics files reads models into this system.
@@ -966,7 +995,7 @@ from sage.sets.real_set import RealSet
 
 drained = StockFlowSystem(
     stocks={'water': -1.0},
-    flows={'drain': ('water', None, lambda s: 0.5 * s.source.water)},
+    flows={'drain': ('water', None, lambda s: 0.5 * s.target.water)},
     allowed={'water': RealSet.closed_open(0, oo)},
     element='tub',
 )
@@ -2262,20 +2291,20 @@ See its [API entry][skcomplex.systems.general.rewriting].
 One ordered test, the placement rule of the package layout, decides where any new component goes. The source tests check
 it mechanically. It reads, word for word:
 
-> Every new component SHALL be placed by one ordered test. A structural base SHALL go to the core. A component the
-> engine handles by type, or an operator generated from one function, SHALL go to the core under a mathematical name.
-> Any other component is a recipe, placed by its users: `skcomplex.systems.general.<concept>` for several fields,
-> `systems/<field>/common/<family>` for one field, its system's module for one system. Every analysis SHALL be placed
-> by its users too: an analysis that measures what systems of several fields share SHALL go to
-> `skcomplex.core.analysis`, and an analysis of one field SHALL go to `systems/<field>/common/<family>`. The core SHALL
-> never import `skcomplex.systems`.
+> Every new component SHALL be placed by one ordered test. A structural base SHALL go to the core. A law kind, an
+> operator generated from one function, or numerics the engine handles by type SHALL go to the core under a mathematical
+> name, and the engine SHALL key only on the seven law kinds. Any other component is a recipe of core components, placed
+> by its users: `skcomplex.systems.general.<concept>` for several fields, `systems/<field>/common/<family>` for one
+> field, its system's module for one system. Numerics that serve one field alone SHALL come as a solver or a compiler
+> built on the public engine bases, in the package of that field. Every analysis SHALL be placed by its users too: an
+> analysis that measures what systems of several fields share SHALL go to `skcomplex.core.analysis`, and an analysis of
+> one field SHALL go to `systems/<field>/common/<family>`. The core SHALL never import `skcomplex.systems`.
 
 A field with its own term names its recipe, and `general` uses neutral names. One example for each step follows.
 
-**A structural base.** A base where laws run once per triangle of a cell complex goes to the core, as
-[`HyperedgeInteraction`](interactions.md#hyperedgeinteraction) does, which runs its laws once per hyperedge, and
-[`CompositeSystem`](systems.md#compositesystem), which holds the components of a system. Components of every field build
-on them.
+**A structural base.** A way for laws to run once per triangle of a cell complex goes to the core, as
+[`Interaction`](interactions.md#interaction) with `along='hyperedges'` runs its laws once per hyperedge, and `System`
+holds the components of a system. Components of every field build on them.
 
 **A component the engine handles by type.** A law that a kernel lowers goes to the core under a mathematical name.
 [`GroupingInteraction`](interactions.md#groupinginteraction) stays in the core, since a compile pass lowers it by type

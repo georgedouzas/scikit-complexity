@@ -17,7 +17,6 @@ LINE_LENGTH = 120
 INDENT = '    '
 ELEMENTS_MODULE = 'skcomplex.core.components.elements'
 INTERACTIONS_MODULE = 'skcomplex.core.components.interactions'
-LAWS_MODULE = 'skcomplex.core.components.laws'
 SPECS_MODULE = 'skcomplex.core.specs'
 COMPONENTS_MODULE = 'skcomplex.core.components'
 BASE_IMPORTS = frozenset(
@@ -50,14 +49,12 @@ ELEMENT_CLASS = '''class {name}(Element):
         """Store the label, the visual, the stocks, and the constants."""
         super().__init__(label)
 {assignments}'''
-TRANSFER = """                TransferInteraction(
+FLOW = """                FlowInteraction(
                     {name!r},
-                    source={label!r},
                     target={label!r},
-                    state={state},
-                    into={into},
+                    leaves={leaves!r},
+                    enters={enters!r},
                     amount=_amount__{name},
-                    flow={name!r},
                 ),"""
 RATE = """                RateInteraction(
                     {name!r},
@@ -294,11 +291,8 @@ class _ModuleWriter:
             assignments='\n'.join(f'{INDENT * 2}self.{name} = {name}' for name, _, _, _ in declared),
         )
 
-    def _write_transfers(self, flows: dict[str, tuple[str | None, str | None]]) -> tuple[list[str], list[str]]:
-        """Return the functions of the amounts of the flows, and the transfer source.
-
-        The source is that of their transfers.
-        """
+    def _write_flows(self, flows: dict[str, tuple[str | None, str | None]]) -> tuple[list[str], list[str]]:
+        """Return the functions of the flow amounts and the source of their interactions."""
         imports = self.expressions.imports
         functions, interactions = [], []
         for name, (leaving, entering) in flows.items():
@@ -306,15 +300,11 @@ class _ModuleWriter:
                 self._write_function(
                     f'_amount__{name}(s: SimpleNamespace) -> Expression',
                     f'Return the amount of the flow `{self._get_original(name)}`.',
-                    f'{INDENT}return _{name}(s.source, s.t)',
+                    f'{INDENT}return _{name}(s.target, s.t)',
                 ),
             )
-            if leaving is None or entering is None:
-                imports.add((LAWS_MODULE, 'Source' if leaving is None else 'Sink'))
-            state = 'Source()' if leaving is None else repr(leaving)
-            into = 'Sink()' if entering is None else repr(entering)
-            interactions.append(TRANSFER.format(name=name, label=self.label, state=state, into=into))
-            imports.add((INTERACTIONS_MODULE, 'TransferInteraction'))
+            interactions.append(FLOW.format(name=name, label=self.label, leaves=leaving, enters=entering))
+            imports.add((STOCK_FLOW_MODULE, 'FlowInteraction'))
         return functions, interactions
 
     def _write_relaxation(self, stock: str, form: _GoalSeekingSpec) -> tuple[list[str], str, str]:
@@ -538,7 +528,7 @@ class _ModuleWriter:
         variables, settings = self.variables, self.settings
         flows = variables.get_flows()
         helpers = self._write_helpers()
-        amounts, interactions = self._write_transfers(flows)
+        amounts, interactions = self._write_flows(flows)
         rates, relaxations = [], []
         for stock in sorted(variables.stocks):
             terms = variables.get_remaining_terms(stock, flows)
@@ -556,7 +546,7 @@ class _ModuleWriter:
         if flows and not rates and not variables.members:
             imports = self.expressions.imports
             imports -= BASE_IMPORTS - {(SAGE_MODULE, 'Expression'), (COMPONENTS_MODULE, 'Observable')}
-            imports -= {(INTERACTIONS_MODULE, 'TransferInteraction'), (LAWS_MODULE, 'Source'), (LAWS_MODULE, 'Sink')}
+            imports -= {(STOCK_FLOW_MODULE, 'FlowInteraction')}
             imports |= {(STOCK_FLOW_MODULE, 'StockFlowSystem'), (f'{STOCK_FLOW_MODULE}.types', 'FlowTable')}
             blocks = [*helpers, *amounts, *observed, self._write_stock_flow_system(flows, observables)]
         else:

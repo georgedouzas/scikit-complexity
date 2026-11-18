@@ -6,20 +6,23 @@ The utility of their densities drives the moves.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.agents import MovementInteraction
 
 PHASE = 'default'
@@ -248,6 +251,12 @@ class StochasticSchellingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.segregation import StochasticSchellingSystem
         >>> StochasticSchellingSystem(8, 8, side=4, random_state=0).prepare().system_.elements[0].prepare().size_
@@ -272,8 +281,10 @@ class StochasticSchellingSystem(BaseSystem):
         intercept: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.side = side
@@ -284,8 +295,9 @@ class StochasticSchellingSystem(BaseSystem):
         self.intercept = intercept
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         size = int(self.width * self.height * self.density)
         cells = rng.permutation(self.width * self.height)[:size]
@@ -323,12 +335,10 @@ class StochasticSchellingSystem(BaseSystem):
             form='agent',
             phase=PHASE,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[dwellers],
             interactions=[moves, block],
             space=LatticeSpace((self.width, self.height), boundary='fixed', capacity=1),
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec(PHASE, activation='visits', groups=('dwellers',))]),
-            ),
+            solver=MesaSolver(phases=[PhaseSpec(PHASE, activation='visits', groups=('dwellers',))]),
         )

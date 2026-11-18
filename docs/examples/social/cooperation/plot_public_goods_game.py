@@ -16,7 +16,6 @@ share of cooperators rises from zero to one over a window of synergies.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.cooperation import PublicGoodsGameSystem
 
@@ -25,7 +24,7 @@ ROUNDS = 200
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 system = PublicGoodsGameSystem(synergy=4.5, noise=0.5, random_state=0)
-trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=ROUNDS, observers=[observer], random_state=0)
 
 # %%
 # Cooperation against the synergy
@@ -38,7 +37,11 @@ trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0
 
 def cooperators(synergy):
     """Return the share of cooperators after every round."""
-    run = simulate(PublicGoodsGameSystem(synergy=synergy, noise=0.5, random_state=0), until=ROUNDS, random_state=0)
+    run = (
+        PublicGoodsGameSystem(synergy=synergy, noise=0.5, random_state=0)
+        .prepare()
+        .simulate(until=ROUNDS, random_state=0)
+    )
     return run.get_values('players.strategy').reshape(ROUNDS + 1, -1).mean(axis=1)
 
 

@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.spreading import MakiThompsonSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'maki_thompson'
 
 system = MakiThompsonSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The fifth who never hear
@@ -36,7 +35,7 @@ fig, ax = plt.subplots(figsize=(6, 4.5))
 for n_people in (200, 1000, 5000):
     fractions = []
     for seed in range(20):
-        run = simulate(MakiThompsonSystem(n_people=n_people), until=40, dt=1.0, random_state=seed)
+        run = MakiThompsonSystem(n_people=n_people).prepare().simulate(until=40, dt=1.0, random_state=seed)
         fractions.append(run.get_values('ignorants.n')[-1] / n_people)
     finals = np.array(fractions)
     spread_out = finals[finals < 0.9]

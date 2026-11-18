@@ -196,14 +196,14 @@ class EncounterInteraction(Interaction):
         kernel = np.asarray(self.kernel(namespace) if self.kernel is not None else (), dtype=object)
         outcomes = np.expand_dims(kernel, axis=1)
         form = bilinear(rates[()], outcomes, candidate, conserved=True)
-        return [RateLaw(candidate, form, label=self.label)]
+        return [RateLaw(candidate, form)]
 
     def _get_encounter_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate law of the encounters or the collisions of the candidate."""
         candidate = getattr(self._get_member(namespace, 'candidate'), self.state)
         if self.cross_section is not None:
             factor = SR(1 if self.factor is None else self.factor(namespace))
-            return [RateLaw(candidate, factor * collision_integral(candidate, self.cross_section), label=self.label)]
+            return [RateLaw(candidate, factor * collision_integral(candidate, self.cross_section))]
         if self.field is None:
             return self._get_linear_laws(candidate, namespace)
         field = getattr(self._get_member(namespace, 'field'), self.state)
@@ -217,4 +217,4 @@ class EncounterInteraction(Interaction):
             form = bilinear(rate, kernel, candidate, field)
         else:
             form = bilinear(rate, kernel, candidate, field, conserved=True)
-        return [RateLaw(candidate, form, label=self.label)]
+        return [RateLaw(candidate, form)]

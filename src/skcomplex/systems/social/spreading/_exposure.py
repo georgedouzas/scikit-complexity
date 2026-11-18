@@ -12,17 +12,21 @@ from typing import Annotated
 
 import numpy as np
 import xgi
-from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction
-from ....core.components.laws.utils import count, total, uniform, where
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.laws.utils import count, hyperedges, total, uniform, where
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 
 
 class ParticipantElement(Element):
@@ -36,10 +40,13 @@ class ParticipantElement(Element):
             The label of the participant or the group.
 
         infected:
-            The initial state, 0 or 1.
+            The initial state, 0 or 1, one per participant or shared.
 
         recovery:
             The probability that an infected participant recovers in a step.
+
+        space:
+            The network with one participant per node, or `None` for one participant.
 
     Examples:
         >>> from skcomplex.systems.social.spreading import ParticipantElement
@@ -53,22 +60,23 @@ class ParticipantElement(Element):
         self,
         label: str,
         *,
-        infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        recovery: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.05,
+        infected: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        recovery: Annotated[float, RealSet.closed(0, 1)] = 0.05,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.infected = infected
         self.recovery = recovery
 
 
-class ExposureInteraction(CouplingInteraction):
+class ExposureInteraction(Interaction):
     """Infection of participants by the doses of their environments, and recovery.
 
-    The infected participants are susceptible, and the time is discrete. It is a `CouplingInteraction` over the
-    hyperedges of a network in the map form. An environment, a hyperedge, gives each susceptible member the dose
-    `rate * rho ** exponent`, where `rho` is the share of the other members that are infected, and the doses of the
-    environments of a participant add up to `D`. In every step a susceptible participant is infected with probability
-    `1 - exp(-D)`, and an infected one recovers with probability `recovery`, a parameter of the participants.
+    The infected participants are susceptible, and the time is discrete. An environment, a hyperedge, gives each
+    susceptible member the dose `rate * rho ** exponent`, where `rho` is the share of the other members that are
+    infected, and the doses of the environments of a participant add up to `D`. In every step a susceptible participant
+    is infected with probability `1 - exp(-D)`, and an infected one recovers with probability `recovery`, a parameter of
+    the participants.
 
     Args:
         label:
@@ -89,46 +97,35 @@ class ExposureInteraction(CouplingInteraction):
         1.5
     """
 
+    law_classes = (UpdateLaw,)
     draws = True
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
-        exponent: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        target: Role,
+        rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.06,
+        exponent: Annotated[float, RealSet.open(0, oo)] = 2.0,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            mode='hyperedges',
-            form='map',
-            write='infected',
-            function=self._get_dose,
-            combine=self._get_next,
-        )
+        super().__init__(label)
+        self.target = target
         self.rate = rate
         self.exponent = exponent
 
-    def _get_dose(self, environment: SimpleNamespace) -> Expression:
-        """Return the dose an environment gives its member.
-
-        It follows the share of its other members that are infected.
-        """
-        others = total(environment.members.infected, over=environment.members) - environment.member.infected
-        share = others / (count(over=environment.members) - 1)
-        return environment.rate * share**environment.exponent
-
-    @staticmethod
-    def _get_next(participant: SimpleNamespace, dose: Expression) -> Expression:
-        """Return the next state of a participant.
-
-        It is infected by its dose or recovered with the recovery probability.
-        """
-        member, draw = participant.member, uniform('exposure')
-        infection = where(draw < 1 - exp(-dose), 1, 0)
-        return where(member.infected == 1, where(draw < member.recovery, 0, 1), infection)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next state of every participant, from the sum of the doses of its environments, as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            member = context.target
+            others = total(member.members.infected, over=member.members) - member.infected
+            share = others / (count(over=member.members) - 1)
+            dose = hyperedges(context.rate * share**context.exponent)
+            draw = uniform('exposure')
+            infection = where(draw < 1 - exp(-dose), 1, 0)
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(member.infected, where(member.infected == 1, where(draw < member.recovery, 0, 1), infection)),
+            ]
 
 
 class HypergraphExposureSisSystem(BaseSystem):
@@ -174,9 +171,15 @@ class HypergraphExposureSisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.spreading import HypergraphExposureSisSystem
-        >>> HypergraphExposureSisSystem(40).prepare().system_.elements[0].prepare().size_
+        >>> len(HypergraphExposureSisSystem(40).prepare().system_.elements[0].infected)
         40
     """
 
@@ -199,8 +202,10 @@ class HypergraphExposureSisSystem(BaseSystem):
         share: float = 0.3,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.sizes = sizes
         self.hyperdegree = hyperdegree
@@ -210,8 +215,9 @@ class HypergraphExposureSisSystem(BaseSystem):
         self.share = share
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         hypergraph = xgi.Hypergraph()
         hypergraph.add_nodes_from(range(self.n_nodes))
@@ -219,12 +225,11 @@ class HypergraphExposureSisSystem(BaseSystem):
             number = round(self.n_nodes * self.hyperdegree / (len(self.sizes) * size))
             hypergraph.add_edges_from(rng.choice(self.n_nodes, size, replace=False).tolist() for _ in range(number))
         infected = (rng.permutation(self.n_nodes) < round(self.share * self.n_nodes)).astype(float)
-        participants = GroupElement(
+        participants = ParticipantElement(
             'participants',
-            element=ParticipantElement,
+            infected=infected,
+            recovery=self.recovery,
             space=NetworkSpace(xgi.to_graph(hypergraph), hyperedges=hypergraph),
-            values={'infected': infected, 'recovery': self.recovery},
-            on='sites',
         )
         exposure = ExposureInteraction('exposure', target='participants', rate=self.rate, exponent=self.exponent)
-        return CompositeSystem(self.label, elements=[participants], interactions=[exposure])
+        self.system_ = System(self.label, elements=[participants], interactions=[exposure])

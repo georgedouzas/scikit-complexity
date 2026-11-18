@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import domains
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import MajorityRuleSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'majority_rule'
 STEPS = 20
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(MajorityRuleSystem(density=0.5, random_state=0), until=STEPS, observers=[observer])
+trajectory = MajorityRuleSystem(density=0.5, random_state=0).prepare().simulate(until=STEPS, observers=[observer])
 
 # %%
 # Coarsening, freezing, and amplification
@@ -36,7 +35,11 @@ trajectory = simulate(MajorityRuleSystem(density=0.5, random_state=0), until=STE
 grids = trajectory.get_lattice('voters.opinion')
 densities = np.linspace(0.3, 0.7, 17)
 finals = [
-    simulate(MajorityRuleSystem(density=density, random_state=0), until=STEPS).get_values('voters.opinion')[-1].mean()
+    MajorityRuleSystem(density=density, random_state=0)
+    .prepare()
+    .simulate(until=STEPS)
+    .get_values('voters.opinion')[-1]
+    .mean()
     for density in densities
 ]
 fig, (interfaces, amplification) = plt.subplots(1, 2, figsize=(10, 4))

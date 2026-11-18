@@ -14,7 +14,6 @@ small cultural regions.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import AxelrodSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'axelrod'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
 system = AxelrodSystem(width=20, height=20, features=3, traits=5, random_state=0)
-trajectory = simulate(system, until=150, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=150, observers=[observer], random_state=0)
 
 # %%
 # Order-disorder transition
@@ -35,7 +34,11 @@ trajectory = simulate(system, until=150, observers=[observer], random_state=0)
 traits = [2, 4, 8, 16, 32]
 shares = []
 for q in traits:
-    run = simulate(AxelrodSystem(width=8, height=8, features=3, traits=q, random_state=0), until=300, random_state=0)
+    run = (
+        AxelrodSystem(width=8, height=8, features=3, traits=q, random_state=0)
+        .prepare()
+        .simulate(until=300, random_state=0)
+    )
     shares.append(run.get_values('largest_region')[-1])
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(trajectory.times, trajectory.get_values('largest_region'))

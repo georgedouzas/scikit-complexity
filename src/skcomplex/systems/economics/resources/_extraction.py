@@ -237,16 +237,16 @@ class OilEconomySystem(StockFlowSystem):
         """Return the extraction of the resource, the investment in capital, and its depreciation."""
         prices = None if self.price_table is None else tuple(float(value) for value in self.price_table)
         return {
-            'extraction': ('resource', Sink('market'), lambda s: OilEconomySystem._harvest(s.source, OIL_YIELD)),
+            'extraction': ('resource', None, lambda s: OilEconomySystem._harvest(s.target, OIL_YIELD)),
             'investment': (
-                Source('investors'),
+                None,
                 'capital',
                 lambda s: OilEconomySystem._get_investment(
-                    s.source,
-                    self._get_oil_price(s.source, OIL_YIELD, prices) * OilEconomySystem._harvest(s.source, OIL_YIELD),
+                    s.target,
+                    self._get_oil_price(s.target, OIL_YIELD, prices) * OilEconomySystem._harvest(s.target, OIL_YIELD),
                 ),
             ),
-            'depreciation': ('capital', Sink('scrap'), lambda s: s.source.capital / s.source.lifetime),
+            'depreciation': ('capital', None, lambda s: s.target.capital / s.target.lifetime),
         }
 
 

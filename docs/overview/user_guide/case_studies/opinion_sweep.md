@@ -42,15 +42,13 @@ since the pairs meet at random. A run therefore needs a seed, and a study needs 
 
 ## One run and its clusters
 
-`simulate` runs the model for its tuned number of steps, 50 rounds of encounters. The agents of a group are read at a
+`simulate` runs the prepared model for its tuned number of steps, 50 rounds of encounters. The agents of a group are read at a
 frame with `get_agents`, which returns their states.
 
 ```python continuation
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
-
-trajectory = simulate(opinions_model, random_state=0)
+trajectory = opinions_model.simulate(random_state=0)
 final = trajectory.get_agents('people', len(trajectory.times) - 1).values['opinion']
 initial = trajectory.get_agents('people', 0).values['opinion']
 round(float(initial.std()), 3), round(float(final.std()), 3)

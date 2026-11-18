@@ -11,7 +11,6 @@ gives the power law of Zipf, `p_i = (i + 1)^-lambda`, whose exponent makes the p
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.social.language import MandelbrotLeastEffortSystem
@@ -20,7 +19,7 @@ SYSTEM = 'mandelbrot_least_effort'
 
 system = MandelbrotLeastEffortSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=1.0, observers=[observer])
+trajectory = system.prepare().simulate(until=1.0, observers=[observer])
 probabilities = trajectory.get_values('words.probability')[0]
 
 # %%

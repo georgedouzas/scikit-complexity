@@ -13,7 +13,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.spaces import BaseSpace
 
 
 class ContributorElement(Element):
@@ -39,6 +39,9 @@ class ContributorElement(Element):
         noise:
             The noise of the Fermi imitation.
 
+        space:
+            The lattice or network with one player per site, or `None` for one player.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import ContributorElement
         >>> ContributorElement('player').synergy
@@ -49,12 +52,13 @@ class ContributorElement(Element):
         self,
         label: str,
         *,
-        strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
-        payoff: Annotated[float, StateSpec()] = 0.0,
-        synergy: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.5,
-        noise: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        strategy: Annotated[object, FiniteEnumeratedSet([0, 1])] = 1.0,
+        payoff: object = 0.0,
+        synergy: Annotated[float, RealSet.closed_open(0, oo)] = 4.5,
+        noise: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.strategy = strategy
         self.payoff = payoff
         self.synergy = synergy

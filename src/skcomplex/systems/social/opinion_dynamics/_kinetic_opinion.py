@@ -6,6 +6,7 @@ The opinions lie on a discrete grid.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
@@ -17,9 +18,11 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.laws.utils import moment
-from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.components.spaces import LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec
+from ....core.systems import BaseSystem, System
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
 
@@ -245,9 +248,15 @@ class KineticOpinionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
-        >>> KineticOpinionSystem(levels=5).prepare().system_.elements[0].size
+        >>> KineticOpinionSystem(levels=5).prepare().system_.elements[0].x.size
         5
     """
 
@@ -258,7 +267,7 @@ class KineticOpinionSystem(BaseSystem):
     dt = 0.5
 
     @staticmethod
-    def _get_levels_of(system: CompositeSystem) -> int:
+    def _get_levels_of(system: System) -> int:
         """Return the number of opinion levels of a system, the size of its distribution."""
         return int(np.size(next(item.x for item in system.elements if item.label == 'opinions')))
 
@@ -271,18 +280,21 @@ class KineticOpinionSystem(BaseSystem):
         repulsion: float = 0.1,
         eta: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.levels = levels
         self.confidence = confidence
         self.persuasion = persuasion
         self.repulsion = repulsion
         self.eta = eta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         initial = 1.0 + 0.1 * opinion_grid(self.levels)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 ActivityDensityElement(
@@ -304,15 +316,6 @@ class KineticOpinionSystem(BaseSystem):
                 ),
             ],
             space=LatticeSpace(self.levels, boundary='fixed'),
-            time=ContinuousTime(),
         )
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the components are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        system = self._get_pass_parameters()
-        settings['observables'] = opinion_observables(KineticOpinionSystem._get_levels_of(system))
-        return settings
+        if not self.observables_:
+            self.observables_ = tuple(opinion_observables(KineticOpinionSystem._get_levels_of(self.system_)))

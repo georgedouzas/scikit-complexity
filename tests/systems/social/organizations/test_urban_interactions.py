@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import ScalingResult, scaling
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.social.organizations import UrbanScalingInteractionsSystem
@@ -15,7 +14,7 @@ SEEDS = [0, 1, 2]
 
 def _fit(internal: float) -> ScalingResult:
     """Return the allometric fit of the meetings of cities over a sweep of their size."""
-    observables = UrbanScalingInteractionsSystem().get_run_settings()['observables']
+    observables = UrbanScalingInteractionsSystem.observables
     result = sweep(
         lambda **arguments: UrbanScalingInteractionsSystem(**arguments).prepare().system_,
         {'population': SIZES, 'internal': [internal], 'random_state': SEEDS},
@@ -44,7 +43,7 @@ def test_urban_scaling_interactions_meetings_are_linear_without_internal_links()
 def test_urban_scaling_interactions_city_stops_growing_at_its_population():
     """Test that a run past the size of the city leaves its residents and links unchanged."""
     system = UrbanScalingInteractionsSystem(30, internal=0.01).prepare().system_
-    trajectory = simulate(system, until=40, random_state=0)
+    trajectory = system.prepare().simulate(until=40, random_state=0)
     grown, later = trajectory.get_network(27), trajectory.get_network(-1)
     assert grown.nodes.size == later.nodes.size == 30
     assert grown.sources.size == later.sources.size
@@ -53,7 +52,7 @@ def test_urban_scaling_interactions_city_stops_growing_at_its_population():
 def test_urban_scaling_interactions_meetings_stay_within_the_neighbours():
     """Test that no resident meets more residents than it had neighbours."""
     system = UrbanScalingInteractionsSystem(30).prepare().system_
-    trajectory = simulate(system, until=30, random_state=0)
+    trajectory = system.prepare().simulate(until=30, random_state=0)
     meetings = np.asarray(trajectory.get_values('residents.meetings')[-1])
     degree = np.asarray(trajectory.get_values('residents.degree')[-2])
     assert (meetings <= degree).all()

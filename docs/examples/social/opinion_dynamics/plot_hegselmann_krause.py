@@ -13,14 +13,13 @@ apart.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import HegselmannKrauseSystem
 
 SYSTEM = 'hegselmann_krause'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(HegselmannKrauseSystem(), until=20, observers=[observer], random_state=0)
+trajectory = HegselmannKrauseSystem().prepare().simulate(until=20, observers=[observer], random_state=0)
 opinions = trajectory.get_values('people.opinion')
 
 # %%
@@ -32,7 +31,7 @@ opinions = trajectory.get_values('people.opinion')
 confidences = np.array([0.05, 0.075, 0.1, 0.15, 0.2, 0.3])
 clusters = []
 for confidence in confidences:
-    run = simulate(HegselmannKrauseSystem(confidence=confidence), until=40, random_state=0)
+    run = HegselmannKrauseSystem(confidence=confidence).prepare().simulate(until=40, random_state=0)
     clusters.append(np.unique(np.round(run.get_values('people.opinion')[-1], 6)).size)
 fig, (paths, counts) = plt.subplots(1, 2, figsize=(11, 4))
 paths.plot(trajectory.times, opinions, lw=0.5, color='C0')

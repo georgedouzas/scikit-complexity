@@ -411,13 +411,14 @@ its package, and no module SHALL import a private name of another package.
 - **THEN** both import the public `SubsystemSpec` from `skcomplex.core.components.specs`
 
 ### Requirement: Every component has one place by the placement rule
-Every new component SHALL be placed by one ordered test. A structural base SHALL go to the core. A component the
-engine handles by type, or an operator generated from one function, SHALL go to the core under a mathematical name.
-Any other component is a recipe, placed by its users: `skcomplex.systems.general.<concept>` for several fields,
-`systems/<field>/common/<family>` for one field, its system's module for one system. Every analysis SHALL be placed by
-its users too: an analysis that measures what systems of several fields share SHALL go to `skcomplex.core.analysis`,
-and an analysis of one field SHALL go to `systems/<field>/common/<family>`. The core SHALL never import
-`skcomplex.systems`.
+Every new component SHALL be placed by one ordered test. A structural base SHALL go to the core. A law kind, an
+operator generated from one function, or numerics the engine handles by type SHALL go to the core under a mathematical
+name, and the engine SHALL key only on the seven law kinds. Any other component is a recipe of core components, placed
+by its users: `skcomplex.systems.general.<concept>` for several fields, `systems/<field>/common/<family>` for one
+field, its system's module for one system. Numerics that serve one field alone SHALL come as a solver or a compiler
+built on the public engine bases, in the package of that field. Every analysis SHALL be placed by its users too: an
+analysis that measures what systems of several fields share SHALL go to `skcomplex.core.analysis`, and an analysis of
+one field SHALL go to `systems/<field>/common/<family>`. The core SHALL never import `skcomplex.systems`.
 
 #### Scenario: Structural base
 - **WHEN** a contributor adds a base where laws run once per triangle of a cell complex

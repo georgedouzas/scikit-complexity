@@ -4,7 +4,12 @@ from ._cascades import ThresholdActivationInteraction, ThresholdNodeElement, Thr
 from ._exposure import ExposureInteraction, HypergraphExposureSisSystem, ParticipantElement
 from ._growth import GrowingWordElement, GrowingWordView, SimonYuleSystem, WritingInteraction
 from ._rumours import ListenersElement, MakiThompsonSystem, RumourContactsInteraction
-from ._simplicial import InfectiveElement, SimplicialContagionSystem, SimplicialInfectionInteraction
+from ._simplicial import (
+    InfectiveElement,
+    RecoveryInteraction,
+    SimplicialContagionSystem,
+    SimplicialInfectionInteraction,
+)
 
 __all__: list[str] = [
     'ExposureInteraction',
@@ -15,6 +20,7 @@ __all__: list[str] = [
     'ListenersElement',
     'MakiThompsonSystem',
     'ParticipantElement',
+    'RecoveryInteraction',
     'RumourContactsInteraction',
     'SimonYuleSystem',
     'SimplicialContagionSystem',

@@ -6,6 +6,7 @@ The agents have many internal configurations.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import numpy as np
@@ -15,12 +16,12 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray, Array
 from ...general.agents import ChoiceInteraction
 
@@ -222,6 +223,12 @@ class StandardizedAgentsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import StandardizedAgentsSystem
         >>> StandardizedAgentsSystem(10, standardized=0.0).prepare().system_.elements[0].values['spin'].tolist()
@@ -248,8 +255,10 @@ class StandardizedAgentsSystem(BaseSystem):
         standardized: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.agents = agents
         self.K = K
         self.J = J
@@ -263,8 +272,9 @@ class StandardizedAgentsSystem(BaseSystem):
         """Return the spin of the configuration of an agent."""
         return float(StandardizationInteraction._get_spins(np.array(agent.configuration)))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         marked = rng.random(self.agents) < self.standardized
         configurations = np.where(
@@ -273,7 +283,7 @@ class StandardizedAgentsSystem(BaseSystem):
             rng.integers(MARKED, self.H + MARKED, size=self.agents),
         )
         configurations = configurations.astype(float)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 GroupElement(
@@ -306,5 +316,5 @@ class StandardizedAgentsSystem(BaseSystem):
                     phase=PHASE,
                 ),
             ],
-            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec(PHASE, activation='visits', groups=('agents',))])),
+            solver=MesaSolver(phases=[PhaseSpec(PHASE, activation='visits', groups=('agents',))]),
         )

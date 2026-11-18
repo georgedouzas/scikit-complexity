@@ -14,7 +14,6 @@ panic raises the stress.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.crowds import KineticCrowdSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'kinetic_crowd'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 system = KineticCrowdSystem(panic_time=150, panic_stress=0.9)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The fundamental diagram and the effect of panic
@@ -44,7 +43,7 @@ for gamma in (0.4, 0.8):
     speeds = []
     for count in walkers:
         homogeneous = KineticCrowdSystem(n_walkers=int(count), stress=gamma, cell=20.0)
-        run = simulate(homogeneous, random_state=0)
+        run = homogeneous.prepare().simulate(random_state=0)
         speeds.append(run.get_values('decisions.mean_speed')[-100:].mean())
     fundamental.plot(walkers / 400, speeds, 'o', label=f'simulation, alpha beta = {gamma}')
     fundamental.plot(grid, diagram(grid, gamma), color='black', linestyle=':')

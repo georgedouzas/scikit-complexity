@@ -18,9 +18,11 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood, StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 class CityResidentElement(Element):
@@ -83,29 +85,22 @@ class GravityContactInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         reach: float,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.reach = reach
         self.gamma = gamma
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the equation of the contacts of a resident.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The equation of the contacts.
-        """
-        dx, dy = s.target.other.x[0] - s.target.x[0], s.target.other.x[1] - s.target.x[1]
-        contacts = neighbors((dx**2 + dy**2) ** (-s.gamma / 2), over=RadiusNeighborhood(self.reach))
-        return [ConstraintLaw(s.target.contacts == contacts, target=s.target.contacts)]
+    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the equation of the contacts of a resident."""
+        super()._prepare(s)
+        if isinstance(s, SimpleNamespace):
+            dx, dy = s.target.other.x[0] - s.target.x[0], s.target.other.x[1] - s.target.x[1]
+            contacts = neighbors((dx**2 + dy**2) ** (-s.gamma / 2), over=RadiusNeighborhood(self.reach))
+            self.laws_: list[BaseComponent] = [ConstraintLaw(s.target.contacts == contacts, target=s.target.contacts)]
 
 
 class GravityUrbanScalingSystem(BaseSystem):
@@ -133,6 +128,12 @@ class GravityUrbanScalingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import GravityUrbanScalingSystem
         >>> GravityUrbanScalingSystem(100).prepare().system_.elements[0].size
@@ -152,15 +153,18 @@ class GravityUrbanScalingSystem(BaseSystem):
         gamma: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.population = population
         self.alpha = alpha
         self.gamma = gamma
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         radius = np.sqrt(self.population**self.alpha / np.pi)
         rng = np.random.default_rng(self.random_state)
         distances = radius * np.sqrt(rng.uniform(size=self.population))
@@ -174,4 +178,4 @@ class GravityUrbanScalingSystem(BaseSystem):
         )
         contact = GravityContactInteraction('contact', target='residents', reach=2.0 * radius, gamma=self.gamma)
         space = ContinuousSpace(extent=[2.0 * radius, 2.0 * radius])
-        return CompositeSystem(self.label, elements=[residents], interactions=[contact], space=space, time=StaticTime())
+        self.system_ = System(self.label, elements=[residents], interactions=[contact], space=space)

@@ -5,6 +5,7 @@ import pytest
 
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import KineticSolver
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.oncology import ImmuneCompetitionSystem
 from skcomplex.systems.economics.econophysics import KineticWealthWelfareSystem, WealthDensityElement
 from skcomplex.systems.general.elements import NonnegativeElement
@@ -41,7 +42,11 @@ def test_kinetic_wealth_runs_with_the_particle_solver():
 @pytest.mark.parametrize('system', [ImmuneCompetitionSystem, KineticOpinionSystem, EvacuationSystem])
 def test_kinetic_systems_run_with_the_particle_solver(system):
     """Test that the kinetic systems of encounters alone validate and start with the particle solver."""
-    trajectory = simulate(system().prepare().system_, until=0, solver=KineticSolver(), random_state=0)
+    built = system().prepare().system_
+    if isinstance(built, System):
+        trajectory = built.set_params(solver=KineticSolver()).prepare().simulate(until=0, random_state=0)
+    else:
+        trajectory = simulate(built, until=0, solver=KineticSolver(), random_state=0)
     assert trajectory.times.tolist() == [0.0]
 
 

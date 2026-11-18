@@ -5,18 +5,17 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import cell_complex
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.social.opinion_dynamics import GaugeNetworkAgentsSystem
 
 
 def test_frustration_blocks_agreement():
     """Test that a flat ring of 12 agents agrees with zero energy, and a flux of pi keeps an energy and a twist."""
-    flat = simulate(GaugeNetworkAgentsSystem())
+    flat = GaugeNetworkAgentsSystem().prepare().simulate()
     assert flat.get_values('energy')[-1] < 1e-10
     assert flat.get_values('twist')[-1] < 1e-5
     assert np.ptp(np.angle(np.exp(1j * flat.get_values('agents.theta')[-1]))) < 1e-5
-    frustrated = simulate(GaugeNetworkAgentsSystem(flux=np.pi))
+    frustrated = GaugeNetworkAgentsSystem(flux=np.pi).prepare().simulate()
     assert frustrated.get_values('energy')[-1] == pytest.approx(12 * (1 - np.cos(np.pi / 12)), abs=1e-6)
     assert frustrated.get_values('twist')[-1] == pytest.approx(np.pi, abs=1e-6)
 
@@ -27,7 +26,7 @@ def test_curvature_and_betti_numbers_read_the_connection():
         system = GaugeNetworkAgentsSystem(flux=flux).prepare().system_
         links = system.elements[1]
         space = links.space
-        curvature = cell_complex(links.values['A'], kind='curvature', space=space)
+        curvature = cell_complex(links.A, kind='curvature', space=space)
         assert curvature.share[0] == curved
     assert cell_complex(None, kind='betti', space=space).betti == (1, 0, 0)
 
@@ -37,4 +36,4 @@ def test_flux_needs_a_loop():
     with pytest.raises(ValidationError, match='needs a loop'):
         GaugeNetworkAgentsSystem(flux=1.0, graph=nx.path_graph(4)).prepare()
     system = GaugeNetworkAgentsSystem(graph=nx.path_graph(3), connections=[0.5, -0.5]).prepare().system_
-    assert system.elements[1].values['A'].tolist() == [0.5, -0.5]
+    assert system.elements[1].A.tolist() == [0.5, -0.5]

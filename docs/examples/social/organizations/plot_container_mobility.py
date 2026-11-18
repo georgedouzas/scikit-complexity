@@ -14,14 +14,13 @@ containers, so its displacements mix the typical sizes of the containers, the sc
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import ContainerMobilitySystem
 
 SYSTEM = 'container_mobility'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(ContainerMobilitySystem(), observers=[observer], random_state=0)
+trajectory = ContainerMobilitySystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Displacements at three scales

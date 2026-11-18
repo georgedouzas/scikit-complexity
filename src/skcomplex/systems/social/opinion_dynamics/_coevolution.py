@@ -6,6 +6,7 @@ The discordant edges rewire to like-minded nodes.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,12 +15,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import neighbors, uniform, where
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 
 OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high': 1.0})
 SMALLEST_DEGREE = 1e-9
@@ -231,10 +235,15 @@ class CoevolvingVoterSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterSystem
-        >>> trajectory = simulate(CoevolvingVoterSystem(30), until=5, random_state=0)
+        >>> trajectory = CoevolvingVoterSystem(30).prepare().simulate(until=5, random_state=0)
         >>> int(trajectory.get_network(-1).sources.size) == int(trajectory.get_network(0).sources.size)
         True
     """
@@ -257,7 +266,7 @@ class CoevolvingVoterSystem(BaseSystem):
         opinions: np.ndarray,
         choice: MapInteraction,
         **values: object,
-    ) -> CompositeSystem:
+    ) -> System:
         """Return a coevolving network of agents with opinions and its variable ties.
 
         The ties are rewired by separation.
@@ -280,13 +289,7 @@ class CoevolvingVoterSystem(BaseSystem):
                 for opinion in (1.0, 0.0)
             ),
         ]
-        return CompositeSystem(
-            label,
-            elements=[agents, ties],
-            interactions=interactions,
-            space=space,
-            time=DiscreteTime(),
-        )
+        return System(label, elements=[agents, ties], interactions=interactions, space=space)
 
     def __init__(
         self,
@@ -297,8 +300,10 @@ class CoevolvingVoterSystem(BaseSystem):
         activity: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_voters = n_voters
         self.mean_degree = mean_degree
         self.rewiring = rewiring
@@ -316,13 +321,14 @@ class CoevolvingVoterSystem(BaseSystem):
         copying = voter.activity * (1 - voter.rewiring) * discordant / (neighbors(1) + SMALLEST_DEGREE)
         return where(uniform('u') < copying, 1 - voter.opinion, voter.opinion)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         space = NetworkSpace(nx.gnp_random_graph(self.n_voters, self.mean_degree / (self.n_voters - 1), seed=rng))
         opinions = (rng.random(self.n_voters) < FIRST_OPINION_SHARE).astype(float)
         copying = MapInteraction('copying', target='voters', state='opinion', function=self._copy_discordant)
-        return CoevolvingVoterSystem._get_coevolving(
+        self.system_ = CoevolvingVoterSystem._get_coevolving(
             self.label,
             CoevolvingVoterElement,
             space,
@@ -365,6 +371,12 @@ class JoinAClubSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import JoinAClubSystem
         >>> JoinAClubSystem(30).prepare().system_.elements[0].element.__name__
@@ -386,8 +398,10 @@ class JoinAClubSystem(BaseSystem):
         rewiring: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.mean_degree = mean_degree
         self.beta = beta
@@ -407,13 +421,14 @@ class JoinAClubSystem(BaseSystem):
         choice = where(uniform('u') < joining, 1, 0)
         return where(uniform('d') < agent.deciding, choice, agent.opinion)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         space = NetworkSpace(nx.gnp_random_graph(self.n_agents, self.mean_degree / (self.n_agents - 1), seed=rng))
         opinions = (rng.random(self.n_agents) < FIRST_OPINION_SHARE).astype(float)
         choice = MapInteraction('choice', target='voters', state='opinion', function=self._choose_club)
-        return CoevolvingVoterSystem._get_coevolving(
+        self.system_ = CoevolvingVoterSystem._get_coevolving(
             self.label,
             ClubMemberElement,
             space,

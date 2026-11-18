@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.social.spreading import HypergraphExposureSisSystem
 
 from ..conftest import _run
@@ -18,9 +17,9 @@ def _prevalence(**settings) -> np.ndarray:
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 def test_hypergraph_exposure_sis_infects_with_the_probability_of_the_doses(backend):
     """Test that the share of runs in which a participant is infected after a step follows its doses."""
-    system = HypergraphExposureSisSystem(60, share=0.4, rate=0.3, exponent=1.5, seed=2).prepare().system_
-    participants = system.elements[0]
-    infected = participants.values['infected']
+    system = HypergraphExposureSisSystem(60, share=0.4, rate=0.3, exponent=1.5, seed=2, backend=backend).prepare()
+    participants = system.system_.elements[0]
+    infected = participants.infected
     doses = np.zeros(60)
     for hyperedge in participants.space.prepare().hyperedges_:
         members = list(hyperedge)
@@ -29,9 +28,7 @@ def test_hypergraph_exposure_sis_infects_with_the_probability_of_the_doses(backe
     runs = 200
     hits = np.zeros(60)
     for seed in range(runs):
-        hits += simulate(system, until=1, random_state=seed, dt=1, backend=backend).get_values('participants.infected')[
-            1
-        ]
+        hits += system.simulate(until=1, random_state=seed, dt=1).get_values('participants.infected')[1]
     error = np.sqrt(np.maximum(expected * (1 - expected), 0.01) / runs)
     assert np.all(np.abs(hits / runs - expected) < 4 * error)
 

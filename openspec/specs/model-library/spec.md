@@ -630,18 +630,18 @@ the Sierpiński triangle and carpet as polygon substitutions, as system classes 
 simulation's steps (Thurner et al. 2018 §3.5.2, Trzaska 2023 §3.5).
 
 #### Scenario: Koch curve
-- **WHEN** `simulate(KochCurveSystem(), until=5)` is called
+- **WHEN** `KochCurveSystem().prepare().simulate(until=5)` is called
 - **THEN** the word at the last frame has 1024 symbols `F`, the curve's total length is `(4/3)^5` within 1e-12, and
   the box-counting dimension of its raster at resolution 2048, over boxes of 16 to 256 cells, is
   `log 4 / log 3 ≈ 1.262` within 0.05
 
 #### Scenario: Cantor set
-- **WHEN** `simulate(CantorSetSystem(), until=8)` is called
+- **WHEN** `CantorSetSystem().prepare().simulate(until=8)` is called
 - **THEN** `trajectory['cantor.size']` is `2^n` at generation `n`, and the total length is `(2/3)^n` within 1e-12 at
   every frame
 
 #### Scenario: Sierpiński carpet
-- **WHEN** `simulate(SierpinskiSubstitutionSystem(shape='carpet'), until=4)` is called
+- **WHEN** `SierpinskiSubstitutionSystem(shape='carpet').prepare().simulate(until=4)` is called
 - **THEN** the patch holds 4096 squares and their area is `(8/9)^4` of the unit square within 1e-12
 
 #### Scenario: Gallery analysis
@@ -1528,7 +1528,7 @@ system class under discrete time in epochs. It SHALL nest the discrete map
 `TrainingInteraction` on the squared error of predicting the next input, by default on Elman's temporal XOR stream.
 
 #### Scenario: Temporal XOR
-- **WHEN** `simulate(ElmanNetworkSystem(), until=200, random_state=0)` trains 4 hidden units with Adam on a
+- **WHEN** `ElmanNetworkSystem().prepare().simulate(until=200, random_state=0)` trains 4 hidden units with Adam on a
   stream of 3000 bits
 - **THEN** after 200 epochs the metric `xor_error`, the mean squared error of the predictions of every third bit, is
   below 0.05, the metric `random_error` of the predictions of the other bits stays above 0.2, and

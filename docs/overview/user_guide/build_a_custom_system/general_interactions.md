@@ -1,50 +1,40 @@
 # General interactions
 
 This page finds the general interaction behind a process and configures it for a model. An interaction reads the
-states of the elements it binds and returns the laws that change them. Most processes already exist as a general
-interaction: you pick the class that does the mathematical operation you need, bind it to your elements, and pass the
-functions that make it your process. Here a stock of 8 units decays at the rate 0.5.
+values of the elements it binds and sets the laws that change them. Many processes already exist as a general
+interaction: you pick the class that does what you need, bind it to your elements, and pass the functions that make it
+your process. Here a stock of 8 units decays at the rate 0.5, through an
+[`EquationInteraction`](../core_components/general.md#equationinteraction) that gives the value `x` its rate.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import EquationInteraction
 
-
-class AmountElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-
-decay = RateInteraction('decay', target='stock', state='x', rate=lambda s: -0.5 * s.target.x)
-system = CompositeSystem(elements=[AmountElement('stock', x=8.0)], interactions=[decay])
-round(float(simulate(system, until=2.0, dt=0.01).get_values('stock.x')[-1]), 3)
+decay = EquationInteraction('decay', target='stock', state='x', equation=lambda s: -0.5 * s.target.x)
+system = System(elements=[Element('stock', values={'x': 8.0})], interactions=[decay]).prepare()
+round(float(system.simulate(until=2.0, dt=0.01).get_values('stock.x')[-1]), 3)
 ```
 
 The stock holds 2.943 after two time units, which is `8 exp(-1)`.
 
-`skcomplex.core.components.interactions` holds one general class per mathematical operation, such as a rate, a
-gradient, a map, a coupling, a jump, a transition, a transfer, or a grouping. Find the operation you need in the list
-below, then follow the link to its subsection.
+The general interactions are the classes of `skcomplex.core.components.interactions` and the recipes that several
+fields share in `skcomplex.systems.general`, each for one mathematical operation, such as a rate, a gradient, a flow, a
+coupling, a jump, a transition, or a grouping. Find the operation you need in the list below, then follow the link to
+its subsection.
 
-- Change a state continuously by a rate, towards a goal, or with noise: [`RateInteraction`](../core_components/interactions.md#rateinteraction), in
-  [Rates and relaxation](#rates-and-relaxation).
+- Change a state continuously by a rate, towards a goal, or with noise:
+  [`EquationInteraction`](../core_components/general.md#equationinteraction), in [Rates and relaxation](#rates-and-relaxation).
 - Move states down a potential, or write the mechanics of a Lagrangian or a Hamiltonian:
   [`GradientInteraction`](../core_components/general.md#gradientinteraction),
   [`EulerLagrangeInteraction`][skcomplex.systems.general.mechanics], and
   [`HamiltonianInteraction`][skcomplex.systems.physics.common.mechanics], in [Gradients and mechanics](#gradients-and-mechanics).
 - Evolve a metric by the Einstein equations, or move a particle along its geodesics: the physics classes in
   [Curved spacetimes](#curved-spacetimes).
-- Conserve, carry, or spread a quantity over a field:
-  [`ConservationInteraction`](../core_components/interactions.md#conservationinteraction) and `RateInteraction`, in
+- Conserve, carry, or spread a quantity over a field: the rate `-divergence(flux)` on a finite-volume field, in
   [Conservation laws](#conservation-laws).
-- Update a state in steps, search by trial and error, or run a cellular automaton:
-  [`MapInteraction`](../core_components/interactions.md#mapinteraction) and [`LocalRuleInteraction`](../core_components/interactions.md#localruleinteraction), in [Discrete time](#discrete-time).
+- Update a state in steps, search by trial and error, or run a cellular automaton: `EquationInteraction` with
+  `time='discrete'` and [`LocalRuleInteraction`](../core_components/interactions.md#localruleinteraction), in [Discrete time](#discrete-time).
 - Couple members over the edges of a lattice or a network, over a group, or over close pairs:
   [`CouplingInteraction`](../core_components/interactions.md#couplinginteraction) and [`PairInteraction`](../core_components/interactions.md#pairinteraction), in [Coupling over a structure](#coupling-over-a-structure).
 - Move particles through a viscous fluid by the forces, torques, and active slip of all of them: the physics
@@ -59,10 +49,10 @@ below, then follow the link to its subsection.
 - Sample configurations by Monte Carlo: [`SamplingInteraction`](../core_components/interactions.md#samplinginteraction), in [Monte Carlo sampling](#monte-carlo-sampling).
 - Set a state from the time or the random stream of the step: [`ArrayUpdateLaw`](../core_components/laws.md#arrayupdatelaw), in
   [Array updates that read the step](#array-updates-that-read-the-step).
-- Run an operation as symbolic laws or as agent rules: the `form` and `schedule` arguments, in
-  [Agent and symbolic forms](#agent-and-symbolic-forms).
-- Learn from payoffs: `MapInteraction`, in [Learning](#learning).
-- Transfer amounts, form groups, or rewire a network: [`TransferInteraction`](../core_components/interactions.md#transferinteraction),
+- Write an operation as symbolic laws or as agent rules: in [Agent and symbolic forms](#agent-and-symbolic-forms).
+- Learn from payoffs: `EquationInteraction`, in [Learning](#learning).
+- Move amounts between stocks, form groups, or rewire a network: rate terms that share a label and
+  [`FlowInteraction`](../core_components/general.md#flowinteraction),
   [`GroupingInteraction`](../core_components/interactions.md#groupinginteraction), and [`TopologyInteraction`](../core_components/interactions.md#topologyinteraction),
   in [Agents, groups, and exchange](#agents-groups-and-exchange).
 - Move agents, create and remove them, let them choose, imitate, and evolve, match partners, fire reactions, or give
@@ -104,47 +94,45 @@ The case of one field is a thin subclass of a general class in `skcomplex.system
 It lives with the one system that uses it, or with the code its field shares when several systems use it. A recipe that
 several fields share lives in `skcomplex.systems.general`. These subclasses double as examples of how to build a
 component of your own, and the page of each system shows them. The interactions of `LotkaVolterraSystem`, for example,
-are rate interactions except predation. `prepare` builds the components of a system class in `system_`:
+live with the population models of biology. `prepare` builds the components of a system class in `system_`:
 
 ```python
-from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem().prepare().system_
-{type(component).__name__: isinstance(component, RateInteraction) for component in system.interactions}
+{type(component).__name__: type(component).__module__.rpartition('.')[0] for component in system.interactions}
 ```
 
-`ExponentialGrowthInteraction` and `MortalityInteraction` subclass `RateInteraction`. `PredationInteraction` does not,
-because it changes both populations at once.
+`ExponentialGrowthInteraction`, `PredationInteraction`, and `MortalityInteraction` come from
+`skcomplex.systems.biology.common.populations`. Each is a short subclass of `Interaction` that sets rate laws. Growth
+and mortality change one population, and predation changes both at once.
 
 ## Elements of an interaction
 
-This section picks the element that an interaction binds. The general interactions act on any element that declares
-the states they read, so a small subclass of [`Element`](../core_components/elements.md#element), or a
-[`DeclaredElement`](../core_components/elements.md#declaredelement) that takes its states as data, is all an interaction needs.
+This section picks the element that an interaction binds. A general interaction acts on any element that has the
+values it reads, so an [`Element`](../core_components/elements.md#element) with its values by name is all an
+interaction needs.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import EquationInteraction
 
-stock = DeclaredElement('stock', variables={'x': DeclaredVariableSpec(5.0, StateSpec())})
-decay = RateInteraction('decay', target='stock', state='x', rate=lambda s: -s.target.x)
-round(float(simulate(CompositeSystem(elements=[stock], interactions=[decay]), until=1.0).get_values('stock.x')[-1]), 3)
+stock = Element('stock', values={'x': 5.0})
+decay = EquationInteraction('decay', target='stock', state='x', equation=lambda s: -s.target.x)
+system = System(elements=[stock], interactions=[decay]).prepare()
+round(float(system.simulate(until=1.0, dt=1.0).get_values('stock.x')[-1]), 3)
 ```
 
 The stock falls from 5 to 1.839, which is `5 exp(-1)`.
 
-- `Element` declares states and parameters as annotated arguments of its `__init__`, and `DeclaredElement` takes
-  them as data.
-- [`GroupElement`](../core_components/elements.md#groupelement) holds many identical members as arrays, and on `'sites'` it places one
-  member at every site of a space, as [`FieldElement`](../core_components/elements.md#fieldelement) does.
-- A state of order 2 with a vector value, `StateSpec(vector=True, order=2)`, is the position of a point in a
-  continuous space. Its first derivative is the companion state `x_d1`, so a backend such as LAMMPS reads the
-  velocity of a point from its declared states. The general realization
-  [`PointElement`](../core_components/general.md#pointelement) is such an element.
+- A subclass of `Element` lists its values as the arguments of its `__init__`, with their allowed values in
+  `Annotated`, as [Defining elements](defining_elements.md) shows.
+- `Element(label, values=..., size=n)` holds `n` members, and `space=` places one member at every site of a space, as
+  [Groups of many elements](groups_of_many_elements.md) and [Fields](fields.md) show.
+- A value whose laws give its second derivative, such as `x.diff(t, 2)`, is the position of a point, and its velocity
+  `x'` is a state too. The general realization [`PointElement`](../core_components/general.md#pointelement) is such an
+  element.
 
 ## Continuous time
 
@@ -152,38 +140,27 @@ This section writes differential equations, with or without noise, from rates, p
 
 ### Rates and relaxation
 
-Here you add a rate to a state, as the decay at the top of this page does, or pull a state towards a goal with a
-`RateInteraction`.
+Here you add a rate to a state, as the decay at the top of this page does, or pull a state towards a goal, with an
+`EquationInteraction`.
 
-`RateInteraction(target, state, rate, sources=(), noise=None, divisor=None, hurst=None)` adds `rate(s)`, and
-`noise(s) dW`, to the highest derivative of a state of any order. A Hurst index `hurst` makes the noise fractional.
+`EquationInteraction(target, state, equation, noise=None, convention='ito', time='continuous')` adds the rate
+`equation(s)`, and the noise `noise(s) dW`, to a state, or to its derivative of order `k` when the state is named with
+`k` primes, such as `"x''"`.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import EquationInteraction
 
-
-class AmountElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-
-smoothing = RateInteraction('smoothing', target='belief', state='x', rate=lambda s: (10.0 - s.target.x) / 0.5)
-system = CompositeSystem(elements=[AmountElement('belief', x=0.0)], interactions=[smoothing])
-round(float(simulate(system, until=5.0, dt=0.01).get_values('belief.x')[-1]), 3)
+smoothing = EquationInteraction('smoothing', target='belief', state='x', equation=lambda s: (10.0 - s.target.x) / 0.5)
+system = System(elements=[Element('belief', values={'x': 0.0})], interactions=[smoothing]).prepare()
+round(float(system.simulate(until=5.0, dt=0.01).get_values('belief.x')[-1]), 3)
 ```
 
 The belief reaches the goal 10.0 within five time units, ten times its relaxation time of 0.5. The rate
 `(goal - x) / time` relaxes a state towards a goal. With noise, it is an Ornstein-Uhlenbeck process, a random walk
-pulled back towards a mean. A field
-that has its own term for this form names it by a subclass, such as the physics `RelaxationTimeInteraction` or the
-neuroscience `LeakyIntegrationInteraction`.
+pulled back towards a mean. A field that has its own term for this form names it by a subclass, such as the physics
+`RelaxationTimeInteraction` or the neuroscience `LeakyIntegrationInteraction`.
 
 ### Gradients and mechanics
 
@@ -346,123 +323,84 @@ shells of a dust ball, needs that coordinate on a lattice axis of a field, `axes
 
 Here a quantity of a field is only moved around, never created or lost except by a source. The example runs
 Burgers' flux, a drift, and diffusion on a periodic finite-volume field of a
-[`LatticeSpace`](../core_components/spaces.md#latticespace). A finite-volume field stores the mean of a cell, so the total changes only
-through the boundary.
+[`LatticeSpace`](../core_components/spaces.md#latticespace). A finite-volume field stores the mean of a cell, so the total
+changes only through the boundary.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
-from skcomplex.core.components.laws.utils import laplacian
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.laws.utils import divergence, laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import EquationInteraction
 
-
-class CellElement(Element):
-    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.u = u
-
-
-space = LatticeSpace((50,), spacing=0.1, boundary='periodic')
+space = LatticeSpace((50,), spacing=0.1, boundary='periodic', discretization='finite-volume')
 values = {'u': 1.0 + np.sin(2 * np.pi * np.arange(50) / 50)}
-interactions = {
-    'burgers': ConservationInteraction('burgers', target='wave', state='u', flux=lambda s: s.target.u**2 / 2),
-    'drift': ConservationInteraction('drift', target='wave', state='u', flux=lambda s: 1.0 * s.target.u),
-    'heat': RateInteraction('heat', target='wave', state='u', rate=lambda s: 0.1 * laplacian(s.target.u)),
+rates = {
+    'burgers': lambda s: -divergence([s.target.u**2 / 2]),
+    'drift': lambda s: -divergence([1.0 * s.target.u]),
+    'heat': lambda s: 0.1 * laplacian(s.target.u),
 }
 totals = {}
-for label, interaction in interactions.items():
-    field = FieldElement('wave', element=CellElement, space=space, values=values, discretization='finite-volume')
-    system = CompositeSystem(elements=[field], interactions=[interaction])
-    total = simulate(system, until=0.5, dt=0.01).get_values('wave.u')[-1].sum()
+for label, rate in rates.items():
+    wave = Element('wave', values=values, space=space)
+    interaction = EquationInteraction(label, target='wave', state='u', equation=rate)
+    system = System(elements=[wave], interactions=[interaction]).prepare()
+    total = system.simulate(until=0.5, dt=0.01).get_values('wave.u')[-1].sum()
     totals[label] = round(float(total), 6)
 totals
 ```
 
-The total stays 50.0 under each of the three interactions.
+The total stays 50.0 under each of the three rates.
 
-- `ConservationInteraction(target, state, flux, source=None)` conserves a state of a field under a flux and a source,
-  with the rate `-divergence(flux)`. A finite-volume field computes it by the differences of the flux between cells,
-  under the limiter and numerical flux of its `FiniteVolumeSpec`, and the conservation laws of one field form one
-  system. Spectral and finite-difference fields discretize the divergence by their own operators.
-- A drift `a` carries a state as the flux `a u` of a `ConservationInteraction`.
-- Diffusion is the rate `D laplacian(u)` of a `RateInteraction`, the divergence of the flux `-D gradient(u)`, which keeps
-  the total of a periodic field. Physics names these forms by the subclasses `AdvectionInteraction` and
-  `DiffusivityInteraction`.
+- A finite-volume field reads the rate `-divergence(flux)` of a state as a conservation law and computes it by the
+  differences of the flux between cells, under the limiter and numerical flux of the `FiniteVolumeSpec` of its
+  lattice, as [Fields](fields.md) shows. Spectral and finite-difference fields discretize the divergence by their own
+  operators.
+- A drift `a` carries a state as the flux `a u`.
+- Diffusion is the rate `D laplacian(u)`, the divergence of the flux `-D gradient(u)`, which keeps the total of a
+  periodic field. Physics names these forms by the subclasses `AdvectionInteraction` and `DiffusivityInteraction`.
 
 ## Discrete time
 
-This section updates states in steps, as maps, searches, cellular automata, and cascades. A system steps when it
-declares [`DiscreteTime`](../core_components/spaces.md#discretetime). A `MapInteraction` sets the next value of a state from the current
-one, here by the logistic map `x(t+1) = 3 x (1 - x)`.
+This section updates states in steps, as maps, searches, cellular automata, and cascades. An `EquationInteraction`
+with `time='discrete'` sets the next value of a state from the current one, and a system of next values steps once per
+unit of time. Here it is the logistic map `x(t+1) = 3 x (1 - x)`.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import MapInteraction
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import EquationInteraction
 
-
-class ValueElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.5):
-        super().__init__(label)
-        self.x = x
-
-
-logistic = MapInteraction('map', target='value', state='x', function=lambda s: 3 * s.target.x * (1 - s.target.x))
-system = CompositeSystem(elements=[ValueElement('value')], interactions=[logistic], time=DiscreteTime())
-simulate(system, until=2).get_values('value.x').tolist()
+logistic = EquationInteraction(
+    'map', target='value', state='x', equation=lambda s: 3 * s.target.x * (1 - s.target.x), time='discrete'
+)
+system = System(elements=[Element('value', values={'x': 0.5})], interactions=[logistic]).prepare()
+system.simulate(until=2).get_values('value.x').tolist()
 ```
 
-The values are `[0.5, 0.75, 0.5625]`.
+The values are `[0.5, 0.75, 0.5625]`. Every next value reads the values at the start of the step, so all members and
+states update at once.
 
-`MapInteraction(target, state, function, sources=(), mode='replace', schedule='synchronous', form='symbolic')` sets
-`x(t+1) = f(s)`, or `x + f(s)` with `mode='increment'`. The schedule decides the order of the members:
-
-- `'synchronous'` updates all members at once.
-- `'sequential'` updates them one after the other.
-- `'random-sequential'` updates them in random order.
-- `'member'` updates them in the activation of every member, in the agent form.
-
-A state that searches for a target by trial and error, such as a price that rises while demand exceeds supply, is a
-`MapInteraction` that steps it by the sign of a signal and keeps it within bounds:
+A state that searches for a target by trial and error, such as a price that rises while demand exceeds supply, steps
+by the sign of a signal and keeps within bounds:
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import MapInteraction
 from skcomplex.core.components.laws.utils import clip, sign
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class QuoteElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.x = x
-
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import EquationInteraction
 
 step = lambda s: clip(s.target.x * (1 + 0.5 * sign(2 - s.target.x)), None, 2.0)
-search = MapInteraction('search', target='quote', state='x', function=step)
-system = CompositeSystem(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
-simulate(system, until=3).get_values('quote.x').tolist()
+search = EquationInteraction('search', target='quote', state='x', equation=step, time='discrete')
+system = System(elements=[Element('quote', values={'x': 1.0})], interactions=[search]).prepare()
+system.simulate(until=3).get_values('quote.x').tolist()
 ```
 
-The quote rises from 1.0 to 1.5 and to 2.0, where the signal `2 - x` vanishes, and it stays there. The next value is `x (1 + step sign(signal))` kept within `[lower, upper]`. Economics names this search
-`PriceAdjustmentInteraction`, with an additive stepping and an agent form.
+The quote rises from 1.0 to 1.5 and to 2.0, where the signal `2 - x` vanishes, and it stays there. The next value is
+`x (1 + step sign(signal))` kept within `[lower, upper]`. Economics names this search `PriceAdjustmentInteraction`,
+with an additive stepping and an agent form.
 
 A cellular automaton updates each cell from the cells around it by a fixed rule. A `LocalRuleInteraction` runs one,
 and here its [`RadiusNeighborhood`](../core_components/spaces.md#radiusneighborhood) takes the two nearest cells. The helper `run`
@@ -858,104 +796,75 @@ that names `random`. A function can then set a lattice state to one member of an
 
 ## Agent and symbolic forms
 
-This section runs one operation either as symbolic laws or as agent rules. A class whose operation agent systems also
-use takes `form='symbolic'` or `form='agent'`. Choose the agent form when your members are agents that need to read the
-system's history, storage, or their own neighbours and cell.
+This section writes one operation either as symbolic laws or as an agent rule. A symbolic law, such as the next
+value of an `EquationInteraction` with `time='discrete'`, updates every member at once and runs on every solver. An
+agent rule, `UpdateLaw(s.target, rule)`, is a Python function that reads and changes one agent, so it can also read
+the history of the system and the agent's neighbours and cell. Choose it when your members are agents, as
+[Agent-based systems](agent_based_systems.md) shows. Here three walkers step by one, first as a symbolic map and then
+as a rule that also records the step each walker reached.
 
 ```python
-from types import SimpleNamespace
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import EquationInteraction
 
-from skcomplex.core.components.interactions import MapInteraction
 
-symbolic = MapInteraction('map', target='walkers', state='x', function=lambda s: s.target.x + 1)
-agent = MapInteraction('map', target='walkers', state='x', function=lambda agent, system: agent.x + 1, form='agent')
-type(agent.prepare().run(SimpleNamespace()).laws_[0]).__name__, symbolic.form
+class Step(Interaction):
+    def __init__(self, label, *, target: Role = 'walkers'):
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s.target, self.step)]
+
+    def step(self, agent, system):
+        agent.x += 1
+        agent.steps = agent.x
+
+
+symbolic = EquationInteraction('step', target='walkers', state='x', equation=lambda s: s.target.x + 1, time='discrete')
+walkers = Element('walkers', values={'x': 0.0, 'steps': 0.0}, size=3)
+mapped = System(elements=[walkers], interactions=[symbolic]).prepare()
+ruled = System(elements=[walkers], interactions=[Step('step')]).prepare()
+mapped.simulate(until=4).get_values('walkers.x')[-1].tolist(), mapped.form_, ruled.form_
 ```
 
-The agent form returns a `RuleLaw`, and the default form is `'symbolic'`.
+The map takes each walker to 4.0 after four steps, as a `'discrete map'`. The rule makes an `'agent-based system'`,
+which `MesaSolver` runs and whose trajectory holds the values of its agents.
 
-- The symbolic form lowers to symbolic laws, which every solver compiles.
-- The agent form lowers to an agent [`RuleLaw`](../core_components/laws.md#rulelaw) in its `phase`. Its functions take the agent and the system view,
-  `f(agent, system)`, so they read the system's history and storage and the agent's neighbours and cell.
-- The form is an argument, not a guess, because the engine probes laws with empty namespaces and cannot tell an agent
-  group from a symbolic one.
-
-**The member schedule.** Use `schedule='member'` when every agent should take all of its actions in one go, such as
-stepping and then recording the step it reached:
-
-```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MapInteraction
-from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class WalkerElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0, steps: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-        self.steps = steps
-
-
-member = {'schedule': 'member', 'form': 'agent'}
-walk = MapInteraction('walk', target='walkers', state='x', function=lambda a, m: a.x + 1, **member)
-count = MapInteraction('count', target='walkers', state='steps', function=lambda a, m: a.x, **member)
-walkers = GroupElement('walkers', element=WalkerElement, size=3)
-system = CompositeSystem(elements=[walkers], interactions=[walk, count], space=LatticeSpace((5, 5)))
-simulate(system, until=4, random_state=0).get_agents('walkers', 4).values['steps'].tolist()
+```python continuation
+ruled.simulate(until=4, random_state=0).get_agents('walkers', 4).values['steps'].tolist()
 ```
 
 Each of the three walkers records 4.0 steps after four steps.
 
-An agent rule may name the role whose members run it, `RuleLaw(function, members='target')`. The Mesa solver runs it
-in the activation of every member of that role, after the rules of the member's element and the member rules of the
-interactions listed before it. `MapInteraction`, `TransitionInteraction`, and `TransferInteraction` take
-`schedule='member'` for it, and so do the movement and the birth and death of the general realizations. The updates,
-transfers, transitions, and life cycle of one agent then run together as one step of that agent, in the order of the
-system's interactions, so the count above reads the step its walker took in the same activation.
+- The symbolic form lowers to symbolic laws, which every solver compiles.
+- A rule takes all the actions of its agent in one go, such as stepping and then recording the step it reached, so
+  `steps` reads the step its walker took in the same activation.
+- Since a rule may change any value, every value of a group with rules is a state, recorded in the trajectory.
 
 ## Learning
 
-This section lets members learn from payoffs. When members keep a score per option, a `MapInteraction` per score
-moves it towards the payoff its option realized, here 1.0 for the first option and 2.0 for the second.
+This section lets members learn from payoffs. When members keep a score per option, an `EquationInteraction` per
+score moves it towards the payoff its option realized, here 1.0 for the first option and 2.0 for the second.
 
 ```python
-from typing import Annotated
+from skcomplex.core.components.elements import Element
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import EquationInteraction
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MapInteraction
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class LearnerElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        first: Annotated[float, StateSpec()] = 0.0,
-        second: Annotated[float, StateSpec()] = 0.0,
-    ):
-        super().__init__(label)
-        self.first = first
-        self.second = second
-
-
-first = lambda s: 0.5 * (1.0 - s.target.first)
-second = lambda s: 0.5 * (2.0 - s.target.second)
+first = lambda s: s.target.first + 0.5 * (1.0 - s.target.first)
+second = lambda s: s.target.second + 0.5 * (2.0 - s.target.second)
 learning = [
-    MapInteraction('first', target='learners', state='first', function=first, mode='increment'),
-    MapInteraction('second', target='learners', state='second', function=second, mode='increment'),
+    EquationInteraction('first', target='learners', state='first', equation=first, time='discrete'),
+    EquationInteraction('second', target='learners', state='second', equation=second, time='discrete'),
 ]
-learners = GroupElement('learners', element=LearnerElement, size=2)
-system = CompositeSystem(elements=[learners], interactions=learning, time=DiscreteTime())
-trajectory = simulate(system, until=10, random_state=0)
+learners = Element('learners', values={'first': 0.0, 'second': 0.0}, size=2)
+trajectory = System(elements=[learners], interactions=learning).prepare().simulate(until=10)
 first, second = trajectory.get_values('learners.first')[-1][0], trajectory.get_values('learners.second')[-1][0]
 round(float(first), 2), round(float(second), 2)
 ```
@@ -973,85 +882,87 @@ movement, the birth and death, and the matching of agents are general realizatio
 
 ### Transfers
 
-A `TransferInteraction` moves an amount from one holder to another, so that the total is kept. Here an upper tank
-drains into a lower one.
+A flow moves an amount from one stock to another, so that the total is kept. It is two rate terms that share a
+label, `-f` on the stock it leaves and `f` on the stock it enters, set by one interaction. Here an upper tank drains
+into a lower one through a pipe.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import TransferInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class TankElement(Element):
-    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 0.0):
+class Pipe(Interaction):
+    def __init__(self, label, *, upper: Role = 'upper', lower: Role = 'lower', k=0.5):
         super().__init__(label)
-        self.level = level
+        self.upper = upper
+        self.lower = lower
+        self.k = k
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        flow = s.k * s.upper.level
+        self.laws_ = [RateLaw(s.upper.level, -flow, label='flow'), RateLaw(s.lower.level, flow, label='flow')]
 
 
-flow = TransferInteraction('flow', source='upper', target='lower', state='level', amount=lambda s: s.source.level / 2)
-system = CompositeSystem(elements=[TankElement('upper', level=4.0), TankElement('lower')], interactions=[flow])
-trajectory = simulate(system, until=1.0)
-round(float(trajectory.get_values('upper.level')[-1] + trajectory.get_values('lower.level')[-1]), 6)
+tanks = [Element('upper', values={'level': 4.0}), Element('lower', values={'level': 0.0})]
+trajectory = System(elements=tanks, interactions=[Pipe('pipe')]).prepare().simulate(until=1.0, dt=1.0)
+(trajectory.get_values('upper.level') + trajectory.get_values('lower.level')).tolist(), trajectory.get_values('pipe.flow').round(3).tolist()
 ```
 
-The two levels still sum to 4.0.
+The two levels still sum to 4.0, and the flow falls from 2.0 to 1.213 as the upper tank empties.
 
-`TransferInteraction(source, target, state, into=None, amount, ...)` moves amounts of states between members, the
-agents of one cell, a [`Source()`](../core_components/laws.md#source), and a [`Sink()`](../core_components/laws.md#sink). In the symbolic form these are transfer laws, which the trajectory
-records as named flows. In the agent form they move between paired agents.
+- The trajectory records the flow under its label, `pipe.flow`. A flow whose stocks belong to one element is recorded
+  under that element instead, such as `population.births`.
+- A flow from outside the system has only the term on the stock it enters, and a flow out of it only the term `-f` on
+  the stock it leaves.
+- The [loops analysis](stocks_and_flows.md#feedback-loops) and its flow matrix read the terms that share a label as one
+  flow between its stocks.
+- [`FlowInteraction`](../core_components/general.md#flowinteraction) writes such a flow between two stocks of one
+  element from a function of its amount, and [`StockFlowSystem`](../core_components/general.md#stockflowsystem) builds a
+  whole system of stocks and flows.
 
-Transfers within one group can follow the group order, as in the exclusion process of particles hopping along a lane.
-Every site holds at most one particle, and the number of particles stays the same.
+Amounts can also move within one group in discrete time, as in the exclusion process of particles hopping along a lane.
+Every site holds at most one particle, and a particle hops to the next site with probability one half when that site is
+empty. `shift_member(x, k)` reads the value of the member `k` places along the group, so each site loses the particle
+that hops away and gains the one that hops in from behind.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TransferInteraction
-from skcomplex.core.components.laws.utils import bernoulli
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import bernoulli, shift_member
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class SiteElement(Element):
-    def __init__(self, label, *, occupied: Annotated[float, StateSpec()] = 0.0):
+class Hops(Interaction):
+    def __init__(self, label, *, target: Role = 'lane', p=0.5):
         super().__init__(label)
-        self.occupied = occupied
+        self.target = target
+        self.p = p
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        n = s.target.occupied
+        hop = n * (1 - shift_member(n, 1)) * bernoulli('hop', self.p)
+        self.laws_ = [UpdateLaw(n, n - hop + shift_member(hop, -1))]
 
 
-hops = TransferInteraction(
-    'hops',
-    source='lane',
-    target='lane',
-    state='occupied',
-    amount=lambda s: s.source.occupied * (1 - s.target.occupied) * bernoulli('hop', 0.5),
-    offset=1,
-)
-lane = GroupElement('lane', element=SiteElement, size=20, values={'occupied': np.tile([1.0, 0.0], 10)})
-system = CompositeSystem(elements=[lane], interactions=[hops], time=DiscreteTime())
-trajectory = simulate(system, until=10, dt=1, random_state=0)
-set(trajectory.get_values('lane.occupied').sum(axis=1))
+lane = Element('lane', values={'occupied': np.tile([1.0, 0.0], 10)}, size=20)
+trajectory = System(elements=[lane], interactions=[Hops('hops')]).prepare().simulate(until=10, dt=1, random_state=0)
+set(trajectory.get_values('lane.occupied').sum(axis=1).tolist())
 ```
 
 Every recorded step holds 10.0 particles.
 
-- With `offset=k`, a symbolic transfer within one group moves amounts along the edges of the group order, from every
-  member to the member `k` places along it, which `namespace.target` reads.
-- The `boundary` is `'periodic'` for a ring, or `'fixed'` for a line, whose last member moves nothing.
-- With a `rate`, a `reverse_rate` adds jumps that move the amounts back.
-- A draw in an amount is one draw per edge, read by both of its ends. The parallel update of the exclusion process
-  therefore keeps one particle per site.
-- A leg end `'<role>.<state>'` names a state of any role. One transfer, such as the circuit of money of a stock-flow
-  consistent economy, can then move amounts between several holders, and a subclass declares the parameters its
-  amounts read.
+- A draw in an expression is one draw per member, and `shift_member(hop, -1)` reads the draw of the member behind, so
+  the particle that leaves one site is the one that enters the next.
+- `shift_member(x, k, boundary='fixed')` reads a line instead of a ring, whose ends read zero.
 
 ### Grouping
 

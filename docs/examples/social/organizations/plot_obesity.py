@@ -16,7 +16,6 @@ growing share of them crosses the obesity line at a body mass index of 30.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import ObesitySystem
 
@@ -24,7 +23,7 @@ SYSTEM = 'obesity'
 
 system = ObesitySystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, until=364, dt=1, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=364, dt=1, observers=[observer], random_state=0)
 
 # %%
 # Body mass index by habit

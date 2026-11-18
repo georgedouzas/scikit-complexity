@@ -119,11 +119,10 @@ def test_global_fit_is_reproducible_and_beats_the_midpoints():
 
 def test_event_likelihood_recovers_the_confidence_of_deffuant():
     """Test that the event likelihood of a recorded Deffuant run recovers the confidence within 0.02."""
-    recorded = simulate(
-        DeffuantSystem(100, confidence=0.25, steepness=50.0),
-        until=50,
-        random_state=0,
-        record_draws=True,
+    recorded = (
+        DeffuantSystem(100, confidence=0.25, steepness=50.0)
+        .prepare()
+        .simulate(until=50, random_state=0, record_draws=True)
     )
     result = calibrate(
         DeffuantSystem(100, steepness=50.0),

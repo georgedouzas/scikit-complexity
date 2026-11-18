@@ -298,7 +298,7 @@ def test_networks_of_a_network_space():
 
 def test_networks_of_a_changing_network_snapshot():
     """Test that a snapshot of a network whose topology changes is read as its graph."""
-    trajectory = simulate(CoevolvingVoterSystem(), until=2.0, random_state=0)
+    trajectory = CoevolvingVoterSystem().prepare().simulate(until=2.0, random_state=0)
     snapshot = trajectory.get_network(-1)
     graph = _read_networks(snapshot)[0]
     assert sorted(graph.nodes()) == snapshot.nodes.tolist()

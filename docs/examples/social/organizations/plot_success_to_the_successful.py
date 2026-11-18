@@ -16,7 +16,6 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import SuccessToTheSuccessfulSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(SuccessToTheSuccessfulSystem(), dt=1.0, observers=[observer])
+trajectory = SuccessToTheSuccessfulSystem().prepare().simulate(dt=1.0, observers=[observer])
 
 # %%
 # The winner takes all
@@ -57,7 +56,7 @@ stocks.set_ylabel('resources')
 stocks.set_title('The resources of the competitors')
 stocks.legend()
 for a in (30.0, 45.0, 49.0, 51.0, 55.0, 70.0):
-    scenario = simulate(SuccessToTheSuccessfulSystem(a=a, b=100.0 - a), dt=1.0)
+    scenario = SuccessToTheSuccessfulSystem(a=a, b=100.0 - a).prepare().simulate(dt=1.0)
     splits.plot(times, scenario.get_values('contest.success'), label=f'a starts at {a:.0f}')
 splits.set_xlabel('years')
 splits.set_ylabel('share of the first competitor')
