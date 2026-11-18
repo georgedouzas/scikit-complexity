@@ -21,6 +21,7 @@ from ._kinetic_equations import (
     BhatnagarGrossKrookInteraction,
     BoltzmannEquationSystem,
     EnskogSystem,
+    RelaxationTimeInteraction,
     VlasovEquationSystem,
 )
 from ._kinetics import CarlemanGasElement, DiscreteVelocityBoltzmannSystem, WaveBreakingSystem, WaveNumberElement
@@ -58,6 +59,7 @@ __all__: list[str] = [
     'MarangoniLayerElement',
     'ParticleCountInteraction',
     'RayleighBenardSystem',
+    'RelaxationTimeInteraction',
     'ShallowWaterElement',
     'ShallowWaterSystem',
     'ThermocapillaryInteraction',

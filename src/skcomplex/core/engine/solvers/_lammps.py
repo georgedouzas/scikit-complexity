@@ -729,7 +729,7 @@ class LammpsSolver(ExternalSolver):
         """
         elements = [
             (
-                clone(element).set_params(space=LammpsSolver._unbound(element.space))
+                clone(element).set_params(space=LammpsSolver._get_unbounded(element.space))
                 if isinstance(getattr(element, 'space', None), ContinuousSpace)
                 else element
             )
@@ -740,13 +740,13 @@ class LammpsSolver(ExternalSolver):
             elements=elements,
             interactions=[item for item in system.interactions if f'{scope}{item.label}' in keep],
             systems=[LammpsSolver._filter_system(child, keep, f'{scope}{child.label}/') for child in system.systems],
-            space=LammpsSolver._unbound(system.space),
+            space=LammpsSolver._get_unbounded(system.space),
             time=system.time,
         )
 
     @staticmethod
-    def _unbound(space: BaseSpace | None) -> BaseSpace | None:
-        """Return an unbounded continuous space of the dimension of a box, or any other space as it is."""
+    def _get_unbounded(space: BaseSpace | None) -> BaseSpace | None:
+        """Return an unbounded space of the dimension of a box, or any other space as it is."""
         if isinstance(space, ContinuousSpace):
             return ContinuousSpace(n_dim=space.n_dim or len(space.extent))
         return space

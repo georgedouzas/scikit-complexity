@@ -399,7 +399,7 @@ class LatticeYangMillsSystem(BaseSystem):
         >>> from skcomplex.systems.physics.waves import LatticeYangMillsSystem
         >>> [element.label for element in LatticeYangMillsSystem(2, dimension=2).prepare().system_.elements]
         ['links']
-        >>> LatticeYangMillsSystem(2, dimension=2, colors=3).prepare().system_.elements[0].__class__.__name__
+        >>> type(LatticeYangMillsSystem(2, dimension=2, colors=3).prepare().system_.elements[0]).__name__
         'ColorLinkElement'
     """
 

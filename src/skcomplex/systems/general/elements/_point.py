@@ -13,10 +13,15 @@ from ....core.specs import VisualSpec
 
 
 class PointElement(Element):
-    """A point at the position `x` that the forces on it move.
+    """An element of a point at the position `x` that the forces on it move.
 
     The forces give the acceleration `x''` of the position, and the velocity is the value `x'`, which starts at zero
-    unless `values` gives it. Atoms of a gas, stars of a cluster, birds of a flock, and pedestrians of a crowd are
+    unless `values` gives it.
+
+    Unlike `Element`, which takes any values, it names the position `x` and draws it as a point. Choose it when members
+    are bodies that move by forces in a continuous space.
+
+    It appears in many fields. Atoms of a gas, stars of a cluster, birds of a flock, and pedestrians of a crowd are
     points that move by the forces on them.
 
     Args:

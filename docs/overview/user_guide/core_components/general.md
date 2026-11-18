@@ -124,12 +124,6 @@ from `x'`, and the boundary of the space acts on `x`.
 
 **A field realization.** Physics names the point with a mass a `MassPointElement`, whose forces divide by `m`.
 
-```python continuation
-from skcomplex.systems.physics.common.particles import MassPointElement
-
-MassPointElement('argon', x=[1.0, 2.0], m=39.9).get_params()['m']
-```
-
 See its [API entry][skcomplex.systems.general.elements].
 
 ## ReactionInteraction

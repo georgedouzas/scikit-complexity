@@ -210,7 +210,7 @@ class PointsVisual(BaseVisual):
 
     @staticmethod
     def _get_path(element: CompiledElementSpec, name: str) -> str:
-        """Return the dotted name of a state or a parameter, such as a fixed position or the velocity `x'`."""
+        """Return the dotted name of a state or a parameter, such as the velocity `x'`."""
         name = LayoutSpec._get_internal_name(name)
         return element.states.get(name) or element.parameters[name]
 

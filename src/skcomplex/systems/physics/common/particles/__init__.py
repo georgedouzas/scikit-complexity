@@ -16,7 +16,6 @@ from ._linear_drag import LinearDragInteraction
 from ._mass_point import MassPointElement
 from ._periodic_force import PeriodicForceInteraction
 from ._propulsion_step import PropulsionStepInteraction
-from ._relaxation_time import RelaxationTimeInteraction
 from ._restoring_force import RestoringForceInteraction
 from ._self_propulsion import SelfPropulsionInteraction
 from ._stokesian_mobility import StokesianMobilityInteraction
@@ -38,7 +37,6 @@ __all__: list[str] = [
     'MassPointElement',
     'PeriodicForceInteraction',
     'PropulsionStepInteraction',
-    'RelaxationTimeInteraction',
     'RestoringForceInteraction',
     'SelfPropulsionInteraction',
     'StokesianMobilityInteraction',
