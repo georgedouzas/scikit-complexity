@@ -11,7 +11,7 @@ from ._banking import (
     ReserveBankElement,
 )
 from ._capital import CapitalStockSystem
-from ._credit import CreditMarketInteraction, CreditNetworksSystem, FirmElement, LenderElement
+from ._credit import BalanceSheetsInteraction, CreditMarketInteraction, CreditNetworksSystem, FirmElement, LenderElement
 from ._firms import InvestingFirmElement, InvestmentInteraction, ToyFirmInvestmentSystem
 from ._growth import EconomyElement, MultiplierAcceleratorSystem, SolowGrowthInteraction, SolowSystem
 from ._herding import HerdingAgentElement, HerdingInteraction, NetworkHerdingSystem
@@ -42,6 +42,7 @@ from ._stochastic_growth import BrockMirmanGrowthSystem, StochasticGrowthElement
 from ._trade import ExchangeRatesSystem, TradingEconomyElement
 
 __all__: list[str] = [
+    'BalanceSheetsInteraction',
     'BrockMirmanGrowthSystem',
     'BusinessElement',
     'CapitalStockSystem',
