@@ -18,13 +18,13 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable, Tags
 from ....core.components.elements import Element
-from ....core.components.interactions import TransitionInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw
-from ....core.components.laws.utils import total
+from ....core.components.laws.utils import total, where
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -67,7 +67,7 @@ class LocusElement(Element):
         self.h = h
 
 
-class SubstitutionInteraction(TransitionInteraction):
+class SubstitutionInteraction(Interaction):
     """Origin and fixation of mutants that flip one locus of a genome.
 
     The genome is the one of a monomorphic population.
@@ -117,24 +117,20 @@ class SubstitutionInteraction(TransitionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        N: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        F0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        N: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        mu: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        F0: Annotated[float, RealSet.open(0, oo)] = 1.0,
         couplings: npt.ArrayLike | None = None,
         state: str = 's',
     ) -> None:
-        super().__init__(label, target=target, state=state, source=-1.0, destination=1.0)
+        super().__init__(label)
+        self.target = target
         self.N = N
         self.mu = mu
         self.F0 = F0
         self.couplings = couplings
-
-    def _check_transition(self) -> None:
-        """Leave the transition unchecked.
-
-        Its rates derive from the parameters of the population.
-        """
+        self.state = state
 
     def _get_fitness(self, namespace: SimpleNamespace) -> tuple[Expression, Expression]:
         """Return the local field `h_i + sum_j J_ij s_j` of a locus and the genome fitness."""
@@ -149,25 +145,25 @@ class SubstitutionInteraction(TransitionInteraction):
             couplings,
         )
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the substitutions of the allele of every locus.
-
-        They go from `-1` to `1` and back.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the substitutions of the allele of every locus, from `-1` to `1` and back.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use, with `namespace.target`.
-
-        Returns:
-            laws:
-                The jumps of the allele.
+            context:
+                The namespace of the genome, with `context.target`.
         """
-        s = namespace
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = context
         alleles = getattr(s.target, self.state)
         local, fitness = self._get_fitness(s)
         ratio = fitness / (fitness - 2 * alleles * local)
         rate = s.N * s.mu * abs((1 - ratio) / (1 - ratio**s.N))
-        return [self._get_jump(alleles, -1.0, 1.0, rate), self._get_jump(alleles, 1.0, -1.0, rate)]
+        self.laws_: list[BaseLaw] = [
+            JumpLaw(rate * where(alleles == -1.0, 1, 0), {alleles: 2.0}),
+            JumpLaw(rate * where(alleles == 1.0, 1, 0), {alleles: -2.0}),
+        ]
 
     @staticmethod
     def _get_fitness_of(genome: SimpleNamespace, F0: Expression, couplings: Array) -> Expression:
