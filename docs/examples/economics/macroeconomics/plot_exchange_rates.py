@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.macroeconomics import ExchangeRatesSystem
 
@@ -33,7 +32,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 system = ExchangeRatesSystem(floating=False)
-trajectory = simulate(system, until=4, observers=[observer])
+trajectory = system.prepare().simulate(until=4, observers=[observer])
 
 # %%
 # Elasticities decide the sign
@@ -48,7 +47,7 @@ trajectory = simulate(system, until=4, observers=[observer])
 def run(elasticity, floating):
     """Return the trajectory of two stages of adjustment with equal elasticities."""
     system = ExchangeRatesSystem(floating=floating, export_elasticity=elasticity, import_elasticity=elasticity)
-    return simulate(system)
+    return system.prepare().simulate()
 
 
 elasticities = -np.linspace(0.0, 1.5, 11)

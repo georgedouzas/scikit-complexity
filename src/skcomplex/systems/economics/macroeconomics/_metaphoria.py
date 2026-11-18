@@ -22,11 +22,12 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, Interaction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components.spaces import LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 from ..common.resources import RegrowthInteraction
@@ -1055,6 +1056,12 @@ class MetaphoriaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             The mode is unknown.
@@ -1090,7 +1097,7 @@ class MetaphoriaSystem(BaseSystem):
         return 0.0 if gini is None else gini
 
     @staticmethod
-    def _get_metaphoria_observables(system: CompositeSystem) -> list[Observable]:
+    def _get_metaphoria_observables(system: System) -> list[Observable]:
         """Return the population, the Gini coefficient of money, and the bank balance.
 
         The population is the living one, of a monetary economy.
@@ -1121,8 +1128,10 @@ class MetaphoriaSystem(BaseSystem):
         n_firms: int = 5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_people = n_people
         self.mode = mode
         self.shape = shape
@@ -1136,8 +1145,9 @@ class MetaphoriaSystem(BaseSystem):
         self.n_firms = n_firms
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         shape = self.shape
         if self.mode not in MODES:
             error_msg = f'Unknown mode {self.mode!r}. Use one of {MODES}.'
@@ -1228,7 +1238,7 @@ class MetaphoriaSystem(BaseSystem):
             if self.mode == 'hunter_gatherer'
             else [jobs, dividends, shops]
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[patches, people, *economy],
             interactions=[
@@ -1244,14 +1254,6 @@ class MetaphoriaSystem(BaseSystem):
                 EstateInteraction('census', people='people'),
             ],
             space=space,
-            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec(name) for name in PHASES])),
+            solver=MesaSolver(phases=[PhaseSpec(name) for name in PHASES]),
         )
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the components are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        settings['observables'] = MetaphoriaSystem._get_metaphoria_observables(self._get_pass_parameters())
-        return settings
+        self.observables_ = tuple(MetaphoriaSystem._get_metaphoria_observables(self.system_))

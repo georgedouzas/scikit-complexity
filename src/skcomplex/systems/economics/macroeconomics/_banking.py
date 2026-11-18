@@ -6,7 +6,7 @@ Loans redeposited at banks multiply the base money.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -18,11 +18,11 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, Sink
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ..common.policy import PolicyRuleInteraction
 
 TOLERANCE = 1e-9
@@ -356,6 +356,12 @@ class FractionalReserveBankingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import FractionalReserveBankingSystem
         >>> FractionalReserveBankingSystem(new_ratio=0.2).prepare().system_.interactions[0].new_ratio
@@ -385,8 +391,10 @@ class FractionalReserveBankingSystem(BaseSystem):
         repayment: float = 0.05,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.customers = customers
         self.banks = banks
         self.base_money = base_money
@@ -397,8 +405,9 @@ class FractionalReserveBankingSystem(BaseSystem):
         self.repayment = repayment
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         owners = rng.integers(self.banks, size=self.customers)
         deposit = self.base_money / self.customers
@@ -450,11 +459,9 @@ class FractionalReserveBankingSystem(BaseSystem):
             new_ratio=self.ratio if self.new_ratio is None else self.new_ratio,
             change_at=self.change_at,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[depositors, lenders],
             interactions=[regulator, payments, repayments],
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec('regulate'), PhaseSpec('pay'), PhaseSpec('lend', repeat=10)]),
-            ),
+            solver=MesaSolver(phases=[PhaseSpec('regulate'), PhaseSpec('pay'), PhaseSpec('lend', repeat=10)]),
         )

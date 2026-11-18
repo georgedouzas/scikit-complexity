@@ -8,17 +8,17 @@ They herd on the past choices of the agents they are linked to.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import normal
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 
@@ -43,10 +43,12 @@ class HerdingAgentElement(Element):
         sigma:
             The standard deviation of the shocks of the individual characteristic.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.macroeconomics import HerdingAgentElement
-        >>> GroupElement('agents', element=HerdingAgentElement, size=3, values={'x': [1.0, 2.0, 3.0]}).size
+        >>> HerdingAgentElement('agents', x=[1.0, 2.0, 3.0], size=3).size
         3
     """
 
@@ -54,12 +56,13 @@ class HerdingAgentElement(Element):
         self,
         label: str,
         *,
-        c: Annotated[float, StateSpec()] = 0.0,
-        x: Annotated[float, StateSpec()] = 1.0,
-        gamma: Annotated[float, ParameterSpec()] = 1.0,
-        sigma: Annotated[float, ParameterSpec()] = 0.0,
+        c: object = 0.0,
+        x: object = 1.0,
+        gamma: object = 1.0,
+        sigma: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.c = c
         self.x = x
         self.gamma = gamma
@@ -109,9 +112,15 @@ class NetworkHerdingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import NetworkHerdingSystem
-        >>> NetworkHerdingSystem([[0.0, 0.5], [0.5, 0.0]], [1.0, 1.0]).prepare().system_.elements[0].prepare().size_
+        >>> NetworkHerdingSystem([[0.0, 0.5], [0.5, 0.0]], [1.0, 1.0]).prepare().system_.elements[0].size
         2
     """
 
@@ -135,8 +144,10 @@ class NetworkHerdingSystem(BaseSystem):
         herding: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.theta = theta
         self.x = x
         self.gamma = gamma
@@ -165,8 +176,9 @@ class NetworkHerdingSystem(BaseSystem):
         rows = links.sum(axis=1, keepdims=True)
         return np.divide(herding * links, rows, out=np.zeros_like(links), where=rows > 0)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         weights = (
             self._get_random_links(self.n_agents, self.density, self.herding, rng)
@@ -175,11 +187,13 @@ class NetworkHerdingSystem(BaseSystem):
         )
         size = len(weights)
         means = rng.lognormal(0.0, 1.0, size) if self.x is None else np.asarray(self.x, dtype=float)
-        agents = GroupElement(
+        agents = HerdingAgentElement(
             'agents',
-            element=HerdingAgentElement,
+            c=self.gamma * means,
+            x=means,
+            gamma=self.gamma,
+            sigma=self.sigma,
             size=size,
-            values={'c': self.gamma * means, 'x': means, 'gamma': self.gamma, 'sigma': self.sigma},
         )
         herding_map = CouplingInteraction(
             'herding',
@@ -193,4 +207,4 @@ class NetworkHerdingSystem(BaseSystem):
             form='map',
             combine=self._get_choice,
         )
-        return CompositeSystem(self.label, elements=[agents], interactions=[herding_map])
+        self.system_ = System(self.label, elements=[agents], interactions=[herding_map])

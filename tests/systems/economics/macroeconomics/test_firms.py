@@ -13,7 +13,7 @@ def test_toy_firm_investment_keeps_its_accounting_identities():
     trajectory = _run(
         ToyFirmInvestmentSystem(50).prepare().system_,
         100,
-        observables=ToyFirmInvestmentSystem().get_run_settings()['observables'],
+        observables=ToyFirmInvestmentSystem().prepare().observables_,
     )
     for frame in (1, 50, 100):
         firms = _agents(trajectory, 'firms', frame)

@@ -3,17 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
+from ....core.components import Observable
+from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.laws import Sink, Source
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class FirmsElement(Element):
@@ -53,12 +57,12 @@ class FirmsElement(Element):
         self,
         label: str,
         *,
-        deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 20.0,
-        loans: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        sales: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
-        wage_share: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
-        distribution: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        repayment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
+        deposits: Annotated[object, RealSet.closed_open(0, oo), Quantity('money')] = 20.0,
+        loans: Annotated[object, RealSet.closed_open(0, oo)] = 50.0,
+        sales: Annotated[object, RealSet.closed_open(0, oo)] = 40.0,
+        wage_share: Annotated[float, RealSet.closed_open(0, oo)] = 0.7,
+        distribution: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        repayment: Annotated[float, RealSet.closed_open(0, oo)] = 0.08,
     ) -> None:
         super().__init__(label)
         self.deposits = deposits
@@ -97,9 +101,9 @@ class HouseholdsElement(Element):
         self,
         label: str,
         *,
-        deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 60.0,
-        alpha_income: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
-        alpha_wealth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        deposits: Annotated[object, RealSet.closed_open(0, oo), Quantity('money')] = 60.0,
+        alpha_income: Annotated[float, RealSet.closed_open(0, oo)] = 0.6,
+        alpha_wealth: Annotated[float, RealSet.closed_open(0, oo)] = 0.4,
     ) -> None:
         super().__init__(label)
         self.deposits = deposits
@@ -138,10 +142,10 @@ class MonetaryBankElement(Element):
         self,
         label: str,
         *,
-        deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 10.0,
-        interest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        payout: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        credit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        deposits: Annotated[object, RealSet.closed_open(0, oo), Quantity('money')] = 10.0,
+        interest: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        payout: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        credit: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(label)
         self.deposits = deposits
@@ -180,9 +184,9 @@ class CircuitInteraction(TransferInteraction):
         self,
         label: str,
         *,
-        households: Annotated[str, RoleSpec()],
-        firms: Annotated[str, RoleSpec()],
-        bank: Annotated[str, RoleSpec()],
+        households: Role,
+        firms: Role,
+        bank: Role,
     ) -> None:
         super().__init__(
             label,
@@ -297,6 +301,12 @@ class StockFlowConsistentEconomySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import StockFlowConsistentEconomySystem
         >>> [element.label for element in StockFlowConsistentEconomySystem().prepare().system_.elements]
@@ -326,8 +336,10 @@ class StockFlowConsistentEconomySystem(BaseSystem):
         credit: float = 0.1,
         repayment: float = 0.08,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.household_deposits = household_deposits
         self.firm_deposits = firm_deposits
         self.bank_deposits = bank_deposits
@@ -356,9 +368,10 @@ class StockFlowConsistentEconomySystem(BaseSystem):
         """Return the sales of the firms of a period, the consumption of the households."""
         return CircuitInteraction._get_consumption(s.sources[0], s.target)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[
                 HouseholdsElement(
