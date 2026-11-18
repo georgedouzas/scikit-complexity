@@ -22,11 +22,13 @@ from ._networks import (
     DelayedLIFNetworkSystem,
     DelayedSynapseInteraction,
     GlobalInhibitionInteraction,
+    InhibitorDecayInteraction,
     InhibitorDriveInteraction,
     InhibitorElement,
     LegionSystem,
     SpikingNeuronElement,
     TermanWangElement,
+    TermanWangInteraction,
 )
 from ._neural_fields import AmariNeuralFieldSystem, NeuralFieldSiteElement
 from ._neural_masses import (
@@ -85,6 +87,7 @@ __all__: list[str] = [
     'GlobalInhibitionInteraction',
     'HodgkinHuxleyElement',
     'HodgkinHuxleySystem',
+    'InhibitorDecayInteraction',
     'InhibitorDriveInteraction',
     'InhibitorElement',
     'IntegrateAndFireSystem',
@@ -115,6 +118,7 @@ __all__: list[str] = [
     'SynapseElement',
     'SynapticDriveInteraction',
     'TermanWangElement',
+    'TermanWangInteraction',
     'ThetaForcingInteraction',
     'ThetaNeuronElement',
     'ThetaNeuronInteraction',
