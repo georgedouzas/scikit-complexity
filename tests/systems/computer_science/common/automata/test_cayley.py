@@ -321,9 +321,10 @@ def test_cayley_visual_logs_nodes_on_rings_and_edges_once():
 
 
 def test_cayley_visual_views_are_graph_views():
-    """Test that the Cayley visual of cells on a group space views their state as a graph view."""
+    """Test that cells on a group space default to the Cayley visual, whose view is a graph view of their state."""
     trajectory = _trajectory()
     problem = trajectory.problem
     views = CayleyVisual(path=problem.elements[0].path).prepare(problem).views_
     assert [(type(view).__name__, str(view.origin)) for view in views] == [('GraphView', 'cells/alive')]
+    assert problem.elements[0].visual.kind is CayleyVisual
     assert RerunObserver(blueprint='default').prepare(problem).blueprint_ is not None
