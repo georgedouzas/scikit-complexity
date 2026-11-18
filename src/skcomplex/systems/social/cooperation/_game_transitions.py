@@ -6,8 +6,9 @@ The games change with the actions played.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, cast
 
 import networkx as nx
 import numpy as np
@@ -15,14 +16,17 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array, IntArray
 
 UPDATES = ('death-birth', 'pairwise')
@@ -51,6 +55,9 @@ class DonorElement(Element):
         payoff:
             The payoff accumulated over the games with every neighbour in the last time step.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import DonorElement
         >>> DonorElement('player').strategy
@@ -63,10 +70,11 @@ class DonorElement(Element):
         self,
         label: str,
         *,
-        strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
-        payoff: Annotated[float, StateSpec()] = 0.0,
+        strategy: Annotated[object, FiniteEnumeratedSet([0, 1])] = 1.0,
+        payoff: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.strategy = strategy
         self.payoff = payoff
 
@@ -133,7 +141,7 @@ class GameTransitionsInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('game_one',)
 
@@ -141,13 +149,13 @@ class GameTransitionsInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        first_benefit: Annotated[float, ParameterSpec()] = 3.5,
-        second_benefit: Annotated[float, ParameterSpec()] = 2.6,
-        cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        selection: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        after_cooperation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
-        after_defection: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        target: Role,
+        first_benefit: float = 3.5,
+        second_benefit: float = 2.6,
+        cost: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        selection: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        after_cooperation: Annotated[float, RealSet.closed(0, 1)] = 0.0,
+        after_defection: Annotated[float, RealSet.closed(0, 1)] = 1.0,
         transitions: bool = True,
         update: str = 'death-birth',
     ) -> None:
@@ -162,34 +170,23 @@ class GameTransitionsInteraction(Interaction):
         self.transitions = transitions
         self.update = update
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an unknown update.
+    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the evolution rule.
 
         Args:
-            context:
-                The space the interaction inherits from its system.
+            s:
+                The space the interaction inherits from its system, or the namespace of the symbols the laws can use.
 
         Raises:
             ValidationError:
                 The update is unknown.
         """
-        super()._prepare(context)
+        super()._prepare(s)
         if self.update not in UPDATES:
             error_msg = f'Unknown update {self.update!r}. Use one of {", ".join(UPDATES)}.'
             raise ValidationError(error_msg)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the evolution rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.evolve)]
+        if isinstance(s, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.evolve)]
 
     def _get_edges(self, players: list[DonorView]) -> tuple[IntArray, IntArray]:
         """Return the two ends of every edge, as indices of the players."""
@@ -199,7 +196,7 @@ class GameTransitionsInteraction(Interaction):
                 (min(index[player.id], index[other.id]), max(index[player.id], index[other.id]))
                 for player in players
                 for other in player.get_neighbors()
-                if isinstance(other, DonorView)
+                if other.group == player.group
             },
         )
         ends = np.array(pairs, dtype=int).reshape(-1, 2)
@@ -239,7 +236,7 @@ class GameTransitionsInteraction(Interaction):
             system:
                 The system.
         """
-        players = system.get_agents(self.target, DonorView)
+        players = cast(list[DonorView], system.get_agents(self.target))
         storage = system.storage
         if 'first' not in storage:
             sources, targets = self._get_edges(players)
@@ -328,9 +325,15 @@ class GameTransitionsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import GameTransitionsSystem
-        >>> GameTransitionsSystem(20).prepare().system_.elements[0].prepare().size_
+        >>> GameTransitionsSystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -355,8 +358,10 @@ class GameTransitionsSystem(BaseSystem):
         share: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_players = n_players
         self.degree = degree
         self.first_benefit = first_benefit
@@ -370,15 +375,15 @@ class GameTransitionsSystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         graph = nx.random_regular_graph(self.degree, self.n_players, seed=int(rng.integers(2**31)))
-        players = GroupElement(
+        players = DonorElement(
             'players',
-            element=DonorElement,
+            strategy=(rng.random(self.n_players) < self.share).astype(float),
             size=self.n_players,
-            values={'strategy': (rng.random(self.n_players) < self.share).astype(float)},
         )
         evolution = GameTransitionsInteraction(
             'evolution',
@@ -392,4 +397,4 @@ class GameTransitionsSystem(BaseSystem):
             transitions=self.transitions,
             update=self.update,
         )
-        return CompositeSystem(self.label, elements=[players], interactions=[evolution], space=NetworkSpace(graph))
+        self.system_ = System(self.label, elements=[players], interactions=[evolution], space=NetworkSpace(graph))

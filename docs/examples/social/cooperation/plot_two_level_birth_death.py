@@ -14,14 +14,13 @@ removes.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.cooperation import TwoLevelBirthDeathSystem
 
 SYSTEM = 'two_level_birth_death'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(TwoLevelBirthDeathSystem(), observers=[observer], random_state=0)
+trajectory = TwoLevelBirthDeathSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # With and without conflicts between groups
@@ -29,7 +28,7 @@ trajectory = simulate(TwoLevelBirthDeathSystem(), observers=[observer], random_s
 # With conflicts the groups of punishers should take over the population, and without them defectors should gain,
 # while drift fixes every group at all punishers or all defectors.
 
-peaceful = simulate(TwoLevelBirthDeathSystem(conflict_rate=0.0), random_state=0)
+peaceful = TwoLevelBirthDeathSystem(conflict_rate=0.0).prepare().simulate(random_state=0)
 fig, (means, final) = plt.subplots(1, 2, figsize=(10, 4))
 for name, run in (('conflicts', trajectory), ('no conflicts', peaceful)):
     share = [np.mean(run.get_agents('groups', frame).values['punishers']) / 20 for frame in range(101)]
