@@ -161,7 +161,7 @@ class EulerLagrangeInteraction(Interaction):
         return [SR(force) for force in forces]
 
     def _get_lagrangian_of(self, namespace: SimpleNamespace, velocities: Mapping[Expression, Expression]) -> Expression:
-        """Return the Lagrangian in the symbols of the states, with a symbol for the velocity of every coordinate.
+        """Return the Lagrangian in the symbols of the states and of the velocities.
 
         The namespace holds the states as symbols, and the velocity `q.diff(t)` of a coordinate `q` becomes the symbol
         `velocities[q]`, as the invariants analysis reads it.
