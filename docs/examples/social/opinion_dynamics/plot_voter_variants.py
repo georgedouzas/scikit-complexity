@@ -18,7 +18,6 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import VoterVariantsSystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 system = VoterVariantsSystem(graph=graph, contrarians=0.1, share=0.6, random_state=0)
-trajectory = simulate(system, until=50, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=50, observers=[observer], random_state=0)
 
 # %%
 # The contrarian effect
@@ -49,7 +48,7 @@ trajectory = simulate(system, until=50, observers=[observer], random_state=0)
 def magnetization(contrarians, seed, steps=STEPS):
     """Return the magnetization after every step of a run."""
     system = VoterVariantsSystem(graph=graph, contrarians=contrarians, share=0.6, random_state=seed)
-    trajectory = simulate(system, until=steps, random_state=seed)
+    trajectory = system.prepare().simulate(until=steps, random_state=seed)
     return np.array(
         [2 * trajectory.get_agents('voters', frame).values['opinion'].mean() - 1 for frame in range(steps + 1)],
     )

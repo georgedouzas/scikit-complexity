@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import numpy as np
@@ -10,13 +11,15 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 DAYS_PER_YEAR = 365
@@ -242,6 +245,12 @@ class InsiderSabotageSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import InsiderSabotageSystem
         >>> [group.size for group in InsiderSabotageSystem(n_employees=20, n_supervisors=2).prepare().system_.elements]
@@ -262,8 +271,10 @@ class InsiderSabotageSystem(BaseSystem):
         turnover: float = 0.15,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.n_employees = n_employees
         self.n_supervisors = n_supervisors
@@ -360,8 +371,9 @@ class InsiderSabotageSystem(BaseSystem):
         """
         return float(agent.predisposed + agent.disgruntlement + agent.stress + agent.skill + agent.affect)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         predisposed = (rng.random(self.n_employees) < PREDISPOSED).astype(float)
         affect = rng.choice(AFFECTS, self.n_employees, p=AFFECT_SHARES)
@@ -419,7 +431,7 @@ class InsiderSabotageSystem(BaseSystem):
                 form='agent',
             ),
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[employees, supervisors],
             interactions=[wandering, *work],

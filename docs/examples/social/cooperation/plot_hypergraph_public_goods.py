@@ -13,7 +13,6 @@ the Fermi probability of their payoffs. Cooperation needs a synergy near the siz
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.cooperation import HypergraphPublicGoodsSystem
 
@@ -22,7 +21,7 @@ ROUNDS = 100
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 system = HypergraphPublicGoodsSystem()
-trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=ROUNDS, observers=[observer], random_state=0)
 
 # %%
 # Cooperation against the synergy
@@ -33,7 +32,7 @@ trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0
 
 def cooperators(synergy):
     """Return the share of cooperators at the end of a run."""
-    run = simulate(HypergraphPublicGoodsSystem(synergy=synergy), until=ROUNDS, random_state=0)
+    run = HypergraphPublicGoodsSystem(synergy=synergy).prepare().simulate(until=ROUNDS, random_state=0)
     return np.asarray(run.get_values('players.strategy'))[-1].mean()
 
 

@@ -11,6 +11,7 @@ from ._module_spec import ModuleSpec
 from ._patch import PatchElement
 from ._production import ProductionLaw
 from ._prototile_spec import PrototileSpec
+from ._rewriting_interaction import RewritingInteraction
 from ._rewriting_solver import RewritingSolver
 from ._substitution import SubstitutionLaw
 from ._word import WordElement
@@ -23,6 +24,7 @@ __all__: list[str] = [
     'PatchElement',
     'ProductionLaw',
     'PrototileSpec',
+    'RewritingInteraction',
     'RewritingSolver',
     'SubstitutionLaw',
     'WordElement',

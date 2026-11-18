@@ -28,7 +28,7 @@ from ....core.errors import ParameterError
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
-from ...general.rewriting import ProductionLaw, WordElement
+from ...general.rewriting import ProductionLaw, RewritingInteraction, WordElement
 from ._binary_cell import BinaryCellElement
 
 OUTSIDE = -1.0
@@ -69,42 +69,6 @@ class DigitCellElement(Element):
     ) -> None:
         super().__init__(label, space=space)
         self.digit = digit
-
-
-class MorseElement(WordElement):
-    """Word rewritten by the Thue-Morse substitution `0 → 01`, `1 → 10`.
-
-    From the axiom `0`, generation `n` is the word `a_n = T(0) T(1) ... T(2^n - 1)` of the Thue-Morse sequence, whose
-    term `T(k)` is the parity of the number of ones in the binary expansion of `k`.
-
-    Args:
-        label:
-            The label of the word.
-
-        axiom:
-            The word at generation 0.
-
-    Examples:
-        >>> from skcomplex.systems.computer_science.automata import MorseElement
-        >>> MorseElement('morse', axiom='0').axiom
-        '0'
-    """
-
-    law_classes = (ProductionLaw,)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[ProductionLaw]:
-        """Return the productions of the Thue-Morse substitution.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The productions of the word.
-        """
-        del s
-        return [ProductionLaw('0', '01'), ProductionLaw('1', '10')]
 
 
 class TernaryCellElement(Element):
@@ -596,7 +560,17 @@ class MorseSubshiftSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the word and its substitution."""
         super()._prepare(context)
-        self.system_ = System(self.label, elements=[MorseElement('morse', axiom=self.axiom, alphabet='01')])
+        self.system_ = System(
+            self.label,
+            elements=[WordElement('morse', axiom=self.axiom, alphabet='01')],
+            interactions=[
+                RewritingInteraction(
+                    'doubling',
+                    target='morse',
+                    laws=[ProductionLaw('0', '01'), ProductionLaw('1', '10')],
+                ),
+            ],
+        )
 
 
 class AddingMachineSystem(BaseSystem):

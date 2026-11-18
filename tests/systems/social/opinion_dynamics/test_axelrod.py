@@ -1,6 +1,5 @@
 """Test the `_axelrod` module of `skcomplex.systems.social.opinion_dynamics`."""
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.social.opinion_dynamics import (
     AxelrodSystem,
     cultural_traits,
@@ -14,7 +13,7 @@ def test_axelrod_order_disorder_transition():
     regions = {}
     for traits in (2, 50):
         system = AxelrodSystem(8, 8, features=3, traits=traits, random_state=0).prepare().system_
-        trajectory = simulate(system, until=300, random_state=0, observables=culture_observables(8, 8))
+        trajectory = system.prepare().simulate(until=300, random_state=0, observables=culture_observables(8, 8))
         regions[traits] = trajectory.get_values('largest_region')[-1]
     assert regions[2] > 0.5
     assert regions[50] < 0.1

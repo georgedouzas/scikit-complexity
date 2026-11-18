@@ -10,7 +10,6 @@ Its orders through a supply line make the stock oscillate.
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.laws import Sink, Source
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import StockFlowSystem
@@ -127,10 +126,10 @@ class GrainStorageSystem(StockFlowSystem):
         """Return the procurement, receiving, and release flows of grain."""
         return {
             'procurement': (
-                Source('suppliers'),
+                None,
                 'on_order',
-                lambda s: (s.source.desired_stock - s.source.stock) / s.source.adjustment_delay,
+                lambda s: (s.target.desired_stock - s.target.stock) / s.target.adjustment_delay,
             ),
-            'receiving': ('on_order', 'stock', lambda s: s.source.on_order / s.source.receiving_delay),
-            'release': ('stock', Sink('consumers'), lambda s: s.source.stock * s.source.release_fraction),
+            'receiving': ('on_order', 'stock', lambda s: s.target.on_order / s.target.receiving_delay),
+            'release': ('stock', None, lambda s: s.target.stock * s.target.release_fraction),
         }

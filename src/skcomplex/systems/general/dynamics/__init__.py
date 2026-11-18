@@ -7,6 +7,7 @@ stocks that change through named flows.
 from ._annotated_element import AnnotatedElement
 from ._dynamical import DynamicalSystem
 from ._equation import EquationInteraction
+from ._flow import FlowInteraction
 from ._network_dynamical import NetworkDynamicalSystem
 from ._reaction_diffusion import ReactionDiffusionSystem
 from ._stock_flow import StockFlowSystem
@@ -15,6 +16,7 @@ __all__: list[str] = [
     'AnnotatedElement',
     'DynamicalSystem',
     'EquationInteraction',
+    'FlowInteraction',
     'NetworkDynamicalSystem',
     'ReactionDiffusionSystem',
     'StockFlowSystem',

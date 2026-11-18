@@ -269,25 +269,17 @@ A rewriting system grows a word at every generation, and `max_size` bounds its l
 replace `A` by `AB` and `B` by `A`.
 
 ```python
-from skcomplex.systems.general.rewriting import ProductionLaw, WordElement
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RewritingError
+from skcomplex.core.systems import System
+from skcomplex.systems.general.rewriting import ProductionLaw, RewritingInteraction, WordElement
 
-
-class AlgaeElement(WordElement):
-    law_classes = (ProductionLaw,)
-
-    def _get_laws(self, namespace):
-        return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-
-
+growth = RewritingInteraction('growth', target='algae', laws=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])
 try:
-    simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A', max_size=4)]), until=5)
+    System(elements=[WordElement('algae', axiom='A', max_size=4)], interactions=[growth]).prepare().simulate(until=5)
 except RewritingError as error:
     message = str(error)
-longer = CompositeSystem(elements=[AlgaeElement('algae', axiom='A', max_size=16)])
-message, simulate(longer, until=5).get_values('algae.size').tolist()
+longer = System(elements=[WordElement('algae', axiom='A', max_size=16)], interactions=[growth]).prepare()
+message, longer.simulate(until=5).get_values('algae.size').tolist()
 ```
 
 The message says that the word would reach 5 symbols at generation 3, above its maximum size 4. With `max_size=16`

@@ -1,5 +1,7 @@
 """Test the `_substitution` module of `skcomplex.systems.mathematics.fractals`."""
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 import rerun.blueprint as rrb
@@ -13,8 +15,7 @@ from skcomplex.systems.general.rewriting import GeometryVisual
 from skcomplex.systems.mathematics.fractals import (
     CantorSetSystem,
     KochCurveSystem,
-    KochElement,
-    SierpinskiElement,
+    SierpinskiInteraction,
     SierpinskiSubstitutionSystem,
 )
 
@@ -132,11 +133,7 @@ def test_filled_and_outlined_visuals(tmp_path):
     assert repr(GeometryVisual()) == 'GeometryVisual()'
 
 
-def test_koch_element_replaces_a_segment_by_four():
-    """Test that the Koch substitution replaces a segment by four turned segments."""
-    assert KochElement('koch', axiom='F')._get_laws(None)[0].successor == 'F+F--F+F'
-
-
 def test_sierpinski_carpet_keeps_eight_pieces():
     """Test that the Sierpinski carpet replaces a square by eight smaller ones."""
-    assert len(SierpinskiElement('sierpinski', shape='carpet')._get_laws(None)[0].pieces) == 8
+    interaction = SierpinskiInteraction('copies', target='sierpinski', shape='carpet')
+    assert len(interaction.prepare(SimpleNamespace(target=None)).laws_[0].pieces) == 8

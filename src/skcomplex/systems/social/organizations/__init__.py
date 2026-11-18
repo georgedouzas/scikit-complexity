@@ -1,7 +1,7 @@
 """Organizations: hierarchies, queues, workplaces, and institutions."""
 
 from ._employment import EmploymentTakeoverInteraction, EmploymentTakeoverSystem, WorkplaceElement
-from ._hierarchies import BonabeauHierarchiesSystem, ContenderElement, ContenderView
+from ._hierarchies import BonabeauHierarchiesSystem, ContenderElement, ContenderView, WanderInteraction
 from ._kauai import (
     CommuteInteraction,
     KauaiPopulationSystem,
@@ -110,6 +110,7 @@ __all__: list[str] = [
     'TravellerElement',
     'TravellerView',
     'UrbanScalingInteractionsSystem',
+    'WanderInteraction',
     'WatchmakerElement',
     'WatchmakerView',
     'WatchmakersSystem',

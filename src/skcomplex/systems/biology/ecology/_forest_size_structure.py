@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import SR, Expression, exp
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.components import Observable
-from ....core.components.elements import FieldElement
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import convolve, coordinate, cumulative_integral, displacement, reduce_axes, where
 from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace, PhaseSpace
@@ -245,20 +244,17 @@ class ForestSizeStructureSystem(BaseSystem):
         """
         super()._prepare(context)
         step = (self.top - self.sapling) / self.heights
-        space = PhaseSpace(
-            LatticeSpace((self.positions,), spacing=self.width / self.positions, boundary='fixed'),
-            [AxisSpec('h', self.heights, self.sapling, self.top)],
-        )
-        centres = space.prepare().coordinates_['h']
-        start = np.tile(0.1 * (centres / self.sapling) ** -2.0, (self.positions, 1))
-        forest = FieldElement(
-            'forest',
-            element=PopulationDensityElement,
-            space=space,
-            values={'x': start},
+        position = LatticeSpace(
+            (self.positions,),
+            spacing=self.width / self.positions,
+            boundary='fixed',
             discretization='finite-volume',
             scheme=FiniteVolumeSpec(limiter=None),
         )
+        space = PhaseSpace(position, [AxisSpec('h', self.heights, self.sapling, self.top)])
+        centres = space.prepare().coordinates_['h']
+        start = np.tile(0.1 * (centres / self.sapling) ** -2.0, (self.positions, 1))
+        forest = PopulationDensityElement('forest', x=start, space=space)
         h = coordinate('h')
         growth = 1 - h / self.top
         kernel = self.fecundity / (2 * self.dispersal) * exp(-abs(displacement(0)) / self.dispersal)

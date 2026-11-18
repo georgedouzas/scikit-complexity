@@ -6,19 +6,24 @@ The network is activity-driven. The network has homophily.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 PAIR = 2
@@ -46,6 +51,9 @@ class RadicalElement(Element):
         activity:
             The probability `a` that the agent contacts others in an integration step.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import RadicalElement
         >>> RadicalElement('agent', activity=0.1).activity
@@ -58,10 +66,11 @@ class RadicalElement(Element):
         self,
         label: str,
         *,
-        opinion: Annotated[float, StateSpec()] = 0.0,
-        activity: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.1,
+        opinion: object = 0.0,
+        activity: Annotated[object, RealSet.closed(0, 1)] = 0.1,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.opinion = opinion
         self.activity = activity
 
@@ -117,20 +126,20 @@ class RadicalizationInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        controversy: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        homophily: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        contacts: Annotated[int, ParameterSpec(domain=NN)] = 10,
-        reciprocity: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.5,
-        dt: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        substeps: Annotated[int, ParameterSpec(domain=NN)] = 10,
+        target: Role,
+        strength: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        controversy: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        homophily: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        contacts: Annotated[int, NN] = 10,
+        reciprocity: Annotated[float, RealSet.closed(0, 1)] = 0.5,
+        dt: Annotated[float, RealSet.open(0, oo)] = 0.01,
+        substeps: Annotated[int, NN] = 10,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -142,18 +151,11 @@ class RadicalizationInteraction(Interaction):
         self.dt = dt
         self.substeps = substeps
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the opinion rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.influence)]
+    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the opinion rule."""
+        super()._prepare(s)
+        if isinstance(s, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.influence)]
 
     def _get_inputs(self, opinions: Array, activities: Array, rng: np.random.Generator) -> Array:
         """Return the summed influence `sum_j A_ij tanh(alpha x_j)` on every agent.
@@ -182,7 +184,7 @@ class RadicalizationInteraction(Interaction):
             system:
                 The system.
         """
-        agents = system.get_agents(self.target, RadicalView)
+        agents = cast(list[RadicalView], system.get_agents(self.target))
         if len(agents) < PAIR:
             return
         opinions = np.array([agent.opinion for agent in agents])
@@ -241,9 +243,15 @@ class EchoChamberRadicalizationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import EchoChamberRadicalizationSystem
-        >>> EchoChamberRadicalizationSystem(50).prepare().system_.elements[0].prepare().size_
+        >>> EchoChamberRadicalizationSystem(50).prepare().system_.elements[0].size
         50
     """
 
@@ -265,8 +273,10 @@ class EchoChamberRadicalizationSystem(BaseSystem):
         least_activity: float = 0.01,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.strength = strength
         self.controversy = controversy
@@ -277,16 +287,17 @@ class EchoChamberRadicalizationSystem(BaseSystem):
         self.least_activity = least_activity
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         low, power = self.least_activity ** (1 - self.exponent), 1 - self.exponent
         activities = (low + rng.random(self.n_agents) * (1 - low)) ** (1 / power)
-        agents = GroupElement(
+        agents = RadicalElement(
             'agents',
-            element=RadicalElement,
+            opinion=np.linspace(-1.0, 1.0, self.n_agents),
+            activity=activities,
             size=self.n_agents,
-            values={'opinion': np.linspace(-1.0, 1.0, self.n_agents), 'activity': activities},
         )
         influence = RadicalizationInteraction(
             'influence',
@@ -297,4 +308,4 @@ class EchoChamberRadicalizationSystem(BaseSystem):
             contacts=self.contacts,
             reciprocity=self.reciprocity,
         )
-        return CompositeSystem(self.label, elements=[agents], interactions=[influence])
+        self.system_ = System(self.label, elements=[agents], interactions=[influence])

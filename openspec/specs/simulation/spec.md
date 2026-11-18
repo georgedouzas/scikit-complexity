@@ -22,7 +22,7 @@ SHALL choose a method whose storage fits the size of the state.
 - **THEN** running it raises a named error that names the form and the solver
 
 #### Scenario: Stiff system built directly
-- **WHEN** `simulate(NanoparticleCoronaSystem(), until=10800)` runs with the solver left to its default
+- **WHEN** `NanoparticleCoronaSystem().prepare().simulate(until=10800)` runs with the solver left to its default
 - **THEN** it finishes within 5 seconds, and its final state matches the run of its registered solver within a
   relative tolerance of 1e-4
 
@@ -224,7 +224,7 @@ without the engine importing the package. The compilers of the library's own for
 SHALL choose them from the form the system holds.
 
 #### Scenario: Rewriting from the systems library
-- **WHEN** `simulate(KochCurveSystem(), until=3)` runs without a compiler
+- **WHEN** `KochCurveSystem().prepare().simulate(until=3)` runs without a compiler
 - **THEN** the compiler of the rewriting form is chosen automatically, the run rewrites the word once per frame, and
   `skcomplex.core.engine` imports nothing from `skcomplex.systems`
 
@@ -248,42 +248,42 @@ SHALL raise `SolverError` naming the state that prevents it and a solver that ne
 - **THEN** `SolverError` is raised that names a momentum whose rate reads a momentum and suggests `RK4Solver`
 
 ### Requirement: A simulation holds a default end time
-`simulate(system)` SHALL run to the tuned `until` of the run settings of the system. An `until` passed to `simulate`
+`system.simulate()` on a prepared system SHALL run to the `until` its class tunes. An `until` passed to `simulate`
 SHALL take precedence, and a system with neither SHALL raise a `ValidationError` that asks for one.
 
 #### Scenario: Stored end time
-- **WHEN** a user calls `simulate(system)` for a system class whose tuned `until` is 20
+- **WHEN** a user calls `system.prepare().simulate()` for a system class whose tuned `until` is 20
 - **THEN** the run ends at time 20
 
 #### Scenario: Passed end time wins
-- **WHEN** a user calls `simulate(system, until=5)` for a system class whose tuned `until` is 20
+- **WHEN** a user calls `system.prepare().simulate(until=5)` for a system class whose tuned `until` is 20
 - **THEN** the run ends at time 5
 
 #### Scenario: No end time
-- **WHEN** a user calls `simulate(system)` for a system with no tuned `until`
+- **WHEN** a user calls `system.prepare().simulate()` for a system with no tuned `until`
 - **THEN** it raises a `ValidationError` that shows how to pass an end time
 
-### Requirement: Simulating is a function
-`simulate(system, *, until, dt=None, initial_state=None, solver=None, backend=None, observables=(), observers=(),
-random_state=None, ...)` SHALL prepare the system if needed, compile it, run it until `until` with frames every `dt`,
-and return a `Trajectory`. A solver SHALL take the role of a splitter, a backend the role of `n_jobs`, observables the
-role of `scoring`, and observers, such as a Rerun recording, the role of callbacks. The defaults SHALL come from the
-tags of the system.
+### Requirement: Simulating is a method of a prepared system
+`system.simulate(until=None, *, dt=None, initial_state=None, random_state=None, observables=(), observers=(), ...)`
+SHALL run a system that `prepare` compiled until `until` with frames every `dt`, and return a `Trajectory`, as
+`predict` follows `fit` in scikit-learn. The solver and the backend SHALL be settings of the system, given to its
+constructor and chosen by `prepare` when left as `'auto'`, and observers, such as a Rerun recording, SHALL take the role
+of callbacks.
 
 #### Scenario: Simulating a ready-made system
-- **WHEN** a user calls `simulate(SIRSystem(), until=10)`
-- **THEN** it returns a trajectory of the system up to time 10, with the default solver of its tags
+- **WHEN** a user calls `SIRSystem().prepare().simulate(until=10)`
+- **THEN** it returns a trajectory of the system up to time 10, with the solver `prepare` chose
 
 #### Scenario: Tuned settings of a system class
-- **WHEN** a user calls `simulate(SIRSystem())` without run settings
+- **WHEN** a user calls `SIRSystem().prepare().simulate()` with no arguments
 - **THEN** the run uses the end time, solver, observables, and initial state the class tunes
 
 ### Requirement: Simulating is paced by a clock
-`simulate(..., clock=None)` SHALL pace the frames against wall time with `clock`, as fast as possible by default, and in
+`system.simulate(..., clock=None)` SHALL pace the frames against wall time with `clock`, as fast as possible by default, and in
 real time with `RealTimeClock()`, to watch a run in Rerun as it goes.
 
 #### Scenario: Real-time pacing through a clock
-- **WHEN** a user calls `simulate(system, until=0.5, dt=0.1, clock=RealTimeClock(speed=1.0))`
+- **WHEN** a user calls `system.simulate(until=0.5, dt=0.1, clock=RealTimeClock(speed=1.0))`
 - **THEN** the run takes at least 0.5 seconds of wall time, and the clock records how far the run fell behind
 
 ### Requirement: Simulating checks states and scheduled values

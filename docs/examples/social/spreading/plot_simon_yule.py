@@ -14,7 +14,6 @@ the number of distinct words grows in proportion to the length of the text.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.spreading import SimonYuleSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'simon_yule'
 
 system = SimonYuleSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, until=100, dt=1, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=100, dt=1, observers=[observer], random_state=0)
 
 # %%
 # Zipf's law and vocabulary growth

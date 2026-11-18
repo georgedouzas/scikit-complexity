@@ -1491,9 +1491,8 @@ class MesaSolver(ExternalSolver):
         )
         vars(agent)['view_'] = self._view_classes[agent_class](agent, self)
         self.members_[int(agent.unique_id)] = agent
-        defaults = self._get_agent_type(spec)
         for name in spec.states:
-            value = values[name] if name in values else self._get_shared_default(defaults, name)
+            value = values[name] if name in values else self._get_default(spec, name)
             setattr(agent, name, value)
         positions = self._positions[spec.path]
         place = self._get_place_of(agent, positions) if positions and location is None else location
@@ -2069,9 +2068,28 @@ class MesaSolver(ExternalSolver):
         return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None, spec.roles)
 
     @staticmethod
-    def _get_shared_default(element_type: type, name: str) -> object:
-        """Return the default of a state of an element type."""
-        return default_of(element_type, name)
+    def _get_default(spec: _CompiledAgentsSpec, name: str) -> object:
+        """Return the value of a state that a new agent takes when none is given.
+
+        An agent of a plain element takes the value its group shares, such as the `innovation` of
+        `Element('words', values={'count': 1.0, 'innovation': 0.1}, size=1)`, and an agent of a declared element type
+        the default of that type.
+
+        Raises:
+            SimulationError:
+                The group of a plain element gives the state one value per member, so it shares none.
+        """
+        element_type = MesaSolver._get_agent_type(spec)
+        if not issubclass(element_type, DeclaredElement):
+            return default_of(element_type, name)
+        shared = spec.values.get(name)
+        if shared is None or (name not in spec.objects and np.ndim(np.asarray(shared, dtype=object)) > 0):
+            error_msg = (
+                f'A new agent of {spec.path} needs a value of {name!r}, which its group gives per member. Give it when '
+                f'the agent is created, such as create({name}=...).'
+            )
+            raise SimulationError(error_msg)
+        return shared
 
     @staticmethod
     def _get_state_property(name: str) -> property:

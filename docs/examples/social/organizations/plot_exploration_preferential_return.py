@@ -13,14 +13,13 @@ at a distance from a power law, and otherwise returns to a known place in propor
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import ExplorationPreferentialReturnSystem
 
 SYSTEM = 'exploration_preferential_return'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(ExplorationPreferentialReturnSystem(), observers=[observer], random_state=0)
+trajectory = ExplorationPreferentialReturnSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Sublinear exploration

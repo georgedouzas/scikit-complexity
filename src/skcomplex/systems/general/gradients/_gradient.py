@@ -158,25 +158,8 @@ class GradientInteraction(Interaction):
             raise ValidationError(error_msg)
         if isinstance(context, SimpleNamespace):
             time = getattr(context, 't', SR.var('t'))
-            namespace = SimpleNamespace(
-                **{name: self._get_symbolic(item, time) for name, item in vars(context).items()},
-            )
+            namespace = self._get_symbolic(context, time)
             self.laws_: list[BaseComponent] = self._get_gradient_laws(namespace)
-
-    def _get_symbolic(self, value: object, time: Expression) -> object:
-        """Return a value with every state `x(t)` read as its symbol `x`.
-
-        The gradient differentiates the potential by the states, which Sage takes as symbols only.
-        """
-        if isinstance(value, SimpleNamespace):
-            return SimpleNamespace(**{name: self._get_symbolic(item, time) for name, item in vars(value).items()})
-        if isinstance(value, tuple):
-            return tuple(self._get_symbolic(item, time) for item in value)
-        if isinstance(value, FreeModuleElement):
-            return vector(SR, [self._get_symbolic(item, time) for item in value])
-        if isinstance(value, Expression) and value.operator() is not None and value.operands() == [time]:
-            return SR.var(str(value.operator()))
-        return value
 
     def _get_potential(self, namespace: SimpleNamespace) -> object:
         """Return the potential.

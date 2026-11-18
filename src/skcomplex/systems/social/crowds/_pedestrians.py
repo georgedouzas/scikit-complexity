@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -11,12 +12,14 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction, PairInteraction, RateInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec
+from ....core.systems import BaseSystem, System
 from ...general.elements import PointElement
 from ...general.gradients import GradientInteraction
 
@@ -225,6 +228,12 @@ class SocialForceSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.crowds import SocialForceSystem
         >>> [group.size for group in SocialForceSystem(5).prepare().system_.elements]
@@ -236,7 +245,6 @@ class SocialForceSystem(BaseSystem):
     references = ('Helbing and Molnár 1995', 'Helbing 2001')
     until = 20.0
     dt = 0.2
-    solver = RK4Solver(dt=0.05)
 
     def __init__(
         self,
@@ -246,15 +254,18 @@ class SocialForceSystem(BaseSystem):
         speed: float = 1.34,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.length = length
         self.speed = speed
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cutoff = 2.0
         walkers = [
@@ -283,9 +294,10 @@ class SocialForceSystem(BaseSystem):
             )
             for first, second in pairs
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=walkers,
             interactions=interactions,
             space=ContinuousSpace(extent=(self.length, self.length), boundary='periodic'),
+            solver=RK4Solver(dt=0.05),
         )

@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.social.cooperation import HypergraphPublicGoodsSystem, SimplicialSocialDilemmasSystem
 
 from ..conftest import _run
@@ -26,7 +25,7 @@ def _cooperation(trajectory):
 
 def _first_payoffs(system, backend):
     """Return the payoffs of the play of the first step."""
-    trajectory = simulate(system, until=1, random_state=0, dt=1, backend=backend)
+    trajectory = system.set_params(backend=backend).prepare().simulate(until=1, random_state=0, dt=1)
     return trajectory.get_values('players.payoff')[1]
 
 
@@ -40,7 +39,7 @@ def test_hypergraph_public_goods_payoffs_sum_the_shares_of_every_hyperedge(backe
     """Test that the payoffs of a step equal the shares of the pots of every hyperedge minus the contributions."""
     system = HypergraphPublicGoodsSystem(60, synergy=3.5, seed=2).prepare().system_
     players = system.elements[0]
-    strategies = players.values['strategy']
+    strategies = players.strategy
     expected = np.zeros(60)
     for hyperedge in players.space.prepare().hyperedges_:
         members = list(hyperedge)
@@ -59,7 +58,7 @@ def test_simplicial_social_dilemmas_payoffs_follow_the_games_of_links_and_simpli
     """Test that the payoffs of a step equal a loop over the links of the triangles and the 2-simplices."""
     system = SimplicialSocialDilemmasSystem(40, seed=3, **GAMES).prepare().system_
     players = system.elements[0]
-    strategies, triangles = players.values['strategy'], players.values['triangles']
+    strategies, triangles = players.strategy, players.triangles
     expected = np.zeros(40)
     for hyperedge in players.space.prepare().hyperedges_:
         for own in hyperedge:
@@ -88,5 +87,5 @@ def test_simplicial_social_dilemmas_simplices_sustain_cooperation():
 def test_simplicial_social_dilemmas_counts_the_triangles_of_every_player():
     """Test that the network holds one triangle per new node besides the ten of the first clique."""
     players = SimplicialSocialDilemmasSystem(50, simplices=1.0).prepare().system_.elements[0]
-    assert players.values['triangles'].sum() == 3 * (10 + 45)
+    assert players.triangles.sum() == 3 * (10 + 45)
     assert len(players.space.prepare().hyperedges_) == 55

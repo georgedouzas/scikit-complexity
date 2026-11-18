@@ -2,69 +2,44 @@
 
 This page builds stocks that change only through flows, as in system dynamics, checks that what flows is conserved, and
 finds the feedback loops that drive them. A stock is an amount that accumulates, such as the people of a town or the
-water in a bath, and a flow is a rate at which an amount enters or leaves a stock. In the library a stock is a state
-tagged with a quantity, such as `StateSpec(quantity='people')`.
+water in a bath, and a flow is a rate at which an amount enters or leaves a stock. In the library a stock is a value
+tagged with a quantity, such as `Annotated[float, Quantity('people')]`, and a flow is two rate terms that share a label,
+`-f` on the stock it leaves and `f` on the stock it enters.
 
 ## Stocks and their flows
 
 This section builds a population whose only changes are births and deaths. A
-[`TransferLaw`](../core_components/laws.md#transferlaw) moves an amount of the quantity from one stock to another, and
-it exchanges the quantity with the environment through a [`Source`](../core_components/laws.md#source) and a
-[`Sink`](../core_components/laws.md#sink). The population is an [`Element`](../core_components/elements.md#element)
-with ten people, a birth rate of 3 percent a year and a death rate of 1 percent. The birth rate falls to zero between
-100 and 200 people through `series(x, points, values)`, a table function that is piecewise linear between its points
-and flat outside them.
+[`FlowInteraction`](../core_components/general.md#flowinteraction) moves an amount from one stock to another. A flow
+from outside the system names only the stock it enters, and a flow out of it only the stock it leaves. The population
+is an [`AnnotatedElement`](../core_components/general.md#annotatedelement) with ten people of the quantity `people`, a
+birth rate of 3 percent a year and a death rate of 1 percent. The birth rate falls to zero between 100 and 200 people
+through `series(x, points, values)`, a table function that is piecewise linear between its points and flat outside
+them.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import Sink, Source, TransferLaw
-from skcomplex.core.components.laws.utils import series
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.components import Observable
+from skcomplex.core.components.laws.utils import series
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import AnnotatedElement, FlowInteraction
 
 
 def birth_rate(s):
     return s.b * s.n * series(s.n, (0, 100, 200), (1.0, 1.0, 0.0))
 
 
-class PeopleElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        n: Annotated[float, StateSpec(quantity='people')] = 10.0,
-        b: Annotated[float, ParameterSpec()] = 0.03,
-        d: Annotated[float, ParameterSpec()] = 0.01,
-    ):
-        super().__init__(label)
-        self.n = n
-        self.b = b
-        self.d = d
-
-    def _get_laws(self, s):
-        return [
-            TransferLaw(Source(), s.n, birth_rate(s), label='births'),
-            TransferLaw(s.n, Sink(), s.d * s.n, label='deaths'),
-        ]
-
-
-crowd = CompositeSystem(elements=[PeopleElement('crowd')])
+people = AnnotatedElement('crowd', values={'n': 10.0, 'b': 0.03, 'd': 0.01}, quantities={'n': 'people'})
+births = FlowInteraction('births', target='crowd', enters='n', amount=lambda s: birth_rate(s.target))
+deaths = FlowInteraction('deaths', target='crowd', leaves='n', amount=lambda s: s.target.d * s.target.n)
+crowd = System(elements=[people], interactions=[births, deaths]).prepare()
 observed = [Observable('birth_rate', birth_rate, element='crowd')]
-trajectory = simulate(crowd, until=10, dt=1.0, observables=observed)
+trajectory = crowd.simulate(until=10, dt=1.0, observables=observed)
 round(float(trajectory.get_values('crowd.births')[-1]), 3), round(float(trajectory.get_values('crowd.deaths')[-1]), 3)
 ```
 
-After ten years the births run at 0.366 people a year and the deaths at 0.122. Trajectories record every flow under
-`<element path>.<label>`, such as `crowd.births`. What the amount of a `TransferLaw` means depends on the laws around
-it.
-
-- In a system of rate laws the amount is a rate.
-- In a system of update laws it is moved once per step.
-- With `rate=...` it is the size of a jump with that propensity.
+After ten years the births run at 0.366 people a year and the deaths at 0.122. A `FlowInteraction` sets the rate terms
+`RateLaw(leaves, -f, label=label)` and `RateLaw(enters, f, label=label)`, and an interaction of your own may set them
+directly. The trajectory records every flow `f` under its label, after the element of its stocks, such as
+`crowd.births`, or after the interaction when its stocks belong to several elements.
 
 An intermediate expression, such as the birth rate, is a function of the namespace that the laws call.
 `Observable(label, function, element=element)` records the same function as the observable `<element>.<label>`,
@@ -97,12 +72,12 @@ and the observer `ConservationObserver` checks at every frame that each total ch
 one row per flow and one column per holder.
 
 ```python continuation
-monitored = simulate(crowd, until=10, dt=1.0, observers=[ConservationObserver()])
+monitored = crowd.simulate(until=10, dt=1.0, observers=[ConservationObserver()])
 loops(monitored, kind='flow-matrix').matrix.sum(axis=1).tolist()
 ```
 
 The rows of the matrix sum to `[0.0, 0.0]`, since every flow leaves one holder and enters another, the environment
-included.
+included. A flow with only one stock is booked against the column `environment`.
 
 `distributed_delay(value, time, order, conserved=True)` is a material delay of any order. It is a chain of hidden
 stocks in series, and it returns their outflow. With `conserved=False` it is an information smoothing. It adds hidden
@@ -123,7 +98,8 @@ feedback = loops(crowd)
 [(polarity, ' -> '.join(nodes)) for nodes, polarity in zip(feedback.loops, feedback.polarities, strict=True)]
 ```
 
-The population has a reinforcing loop through its births and a balancing loop through its deaths.
+The population has a reinforcing loop through its births, `crowd.n -> crowd.births`, and a balancing loop through
+its deaths.
 `loops(trajectory, kind='dominance')` ranks the loops by their gains at every frame of a trajectory.
 
 ```python continuation
@@ -134,8 +110,9 @@ dominance.polarities[int(dominance.dominant[-1])]
 The reinforcing loop dominates at the last frame, since the births still outrun the deaths at ten years.
 
 An edge of the graph goes from one state to another when the rate of the second depends on the first, with the sign of
-the entry of the Jacobian. In systems that declare flows, the edges also go through the flows. They go from a state to
-every flow it drives, and from a flow to its sink with sign `+` and to its source with sign `-`.
+the entry of the Jacobian. In systems that declare flows, the edges also go through the flows, the rate terms that
+share a label. They go from a state to every flow it drives, and from a flow to its sink with sign `+` and to its
+source with sign `-`.
 
 The graph is that of any system with a vector field or a map, not only of stocks and flows. At one prey and one
 predator, prey growth closes a reinforcing self-loop, predator death a balancing one, and predation a balancing loop
@@ -293,9 +270,10 @@ are the stocks and whose parameters are the constants, and a system class on
 
 Time in the module runs from zero, and `Time` in the file becomes `t + START`. The variables of the file become these.
 
-- A flow variable that leaves one stock and enters another is a flow between them. A flow variable of one stock is a
-  flow with the environment, a [`TransferInteraction`](../core_components/interactions.md#transferinteraction) with
-  `Source()` or `Sink()`. The trajectory reports each flow as `<element>.<flow>`.
+- A flow variable that leaves one stock and enters another is a flow between them, a
+  [`FlowInteraction`](../core_components/general.md#flowinteraction) whose rate terms share the name of the flow. A
+  flow variable of one stock is a flow with the environment, with only the stock it enters or leaves. The trajectory
+  reports each flow as `<element>.<flow>`.
 - The rest of the net rate of a stock is a [`RateInteraction`](../core_components/interactions.md#rateinteraction).
   When it has the form `(goal - stock) / time` or `(goal - stock) * rate`, its rate is `(goal - stock) / time` of a
   goal function and a time function.

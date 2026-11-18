@@ -6,6 +6,7 @@ The rooms of the building form a network.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
@@ -17,11 +18,12 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import GroupElement
 from ....core.components.laws.utils import moment
-from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.components.spaces import LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec
+from ....core.systems import BaseSystem, System
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
 
@@ -471,9 +473,15 @@ class EvacuationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.crowds import EvacuationSystem
-        >>> EvacuationSystem().prepare().system_.elements[0].prepare().size_
+        >>> EvacuationSystem().prepare().system_.elements[0].x.size
         24
     """
 
@@ -484,7 +492,7 @@ class EvacuationSystem(BaseSystem):
     dt = 0.5
 
     @staticmethod
-    def _get_sizes_of(system: CompositeSystem) -> tuple[int, int]:
+    def _get_sizes_of(system: System) -> tuple[int, int]:
         """Return the number of rooms and of speed classes of a system.
 
         They are read from its crowding interaction.
@@ -502,8 +510,10 @@ class EvacuationSystem(BaseSystem):
         crowding: float = 2.0,
         recovery: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.branching = branching
         self.depth = depth
         self.speeds = speeds
@@ -511,23 +521,18 @@ class EvacuationSystem(BaseSystem):
         self.crowding = crowding
         self.recovery = recovery
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rooms = building_of(self.branching, self.depth).number_of_nodes()
         initial = np.zeros((rooms + 1, self.speeds))
         initial[:rooms, self.speeds // 2] = 1.0 / rooms
         crowd_space = LatticeSpace((rooms + 1, self.speeds), boundary='fixed')
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
-                    'crowd',
-                    element=ActivityDensityElement,
-                    on='sites',
-                    space=crowd_space,
-                    values={'x': initial.ravel()},
-                ),
-                GroupElement('signs', element=ActivityDensityElement, size=1, values={'x': 1.0}),
+                ActivityDensityElement('crowd', x=initial.ravel(), space=crowd_space),
+                ActivityDensityElement('signs', x=[1.0], size=1),
             ],
             interactions=[
                 WalkingInteraction(
@@ -557,15 +562,6 @@ class EvacuationSystem(BaseSystem):
                 ),
             ],
             space=crowd_space,
-            time=ContinuousTime(),
         )
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the components are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        system = self._get_pass_parameters()
-        settings['observables'] = evacuation_observables(*EvacuationSystem._get_sizes_of(system))
-        return settings
+        if not self.observables_:
+            self.observables_ = tuple(evacuation_observables(*EvacuationSystem._get_sizes_of(self.system_)))

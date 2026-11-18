@@ -17,7 +17,6 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import SznajdSystem
 
@@ -33,7 +32,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 system = SznajdSystem(graph=lattice, share=0.5, random_state=2)
-trajectory = simulate(system, until=3, observers=[observer], random_state=2)
+trajectory = system.prepare().simulate(until=3, observers=[observer], random_state=2)
 
 # %%
 # Consensus and the exit probability
@@ -46,7 +45,9 @@ trajectory = simulate(system, until=3, observers=[observer], random_state=2)
 
 def run(share, seed):
     """Return the share of opinion 1 after every step of a run."""
-    trajectory = simulate(SznajdSystem(graph=lattice, share=share, random_state=seed), until=STEPS, random_state=seed)
+    trajectory = (
+        SznajdSystem(graph=lattice, share=share, random_state=seed).prepare().simulate(until=STEPS, random_state=seed)
+    )
     return np.array([trajectory.get_agents('people', frame).values['opinion'].mean() for frame in range(STEPS + 1)])
 
 

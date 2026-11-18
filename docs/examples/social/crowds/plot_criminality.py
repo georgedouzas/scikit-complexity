@@ -14,7 +14,6 @@ crime persists.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.crowds import CriminalitySystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 system = CriminalitySystem()
-trajectory = simulate(system, until=100, observers=[observer])
+trajectory = system.prepare().simulate(until=100, observers=[observer])
 
 # %%
 # The cycle of crime and security
@@ -44,7 +43,7 @@ trajectory = simulate(system, until=100, observers=[observer])
 # in the plane of mean criminality and security forces should spiral into the balance, and without deterrence and
 # recruitment crime should spread through most of the society.
 
-unchecked = simulate(CriminalitySystem(deterrence=0.0, recruitment=0.0), until=100, dt=0.5)
+unchecked = CriminalitySystem(deterrence=0.0, recruitment=0.0).prepare().simulate(until=100, dt=0.5)
 unchecked_criminality = unchecked.get_values('mean_criminality')
 fig, (phase_axis, time_axis) = plt.subplots(1, 2, figsize=(10, 4))
 phase_axis.plot(trajectory.get_values('mean_criminality'), trajectory.get_values('security_forces'))

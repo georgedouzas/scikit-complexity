@@ -6,19 +6,24 @@ Their random keystrokes give a power law of word frequencies.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class TypedWordView(AgentView):
@@ -50,6 +55,9 @@ class TypedWordElement(Element):
         code:
             The word as a number, its letters `k_1, ..., k_L` from 0 read as the digits `k_i + 1` of base `letters`.
 
+        size:
+            The number of words, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.language import TypedWordElement
         >>> TypedWordElement('word', length=3.0).length
@@ -60,11 +68,12 @@ class TypedWordElement(Element):
         self,
         label: str,
         *,
-        count: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        length: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        code: Annotated[float, StateSpec(domain=NN)] = 1.0,
+        count: Annotated[object, NN] = 1.0,
+        length: Annotated[object, NN] = 1.0,
+        code: Annotated[object, NN] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.count = count
         self.length = length
         self.code = code
@@ -108,16 +117,16 @@ class TypingInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        letters: Annotated[int, ParameterSpec(domain=RealSet.closed_open(1, oo))] = 5,
-        space_bar: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 0.2,
-        keystrokes: Annotated[int, ParameterSpec(domain=NN)] = 1000,
+        target: Role,
+        letters: Annotated[int, RealSet.closed_open(1, oo)] = 5,
+        space_bar: Annotated[float, RealSet.open(0, 1)] = 0.2,
+        keystrokes: Annotated[int, NN] = 1000,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -125,18 +134,11 @@ class TypingInteraction(Interaction):
         self.space_bar = space_bar
         self.keystrokes = keystrokes
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the typing rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.type_keys)]
+    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the typing rule."""
+        super()._prepare(s)
+        if isinstance(s, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.type_keys)]
 
     def type_keys(self, system: SystemView) -> None:
         """Type the keystrokes of one step and count the words they end.
@@ -147,7 +149,7 @@ class TypingInteraction(Interaction):
         """
         storage = system.storage
         if 'words' not in storage:
-            storage['words'] = {int(word.code): word for word in system.get_agents(self.target, TypedWordView)}
+            storage['words'] = {int(word.code): word for word in cast(list[TypedWordView], system.get_agents('target'))}
         words, code, length = storage['words'], storage.get('code', 0), storage.get('length', 0)
         if not isinstance(words, dict) or not isinstance(code, int) or not isinstance(length, int):
             return
@@ -164,10 +166,10 @@ class TypingInteraction(Interaction):
         storage['code'], storage['length'] = code, length
         for (word_code, word_length), count in new.items():
             word = words.get(word_code)
-            if isinstance(word, TypedWordView):
+            if word is not None:
                 word.count += count
                 continue
-            created = system.create(self.target, count=float(count), length=float(word_length), code=float(word_code))
+            created = system.create('target', count=float(count), length=float(word_length), code=float(word_code))
             words[word_code] = created
 
 
@@ -197,9 +199,15 @@ class RandomTypewritingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.language import RandomTypewritingSystem
-        >>> RandomTypewritingSystem().prepare().system_.elements[0].prepare().size_
+        >>> RandomTypewritingSystem().prepare().system_.elements[0].size
         1
     """
 
@@ -216,26 +224,23 @@ class RandomTypewritingSystem(BaseSystem):
         keystrokes: int = 1000,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.letters = letters
         self.space = space
         self.keystrokes = keystrokes
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         code, length = 0, 0
         while length == 0 or rng.random() >= self.space:
             code, length = code * self.letters + int(rng.integers(self.letters)) + 1, length + 1
-        words = GroupElement(
-            'words',
-            element=TypedWordElement,
-            size=1,
-            values={'count': 1.0, 'length': float(length), 'code': float(code)},
-            variable=True,
-        )
+        words = TypedWordElement('words', count=1.0, length=float(length), code=float(code), size=1)
         typing = TypingInteraction(
             'typing',
             target='words',
@@ -243,4 +248,4 @@ class RandomTypewritingSystem(BaseSystem):
             space_bar=self.space,
             keystrokes=self.keystrokes,
         )
-        return CompositeSystem(self.label, elements=[words], interactions=[typing])
+        self.system_ = System(self.label, elements=[words], interactions=[typing])

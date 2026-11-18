@@ -43,6 +43,6 @@ def test_social_impact_flips_under_net_pressure():
     system = SocialImpactSystem(5, 5, share=0.0, random_state=0).prepare().system_
     opinions = np.full(25, -1.0)
     opinions[12] = 1.0
-    system.elements[0].set_params(values={**(system.elements[0].values or {}), 'opinion': opinions})
+    system.elements[0].set_params(opinion=opinions)
     trajectory = _run(system, 1)
     assert (_values(trajectory, 'people', 'opinion', 1) == -1).all()

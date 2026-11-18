@@ -6,23 +6,27 @@ They compromise in pairs or all at once.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 from scipy.special import expit
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction
-from ....core.components.laws.utils import where
-from ....core.components.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.laws.utils import neighbors, where
+from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ._random_pairs import RandomPairsInteraction
 
 PAIR = 2
@@ -45,6 +49,9 @@ class ConfidentElement(Element):
         confidence:
             The largest opinion difference of a neighbour an agent still listens to.
 
+        space:
+            The space with one member per site, or `None` for one member.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import ConfidentElement
         >>> ConfidentElement('people', confidence=0.1).confidence
@@ -57,10 +64,11 @@ class ConfidentElement(Element):
         self,
         label: str,
         *,
-        opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        confidence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        opinion: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        confidence: Annotated[object, RealSet.closed_open(0, oo)] = 0.2,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.opinion = opinion
         self.confidence = confidence
 
@@ -92,11 +100,13 @@ class DiscussantElement(Element):
         convergence:
             The fraction of the opinion difference by which each agent of a compromising pair moves.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import DiscussantElement
-        >>> group = GroupElement('people', element=DiscussantElement, size=10, values={'opinion': 0.5})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = DiscussantElement('people', opinion=0.5, size=10)
+        >>> group.label, type(group).__name__, group.size
         ('people', 'DiscussantElement', 10)
     """
 
@@ -106,11 +116,12 @@ class DiscussantElement(Element):
         self,
         label: str,
         *,
-        opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        confidence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        convergence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        opinion: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        confidence: Annotated[object, RealSet.closed_open(0, oo)] = 0.2,
+        convergence: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.opinion = opinion
         self.confidence = confidence
         self.convergence = convergence
@@ -124,7 +135,7 @@ class DiscussantElement(Element):
         return DiscussantView
 
 
-class ConfidenceCouplingInteraction(CouplingInteraction):
+class ConfidenceCouplingInteraction(Interaction):
     """Hegselmann-Krause coupling of the opinions of agents.
 
     Every step every agent takes at once the mean opinion of its neighbours, itself included, whose opinions differ from
@@ -144,50 +155,34 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
     Examples:
         >>> import networkx as nx
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.components.spaces import NetworkSpace
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.social.opinion_dynamics import ConfidenceCouplingInteraction, ConfidentElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> people = GroupElement(
-        ...     'people',
-        ...     element=ConfidentElement,
-        ...     space=NetworkSpace(nx.complete_graph(3)),
-        ...     values={'opinion': [0.1, 0.2, 0.9], 'confidence': 0.2},
-        ...     on='sites',
-        ... )
+        >>> network = NetworkSpace(nx.complete_graph(3))
+        >>> people = ConfidentElement('people', opinion=[0.1, 0.2, 0.9], confidence=0.2, space=network)
         >>> coupling = ConfidenceCouplingInteraction('compromise', target='people')
-        >>> system = CompositeSystem(elements=[people], interactions=[coupling], time=DiscreteTime())
-        >>> opinions = simulate(system, until=1).get_values('people.opinion')
+        >>> system = System(elements=[people], interactions=[coupling])
+        >>> opinions = system.prepare().simulate(until=1).get_values('people.opinion')
         >>> np.round(opinions[-1], 6).tolist()
         [0.15, 0.15, 0.9]
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], state: str = 'opinion') -> None:
-        super().__init__(
-            label,
-            target=target,
-            read=state,
-            write=state,
-            function=self._get_opinion,
-            reduce='normalized-mean',
-            weights=self._get_trust,
-            form='map',
-            neighborhood=AdjacencyNeighborhood(center=True),
-        )
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, state: str = 'opinion') -> None:
+        super().__init__(label)
+        self.target = target
         self.state = state
 
-    def _get_opinion(self, namespace: SimpleNamespace) -> Expression:
-        """Return the opinion of the neighbour."""
-        return getattr(namespace.other, self.state)
-
-    def _get_trust(self, namespace: SimpleNamespace) -> Expression:
-        """Return 1 for a neighbour whose opinion lies within the confidence of the agent.
-
-        Otherwise it returns 0.
-        """
-        difference = getattr(namespace.other, self.state) - getattr(namespace.member, self.state)
-        return where(abs(difference) < namespace.member.confidence, 1, 0)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next opinion, the mean of the trusted opinions of the agent and its neighbours, as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            member = context.target
+            opinion, other = getattr(member, self.state), getattr(member.other, self.state)
+            trust = where(abs(other - opinion) < member.confidence, 1, 0)
+            mean = neighbors(other, over=AdjacencyNeighborhood(center=True), reduce='normalized-mean', weight=trust)
+            self.laws_: list[BaseComponent] = [UpdateLaw(opinion, mean)]
 
 
 class EncountersInteraction(RandomPairsInteraction):
@@ -222,14 +217,14 @@ class EncountersInteraction(RandomPairsInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         phase: str | None = None,
         steepness: float | None = None,
     ) -> None:
         super().__init__(label, target=target, phase=phase)
         self.steepness = steepness
 
-    def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
+    def act_on(self, members: list[AgentView], system: SystemView) -> None:
         """Move the opinions of a pair towards each other when their drawn outcome is 1.
 
         Args:
@@ -239,7 +234,7 @@ class EncountersInteraction(RandomPairsInteraction):
             system:
                 The system view of the rule.
         """
-        first, second = [member for member in members if isinstance(member, DiscussantView)]
+        first, second = cast(list[DiscussantView], members)
         difference = second.opinion - first.opinion
         gap = first.confidence - abs(difference)
         probability = float(gap > 0) if self.steepness is None else float(expit(self.steepness * gap))
@@ -273,9 +268,15 @@ class DeffuantSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import DeffuantSystem
-        >>> DeffuantSystem(20, random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> DeffuantSystem(20, random_state=0).prepare().system_.elements[0].size
         20
     """
 
@@ -293,25 +294,29 @@ class DeffuantSystem(BaseSystem):
         steepness: float | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.confidence = confidence
         self.convergence = convergence
         self.steepness = steepness
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         opinions = np.random.default_rng(self.random_state).random(self.n_agents)
-        people = GroupElement(
+        people = DiscussantElement(
             'people',
-            element=DiscussantElement,
+            opinion=opinions,
+            confidence=self.confidence,
+            convergence=self.convergence,
             size=self.n_agents,
-            values={'opinion': opinions, 'confidence': self.confidence, 'convergence': self.convergence},
         )
         encounters = EncountersInteraction('meetings', target='people', steepness=self.steepness)
-        return CompositeSystem(self.label, elements=[people], interactions=[encounters])
+        self.system_ = System(self.label, elements=[people], interactions=[encounters])
 
 
 class HegselmannKrauseSystem(BaseSystem):
@@ -338,11 +343,16 @@ class HegselmannKrauseSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.opinion_dynamics import HegselmannKrauseSystem
-        >>> trajectory = simulate(HegselmannKrauseSystem(50, confidence=0.3), until=20, random_state=0)
+        >>> trajectory = HegselmannKrauseSystem(50, confidence=0.3).prepare().simulate(until=20, random_state=0)
         >>> len(np.unique(np.round(trajectory.get_values('people.opinion')[-1], 6))) <= 3
         True
     """
@@ -360,23 +370,20 @@ class HegselmannKrauseSystem(BaseSystem):
         graph: nx.Graph | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.confidence = confidence
         self.graph = graph
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         space = NetworkSpace(self.graph if self.graph is not None else nx.complete_graph(self.n_agents)).prepare()
         opinions = np.random.default_rng(self.random_state).random(space.size_)
-        people = GroupElement(
-            'people',
-            element=ConfidentElement,
-            space=space,
-            values={'opinion': opinions, 'confidence': self.confidence},
-            on='sites',
-        )
+        people = ConfidentElement('people', opinion=opinions, confidence=self.confidence, space=space)
         coupling = ConfidenceCouplingInteraction('compromise', target='people')
-        return CompositeSystem(self.label, elements=[people], interactions=[coupling], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[people], interactions=[coupling])

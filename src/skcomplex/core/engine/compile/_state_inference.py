@@ -34,6 +34,7 @@ from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
 from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from .._utils import bound_labels, declarations_of
+from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values', 'on')
@@ -174,8 +175,14 @@ class _StateInference:
 
     @staticmethod
     def _is_plain(component: BaseComponent) -> bool:
-        """Return whether an element has values but declares no states or laws."""
+        """Return whether an element has values but declares no states or laws.
+
+        An element whose class names a compiler of its own, such as a word that productions rewrite, is read by that
+        compiler as it is, so it is not plain.
+        """
         if not isinstance(component, Element) or isinstance(component, DeclaredElement):
+            return False
+        if type(component)._get_compiler is not BaseElement._get_compiler:
             return False
         if type(component)._get_laws is not Element._get_laws or not _StateInference._get_values(component):
             return False
@@ -393,6 +400,17 @@ class _StateInference:
         return max(order, known)
 
     @staticmethod
+    def _get_densities(law: BaseComponent, named: Mapping[str, str]) -> list[str]:
+        """Return the names of the densities a bilinear form reads.
+
+        A density that two populations meet through, such as the field of an encounter, is a state also when no law
+        changes it, since the form reads it from the states as it reads the density it changes.
+        """
+        if not isinstance(law, BilinearLaw):
+            return []
+        return [named[str(item)] for item in (law.first, law.second) if item is not None and str(item) in named]
+
+    @staticmethod
     def _get_orders(compilation: Compilation) -> tuple[dict[str, float], dict[str, int]]:
         """Return the order and the past values of every value the laws use.
 
@@ -413,6 +431,8 @@ class _StateInference:
         lags: dict[str, int] = {}
         for record in census.records:
             law = record.law
+            for name in _StateInference._get_densities(law, named):
+                orders[name] = _StateInference._get_order(name, 1, orders.get(name))
             for name, steps in _StateInference._get_lags(law, named).items():
                 lags[name] = max(steps, lags.get(name, 0))
             order = (law.order or 1) if isinstance(law, RateLaw | NoiseLaw) else 1

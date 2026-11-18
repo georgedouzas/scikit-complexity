@@ -14,7 +14,6 @@ clusters, where its members support each other, and the grid freezes into a stat
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import SocialImpactSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'social_impact'
 
 system = SocialImpactSystem(random_state=2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Consensus or a surviving minority
@@ -34,7 +33,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for exponent, style in [(2.0, '-'), (3.0, '--')]:
     for seed in range(6):
-        run = simulate(SocialImpactSystem(exponent=exponent, random_state=seed), random_state=0)
+        run = SocialImpactSystem(exponent=exponent, random_state=seed).prepare().simulate(random_state=0)
         trajectory = run
         shares = [
             np.mean(np.asarray(trajectory.get_agents('people', frame).values['opinion']) > 0)

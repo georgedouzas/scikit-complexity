@@ -15,16 +15,18 @@ from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import GroupingInteraction, Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import count, total
-from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array, Pair
 from ...general.agents import ImitationInteraction
 from ._contributor import ContributorElement
@@ -77,6 +79,9 @@ class IteratedPrisonerElement(Element):
         extremes:
             1 to allow only the strategies `0` and `N`, and 0 to allow every strategy from 0 to `N`.
 
+        space:
+            The space with one member per site, or `None` for one member.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import IteratedPrisonerElement
         >>> IteratedPrisonerElement('player').rounds
@@ -87,16 +92,17 @@ class IteratedPrisonerElement(Element):
         self,
         label: str,
         *,
-        strategy: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        rounds: Annotated[int, ParameterSpec(domain=NN)] = 7,
-        reward: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.72,
-        sucker: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-        temptation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        punishment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.01,
-        extremes: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        strategy: Annotated[object, NN] = 0.0,
+        rounds: Annotated[int, NN] = 7,
+        reward: Annotated[object, RealSet.closed_open(0, oo)] = 0.72,
+        sucker: Annotated[object, RealSet.closed_open(0, oo)] = 1.5,
+        temptation: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        punishment: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        mutation: Annotated[object, RealSet.closed(0, 1)] = 0.01,
+        extremes: Annotated[object, RealSet.closed(0, 1)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.strategy = strategy
         self.rounds = rounds
         self.reward = reward
@@ -126,6 +132,9 @@ class PrisonerElement(Element):
         noise:
             The noise of the Fermi imitation.
 
+        space:
+            The space with one member per site, or `None` for one member.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import PrisonerElement
         >>> PrisonerElement('player').temptation
@@ -136,11 +145,12 @@ class PrisonerElement(Element):
         self,
         label: str,
         *,
-        strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
-        temptation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.85,
-        noise: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        strategy: Annotated[object, FiniteEnumeratedSet([0, 1])] = 1.0,
+        temptation: Annotated[object, RealSet.closed_open(0, oo)] = 1.85,
+        noise: Annotated[object, RealSet.open(0, oo)] = 0.1,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.strategy = strategy
         self.temptation = temptation
         self.noise = noise
@@ -170,7 +180,7 @@ class IteratedDilemmaInteraction(Interaction):
         'players'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+    def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
         self.target = target
 
@@ -317,7 +327,7 @@ class PrisonersDilemmaInteraction(Interaction):
         'fermi'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], imitation: str = 'best') -> None:
+    def __init__(self, label: str, *, target: Role, imitation: str = 'best') -> None:
         super().__init__(label)
         self.target = target
         self.imitation = imitation
@@ -431,7 +441,7 @@ class PublicGoodsInteraction(GroupingInteraction):
         'payoff'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], phase: str | None = None) -> None:
+    def __init__(self, label: str, *, target: Role, phase: str | None = None) -> None:
         super().__init__(
             label,
             target=target,
@@ -478,9 +488,15 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import SpatialPrisonersDilemmaSystem
-        >>> SpatialPrisonersDilemmaSystem((10, 10)).prepare().system_.elements[0].prepare().size_
+        >>> SpatialPrisonersDilemmaSystem((10, 10)).prepare().system_.elements[0].strategy.size
         100
     """
 
@@ -512,8 +528,10 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
         share: float = 0.9,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.temptation = temptation
         self.imitation = imitation
@@ -521,24 +539,21 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        players = GroupElement(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
+        players = PrisonerElement(
             'players',
-            element=PrisonerElement,
+            strategy=SpatialPrisonersDilemmaSystem._get_random_strategies(
+                self.shape,
+                self.share,
+                self.random_state,
+            ),
+            temptation=self.temptation,
+            noise=self.noise,
             space=LatticeSpace(tuple(self.shape)),
-            values={
-                'strategy': SpatialPrisonersDilemmaSystem._get_random_strategies(
-                    self.shape,
-                    self.share,
-                    self.random_state,
-                ),
-                'temptation': self.temptation,
-                'noise': self.noise,
-            },
-            on='sites',
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[players],
             interactions=[PrisonersDilemmaInteraction('play', target='players', imitation=self.imitation)],
@@ -572,9 +587,15 @@ class PublicGoodsGameSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import PublicGoodsGameSystem
-        >>> PublicGoodsGameSystem((10, 10)).prepare().system_.elements[0].prepare().size_
+        >>> PublicGoodsGameSystem((10, 10)).prepare().system_.elements[0].strategy.size
         100
     """
 
@@ -593,23 +614,26 @@ class PublicGoodsGameSystem(BaseSystem):
         share: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.synergy = synergy
         self.noise = noise
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         strategies = SpatialPrisonersDilemmaSystem._get_random_strategies(self.shape, self.share, self.random_state)
-        players = GroupElement(
+        players = ContributorElement(
             'players',
-            element=ContributorElement,
+            strategy=strategies,
+            synergy=self.synergy,
+            noise=self.noise,
             space=LatticeSpace(tuple(self.shape), metric='manhattan'),
-            values={'strategy': strategies, 'synergy': self.synergy, 'noise': self.noise},
-            on='sites',
         )
         imitation = ImitationInteraction(
             'imitation',
@@ -620,12 +644,10 @@ class PublicGoodsGameSystem(BaseSystem):
             intensity=1 / self.noise,
             phase='imitate',
         )
-        time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[players],
             interactions=[PublicGoodsInteraction('play', target='players', phase='play'), imitation],
-            time=time,
         )
 
 
@@ -676,9 +698,15 @@ class IteratedLatticeDilemmaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import IteratedLatticeDilemmaSystem
-        >>> IteratedLatticeDilemmaSystem((10, 10)).prepare().system_.elements[0].prepare().size_
+        >>> IteratedLatticeDilemmaSystem((10, 10)).prepare().system_.elements[0].strategy.size
         100
     """
 
@@ -701,8 +729,10 @@ class IteratedLatticeDilemmaSystem(BaseSystem):
         extremes: bool = False,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.rounds = rounds
         self.reward = reward
@@ -713,30 +743,27 @@ class IteratedLatticeDilemmaSystem(BaseSystem):
         self.extremes = extremes
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         if self.extremes:
             strategies = self.rounds * rng.integers(2, size=tuple(self.shape)).astype(float)
         else:
             strategies = rng.integers(self.rounds + 1, size=tuple(self.shape)).astype(float)
-        players = GroupElement(
+        players = IteratedPrisonerElement(
             'players',
-            element=IteratedPrisonerElement,
+            strategy=strategies,
+            rounds=self.rounds,
+            reward=self.reward,
+            sucker=self.sucker,
+            temptation=self.temptation,
+            punishment=self.punishment,
+            mutation=self.mutation,
+            extremes=float(self.extremes),
             space=LatticeSpace(tuple(self.shape), metric='manhattan'),
-            values={
-                'strategy': strategies,
-                'rounds': self.rounds,
-                'reward': self.reward,
-                'sucker': self.sucker,
-                'temptation': self.temptation,
-                'punishment': self.punishment,
-                'mutation': self.mutation,
-                'extremes': float(self.extremes),
-            },
-            on='sites',
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[players],
             interactions=[IteratedDilemmaInteraction('play', target='players')],

@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -13,14 +14,14 @@ from sage.sets.real_set import RealSet
 from scipy import ndimage
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import GroupingInteraction
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.elements import Element
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray, IntArray
+from ._random_pairs import NeighborhoodsInteraction
 
 
 class VillageView(AgentView):
@@ -52,12 +53,21 @@ class VillageElement(Element):
         traits:
             The number of traits `q` of every feature.
 
+        x:
+            The column of the cell of the village on a lattice, one per village or shared.
+
+        y:
+            The row of the cell of the village on a lattice, one per village or shared.
+
+        size:
+            The number of villages, or `None` for one.
+
+        space:
+            The lattice the villages live on, whose axes `x` and `y` make `x` and `y` their cell, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import VillageElement
-        >>> GroupElement(
-        ...     'villages', element=VillageElement, size=4, values={'culture': 0, 'features': 3, 'traits': 5}
-        ... ).size
+        >>> VillageElement('villages', culture=0, features=3, traits=5, size=4).size
         4
     """
 
@@ -67,14 +77,20 @@ class VillageElement(Element):
         self,
         label: str,
         *,
-        culture: Annotated[float, StateSpec(domain=NN)] = 0,
-        features: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        traits: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        culture: Annotated[object, NN] = 0,
+        features: Annotated[float, RealSet.open(0, oo)] = 5.0,
+        traits: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        x: object = 0,
+        y: object = 0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.culture = culture
         self.features = features
         self.traits = traits
+        self.x = x
+        self.y = y
 
     @classmethod
     def _get_view(cls) -> type[VillageView]:
@@ -112,7 +128,7 @@ def cultural_traits(culture: float, features: int, traits: int) -> IntArray:
     return (int(culture) // traits ** np.arange(features, dtype=np.int64)) % traits
 
 
-class CulturalInfluenceInteraction(GroupingInteraction):
+class CulturalInfluenceInteraction(NeighborhoodsInteraction):
     """Cultural influence of Axelrod's system.
 
     Every step every village, in random order, picks a random neighbour and, with probability equal to the fraction of
@@ -130,20 +146,20 @@ class CulturalInfluenceInteraction(GroupingInteraction):
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import CulturalInfluenceInteraction
-        >>> CulturalInfluenceInteraction('influence', target='villages').groups
-        'neighborhood'
+        >>> CulturalInfluenceInteraction('influence', target='villages').target
+        'villages'
     """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         phase: str | None = None,
     ) -> None:
-        super().__init__(label, target=target, groups='neighborhood', phase=phase)
+        super().__init__(label, target=target, phase=phase)
 
-    def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
+    def act_on(self, members: list[AgentView], system: SystemView) -> None:
         """Copy one differing trait of a random neighbour.
 
         The probability is equal to the cultural overlap.
@@ -155,7 +171,7 @@ class CulturalInfluenceInteraction(GroupingInteraction):
             system:
                 The system view of the rule.
         """
-        agent, *neighbors = [member for member in members if isinstance(member, VillageView)]
+        agent, *neighbors = cast(list[VillageView], members)
         if not neighbors:
             return
         neighbor = neighbors[int(system.rng.integers(len(neighbors)))]
@@ -265,9 +281,15 @@ class AxelrodSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import AxelrodSystem
-        >>> AxelrodSystem(5, 4).prepare().system_.elements[0].prepare().size_
+        >>> AxelrodSystem(5, 4).prepare().system_.elements[0].size
         20
     """
 
@@ -275,14 +297,6 @@ class AxelrodSystem(BaseSystem):
     topics = ('culture', 'agents', 'grid', 'social influence', 'phase transition')
     references = ('Axelrod 1997', 'Castellano, Fortunato, and Loreto 2009')
     until = 200
-
-    @staticmethod
-    def _get_culture_observables(system: CompositeSystem) -> list[Observable]:
-        """Return the culture observables of the grid of a system."""
-        if not isinstance(system.space, LatticeSpace):
-            return []
-        width, height = (int(size) for size in np.atleast_1d(system.space.shape))
-        return culture_observables(width, height)
 
     def __init__(
         self,
@@ -293,40 +307,38 @@ class AxelrodSystem(BaseSystem):
         traits: int = 10,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.features = features
         self.traits = traits
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
         digits = rng.integers(self.traits, size=(size, self.features))
         cultures = (digits * self.traits ** np.arange(self.features)).sum(axis=1).astype(float)
-        locations = [(x, y) for x in range(self.width) for y in range(self.height)]
-        villages = GroupElement(
+        columns, rows = np.divmod(np.arange(size), self.height)
+        villages = VillageElement(
             'villages',
-            element=VillageElement,
+            culture=cultures,
+            features=self.features,
+            traits=self.traits,
+            x=columns,
+            y=rows,
             size=size,
-            values={'culture': cultures, 'features': self.features, 'traits': self.traits},
-            location=locations,
+            space=LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan', capacity=1),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[villages],
             interactions=[CulturalInfluenceInteraction('influence', target='villages')],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan', capacity=1),
         )
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the components are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        settings['observables'] = AxelrodSystem._get_culture_observables(self._get_pass_parameters())
-        return settings
+        if not self.observables_:
+            self.observables_ = tuple(culture_observables(self.width, self.height))

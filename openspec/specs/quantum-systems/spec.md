@@ -73,7 +73,7 @@ instants of physical time separated by `dt`. Parameters SHALL change between fra
 `simulate`. The trajectory SHALL record the expectation observables, the energy, and the complex state at every frame.
 
 #### Scenario: Run by name
-- **WHEN** a user calls `simulate(QuantumHeisenbergSystem(), until=2.0, dt=0.1)`
+- **WHEN** a user calls `QuantumHeisenbergSystem().prepare().simulate(until=2.0, dt=0.1)`
 - **THEN** the trajectory has 21 frames, its state at each frame is a complex vector of the system's dimension, and its
   observables hold the expectation of `S^z` of every site at every frame
 

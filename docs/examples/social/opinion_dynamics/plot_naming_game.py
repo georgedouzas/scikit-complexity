@@ -13,7 +13,6 @@ competing words, then collapse onto a single shared name.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import NamingGameSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'naming_game'
 
 system = NamingGameSystem(n_agents=50)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=40, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=40, observers=[observer], random_state=0)
 
 # %%
 # Time to consensus
@@ -33,7 +32,7 @@ trajectory = simulate(system, until=40, observers=[observer], random_state=0)
 
 def consensus_games(n_agents, seed):
     """Return the number of games, steps times agents, until every inventory holds the same single word."""
-    run = simulate(NamingGameSystem(n_agents=n_agents), until=200, random_state=seed)
+    run = NamingGameSystem(n_agents=n_agents).prepare().simulate(until=200, random_state=seed)
     trajectory = run
     for frame in range(1, len(trajectory.times)):
         words = trajectory.get_agents('namers', frame).values['words']

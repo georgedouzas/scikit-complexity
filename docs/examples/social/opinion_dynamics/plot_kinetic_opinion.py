@@ -14,7 +14,6 @@ confidence it reaches a consensus and the variance falls to zero.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem, opinion_grid
 
@@ -34,7 +33,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 system = KineticOpinionSystem()
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Consensus and polarisation
@@ -47,7 +46,7 @@ trajectory = simulate(system, observers=[observer])
 def final_distribution(confidence, repulsion):
     """Return the final distribution and variance of the opinions for a confidence and a repulsion."""
     system_system = KineticOpinionSystem(confidence=confidence, repulsion=repulsion)
-    run = simulate(system_system, dt=60.0)
+    run = system_system.prepare().simulate(dt=60.0)
     return run.get_values('opinions.x')[-1], run.get_values('opinion_variance')[-1]
 
 

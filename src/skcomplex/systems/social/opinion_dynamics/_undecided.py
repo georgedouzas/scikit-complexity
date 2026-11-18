@@ -6,6 +6,7 @@ They live on a network and in the mean-field flows between them.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -16,13 +17,14 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.specs import VisualSpec
+from ....core.systems import BaseSystem, System
 
 
 class UndecidedView(AgentView):
@@ -50,6 +52,9 @@ class UndecidedElement(Element):
         sensitivity:
             The sensitivity `beta` of the opinion to the sum of the opinions of the neighbours.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import UndecidedElement
         >>> UndecidedElement('voter').sensitivity
@@ -62,10 +67,11 @@ class UndecidedElement(Element):
         self,
         label: str,
         *,
-        opinion: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([-1, 0, 1]))] = 0.0,
-        sensitivity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        opinion: Annotated[object, FiniteEnumeratedSet([-1, 0, 1])] = 0.0,
+        sensitivity: Annotated[object, RealSet.closed_open(0, oo)] = 2.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.opinion = opinion
         self.sensitivity = sensitivity
 
@@ -117,13 +123,13 @@ class UndecidedFlowsElement(Element):
         self,
         label: str,
         *,
-        against: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='agents')] = 0.0,
-        undecided: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='agents')] = 100.0,
-        support: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='agents')] = 0.0,
-        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        gamma: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        eta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        drive: Annotated[object, ParameterSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        against: Annotated[object, RealSet.closed_open(0, oo), Quantity('agents')] = 0.0,
+        undecided: Annotated[object, RealSet.closed_open(0, oo), Quantity('agents')] = 100.0,
+        support: Annotated[object, RealSet.closed_open(0, oo), Quantity('agents')] = 0.0,
+        omega: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        gamma: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        eta: Annotated[object, RealSet.closed_open(0, oo)] = 0.02,
+        drive: Annotated[object, FiniteEnumeratedSet([0, 1])] = 1.0,
     ) -> None:
         super().__init__(label)
         self.against = against
@@ -163,9 +169,15 @@ class ThreeStateOpinionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import ThreeStateOpinionSystem
-        >>> ThreeStateOpinionSystem(20).prepare().system_.elements[0].prepare().size_
+        >>> ThreeStateOpinionSystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -190,8 +202,10 @@ class ThreeStateOpinionSystem(BaseSystem):
         sensitivity: float = 2.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.degree = degree
         self.sensitivity = sensitivity
@@ -208,15 +222,16 @@ class ThreeStateOpinionSystem(BaseSystem):
             return -1.0
         return 1.0 if draw < against + support else 0.0
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         graph = nx.random_regular_graph(self.degree, self.n_agents, seed=int(rng.integers(2**31)))
-        voters = GroupElement(
+        voters = UndecidedElement(
             'voters',
-            element=UndecidedElement,
+            opinion=rng.choice([-1.0, 0.0, 1.0], self.n_agents),
+            sensitivity=self.sensitivity,
             size=self.n_agents,
-            values={'opinion': rng.choice([-1.0, 0.0, 1.0], self.n_agents), 'sensitivity': self.sensitivity},
         )
         redraw = MapInteraction(
             'redraw',
@@ -226,7 +241,7 @@ class ThreeStateOpinionSystem(BaseSystem):
             schedule='random-sequential',
             form='agent',
         )
-        return CompositeSystem(self.label, elements=[voters], interactions=[redraw], space=NetworkSpace(graph))
+        self.system_ = System(self.label, elements=[voters], interactions=[redraw], space=NetworkSpace(graph))
 
 
 def _get_critical_size(s: SimpleNamespace) -> Expression:
@@ -271,6 +286,12 @@ class UndecidedFlowsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import UndecidedFlowsSystem
         >>> UndecidedFlowsSystem(driven=False).prepare().system_.elements[0].drive
@@ -293,8 +314,10 @@ class UndecidedFlowsSystem(BaseSystem):
         eta: float = 0.02,
         driven: bool = True,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.omega = omega
         self.gamma = gamma
@@ -321,8 +344,9 @@ class UndecidedFlowsSystem(BaseSystem):
         """Return the flow of agents for into the undecided, `eta B C^drive`."""
         return s.source.eta * s.source.support * s.source.undecided**s.source.drive
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         population = UndecidedFlowsElement(
             'population',
             undecided=self.n_agents,
@@ -345,4 +369,4 @@ class UndecidedFlowsSystem(BaseSystem):
                 ('support', 'undecided', self._get_doubting_support, 'doubting_support'),
             ],
         )
-        return CompositeSystem(self.label, elements=[population], interactions=[flows])
+        self.system_ = System(self.label, elements=[population], interactions=[flows])
