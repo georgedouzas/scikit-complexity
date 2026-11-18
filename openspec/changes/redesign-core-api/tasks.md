@@ -89,6 +89,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [x] 5.7.1 Every social system on the new base with identical results, interactions setting `laws_`, and plain elements.
   - [ ] 5.7.2 The remaining old parts: the agent recipes' groups, symbolic groupings, pair potentials, position vectors, and the groups of growing networks.
 - [x] 5.8 Rewrite the experiment functions in `src/skcomplex/core/experiments` to clone, set parameters, prepare, and simulate, preparing once when only initial or random states vary. Verify with tests that an ensemble prepares once and a sweep leaves the user's system unchanged.
+- [ ] 5.9 Replace the last old parts left by the waves, so phase 6 deletes nothing still in use: the inline `RateInteraction`, `MapInteraction`, `TopologyInteraction`, and `SamplingInteraction` spots with the one-off `Interaction`, `TransferLaw`, `Source`, `Sink`, and `BoundaryLaw` with labelled flows, `ConservationInteraction`, and the gaps found: noise on `x'`, a law reading an observable on a plain value, a fixed hyperedge size, a subshift in `Annotated` for the automaton analysis, role domains of system rules, the Cayley drawing of plain elements, `reduce='count'` over grown groups, the Elman units and the reservoir lags. Verify with `rg` finding none of the old classes in `src/skcomplex/systems` and the tests of every field.
 
 ## 6. The old API goes
 
