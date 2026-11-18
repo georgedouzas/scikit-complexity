@@ -25,6 +25,7 @@ from ...types import Array, Indices
 from .._utils import binding_of, bound_labels, declarations_of, symbol, symbols_of
 from ..enums import ReadKind
 from ..problems import BaseProblemSpec, ProblemSpec, RunStateSpec
+from ..problems._declarations_spec import ACTIVE
 from ..problems._drive_kernel import DriveKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
@@ -591,8 +592,20 @@ class ObservableEvaluator:
             raise ValidationError(error_msg)
         return entry
 
+    def _get_active(self, group: str, x: Array, p: Array, size: int) -> Array:
+        """Return which of the `size` rows of a group hold a member, every row of a group that does not grow."""
+        name = f'{group}.{ACTIVE}'
+        for layout, values in ((self.problem.states, x), (self.problem.parameters, p)):
+            active = np.asarray(layout.read(values, name)).reshape(-1) > 0 if layout.has(name) else None
+            if active is not None and active.size == size:
+                return active
+        return np.ones(size, dtype=bool)
+
     def _get_reduction_getter(self, scope: str, path: str, observable: Observable) -> ObservableFunction:
-        """Return the getter of a reduction over a group of elements or agents."""
+        """Return the getter of a reduction over a group of elements or agents.
+
+        A group that grows reduces only the rows that hold a member, so a count over it counts its members.
+        """
         group = self._join(scope, observable.group or '')
         element = next((item for item in self.problem.elements if item.path == group), None)
         if element is None:
@@ -609,10 +622,8 @@ class ObservableEvaluator:
             def read_variable(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
                 del t, done
                 values = np.asarray(layout.read(x if is_state else p, name))
-                return ReductionKernel._reduce_values(
-                    values if element.members is not None else values[np.newaxis],
-                    observable.reduce,
-                )
+                rows = values if element.members is not None else values[np.newaxis]
+                return ReductionKernel._reduce_values(rows[self._get_active(group, x, p, len(rows))], observable.reduce)
 
             return read_variable
         size = element.members or 1
@@ -620,7 +631,7 @@ class ObservableEvaluator:
             if observable.reduce != 'count':
                 error_msg = f'Observable {path} reduces {group} with {observable.reduce!r} but names no variable.'
                 raise ValidationError(error_msg)
-            return lambda t, x, p, done: float(size)
+            return lambda t, x, p, done: float(self._get_active(group, x, p, size).sum())
         members: dict[Expression, _ReadSpec] = {}
         for name in names.values():
             entry = self._get_entry(name)
@@ -650,7 +661,7 @@ class ObservableEvaluator:
 
         def read_expression(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             values = np.broadcast_to(np.asarray(evaluate(t, x, reductions.extend(t, x, p), done)), (size,))
-            return ReductionKernel._reduce_values(values, observable.reduce)
+            return ReductionKernel._reduce_values(values[self._get_active(group, x, p, size)], observable.reduce)
 
         return read_expression
 
