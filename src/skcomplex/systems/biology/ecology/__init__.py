@@ -46,7 +46,14 @@ from ._instability import (
     ResidentMapInteraction,
     UnstablePopulationsElement,
 )
-from ._meadow import CowElement, GrazingInteraction, HerdingInteraction, MeadowCapacitySystem, PastureElement
+from ._meadow import (
+    CowElement,
+    GrazingInteraction,
+    HerdingInteraction,
+    MeadowCapacitySystem,
+    PastureElement,
+    PastureRegrowthInteraction,
+)
 from ._microbial_communities import (
     GeneralizedLotkaVolterraInteraction,
     GeneralizedLotkaVolterraSystem,
@@ -128,6 +135,7 @@ __all__: list[str] = [
     'OrganismElement',
     'ParasitismInteraction',
     'PastureElement',
+    'PastureRegrowthInteraction',
     'PenaeidShrimpSystem',
     'PioneerGrowthInteraction',
     'PlantElement',
