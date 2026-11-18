@@ -12,7 +12,7 @@ from ...specs._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class Tensor(BaseSpec):
-    """The symmetry of a value that holds a square matrix, such as an order tensor.
+    """A symmetry of a value that holds a square matrix, such as an order tensor.
 
     It is written in `Annotated` beside the allowed values, such as `Q: Annotated[object, Tensor('traceless')] = 0.0`.
     The value holds the independent components of the matrix, row after row, as `Q_xx` and `Q_xy` of a traceless
