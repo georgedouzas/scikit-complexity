@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction, MapInteraction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -298,7 +299,11 @@ class ExchangeRatesSystem(BaseSystem):
         There is one at every stage.
         """
         return [
-            MapInteraction(f'{state}_adjustment', target='home', state=state, function=function)
+            Interaction(
+                f'{state}_adjustment',
+                roles={'target': 'home'},
+                laws=lambda s, state=state, function=function: [UpdateLaw(getattr(s.target, state), function(s))],
+            )
             for state, function in (
                 ('PH', ExchangeRatesSystem._get_home_price),
                 ('E', ExchangeRatesSystem._exchange_rate),

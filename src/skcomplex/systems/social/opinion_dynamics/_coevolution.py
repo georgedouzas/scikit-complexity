@@ -17,7 +17,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import neighbors, uniform, where
 from ....core.components.spaces import NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -281,7 +282,11 @@ class CoevolvingVoterSystem(BaseSystem):
         )
         ties = GroupElement('ties', element=Element, on='edges', variable=True)
         interactions = [
-            MapInteraction('degree', target='voters', state='degree', function=CoevolvingVoterSystem._count_neighbors),
+            Interaction(
+                'degree',
+                roles={'target': 'voters'},
+                laws=lambda s: [UpdateLaw(s.target.degree, CoevolvingVoterSystem._count_neighbors(s))],
+            ),
             choice,
             *(
                 SeparationInteraction(f'separation_{keep}_{int(opinion)}', voters='voters', keep=keep, opinion=opinion)
@@ -327,7 +332,11 @@ class CoevolvingVoterSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         space = NetworkSpace(nx.gnp_random_graph(self.n_voters, self.mean_degree / (self.n_voters - 1), seed=rng))
         opinions = (rng.random(self.n_voters) < FIRST_OPINION_SHARE).astype(float)
-        copying = MapInteraction('copying', target='voters', state='opinion', function=self._copy_discordant)
+        copying = Interaction(
+            'copying',
+            roles={'target': 'voters'},
+            laws=lambda s: [UpdateLaw(s.target.opinion, self._copy_discordant(s))],
+        )
         self.system_ = CoevolvingVoterSystem._get_coevolving(
             self.label,
             CoevolvingVoterElement,
@@ -427,7 +436,11 @@ class JoinAClubSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         space = NetworkSpace(nx.gnp_random_graph(self.n_agents, self.mean_degree / (self.n_agents - 1), seed=rng))
         opinions = (rng.random(self.n_agents) < FIRST_OPINION_SHARE).astype(float)
-        choice = MapInteraction('choice', target='voters', state='opinion', function=self._choose_club)
+        choice = Interaction(
+            'choice',
+            roles={'target': 'voters'},
+            laws=lambda s: [UpdateLaw(s.target.opinion, self._choose_club(s))],
+        )
         self.system_ = CoevolvingVoterSystem._get_coevolving(
             self.label,
             ClubMemberElement,

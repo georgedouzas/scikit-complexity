@@ -18,7 +18,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction, MapInteraction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import total
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -294,7 +295,11 @@ class EigenQuasispeciesSystem(BaseSystem):
             MasterSequenceElement('master', x=1.0, u=self.u, sigma=self.sigma),
             *(GenotypeClassElement(label) for label in labels[1:]),
         ]
-        selection = MapInteraction('selection', target='master', state='x', function=self._replicate_master)
+        selection = Interaction(
+            'selection',
+            roles={'target': 'master'},
+            laws=lambda s: [UpdateLaw(s.target.x, self._replicate_master(s))],
+        )
         mutations = [
             MapInteraction(
                 f'mutation_{target}',
