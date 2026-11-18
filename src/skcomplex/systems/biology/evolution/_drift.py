@@ -6,28 +6,27 @@ The frequencies are in the diffusion limit.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BoundaryLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class AlleleFrequencyElement(Element):
-    """Frequency of an allele under selection and genetic drift, Kimura's diffusion.
-
-    The population is large.
-
-    The frequency follows the Itô equation `dx = N s x (1 - x) dt + sqrt(2 x (1 - x)) dW`, the continuum limit of the
-    Moran process with the scaled selection `N s`, in units of `N` generations. The frequencies 0 and 1, loss and
-    fixation, are absorbing, and a boundary keeps the frequency between them.
+    """Frequency `x` of an allele in a population, with the scaled selection `Ns` of the allele.
 
     Args:
         label:
@@ -39,10 +38,47 @@ class AlleleFrequencyElement(Element):
         Ns:
             The scaled selection, the population size times the excess fitness.
 
+        size:
+            The number of replicate populations, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import AlleleFrequencyElement
         >>> AlleleFrequencyElement('allele', Ns=2.0).Ns
         2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: Annotated[float, RealSet.closed(0, 1)] = 0.5,
+        Ns: float = 0.0,
+        size: int | None = None,
+    ) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+        self.Ns = Ns
+
+
+class KimuraDriftInteraction(Interaction):
+    """Selection and genetic drift of an allele frequency, Kimura's diffusion.
+
+    The population is large. The frequency follows the Itô equation `dx = N s x (1 - x) dt + sqrt(2 x (1 - x)) dW`,
+    the continuum limit of the Moran process with the scaled selection `N s` of the target, in units of `N`
+    generations. The frequencies 0 and 1, loss and fixation, are absorbing, and a boundary keeps the frequency between
+    them.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the alleles, whose values are `x` and `Ns`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import KimuraDriftInteraction
+        >>> KimuraDriftInteraction('drift', target='alleles').target
+        'alleles'
     """
 
     law_classes = (
@@ -51,34 +87,26 @@ class AlleleFrequencyElement(Element):
         RateLaw,
     )
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.5,
-        Ns: Annotated[float, ParameterSpec()] = 0.0,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
-        self.x = x
-        self.Ns = Ns
+        self.target = target
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the selection, the drift, and the absorbing boundaries of the frequency.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the selection, the drift, and the absorbing boundaries of the frequency.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        variance = clip(s.x * (1 - s.x), low=0)
-        return [
-            RateLaw(s.x, s.Ns * variance),
-            NoiseLaw(s.x, sqrt(2 * variance)),
-            BoundaryLaw(s.x, clip(s.x, low=0, high=1)),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, Ns = context.target.x, context.target.Ns
+            variance = clip(x * (1 - x), low=0)
+            self.laws_ = [
+                RateLaw(x, Ns * variance),
+                NoiseLaw(x, sqrt(2 * variance)),
+                BoundaryLaw(x, clip(x, low=0, high=1)),
+            ]
 
 
 class KimuraDiffusionSystem(BaseSystem):
@@ -104,9 +132,15 @@ class KimuraDiffusionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import KimuraDiffusionSystem
-        >>> KimuraDiffusionSystem(replicates=10).prepare().system_.elements[0].prepare().size_
+        >>> KimuraDiffusionSystem(replicates=10).prepare().system_.elements[0].size
         10
     """
 
@@ -115,7 +149,6 @@ class KimuraDiffusionSystem(BaseSystem):
     references = ('Kimura 1955', 'Bertin 2021')
     until = 10.0
     dt = 0.05
-    solver = EulerMaruyamaSolver(dt=0.001)
 
     def __init__(
         self,
@@ -124,18 +157,26 @@ class KimuraDiffusionSystem(BaseSystem):
         Ns: float = 2.0,
         replicates: int = 500,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.Ns = Ns
         self.replicates = replicates
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of replicate populations."""
-        alleles = GroupElement(
-            'alleles',
-            element=AlleleFrequencyElement,
-            size=self.replicates,
-            values={'x': self.x, 'Ns': self.Ns},
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of replicate populations.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        alleles = AlleleFrequencyElement('alleles', x=self.x, Ns=self.Ns, size=self.replicates)
+        self.system_ = System(
+            self.label,
+            elements=[alleles],
+            interactions=[KimuraDriftInteraction('drift', target='alleles')],
+            solver=EulerMaruyamaSolver(dt=0.001),
         )
-        return CompositeSystem(self.label, elements=[alleles])
