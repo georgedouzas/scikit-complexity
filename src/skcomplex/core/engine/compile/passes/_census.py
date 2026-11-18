@@ -1051,8 +1051,8 @@ class CensusPass(BasePass):
         for law in laws:
             if id(law) in programs:
                 continue
-            sequence = not isinstance(law.value, Expression) and isinstance(law.value, Sequence)
-            if isinstance(law, ObjectiveLaw) and law.controls is None and sequence:
+            objective = isinstance(law, ObjectiveLaw) and law.controls is None
+            if objective and not isinstance(law.value, Expression) and isinstance(law.value, Sequence):
                 error_msg = (
                     f'The objective of {owner} is a sequence of values, which is minimised in order as a linear '
                     'program, so every value is linear in the targets or a sum of their absolute values.'
