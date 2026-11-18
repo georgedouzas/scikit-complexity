@@ -10,8 +10,8 @@ import inspect
 from abc import abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from types import SimpleNamespace
-from typing import Annotated, ClassVar, TypeAliasType, get_args, get_origin
+from types import NoneType, SimpleNamespace, UnionType
+from typing import Annotated, ClassVar, TypeAliasType, Union, get_args, get_origin
 
 import numpy as np
 from sklearn.base import BaseEstimator
@@ -136,8 +136,17 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
 
         A short annotation such as `State[float]` or `Role` stands for the `Annotated` form it aliases, and any other
         annotation stands for itself. A short annotation inside `Annotated`, such as `Annotated[Role, 'boolean']`,
-        stands for the form it aliases with the further metadata added.
+        stands for the form it aliases with the further metadata added. A role that may be `None`, such as
+        `Role | None`, stands for an optional role.
         """
+        others = [item for item in get_args(annotation) if item is not NoneType]
+        if get_origin(annotation) in (UnionType, Union) and len(others) == 1 < len(get_args(annotation)):
+            inner = BaseComponent._get_annotated(others[0])
+            if get_origin(inner) is not Annotated:
+                return annotation
+            base, *metadata = get_args(inner)
+            optional = [replace(item, optional=True) if isinstance(item, RoleSpec) else item for item in metadata]
+            return Annotated[base | None, *optional]
         if get_origin(annotation) is Annotated:
             inner, *extra = get_args(annotation)
             aliased = BaseComponent._get_annotated(inner)

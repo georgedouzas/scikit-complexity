@@ -9,11 +9,12 @@ from sklearn.base import clone
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement, Element
 from skcomplex.core.components.interactions import BaseInteraction, Interaction
-from skcomplex.core.components.laws import BaseLaw
+from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace, BaseTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, Role, RoleSpec, StateSpec
+from skcomplex.core.systems import System
 
 
 class DoublingComponent(BaseComponent):
@@ -163,3 +164,29 @@ def test_get_specs_reads_the_domains_written_after_a_role():
     specs = VoteInteraction._get_specs()
     assert specs['voters'] == RoleSpec(domains=('boolean',))
     assert specs['other'] == RoleSpec()
+
+
+class FeedInteraction(Interaction):
+    """Decay of a stock fed by an optional source."""
+
+    def __init__(self, label: str, *, target: Role, source: Role | None = None, k: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
+        self.k = k
+
+    def _prepare(self, context=None):
+        """Set the decay, fed by the source when one is bound."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            feed = 0 if self.source is None else context.source.x
+            self.laws_ = [RateLaw(context.target.x.diff(context.t), -context.k * context.target.x + feed)]
+
+
+@pytest.mark.parametrize(('source', 'expected'), [(None, '-feed.k*a.x'), ('b', '-feed.k*a.x + b.x')])
+def test_a_role_typed_role_or_none_is_optional(source, expected):
+    """Test that `Role | None` is an optional role, which binds an element or nothing."""
+    assert FeedInteraction._get_specs()['source'] == RoleSpec(optional=True)
+    elements = [Element('a', values={'x': 1.0}), Element('b', values={'x': 2.0})]
+    system = System(elements=elements, interactions=[FeedInteraction('feed', target='a', source=source)]).prepare()
+    assert system.equations_['a.x'] == expected
